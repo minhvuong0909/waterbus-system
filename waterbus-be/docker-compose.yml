@@ -1,0 +1,30 @@
+version: '3.8'
+
+# ==============================================================================
+# Hạ tầng Local cho Smart Waterbus Backend (SQL Server 2022 + Redis 7)
+# ==============================================================================
+services:
+  # CSDL SQL Server 2022: Lưu trữ toàn bộ dữ liệu quan hệ, hỗ trợ ACID Transaction
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: waterbus_sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Waterbus@StrongP@ss2026!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql/data
+    restart: unless-stopped
+
+  # Redis 7 Alpine: Dùng cho Distributed Cache, Khóa phân tán RedLock chống Overselling
+  redis:
+    image: redis:7-alpine
+    container_name: waterbus_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  sqlserver_data:
