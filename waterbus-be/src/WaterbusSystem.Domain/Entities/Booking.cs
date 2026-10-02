@@ -35,8 +35,14 @@ public class Booking : BaseEntity
     public string? Notes { get; set; }
 
     /// <summary>
+    /// Mã băm bảo mật dùng để xác thực quyền quản lý đơn hàng của khách vãng lai (Guest Access qua header X-Guest-Token)
+    /// </summary>
+    public string? ManageOrderTokenHash { get; set; }
+
+    /// <summary>
     /// Danh sách các vé thuộc đơn đặt này
     /// </summary>
+
     public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
 
     /// <summary>
