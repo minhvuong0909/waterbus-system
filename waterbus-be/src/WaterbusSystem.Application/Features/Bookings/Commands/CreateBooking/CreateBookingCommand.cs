@@ -1,8 +1,9 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using WaterbusSystem.Application.Common.Exceptions;
+using ValidationException = WaterbusSystem.Application.Common.Exceptions.ValidationException;
 using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Domain.Common;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
@@ -13,18 +14,22 @@ namespace WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
 /// DTO trả về sau khi tạo đơn đặt và giữ chỗ thành công
 /// </summary>
 public record BookingResponseDto(
-    Guid BookingId, 
-    string BookingCode, 
-    decimal TotalAmount, 
-    string Status, 
+    Guid BookingId,
+    string BookingCode,
+    decimal TotalAmount,
+    string Status,
     int HoldDurationSeconds);
 
 /// <summary>
-/// Command yêu cầu tạo đơn đặt và giữ ghế tạm thời trong 10 phút
+/// Command yêu cầu tạo đơn đặt và giữ ghế tạm thời trong 10 phút.
+/// Hỗ trợ bán vé theo chặng (Segment-based): khách chỉ giữ chỗ cho đoạn [BoardingStationId, DisembarkingStationId),
+/// cho phép cùng 1 ghế được bán lại cho hành khách khác ở đoạn chặng không giao thoa trên cùng 1 chuyến.
 /// </summary>
 public record CreateBookingCommand(
     Guid TripId,
     List<Guid> SeatIds,
+    Guid BoardingStationId,
+    Guid DisembarkingStationId,
     string CustomerName,
     string CustomerEmail,
     string CustomerPhone) : IRequest<BookingResponseDto>;
@@ -39,9 +44,18 @@ public class CreateBookingCommandValidator : AbstractValidator<CreateBookingComm
         RuleFor(x => x.TripId)
             .NotEmpty().WithMessage("Mã chuyến tàu không được để trống.");
 
+        RuleFor(x => x.BoardingStationId)
+            .NotEmpty().WithMessage("Bạn phải chọn bến lên tàu.");
+
+        RuleFor(x => x.DisembarkingStationId)
+            .NotEmpty().WithMessage("Bạn phải chọn bến xuống tàu.")
+            .NotEqual(x => x.BoardingStationId).WithMessage("Bến lên và bến xuống không được trùng nhau.");
+
         RuleFor(x => x.SeatIds)
             .NotEmpty().WithMessage("Bạn phải chọn ít nhất một ghế.")
-            .Must(seats => seats.Count <= 10).WithMessage("Mỗi lượt đặt tối đa 10 ghế.");
+            .Must(seats => seats.Count <= 10).WithMessage("Mỗi lượt đặt tối đa 10 ghế.")
+            .Must(seats => seats.Distinct().Count() == seats.Count)
+                .WithMessage("Danh sách ghế không được chứa ghế trùng lặp.");
 
         RuleFor(x => x.CustomerName)
             .NotEmpty().WithMessage("Họ và tên khách hàng không được để trống.")
@@ -59,25 +73,38 @@ public class CreateBookingCommandValidator : AbstractValidator<CreateBookingComm
 
 /// <summary>
 /// Handler xử lý nghiệp vụ đặt vé với 2 LỚP PHÒNG THỦ CHỐNG DOUBLE-BOOKING / OVERSELLING:
-/// - Lớp 1 (RAM/Cache): Redis RedLock khóa tài nguyên ghế tạm thời
-/// - Lớp 2 (Database): EF Core RowVersion Optimistic Concurrency
+/// - Lớp 1 (RAM/Cache): Redis RedLock khóa tài nguyên ghế tạm thời (toàn chuyến, không phân biệt chặng -
+///   đơn giản và an toàn hơn so với khóa theo từng chặng, đổi lại concurrency thấp hơn một chút)
+/// - Lớp 2 (Database): Thuật toán kiểm tra đụng độ chặng (Segment Overlap) qua ISeatAvailabilityService
+///   dựa trên bảng SeatReservation, cho phép bán lại ghế nhiều lần trên cùng 1 chuyến nếu khác chặng
 /// </summary>
 public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand, BookingResponseDto>
 {
     private readonly IApplicationDbContext _context;
     private readonly IDistributedLockService _lockService;
+    private readonly ISeatAvailabilityService _seatAvailabilityService;
 
-    public CreateBookingCommandHandler(IApplicationDbContext context, IDistributedLockService lockService)
+    public CreateBookingCommandHandler(
+        IApplicationDbContext context,
+        IDistributedLockService lockService,
+        ISeatAvailabilityService seatAvailabilityService)
     {
         _context = context;
         _lockService = lockService;
+        _seatAvailabilityService = seatAvailabilityService;
     }
 
     public async Task<BookingResponseDto> Handle(CreateBookingCommand request, CancellationToken cancellationToken)
     {
         // =========================================================================
         // LỚP PHÒNG THỦ 1: REDIS REDLOCK (Khóa phân tán ở tầng Cache/RAM)
-        // Ngăn chặn 2 khách hàng gửi request giữ cùng một ghế trong cùng 1 thời điểm
+        // Đây CHỈ là mutex ngắn hạn bảo vệ đoạn "kiểm tra đụng độ chặng rồi ghi DB" (critical section)
+        // khỏi race condition khi 2 request cùng seat đến gần như đồng thời - KHÔNG phải cơ chế giữ chỗ
+        // 10 phút (việc đó do Booking.CreatedAt + ExpiredBookingCleanupService + segment-overlap đảm nhiệm).
+        // Vì vậy lock luôn được giải phóng ngay sau khối try (finally), và TTL chỉ cần đủ ngắn để phòng
+        // trường hợp tiến trình crash giữa chừng, KHÔNG đặt bằng đúng 10 phút như trước đây - nếu không,
+        // ghế sẽ bị khóa cứng toàn bộ 10 phút cho MỌI chặng khác dù không hề giao thoa, triệt tiêu tác dụng
+        // của tính năng bán lại ghế theo chặng (Segment Overlap).
         // =========================================================================
         var acquiredLocks = new List<IAsyncDisposable>();
 
@@ -87,17 +114,15 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             {
                 var lockKey = $"lock:trip:{request.TripId}:seat:{seatId}";
 
-                // Thử lấy lock trong 2 giây, TTL giữ chỗ 10 phút (600 giây), retry mỗi 100ms
                 var lockHandle = await _lockService.AcquireLockAsync(
                     lockKey,
-                    expiryTime: TimeSpan.FromMinutes(10),
+                    expiryTime: TimeSpan.FromSeconds(30),
                     waitTime: TimeSpan.FromSeconds(2),
                     retryTime: TimeSpan.FromMilliseconds(100),
                     cancellationToken);
 
                 if (lockHandle == null)
                 {
-                    // Lớp 1 kích hoạt: Ghế đang bị giữ bởi phiên khác, dừng ngay không cho chạm CSDL
                     throw new SeatAlreadyBookedException(seatId.ToString());
                 }
 
@@ -105,76 +130,164 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             }
 
             // =========================================================================
-            // LỚP PHÒNG THỦ 2: EF CORE OPTIMISTIC CONCURRENCY (Kiểm tra và lưu vào CSDL)
+            // Nạp Trip kèm Route + 2 đầu bến để xác định chiều di chuyển
             // =========================================================================
             var trip = await _context.Trips
-                .Include(t => t.Route)
+                .Include(t => t.Route!).ThenInclude(r => r.DepartureStation)
+                .Include(t => t.Route!).ThenInclude(r => r.ArrivalStation)
                 .FirstOrDefaultAsync(t => t.Id == request.TripId && !t.IsDeleted, cancellationToken)
                 ?? throw new NotFoundException(nameof(Trip), request.TripId);
 
-            // Kiểm tra ghế đã tồn tại vé hợp lệ hoặc đã bán chưa
-            var soldTickets = await _context.Tickets
-                .Where(t => t.TripId == request.TripId && 
-                            request.SeatIds.Contains(t.SeatId) && 
-                            (t.Status == TicketStatus.Valid || t.Status == TicketStatus.CheckedIn))
-                .ToListAsync(cancellationToken);
+            var route = trip.Route
+                ?? throw new NotFoundException(nameof(Domain.Entities.Route), trip.RouteId);
+            var departureStation = route.DepartureStation
+                ?? throw new NotFoundException(nameof(Station), route.DepartureStationId);
+            var arrivalStation = route.ArrivalStation
+                ?? throw new NotFoundException(nameof(Station), route.ArrivalStationId);
 
-            if (soldTickets.Count != 0)
+            // =========================================================================
+            // Xác định chặng [BoardingStopOrder, DisembarkingStopOrder) theo chiều di chuyển thực tế của Trip.
+            // GIẢ ĐỊNH KIẾN TRÚC: hệ thống hiện chưa có entity mô tả danh sách bến trung gian theo thứ tự
+            // riêng cho từng Route/Trip (không có RouteStop/TripStop). Do đó ta dùng Station.OrderIndex
+            // (thứ tự toàn cục dọc tuyến sông duy nhất) làm StopOrder, với điều kiện: Trip được xem là
+            // dừng tuần tự ở MỌI bến có OrderIndex nằm giữa Departure và Arrival của Route.
+            // Nếu sau này hệ thống có nhiều tuyến sông độc lập không cùng 1 trục OrderIndex, cần bổ sung
+            // entity RouteStop(RouteId, StationId, StopOrder) và thay thế toàn bộ đoạn tính toán dưới đây.
+            // =========================================================================
+            var boardingStation = await _context.Stations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == request.BoardingStationId && !s.IsDeleted, cancellationToken)
+                ?? throw new NotFoundException(nameof(Station), request.BoardingStationId);
+
+            var disembarkingStation = await _context.Stations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == request.DisembarkingStationId && !s.IsDeleted, cancellationToken)
+                ?? throw new NotFoundException(nameof(Station), request.DisembarkingStationId);
+
+            var directionSign = arrivalStation.OrderIndex >= departureStation.OrderIndex ? 1 : -1;
+            var minOrder = Math.Min(departureStation.OrderIndex, arrivalStation.OrderIndex);
+            var maxOrder = Math.Max(departureStation.OrderIndex, arrivalStation.OrderIndex);
+
+            if (boardingStation.OrderIndex < minOrder || boardingStation.OrderIndex > maxOrder ||
+                disembarkingStation.OrderIndex < minOrder || disembarkingStation.OrderIndex > maxOrder)
             {
-                throw new ConcurrencyException("Một trong các ghế bạn chọn đã được bán trước đó!");
+                throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new(nameof(request.BoardingStationId), "Bến lên/xuống không nằm trên tuyến của chuyến tàu này.")
+                });
             }
 
-            // Tạo đối tượng Booking và danh sách vé Pending
+            var boardingStopOrder = directionSign * boardingStation.OrderIndex;
+            var disembarkingStopOrder = directionSign * disembarkingStation.OrderIndex;
+
+            if (boardingStopOrder >= disembarkingStopOrder)
+            {
+                throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new(nameof(request.DisembarkingStationId), "Bến xuống phải nằm sau bến lên theo chiều di chuyển của chuyến tàu.")
+                });
+            }
+
+            // =========================================================================
+            // Kiểm tra toàn bộ SeatId thực sự tồn tại và thuộc đúng con tàu (BoatId) của chuyến này.
+            // Ngăn chặn việc gửi SeatId hợp lệ nhưng thuộc một tàu khác.
+            // =========================================================================
+            var requestedSeatIds = request.SeatIds.Distinct().ToList();
+
+            var seats = await _context.Seats
+                .Where(s => !s.IsDeleted && requestedSeatIds.Contains(s.Id))
+                .ToListAsync(cancellationToken);
+
+            if (seats.Count != requestedSeatIds.Count)
+            {
+                throw new NotFoundException(nameof(Seat), string.Join(",", requestedSeatIds));
+            }
+
+            var wrongBoatSeats = seats.Where(s => s.BoatId != trip.BoatId).ToList();
+            if (wrongBoatSeats.Count != 0)
+            {
+                throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new(nameof(request.SeatIds),
+                        $"Ghế '{string.Join(", ", wrongBoatSeats.Select(s => s.SeatCode))}' không thuộc tàu vận hành chuyến này.")
+                });
+            }
+
+            // =========================================================================
+            // LỚP PHÒNG THỦ 2: KIỂM TRA ĐỤNG ĐỘ CHẶNG (SEGMENT OVERLAP) TẠI CSDL
+            // =========================================================================
+            var availableSeatIds = await _seatAvailabilityService.GetAvailableSeatsAsync(
+                request.TripId, requestedSeatIds, boardingStopOrder, disembarkingStopOrder, cancellationToken);
+
+            var unavailableSeatIds = requestedSeatIds.Except(availableSeatIds).ToList();
+            if (unavailableSeatIds.Count != 0)
+            {
+                throw new ConcurrencyException("Một hoặc nhiều ghế bạn chọn đã được đặt trên đoạn chặng này!");
+            }
+
+            // =========================================================================
+            // Tạo Booking + Tickets + SeatReservations (giữ chỗ theo chặng)
+            // =========================================================================
+            var now = DateTimeOffset.UtcNow;
+
             var booking = new Booking
             {
-                BookingCode = $"WB{DateTime.UtcNow:yyyyMMddHHmmss}{Random.Shared.Next(100, 999)}",
+                BookingCode = CodeGenerator.GenerateBookingCode(now),
                 CustomerName = request.CustomerName,
                 CustomerEmail = request.CustomerEmail,
                 CustomerPhone = request.CustomerPhone,
                 Status = BookingStatus.Pending,
                 PaymentStatus = PaymentStatus.Pending,
-                TotalAmount = trip.BasePrice * request.SeatIds.Count
+                TotalAmount = seats.Sum(s => trip.BasePrice * s.PriceMultiplier)
             };
 
-            foreach (var seatId in request.SeatIds)
+            foreach (var seat in seats)
             {
                 booking.Tickets.Add(new Ticket
                 {
                     TripId = request.TripId,
-                    SeatId = seatId,
-                    TicketCode = $"TK{Random.Shared.Next(10000000, 99999999)}",
-                    Price = trip.BasePrice,
+                    SeatId = seat.Id,
+                    TicketCode = CodeGenerator.GenerateTicketCode(now),
+                    // Giá vé = Giá vé cơ bản của chuyến * Hệ số nhân giá theo vị trí ghế (VIP/Standard/Outdoor)
+                    Price = trip.BasePrice * seat.PriceMultiplier,
                     PassengerName = request.CustomerName,
                     Status = TicketStatus.Pending
+                });
+
+                _context.SeatReservations.Add(new SeatReservation
+                {
+                    TripId = request.TripId,
+                    SeatId = seat.Id,
+                    BookingId = booking.Id,
+                    BoardingStopOrder = boardingStopOrder,
+                    DisembarkingStopOrder = disembarkingStopOrder,
+                    Status = ReservationStatus.Pending
                 });
             }
 
             _context.Bookings.Add(booking);
 
-            // Lưu CSDL: Nếu 2 luồng cùng ghi đè, SQL Server sẽ phát hiện RowVersion sai lệch
-            // và ném ra DbUpdateConcurrencyException tại tầng CSDL
             await _context.SaveChangesAsync(cancellationToken);
 
             return new BookingResponseDto(
-                booking.Id, 
-                booking.BookingCode, 
-                booking.TotalAmount, 
-                booking.Status.ToString(), 
+                booking.Id,
+                booking.BookingCode,
+                booking.TotalAmount,
+                booking.Status.ToString(),
                 HoldDurationSeconds: 600);
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            // Lớp 2 kích hoạt: Giải phóng lock và ném lỗi xung đột dữ liệu
             throw new ConcurrencyException("Xung đột dữ liệu khi cập nhật ghế. Vui lòng thử lại!", ex);
         }
-        catch (Exception)
+        finally
         {
-            // Trong trường hợp xảy ra bất kỳ lỗi logic nào, giải phóng toàn bộ Redis Lock đã acquire
+            // Luôn giải phóng lock ngay khi kết thúc critical section, dù thành công hay thất bại -
+            // lock chỉ bảo vệ đoạn kiểm tra + ghi DB, không phải cơ chế giữ chỗ 10 phút (xem ghi chú ở trên).
             foreach (var acquiredLock in acquiredLocks)
             {
                 await acquiredLock.DisposeAsync();
             }
-            throw;
         }
     }
 }

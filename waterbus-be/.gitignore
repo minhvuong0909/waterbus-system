@@ -6,3 +6,7 @@ obj/
 .vs/
 TestResults/
 *.log
+
+## Secrets (dùng dotnet user-secrets hoặc biến môi trường thay thế)
+.env
+*.local.json

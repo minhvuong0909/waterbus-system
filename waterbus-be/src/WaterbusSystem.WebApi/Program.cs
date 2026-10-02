@@ -85,7 +85,7 @@ using (var scope = app.Services.CreateScope())
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 app.UseMiddleware<RequestLocalizationMiddleware>();
 
-if (app.Environment.IsDevelopment() || true)
+if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
@@ -98,8 +98,11 @@ if (app.Environment.IsDevelopment() || true)
 app.UseHttpsRedirection();
 app.UseCors("AppCorsPolicy");
 
+app.UseMiddleware<GuestAccessMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
+
 
 app.MapControllers();
 

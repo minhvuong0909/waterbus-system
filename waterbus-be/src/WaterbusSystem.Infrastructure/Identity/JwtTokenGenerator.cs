@@ -21,7 +21,11 @@ public class JwtTokenGenerator : IJwtTokenGenerator
 
     public string GenerateToken(Guid userId, string email, string fullName, IList<string> roles)
     {
-        var secret = _configuration["JwtSettings:Secret"] ?? "DefaultFallbackSecretKeyWithAtLeast256Bits2026!";
+        // Đọc đúng key cấu hình JwtSettings:Secret như Infrastructure/DependencyInjection.cs dùng để validate token.
+        // Không hard-code fallback khác ở đây để tránh 2 nơi lệch secret khiến token sinh ra luôn bị 401.
+        var secret = _configuration["JwtSettings:Secret"]
+            ?? throw new InvalidOperationException(
+                "Thiếu cấu hình JwtSettings:Secret. Hãy cấu hình qua User Secrets (local) hoặc biến môi trường (deploy).");
         var issuer = _configuration["JwtSettings:Issuer"] ?? "WaterbusSystemApi";
         var audience = _configuration["JwtSettings:Audience"] ?? "WaterbusClients";
         var expiryMinutes = double.Parse(_configuration["JwtSettings:ExpiryMinutes"] ?? "1440");
