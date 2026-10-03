@@ -4,6 +4,52 @@ using WaterbusSystem.Domain.Entities;
 
 namespace WaterbusSystem.Infrastructure.Persistence.Configurations;
 
+public class SeatClassConfiguration : IEntityTypeConfiguration<SeatClass>
+{
+    public void Configure(EntityTypeBuilder<SeatClass> builder)
+    {
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => x.Code).IsUnique();
+        builder.Property(x => x.Code).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.Name).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.Description).HasMaxLength(500);
+        builder.Property(x => x.RowVersion).IsRowVersion();
+    }
+}
+
+public class FareRuleConfiguration : IEntityTypeConfiguration<FareRule>
+{
+    public void Configure(EntityTypeBuilder<FareRule> builder)
+    {
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.TripType).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.Price).HasPrecision(12, 2).IsRequired();
+        builder.Property(x => x.Currency).HasMaxLength(10).IsRequired();
+        builder.HasIndex(x => new { x.TripType, x.SeatClassId, x.EffectiveFrom }).IsUnique();
+        builder.HasOne(x => x.SeatClass)
+            .WithMany(sc => sc.FareRules)
+            .HasForeignKey(x => x.SeatClassId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.RowVersion).IsRowVersion();
+    }
+}
+
+public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder>
+{
+    public void Configure(EntityTypeBuilder<PurchaseOrder> builder)
+    {
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.PurchaserName).HasMaxLength(150).IsRequired();
+        builder.Property(x => x.PurchaserEmail).HasMaxLength(150).IsRequired();
+        builder.Property(x => x.PurchaserPhone).HasMaxLength(20);
+        builder.Property(x => x.PurchaseMode).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.Status).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.QuotedTotal).HasPrecision(12, 2);
+        builder.Property(x => x.Currency).HasMaxLength(10).IsRequired();
+        builder.Property(x => x.RowVersion).IsRowVersion();
+    }
+}
+
 public class StationConfiguration : IEntityTypeConfiguration<Station>
 {
     public void Configure(EntityTypeBuilder<Station> builder)
@@ -25,6 +71,7 @@ public class RouteConfiguration : IEntityTypeConfiguration<Route>
         builder.HasIndex(x => x.Code).IsUnique();
         builder.Property(x => x.Code).HasMaxLength(20).IsRequired();
         builder.Property(x => x.Name).HasMaxLength(150).IsRequired();
+        builder.Property(x => x.ServiceType).HasMaxLength(20).IsRequired();
         builder.Property(x => x.DistanceKm).HasPrecision(10, 2);
 
         builder.HasOne(x => x.DepartureStation)
@@ -73,8 +120,12 @@ public class SeatConfiguration : IEntityTypeConfiguration<Seat>
         // Khóa Unique kép: Một tàu không thể có 2 ghế trùng mã (Ví dụ SWB-01 chỉ có 1 ghế F01)
         builder.HasIndex(x => new { x.BoatId, x.SeatCode }).IsUnique();
         builder.Property(x => x.SeatCode).HasMaxLength(10).IsRequired();
-        builder.Property(x => x.PriceMultiplier).HasPrecision(5, 2);
         builder.Property(x => x.RowVersion).IsRowVersion();
+
+        builder.HasOne(x => x.SeatClass)
+            .WithMany(sc => sc.Seats)
+            .HasForeignKey(x => x.SeatClassId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 
@@ -83,7 +134,6 @@ public class TripConfiguration : IEntityTypeConfiguration<Trip>
     public void Configure(EntityTypeBuilder<Trip> builder)
     {
         builder.HasKey(x => x.Id);
-        builder.Property(x => x.BasePrice).HasPrecision(18, 2);
 
         builder.HasOne(x => x.Route)
             .WithMany()
@@ -110,6 +160,16 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => x.BookingCode).IsUnique();
         builder.Property(x => x.BookingCode).HasMaxLength(50).IsRequired();
+
+        builder.HasIndex(x => x.PublicBookingId).IsUnique();
+        builder.Property(x => x.PublicBookingId).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.QrCredentialVersion).IsRequired();
+
+        builder.HasOne(x => x.Order)
+            .WithMany(o => o.Bookings)
+            .HasForeignKey(x => x.OrderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.Property(x => x.CustomerName).HasMaxLength(150).IsRequired();
         builder.Property(x => x.CustomerEmail).HasMaxLength(150).IsRequired();
         builder.Property(x => x.CustomerPhone).HasMaxLength(20).IsRequired(false);

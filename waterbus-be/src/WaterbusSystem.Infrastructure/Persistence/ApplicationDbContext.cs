@@ -22,6 +22,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
         _currentUserService = currentUserService;
     }
 
+    public DbSet<SeatClass> SeatClasses => Set<SeatClass>();
+    public DbSet<FareRule> FareRules => Set<FareRule>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<Station> Stations => Set<Station>();
     public DbSet<Route> Routes => Set<Route>();
     public DbSet<Boat> Boats => Set<Boat>();

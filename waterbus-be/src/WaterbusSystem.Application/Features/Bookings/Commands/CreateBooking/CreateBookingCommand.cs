@@ -239,16 +239,59 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             // =========================================================================
             var now = DateTimeOffset.UtcNow;
 
+            // Tìm giá vé hiện hành theo TripType × SeatClass
+            var tripTypeStr = trip.TripType.ToString();
+
+            // Load tất cả FareRule cần thiết một lần
+            var seatClassIds = seats.Select(s => s.SeatClassId).Distinct().ToList();
+            var fareRules = await _context.FareRules
+                .Where(f => f.TripType == tripTypeStr
+                         && seatClassIds.Contains(f.SeatClassId)
+                         && f.IsActive
+                         && f.EffectiveFrom <= now
+                         && (f.EffectiveTo == null || f.EffectiveTo > now))
+                .ToListAsync(cancellationToken);
+
+            // Helper để lấy giá theo SeatClassId
+            decimal GetFare(Guid seatClassId)
+            {
+                var rule = fareRules
+                    .Where(f => f.SeatClassId == seatClassId)
+                    .OrderByDescending(f => f.EffectiveFrom)
+                    .FirstOrDefault()
+                    ?? throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
+                    {
+                        new("FareRule", $"Không tìm thấy bảng giá cho loại chuyến {tripTypeStr} và hạng ghế này.")
+                    });
+                return rule.Price;
+            }
+
+            var order = new PurchaseOrder
+            {
+                PurchaserName  = request.CustomerName,
+                PurchaserEmail = request.CustomerEmail,
+                PurchaserPhone = request.CustomerPhone,
+                PurchaseMode   = "OneWay",
+                Status         = "Pending",
+                QuotedTotal    = seats.Sum(s => GetFare(s.SeatClassId)),
+                ExpiresAt      = now.AddMinutes(10)
+            };
+
             var booking = new Booking
             {
-                BookingCode = CodeGenerator.GenerateBookingCode(now),
-                CustomerName = request.CustomerName,
-                CustomerEmail = request.CustomerEmail,
-                CustomerPhone = request.CustomerPhone,
-                Status = BookingStatus.Pending,
-                PaymentStatus = PaymentStatus.Pending,
-                TotalAmount = seats.Sum(s => trip.BasePrice * s.PriceMultiplier)
+                OrderId         = order.Id,
+                BookingCode     = CodeGenerator.GenerateBookingCode(now),
+                PublicBookingId = Guid.NewGuid().ToString("N")[..16].ToUpperInvariant(),
+                CustomerName    = request.CustomerName,
+                CustomerEmail   = request.CustomerEmail,
+                CustomerPhone   = request.CustomerPhone,
+                Status          = BookingStatus.Pending,
+                PaymentStatus   = PaymentStatus.Pending,
+                TotalAmount     = order.QuotedTotal
             };
+
+            order.Bookings.Add(booking);
+            _context.PurchaseOrders.Add(order);
 
             foreach (var seat in seats)
             {
@@ -263,7 +306,6 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
                 });
             }
 
-            _context.Bookings.Add(booking);
 
             await _context.SaveChangesAsync(cancellationToken);
 

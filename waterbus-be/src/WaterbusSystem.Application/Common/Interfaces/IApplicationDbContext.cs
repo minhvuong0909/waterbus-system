@@ -8,6 +8,9 @@ namespace WaterbusSystem.Application.Common.Interfaces;
 /// </summary>
 public interface IApplicationDbContext
 {
+    DbSet<SeatClass> SeatClasses { get; }
+    DbSet<FareRule> FareRules { get; }
+    DbSet<PurchaseOrder> PurchaseOrders { get; }
     DbSet<Station> Stations { get; }
     DbSet<Route> Routes { get; }
     DbSet<Boat> Boats { get; }

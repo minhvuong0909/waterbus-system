@@ -102,6 +102,7 @@ public class ApplicationDbContextInitializer
                 ArrivalStationId = stLinhDong.Id,
                 EstimatedDurationMinutes = 45,
                 DistanceKm = 10.8m,
+                ServiceType = "Regular",
                 IsActive = true
             };
 
@@ -109,7 +110,30 @@ public class ApplicationDbContextInitializer
             await _context.SaveChangesAsync();
         }
 
-        // 5. Seed Tàu Mẫu SWB-01 & 60 Ghế
+        // 5. Seed SeatClass nếu chưa có
+        Guid frontCabinId, standardId, outdoorId;
+        if (!await _context.SeatClasses.AnyAsync())
+        {
+            var seatClasses = new List<SeatClass>
+            {
+                new() { Code = "SC01", Name = "Khoang trước VIP", Description = "Tầm nhìn bao quát, điều hòa", IsActive = true },
+                new() { Code = "SC02", Name = "Tiêu chuẩn", Description = "Khoang trong, máy lạnh", IsActive = true },
+                new() { Code = "SC03", Name = "Boong ngoài trời", Description = "Phía đuôi tàu, thoáng mát", IsActive = true }
+            };
+            await _context.SeatClasses.AddRangeAsync(seatClasses);
+            await _context.SaveChangesAsync();
+            frontCabinId = seatClasses[0].Id;
+            standardId   = seatClasses[1].Id;
+            outdoorId    = seatClasses[2].Id;
+        }
+        else
+        {
+            frontCabinId = (await _context.SeatClasses.FirstAsync(s => s.Code == "SC01")).Id;
+            standardId   = (await _context.SeatClasses.FirstAsync(s => s.Code == "SC02")).Id;
+            outdoorId    = (await _context.SeatClasses.FirstAsync(s => s.Code == "SC03")).Id;
+        }
+
+        // 6. Seed Tàu Mẫu SWB-01 & 60 Ghế
         if (!await _context.Boats.AnyAsync())
         {
             var boat = new Boat
@@ -125,16 +149,14 @@ public class ApplicationDbContextInitializer
 
             // Tạo 60 ghế cố định theo layout 3 khoang
             // Khoang trước (VIP): 12 ghế (F01 -> F12)
-            // TODO Phase 2: thay Category + PriceMultiplier bằng SeatClassId FK (entity SeatClass) - xem TASK-13, TASK-14
             for (int i = 1; i <= 12; i++)
             {
                 boat.Seats.Add(new Seat
                 {
                     SeatCode = $"F{i:D2}",
-                    Category = SeatCategory.FrontCabin,
+                    SeatClassId = frontCabinId,
                     RowNumber = (i - 1) / 4 + 1,
-                    ColumnNumber = (i - 1) % 4 + 1,
-                    PriceMultiplier = 1.2m
+                    ColumnNumber = (i - 1) % 4 + 1
                 });
             }
 
@@ -144,10 +166,9 @@ public class ApplicationDbContextInitializer
                 boat.Seats.Add(new Seat
                 {
                     SeatCode = $"S{i:D2}",
-                    Category = SeatCategory.Standard,
+                    SeatClassId = standardId,
                     RowNumber = (i - 1) / 4 + 1,
-                    ColumnNumber = (i - 1) % 4 + 1,
-                    PriceMultiplier = 1.0m
+                    ColumnNumber = (i - 1) % 4 + 1
                 });
             }
 
@@ -157,14 +178,30 @@ public class ApplicationDbContextInitializer
                 boat.Seats.Add(new Seat
                 {
                     SeatCode = $"O{i:D2}",
-                    Category = SeatCategory.Outdoor,
+                    SeatClassId = outdoorId,
                     RowNumber = (i - 1) / 4 + 1,
-                    ColumnNumber = (i - 1) % 4 + 1,
-                    PriceMultiplier = 1.1m
+                    ColumnNumber = (i - 1) % 4 + 1
                 });
             }
 
             await _context.Boats.AddAsync(boat);
+            await _context.SaveChangesAsync();
+        }
+
+        // 7. Seed FareRule
+        if (!await _context.FareRules.AnyAsync())
+        {
+            var now = DateTimeOffset.UtcNow;
+            var fareRules = new List<FareRule>
+            {
+                new() { TripType = "Commuter",    SeatClassId = frontCabinId, Price = 20000m, Currency = "VND", EffectiveFrom = now },
+                new() { TripType = "Commuter",    SeatClassId = standardId,   Price = 15000m, Currency = "VND", EffectiveFrom = now },
+                new() { TripType = "Commuter",    SeatClassId = outdoorId,    Price = 17000m, Currency = "VND", EffectiveFrom = now },
+                new() { TripType = "Sightseeing", SeatClassId = frontCabinId, Price = 150000m, Currency = "VND", EffectiveFrom = now },
+                new() { TripType = "Sightseeing", SeatClassId = standardId,   Price = 100000m, Currency = "VND", EffectiveFrom = now },
+                new() { TripType = "Sightseeing", SeatClassId = outdoorId,    Price = 120000m, Currency = "VND", EffectiveFrom = now },
+            };
+            await _context.FareRules.AddRangeAsync(fareRules);
             await _context.SaveChangesAsync();
         }
     }

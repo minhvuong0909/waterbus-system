@@ -17,9 +17,10 @@ public class Seat : BaseEntity
     public string SeatCode { get; set; } = string.Empty;
 
     /// <summary>
-    /// Phân loại khoang ghế (Khoang trước VIP, Tiêu chuẩn, Boong ngoài trời)
+    /// Tham chiếu đến hạng ghế (thay thế cho SeatCategory enum cũ)
     /// </summary>
-    public SeatCategory Category { get; set; } = SeatCategory.Standard;
+    public Guid SeatClassId { get; set; }
+    public SeatClass? SeatClass { get; set; }
 
     /// <summary>
     /// Số hàng ghế (phục vụ render grid trên giao diện web/mobile)
@@ -30,11 +31,6 @@ public class Seat : BaseEntity
     /// Số cột ghế
     /// </summary>
     public int ColumnNumber { get; set; }
-
-    /// <summary>
-    /// Hệ số nhân giá vé theo vị trí ghế (Ví dụ VIP: 1.2, Tiêu chuẩn: 1.0, Ngoài trời: 1.1)
-    /// </summary>
-    public decimal PriceMultiplier { get; set; } = 1.0m;
 
     public bool IsActive { get; set; } = true;
 }

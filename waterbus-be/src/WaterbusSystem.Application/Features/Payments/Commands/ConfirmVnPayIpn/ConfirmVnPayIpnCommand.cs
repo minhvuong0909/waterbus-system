@@ -125,6 +125,26 @@ public class ConfirmVnPayIpnCommandHandler : IRequestHandler<ConfirmVnPayIpnComm
             var trip = await _context.Trips
                 .FirstOrDefaultAsync(t => t.Id == tripId && !t.IsDeleted, cancellationToken);
 
+            var tripTypeStr = trip?.TripType.ToString() ?? "Commuter";
+            var now = DateTimeOffset.UtcNow;
+            var seatClassIds = reservations.Select(r => r.Seat?.SeatClassId ?? Guid.Empty).Distinct().ToList();
+            var fareRules = await _context.FareRules
+                .Where(f => f.TripType == tripTypeStr
+                         && seatClassIds.Contains(f.SeatClassId)
+                         && f.IsActive
+                         && f.EffectiveFrom <= now
+                         && (f.EffectiveTo == null || f.EffectiveTo > now))
+                .ToListAsync(cancellationToken);
+
+            decimal GetFare(Guid seatClassId)
+            {
+                var rule = fareRules
+                    .Where(f => f.SeatClassId == seatClassId)
+                    .OrderByDescending(f => f.EffectiveFrom)
+                    .FirstOrDefault();
+                return rule?.Price ?? 0m;
+            }
+
             foreach (var reservation in reservations)
             {
                 reservation.Status = ReservationStatus.Confirmed;
@@ -135,8 +155,8 @@ public class ConfirmVnPayIpnCommandHandler : IRequestHandler<ConfirmVnPayIpnComm
                     BookingId = booking.Id,
                     TripId = reservation.TripId,  // NOTE: sẽ bị xóa ở Phase 2 khi refactor Ticket
                     SeatId = reservation.SeatId,
-                    TicketCode = WaterbusSystem.Domain.Common.CodeGenerator.GenerateTicketCode(DateTimeOffset.UtcNow),
-                    Price = (trip?.BasePrice ?? 0m) * (reservation.Seat?.PriceMultiplier ?? 1.0m),
+                    TicketCode = WaterbusSystem.Domain.Common.CodeGenerator.GenerateTicketCode(now),
+                    Price = GetFare(reservation.Seat?.SeatClassId ?? Guid.Empty),
                     PassengerName = booking.CustomerName,
                     Status = TicketStatus.Valid
                 });

@@ -26,5 +26,11 @@ public class Route : BaseEntity
     /// </summary>
     public decimal DistanceKm { get; set; }
 
+    /// <summary>
+    /// Loại dịch vụ: "Regular" (tuyến thường) hoặc "Sightseeing" (tuyến du lịch)
+    /// Phải khớp với TripType của các Trip thuộc Route này.
+    /// </summary>
+    public string ServiceType { get; set; } = "Regular";
+
     public bool IsActive { get; set; } = true;
 }

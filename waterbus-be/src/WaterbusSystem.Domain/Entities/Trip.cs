@@ -37,10 +37,7 @@ public class Trip : BaseEntity
     /// </summary>
     public TripStatus Status { get; set; } = TripStatus.Scheduled;
 
-    /// <summary>
-    /// Giá vé cơ bản áp dụng cho ghế tiêu chuẩn (VNĐ)
-    /// </summary>
-    public decimal BasePrice { get; set; } = 15000m;
+
 
     /// <summary>
     /// Danh sách các vé đã bán hoặc đang giữ cho chuyến tàu này
