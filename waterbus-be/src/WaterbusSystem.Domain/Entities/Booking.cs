@@ -25,7 +25,7 @@ public class Booking : BaseEntity
 
     public string CustomerName { get; set; } = string.Empty;
     public string CustomerEmail { get; set; } = string.Empty;
-    public string CustomerPhone { get; set; } = string.Empty;
+    public string? CustomerPhone { get; set; }
 
     /// <summary>
     /// Tổng số tiền thanh toán (VNĐ)

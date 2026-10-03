@@ -35,6 +35,8 @@ public class ConfirmVnPayIpnCommandHandlerTests
 
     private static Booking SeedPendingBooking(Infrastructure.Persistence.ApplicationDbContext context, decimal totalAmount)
     {
+        var seedData = TestDbContextFactory.SeedTrip(context);
+
         var booking = new Booking
         {
             BookingCode = "WB20261002TEST01",
@@ -45,15 +47,15 @@ public class ConfirmVnPayIpnCommandHandlerTests
             PaymentStatus = PaymentStatus.Pending,
             TotalAmount = totalAmount
         };
-        booking.Tickets.Add(new Ticket
+        var reservation = new SeatReservation
         {
-            TripId = Guid.NewGuid(),
-            SeatId = Guid.NewGuid(),
-            TicketCode = "TKTEST01",
-            Price = totalAmount,
-            PassengerName = "Nguyen Van A",
-            Status = TicketStatus.Pending
-        });
+            TripId = seedData.Trip.Id,
+            SeatId = seedData.Seat1.Id,
+            BoardingStopOrder = 1,
+            DisembarkingStopOrder = 2,
+            Status = ReservationStatus.Pending
+        };
+        booking.SeatReservations.Add(reservation);
 
         context.Bookings.Add(booking);
         context.SaveChanges();
@@ -110,8 +112,9 @@ public class ConfirmVnPayIpnCommandHandlerTests
         updated.Status.Should().Be(BookingStatus.Confirmed);
         updated.PaymentStatus.Should().Be(PaymentStatus.Success);
 
-        context.Entry(updated).Collection(b => b.Tickets).Load();
-        updated.Tickets.Should().OnlyContain(t => t.Status == TicketStatus.Valid);
+        var tickets = context.Tickets.Where(t => t.BookingId == booking.Id).ToList();
+        tickets.Should().NotBeEmpty();
+        tickets.Should().OnlyContain(t => t.Status == TicketStatus.Valid);
 
         context.PaymentTransactions.Should().ContainSingle(t => t.BookingId == booking.Id);
     }

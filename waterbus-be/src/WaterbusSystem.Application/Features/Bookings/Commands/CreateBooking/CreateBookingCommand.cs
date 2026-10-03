@@ -32,7 +32,7 @@ public record CreateBookingCommand(
     Guid DisembarkingStationId,
     string CustomerName,
     string CustomerEmail,
-    string CustomerPhone) : IRequest<BookingResponseDto>;
+    string? CustomerPhone) : IRequest<BookingResponseDto>;
 
 /// <summary>
 /// Validator kiểm tra tính toàn vẹn của dữ liệu đầu vào
@@ -66,8 +66,8 @@ public class CreateBookingCommandValidator : AbstractValidator<CreateBookingComm
             .EmailAddress().WithMessage("Định dạng email không hợp lệ.");
 
         RuleFor(x => x.CustomerPhone)
-            .NotEmpty().WithMessage("Số điện thoại không được để trống.")
-            .Matches(@"^[0-9]{10,11}$").WithMessage("Số điện thoại phải từ 10 đến 11 chữ số.");
+            .Matches(@"^[0-9]{10,11}$").WithMessage("Số điện thoại phải từ 10 đến 11 chữ số.")
+            .When(x => !string.IsNullOrEmpty(x.CustomerPhone));
     }
 }
 
