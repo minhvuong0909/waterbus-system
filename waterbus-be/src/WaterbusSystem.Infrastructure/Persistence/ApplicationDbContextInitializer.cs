@@ -125,6 +125,7 @@ public class ApplicationDbContextInitializer
 
             // Tạo 60 ghế cố định theo layout 3 khoang
             // Khoang trước (VIP): 12 ghế (F01 -> F12)
+            // TODO Phase 2: thay Category + PriceMultiplier bằng SeatClassId FK (entity SeatClass) - xem TASK-13, TASK-14
             for (int i = 1; i <= 12; i++)
             {
                 boat.Seats.Add(new Seat

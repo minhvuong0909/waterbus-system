@@ -33,7 +33,7 @@ public class Trip : BaseEntity
     public TripType TripType { get; set; } = TripType.Commuter;
 
     /// <summary>
-    /// Trạng thái chuyến tàu: Scheduled, Boarding, InTransit, Completed, Cancelled
+    /// Trạng thái chuyến tàu: Scheduled, Boarding, EnRoute, Arrived, Completed, Cancelled, Suspended, Terminated
     /// </summary>
     public TripStatus Status { get; set; } = TripStatus.Scheduled;
 

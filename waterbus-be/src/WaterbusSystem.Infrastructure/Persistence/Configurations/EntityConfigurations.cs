@@ -84,18 +84,22 @@ public class TripConfiguration : IEntityTypeConfiguration<Trip>
     {
         builder.HasKey(x => x.Id);
         builder.Property(x => x.BasePrice).HasPrecision(18, 2);
-        builder.Property(x => x.RowVersion).IsRowVersion();
 
         builder.HasOne(x => x.Route)
             .WithMany()
             .HasForeignKey(x => x.RouteId)
             .OnDelete(DeleteBehavior.Restrict);
-
+        builder.HasOne(x => x.Schedule)
+            .WithMany()
+            .HasForeignKey(x => x.ScheduleId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
         builder.HasOne(x => x.Boat)
             .WithMany()
             .HasForeignKey(x => x.BoatId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.RowVersion).IsRowVersion();
     }
 }
 
@@ -108,7 +112,7 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(x => x.BookingCode).HasMaxLength(50).IsRequired();
         builder.Property(x => x.CustomerName).HasMaxLength(150).IsRequired();
         builder.Property(x => x.CustomerEmail).HasMaxLength(150).IsRequired();
-        builder.Property(x => x.CustomerPhone).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.CustomerPhone).HasMaxLength(20).IsRequired(false);
         builder.Property(x => x.TotalAmount).HasPrecision(18, 2);
         builder.Property(x => x.ManageOrderTokenHash).HasMaxLength(256);
         builder.Property(x => x.ManageOrderTokenExpiresAt);

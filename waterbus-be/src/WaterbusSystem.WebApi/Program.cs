@@ -128,11 +128,10 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AppCorsPolicy");
 
+app.UseRateLimiter();
 app.UseMiddleware<GuestAccessMiddleware>();
-
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseRateLimiter();
 
 
 app.MapControllers();
