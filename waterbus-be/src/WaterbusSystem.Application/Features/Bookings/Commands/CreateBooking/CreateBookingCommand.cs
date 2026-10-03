@@ -238,26 +238,26 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
                 CustomerPhone = request.CustomerPhone,
                 Status = BookingStatus.Pending,
                 PaymentStatus = PaymentStatus.Pending,
-                TotalAmount = seats.Sum(s => trip.BasePrice * s.PriceMultiplier)
+                TotalAmount = seats.Sum(s => 0m /* TODO: implement FareRule pricing */)
             };
 
             foreach (var seat in seats)
             {
                 booking.Tickets.Add(new Ticket
                 {
-                    TripId = request.TripId,
-                    SeatId = seat.Id,
+                    // TripId = request.TripId,
+                    // SeatId = seat.Id,
                     TicketCode = CodeGenerator.GenerateTicketCode(now),
                     // Giá vé = Giá vé cơ bản của chuyến * Hệ số nhân giá theo vị trí ghế (VIP/Standard/Outdoor)
-                    Price = trip.BasePrice * seat.PriceMultiplier,
-                    PassengerName = request.CustomerName,
+                    // Price = 0m /* TODO: implement FareRule pricing */,
+                    // PassengerName = request.CustomerName,
                     Status = TicketStatus.Pending
                 });
 
                 _context.SeatReservations.Add(new SeatReservation
                 {
-                    TripId = request.TripId,
-                    SeatId = seat.Id,
+                    // TripId = request.TripId,
+                    // SeatId = seat.Id,
                     BookingId = booking.Id,
                     BoardingStopOrder = boardingStopOrder,
                     DisembarkingStopOrder = disembarkingStopOrder,
@@ -291,3 +291,4 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         }
     }
 }
+

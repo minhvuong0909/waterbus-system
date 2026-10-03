@@ -22,6 +22,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
         _currentUserService = currentUserService;
     }
 
+    public DbSet<SeatClass> SeatClasses => Set<SeatClass>();
+    public DbSet<FareRule> FareRules => Set<FareRule>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<Station> Stations => Set<Station>();
     public DbSet<Route> Routes => Set<Route>();
     public DbSet<Boat> Boats => Set<Boat>();
@@ -32,7 +35,23 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<SeatReservation> SeatReservations => Set<SeatReservation>();
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
+    public DbSet<RouteStop> RouteStops => Set<RouteStop>();
+    public DbSet<ScheduleStop> ScheduleStops => Set<ScheduleStop>();
+    public DbSet<TripStopCall> TripStopCalls => Set<TripStopCall>();
 
+        public DbSet<FinancialTransaction> FinancialTransactions => Set<FinancialTransaction>();
+    public DbSet<RefundTicketAllocation> RefundTicketAllocations => Set<RefundTicketAllocation>();
+    public DbSet<AccessGrant> AccessGrants => Set<AccessGrant>();
+    public DbSet<ScannerDevice> ScannerDevices => Set<ScannerDevice>();
+    public DbSet<ScannerAssignment> ScannerAssignments => Set<ScannerAssignment>();
+    public DbSet<CheckInEvent> CheckInEvents => Set<CheckInEvent>();
+    public DbSet<Incident> Incidents => Set<Incident>();
+    public DbSet<IncidentTrip> IncidentTrips => Set<IncidentTrip>();
+    public DbSet<TripOperationEvent> TripOperationEvents => Set<TripOperationEvent>();
+    public DbSet<BoatPositionEvent> BoatPositionEvents => Set<BoatPositionEvent>();
+    public DbSet<PointOfInterest> PointsOfInterest => Set<PointOfInterest>();
+    public DbSet<RoutePoi> RoutePois => Set<RoutePoi>();
+    public DbSet<AudioGuide> AudioGuides => Set<AudioGuide>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -92,3 +111,4 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
         }
     }
 }
+

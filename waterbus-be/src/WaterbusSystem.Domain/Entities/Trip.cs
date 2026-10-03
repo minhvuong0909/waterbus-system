@@ -14,7 +14,7 @@ public class Trip : BaseEntity
     public Guid RouteId { get; set; }
     public Route? Route { get; set; }
 
-    public Guid BoatId { get; set; }
+    public Guid? BoatId { get; set; }
     public Boat? Boat { get; set; }
 
     /// <summary>
@@ -33,17 +33,15 @@ public class Trip : BaseEntity
     public TripType TripType { get; set; } = TripType.Commuter;
 
     /// <summary>
-    /// Trạng thái chuyến tàu: Scheduled, Boarding, InTransit, Completed, Cancelled
+    /// Trạng thái chuyến tàu: Scheduled, Boarding, EnRoute, Arrived, Completed, Cancelled, Suspended, Terminated
     /// </summary>
     public TripStatus Status { get; set; } = TripStatus.Scheduled;
 
-    /// <summary>
-    /// Giá vé cơ bản áp dụng cho ghế tiêu chuẩn (VNĐ)
-    /// </summary>
-    public decimal BasePrice { get; set; } = 15000m;
+
 
     /// <summary>
     /// Danh sách các vé đã bán hoặc đang giữ cho chuyến tàu này
     /// </summary>
     public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+    public ICollection<TripStopCall> TripStopCalls { get; set; } = new List<TripStopCall>();
 }

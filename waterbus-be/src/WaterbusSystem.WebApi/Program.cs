@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using Microsoft.OpenApi.Models;
 using WaterbusSystem.Application;
 using WaterbusSystem.Infrastructure;
@@ -63,6 +64,35 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Rate Limiting: chống spam booking từ Guest/anonymous
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy("BookingPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.Identity?.IsAuthenticated == true
+                ? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                  ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"
+                : httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            success = false,
+            message = "Quá nhiều yêu cầu đặt vé. Vui lòng thử lại sau 1 phút.",
+            statusCode = 429
+        }, token);
+    };
+});
+
 var app = builder.Build();
 
 // 5. Khởi tạo CSDL và Seed dữ liệu mẫu khi khởi động
@@ -98,8 +128,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AppCorsPolicy");
 
+app.UseRateLimiter();
 app.UseMiddleware<GuestAccessMiddleware>();
-
 app.UseAuthentication();
 app.UseAuthorization();
 

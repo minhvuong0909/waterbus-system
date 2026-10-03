@@ -60,7 +60,6 @@ public class ExpiredBookingCleanupService : BackgroundService
         var deadline = DateTimeOffset.UtcNow - HoldDuration;
 
         var expiredBookings = await context.Bookings
-            .Include(b => b.Tickets)
             .Where(b => !b.IsDeleted && b.Status == BookingStatus.Pending && b.CreatedAt < deadline)
             .ToListAsync(cancellationToken);
 
@@ -72,7 +71,7 @@ public class ExpiredBookingCleanupService : BackgroundService
         var expiredBookingIds = expiredBookings.Select(b => b.Id).ToList();
 
         var expiredReservations = await context.SeatReservations
-            .Where(r => !r.IsDeleted && r.BookingId != null && expiredBookingIds.Contains(r.BookingId.Value)
+            .Where(r => !r.IsDeleted && expiredBookingIds.Contains(r.BookingId)
                         && r.Status == ReservationStatus.Pending)
             .ToListAsync(cancellationToken);
 
@@ -83,11 +82,6 @@ public class ExpiredBookingCleanupService : BackgroundService
             booking.Status = BookingStatus.Cancelled;
             booking.PaymentStatus = PaymentStatus.Failed;
             booking.UpdatedAt = DateTimeOffset.UtcNow;
-
-            foreach (var ticket in booking.Tickets.Where(t => t.Status == TicketStatus.Pending))
-            {
-                ticket.Status = TicketStatus.Expired;
-            }
         }
 
         foreach (var reservation in expiredReservations)
