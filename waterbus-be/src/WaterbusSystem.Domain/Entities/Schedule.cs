@@ -27,5 +27,13 @@ public class Schedule : BaseEntity
     public TripType TripType { get; set; } = TripType.Commuter;
 
     public bool IsActive { get; set; } = true;
+    /// <summary>Chiều chạy: "Outbound" hoặc "Inbound"</summary>
+    public string Direction { get; set; } = "Outbound";
+    /// <summary>Ngày bắt đầu hiệu lực của lịch này</summary>
+    public DateOnly EffectiveFrom { get; set; }
+    /// <summary>Ngày kết thúc hiệu lực (null = vẫn còn hiệu lực)</summary>
+    public DateOnly? EffectiveTo { get; set; }
+    /// <summary>Admin tạo lịch này</summary>
+    public Guid? CreatedByAdminId { get; set; }
     public ICollection<ScheduleStop> Stops { get; set; } = new List<ScheduleStop>();
 }

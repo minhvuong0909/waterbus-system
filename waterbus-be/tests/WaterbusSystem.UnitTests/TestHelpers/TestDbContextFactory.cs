@@ -54,8 +54,8 @@ public static class TestDbContextFactory
             IsActive = true
         };
 
-        var seat1 = new Seat { BoatId = boat.Id, SeatCode = "S01", Category = SeatCategory.Standard, RowNumber = 1, ColumnNumber = 1, PriceMultiplier = 1.0m, IsActive = true };
-        var seat2 = new Seat { BoatId = boat.Id, SeatCode = "S02", Category = SeatCategory.FrontCabin, RowNumber = 1, ColumnNumber = 2, PriceMultiplier = 1.2m, IsActive = true };
+        var seat1 = new Seat { BoatId = boat.Id, SeatCode = "S01", RowNumber = 1, ColumnNumber = 1, IsActive = true };
+        var seat2 = new Seat { BoatId = boat.Id, SeatCode = "S02", RowNumber = 1, ColumnNumber = 2, IsActive = true };
         boat.Seats.Add(seat1);
         boat.Seats.Add(seat2);
         context.Boats.Add(boat);
@@ -70,7 +70,7 @@ public static class TestDbContextFactory
             YearBuilt = 2024,
             IsActive = true
         };
-        var seatOnOtherBoat = new Seat { BoatId = otherBoat.Id, SeatCode = "X01", Category = SeatCategory.Standard, RowNumber = 1, ColumnNumber = 1, PriceMultiplier = 1.0m, IsActive = true };
+        var seatOnOtherBoat = new Seat { BoatId = otherBoat.Id, SeatCode = "X01", RowNumber = 1, ColumnNumber = 1, IsActive = true };
         otherBoat.Seats.Add(seatOnOtherBoat);
         context.Boats.Add(otherBoat);
 
@@ -82,7 +82,7 @@ public static class TestDbContextFactory
             ArrivalTime = DateTimeOffset.UtcNow.AddDays(1).AddMinutes(30),
             TripType = TripType.Commuter,
             Status = TripStatus.Scheduled,
-            BasePrice = 15000m
+            // BasePrice = 15000m
         };
         context.Trips.Add(trip);
 
@@ -103,3 +103,5 @@ public static class TestDbContextFactory
         Seat SeatOnOtherBoat,
         Trip Trip);
 }
+
+

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WaterbusSystem.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using WaterbusSystem.Infrastructure.Persistence;
 namespace WaterbusSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261003094142_Phase3_RouteStopAndTripStopCalls")]
+    partial class Phase3_RouteStopAndTripStopCalls
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -125,124 +128,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.AccessGrant", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("AccessType")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<Guid?>("BookingId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset>("ExpiresAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset?>("LastUsedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid>("OrderId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("RevokedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BookingId");
-
-                    b.HasIndex("OrderId");
-
-                    b.HasIndex("TokenHash")
-                        .IsUnique();
-
-                    b.ToTable("AccessGrants");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.AudioGuide", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("AudioAssetUri")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("DurationSeconds")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsPublished")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LanguageCode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("PoiId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PoiId", "LanguageCode")
-                        .IsUnique();
-
-                    b.ToTable("AudioGuides");
-                });
-
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Boat", b =>
                 {
                     b.Property<Guid>("Id")
@@ -310,68 +195,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Boats");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.BoatPositionEvent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("BoatId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("Latitude")
-                        .HasPrecision(10, 7)
-                        .HasColumnType("decimal(10,7)");
-
-                    b.Property<decimal>("Longitude")
-                        .HasPrecision(10, 7)
-                        .HasColumnType("decimal(10,7)");
-
-                    b.Property<DateTimeOffset>("ObservedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<decimal?>("SpeedKnots")
-                        .HasPrecision(6, 2)
-                        .HasColumnType("decimal(6,2)");
-
-                    b.Property<Guid?>("TripId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BoatId");
-
-                    b.HasIndex("TripId");
-
-                    b.ToTable("BoatPositionEvents");
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Booking", b =>
@@ -478,83 +301,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.ToTable("Bookings");
                 });
 
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.CheckInEvent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ClientEventId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset>("OccurredAtDevice")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("Outcome")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset?>("ReceivedAtServer")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<Guid?>("ScannerDeviceId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("StaffAccountId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("SyncStatus")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<Guid>("TicketId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("TripStopCallId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClientEventId")
-                        .IsUnique();
-
-                    b.HasIndex("ScannerDeviceId");
-
-                    b.HasIndex("TicketId");
-
-                    b.HasIndex("TripStopCallId");
-
-                    b.ToTable("CheckInEvents");
-                });
-
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.FareRule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -619,239 +365,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("FareRules");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.FinancialTransaction", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
-
-                    b.Property<string>("FailureReason")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("GatewayName")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("GatewayReference")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("IdempotencyKey")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid?>("ManualProcessedByAdminId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ManualRefundEvidence")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("OrderId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("OriginalPaymentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("ProcessedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("RefundBookingId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("TransactionType")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IdempotencyKey")
-                        .IsUnique();
-
-                    b.HasIndex("OrderId");
-
-                    b.HasIndex("OriginalPaymentId");
-
-                    b.HasIndex("RefundBookingId");
-
-                    b.ToTable("FinancialTransactions");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.Incident", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("BoatId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid?>("HandledByAdminId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("IncidentType")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset?>("OccurredAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("ReportedByCaptainId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("ReportedByStaffId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("ResolvedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("RouteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<string>("ScopeType")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<string>("Severity")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BoatId");
-
-                    b.HasIndex("RouteId");
-
-                    b.ToTable("Incidents");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.IncidentTrip", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset?>("DecisionAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("DecisionByAdminId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("IncidentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("OperationDecision")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<Guid>("TripId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TripId");
-
-                    b.HasIndex("IncidentId", "TripId")
-                        .IsUnique();
-
-                    b.ToTable("IncidentTrips");
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.PaymentTransaction", b =>
@@ -923,57 +436,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("PaymentTransactions");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.PointOfInterest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal?>("Latitude")
-                        .HasPrecision(10, 7)
-                        .HasColumnType("decimal(10,7)");
-
-                    b.Property<decimal?>("Longitude")
-                        .HasPrecision(10, 7)
-                        .HasColumnType("decimal(10,7)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("PointsOfInterest");
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.PurchaseOrder", b =>
@@ -1050,53 +512,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.ToTable("PurchaseOrders");
                 });
 
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.RefundTicketAllocation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("RefundTransactionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<Guid>("TicketId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TicketId");
-
-                    b.HasIndex("RefundTransactionId", "TicketId")
-                        .IsUnique();
-
-                    b.ToTable("RefundTicketAllocations");
-                });
-
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Route", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1167,58 +582,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.ToTable("Routes");
                 });
 
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.RoutePoi", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("PoiId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("RouteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<int?>("TriggerRadiusM")
-                        .HasColumnType("int");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PoiId");
-
-                    b.HasIndex("RouteId", "DisplayOrder")
-                        .IsUnique();
-
-                    b.ToTable("RoutePois");
-                });
-
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.RouteStop", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1271,110 +634,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.ToTable("RouteStops");
                 });
 
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.ScannerAssignment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("ActiveFrom")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset?>("ActiveUntil")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("DeviceId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsPrimaryOffline")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<Guid>("StaffAccountId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("TripStopCallId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DeviceId");
-
-                    b.HasIndex("TripStopCallId");
-
-                    b.ToTable("ScannerAssignments");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.ScannerDevice", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("DeviceCode")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Label")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset?>("LastPreloadedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DeviceCode")
-                        .IsUnique();
-
-                    b.ToTable("ScannerDevices");
-                });
-
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Schedule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1387,9 +646,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<Guid?>("CreatedByAdminId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("DaysOfWeek")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1397,16 +653,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
 
                     b.Property<TimeSpan>("DepartureTime")
                         .HasColumnType("time");
-
-                    b.Property<string>("Direction")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateOnly>("EffectiveFrom")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("EffectiveTo")
-                        .HasColumnType("date");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -1612,9 +858,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Property<Guid>("BookingId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTimeOffset?>("ConfirmedAt")
-                        .HasColumnType("datetimeoffset");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -1630,40 +873,11 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<decimal?>("PaidAllocation")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<string>("PassengerEmail")
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<string>("PassengerName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<string>("PassengerPhone")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<decimal>("QuotedFare")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("decimal(12,2)");
-
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
-
-                    b.Property<string>("SeatClassAtSale")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("SeatCodeAtSale")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
 
                     b.Property<Guid>("SeatId")
                         .HasColumnType("uniqueidentifier");
@@ -1756,11 +970,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("BoardingStatus")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
                     b.Property<Guid>("BookingId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1776,35 +985,24 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<decimal>("FaceFareSnapshot")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<string>("FareSeatClassSnapshot")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("FareTripTypeSnapshot")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
-
-                    b.Property<DateTimeOffset?>("IssuedAt")
-                        .HasColumnType("datetimeoffset");
 
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTimeOffset?>("NoShowFinalizedAt")
-                        .HasColumnType("datetimeoffset");
+                    b.Property<string>("PassengerName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<decimal>("PaidFareSnapshot")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("decimal(12,2)");
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("QrSeed")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
@@ -1812,7 +1010,7 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
-                    b.Property<Guid>("SeatReservationId")
+                    b.Property<Guid>("SeatId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("Status")
@@ -1823,7 +1021,7 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<Guid?>("TripId")
+                    b.Property<Guid>("TripId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
@@ -1833,8 +1031,7 @@ namespace WaterbusSystem.Infrastructure.Migrations
 
                     b.HasIndex("BookingId");
 
-                    b.HasIndex("SeatReservationId")
-                        .IsUnique();
+                    b.HasIndex("SeatId");
 
                     b.HasIndex("TicketCode")
                         .IsUnique();
@@ -1901,74 +1098,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.HasIndex("ScheduleId");
 
                     b.ToTable("Trips");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.TripOperationEvent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("ActedByAdminId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("ActedByCaptainId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("FromStatus")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<Guid?>("IncidentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("LastModifiedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Note")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset>("OccurredAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<string>("ToStatus")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<Guid>("TripId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IncidentId");
-
-                    b.HasIndex("TripId");
-
-                    b.ToTable("TripOperationEvents");
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.TripStopCall", b =>
@@ -2195,53 +1324,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.AccessGrant", b =>
-                {
-                    b.HasOne("WaterbusSystem.Domain.Entities.Booking", "Booking")
-                        .WithMany()
-                        .HasForeignKey("BookingId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("WaterbusSystem.Domain.Entities.PurchaseOrder", "Order")
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Booking");
-
-                    b.Navigation("Order");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.AudioGuide", b =>
-                {
-                    b.HasOne("WaterbusSystem.Domain.Entities.PointOfInterest", "Poi")
-                        .WithMany("AudioGuides")
-                        .HasForeignKey("PoiId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Poi");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.BoatPositionEvent", b =>
-                {
-                    b.HasOne("WaterbusSystem.Domain.Entities.Boat", "Boat")
-                        .WithMany()
-                        .HasForeignKey("BoatId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("WaterbusSystem.Domain.Entities.Trip", "Trip")
-                        .WithMany()
-                        .HasForeignKey("TripId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Boat");
-
-                    b.Navigation("Trip");
-                });
-
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Booking", b =>
                 {
                     b.HasOne("WaterbusSystem.Domain.Entities.PurchaseOrder", "Order")
@@ -2251,32 +1333,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Order");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.CheckInEvent", b =>
-                {
-                    b.HasOne("WaterbusSystem.Domain.Entities.ScannerDevice", "ScannerDevice")
-                        .WithMany()
-                        .HasForeignKey("ScannerDeviceId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("WaterbusSystem.Domain.Entities.Ticket", "Ticket")
-                        .WithMany()
-                        .HasForeignKey("TicketId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("WaterbusSystem.Domain.Entities.TripStopCall", "TripStopCall")
-                        .WithMany()
-                        .HasForeignKey("TripStopCallId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ScannerDevice");
-
-                    b.Navigation("Ticket");
-
-                    b.Navigation("TripStopCall");
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.FareRule", b =>
@@ -2290,67 +1346,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Navigation("SeatClass");
                 });
 
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.FinancialTransaction", b =>
-                {
-                    b.HasOne("WaterbusSystem.Domain.Entities.PurchaseOrder", "Order")
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("WaterbusSystem.Domain.Entities.FinancialTransaction", "OriginalPayment")
-                        .WithMany("Refunds")
-                        .HasForeignKey("OriginalPaymentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("WaterbusSystem.Domain.Entities.Booking", "RefundBooking")
-                        .WithMany()
-                        .HasForeignKey("RefundBookingId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Order");
-
-                    b.Navigation("OriginalPayment");
-
-                    b.Navigation("RefundBooking");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.Incident", b =>
-                {
-                    b.HasOne("WaterbusSystem.Domain.Entities.Boat", "Boat")
-                        .WithMany()
-                        .HasForeignKey("BoatId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("WaterbusSystem.Domain.Entities.Route", "Route")
-                        .WithMany()
-                        .HasForeignKey("RouteId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Boat");
-
-                    b.Navigation("Route");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.IncidentTrip", b =>
-                {
-                    b.HasOne("WaterbusSystem.Domain.Entities.Incident", "Incident")
-                        .WithMany("AffectedTrips")
-                        .HasForeignKey("IncidentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("WaterbusSystem.Domain.Entities.Trip", "Trip")
-                        .WithMany()
-                        .HasForeignKey("TripId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Incident");
-
-                    b.Navigation("Trip");
-                });
-
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.PaymentTransaction", b =>
                 {
                     b.HasOne("WaterbusSystem.Domain.Entities.Booking", "Booking")
@@ -2360,25 +1355,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Booking");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.RefundTicketAllocation", b =>
-                {
-                    b.HasOne("WaterbusSystem.Domain.Entities.FinancialTransaction", "RefundTransaction")
-                        .WithMany("RefundAllocations")
-                        .HasForeignKey("RefundTransactionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("WaterbusSystem.Domain.Entities.Ticket", "Ticket")
-                        .WithMany()
-                        .HasForeignKey("TicketId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("RefundTransaction");
-
-                    b.Navigation("Ticket");
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Route", b =>
@@ -2400,25 +1376,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Navigation("DepartureStation");
                 });
 
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.RoutePoi", b =>
-                {
-                    b.HasOne("WaterbusSystem.Domain.Entities.PointOfInterest", "Poi")
-                        .WithMany("RoutePois")
-                        .HasForeignKey("PoiId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("WaterbusSystem.Domain.Entities.Route", "Route")
-                        .WithMany()
-                        .HasForeignKey("RouteId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Poi");
-
-                    b.Navigation("Route");
-                });
-
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.RouteStop", b =>
                 {
                     b.HasOne("WaterbusSystem.Domain.Entities.Route", "Route")
@@ -2436,25 +1393,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Navigation("Route");
 
                     b.Navigation("Station");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.ScannerAssignment", b =>
-                {
-                    b.HasOne("WaterbusSystem.Domain.Entities.ScannerDevice", "Device")
-                        .WithMany()
-                        .HasForeignKey("DeviceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("WaterbusSystem.Domain.Entities.TripStopCall", "TripStopCall")
-                        .WithMany()
-                        .HasForeignKey("TripStopCallId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Device");
-
-                    b.Navigation("TripStopCall");
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Schedule", b =>
@@ -2538,22 +1476,26 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.HasOne("WaterbusSystem.Domain.Entities.Booking", "Booking")
                         .WithMany("Tickets")
                         .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WaterbusSystem.Domain.Entities.Seat", "Seat")
+                        .WithMany()
+                        .HasForeignKey("SeatId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("WaterbusSystem.Domain.Entities.SeatReservation", "SeatReservation")
-                        .WithOne("Ticket")
-                        .HasForeignKey("WaterbusSystem.Domain.Entities.Ticket", "SeatReservationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("WaterbusSystem.Domain.Entities.Trip", null)
+                    b.HasOne("WaterbusSystem.Domain.Entities.Trip", "Trip")
                         .WithMany("Tickets")
-                        .HasForeignKey("TripId");
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Booking");
 
-                    b.Navigation("SeatReservation");
+                    b.Navigation("Seat");
+
+                    b.Navigation("Trip");
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Trip", b =>
@@ -2579,24 +1521,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Navigation("Route");
 
                     b.Navigation("Schedule");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.TripOperationEvent", b =>
-                {
-                    b.HasOne("WaterbusSystem.Domain.Entities.Incident", "Incident")
-                        .WithMany("OperationEvents")
-                        .HasForeignKey("IncidentId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("WaterbusSystem.Domain.Entities.Trip", "Trip")
-                        .WithMany()
-                        .HasForeignKey("TripId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Incident");
-
-                    b.Navigation("Trip");
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.TripStopCall", b =>
@@ -2632,27 +1556,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Navigation("Tickets");
                 });
 
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.FinancialTransaction", b =>
-                {
-                    b.Navigation("RefundAllocations");
-
-                    b.Navigation("Refunds");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.Incident", b =>
-                {
-                    b.Navigation("AffectedTrips");
-
-                    b.Navigation("OperationEvents");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.PointOfInterest", b =>
-                {
-                    b.Navigation("AudioGuides");
-
-                    b.Navigation("RoutePois");
-                });
-
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.PurchaseOrder", b =>
                 {
                     b.Navigation("Bookings");
@@ -2680,11 +1583,6 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Navigation("FareRules");
 
                     b.Navigation("Seats");
-                });
-
-            modelBuilder.Entity("WaterbusSystem.Domain.Entities.SeatReservation", b =>
-                {
-                    b.Navigation("Ticket");
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Trip", b =>
