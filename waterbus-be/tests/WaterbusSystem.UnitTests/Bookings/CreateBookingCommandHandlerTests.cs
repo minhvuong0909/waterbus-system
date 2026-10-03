@@ -37,11 +37,11 @@ public class CreateBookingCommandHandlerTests
         var result = await handler.Handle(command, CancellationToken.None);
 
         // BasePrice 15000, Seat1 x1.0 = 15000, Seat2 x1.2 = 18000 -> Tổng 33000 (trước đây bug bỏ qua PriceMultiplier)
-        result.TotalAmount.Should().Be(30000m);
+        result.TotalAmount.Should().Be(33000m);
 
         var booking = context.Bookings.Single(b => b.Id == result.BookingId);
-        context.Entry(booking).Collection(b => b.SeatReservations).Load();
-        booking.SeatReservations.Should().HaveCount(2);
+        context.Entry(booking).Collection(b => b.Tickets).Load();
+        booking.Tickets.Should().HaveCount(2);
 
         var reservations = context.SeatReservations.Where(r => r.BookingId == booking.Id).ToList();
         reservations.Should().HaveCount(2);

@@ -118,7 +118,7 @@ public class SearchTripsQueryHandler : IRequestHandler<SearchTripsQuery, List<Tr
                 t.ArrivalTime,
                 t.Route?.EstimatedDurationMinutes ?? 45,
                 t.TripType.ToString(),
-                0m, // TODO Phase 2: fetch starting price from FareRule
+                t.BasePrice,
                 availableSeats,
                 stops);
         }).ToList();

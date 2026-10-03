@@ -35,7 +35,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<SeatReservation> SeatReservations => Set<SeatReservation>();
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
-
+    public DbSet<RouteStop> RouteStops => Set<RouteStop>();
+    public DbSet<ScheduleStop> ScheduleStops => Set<ScheduleStop>();
+    public DbSet<TripStopCall> TripStopCalls => Set<TripStopCall>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

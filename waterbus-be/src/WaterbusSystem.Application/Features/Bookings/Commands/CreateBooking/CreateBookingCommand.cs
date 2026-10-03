@@ -32,7 +32,7 @@ public record CreateBookingCommand(
     Guid DisembarkingStationId,
     string CustomerName,
     string CustomerEmail,
-    string? CustomerPhone) : IRequest<BookingResponseDto>;
+    string CustomerPhone) : IRequest<BookingResponseDto>;
 
 /// <summary>
 /// Validator kiểm tra tính toàn vẹn của dữ liệu đầu vào
@@ -66,8 +66,8 @@ public class CreateBookingCommandValidator : AbstractValidator<CreateBookingComm
             .EmailAddress().WithMessage("Định dạng email không hợp lệ.");
 
         RuleFor(x => x.CustomerPhone)
-            .Matches(@"^[0-9]{10,11}$").WithMessage("Số điện thoại phải từ 10 đến 11 chữ số.")
-            .When(x => !string.IsNullOrEmpty(x.CustomerPhone));
+            .NotEmpty().WithMessage("Số điện thoại không được để trống.")
+            .Matches(@"^[0-9]{10,11}$").WithMessage("Số điện thoại phải từ 10 đến 11 chữ số.");
     }
 }
 
@@ -137,15 +137,6 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
                 .Include(t => t.Route!).ThenInclude(r => r.ArrivalStation)
                 .FirstOrDefaultAsync(t => t.Id == request.TripId && !t.IsDeleted, cancellationToken)
                 ?? throw new NotFoundException(nameof(Trip), request.TripId);
-
-            // Tàu phải được phân công trước khi mở bán
-            if (trip.BoatId == null)
-            {
-                throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
-                {
-                    new(nameof(request.TripId), "Chuyến tàu chưa được phân công tàu. Không thể đặt vé.")
-                });
-            }
 
             var route = trip.Route
                 ?? throw new NotFoundException(nameof(Domain.Entities.Route), trip.RouteId);
@@ -239,62 +230,30 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             // =========================================================================
             var now = DateTimeOffset.UtcNow;
 
-            // Tìm giá vé hiện hành theo TripType × SeatClass
-            var tripTypeStr = trip.TripType.ToString();
-
-            // Load tất cả FareRule cần thiết một lần
-            var seatClassIds = seats.Select(s => s.SeatClassId).Distinct().ToList();
-            var fareRules = await _context.FareRules
-                .Where(f => f.TripType == tripTypeStr
-                         && seatClassIds.Contains(f.SeatClassId)
-                         && f.IsActive
-                         && f.EffectiveFrom <= now
-                         && (f.EffectiveTo == null || f.EffectiveTo > now))
-                .ToListAsync(cancellationToken);
-
-            // Helper để lấy giá theo SeatClassId
-            decimal GetFare(Guid seatClassId)
-            {
-                var rule = fareRules
-                    .Where(f => f.SeatClassId == seatClassId)
-                    .OrderByDescending(f => f.EffectiveFrom)
-                    .FirstOrDefault()
-                    ?? throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
-                    {
-                        new("FareRule", $"Không tìm thấy bảng giá cho loại chuyến {tripTypeStr} và hạng ghế này.")
-                    });
-                return rule.Price;
-            }
-
-            var order = new PurchaseOrder
-            {
-                PurchaserName  = request.CustomerName,
-                PurchaserEmail = request.CustomerEmail,
-                PurchaserPhone = request.CustomerPhone,
-                PurchaseMode   = "OneWay",
-                Status         = "Pending",
-                QuotedTotal    = seats.Sum(s => GetFare(s.SeatClassId)),
-                ExpiresAt      = now.AddMinutes(10)
-            };
-
             var booking = new Booking
             {
-                OrderId         = order.Id,
-                BookingCode     = CodeGenerator.GenerateBookingCode(now),
-                PublicBookingId = Guid.NewGuid().ToString("N")[..16].ToUpperInvariant(),
-                CustomerName    = request.CustomerName,
-                CustomerEmail   = request.CustomerEmail,
-                CustomerPhone   = request.CustomerPhone,
-                Status          = BookingStatus.Pending,
-                PaymentStatus   = PaymentStatus.Pending,
-                TotalAmount     = order.QuotedTotal
+                BookingCode = CodeGenerator.GenerateBookingCode(now),
+                CustomerName = request.CustomerName,
+                CustomerEmail = request.CustomerEmail,
+                CustomerPhone = request.CustomerPhone,
+                Status = BookingStatus.Pending,
+                PaymentStatus = PaymentStatus.Pending,
+                TotalAmount = seats.Sum(s => trip.BasePrice * s.PriceMultiplier)
             };
-
-            order.Bookings.Add(booking);
-            _context.PurchaseOrders.Add(order);
 
             foreach (var seat in seats)
             {
+                booking.Tickets.Add(new Ticket
+                {
+                    TripId = request.TripId,
+                    SeatId = seat.Id,
+                    TicketCode = CodeGenerator.GenerateTicketCode(now),
+                    // Giá vé = Giá vé cơ bản của chuyến * Hệ số nhân giá theo vị trí ghế (VIP/Standard/Outdoor)
+                    Price = trip.BasePrice * seat.PriceMultiplier,
+                    PassengerName = request.CustomerName,
+                    Status = TicketStatus.Pending
+                });
+
                 _context.SeatReservations.Add(new SeatReservation
                 {
                     TripId = request.TripId,
@@ -306,6 +265,7 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
                 });
             }
 
+            _context.Bookings.Add(booking);
 
             await _context.SaveChangesAsync(cancellationToken);
 

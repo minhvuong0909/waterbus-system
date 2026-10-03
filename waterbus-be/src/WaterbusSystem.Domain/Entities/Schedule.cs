@@ -27,4 +27,5 @@ public class Schedule : BaseEntity
     public TripType TripType { get; set; } = TripType.Commuter;
 
     public bool IsActive { get; set; } = true;
+    public ICollection<ScheduleStop> Stops { get; set; } = new List<ScheduleStop>();
 }

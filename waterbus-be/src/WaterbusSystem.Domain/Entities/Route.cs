@@ -33,4 +33,5 @@ public class Route : BaseEntity
     public string ServiceType { get; set; } = "Regular";
 
     public bool IsActive { get; set; } = true;
+    public ICollection<RouteStop> Stops { get; set; } = new List<RouteStop>();
 }

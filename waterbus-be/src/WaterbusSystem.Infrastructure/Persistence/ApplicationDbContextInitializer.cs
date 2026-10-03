@@ -204,6 +204,84 @@ public class ApplicationDbContextInitializer
             await _context.FareRules.AddRangeAsync(fareRules);
             await _context.SaveChangesAsync();
         }
+
+        // 8. Seed RouteStops, Schedule, ScheduleStops, Trip
+        if (!await _context.RouteStops.AnyAsync())
+        {
+            var stBachDang = await _context.Stations.FirstAsync(s => s.Code == "ST01");
+            var stBinhAn = await _context.Stations.FirstAsync(s => s.Code == "ST02");
+            var stThanhDa = await _context.Stations.FirstAsync(s => s.Code == "ST03");
+            var stHiepBinhChanh = await _context.Stations.FirstAsync(s => s.Code == "ST04");
+            var stLinhDong = await _context.Stations.FirstAsync(s => s.Code == "ST05");
+            var route1 = await _context.Routes.FirstAsync(r => r.Code == "RT01");
+
+            var routeStops = new List<RouteStop>
+            {
+                new() { RouteId = route1.Id, StationId = stBachDang.Id, SequenceNo = 1 },
+                new() { RouteId = route1.Id, StationId = stBinhAn.Id, SequenceNo = 2 },
+                new() { RouteId = route1.Id, StationId = stThanhDa.Id, SequenceNo = 3 },
+                new() { RouteId = route1.Id, StationId = stHiepBinhChanh.Id, SequenceNo = 4 },
+                new() { RouteId = route1.Id, StationId = stLinhDong.Id, SequenceNo = 5 }
+            };
+            await _context.RouteStops.AddRangeAsync(routeStops);
+            await _context.SaveChangesAsync();
+        }
+
+        if (!await _context.Schedules.AnyAsync())
+        {
+            var route1 = await _context.Routes.FirstAsync(r => r.Code == "RT01");
+            var schedule = new Schedule
+            {
+                RouteId = route1.Id,
+                DepartureTime = new TimeSpan(8, 0, 0), // 8:00 AM
+                IsActive = true
+            };
+            await _context.Schedules.AddAsync(schedule);
+            await _context.SaveChangesAsync();
+        }
+
+        if (!await _context.ScheduleStops.AnyAsync())
+        {
+            var schedule = await _context.Schedules.FirstAsync();
+            var routeStops = await _context.RouteStops.OrderBy(r => r.SequenceNo).ToListAsync();
+            
+            var scheduleStops = new List<ScheduleStop>();
+            int offset = 0;
+            foreach (var rs in routeStops)
+            {
+                scheduleStops.Add(new ScheduleStop
+                {
+                    ScheduleId = schedule.Id,
+                    RouteStopId = rs.Id,
+                    VisitOrder = rs.SequenceNo,
+                    ArrivalOffsetMin = offset == 0 ? null : offset,
+                    DepartureOffsetMin = offset == 45 ? null : offset + 2
+                });
+                offset += 11;
+            }
+            await _context.ScheduleStops.AddRangeAsync(scheduleStops);
+            await _context.SaveChangesAsync();
+        }
+
+        if (!await _context.Trips.AnyAsync())
+        {
+            var schedule = await _context.Schedules.FirstAsync();
+            var route = await _context.Routes.FirstAsync();
+            var boat = await _context.Boats.FirstAsync();
+            
+            var trip = new Trip
+            {
+                ScheduleId = schedule.Id,
+                RouteId = route.Id,
+                BoatId = boat.Id,
+                DepartureTime = DateTimeOffset.UtcNow.AddDays(1).Date.AddHours(8),
+                ArrivalTime = DateTimeOffset.UtcNow.AddDays(1).Date.AddHours(8).AddMinutes(45),
+                Status = WaterbusSystem.Domain.Enums.TripStatus.Scheduled,
+                TripType = WaterbusSystem.Domain.Enums.TripType.Commuter
+            };
+            await _context.Trips.AddAsync(trip);
+            await _context.SaveChangesAsync();
+        }
     }
 
     private async Task SeedUserAsync(string email, string fullName, string password, string role)

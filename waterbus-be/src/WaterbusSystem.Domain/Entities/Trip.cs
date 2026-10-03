@@ -43,4 +43,5 @@ public class Trip : BaseEntity
     /// Danh sách các vé đã bán hoặc đang giữ cho chuyến tàu này
     /// </summary>
     public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+    public ICollection<TripStopCall> TripStopCalls { get; set; } = new List<TripStopCall>();
 }

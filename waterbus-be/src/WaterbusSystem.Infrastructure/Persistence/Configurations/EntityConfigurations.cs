@@ -262,3 +262,58 @@ public class SeatReservationConfiguration : IEntityTypeConfiguration<SeatReserva
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+public class RouteStopConfiguration : IEntityTypeConfiguration<RouteStop>
+{
+    public void Configure(EntityTypeBuilder<RouteStop> builder)
+    {
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.RouteId, x.SequenceNo }).IsUnique();
+        builder.HasOne(x => x.Route)
+            .WithMany(r => r.Stops)
+            .HasForeignKey(x => x.RouteId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(x => x.Station)
+            .WithMany()
+            .HasForeignKey(x => x.StationId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.RowVersion).IsRowVersion();
+    }
+}
+
+public class ScheduleStopConfiguration : IEntityTypeConfiguration<ScheduleStop>
+{
+    public void Configure(EntityTypeBuilder<ScheduleStop> builder)
+    {
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.ScheduleId, x.VisitOrder }).IsUnique();
+        builder.HasOne(x => x.Schedule)
+            .WithMany(s => s.Stops)
+            .HasForeignKey(x => x.ScheduleId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(x => x.RouteStop)
+            .WithMany(rs => rs.ScheduleStops)
+            .HasForeignKey(x => x.RouteStopId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.RowVersion).IsRowVersion();
+    }
+}
+
+public class TripStopCallConfiguration : IEntityTypeConfiguration<TripStopCall>
+{
+    public void Configure(EntityTypeBuilder<TripStopCall> builder)
+    {
+        builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.TripId, x.VisitOrder }).IsUnique();
+        builder.HasOne(x => x.Trip)
+            .WithMany(t => t.TripStopCalls)
+            .HasForeignKey(x => x.TripId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(x => x.RouteStop)
+            .WithMany(rs => rs.TripStopCalls)
+            .HasForeignKey(x => x.RouteStopId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.Status).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.RowVersion).IsRowVersion();
+    }
+}

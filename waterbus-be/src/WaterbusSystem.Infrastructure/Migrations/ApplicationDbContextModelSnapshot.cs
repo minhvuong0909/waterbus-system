@@ -579,6 +579,58 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.ToTable("Routes");
                 });
 
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.RouteStop", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("CanAlight")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanBoard")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("RouteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("SequenceNo")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("StationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StationId");
+
+                    b.HasIndex("RouteId", "SequenceNo")
+                        .IsUnique();
+
+                    b.ToTable("RouteStops");
+                });
+
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Schedule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -628,6 +680,58 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.HasIndex("RouteId");
 
                     b.ToTable("Schedules");
+                });
+
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.ScheduleStop", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("ArrivalOffsetMin")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("DepartureOffsetMin")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("RouteStopId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("ScheduleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("VisitOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RouteStopId");
+
+                    b.HasIndex("ScheduleId", "VisitOrder")
+                        .IsUnique();
+
+                    b.ToTable("ScheduleStops");
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Seat", b =>
@@ -993,6 +1097,69 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.ToTable("Trips");
                 });
 
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.TripStopCall", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ActualArrivalTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ActualDepartureTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset?>("EstimatedArrivalTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("EstimatedDepartureTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("RouteStopId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("TripId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("VisitOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RouteStopId");
+
+                    b.HasIndex("TripId", "VisitOrder")
+                        .IsUnique();
+
+                    b.ToTable("TripStopCalls");
+                });
+
             modelBuilder.Entity("WaterbusSystem.Infrastructure.Identity.ApplicationRole", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1206,6 +1373,25 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Navigation("DepartureStation");
                 });
 
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.RouteStop", b =>
+                {
+                    b.HasOne("WaterbusSystem.Domain.Entities.Route", "Route")
+                        .WithMany("Stops")
+                        .HasForeignKey("RouteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WaterbusSystem.Domain.Entities.Station", "Station")
+                        .WithMany()
+                        .HasForeignKey("StationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Route");
+
+                    b.Navigation("Station");
+                });
+
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Schedule", b =>
                 {
                     b.HasOne("WaterbusSystem.Domain.Entities.Route", "Route")
@@ -1215,6 +1401,25 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Route");
+                });
+
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.ScheduleStop", b =>
+                {
+                    b.HasOne("WaterbusSystem.Domain.Entities.RouteStop", "RouteStop")
+                        .WithMany("ScheduleStops")
+                        .HasForeignKey("RouteStopId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WaterbusSystem.Domain.Entities.Schedule", "Schedule")
+                        .WithMany("Stops")
+                        .HasForeignKey("ScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RouteStop");
+
+                    b.Navigation("Schedule");
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Seat", b =>
@@ -1315,6 +1520,25 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Navigation("Schedule");
                 });
 
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.TripStopCall", b =>
+                {
+                    b.HasOne("WaterbusSystem.Domain.Entities.RouteStop", "RouteStop")
+                        .WithMany("TripStopCalls")
+                        .HasForeignKey("RouteStopId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WaterbusSystem.Domain.Entities.Trip", "Trip")
+                        .WithMany("TripStopCalls")
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RouteStop");
+
+                    b.Navigation("Trip");
+                });
+
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Boat", b =>
                 {
                     b.Navigation("Seats");
@@ -1334,6 +1558,23 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Navigation("Bookings");
                 });
 
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.Route", b =>
+                {
+                    b.Navigation("Stops");
+                });
+
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.RouteStop", b =>
+                {
+                    b.Navigation("ScheduleStops");
+
+                    b.Navigation("TripStopCalls");
+                });
+
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.Schedule", b =>
+                {
+                    b.Navigation("Stops");
+                });
+
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.SeatClass", b =>
                 {
                     b.Navigation("FareRules");
@@ -1344,6 +1585,8 @@ namespace WaterbusSystem.Infrastructure.Migrations
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Trip", b =>
                 {
                     b.Navigation("Tickets");
+
+                    b.Navigation("TripStopCalls");
                 });
 #pragma warning restore 612, 618
         }
