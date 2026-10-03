@@ -85,6 +85,17 @@ public class ConfirmVnPayIpnCommandHandler : IRequestHandler<ConfirmVnPayIpnComm
 
         var isSuccess = vnpResponseCode == "00";
 
+        var idempotencyKey = $"{bookingCode}_{vnpTransactionNo}";
+
+        var existingTransaction = await _context.PaymentTransactions
+            .FirstOrDefaultAsync(t => t.IdempotencyKey == idempotencyKey, cancellationToken);
+
+        if (existingTransaction != null)
+        {
+            // Đã xử lý IPN này rồi, trả về thành công để VNPAY không retry nữa
+            return new VnPayIpnResultDto("00", "Already processed");
+        }
+
         // 5. Lưu lại lịch sử giao dịch để phục vụ đối soát kế toán (trước đây bị bỏ sót)
         _context.PaymentTransactions.Add(new PaymentTransaction
         {
@@ -95,7 +106,8 @@ public class ConfirmVnPayIpnCommandHandler : IRequestHandler<ConfirmVnPayIpnComm
             PayDate = payDate,
             ResponseCode = vnpResponseCode,
             TransactionStatus = isSuccess ? PaymentStatus.Success : PaymentStatus.Failed,
-            SecureHash = query.GetValueOrDefault("vnp_SecureHash", string.Empty)
+            SecureHash = query.GetValueOrDefault("vnp_SecureHash", string.Empty),
+            IdempotencyKey = idempotencyKey
         });
 
         if (isSuccess)
@@ -103,9 +115,31 @@ public class ConfirmVnPayIpnCommandHandler : IRequestHandler<ConfirmVnPayIpnComm
             booking.Status = BookingStatus.Confirmed;
             booking.PaymentStatus = PaymentStatus.Success;
 
-            foreach (var ticket in booking.Tickets)
+            // Load SeatReservations của Booking này
+            var reservations = await _context.SeatReservations
+                .Where(r => r.BookingId == booking.Id && r.Status == ReservationStatus.Pending)
+                .Include(r => r.Seat)
+                .ToListAsync(cancellationToken);
+
+            var tripId = reservations.FirstOrDefault()?.TripId ?? Guid.Empty;
+            var trip = await _context.Trips
+                .FirstOrDefaultAsync(t => t.Id == tripId && !t.IsDeleted, cancellationToken);
+
+            foreach (var reservation in reservations)
             {
-                ticket.Status = TicketStatus.Valid;
+                reservation.Status = ReservationStatus.Confirmed;
+
+                // Tạo Ticket SAU KHI xác nhận thanh toán thành công
+                _context.Tickets.Add(new Ticket
+                {
+                    BookingId = booking.Id,
+                    TripId = reservation.TripId,  // NOTE: sẽ bị xóa ở Phase 2 khi refactor Ticket
+                    SeatId = reservation.SeatId,
+                    TicketCode = WaterbusSystem.Domain.Common.CodeGenerator.GenerateTicketCode(DateTimeOffset.UtcNow),
+                    Price = (trip?.BasePrice ?? 0m) * (reservation.Seat?.PriceMultiplier ?? 1.0m),
+                    PassengerName = booking.CustomerName,
+                    Status = TicketStatus.Valid
+                });
             }
         }
         else
@@ -113,10 +147,15 @@ public class ConfirmVnPayIpnCommandHandler : IRequestHandler<ConfirmVnPayIpnComm
             booking.Status = BookingStatus.Cancelled;
             booking.PaymentStatus = PaymentStatus.Failed;
 
-            foreach (var ticket in booking.Tickets)
+            var reservations = await _context.SeatReservations
+                .Where(r => r.BookingId == booking.Id && r.Status == ReservationStatus.Pending)
+                .ToListAsync(cancellationToken);
+
+            foreach (var reservation in reservations)
             {
-                ticket.Status = TicketStatus.Cancelled;
+                reservation.Status = ReservationStatus.Cancelled;
             }
+            // Không tạo Ticket khi thanh toán thất bại
         }
 
         await _context.SaveChangesAsync(cancellationToken);

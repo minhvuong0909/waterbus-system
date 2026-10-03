@@ -15,7 +15,7 @@ public class SeatReservation : BaseEntity
     public Guid SeatId { get; set; }
     public Seat? Seat { get; set; }
 
-    public Guid? BookingId { get; set; }
+    public Guid BookingId { get; set; }
     public Booking? Booking { get; set; }
 
     /// <summary>

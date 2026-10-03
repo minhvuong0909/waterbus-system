@@ -45,4 +45,10 @@ public class PaymentTransaction : BaseEntity
     /// Chữ ký số SecureHash nhận được từ Webhook IPN để đối soát
     /// </summary>
     public string? SecureHash { get; set; }
+    
+    /// <summary>
+    /// Khóa chống xử lý trùng lặp IPN (Idempotency Key).
+    /// Giá trị = vnp_TxnRef + "_" + vnp_TransactionNo
+    /// </summary>
+    public string IdempotencyKey { get; set; } = string.Empty;
 }

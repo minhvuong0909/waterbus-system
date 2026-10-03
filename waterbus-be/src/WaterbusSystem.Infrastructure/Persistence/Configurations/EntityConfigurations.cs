@@ -50,6 +50,12 @@ public class BoatConfiguration : IEntityTypeConfiguration<Boat>
         builder.Property(x => x.Code).HasMaxLength(20).IsRequired();
         builder.Property(x => x.Name).HasMaxLength(100).IsRequired();
         builder.Property(x => x.CaptainUserId);
+        
+        // Unique partial index: 1 Captain chỉ được gán cho 1 Boat (nullable → dùng filter)
+        builder.HasIndex(x => x.CaptainUserId)
+            .IsUnique()
+            .HasFilter("[CaptainUserId] IS NOT NULL");
+            
         builder.Property(x => x.RowVersion).IsRowVersion();
 
         builder.HasMany(x => x.Seats)
@@ -88,6 +94,7 @@ public class TripConfiguration : IEntityTypeConfiguration<Trip>
         builder.HasOne(x => x.Boat)
             .WithMany()
             .HasForeignKey(x => x.BoatId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
@@ -104,6 +111,8 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(x => x.CustomerPhone).HasMaxLength(20).IsRequired();
         builder.Property(x => x.TotalAmount).HasPrecision(18, 2);
         builder.Property(x => x.ManageOrderTokenHash).HasMaxLength(256);
+        builder.Property(x => x.ManageOrderTokenExpiresAt);
+        builder.Property(x => x.ManageOrderTokenRevoked).IsRequired().HasDefaultValue(false);
         builder.Property(x => x.RowVersion).IsRowVersion();
 
         builder.HasMany(x => x.Tickets)
@@ -144,6 +153,8 @@ public class PaymentTransactionConfiguration : IEntityTypeConfiguration<PaymentT
         builder.Property(x => x.TransactionCode).HasMaxLength(100).IsRequired();
         builder.Property(x => x.Amount).HasPrecision(18, 2);
         builder.Property(x => x.Provider).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.IdempotencyKey).HasMaxLength(200).IsRequired();
+        builder.HasIndex(x => x.IdempotencyKey).IsUnique();
         builder.Property(x => x.RowVersion).IsRowVersion();
     }
 }
@@ -182,8 +193,8 @@ public class SeatReservationConfiguration : IEntityTypeConfiguration<SeatReserva
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.Booking)
-            .WithMany()
+            .WithMany(b => b.SeatReservations)
             .HasForeignKey(x => x.BookingId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

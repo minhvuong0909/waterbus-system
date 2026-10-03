@@ -40,10 +40,21 @@ public class Booking : BaseEntity
     public string? ManageOrderTokenHash { get; set; }
 
     /// <summary>
+    /// Thời điểm hết hạn của ManageOrderToken (NULL = chưa có token)
+    /// </summary>
+    public DateTimeOffset? ManageOrderTokenExpiresAt { get; set; }
+
+    /// <summary>
+    /// Token đã bị thu hồi (revoke) hay chưa
+    /// </summary>
+    public bool ManageOrderTokenRevoked { get; set; } = false;
+
+    /// <summary>
     /// Danh sách các vé thuộc đơn đặt này
     /// </summary>
-
     public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+
+    public ICollection<SeatReservation> SeatReservations { get; set; } = new List<SeatReservation>();
 
     /// <summary>
     /// Lịch sử các giao dịch thanh toán qua cổng VNPAY/MoMo

@@ -14,7 +14,7 @@ public class Trip : BaseEntity
     public Guid RouteId { get; set; }
     public Route? Route { get; set; }
 
-    public Guid BoatId { get; set; }
+    public Guid? BoatId { get; set; }
     public Boat? Boat { get; set; }
 
     /// <summary>

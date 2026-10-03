@@ -138,6 +138,15 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
                 .FirstOrDefaultAsync(t => t.Id == request.TripId && !t.IsDeleted, cancellationToken)
                 ?? throw new NotFoundException(nameof(Trip), request.TripId);
 
+            // Tàu phải được phân công trước khi mở bán
+            if (trip.BoatId == null)
+            {
+                throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new(nameof(request.TripId), "Chuyến tàu chưa được phân công tàu. Không thể đặt vé.")
+                });
+            }
+
             var route = trip.Route
                 ?? throw new NotFoundException(nameof(Domain.Entities.Route), trip.RouteId);
             var departureStation = route.DepartureStation
@@ -243,17 +252,6 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
 
             foreach (var seat in seats)
             {
-                booking.Tickets.Add(new Ticket
-                {
-                    TripId = request.TripId,
-                    SeatId = seat.Id,
-                    TicketCode = CodeGenerator.GenerateTicketCode(now),
-                    // Giá vé = Giá vé cơ bản của chuyến * Hệ số nhân giá theo vị trí ghế (VIP/Standard/Outdoor)
-                    Price = trip.BasePrice * seat.PriceMultiplier,
-                    PassengerName = request.CustomerName,
-                    Status = TicketStatus.Pending
-                });
-
                 _context.SeatReservations.Add(new SeatReservation
                 {
                     TripId = request.TripId,

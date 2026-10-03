@@ -61,7 +61,7 @@ public class ApplicationDbContextInitializer
     private async Task TrySeedAsync()
     {
         // 1. Seed Roles hệ thống
-        var roles = new[] { "Admin", "Dispatcher", "Accountant", "Captain", "Staff", "Passenger" };
+        var roles = new[] { "Admin", "Captain", "Staff", "Passenger" };
         foreach (var role in roles)
         {
             if (!await _roleManager.RoleExistsAsync(role))
@@ -72,7 +72,7 @@ public class ApplicationDbContextInitializer
 
         // 2. Seed Tài khoản mặc định
         await SeedUserAsync("admin@waterbus.vn", "Admin Hệ Thống", "Admin@123456!", "Admin");
-        await SeedUserAsync("dispatcher@waterbus.vn", "Điều Phối Viên Tuyến", "Dispatcher@123456!", "Dispatcher");
+        await SeedUserAsync("captain@waterbus.vn", "Thuyền Trưởng Mặc Định", "Captain@123456!", "Captain");
         await SeedUserAsync("staff@waterbus.vn", "Nhân Viên Soát Vé Bến", "Staff@123456!", "Staff");
 
         // 3. Seed 5 Bến Tàu Chính Dọc Sông Sài Gòn
