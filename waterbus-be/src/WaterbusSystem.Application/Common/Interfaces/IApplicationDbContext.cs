@@ -8,6 +8,9 @@ namespace WaterbusSystem.Application.Common.Interfaces;
 /// </summary>
 public interface IApplicationDbContext
 {
+    DbSet<SeatClass> SeatClasses { get; }
+    DbSet<FareRule> FareRules { get; }
+    DbSet<PurchaseOrder> PurchaseOrders { get; }
     DbSet<Station> Stations { get; }
     DbSet<Route> Routes { get; }
     DbSet<Boat> Boats { get; }
@@ -18,7 +21,25 @@ public interface IApplicationDbContext
     DbSet<Ticket> Tickets { get; }
     DbSet<SeatReservation> SeatReservations { get; }
     DbSet<PaymentTransaction> PaymentTransactions { get; }
+    DbSet<RouteStop> RouteStops { get; }
+    DbSet<ScheduleStop> ScheduleStops { get; }
+    DbSet<TripStopCall> TripStopCalls { get; }
+
+        DbSet<FinancialTransaction> FinancialTransactions { get; }
+    DbSet<RefundTicketAllocation> RefundTicketAllocations { get; }
+    DbSet<AccessGrant> AccessGrants { get; }
+    DbSet<ScannerDevice> ScannerDevices { get; }
+    DbSet<ScannerAssignment> ScannerAssignments { get; }
+    DbSet<CheckInEvent> CheckInEvents { get; }
+    DbSet<Incident> Incidents { get; }
+    DbSet<IncidentTrip> IncidentTrips { get; }
+    DbSet<TripOperationEvent> TripOperationEvents { get; }
+    DbSet<BoatPositionEvent> BoatPositionEvents { get; }
+    DbSet<PointOfInterest> PointsOfInterest { get; }
+    DbSet<RoutePoi> RoutePois { get; }
+    DbSet<AudioGuide> AudioGuides { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
 }
+

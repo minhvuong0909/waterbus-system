@@ -38,10 +38,18 @@ public class GuestAccessMiddleware
                 var booking = await dbContext.Bookings
                     .AsNoTracking()
                     .Where(b => !b.IsDeleted && b.ManageOrderTokenHash == tokenHash)
-                    .Select(b => new { b.Id })
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.ManageOrderTokenExpiresAt,
+                        b.ManageOrderTokenRevoked
+                    })
                     .FirstOrDefaultAsync();
 
-                if (booking != null)
+                if (booking != null
+                    && booking.ManageOrderTokenExpiresAt.HasValue
+                    && booking.ManageOrderTokenExpiresAt.Value > DateTimeOffset.UtcNow
+                    && !booking.ManageOrderTokenRevoked)
                 {
                     context.Items[GuestOrderIdItemKey] = booking.Id;
                     context.Items[GuestBookingIdItemKey] = booking.Id;

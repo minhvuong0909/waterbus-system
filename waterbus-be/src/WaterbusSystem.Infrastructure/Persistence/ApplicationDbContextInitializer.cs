@@ -61,7 +61,7 @@ public class ApplicationDbContextInitializer
     private async Task TrySeedAsync()
     {
         // 1. Seed Roles hệ thống
-        var roles = new[] { "Admin", "Dispatcher", "Accountant", "Captain", "Staff", "Passenger" };
+        var roles = new[] { "Admin", "Captain", "Staff", "Passenger" };
         foreach (var role in roles)
         {
             if (!await _roleManager.RoleExistsAsync(role))
@@ -72,7 +72,7 @@ public class ApplicationDbContextInitializer
 
         // 2. Seed Tài khoản mặc định
         await SeedUserAsync("admin@waterbus.vn", "Admin Hệ Thống", "Admin@123456!", "Admin");
-        await SeedUserAsync("dispatcher@waterbus.vn", "Điều Phối Viên Tuyến", "Dispatcher@123456!", "Dispatcher");
+        await SeedUserAsync("captain@waterbus.vn", "Thuyền Trưởng Mặc Định", "Captain@123456!", "Captain");
         await SeedUserAsync("staff@waterbus.vn", "Nhân Viên Soát Vé Bến", "Staff@123456!", "Staff");
 
         // 3. Seed 5 Bến Tàu Chính Dọc Sông Sài Gòn
@@ -102,6 +102,7 @@ public class ApplicationDbContextInitializer
                 ArrivalStationId = stLinhDong.Id,
                 EstimatedDurationMinutes = 45,
                 DistanceKm = 10.8m,
+                ServiceType = "Regular",
                 IsActive = true
             };
 
@@ -109,7 +110,30 @@ public class ApplicationDbContextInitializer
             await _context.SaveChangesAsync();
         }
 
-        // 5. Seed Tàu Mẫu SWB-01 & 60 Ghế
+        // 5. Seed SeatClass nếu chưa có
+        Guid frontCabinId, standardId, outdoorId;
+        if (!await _context.SeatClasses.AnyAsync())
+        {
+            var seatClasses = new List<SeatClass>
+            {
+                new() { Code = "SC01", Name = "Khoang trước VIP", Description = "Tầm nhìn bao quát, điều hòa", IsActive = true },
+                new() { Code = "SC02", Name = "Tiêu chuẩn", Description = "Khoang trong, máy lạnh", IsActive = true },
+                new() { Code = "SC03", Name = "Boong ngoài trời", Description = "Phía đuôi tàu, thoáng mát", IsActive = true }
+            };
+            await _context.SeatClasses.AddRangeAsync(seatClasses);
+            await _context.SaveChangesAsync();
+            frontCabinId = seatClasses[0].Id;
+            standardId   = seatClasses[1].Id;
+            outdoorId    = seatClasses[2].Id;
+        }
+        else
+        {
+            frontCabinId = (await _context.SeatClasses.FirstAsync(s => s.Code == "SC01")).Id;
+            standardId   = (await _context.SeatClasses.FirstAsync(s => s.Code == "SC02")).Id;
+            outdoorId    = (await _context.SeatClasses.FirstAsync(s => s.Code == "SC03")).Id;
+        }
+
+        // 6. Seed Tàu Mẫu SWB-01 & 60 Ghế
         if (!await _context.Boats.AnyAsync())
         {
             var boat = new Boat
@@ -130,10 +154,9 @@ public class ApplicationDbContextInitializer
                 boat.Seats.Add(new Seat
                 {
                     SeatCode = $"F{i:D2}",
-                    Category = SeatCategory.FrontCabin,
+                    SeatClassId = frontCabinId,
                     RowNumber = (i - 1) / 4 + 1,
-                    ColumnNumber = (i - 1) % 4 + 1,
-                    PriceMultiplier = 1.2m
+                    ColumnNumber = (i - 1) % 4 + 1
                 });
             }
 
@@ -143,10 +166,9 @@ public class ApplicationDbContextInitializer
                 boat.Seats.Add(new Seat
                 {
                     SeatCode = $"S{i:D2}",
-                    Category = SeatCategory.Standard,
+                    SeatClassId = standardId,
                     RowNumber = (i - 1) / 4 + 1,
-                    ColumnNumber = (i - 1) % 4 + 1,
-                    PriceMultiplier = 1.0m
+                    ColumnNumber = (i - 1) % 4 + 1
                 });
             }
 
@@ -156,14 +178,108 @@ public class ApplicationDbContextInitializer
                 boat.Seats.Add(new Seat
                 {
                     SeatCode = $"O{i:D2}",
-                    Category = SeatCategory.Outdoor,
+                    SeatClassId = outdoorId,
                     RowNumber = (i - 1) / 4 + 1,
-                    ColumnNumber = (i - 1) % 4 + 1,
-                    PriceMultiplier = 1.1m
+                    ColumnNumber = (i - 1) % 4 + 1
                 });
             }
 
             await _context.Boats.AddAsync(boat);
+            await _context.SaveChangesAsync();
+        }
+
+        // 7. Seed FareRule
+        if (!await _context.FareRules.AnyAsync())
+        {
+            var now = DateTimeOffset.UtcNow;
+            var fareRules = new List<FareRule>
+            {
+                new() { TripType = "Commuter",    SeatClassId = frontCabinId, Price = 20000m, Currency = "VND", EffectiveFrom = now },
+                new() { TripType = "Commuter",    SeatClassId = standardId,   Price = 15000m, Currency = "VND", EffectiveFrom = now },
+                new() { TripType = "Commuter",    SeatClassId = outdoorId,    Price = 17000m, Currency = "VND", EffectiveFrom = now },
+                new() { TripType = "Sightseeing", SeatClassId = frontCabinId, Price = 150000m, Currency = "VND", EffectiveFrom = now },
+                new() { TripType = "Sightseeing", SeatClassId = standardId,   Price = 100000m, Currency = "VND", EffectiveFrom = now },
+                new() { TripType = "Sightseeing", SeatClassId = outdoorId,    Price = 120000m, Currency = "VND", EffectiveFrom = now },
+            };
+            await _context.FareRules.AddRangeAsync(fareRules);
+            await _context.SaveChangesAsync();
+        }
+
+        // 8. Seed RouteStops, Schedule, ScheduleStops, Trip
+        if (!await _context.RouteStops.AnyAsync())
+        {
+            var stBachDang = await _context.Stations.FirstAsync(s => s.Code == "ST01");
+            var stBinhAn = await _context.Stations.FirstAsync(s => s.Code == "ST02");
+            var stThanhDa = await _context.Stations.FirstAsync(s => s.Code == "ST03");
+            var stHiepBinhChanh = await _context.Stations.FirstAsync(s => s.Code == "ST04");
+            var stLinhDong = await _context.Stations.FirstAsync(s => s.Code == "ST05");
+            var route1 = await _context.Routes.FirstAsync(r => r.Code == "RT01");
+
+            var routeStops = new List<RouteStop>
+            {
+                new() { RouteId = route1.Id, StationId = stBachDang.Id, SequenceNo = 1 },
+                new() { RouteId = route1.Id, StationId = stBinhAn.Id, SequenceNo = 2 },
+                new() { RouteId = route1.Id, StationId = stThanhDa.Id, SequenceNo = 3 },
+                new() { RouteId = route1.Id, StationId = stHiepBinhChanh.Id, SequenceNo = 4 },
+                new() { RouteId = route1.Id, StationId = stLinhDong.Id, SequenceNo = 5 }
+            };
+            await _context.RouteStops.AddRangeAsync(routeStops);
+            await _context.SaveChangesAsync();
+        }
+
+        if (!await _context.Schedules.AnyAsync())
+        {
+            var route1 = await _context.Routes.FirstAsync(r => r.Code == "RT01");
+            var schedule = new Schedule
+            {
+                RouteId = route1.Id,
+                DepartureTime = new TimeSpan(8, 0, 0), // 8:00 AM
+                IsActive = true
+            };
+            await _context.Schedules.AddAsync(schedule);
+            await _context.SaveChangesAsync();
+        }
+
+        if (!await _context.ScheduleStops.AnyAsync())
+        {
+            var schedule = await _context.Schedules.FirstAsync();
+            var routeStops = await _context.RouteStops.OrderBy(r => r.SequenceNo).ToListAsync();
+            
+            var scheduleStops = new List<ScheduleStop>();
+            int offset = 0;
+            foreach (var rs in routeStops)
+            {
+                scheduleStops.Add(new ScheduleStop
+                {
+                    ScheduleId = schedule.Id,
+                    RouteStopId = rs.Id,
+                    VisitOrder = rs.SequenceNo,
+                    ArrivalOffsetMin = offset == 0 ? null : offset,
+                    DepartureOffsetMin = offset == 45 ? null : offset + 2
+                });
+                offset += 11;
+            }
+            await _context.ScheduleStops.AddRangeAsync(scheduleStops);
+            await _context.SaveChangesAsync();
+        }
+
+        if (!await _context.Trips.AnyAsync())
+        {
+            var schedule = await _context.Schedules.FirstAsync();
+            var route = await _context.Routes.FirstAsync();
+            var boat = await _context.Boats.FirstAsync();
+            
+            var trip = new Trip
+            {
+                ScheduleId = schedule.Id,
+                RouteId = route.Id,
+                BoatId = boat.Id,
+                DepartureTime = DateTimeOffset.UtcNow.AddDays(1).Date.AddHours(8),
+                ArrivalTime = DateTimeOffset.UtcNow.AddDays(1).Date.AddHours(8).AddMinutes(45),
+                Status = WaterbusSystem.Domain.Enums.TripStatus.Scheduled,
+                TripType = WaterbusSystem.Domain.Enums.TripType.Commuter
+            };
+            await _context.Trips.AddAsync(trip);
             await _context.SaveChangesAsync();
         }
     }

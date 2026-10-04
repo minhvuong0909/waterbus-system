@@ -47,11 +47,11 @@ public class ConfirmVnPayIpnCommandHandlerTests
         };
         booking.Tickets.Add(new Ticket
         {
-            TripId = Guid.NewGuid(),
-            SeatId = Guid.NewGuid(),
+            // TripId = Guid.NewGuid(),
+            // SeatId = Guid.NewGuid(),
             TicketCode = "TKTEST01",
-            Price = totalAmount,
-            PassengerName = "Nguyen Van A",
+            // Price = totalAmount,
+            // PassengerName = "Nguyen Van A",
             Status = TicketStatus.Pending
         });
 
@@ -186,3 +186,6 @@ public class ConfirmVnPayIpnCommandHandlerTests
         result.RspCode.Should().Be("02");
     }
 }
+
+
+

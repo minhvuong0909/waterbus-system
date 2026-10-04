@@ -1,0 +1,391 @@
+// SMART WATERBUS - REVIEWED LOGICAL ERD (from BR v2.0 FINAL)
+// Detailed proposed schema, NOT a database migration or implementation certification.
+// Guest is an anonymous actor (NO Guest table).
+// Separate Passenger / Admin / Staff / Captain profiles share a technical AuthAccount.
+// The App/API must enforce cross-table invariants summarized in 03_Audit_Report.md.
+
+Table AuthAccount {
+  id uuid [pk]
+  email varchar [not null, unique]
+  auth_provider varchar [not null, note: 'Google, Local or other configured provider']
+  provider_subject varchar [note: 'External provider subject; NULL for local login']
+  password_hash varchar [note: 'Only for password based login, never plaintext']
+  status varchar [not null]
+  email_verified_at timestamp
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  indexes {
+    (auth_provider, provider_subject) [unique]
+  }
+}
+Table Passenger {
+  account_id uuid [pk, ref: > AuthAccount.id]
+  full_name varchar [not null]
+  phone varchar
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+Table Admin {
+  account_id uuid [pk, ref: > AuthAccount.id]
+  employee_code varchar [unique, not null]
+  full_name varchar [not null]
+  is_active boolean [not null]
+  created_at timestamp [not null]
+}
+Table Station {
+  id uuid [pk]
+  code varchar [unique, not null]
+  name varchar [not null]
+  latitude decimal(10,7)
+  longitude decimal(10,7)
+  is_active boolean [not null]
+}
+Table Staff {
+  account_id uuid [pk, ref: > AuthAccount.id]
+  employee_code varchar [unique, not null]
+  full_name varchar [not null]
+  home_station_id uuid [ref: > Station.id, note: 'Default work location, not authorization for every boarding stop']
+  is_active boolean [not null]
+  created_at timestamp [not null]
+}
+Table Captain {
+  account_id uuid [pk, ref: > AuthAccount.id]
+  employee_code varchar [unique, not null]
+  full_name varchar [not null]
+  is_active boolean [not null]
+  created_at timestamp [not null]
+}
+
+Table Route {
+  id uuid [pk]
+  code varchar [unique, not null]
+  name varchar [not null]
+  service_type varchar [not null, note: 'Regular or Sightseeing; separate routes']
+  is_active boolean [not null]
+}
+Table RouteStop {
+  id uuid [pk]
+  route_id uuid [not null, ref: > Route.id]
+  station_id uuid [not null, ref: > Station.id]
+  sequence_no int [not null]
+  can_board boolean [not null]
+  can_alight boolean [not null]
+  indexes {
+    (route_id, sequence_no) [unique]
+  }
+}
+Table Schedule {
+  id uuid [pk]
+  route_id uuid [not null, ref: > Route.id]
+  created_by_admin_id uuid [ref: > Admin.account_id]
+  operating_days varchar [not null, note: 'Days of week expressed as a pattern']
+  departure_time time [not null]
+  direction varchar [not null]
+  trip_type varchar [not null, note: 'Must agree with Route.service_type']
+  effective_from date [not null]
+  effective_to date
+  is_active boolean [not null]
+  created_at timestamp [not null]
+}
+Table ScheduleStop {
+  id uuid [pk]
+  schedule_id uuid [not null, ref: > Schedule.id]
+  route_stop_id uuid [not null, ref: > RouteStop.id]
+  visit_order int [not null, note: 'Allows reverse direction and repeat visits on loops']
+  arrival_offset_min int [note: 'Relative to Schedule departure time']
+  departure_offset_min int [note: 'Relative to Schedule departure time']
+  indexes {
+    (schedule_id, visit_order) [unique]
+  }
+}
+Table Boat {
+  id uuid [pk]
+  code varchar [not null, unique]
+  name varchar
+  captain_account_id uuid [not null, unique, ref: > Captain.account_id]
+  is_active boolean [not null]
+  created_at timestamp [not null]
+}
+Table Trip {
+  id uuid [pk]
+  route_id uuid [not null, ref: > Route.id]
+  schedule_id uuid [ref: > Schedule.id, note: 'NULL means Admin created ad-hoc Trip']
+  boat_id uuid [ref: > Boat.id, note: 'Mandatory BEFORE sale, not necessarily before draft creation']
+  created_by_admin_id uuid [ref: > Admin.account_id]
+  trip_type varchar [not null]
+  planned_departure_at timestamp [not null]
+  planned_arrival_at timestamp
+  actual_departure_at timestamp
+  actual_arrival_at timestamp
+  sales_close_at timestamp
+  status varchar [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  indexes {
+    (schedule_id, planned_departure_at) [unique]
+  }
+}
+Table TripStopCall {
+  id uuid [pk]
+  trip_id uuid [not null, ref: > Trip.id]
+  route_stop_id uuid [not null, ref: > RouteStop.id]
+  schedule_stop_id uuid [ref: > ScheduleStop.id, note: 'Optional for ad-hoc or manual stop override']
+  visit_order int [not null]
+  planned_arrival_at timestamp
+  planned_departure_at timestamp
+  actual_arrival_at timestamp
+  actual_departure_at timestamp
+  checkin_open_at timestamp
+  checkin_close_at timestamp
+  stop_status varchar [not null, note: 'Planned, Arrived, Departed or Skipped']
+  indexes {
+    (trip_id, visit_order) [unique]
+  }
+}
+Table SeatClass {
+  id uuid [pk]
+  code varchar [not null, unique]
+  name varchar [not null]
+  description text
+  is_active boolean [not null]
+}
+Table Seat {
+  id uuid [pk]
+  boat_id uuid [not null, ref: > Boat.id]
+  seat_class_id uuid [not null, ref: > SeatClass.id]
+  seat_code varchar [not null]
+  display_row int [note: 'Optional coordinates for seat map; no SeatLayout entity']
+  display_column int
+  is_active boolean [not null]
+  indexes {
+    (boat_id, seat_code) [unique]
+  }
+}
+Table FareRule {
+  id uuid [pk]
+  trip_type varchar [not null]
+  seat_class_id uuid [not null, ref: > SeatClass.id]
+  price decimal(12,2) [not null]
+  currency varchar [not null]
+  effective_from timestamp [not null, note: 'Price revision date; NOT a trip time band multiplier']
+  effective_to timestamp
+  is_active boolean [not null]
+  created_by_admin_id uuid [ref: > Admin.account_id]
+  created_at timestamp [not null]
+  indexes {
+    (trip_type, seat_class_id, effective_from) [unique]
+  }
+}
+
+Table PurchaseOrder {
+  id uuid [pk]
+  passenger_account_id uuid [ref: > Passenger.account_id, note: 'NULL when purchaser is Guest']
+  purchaser_name varchar [not null]
+  purchaser_email varchar [not null]
+  purchaser_phone varchar
+  purchase_mode varchar [not null, note: 'OneWay or RoundTrip']
+  status varchar [not null]
+  quoted_total decimal(12,2) [not null]
+  currency varchar [not null]
+  expires_at timestamp
+  created_at timestamp [not null]
+  confirmed_at timestamp
+}
+Table Booking {
+  id uuid [pk]
+  order_id uuid [not null, ref: > PurchaseOrder.id]
+  trip_id uuid [not null, ref: > Trip.id]
+  boarding_call_id uuid [not null, ref: > TripStopCall.id]
+  disembarking_call_id uuid [not null, ref: > TripStopCall.id]
+  status varchar [not null]
+  quoted_total decimal(12,2) [not null]
+  paid_allocation decimal(12,2)
+  public_booking_id varchar [not null, unique, note: 'Non-sensitive public identifier used in signed Booking QR']
+  qr_credential_version int [not null]
+  qr_issued_at timestamp
+  created_at timestamp [not null]
+  confirmed_at timestamp
+  completed_at timestamp
+}
+Table SeatReservation {
+  id uuid [pk]
+  booking_id uuid [not null, ref: > Booking.id]
+  seat_id uuid [not null, ref: > Seat.id]
+  passenger_name varchar [not null]
+  passenger_email varchar
+  passenger_phone varchar
+  reservation_status varchar [not null]
+  quoted_fare decimal(12,2) [not null]
+  paid_allocation decimal(12,2)
+  seat_code_at_sale varchar [note: 'For boat replacement and audit']
+  seat_class_at_sale varchar
+  created_at timestamp [not null]
+  confirmed_at timestamp
+}
+Table Ticket {
+  id uuid [pk]
+  seat_reservation_id uuid [not null, unique, ref: > SeatReservation.id]
+  ticket_number varchar [not null, unique]
+  status varchar [not null]
+  boarding_status varchar [not null]
+  fare_trip_type_snapshot varchar [not null]
+  fare_seat_class_snapshot varchar [not null]
+  face_fare_snapshot decimal(12,2) [not null]
+  paid_fare_snapshot decimal(12,2) [not null]
+  issued_at timestamp [not null]
+  checked_in_at timestamp
+  no_show_finalized_at timestamp
+}
+Table FinancialTransaction {
+  id uuid [pk]
+  order_id uuid [not null, ref: > PurchaseOrder.id]
+  refund_booking_id uuid [ref: > Booking.id, note: 'Required when type is Refund; NULL for Payment']
+  original_payment_id uuid [ref: > FinancialTransaction.id, note: 'Required when type is Refund; must reference successful Payment']
+  transaction_type varchar [not null, note: 'Payment or Refund']
+  amount decimal(12,2) [not null]
+  currency varchar [not null]
+  status varchar [not null, note: 'Requested, Processing, Succeeded, Failed etc as applicable']
+  gateway_name varchar
+  gateway_reference varchar
+  idempotency_key varchar [not null, unique]
+  failure_reason text
+  manual_refund_evidence varchar
+  manual_processed_by_admin_id uuid [ref: > Admin.account_id, note: 'Required for successful manual refund']
+  created_at timestamp [not null]
+  processed_at timestamp
+  completed_at timestamp
+}
+Table RefundTicketAllocation {
+  id uuid [pk]
+  refund_transaction_id uuid [not null, ref: > FinancialTransaction.id]
+  ticket_id uuid [not null, ref: > Ticket.id]
+  amount decimal(12,2) [not null]
+  created_at timestamp [not null]
+  indexes {
+    (refund_transaction_id, ticket_id) [unique]
+  }
+}
+Table AccessGrant {
+  id uuid [pk]
+  order_id uuid [not null, ref: > PurchaseOrder.id]
+  booking_id uuid [ref: > Booking.id, note: 'Only for passenger trip access; must belong to the Order']
+  access_type varchar [not null, note: 'ManageOrder or PassengerTrip']
+  token_hash varchar [not null, unique, note: 'Hash of cryptographically random token; NEVER store raw token']
+  expires_at timestamp [not null]
+  revoked_at timestamp
+  last_used_at timestamp
+  created_at timestamp [not null]
+}
+
+Table ScannerDevice {
+  id uuid [pk]
+  device_code varchar [unique, not null]
+  label varchar
+  is_active boolean [not null]
+  last_preloaded_at timestamp
+}
+Table ScannerAssignment {
+  id uuid [pk]
+  device_id uuid [not null, ref: > ScannerDevice.id]
+  staff_account_id uuid [not null, ref: > Staff.account_id]
+  trip_stop_call_id uuid [not null, ref: > TripStopCall.id]
+  is_primary_offline boolean [not null]
+  active_from timestamp [not null]
+  active_until timestamp
+}
+Table CheckInEvent {
+  id uuid [pk]
+  ticket_id uuid [not null, ref: > Ticket.id]
+  staff_account_id uuid [not null, ref: > Staff.account_id]
+  scanner_device_id uuid [ref: > ScannerDevice.id]
+  trip_stop_call_id uuid [not null, ref: > TripStopCall.id]
+  client_event_id varchar [not null, unique, note: 'Deduplication key for offline sync']
+  occurred_at_device timestamp [not null]
+  received_at_server timestamp
+  outcome varchar [not null]
+  sync_status varchar [not null]
+  notes text
+}
+
+Table Incident {
+  id uuid [pk]
+  scope_type varchar [not null, note: 'Route, Boat, Trip or MultipleTrips']
+  route_id uuid [ref: > Route.id]
+  boat_id uuid [ref: > Boat.id]
+  reported_by_staff_id uuid [ref: > Staff.account_id]
+  reported_by_captain_id uuid [ref: > Captain.account_id]
+  handled_by_admin_id uuid [ref: > Admin.account_id]
+  source varchar [not null]
+  incident_type varchar [not null]
+  severity varchar
+  status varchar [not null]
+  description text
+  occurred_at timestamp
+  created_at timestamp [not null]
+  resolved_at timestamp
+}
+Table IncidentTrip {
+  id uuid [pk]
+  incident_id uuid [not null, ref: > Incident.id]
+  trip_id uuid [not null, ref: > Trip.id]
+  decision_by_admin_id uuid [ref: > Admin.account_id]
+  operation_decision varchar
+  decision_at timestamp
+  indexes {
+    (incident_id, trip_id) [unique]
+  }
+}
+Table TripOperationEvent {
+  id uuid [pk]
+  trip_id uuid [not null, ref: > Trip.id]
+  incident_id uuid [ref: > Incident.id]
+  acted_by_admin_id uuid [ref: > Admin.account_id]
+  acted_by_captain_id uuid [ref: > Captain.account_id]
+  action varchar [not null]
+  from_status varchar
+  to_status varchar [not null]
+  occurred_at timestamp [not null]
+  note text
+}
+Table BoatPositionEvent {
+  id uuid [pk]
+  boat_id uuid [not null, ref: > Boat.id]
+  trip_id uuid [ref: > Trip.id]
+  latitude decimal(10,7) [not null]
+  longitude decimal(10,7) [not null]
+  observed_at timestamp [not null]
+  source varchar [not null, note: 'GPS or Simulated']
+  speed_knots decimal(8,2)
+}
+
+Table PointOfInterest {
+  id uuid [pk]
+  name varchar [not null]
+  description text
+  latitude decimal(10,7)
+  longitude decimal(10,7)
+  is_active boolean [not null]
+}
+Table RoutePOI {
+  id uuid [pk]
+  route_id uuid [not null, ref: > Route.id]
+  poi_id uuid [not null, ref: > PointOfInterest.id]
+  display_order int [not null]
+  trigger_radius_m int
+  is_active boolean [not null]
+  indexes {
+    (route_id, display_order) [unique]
+  }
+}
+Table AudioGuide {
+  id uuid [pk]
+  poi_id uuid [not null, ref: > PointOfInterest.id]
+  language_code varchar [not null, note: 'vi only in present scope']
+  audio_asset_uri varchar [not null]
+  duration_seconds int
+  is_published boolean [not null]
+  updated_at timestamp [not null]
+  indexes {
+    (poi_id, language_code) [unique]
+  }
+}
