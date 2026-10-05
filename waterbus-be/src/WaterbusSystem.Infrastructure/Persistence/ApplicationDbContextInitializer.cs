@@ -255,7 +255,7 @@ public class ApplicationDbContextInitializer
                     RouteStopId = rs.Id,
                     VisitOrder = rs.SequenceNo,
                     ArrivalOffsetMin = offset == 0 ? null : offset,
-                    DepartureOffsetMin = offset == 45 ? null : offset + 2
+                    DepartureOffsetMin = rs.SequenceNo == routeStops.Last().SequenceNo ? null : offset + 2
                 });
                 offset += 11;
             }
@@ -276,12 +276,40 @@ public class ApplicationDbContextInitializer
                 BoatId = boat.Id,
                 DepartureTime = DateTimeOffset.UtcNow.AddDays(1).Date.AddHours(8),
                 ArrivalTime = DateTimeOffset.UtcNow.AddDays(1).Date.AddHours(8).AddMinutes(45),
+                SalesCloseAt = DateTimeOffset.UtcNow.AddDays(1).Date.AddHours(8).AddMinutes(-15),
                 Status = WaterbusSystem.Domain.Enums.TripStatus.Scheduled,
                 TripType = WaterbusSystem.Domain.Enums.TripType.Commuter
             };
             await _context.Trips.AddAsync(trip);
             await _context.SaveChangesAsync();
         }
+
+        // Seed only RT01 demo Trips from their actual ScheduleStop definitions.
+        // Operational Trip generation and check-in window configuration belong to their own modules.
+        var demoTrips = await _context.Trips
+            .Where(t => t.Route!.Code == "RT01" && t.ScheduleId != null && !t.TripStopCalls.Any())
+            .ToListAsync();
+        foreach (var trip in demoTrips)
+        {
+            var stops = await _context.ScheduleStops.Include(s => s.RouteStop)
+                .Where(s => s.ScheduleId == trip.ScheduleId && s.RouteStop!.RouteId == trip.RouteId)
+                .OrderBy(s => s.VisitOrder).ToListAsync();
+            foreach (var stop in stops)
+            {
+                trip.TripStopCalls.Add(new TripStopCall
+                {
+                    TripId = trip.Id,
+                    RouteStopId = stop.RouteStopId,
+                    ScheduleStopId = stop.Id,
+                    VisitOrder = stop.VisitOrder,
+                    EstimatedArrivalTime = stop.ArrivalOffsetMin.HasValue
+                        ? trip.DepartureTime.AddMinutes(stop.ArrivalOffsetMin.Value) : null,
+                    EstimatedDepartureTime = stop.DepartureOffsetMin.HasValue
+                        ? trip.DepartureTime.AddMinutes(stop.DepartureOffsetMin.Value) : null
+                });
+            }
+        }
+        await _context.SaveChangesAsync();
     }
 
     private async Task SeedUserAsync(string email, string fullName, string password, string role)

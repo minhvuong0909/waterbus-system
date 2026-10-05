@@ -33,5 +33,7 @@ public enum TicketStatus
     /// <summary>
     /// Vé đã được hoàn tiền tự động 100% về tài khoản
     /// </summary>
-    Refunded = 5
+    Refunded = 5, // Legacy value; refund progress belongs to FinancialTransaction.
+    Terminated = 6,
+    Completed = 7
 }

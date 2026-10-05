@@ -17,10 +17,9 @@ public class Ticket : BaseEntity
     public SeatReservation? SeatReservation { get; set; }
     /// <summary>Mã vé hiển thị (ví dụ: TK20260920ABCDEF)</summary>
     public string TicketCode { get; set; } = string.Empty;
-    /// <summary>Trạng thái vé: Pending, Valid, Cancelled, Refunded</summary>
-    public TicketStatus Status { get; set; } = TicketStatus.Pending;
-    /// <summary>Trạng thái lên tàu: NotBoarded, CheckedIn, NoShow</summary>
-    public string BoardingStatus { get; set; } = "NotBoarded";
+    /// <summary>Service entitlement lifecycle; separate from check-in and refund progress.</summary>
+    public TicketStatus Status { get; set; } = TicketStatus.Valid;
+    public BoardingStatus BoardingStatus { get; set; } = BoardingStatus.NotCheckedIn;
     // ── Snapshot giá tại thời điểm mua (bất biến, không thay đổi khi bảng giá đổi) ──
     /// <summary>Loại chuyến lúc bán: "Commuter" hoặc "Sightseeing"</summary>
     public string FareTripTypeSnapshot { get; set; } = string.Empty;
@@ -38,4 +37,33 @@ public class Ticket : BaseEntity
     public DateTimeOffset? NoShowFinalizedAt { get; set; }
     /// <summary>ID nhân viên thực hiện check-in</summary>
     public Guid? CheckedInByStaffId { get; set; }
+
+    /// <summary>BR-COM-08: issue only from a verified successful Payment and its confirmed reservation.</summary>
+    public static Ticket Issue(Booking booking, SeatReservation reservation, FinancialTransaction payment,
+        TripType fareTripType, DateTimeOffset issuedAt)
+    {
+        if (payment.TransactionType != FinancialTransactionType.Payment ||
+            payment.Status != FinancialTransactionStatus.Succeeded || payment.OrderId != booking.OrderId ||
+            booking.Status != BookingStatus.Confirmed || !booking.PaidAllocation.HasValue ||
+            reservation.BookingId != booking.Id || reservation.TripId != booking.TripId ||
+            reservation.Status != ReservationStatus.Confirmed || !reservation.PaidAllocation.HasValue)
+            throw new InvalidOperationException("Ticket issuance requires verified payment and a confirmed Booking/reservation.");
+        if (reservation.Ticket != null || string.IsNullOrWhiteSpace(reservation.PassengerName) ||
+            string.IsNullOrWhiteSpace(reservation.SeatClassAtSale) || string.IsNullOrWhiteSpace(reservation.SeatCodeAtSale) ||
+            reservation.PaidAllocation < 0 || reservation.QuotedFare < 0 ||
+            reservation.PaidAllocation > booking.PaidAllocation || booking.PaidAllocation > payment.Amount)
+            throw new InvalidOperationException("Reservation must have valid passenger, seat and paid fare snapshots, with no existing Ticket.");
+
+        var ticket = new Ticket
+        {
+            BookingId = booking.Id, Booking = booking,
+            SeatReservationId = reservation.Id, SeatReservation = reservation,
+            TicketCode = CodeGenerator.GenerateTicketCode(issuedAt),
+            FareTripTypeSnapshot = fareTripType.ToString(), FareSeatClassSnapshot = reservation.SeatClassAtSale,
+            FaceFareSnapshot = reservation.QuotedFare, PaidFareSnapshot = reservation.PaidAllocation.Value,
+            IssuedAt = issuedAt
+        };
+        reservation.Ticket = ticket;
+        return ticket;
+    }
 }

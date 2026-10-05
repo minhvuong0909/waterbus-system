@@ -86,9 +86,43 @@ public static class TestDbContextFactory
         };
         context.Trips.Add(trip);
 
+        foreach (var (station, order) in new[] { (stationA, 1), (stationB, 2), (stationC, 3) })
+        {
+            var stop = new RouteStop { RouteId = route.Id, StationId = station.Id, SequenceNo = order };
+            context.RouteStops.Add(stop);
+            trip.TripStopCalls.Add(new TripStopCall { TripId = trip.Id, RouteStop = stop, VisitOrder = order });
+        }
+
         context.SaveChanges();
 
         return new TripSeedData(stationA, stationB, stationC, route, boat, seat1, seat2, otherBoat, seatOnOtherBoat, trip);
+    }
+
+    // Commercial principals are real fixture data, even when the tested service only reads reservations.
+    public static Booking SeedBooking(ApplicationDbContext context, TripSeedData seed, int from = 1, int to = 3, decimal fare = 15000m)
+    {
+        TripStopCall CallAt(int visitOrder)
+        {
+            var existing = seed.Trip.TripStopCalls.SingleOrDefault(c => c.VisitOrder == visitOrder);
+            if (existing != null) return existing;
+            var call = new TripStopCall
+            { TripId = seed.Trip.Id, RouteStop = seed.Trip.TripStopCalls.Last().RouteStop, VisitOrder = visitOrder };
+            seed.Trip.TripStopCalls.Add(call);
+            context.TripStopCalls.Add(call);
+            return call;
+        }
+
+        var order = new PurchaseOrder
+        { PurchaserName = "Test passenger", PurchaserEmail = "test@example.com", QuotedTotal = fare, Status = OrderStatus.PendingPayment };
+        var booking = new Booking
+        {
+            Order = order, OrderId = order.Id, BookingCode = Guid.NewGuid().ToString("N"),
+            CustomerName = order.PurchaserName, CustomerEmail = order.PurchaserEmail,
+            QuotedTotal = fare, Status = BookingStatus.PendingPayment
+        };
+        booking.SetJourney(CallAt(from), CallAt(to));
+        context.Bookings.Add(booking);
+        return booking;
     }
 
     public record TripSeedData(

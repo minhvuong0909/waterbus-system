@@ -37,6 +37,7 @@ public class SeatAvailabilityServiceTests
         {
             TripId = seed.Trip.Id,
             SeatId = seed.Seat1.Id,
+            Booking = TestDbContextFactory.SeedBooking(context, seed, existingBoarding, existingDisembarking),
             BoardingStopOrder = existingBoarding,
             DisembarkingStopOrder = existingDisembarking,
             Status = ReservationStatus.Pending
@@ -61,6 +62,7 @@ public class SeatAvailabilityServiceTests
         {
             TripId = seed.Trip.Id,
             SeatId = seed.Seat1.Id,
+            Booking = TestDbContextFactory.SeedBooking(context, seed),
             BoardingStopOrder = 1,
             DisembarkingStopOrder = 3,
             Status = ReservationStatus.Cancelled // Đã hủy -> không còn chiếm chỗ
@@ -86,6 +88,7 @@ public class SeatAvailabilityServiceTests
         {
             TripId = seed.Trip.Id,
             SeatId = seed.Seat1.Id,
+            Booking = TestDbContextFactory.SeedBooking(context, seed),
             BoardingStopOrder = 1,
             DisembarkingStopOrder = 3,
             Status = ReservationStatus.Pending

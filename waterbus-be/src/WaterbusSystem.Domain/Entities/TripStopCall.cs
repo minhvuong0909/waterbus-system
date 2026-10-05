@@ -11,6 +11,8 @@ public class TripStopCall : BaseEntity
     public Trip? Trip { get; set; }
     public Guid RouteStopId { get; set; }
     public RouteStop? RouteStop { get; set; }
+    public Guid? ScheduleStopId { get; set; }
+    public ScheduleStop? ScheduleStop { get; set; }
     
     public int VisitOrder { get; set; }
 
@@ -20,8 +22,11 @@ public class TripStopCall : BaseEntity
     public DateTimeOffset? ActualArrivalTime { get; set; }
     public DateTimeOffset? ActualDepartureTime { get; set; }
 
+    public DateTimeOffset? CheckInOpenAt { get; set; }
+    public DateTimeOffset? CheckInCloseAt { get; set; }
+
     /// <summary>
-    /// Pending, Arrived, Departed, Skipped
+    /// Planned, Arrived, Departed, Skipped
     /// </summary>
-    public string Status { get; set; } = "Pending";
+    public string Status { get; set; } = "Planned";
 }

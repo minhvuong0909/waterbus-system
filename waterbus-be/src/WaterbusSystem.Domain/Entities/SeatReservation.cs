@@ -3,7 +3,8 @@ using WaterbusSystem.Domain.Enums;
 namespace WaterbusSystem.Domain.Entities;
 /// <summary>
 /// Giữ chỗ theo chặng cho 1 hành khách trên 1 ghế trong 1 Booking.
-/// BoardingStopOrder/DisembarkingStopOrder dùng tạm — Phase 3 sẽ thay bằng FK TripStopCall.
+/// Stop orders are snapshots of Booking.BoardingCall/DisembarkingCall.VisitOrder,
+/// never the global Station.OrderIndex. All reservations share the Booking journey.
 /// </summary>
 public class SeatReservation : BaseEntity
 {
@@ -13,7 +14,7 @@ public class SeatReservation : BaseEntity
     public Seat? Seat { get; set; }
     public Guid BookingId { get; set; }
     public Booking? Booking { get; set; }
-    // ── Stop ordering (tạm thời dùng VisitOrder integer, Phase 3 đổi sang TripStopCall FK) ──
+    // Segment snapshots used by the overlap query.
     public int BoardingStopOrder { get; set; }
     public int DisembarkingStopOrder { get; set; }
     /// <summary>Trạng thái: Pending, Confirmed, Cancelled, Completed</summary>
