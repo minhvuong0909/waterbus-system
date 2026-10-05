@@ -2,7 +2,8 @@ using WaterbusSystem.Domain.Common;
 namespace WaterbusSystem.Domain.Entities;
 /// <summary>
 /// Chi tiết phân bổ hoàn tiền cho từng Ticket trong một lần refund.
-/// Unique (RefundTransactionId, TicketId) ngăn hoàn tiền 2 lần cùng Ticket.
+/// Unique (RefundTransactionId, TicketId) prevents duplicates inside one refund.
+/// Cross-refund limits must be checked transactionally against prior Requested/Processing/Succeeded refunds.
 /// </summary>
 public class RefundTicketAllocation : BaseEntity
 {

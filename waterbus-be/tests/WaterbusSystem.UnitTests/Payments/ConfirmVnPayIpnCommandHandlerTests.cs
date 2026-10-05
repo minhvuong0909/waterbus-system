@@ -35,18 +35,19 @@ public class ConfirmVnPayIpnCommandHandlerTests
 
     private static Booking SeedPendingBooking(Infrastructure.Persistence.ApplicationDbContext context, decimal totalAmount)
     {
-        var booking = new Booking
+        var seed = TestDbContextFactory.SeedTrip(context);
+        var booking = TestDbContextFactory.SeedBooking(context, seed, fare: totalAmount);
+        var reservation = new SeatReservation
         {
-            BookingCode = "WB20261002TEST01",
-            CustomerName = "Nguyen Van A",
-            CustomerEmail = "a@test.com",
-            CustomerPhone = "0901234567",
-            Status = BookingStatus.Pending,
-            PaymentStatus = PaymentStatus.Pending,
-            TotalAmount = totalAmount
+            Booking = booking, BookingId = booking.Id, TripId = seed.Trip.Id, SeatId = seed.Seat1.Id,
+            BoardingStopOrder = 1, DisembarkingStopOrder = 3, PassengerName = booking.CustomerName,
+            QuotedFare = totalAmount, SeatCodeAtSale = seed.Seat1.SeatCode, SeatClassAtSale = "Standard"
         };
+        context.SeatReservations.Add(reservation);
+        // Legacy IPN characterization fixture; new checkout must use Ticket.Issue() after payment.
         booking.Tickets.Add(new Ticket
         {
+            SeatReservation = reservation, SeatReservationId = reservation.Id,
             // TripId = Guid.NewGuid(),
             // SeatId = Guid.NewGuid(),
             TicketCode = "TKTEST01",

@@ -53,7 +53,7 @@ public class SearchTripsQueryHandler : IRequestHandler<SearchTripsQuery, List<Tr
             .Include(t => t.Route)
                 .ThenInclude(r => r!.ArrivalStation)
             .Include(t => t.Boat)
-            .Include(t => t.Tickets)
+            .Include(t => t.Bookings).ThenInclude(b => b.SeatReservations)
             .Where(t => !t.IsDeleted && t.Status == TripStatus.Scheduled);
 
         if (request.DepartureStationId.HasValue)
@@ -91,10 +91,9 @@ public class SearchTripsQueryHandler : IRequestHandler<SearchTripsQuery, List<Tr
         return trips.Select(t =>
         {
             var totalBoatSeats = t.Boat?.TotalSeats ?? 60;
-            var bookedSeatsCount = t.Tickets.Count(tk =>
-                tk.Status == TicketStatus.Valid ||
-                tk.Status == TicketStatus.CheckedIn ||
-                tk.Status == TicketStatus.Pending);
+            var bookedSeatsCount = t.Bookings.SelectMany(b => b.SeatReservations)
+                .Where(r => r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed)
+                .Select(r => r.SeatId).Distinct().Count();
 
             var availableSeats = Math.Max(0, totalBoatSeats - bookedSeatsCount);
 

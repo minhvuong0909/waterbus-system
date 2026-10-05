@@ -42,8 +42,8 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
         builder.Property(x => x.PurchaserName).HasMaxLength(150).IsRequired();
         builder.Property(x => x.PurchaserEmail).HasMaxLength(150).IsRequired();
         builder.Property(x => x.PurchaserPhone).HasMaxLength(20);
-        builder.Property(x => x.PurchaseMode).HasMaxLength(20).IsRequired();
-        builder.Property(x => x.Status).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.PurchaseMode).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.QuotedTotal).HasPrecision(12, 2);
         builder.Property(x => x.Currency).HasMaxLength(10).IsRequired();
         builder.Property(x => x.RowVersion).IsRowVersion();
@@ -134,6 +134,13 @@ public class TripConfiguration : IEntityTypeConfiguration<Trip>
     public void Configure(EntityTypeBuilder<Trip> builder)
     {
         builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.ScheduleId, x.DepartureTime }).IsUnique()
+            .HasFilter("[ScheduleId] IS NOT NULL");
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_Trips_SalesClose", "[SalesCloseAt] IS NULL OR ([SalesCloseAt] <= [DepartureTime] AND ([ActualDepartureTime] IS NULL OR [SalesCloseAt] <= [ActualDepartureTime]))");
+            t.HasCheckConstraint("CK_Trips_Arrival", "[ArrivalTime] >= [DepartureTime] AND ([ActualArrivalTime] IS NULL OR [ActualDepartureTime] IS NULL OR [ActualArrivalTime] >= [ActualDepartureTime])");
+        });
 
         builder.HasOne(x => x.Route)
             .WithMany()
@@ -158,6 +165,21 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
     public void Configure(EntityTypeBuilder<Booking> builder)
     {
         builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.Id, x.TripId });
+        builder.HasAlternateKey(x => new { x.Id, x.OrderId });
+        builder.HasOne(x => x.Trip).WithMany(t => t.Bookings)
+            .HasForeignKey(x => x.TripId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(x => x.BoardingCall).WithMany()
+            .HasForeignKey(x => new { x.TripId, x.BoardingCallId })
+            .HasPrincipalKey(x => new { x.TripId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(x => x.DisembarkingCall).WithMany()
+            .HasForeignKey(x => new { x.TripId, x.DisembarkingCallId })
+            .HasPrincipalKey(x => new { x.TripId, x.Id }).OnDelete(DeleteBehavior.Restrict);
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_Bookings_DistinctCalls", "[BoardingCallId] <> [DisembarkingCallId]");
+            t.HasCheckConstraint("CK_Bookings_Amounts", "[QuotedTotal] >= 0 AND ([PaidAllocation] IS NULL OR [PaidAllocation] >= 0)");
+        });
         builder.HasIndex(x => x.BookingCode).IsUnique();
         builder.Property(x => x.BookingCode).HasMaxLength(50).IsRequired();
 
@@ -173,7 +195,8 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(x => x.CustomerName).HasMaxLength(150).IsRequired();
         builder.Property(x => x.CustomerEmail).HasMaxLength(150).IsRequired();
         builder.Property(x => x.CustomerPhone).HasMaxLength(20).IsRequired(false);
-        builder.Property(x => x.TotalAmount).HasPrecision(18, 2);
+        builder.Property(x => x.QuotedTotal).HasPrecision(18, 2);
+        builder.Property(x => x.PaidAllocation).HasPrecision(18, 2);
         builder.Property(x => x.ManageOrderTokenHash).HasMaxLength(256);
         builder.Property(x => x.ManageOrderTokenExpiresAt);
         builder.Property(x => x.ManageOrderTokenRevoked).IsRequired().HasDefaultValue(false);
@@ -198,7 +221,7 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         builder.HasIndex(x => x.TicketCode).IsUnique();
         builder.HasIndex(x => x.SeatReservationId).IsUnique(); // 1:1
         builder.Property(x => x.TicketCode).HasMaxLength(50).IsRequired();
-        builder.Property(x => x.BoardingStatus).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.BoardingStatus).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.FareTripTypeSnapshot).HasMaxLength(20);
         builder.Property(x => x.FareSeatClassSnapshot).HasMaxLength(50);
         builder.Property(x => x.FaceFareSnapshot).HasPrecision(12, 2);
@@ -206,7 +229,14 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         builder.HasOne(x => x.Booking).WithMany(b => b.Tickets)
             .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.SeatReservation).WithOne(r => r.Ticket)
-            .HasForeignKey<Ticket>(x => x.SeatReservationId).OnDelete(DeleteBehavior.Restrict);
+            .HasForeignKey<Ticket>(x => new { x.SeatReservationId, x.BookingId })
+            .HasPrincipalKey<SeatReservation>(x => new { x.Id, x.BookingId })
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_Tickets_BoardingStatus", "[BoardingStatus] IN ('NotCheckedIn', 'CheckedIn', 'NoShow')");
+            t.HasCheckConstraint("CK_Tickets_Fares", "[FaceFareSnapshot] >= 0 AND [PaidFareSnapshot] >= 0");
+        });
         builder.Property(x => x.RowVersion).IsRowVersion();
     }
 }
@@ -245,6 +275,7 @@ public class SeatReservationConfiguration : IEntityTypeConfiguration<SeatReserva
     public void Configure(EntityTypeBuilder<SeatReservation> builder)
     {
         builder.HasIndex(x => new { x.TripId, x.SeatId });
+        builder.HasAlternateKey(x => new { x.Id, x.BookingId });
         builder.Property(x => x.PassengerName).HasMaxLength(150).IsRequired();
         builder.Property(x => x.PassengerEmail).HasMaxLength(150);
         builder.Property(x => x.PassengerPhone).HasMaxLength(20);
@@ -253,12 +284,18 @@ public class SeatReservationConfiguration : IEntityTypeConfiguration<SeatReserva
         builder.Property(x => x.SeatCodeAtSale).HasMaxLength(20);
         builder.Property(x => x.SeatClassAtSale).HasMaxLength(50);
         builder.HasOne(x => x.Booking).WithMany(b => b.SeatReservations)
-            .HasForeignKey(x => x.BookingId).OnDelete(DeleteBehavior.Cascade);
+            .HasForeignKey(x => new { x.BookingId, x.TripId })
+            .HasPrincipalKey(x => new { x.Id, x.TripId }).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.Trip).WithMany()
             .HasForeignKey(x => x.TripId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.Seat).WithMany()
             .HasForeignKey(x => x.SeatId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.RowVersion).IsRowVersion();
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_SeatReservations_Segment", "[BoardingStopOrder] > 0 AND [DisembarkingStopOrder] > [BoardingStopOrder]");
+            t.HasCheckConstraint("CK_SeatReservations_Amounts", "[QuotedFare] >= 0 AND ([PaidAllocation] IS NULL OR [PaidAllocation] >= 0)");
+        });
     }
 }
 
@@ -303,6 +340,7 @@ public class TripStopCallConfiguration : IEntityTypeConfiguration<TripStopCall>
     public void Configure(EntityTypeBuilder<TripStopCall> builder)
     {
         builder.HasKey(x => x.Id);
+        builder.HasAlternateKey(x => new { x.TripId, x.Id });
         builder.HasIndex(x => new { x.TripId, x.VisitOrder }).IsUnique();
         builder.HasOne(x => x.Trip)
             .WithMany(t => t.TripStopCalls)
@@ -313,6 +351,14 @@ public class TripStopCallConfiguration : IEntityTypeConfiguration<TripStopCall>
             .HasForeignKey(x => x.RouteStopId)
             .OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.Status).HasMaxLength(20).IsRequired();
+        builder.HasOne(x => x.ScheduleStop).WithMany()
+            .HasForeignKey(x => x.ScheduleStopId).OnDelete(DeleteBehavior.Restrict);
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_TripStopCalls_VisitOrder", "[VisitOrder] > 0");
+            t.HasCheckConstraint("CK_TripStopCalls_CheckInWindow", "[CheckInOpenAt] IS NULL OR [CheckInCloseAt] IS NULL OR [CheckInOpenAt] < [CheckInCloseAt]");
+            t.HasCheckConstraint("CK_TripStopCalls_Status", "[Status] IN ('Planned', 'Arrived', 'Departed', 'Skipped')");
+        });
         builder.Property(x => x.RowVersion).IsRowVersion();
     }
 }
@@ -323,20 +369,31 @@ public class FinancialTransactionConfiguration : IEntityTypeConfiguration<Financ
     public void Configure(EntityTypeBuilder<FinancialTransaction> builder)
     {
         builder.HasIndex(x => x.IdempotencyKey).IsUnique();
-        builder.Property(x => x.TransactionType).HasMaxLength(20).IsRequired();
+        builder.HasAlternateKey(x => new { x.Id, x.OrderId });
+        builder.Property(x => x.TransactionType).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.Amount).HasPrecision(12, 2);
         builder.Property(x => x.Currency).HasMaxLength(10).IsRequired();
-        builder.Property(x => x.Status).HasMaxLength(20).IsRequired();
+        builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.GatewayName).HasMaxLength(50);
         builder.Property(x => x.GatewayReference).HasMaxLength(100);
+        builder.Property(x => x.MerchantReference).HasMaxLength(100);
         builder.Property(x => x.IdempotencyKey).HasMaxLength(200).IsRequired();
-        builder.HasOne(x => x.Order).WithMany()
+        builder.HasOne(x => x.Order).WithMany(o => o.FinancialTransactions)
             .HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.RefundBooking).WithMany()
-            .HasForeignKey(x => x.RefundBookingId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
+            .HasForeignKey(x => new { x.RefundBookingId, x.OrderId })
+            .HasPrincipalKey(x => new { x.Id, x.OrderId }).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.OriginalPayment).WithMany(t => t.Refunds)
-            .HasForeignKey(x => x.OriginalPaymentId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
+            .HasForeignKey(x => new { x.OriginalPaymentId, x.OrderId })
+            .HasPrincipalKey(x => new { x.Id, x.OrderId }).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.RowVersion).IsRowVersion();
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_FinancialTransactions_Amount", "[Amount] > 0");
+            t.HasCheckConstraint("CK_FinancialTransactions_Kind", "([TransactionType] = 'Payment' AND [RefundBookingId] IS NULL AND [OriginalPaymentId] IS NULL) OR ([TransactionType] = 'Refund' AND [RefundBookingId] IS NOT NULL AND [OriginalPaymentId] IS NOT NULL AND [OriginalPaymentId] <> [Id])");
+            t.HasCheckConstraint("CK_FinancialTransactions_Status", "[Status] IN ('Requested', 'Processing', 'Succeeded', 'Failed')");
+            t.HasCheckConstraint("CK_FinancialTransactions_ManualEvidence", "[TransactionType] <> 'Refund' OR [GatewayName] IS NULL OR [GatewayName] <> 'Manual' OR [Status] <> 'Succeeded' OR ([ManualProcessedByAdminId] IS NOT NULL AND LEN(LTRIM(RTRIM([ManualRefundEvidence]))) > 0 AND [ManualRefundEvidence] IS NOT NULL)");
+        });
     }
 }
 public class RefundTicketAllocationConfiguration : IEntityTypeConfiguration<RefundTicketAllocation>
@@ -349,6 +406,8 @@ public class RefundTicketAllocationConfiguration : IEntityTypeConfiguration<Refu
             .HasForeignKey(x => x.RefundTransactionId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(x => x.Ticket).WithMany()
             .HasForeignKey(x => x.TicketId).OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.RowVersion).IsRowVersion();
+        builder.ToTable(t => t.HasCheckConstraint("CK_RefundTicketAllocations_Amount", "[Amount] > 0"));
     }
 }
 public class AccessGrantConfiguration : IEntityTypeConfiguration<AccessGrant>
