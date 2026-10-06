@@ -7,22 +7,28 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#0284C7",
-        tabBarInactiveTintColor: "#64748B",
-        tabBarStyle: {
-          backgroundColor: "#FFFFFF",
-          borderTopColor: "#E2E8F0",
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 6,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: "600",
-        },
       }}
     >
       <Tabs.Screen
         name="index"
+        options={{
+          title: "Home",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: "Explore",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="compass-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="scanner"
         options={{
           title: "Soát Vé",
           tabBarIcon: ({ color, size }) => (
@@ -33,7 +39,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="manifest"
         options={{
-          title: "Tải Vé (Cache)",
+          title: "Tải Vé",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cloud-download-outline" size={size} color={color} />
           ),
@@ -46,12 +52,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="settings-outline" size={size} color={color} />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          href: null, // Hide explore placeholder tab
         }}
       />
     </Tabs>
