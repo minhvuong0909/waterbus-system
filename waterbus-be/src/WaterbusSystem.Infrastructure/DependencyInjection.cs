@@ -7,12 +7,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Application.Features.Bookings.Services;
 using WaterbusSystem.Infrastructure.BackgroundJobs;
 using WaterbusSystem.Infrastructure.Identity;
 using WaterbusSystem.Infrastructure.Locking;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.Infrastructure.Services;
+using WaterbusSystem.Infrastructure.Services.Checkout;
 using WaterbusSystem.Infrastructure.Services.Payment;
+using WaterbusSystem.Infrastructure.Services.Refunds;
 
 namespace WaterbusSystem.Infrastructure;
 
@@ -88,17 +91,52 @@ public static class DependencyInjection
         services.AddSingleton<IDistributedLockService, RedisDistributedLockService>();
 
         // 5. Đăng ký Dịch vụ cổng thanh toán VNPAY & Token Generator
-        services.AddScoped<IVnPayService, VnPayService>();
+        services.AddHttpClient<IVnPayService, VnPayService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddTransient<IDateTimeService, DateTimeService>();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<ISeatAvailabilityService, SeatAvailabilityService>();
 
+        // 5.1 BR-RF-10: hai nhánh hoàn tiền. Ưu tiên gateway tự động (VNPAY); nếu gateway không hỗ trợ
+        // hoặc lỗi không xử lý được, yêu cầu hoàn chuyển sang nhánh thủ công của Admin.
+        // ManualRefundGateway đăng ký trước VnPayRefundGateway vì SelectGateway() chọn theo
+        // SupportsAutomaticRefund chứ không theo thứ tự đăng ký.
+        services.AddScoped<IRefundGateway, ManualRefundGateway>();
+        services.AddScoped<IRefundGateway, VnPayRefundGateway>();
+
+        // 5.2 BR-HOLD-01 → BR-HOLD-05: phiên giữ ghế tạm thời trên Redis cho khách không cần đăng nhập.
+        // TTL cấu hình qua Checkout:SessionTtlMinutes và Checkout:PaymentPendingTtlMinutes.
+        services.AddSingleton<ICheckoutSessionStore, RedisCheckoutSessionStore>();
+        services.AddScoped<ICheckoutSessionService>(sp =>
+        {
+            var configuration = sp.GetRequiredService<IConfiguration>();
+            return new CheckoutSessionService(
+                sp.GetRequiredService<ICheckoutSessionStore>(),
+                sp.GetRequiredService<IDateTimeService>(),
+                ReadMinutes(configuration, "Checkout:SessionTtlMinutes", fallbackMinutes: 10),
+                ReadMinutes(configuration, "Checkout:PaymentPendingTtlMinutes", fallbackMinutes: 15));
+        });
+
         // 6. BackgroundService dọn dẹp Booking giữ chỗ quá hạn 10 phút chưa thanh toán
         services.AddHostedService<ExpiredBookingCleanupService>();
 
         return services;
 
+    }
+
+    /// <summary>
+    /// BR-HOLD-05: TTL của phiên giữ ghế và cửa sổ PaymentPending là tham số cấu hình do
+    /// Admin/hệ thống quy định, không phải hằng số nghiệp vụ bất biến.
+    /// </summary>
+    private static TimeSpan ReadMinutes(IConfiguration configuration, string key, int fallbackMinutes)
+    {
+        var raw = configuration[key];
+        return int.TryParse(raw, out var minutes) && minutes > 0
+            ? TimeSpan.FromMinutes(minutes)
+            : TimeSpan.FromMinutes(fallbackMinutes);
     }
 }

@@ -4,7 +4,7 @@ using WaterbusSystem.Application.Features.Payments.Commands.CreateVnPayUrl;
 
 namespace WaterbusSystem.WebApi.Controllers;
 
-public record CreateVnPayUrlRequest(Guid BookingId);
+public record CreateVnPayUrlRequest(Guid OrderId);
 
 /// <summary>
 /// Quản lý thanh toán qua cổng VNPAY có chữ ký số HMAC-SHA512
@@ -12,24 +12,29 @@ public record CreateVnPayUrlRequest(Guid BookingId);
 public class PaymentsController : BaseApiController
 {
     /// <summary>
-    /// Sinh URL chuyển hướng khách hàng sang cổng thanh toán VNPAY
+    /// Sinh URL chuyển hướng khách hàng sang cổng thanh toán VNPAY.
+    /// BR-PAY-04: đơn vị thanh toán là PurchaseOrder, nên nhận OrderId chứ không phải BookingId.
     /// </summary>
     [HttpPost("create-vnpay-url")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CreateVnPayUrl([FromBody] CreateVnPayUrlRequest request)
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
 
-        var result = await Mediator.Send(new CreateVnPayUrlCommand(request.BookingId, ipAddress));
+        var result = await Mediator.Send(new CreateVnPayUrlCommand(request.OrderId, ipAddress));
 
         return Ok(result);
     }
 
     /// <summary>
-    /// Webhook IPN nhận kết quả thanh toán ngầm từ VNPAY (Xác thực HMAC-SHA512 an toàn)
+    /// Webhook IPN nhận kết quả thanh toán ngầm từ VNPAY (Xác thực HMAC-SHA512 an toàn).
+    /// BR-PAY-01: đây là bằng chứng xác nhận thanh toán duy nhất. Nhận cả GET và POST
+    /// để không phụ thuộc phương thức mà gateway chọn.
     /// </summary>
     [HttpGet("vnpay-ipn")]
+    [HttpPost("vnpay-ipn")]
     public async Task<IActionResult> VnPayIpn()
     {
         var result = await Mediator.Send(new ConfirmVnPayIpnCommand(ToQueryDictionary(Request.Query)));

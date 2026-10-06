@@ -18,7 +18,7 @@ namespace WaterbusSystem.UnitTests.Bookings;
 public class CreateBookingCommandHandlerTests
 {
     [Fact]
-    public async Task Handle_WhenValidRequest_ShouldCreateBookingWithPriceMultiplierApplied()
+    public async Task Handle_WhenValidRequest_ShouldCreateOrderBookingReservationsWithFlatFareBySeatClass()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var seed = TestDbContextFactory.SeedTrip(context);
@@ -36,16 +36,41 @@ public class CreateBookingCommandHandlerTests
 
         var result = await handler.Handle(command, CancellationToken.None);
 
-        // BasePrice 15000, Seat1 x1.0 = 15000, Seat2 x1.2 = 18000 -> Tổng 33000 (trước đây bug bỏ qua PriceMultiplier)
-        result.TotalAmount.Should().Be(33000m);
+        // BR-FARE-01/02: giá phẳng theo TripType x SeatClass. Cả 2 ghế đều thuộc cùng hạng
+        // "Tieu chuan" trên chuyến Commuter nên cùng một đơn giá 15.000đ, KHÔNG nhân hệ số
+        // theo vị trí ghế (mô hình PriceMultiplier cũ đã bị BR v2.0 bãi bỏ).
+        result.TotalAmount.Should().Be(2 * TestDbContextFactory.StandardCommuterFare);
+
+        // BR-COM-01: phải tạo PurchaseOrder làm chủ sở hữu giao dịch.
+        var order = context.PurchaseOrders.Single(o => o.Id == result.OrderId);
+        order.Status.Should().Be(OrderStatus.PendingPayment);
+        order.PurchaseMode.Should().Be(PurchaseMode.OneWay);
+        order.QuotedTotal.Should().Be(result.TotalAmount);
 
         var booking = context.Bookings.Single(b => b.Id == result.BookingId);
-        context.Entry(booking).Collection(b => b.Tickets).Load();
-        booking.Tickets.Should().HaveCount(2);
+        booking.OrderId.Should().Be(order.Id);
+
+        // BR-COM-08: Ticket CHƯA được phát hành khi mới giữ chỗ.
+        booking.Tickets.Should().BeEmpty();
+
+        // BR-ROUTE-02: Booking tham chiếu trực tiếp hai TripStopCall của chính Trip đó.
+        booking.BoardingCallId.Should().Be(seed.Trip.TripStopCalls.Single(c => c.VisitOrder == 1).Id);
+        booking.DisembarkingCallId.Should().Be(seed.Trip.TripStopCalls.Single(c => c.VisitOrder == 3).Id);
 
         var reservations = context.SeatReservations.Where(r => r.BookingId == booking.Id).ToList();
         reservations.Should().HaveCount(2);
         reservations.Should().OnlyContain(r => r.BoardingStopOrder == 1 && r.DisembarkingStopOrder == 3);
+
+        // BR-SEAT-03: giữ snapshot hành khách, mã ghế, hạng ghế và giá tại thời điểm bán.
+        reservations.Should().OnlyContain(r =>
+            r.PassengerName == "Nguyen Van A" &&
+            r.SeatClassAtSale == seed.StandardClass.Name &&
+            r.SeatCodeAtSale != null &&
+            r.QuotedFare == TestDbContextFactory.StandardCommuterFare);
+
+        // PaidAllocation chỉ được ghi sau khi backend xác minh thanh toán.
+        reservations.Should().OnlyContain(r => r.PaidAllocation == null);
+        booking.PaidAllocation.Should().BeNull();
     }
 
     [Fact]

@@ -1,17 +1,22 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Domain.Entities;
+using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
 
 namespace WaterbusSystem.Application.Features.Payments.Commands.CreateVnPayUrl;
 
-public record CreateVnPayUrlResponseDto(string PaymentUrl, string BookingCode);
+public record CreateVnPayUrlResponseDto(string PaymentUrl, string OrderId, string MerchantReference, decimal Amount);
 
 /// <summary>
-/// Command sinh URL chuyển hướng khách hàng sang cổng thanh toán VNPAY
+/// BR-PAY-04: đơn vị thanh toán là PurchaseOrder, không phải từng Booking. Một Order round-trip
+/// có 2 Booking nhưng chỉ một lần thanh toán, nên cổng thanh toán nhận tổng tiền của cả Order.
+/// vnp_TxnRef gửi lên cổng là BookingCode của Booking đầu tiên thuộc Order - giá trị này
+/// được IPN dùng để tra ngược lại đúng Order cần xác nhận.
 /// </summary>
-public record CreateVnPayUrlCommand(Guid BookingId, string IpAddress) : IRequest<CreateVnPayUrlResponseDto>;
+public record CreateVnPayUrlCommand(Guid OrderId, string IpAddress) : IRequest<CreateVnPayUrlResponseDto>;
 
 public class CreateVnPayUrlCommandHandler : IRequestHandler<CreateVnPayUrlCommand, CreateVnPayUrlResponseDto>
 {
@@ -26,13 +31,33 @@ public class CreateVnPayUrlCommandHandler : IRequestHandler<CreateVnPayUrlComman
 
     public async Task<CreateVnPayUrlResponseDto> Handle(CreateVnPayUrlCommand request, CancellationToken cancellationToken)
     {
-        var booking = await _context.Bookings
-            .FirstOrDefaultAsync(b => b.Id == request.BookingId && !b.IsDeleted, cancellationToken)
-            ?? throw new NotFoundException(nameof(Booking), request.BookingId);
+        var order = await _context.PurchaseOrders
+            .Include(o => o.Bookings)
+            .FirstOrDefaultAsync(o => o.Id == request.OrderId, cancellationToken)
+            ?? throw new NotFoundException(nameof(PurchaseOrder), request.OrderId);
 
-        var orderInfo = $"Thanh toan ve buyt duong song {booking.BookingCode}";
-        var paymentUrl = _vnPayService.CreatePaymentUrl(booking.BookingCode, booking.TotalAmount, orderInfo, request.IpAddress);
+        if (order.Status != OrderStatus.PendingPayment)
+        {
+            throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
+            {
+                new(nameof(CreateVnPayUrlCommand.OrderId), "Đơn hàng này không ở trạng thái chờ thanh toán.")
+            });
+        }
 
-        return new CreateVnPayUrlResponseDto(paymentUrl, booking.BookingCode);
+        // vnp_TxnRef là mã tham chiếu giao dịch, tối đa 100 ký tự alphanumeric.
+        // Dùng BookingCode đầu tiên của Order làm mã tra ngược ở bước IPN.
+        var merchantReference = order.Bookings
+            .OrderBy(b => b.CreatedAt)
+            .Select(b => b.BookingCode)
+            .FirstOrDefault()
+            ?? throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
+            {
+                new(nameof(CreateVnPayUrlCommand.OrderId), "Đơn hàng chưa có Booking nào để thanh toán.")
+            });
+
+        var orderInfo = $"Thanh toan ve buyt duong song {merchantReference}";
+        var paymentUrl = _vnPayService.CreatePaymentUrl(merchantReference, order.QuotedTotal, orderInfo, request.IpAddress);
+
+        return new CreateVnPayUrlResponseDto(paymentUrl, order.Id.ToString(), merchantReference, order.QuotedTotal);
     }
 }
