@@ -251,12 +251,7 @@ public class VnPayService : IVnPayService
                 };
             }
 
-            return JsonSerializer.Deserialize<Dictionary<string, string>>(json)
-                   ?? new Dictionary<string, string>
-                   {
-                       ["vnp_ResponseCode"] = "99",
-                       ["vnp_Message"] = "Không đọc được phản hồi JSON từ VNPAY."
-                   };
+            return ParseResponse(json);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -268,6 +263,40 @@ public class VnPayService : IVnPayService
             {
                 ["vnp_ResponseCode"] = "99",
                 ["vnp_Message"] = "Không kết nối được tới VNPAY. Cần đối soát lại giao dịch."
+            };
+        }
+    }
+
+    /// <summary>
+    /// Đặc tả VNPAY không cam kết mọi trường trả về đều là chuỗi. Nếu deserialize thẳng sang
+    /// Dictionary&lt;string,string&gt; thì một giá trị dạng số sẽ làm cả lời gọi API ném exception,
+    /// biến lỗi kỹ thuật thành lỗi nghiệp vụ. Vì vậy đọc theo JsonElement rồi chuyển sang chuỗi.
+    /// </summary>
+    private static Dictionary<string, string> ParseResponse(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                result[property.Name] = property.Value.ValueKind switch
+                {
+                    JsonValueKind.String => property.Value.GetString() ?? string.Empty,
+                    JsonValueKind.Null or JsonValueKind.Undefined => string.Empty,
+                    _ => property.Value.GetRawText()
+                };
+            }
+
+            return result;
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>
+            {
+                ["vnp_ResponseCode"] = "99",
+                ["vnp_Message"] = "Không đọc được phản hồi JSON từ VNPAY."
             };
         }
     }

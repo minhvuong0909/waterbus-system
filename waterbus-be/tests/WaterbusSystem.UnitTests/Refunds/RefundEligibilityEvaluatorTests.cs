@@ -46,7 +46,7 @@ public class RefundEligibilityEvaluatorTests
         var trip = new Trip { Status = TripStatus.Scheduled };
         var booking = MakeBooking(Call(1), Call(2));
 
-        var decision = RefundEligibilityEvaluator.Evaluate(MakeTicket(), booking, trip, Now);
+        var decision = RefundEligibilityEvaluator.Evaluate(MakeTicket(), booking, trip);
 
         decision.IsEligible.Should().BeFalse();
     }
@@ -59,7 +59,7 @@ public class RefundEligibilityEvaluatorTests
         var booking = MakeBooking(Call(1), Call(3));
 
         var decision = RefundEligibilityEvaluator.Evaluate(
-            MakeTicket(boarding: BoardingStatus.NoShow), booking, trip, Now);
+            MakeTicket(boarding: BoardingStatus.NoShow), booking, trip);
 
         decision.IsEligible.Should().BeFalse();
         decision.Reason.Should().Contain("NoShow");
@@ -74,7 +74,7 @@ public class RefundEligibilityEvaluatorTests
         var disembarking = Call(3, status: "Departed", actualArrival: Now.AddHours(-1));
         var booking = MakeBooking(Call(1), disembarking);
 
-        var decision = RefundEligibilityEvaluator.Evaluate(MakeTicket(), booking, trip, Now);
+        var decision = RefundEligibilityEvaluator.Evaluate(MakeTicket(), booking, trip);
 
         decision.IsEligible.Should().BeFalse();
     }
@@ -86,7 +86,7 @@ public class RefundEligibilityEvaluatorTests
         var trip = new Trip { Status = TripStatus.Cancelled };
         var booking = MakeBooking(Call(1), Call(3));
 
-        var decision = RefundEligibilityEvaluator.Evaluate(MakeTicket(), booking, trip, Now);
+        var decision = RefundEligibilityEvaluator.Evaluate(MakeTicket(), booking, trip);
 
         decision.IsEligible.Should().BeTrue();
         decision.Reason.Should().Contain("hủy");
@@ -99,7 +99,7 @@ public class RefundEligibilityEvaluatorTests
         var trip = new Trip { Status = TripStatus.Terminated };
         var booking = MakeBooking(Call(2), Call(3));
 
-        var decision = RefundEligibilityEvaluator.Evaluate(MakeTicket(), booking, trip, Now);
+        var decision = RefundEligibilityEvaluator.Evaluate(MakeTicket(), booking, trip);
 
         decision.IsEligible.Should().BeTrue();
     }
@@ -113,7 +113,7 @@ public class RefundEligibilityEvaluatorTests
         var booking = MakeBooking(Call(2), Call(3));
 
         var decision = RefundEligibilityEvaluator.Evaluate(
-            MakeTicket(boarding: BoardingStatus.NotCheckedIn), booking, trip, Now);
+            MakeTicket(boarding: BoardingStatus.NotCheckedIn), booking, trip);
 
         decision.IsEligible.Should().BeTrue();
     }
@@ -124,10 +124,10 @@ public class RefundEligibilityEvaluatorTests
         var trip = new Trip { Status = TripStatus.Cancelled };
         var booking = MakeBooking(Call(1), Call(3));
 
-        RefundEligibilityEvaluator.Evaluate(MakeTicket(TicketStatus.Cancelled), booking, trip, Now)
+        RefundEligibilityEvaluator.Evaluate(MakeTicket(TicketStatus.Cancelled), booking, trip)
             .IsEligible.Should().BeFalse();
 
-        RefundEligibilityEvaluator.Evaluate(MakeTicket(TicketStatus.Completed), booking, trip, Now)
+        RefundEligibilityEvaluator.Evaluate(MakeTicket(TicketStatus.Completed), booking, trip)
             .IsEligible.Should().BeFalse();
     }
 
@@ -147,9 +147,9 @@ public class RefundEligibilityEvaluatorTests
         var notCheckedIn = MakeTicket(boarding: BoardingStatus.NotCheckedIn);
         var noShow = MakeTicket(boarding: BoardingStatus.NoShow);
 
-        RefundEligibilityEvaluator.Evaluate(checkedIn, booking, trip, Now).IsEligible.Should().BeTrue();
-        RefundEligibilityEvaluator.Evaluate(notCheckedIn, booking, trip, Now).IsEligible.Should().BeTrue();
-        RefundEligibilityEvaluator.Evaluate(noShow, booking, trip, Now).IsEligible.Should().BeFalse();
+        RefundEligibilityEvaluator.Evaluate(checkedIn, booking, trip).IsEligible.Should().BeTrue();
+        RefundEligibilityEvaluator.Evaluate(notCheckedIn, booking, trip).IsEligible.Should().BeTrue();
+        RefundEligibilityEvaluator.Evaluate(noShow, booking, trip).IsEligible.Should().BeFalse();
 
         // BR-RF-09: khoản hoàn = tổng paid allocation của các Ticket đủ điều kiện (2 x 15.000),
         // không bao gồm vé NoShow.
@@ -168,9 +168,9 @@ public class RefundEligibilityEvaluatorTests
         var disembarking = Call(3, status: "Departed", actualArrival: Now.AddHours(-1));
         var booking = MakeBooking(Call(1), disembarking);
 
-        RefundEligibilityEvaluator.Evaluate(MakeTicket(boarding: BoardingStatus.CheckedIn), booking, trip, Now)
+        RefundEligibilityEvaluator.Evaluate(MakeTicket(boarding: BoardingStatus.CheckedIn), booking, trip)
             .IsEligible.Should().BeFalse();
-        RefundEligibilityEvaluator.Evaluate(MakeTicket(boarding: BoardingStatus.NoShow), booking, trip, Now)
+        RefundEligibilityEvaluator.Evaluate(MakeTicket(boarding: BoardingStatus.NoShow), booking, trip)
             .IsEligible.Should().BeFalse();
     }
 
@@ -190,22 +190,22 @@ public class RefundEligibilityEvaluatorTests
 
         // B101: A -> B, đã tới đúng bến xuống B trước Incident -> không refund
         var b101 = MakeBooking(callA, callB);
-        RefundEligibilityEvaluator.Evaluate(MakeTicket(boarding: BoardingStatus.CheckedIn), b101, trip, Now)
+        RefundEligibilityEvaluator.Evaluate(MakeTicket(boarding: BoardingStatus.CheckedIn), b101, trip)
             .IsEligible.Should().BeFalse();
 
         // B102: B -> D, chưa tới đích do Trip dừng -> refund 100%
         var b102 = MakeBooking(callB, callD);
-        RefundEligibilityEvaluator.Evaluate(MakeTicket(boarding: BoardingStatus.CheckedIn), b102, trip, Now)
+        RefundEligibilityEvaluator.Evaluate(MakeTicket(boarding: BoardingStatus.CheckedIn), b102, trip)
             .IsEligible.Should().BeTrue();
 
         // B103: C -> D, Trip chưa tới được bến C -> refund 100%
         var b103 = MakeBooking(callC, callD);
-        RefundEligibilityEvaluator.Evaluate(MakeTicket(boarding: BoardingStatus.NotCheckedIn), b103, trip, Now)
+        RefundEligibilityEvaluator.Evaluate(MakeTicket(boarding: BoardingStatus.NotCheckedIn), b103, trip)
             .IsEligible.Should().BeTrue();
 
         // B104: khách tự NoShow tại A -> Incident xảy ra sau đó nên không tự refund
         var b104 = MakeBooking(callA, callB);
-        RefundEligibilityEvaluator.Evaluate(MakeTicket(boarding: BoardingStatus.NoShow), b104, trip, Now)
+        RefundEligibilityEvaluator.Evaluate(MakeTicket(boarding: BoardingStatus.NoShow), b104, trip)
             .IsEligible.Should().BeFalse();
     }
 
@@ -221,7 +221,7 @@ public class RefundEligibilityEvaluatorTests
         var booking = new Booking { Status = BookingStatus.Confirmed };
         booking.SetJourney(boarding, disembarking);
 
-        var decision = RefundEligibilityEvaluator.Evaluate(MakeTicket(), booking, trip, Now);
+        var decision = RefundEligibilityEvaluator.Evaluate(MakeTicket(), booking, trip);
 
         decision.IsEligible.Should().BeTrue();
     }

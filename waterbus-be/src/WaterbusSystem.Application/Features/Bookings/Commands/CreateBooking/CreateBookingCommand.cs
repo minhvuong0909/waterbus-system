@@ -300,10 +300,16 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             // và chấp nhận 2 lần ghé cùng Station ở 2 VisitOrder khác (chuyến vòng sightseeing).
             booking.SetJourney(boardingCall, disembarkingCall);
 
+            // BR-COM-05/06: danh sách hành khách được khách gửi theo đúng thứ tự SeatIds, nên phải ghép
+            // hành khách với ghế theo THỨ TỰ CLIENT yêu cầu. CSDL không bảo đảm thứ tự trả về,
+            // dùng trực tiếp kết quả query sẽ khiến tên khách bị gắn nhầm sang ghế khác.
+            var seatById = seats.ToDictionary(s => s.Id);
+            var orderedSeats = requestedSeatIds.Select(seatId => seatById[seatId]).ToList();
+
             var quotedTotal = 0m;
-            for (var i = 0; i < seats.Count; i++)
+            for (var i = 0; i < orderedSeats.Count; i++)
             {
-                var seat = seats[i];
+                var seat = orderedSeats[i];
                 var fare = fareBySeatClassId[seat.SeatClassId].Price;
                 var passenger = passengers[i];
 
@@ -351,13 +357,24 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             if (_checkoutSessionService is not null)
             {
                 sessionId = CheckoutSessionKey.ForOrder(order.Id);
-                var session = await _checkoutSessionService.HoldAsync(
-                    sessionId,
-                    order.Id,
-                    seats.Select(s => new SeatHold(trip.Id, s.Id, boardingStopOrder, disembarkingStopOrder)).ToList(),
-                    cancellationToken);
+                try
+                {
+                    var session = await _checkoutSessionService.HoldAsync(
+                        sessionId,
+                        order.Id,
+                        orderedSeats.Select(s => new SeatHold(trip.Id, s.Id, boardingStopOrder, disembarkingStopOrder)).ToList(),
+                        cancellationToken);
 
-                remainingSeconds = Math.Max(0, (int)(session.ExpiresAt - now).TotalSeconds);
+                    remainingSeconds = Math.Max(0, (int)(session.ExpiresAt - now).TotalSeconds);
+                }
+                catch (Exception)
+                {
+                    // BR-HOLD-04: Redis chỉ hỗ trợ trải nghiệm. Order/Booking/SeatReservation đã
+                    // ghi xong ở CSDL nên tuyệt đối KHÔNG ném lỗi ra ngoài - nếu ném, khách thấy
+                    // lỗi rồi bấm lại sẽ tạo thêm một Order trùng. Hold thật vẫn còn nguyên vì
+                    // nó nằm ở SeatReservation, và ExpiredBookingCleanupService sẽ dọn theo TTL.
+                    remainingSeconds = (int)HoldDuration.TotalSeconds;
+                }
             }
 
             return new BookingResponseDto(

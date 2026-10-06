@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WaterbusSystem.Application.Features.Refunds.Commands.ConfirmManualRefund;
@@ -24,7 +25,15 @@ public class RefundsController : BaseApiController
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<RequestRefundResultDto>> RequestRefund([FromBody] RequestRefundCommand command)
     {
-        var result = await Mediator.Send(command);
+        // vnp_IpAddr và vnp_CreateBy là hai trường bắt buộc của API hoàn tiền VNPAY,
+        // dùng để cổng đối soát và chống gian lận.
+        var commandWithContext = command with
+        {
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
+            CreatedBy = User.Identity?.Name ?? User.FindFirst(ClaimTypes.Email)?.Value
+        };
+
+        var result = await Mediator.Send(commandWithContext);
         return Ok(result);
     }
 

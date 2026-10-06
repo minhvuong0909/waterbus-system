@@ -22,7 +22,7 @@ public sealed record RefundDecision(bool IsEligible, string Reason)
 /// </summary>
 public static class RefundEligibilityEvaluator
 {
-    public static RefundDecision Evaluate(Ticket ticket, Booking booking, Trip trip, DateTimeOffset now)
+    public static RefundDecision Evaluate(Ticket ticket, Booking booking, Trip trip)
     {
         // BR-STATE-02 / BR-RF-01: chỉ Trip bị hủy hoặc chấm dứng mới là căn cứ hoàn tiền.
         if (trip.Status is not (TripStatus.Cancelled or TripStatus.Terminated))

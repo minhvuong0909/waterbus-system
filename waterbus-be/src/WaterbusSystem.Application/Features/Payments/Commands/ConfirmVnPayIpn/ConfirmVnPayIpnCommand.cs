@@ -145,6 +145,21 @@ public class ConfirmVnPayIpnCommandHandler : IRequestHandler<ConfirmVnPayIpnComm
             paidAt = new DateTimeOffset(parsedPayDate, TimeSpan.Zero);
         }
 
+        // BR-PAY-04: phân bổ số tiền thực tế cho từng Booking theo tổng paid allocation của
+        // các SeatReservation của Booking đó. BR-FARE-02 giá phẳng theo SeatClass nên không
+        // cần tỷ lệ theo đoạn đi. Kiểm tra này phải chạy TRƯỚC khi tạo bản ghi giao dịch, để
+        // lệnh từ chối không để lại một FinancialTransaction treo lơ lửng trong ChangeTracker.
+        if (isSuccess)
+        {
+            foreach (var booking in orderBookings)
+            {
+                if (booking.SeatReservations.Sum(r => r.QuotedFare) != booking.QuotedTotal)
+                {
+                    return new VnPayIpnResultDto("04", "Invalid Amount");
+                }
+            }
+        }
+
         // BR-PAY-03: ghi lại lịch sử giao dịch để phục vụ đối soát kế toán, kể cả lần thất bại.
         var payment = new FinancialTransaction
         {
@@ -182,7 +197,7 @@ public class ConfirmVnPayIpnCommandHandler : IRequestHandler<ConfirmVnPayIpnComm
                 }
             }
 
-            await SaveOrReportDuplicateAsync(cancellationToken);
+            if (!await SaveOrReportDuplicateAsync(cancellationToken)){ return new VnPayIpnResultDto("02", "Order already confirmed"); }
 
             // BR-HOLD-03: thanh toán thất bại cũng phải giải phóng hold để ghế trở lại bán được.
             await ReleaseCheckoutSessionAsync(order.Id, cancellationToken);
@@ -190,16 +205,10 @@ public class ConfirmVnPayIpnCommandHandler : IRequestHandler<ConfirmVnPayIpnComm
             return new VnPayIpnResultDto("00", "Confirm Success");
         }
 
-        // BR-PAY-04: phân bổ số tiền thực tế cho từng Booking theo tổng paid allocation của
-        // các SeatReservation của Booking đó. BR-FARE-02 giá phẳng theo SeatClass nên không
-        // cần tỷ lệ theo đoạn đi.
+        // BR-PAY-04: ghi paid allocation đã được kiểm tra ở trên.
         foreach (var booking in orderBookings)
         {
             booking.PaidAllocation = booking.SeatReservations.Sum(r => r.QuotedFare);
-            if (booking.PaidAllocation != booking.QuotedTotal)
-            {
-                return new VnPayIpnResultDto("04", "Invalid Amount");
-            }
         }
 
         // BR-COM-08 / BR-PAY-05: xác nhận Booking và SeatReservation, ghi paid allocation.
@@ -236,7 +245,7 @@ public class ConfirmVnPayIpnCommandHandler : IRequestHandler<ConfirmVnPayIpnComm
             }
         }
 
-        await SaveOrReportDuplicateAsync(cancellationToken);
+        if (!await SaveOrReportDuplicateAsync(cancellationToken)){ return new VnPayIpnResultDto("02", "Order already confirmed"); }
 
         // BR-PAY-05: sau khi thanh toán được xác minh, giải phóng hold tạm. Việc này chỉ dọn
         // trạng thái phiên phía Redis; SeatReservation đã chuyển Confirmed nên vẫn chiếm ghế
@@ -271,20 +280,21 @@ public class ConfirmVnPayIpnCommandHandler : IRequestHandler<ConfirmVnPayIpnComm
 
     /// <summary>
     /// BR-PAY-01: IPN có thể đến trùng do gateway retry hoặc do ta tự gọi lại. Unique index trên
-    /// IdempotencyKey là lớp phòng thủ cuối; nếu trùng thì coi như đã xử lý và trả "02" để
-    /// gateway không retry tiếp. Việc phát hành Ticket đã được bảo vệ bởi TransactionScope +
-    /// RowVersion nên không thể phát vé trùng.
+    /// IdempotencyKey là lớp phòng thủ cuối: nếu trùng thì coi như đã xử lý và trả RspCode "02"
+    /// để gateway ngừng retry. TUYỆT ĐỐI không ném lỗi 500 - trả 500 sẽ khiến gateway retry vô hạn.
+    /// Phát hành Ticket đã được bảo vệ bởi RowVersion nên không thể phát vé trùng.
     /// </summary>
-    private async Task SaveOrReportDuplicateAsync(CancellationToken cancellationToken)
+    private async Task<bool> SaveOrReportDuplicateAsync(CancellationToken cancellationToken)
     {
         try
         {
             await _context.SaveChangesAsync(cancellationToken);
+            return true;
         }
         catch (DbUpdateException)
         {
-            throw new InvalidOperationException(
-                "Giao dịch đã được ghi nhận với IdempotencyKey này; yêu cầu bị xử lý trùng lặp.");
+            // Đã tồn tại bản ghi cùng IdempotencyKey -> yêu cầu trùng lặp, coi như đã xử lý.
+            return false;
         }
     }
 }

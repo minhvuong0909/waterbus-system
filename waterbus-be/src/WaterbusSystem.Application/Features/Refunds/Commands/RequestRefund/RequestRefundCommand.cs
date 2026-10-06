@@ -33,8 +33,15 @@ public sealed record RefundTicketAllocationDto(Guid TicketId, string TicketCode,
 /// chưa được phục vụ hoặc bị gián đoạn thì hoàn 100% paid allocation của chính Ticket đó.
 /// BR-PAY-06: tổng các lần hoàn trên cùng một khoản thanh toán không được vượt quá số tiền còn
 /// có thể hoàn, và không được hoàn trùng một Ticket.
+///
+/// <paramref name="CreatedBy"/> là người khởi tạo hoàn tiền (VNPAY yêu cầu vnp_CreateBy để đối soát);
+/// <paramref name="IpAddress"/> là IP máy chủ gọi API (vnp_IpAddr). Cả hai do controller chuyển vào.
 /// </summary>
-public record RequestRefundCommand(Guid BookingId, string Reason) : IRequest<RequestRefundResultDto>;
+public record RequestRefundCommand(
+    Guid BookingId,
+    string Reason,
+    string? IpAddress = null,
+    string? CreatedBy = null) : IRequest<RequestRefundResultDto>;
 
 public class RequestRefundCommandHandler : IRequestHandler<RequestRefundCommand, RequestRefundResultDto>
 {
@@ -97,7 +104,7 @@ public class RequestRefundCommandHandler : IRequestHandler<RequestRefundCommand,
 
         // BR-RF-09: quyết định theo TỪNG Ticket, không phải cả Booking một lượt.
         var decisions = tickets
-            .Select(t => (Ticket: t, Decision: RefundEligibilityEvaluator.Evaluate(t, booking, trip, now)))
+            .Select(t => (Ticket: t, Decision: RefundEligibilityEvaluator.Evaluate(t, booking, trip)))
             .ToList();
 
         var eligible = decisions.Where(d => d.Decision.IsEligible).ToList();
@@ -202,7 +209,7 @@ public class RequestRefundCommandHandler : IRequestHandler<RequestRefundCommand,
             item.Ticket.Status = terminalTicketStatus;
         }
 
-        // BR-PAY-03/04/06 + BR-RF-09: kiểm tra ở tầng Domain trước khi ghi xuống CSDL.
+        /// BR-PAY-03/04/06 + BR-RF-09: kiểm tra ở tầng Domain trước khi ghi xuống CSDL.
         refund.ValidateRefund(payment, booking, refundableBalance);
 
         // BR-RF-01/04: Booking của nhóm bị ảnh hưởng thì chuyển trạng thái; Booking còn lại của
@@ -219,8 +226,9 @@ public class RequestRefundCommandHandler : IRequestHandler<RequestRefundCommand,
                 RequestId = refund.IdempotencyKey,
                 TransactionDate = (payment.GatewayRequestCreatedAt ?? now).ToString("yyyyMMddHHmmss"),
                 Amount = refundableAmount,
-                CreatedBy = "system",
-                IpAddress = "127.0.0.1",
+                CreatedBy = request.CreatedBy ?? "system",
+                // vnp_IpAddr là trường bắt buộc của API VNPAY (độ dài 7-45), nên không được để rỗng.
+                IpAddress = string.IsNullOrWhiteSpace(request.IpAddress) ? "127.0.0.1" : request.IpAddress,
                 OrderInfo = $"Hoan tien {request.Reason}".Replace("|", " "),
                 IsFullRefund = refundableAmount >= refundableBalance
             },
