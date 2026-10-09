@@ -14,6 +14,7 @@ using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.Infrastructure.Services;
 using WaterbusSystem.Infrastructure.Services.AiBooking;
 using WaterbusSystem.Infrastructure.Services.Payment;
+using WaterbusSystem.Infrastructure.Services.Tts;
 
 namespace WaterbusSystem.Infrastructure;
 
@@ -109,7 +110,12 @@ public static class DependencyInjection
         // 7. Tính khoảng cách địa lý cho geofence POI (NetTopologySuite, stateless)
         services.AddSingleton<IGeoDistanceCalculator, NtsGeoDistanceCalculator>();
 
-        // 8. BackgroundService dọn dẹp Booking giữ chỗ quá hạn 10 phút chưa thanh toán
+        // 8. Azure AI Speech Text-to-Speech (Neural Voice MP3 tiếng Việt)
+        services.Configure<AzureSpeechOptions>(configuration.GetSection(AzureSpeechOptions.SectionName));
+        services.AddTransient<IAzureSpeechSynthesizerClient, DefaultAzureSpeechSynthesizerClient>();
+        services.AddScoped<ITextToSpeechService, AzureSpeechTtsService>();
+
+        // 9. BackgroundService dọn dẹp Booking giữ chỗ quá hạn 10 phút chưa thanh toán
         services.AddHostedService<ExpiredBookingCleanupService>();
 
         return services;

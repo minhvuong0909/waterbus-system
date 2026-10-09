@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <!-- EF Core 8 Provider cho SQL Server -->
+    <PackageReference Include="Microsoft.CognitiveServices.Speech" Version="1.52.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.10">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
