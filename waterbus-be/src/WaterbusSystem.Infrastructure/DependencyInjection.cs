@@ -12,6 +12,7 @@ using WaterbusSystem.Infrastructure.Identity;
 using WaterbusSystem.Infrastructure.Locking;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.Infrastructure.Services;
+using WaterbusSystem.Infrastructure.Services.AiBooking;
 using WaterbusSystem.Infrastructure.Services.Payment;
 
 namespace WaterbusSystem.Infrastructure;
@@ -95,7 +96,17 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<ISeatAvailabilityService, SeatAvailabilityService>();
 
-        // 6. BackgroundService dọn dẹp Booking giữ chỗ quá hạn 10 phút chưa thanh toán
+        // 6. AI Booking Assistant (OpenAI gpt-4.1-mini qua Semantic Kernel)
+        // Mặc định ở trạng thái chưa kích hoạt (IsEnabled = false, ApiKey chưa cấu hình).
+        // Phụ thuộc còn thiếu trước khi kích hoạt production:
+        // - Owner Trip Search hoàn thiện FareRule pricing (hiện BasePrice = 0 TODO) và danh sách stops thực tế.
+        // - Owner Web/Booking chốt hợp đồng URL đặt vé.
+        // - Cấu hình OpenAI API Key qua User Secrets / biến môi trường.
+        services.Configure<OpenAiAssistantOptions>(configuration.GetSection(OpenAiAssistantOptions.SectionName));
+        // Chưa đăng ký IAiBookingAssistantService/adapter: ITripSearchTool và IBookingLinkTool
+        // chưa có implementation production được owner xác nhận. Đăng ký ở bước tích hợp.
+
+        // 7. BackgroundService dọn dẹp Booking giữ chỗ quá hạn 10 phút chưa thanh toán
         services.AddHostedService<ExpiredBookingCleanupService>();
 
         return services;
