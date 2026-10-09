@@ -1,0 +1,107 @@
+# ==============================================================================
+# Smart Waterbus — toàn bộ hệ thống (SQL Server + Redis + API + Web)
+#
+#   cp .env.example .env     # điền giá trị thật
+#   docker compose up -d --build
+#   -> Web: http://localhost:${WEB_PORT:-8080}   (API qua /api, SignalR qua /hubs)
+#
+# Chỉ cần hạ tầng để chạy API bằng `dotnet run`: docker compose up -d sqlserver redis
+# ==============================================================================
+name: waterbus
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: waterbus_sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Cần đặt MSSQL_SA_PASSWORD trong .env}
+      MSSQL_PID: Developer
+    ports:
+      - "${SQLSERVER_HOST_PORT:-1433}:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    container_name: waterbus_redis
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?Cần đặt REDIS_PASSWORD trong .env}", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    restart: unless-stopped
+    networks: [backend]
+
+  api:
+    build:
+      context: ./waterbus-be
+      dockerfile: Dockerfile
+    container_name: waterbus_api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=WaterbusDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true"
+      ConnectionStrings__RedisConnection: "redis:6379,password=${REDIS_PASSWORD}"
+      JwtSettings__Secret: ${JWT_SECRET:?Cần đặt JWT_SECRET (>= 32 ký tự) trong .env}
+      JwtSettings__Issuer: WaterbusSystemApi
+      JwtSettings__Audience: WaterbusClients
+      Cors__AllowedOrigins__0: ${PUBLIC_URL:-http://localhost:8080}
+      VnPay__TmnCode: ${VNPAY_TMN_CODE:-}
+      VnPay__HashSecret: ${VNPAY_HASH_SECRET:-}
+      VnPay__BaseUrl: ${VNPAY_BASE_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      VnPay__ReturnUrl: ${PUBLIC_URL:-http://localhost:8080}/payment/callback
+    ports:
+      # Chỉ mở trên máy host (127.0.0.1) để thử API/Swagger; deploy VPS không public cổng này
+      - "127.0.0.1:${API_HOST_PORT:-5000}:8080"
+    volumes:
+      - dataprotection_keys:/home/app/.aspnet/DataProtection-Keys
+    healthcheck:
+      # Image aspnet không có curl; kiểm tra cổng bằng bash
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/8080'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    networks: [backend]
+
+  web:
+    build:
+      context: ./waterbus-fe
+      dockerfile: Dockerfile
+    container_name: waterbus_web
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    restart: unless-stopped
+    networks: [backend]
+
+volumes:
+  sqlserver_data:
+  redis_data:
+  dataprotection_keys:
+
+networks:
+  backend:
