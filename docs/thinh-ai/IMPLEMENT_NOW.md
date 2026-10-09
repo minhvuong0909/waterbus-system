@@ -15,7 +15,7 @@ Ngày kiểm tra source: 09/10/2026. Mục tiêu của file này là tạo **ph�
 
 Yêu cầu:
 
-1. Tạo phép tính khoảng cách theo mét giữa hai tọa độ địa lý; không dùng khoảng cách Euclidean trên degree. Roadmap nêu NetTopologySuite; nếu dùng nó, chứng minh cách nhận được khoảng cách mét đúng hệ tọa độ. Một công thức geodesic/Haversine có kiểm thử là phương án cho core, nhưng nếu khác công nghệ roadmap phải ghi trong PR để nhóm duyệt.
+1. Dùng **NetTopologySuite đúng roadmap** để tính khoảng cách Boat–POI theo mét. Kinh/vĩ độ WGS84 phải được chiếu sang **cùng hệ tọa độ đơn vị mét** trước khi gọi `Distance`; không dùng NTS trực tiếp trên longitude/latitude (đơn vị độ). Lát cắt hiện dùng ProjNET chuyển sang UTM phù hợp cho hai điểm gần nhau trong geofence; không dùng phép đo này như khoảng cách toàn cầu.
 2. Tạo hàm xác định Boat có nằm trong bán kính POI hay không. Input không hợp lệ/null phải có kết quả hoặc lỗi rõ ràng, không tự đặt bán kính mặc định.
 3. Test điểm trùng nhau, khoảng cách đã biết, trong/ngoài/đúng biên, tọa độ không hợp lệ và `TriggerRadiusM = null`.
 4. Không đọc DB, không phát SignalR event, không tạo trạng thái chống phát lặp trong lát cắt này.
@@ -35,7 +35,7 @@ BoatPositionEvent trong source.
 Chỉ triển khai geofence core thuần cho Boat–POI theo lát cắt 1.
 Không làm CRUD POI, ETA, khoảng cách tới bến; không sửa schema,
 tracking hub, controller, TTS, UI hoặc booking.
-Trước khi sửa, nêu file định tạo/sửa và cách tính mét. Sau khi sửa,
+Trước khi sửa, nêu file định tạo/sửa và cách chiếu WGS84 sang mét cho NTS. Sau khi sửa,
 chạy build/test backend, tự xem diff và báo điều gì còn chờ tích hợp.
 Không tuyên bố đã hoàn tất P3-BE-02.
 Không tuyên bố đã xong phần geofence của Thịnh khi mới có hàm tính khoảng cách mà chưa có logic trigger audio.

@@ -6,19 +6,19 @@ using Xunit;
 namespace WaterbusSystem.UnitTests.Services;
 
 /// <summary>
-/// Unit tests cho HaversineDistanceCalculator — geofence core Boat–POI.
+/// Unit tests cho NtsGeoDistanceCalculator — geofence core Boat–POI.
 ///
-/// Công thức: Haversine trên mặt cầu, R = 6 371 000 m.
+/// WGS84 được chiếu sang UTM, NetTopologySuite đo khoảng cách phẳng theo mét.
 /// Đơn vị: mét.
 /// Tolerance được ghi rõ trong từng test khoảng cách.
 ///
 /// Tọa độ mẫu quanh TP.HCM:
 ///   Bến Nhà Rồng  (10.768462, 106.705513)
-///   Bến Bạch Đằng (10.774968, 106.704710)  ≈ 729 m đường chim bay
+///   Bến Bạch Đằng (10.774968, 106.704710)  ≈ 725 m đường chim bay
 /// </summary>
-public class HaversineDistanceCalculatorTests
+public class NtsGeoDistanceCalculatorTests
 {
-    private readonly IGeoDistanceCalculator _calculator = new HaversineDistanceCalculator();
+    private readonly IGeoDistanceCalculator _calculator = new NtsGeoDistanceCalculator();
 
     // ── Tọa độ mẫu ──────────────────────────────────────────────────────────
 
@@ -44,12 +44,12 @@ public class HaversineDistanceCalculatorTests
     [Fact]
     public void CalculateDistanceMeters_KnownDistance_NhaRongToBachDang()
     {
-        // Khoảng cách mặt cầu giữa hai tọa độ ≈ 729 m.
+        // Khoảng cách UTM giữa hai tọa độ ≈ 725 m.
         var distance = _calculator.CalculateDistanceMeters(
             NhaRongLat, NhaRongLng, BachDangLat, BachDangLng);
 
-        distance.Should().BeApproximately(729, 1,
-            "hai tọa độ mẫu cách nhau khoảng 729 m đường chim bay");
+        distance.Should().BeApproximately(725, 3,
+            "hai tọa độ mẫu cách nhau khoảng 725 m trên WGS84");
     }
 
     [Fact]
@@ -66,23 +66,32 @@ public class HaversineDistanceCalculatorTests
     [Fact]
     public void CalculateDistanceMeters_Equator_OneDegree_Approximately111km()
     {
-        // 1° kinh độ tại xích đạo ≈ 111 195 m
+        // 1° kinh độ tại xích đạo trên WGS84 ≈ 111 319 m.
         var distance = _calculator.CalculateDistanceMeters(0m, 0m, 0m, 1m);
 
-        distance.Should().BeApproximately(111_195, 50,
-            "1° kinh độ tại xích đạo ≈ 111.2 km");
+        distance.Should().BeApproximately(111_319, 150,
+            "1° kinh độ tại xích đạo trên WGS84 ≈ 111.3 km");
     }
 
     [Fact]
-    public void CalculateDistanceMeters_NearAntipodes_ReturnsFiniteDistance()
+    public void CalculateDistanceMeters_SouthernHemisphere_UsesMeterProjection()
     {
-        // Phép tính a chưa clamp có thể lớn hơn 1 do sai số double ở cặp điểm này.
+        // Hai điểm gần nhau ở bán cầu Nam vẫn phải trả khoảng cách theo mét.
         var distance = _calculator.CalculateDistanceMeters(
-            58.531077205123m, -166.932327707678m,
-            -58.531077242074m, 13.067672318334m);
+            -33.8650m, 151.2094m, -33.8660m, 151.2094m);
 
         double.IsFinite(distance).Should().BeTrue();
-        distance.Should().BeApproximately(Math.PI * 6_371_000, 1);
+        distance.Should().BeApproximately(111, 2);
+    }
+
+    [Fact]
+    public void CalculateDistanceMeters_AcrossUtmZoneBoundary_UsesSameProjection()
+    {
+        // Hai điểm gần nhau ở hai bên ranh giới UTM 48N/49N (108°E).
+        var distance = _calculator.CalculateDistanceMeters(
+            10.77m, 107.9995m, 10.77m, 108.0005m);
+
+        distance.Should().BeInRange(105, 115);
     }
 
     // ── Invalid coordinates ──────────────────────────────────────────────
@@ -117,7 +126,7 @@ public class HaversineDistanceCalculatorTests
     [Fact]
     public void IsWithinTriggerRadius_InsideRadius_ReturnsTrue()
     {
-        // Bến Nhà Rồng ↔ Bến Bạch Đằng ≈ 726 m, radius 800 m → trong
+        // Bến Nhà Rồng ↔ Bến Bạch Đằng ≈ 725 m, radius 800 m → trong
         var result = _calculator.IsWithinTriggerRadius(
             NhaRongLat, NhaRongLng, BachDangLat, BachDangLng, 800);
 
@@ -127,7 +136,7 @@ public class HaversineDistanceCalculatorTests
     [Fact]
     public void IsWithinTriggerRadius_OutsideRadius_ReturnsFalse()
     {
-        // Khoảng cách ≈ 726 m, radius 500 m → ngoài
+        // Khoảng cách ≈ 725 m, radius 500 m → ngoài
         var result = _calculator.IsWithinTriggerRadius(
             NhaRongLat, NhaRongLng, BachDangLat, BachDangLng, 500);
 
@@ -146,9 +155,9 @@ public class HaversineDistanceCalculatorTests
     [Fact]
     public void IsWithinTriggerRadius_JustInside100MeterBoundary_ReturnsTrue()
     {
-        // Trên xích đạo: chênh kinh độ này tương đương xấp xỉ 99,99 m.
+        // Gần kinh tuyến trung tâm UTM 31N: chênh kinh độ xấp xỉ 99,98 m.
         var result = _calculator.IsWithinTriggerRadius(
-            0m, 0m, 0m, 0.00089923m, 100);
+            0m, 3m, 0m, 3.0008985m, 100);
 
         result.Should().BeTrue();
     }
@@ -156,9 +165,9 @@ public class HaversineDistanceCalculatorTests
     [Fact]
     public void IsWithinTriggerRadius_JustOutside100MeterBoundary_ReturnsFalse()
     {
-        // Trên xích đạo: chênh kinh độ này tương đương xấp xỉ 100,01 m.
+        // Gần kinh tuyến trung tâm UTM 31N: chênh kinh độ xấp xỉ 100,02 m.
         var result = _calculator.IsWithinTriggerRadius(
-            0m, 0m, 0m, 0.00089941m, 100);
+            0m, 3m, 0m, 3.0008989m, 100);
 
         result.Should().BeFalse();
     }

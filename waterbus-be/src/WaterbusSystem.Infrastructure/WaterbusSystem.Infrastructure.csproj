@@ -30,6 +30,8 @@
 
     <!-- Cấu hình Options pattern -->
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
+    <PackageReference Include="NetTopologySuite" Version="2.6.0" />
+    <PackageReference Include="ProjNET" Version="2.1.0" />
   </ItemGroup>
 
 </Project>

@@ -3,7 +3,9 @@ namespace WaterbusSystem.Application.Common.Interfaces;
 /// <summary>
 /// Tính khoảng cách địa lý giữa hai tọa độ và kiểm tra vùng bán kính.
 /// Application chỉ phụ thuộc interface; Infrastructure cung cấp implementation
-/// (Haversine, NetTopologySuite hoặc provider khác).
+/// NetTopologySuite với tọa độ được chiếu sang đơn vị mét.
+/// Chỉ dùng cho các cặp điểm gần nhau trong geofence Boat–POI, không dùng
+/// làm phép đo khoảng cách liên lục địa.
 /// </summary>
 public interface IGeoDistanceCalculator
 {

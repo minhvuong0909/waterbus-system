@@ -14,7 +14,7 @@ Roadmap repo gộp `Geofence + ETA` thành `P3-BE-02` và đặt dependency `P3-
 
 ## Làm độc lập ngay: phép tính thuần
 
-1. Tạo hàm khoảng cách địa lý đúng đơn vị mét. Roadmap nêu NetTopologySuite; nếu dùng nó phải xử lý hệ tọa độ đúng. Nếu chọn Haversine cho core, ghi lý do và báo nhóm vì khác công nghệ roadmap.
+1. Tạo hàm khoảng cách địa lý đúng đơn vị mét bằng **NetTopologySuite** theo roadmap. Chiếu WGS84 sang cùng hệ tọa độ mét (lát cắt hiện dùng ProjNET + UTM) trước khi gọi `Distance`; không đo trực tiếp trên degree hoặc âm thầm thay bằng Haversine.
 2. Tạo hàm kiểm tra điểm Boat nằm trong bán kính POI. Latitude/longitude hợp lệ, radius dương; `TriggerRadiusM` hiện nullable, không tự đặt default.
 3. Test cùng tọa độ, khoảng cách đã biết, ngay trong/ngoài/đúng biên, tọa độ lỗi và radius null.
 4. Không đọc DB, không viết hub/event, không làm ETA trong phần core.

@@ -106,8 +106,8 @@ public static class DependencyInjection
         // Chưa đăng ký IAiBookingAssistantService/adapter: ITripSearchTool và IBookingLinkTool
         // chưa có implementation production được owner xác nhận. Đăng ký ở bước tích hợp.
 
-        // 7. Tính khoảng cách địa lý cho geofence POI (Haversine, stateless)
-        services.AddSingleton<IGeoDistanceCalculator, HaversineDistanceCalculator>();
+        // 7. Tính khoảng cách địa lý cho geofence POI (NetTopologySuite, stateless)
+        services.AddSingleton<IGeoDistanceCalculator, NtsGeoDistanceCalculator>();
 
         // 8. BackgroundService dọn dẹp Booking giữ chỗ quá hạn 10 phút chưa thanh toán
         services.AddHostedService<ExpiredBookingCleanupService>();
