@@ -60,6 +60,9 @@ services:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      # API luôn đứng sau reverse proxy (nginx): lấy IP thật của client từ X-Forwarded-For
+      # (rate limit đặt vé tính theo IP) và scheme từ X-Forwarded-Proto. Cổng API không public ra Internet.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=WaterbusDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=true"
       ConnectionStrings__RedisConnection: "redis:6379,password=${REDIS_PASSWORD}"
       JwtSettings__Secret: ${JWT_SECRET:?Cần đặt JWT_SECRET (>= 32 ký tự) trong .env}
