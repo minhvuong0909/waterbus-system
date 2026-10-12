@@ -15,7 +15,9 @@ interface SeatMapViewProps {
 
 const COLUMNS_LEFT = ['A', 'B'] as const
 const COLUMNS_RIGHT = ['C', 'D'] as const
-const GRID = 'grid grid-cols-[repeat(2,62px)_28px_repeat(2,62px)] items-center justify-center gap-x-2'
+// Seats shrink on narrow screens (up to 62px wide) so the four columns always fit inside the hull.
+const GRID =
+  'grid grid-cols-[repeat(2,minmax(0,62px))_minmax(20px,28px)_repeat(2,minmax(0,62px))] items-center justify-center gap-x-1.5 sm:gap-x-2'
 
 const SeatButton = memo(function SeatButton({
   seat,
@@ -66,7 +68,7 @@ const SeatButton = memo(function SeatButton({
           state ? `, ${state}` : ''
         }`}
         onClick={() => onSelect(seat.id)}
-        className={`flex h-[46px] w-[62px] flex-col items-center justify-center rounded-lg border-2 text-[11px] font-semibold transition-all ${
+        className={`flex h-[46px] w-full flex-col items-center justify-center rounded-lg border-2 text-[11px] font-semibold transition-all ${
           selected
             ? 'border-teal-flow bg-teal-flow text-white shadow-md'
             : sold
@@ -148,12 +150,12 @@ export default function SeatMapView({ seatMap, selectedIds, fareVnd, onSelect }:
   )
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-teal-flow/20 bg-gradient-to-b from-[#E0F2F5] via-[#EBF7F8] to-[#E3EFF3] p-space-lg">
+    <div className="relative overflow-hidden rounded-2xl border border-teal-flow/20 bg-gradient-to-b from-[#E0F2F5] via-[#EBF7F8] to-[#E3EFF3] p-space-sm sm:p-space-lg">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(#147a7e_1px,transparent_1px)] opacity-30 [background-size:18px_18px]" />
       <div className="pointer-events-none absolute inset-y-8 left-4 hidden w-4 rounded-full bg-teal-flow/30 md:block" />
       <div className="pointer-events-none absolute inset-y-8 right-4 hidden w-4 rounded-full bg-teal-flow/30 md:block" />
 
-      <div className="relative mx-auto max-w-sm rounded-t-[80px] rounded-b-3xl border border-outline-variant/40 bg-white px-space-md pb-space-md pt-space-lg shadow-lg">
+      <div className="relative mx-auto max-w-sm rounded-t-[80px] rounded-b-3xl border border-outline-variant/40 bg-white px-space-sm pb-space-md pt-space-lg shadow-lg sm:px-space-md">
         <div className="mx-auto mb-space-sm flex w-fit items-center gap-2 rounded-full border border-outline-variant/40 bg-white px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-deep-river shadow-sm">
           <Icon name="navigation" className="text-[14px]" />
           {t('Forward / Bow • River Cruise Direction')}
