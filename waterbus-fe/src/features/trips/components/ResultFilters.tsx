@@ -1,15 +1,22 @@
 import { Icon } from '../../../components/ui'
-import type { TimeBand, Trip } from '../types'
+import type { TimeBand, TripKind } from '../types'
 import { t } from '../../../i18n'
 
 export type TimeFilter = 'all' | TimeBand
 export type SortKey = 'time' | 'speed' | 'price'
+export type KindFilter = 'all' | TripKind
 
 const TIME_FILTERS: { id: TimeFilter; label: string }[] = [
   { id: 'all', label: 'All Times' },
   { id: 'morning', label: 'Morning' },
   { id: 'afternoon', label: 'Afternoon' },
   { id: 'sunset', label: 'Sunset' },
+]
+
+const KIND_FILTERS: { id: KindFilter; label: string }[] = [
+  { id: 'all', label: 'All Types' },
+  { id: 'transit', label: 'Regular' },
+  { id: 'sightseeing', label: 'Sightseeing' },
 ]
 
 const SORTS: { id: SortKey; label: string }[] = [
@@ -19,12 +26,11 @@ const SORTS: { id: SortKey; label: string }[] = [
 ]
 
 interface ResultFiltersProps {
-  trips: Trip[]
   time: TimeFilter
-  vessel: string
+  kind: KindFilter
   sort: SortKey
   onTime: (time: TimeFilter) => void
-  onVessel: (v: string) => void
+  onKind: (kind: KindFilter) => void
   onSort: (s: SortKey) => void
 }
 
@@ -34,12 +40,11 @@ const boxClass =
   'flex items-center gap-1.5 rounded-full border border-deep-river/10 bg-white px-3 py-1.5 shadow-xs'
 
 export default function ResultFilters({
-  trips,
   time,
-  vessel,
+  kind,
   sort,
   onTime,
-  onVessel,
+  onKind,
   onSort,
 }: ResultFiltersProps) {
   return (
@@ -63,12 +68,15 @@ export default function ResultFilters({
       </div>
       <div className="flex items-center gap-space-sm">
         <div className={boxClass}>
-          <span className="text-xs text-outline">{t('Vessel:')}</span>
-          <select className={selectClass} value={vessel} onChange={(e) => onVessel(e.target.value)}>
-            <option value="all">{t('All Vessels ({length})', { length: trips.length })}</option>
-            {trips.map((trip) => (
-              <option key={trip.id} value={trip.id}>
-                {trip.vesselName} ({trip.vesselCode})
+          <span className="text-xs text-outline">{t('Trip type:')}</span>
+          <select
+            className={selectClass}
+            value={kind}
+            onChange={(e) => onKind(e.target.value as KindFilter)}
+          >
+            {KIND_FILTERS.map((k) => (
+              <option key={k.id} value={k.id}>
+                {t(k.label)}
               </option>
             ))}
           </select>

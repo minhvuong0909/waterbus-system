@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { Logo } from '../../components/brand'
 import { Button, Icon } from '../../components/ui'
+import { useAuth } from '../../features/authentication/hook/authenticationHook'
 import LanguageSwitcher from './LanguageSwitcher'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -21,6 +22,7 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 
 export default function Header() {
   const [open, setOpen] = useState(false)
+  const { user, signOut } = useAuth()
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-surface-container/60 bg-mist/90 shadow-[0_2px_12px_rgba(13,37,56,0.03)] backdrop-blur-xl">
@@ -47,13 +49,31 @@ export default function Header() {
             <Icon name="search" className="text-[20px]" />
           </Link>
           <LanguageSwitcher />
-          <Button
-            to={ROUTES.signIn}
-            variant="dark"
-            className="hidden whitespace-nowrap sm:inline-flex"
-          >
-            {t('Sign in')}
-          </Button>
+          {user ? (
+            <>
+              <span
+                className="hidden max-w-[160px] truncate text-body-md font-medium text-deep-river lg:inline"
+                title={user.email}
+              >
+                {user.fullName}
+              </span>
+              <Button
+                variant="dark"
+                onClick={signOut}
+                className="hidden whitespace-nowrap sm:inline-flex"
+              >
+                {t('Sign out')}
+              </Button>
+            </>
+          ) : (
+            <Button
+              to={ROUTES.signIn}
+              variant="dark"
+              className="hidden whitespace-nowrap sm:inline-flex"
+            >
+              {t('Sign in')}
+            </Button>
+          )}
           <Button to={ROUTES.search} className="hidden whitespace-nowrap md:inline-flex">
             {t('Book a Trip')}
           </Button>
@@ -90,9 +110,21 @@ export default function Header() {
               <LanguageSwitcher variant="inline" />
             </li>
             <li className="flex gap-space-sm pt-space-sm">
-              <Button to={ROUTES.signIn} variant="dark" onClick={() => setOpen(false)}>
-                {t('Sign in')}
-              </Button>
+              {user ? (
+                <Button
+                  variant="dark"
+                  onClick={() => {
+                    signOut()
+                    setOpen(false)
+                  }}
+                >
+                  {t('Sign out')}
+                </Button>
+              ) : (
+                <Button to={ROUTES.signIn} variant="dark" onClick={() => setOpen(false)}>
+                  {t('Sign in')}
+                </Button>
+              )}
               <Button to={ROUTES.search} onClick={() => setOpen(false)}>
                 {t('Book a Trip')}
               </Button>

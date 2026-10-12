@@ -1,9 +1,16 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { ErrorState, Icon } from '../../../components/ui'
 import { useFetch } from '../../../hooks'
+import { ApiError } from '../../../services/apiClient'
 import { ROUTES } from '../../../routes/routes'
-import type { AuthMode, RegisterPayload, SignInPayload } from '../authenticationTypes'
+import type {
+  AuthMode,
+  AuthSession,
+  RegisterPayload,
+  SignInPayload,
+} from '../authenticationTypes'
+import { useAuth } from '../hook/authenticationHook'
 import { getAuthShowcase, register, signIn, signInWithGoogle } from '../services/authenticationApi'
 import AuthShowcasePanel from './AuthShowcasePanel'
 import RegisterForm from './RegisterForm'
@@ -21,25 +28,31 @@ const COPY: Record<AuthMode, { title: string; subtitle: string }> = {
   },
 }
 
-// Where a "successful" mock auth lands. Nothing is verified.
+// Where a successful sign-in lands when the user did not come from a protected page.
 const AFTER_AUTH = ROUTES.myTickets
 
 export default function AuthCard() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { startSession } = useAuth()
   const [mode, setMode] = useState<AuthMode>('signin')
   const [submitting, setSubmitting] = useState(false)
-  const [failed, setFailed] = useState(false)
+  // Message from the server (e.g. wrong password), or '' for the generic connection error.
+  const [failure, setFailure] = useState<string | null>(null)
   const showcase = useFetch(getAuthShowcase)
 
-  const finish = async (action: Promise<unknown>) => {
+  const destination = (location.state as { from?: string } | null)?.from ?? AFTER_AUTH
+
+  const finish = async (action: Promise<AuthSession>, remember = true) => {
     setSubmitting(true)
-    setFailed(false)
+    setFailure(null)
     try {
-      await action
-      navigate(AFTER_AUTH)
-    } catch {
+      startSession(await action, remember)
+      navigate(destination, { replace: true })
+    } catch (error) {
       setSubmitting(false)
-      setFailed(true)
+      // Only server-sent messages are shown as they are; a status of 0 means no connection.
+      setFailure(error instanceof ApiError && error.status !== 0 ? error.message : '')
     }
   }
 
@@ -110,19 +123,20 @@ export default function AuthCard() {
             </button>
           </div>
 
-          {failed && (
+          {failure !== null && (
             <p
               role="alert"
               className="mb-4 rounded-xl border border-coral-glow/30 bg-coral-glow/10 px-4 py-3 text-sm text-deep-river"
             >
-              {t('We couldn’t complete that just now. Please check your connection and try again.')}
+              {failure ||
+                t('We couldn’t complete that just now. Please check your connection and try again.')}
             </p>
           )}
 
           {mode === 'signin' ? (
             <SignInForm
               submitting={submitting}
-              onSubmit={(p: SignInPayload) => finish(signIn(p))}
+              onSubmit={(p: SignInPayload) => finish(signIn(p), p.remember)}
               onGoogle={() => finish(signInWithGoogle())}
               onSwitchToRegister={() => setMode('register')}
             />

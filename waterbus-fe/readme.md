@@ -10,6 +10,19 @@
 
 ---
 
+## ⚙️ Cấu hình môi trường
+
+Sao chép `.env.example` thành `.env.local` (đã được git bỏ qua):
+
+| Biến | Ý nghĩa |
+|---|---|
+| `VITE_API_BASE_URL` | Địa chỉ `waterbus-be`, mặc định `http://localhost:5000` |
+| `VITE_USE_MOCK` | `true`: mọi service trả dữ liệu giả, không cần BE. `false`: endpoint BE đã có thì gọi thật, phần chưa có vẫn dùng mock |
+
+Chi tiết FE ⇄ BE: [`docs/API_INTEGRATION.md`](docs/API_INTEGRATION.md).
+
+---
+
 ## 🌟 Tính Năng Nổi Bật (Key Features)
 
 ### 1️⃣ Tìm Kiếm & Đặt Vé (Trip Search & Booking Flow)

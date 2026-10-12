@@ -73,9 +73,11 @@ export function JourneyDetailsCard({
               {trip.departTime}
             </div>
             <div className="mt-1 text-sm font-semibold text-deep-river">{trip.originPierLabel}</div>
-            <div className="text-xs text-on-surface-variant">
-              {t('{originGate} • Pontoon Terminal', { originGate: trip.originGate })}
-            </div>
+            {trip.originGate && (
+              <div className="text-xs text-on-surface-variant">
+                {t('{originGate} • Pontoon Terminal', { originGate: trip.originGate })}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex flex-col items-center md:col-span-4">
@@ -98,9 +100,11 @@ export function JourneyDetailsCard({
             <div className="mt-1 text-sm font-semibold text-deep-river">
               {trip.destinationPierLabel}
             </div>
-            <div className="text-xs text-on-surface-variant">
-              {t('{destinationGate} • Park Promenade', { destinationGate: trip.destinationGate })}
-            </div>
+            {trip.destinationGate && (
+              <div className="text-xs text-on-surface-variant">
+                {t('{destinationGate} • Park Promenade', { destinationGate: trip.destinationGate })}
+              </div>
+            )}
           </div>
           <span className="mt-1 flex h-5 w-5 items-center justify-center rounded-full bg-teal-flow text-[10px] font-bold text-white">
             2

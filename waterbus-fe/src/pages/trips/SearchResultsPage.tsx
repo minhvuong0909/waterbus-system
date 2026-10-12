@@ -3,7 +3,7 @@ import { ErrorState, FeatureStrip, PageLoader, StatusPill } from '../../componen
 import CorridorSidebar from '../../features/trips/components/CorridorSidebar'
 import DateStrip from '../../features/trips/components/DateStrip'
 import ResultFilters from '../../features/trips/components/ResultFilters'
-import type { SortKey, TimeFilter } from '../../features/trips/components/ResultFilters'
+import type { KindFilter, SortKey, TimeFilter } from '../../features/trips/components/ResultFilters'
 import SearchSummaryBar from '../../features/trips/components/SearchSummaryBar'
 import TripCard from '../../features/trips/components/TripCard'
 import { formatDateLabel } from '../../features/trips/utils'
@@ -31,16 +31,16 @@ const CUES = [
 
 export default function SearchResultsPage() {
   useDocumentTitle('Available Departures')
-  const { query, updateQuery, piers, dates, trips, loading, error, retry, chooseTrip } =
+  const { query, updateQuery, piers, dates, trips, searching, loading, error, retry, chooseTrip } =
     useSearchResults()
   const [time, setTime] = useState<TimeFilter>('all')
-  const [vessel, setVessel] = useState('all')
+  const [kind, setKind] = useState<KindFilter>('all')
   const [sort, setSort] = useState<SortKey>('time')
 
   const visible = useMemo(() => {
     if (!trips) return []
     const list = trips.filter(
-      (trip) => (time === 'all' || trip.band === time) && (vessel === 'all' || trip.id === vessel),
+      (trip) => (time === 'all' || trip.band === time) && (kind === 'all' || trip.kind === kind),
     )
     const by: Record<SortKey, (a: (typeof list)[number], b: (typeof list)[number]) => number> = {
       time: (a, b) => a.departTime.localeCompare(b.departTime),
@@ -48,7 +48,7 @@ export default function SearchResultsPage() {
       price: (a, b) => a.fareVnd - b.fareVnd,
     }
     return [...list].sort(by[sort])
-  }, [trips, time, vessel, sort])
+  }, [trips, time, kind, sort])
 
   if (error) return <ErrorState onRetry={retry} />
 
@@ -88,18 +88,21 @@ export default function SearchResultsPage() {
             onSelect={(id) => updateQuery({ dateId: id })}
           />
           <ResultFilters
-            trips={trips}
             time={time}
-            vessel={vessel}
+            kind={kind}
             sort={sort}
             onTime={setTime}
-            onVessel={setVessel}
+            onKind={setKind}
             onSort={setSort}
           />
         </section>
 
         <div className="grid grid-cols-1 items-start gap-space-xl lg:grid-cols-12">
-          <div className="flex flex-col gap-space-md lg:col-span-8">
+          <div
+            className={`flex flex-col gap-space-md transition-opacity lg:col-span-8 ${
+              searching ? 'opacity-60' : ''
+            }`}
+          >
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-space-xs text-sm text-deep-river">
                 <span className="font-bold text-teal-flow">

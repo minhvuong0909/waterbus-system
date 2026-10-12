@@ -9,20 +9,20 @@ interface NetworkPin {
   kind: 'primary' | 'stop' | 'minor' | 'terminus'
 }
 
-// Pin positions are in the 740x440 SVG canvas.
+// The five stations seeded by the backend, in river order. Pin positions are in the 740x440 SVG canvas.
 const PINS: NetworkPin[] = [
-  { x: 130, y: 365, label: 'Bach Dang (D1)', sub: 'PRIMARY TERMINAL', kind: 'primary' },
-  { x: 260, y: 290, label: 'Thu Thiem Pier', kind: 'stop' },
-  { x: 385, y: 220, label: 'Van Thanh', kind: 'minor' },
-  { x: 495, y: 155, label: 'Binh An Pier', kind: 'stop' },
-  { x: 640, y: 95, label: 'Linh Dong Hub', kind: 'terminus' },
+  { x: 130, y: 365, label: 'Bạch Đằng', sub: 'PRIMARY TERMINAL', kind: 'primary' },
+  { x: 260, y: 290, label: 'Bình An', kind: 'stop' },
+  { x: 385, y: 220, label: 'Thanh Đa', kind: 'minor' },
+  { x: 495, y: 155, label: 'Hiệp Bình Chánh', kind: 'stop' },
+  { x: 640, y: 95, label: 'Linh Đông', kind: 'terminus' },
 ]
 
 const RIVER = 'M 10 400 C 140 375 220 325 290 280 C 375 225 445 175 540 135 C 620 100 680 85 730 70'
 
 function Pin({ pin }: { pin: NetworkPin }) {
   const { x, y, kind } = pin
-  const label = t(pin.label)
+  const label = pin.label // Pier names are proper nouns, so they are not translated.
   const sub = pin.sub ? t(pin.sub) : undefined
   const dark = kind === 'primary' || kind === 'terminus'
   return (

@@ -11,7 +11,7 @@ interface TripCardProps {
   trip: Trip
   origin: PierOption
   destination: PierOption
-  onSelect: (tripId: string) => void
+  onSelect: (trip: Trip) => void
 }
 
 const CARD: Record<Trip['variant'], string> = {
@@ -86,7 +86,9 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
               {trip.departTime}
             </div>
             <div className="text-xs font-semibold text-deep-river">{origin.name}</div>
-            <div className="text-[11px] text-on-surface-variant">{trip.originGate}</div>
+            {trip.originGate && (
+              <div className="text-[11px] text-on-surface-variant">{trip.originGate}</div>
+            )}
           </div>
           <div className="flex flex-1 flex-col items-center px-2">
             <span className={`mb-1 text-center text-xs font-bold ${accent}`}>
@@ -131,7 +133,9 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
               {trip.arriveTime}
             </div>
             <div className="text-xs font-semibold text-deep-river">{destination.name}</div>
-            <div className="text-[11px] text-on-surface-variant">{trip.destinationGate}</div>
+            {trip.destinationGate && (
+              <div className="text-[11px] text-on-surface-variant">{trip.destinationGate}</div>
+            )}
           </div>
         </div>
 
@@ -147,7 +151,7 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
           </div>
           <Link
             to={ROUTES.tripDetail}
-            onClick={() => onSelect(trip.id)}
+            onClick={() => onSelect(trip)}
             className={`inline-flex items-center justify-center gap-1.5 rounded-full px-space-lg py-2 text-sm font-semibold transition-all ${
               sunset
                 ? 'bg-coral-glow text-on-primary shadow-[0_2px_8px_rgba(240,138,107,0.3)] hover:opacity-90'
@@ -162,14 +166,16 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
         </div>
       </div>
 
-      <div className="mt-space-md flex flex-wrap items-center gap-space-md border-t border-deep-river/5 pt-space-sm text-xs text-on-surface-variant">
-        {trip.amenities.map((a) => (
-          <span key={a.label} className="inline-flex items-center gap-1">
-            <Icon name={a.icon} className={`text-[15px] ${accent}`} />
-            {a.label}
-          </span>
-        ))}
-      </div>
+      {trip.amenities.length > 0 && (
+        <div className="mt-space-md flex flex-wrap items-center gap-space-md border-t border-deep-river/5 pt-space-sm text-xs text-on-surface-variant">
+          {trip.amenities.map((a) => (
+            <span key={a.label} className="inline-flex items-center gap-1">
+              <Icon name={a.icon} className={`text-[15px] ${accent}`} />
+              {a.label}
+            </span>
+          ))}
+        </div>
+      )}
     </article>
   )
 }

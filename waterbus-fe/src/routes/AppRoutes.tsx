@@ -43,7 +43,7 @@ const PAGES = [
   { path: ROUTES.sitemap, Page: SitemapPage },
 ]
 
-// No guards or login redirects: every page opens directly by URL.
+// Passenger pages are open to guests. Pages that need a role are wrapped in <PrivateRoute roles>.
 export default function AppRoutes() {
   return (
     <Routes>

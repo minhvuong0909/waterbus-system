@@ -38,6 +38,7 @@ export default function PaymentOrderSummary({
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
   const query = useAppSelector((s) => s.booking.query)
+  const selectedTrip = useAppSelector((s) => s.booking.selectedTrip)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
 
@@ -51,6 +52,7 @@ export default function PaymentOrderSummary({
         addBooking({
           id: bookedTicketId(trip.id, seatId),
           tripId: trip.id,
+          selectedTrip,
           query,
           seat,
           seatId,

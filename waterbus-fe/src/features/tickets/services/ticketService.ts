@@ -39,7 +39,7 @@ export function requestRefund(
 export function getBookedTickets(bookings: BookedSnapshot[]): Promise<Ticket[]> {
   return Promise.all(
     bookings.map(async (b) => {
-      const trip = await getTripDetail(b.tripId, b.query)
+      const trip = await getTripDetail(b.selectedTrip, b.tripId, b.query)
       return buildBookedTicket({
         trip,
         seat: b.seat,

@@ -1,15 +1,12 @@
 import type { AuthShowcase, AuthUser } from '../features/authentication/authenticationTypes'
 
+// The backend has no register or Google sign-in endpoint yet, so these flows end with this
+// passenger. Real sign-in does not use it.
 export const MOCK_USER: AuthUser = {
   id: 'user-001',
   fullName: 'Nguyen Van An',
   email: 'passenger@smartwaterbus.vn',
-}
-
-// Pre-filled values shown in the sign-in form, as in the design.
-export const SIGN_IN_DEFAULTS = {
-  email: 'passenger@smartwaterbus.vn',
-  password: 'waterbus2025',
+  roles: ['Passenger'],
 }
 
 export const AUTH_SHOWCASE: AuthShowcase = {
@@ -19,10 +16,10 @@ export const AUTH_SHOWCASE: AuthShowcase = {
     'Manage your bookings, view digital tickets, and plan your crossings across the river corridor.',
   crossing: {
     corridor: 'Central River Corridor',
-    duration: '12 Min Crossing',
-    from: 'Bach Dang',
-    to: 'Thu Thiem',
-    vessel: 'WB-01',
+    duration: '45 Min Crossing',
+    from: 'Bạch Đằng',
+    to: 'Linh Đông',
+    vessel: 'SWB-01',
   },
   highlights: [
     'Digital tickets and boarding passes in one place',

@@ -1,112 +1,104 @@
 import type {
   AmenityDetail,
   BoardingStep,
-  DateOption,
   NetworkRoute,
   PierOption,
   SearchQuery,
+  StationDto,
   Trip,
 } from '../features/trips/types'
+import { toPierOption } from '../features/trips/utils'
+import { toIsoDate } from '../utils/time'
 
-export const PIER_OPTIONS: PierOption[] = [
+// Mirrors the stations seeded by the backend (ApplicationDbContextInitializer), in river order.
+const STATION_SEEDS: StationDto[] = [
   {
-    id: 'bach-dang',
-    name: 'Bach Dang Pier (D1)',
-    pierName: 'Bach Dang Pier',
-    district: 'District 1',
-    shortName: 'Bach Dang',
-    subtitle: 'District 1 Terminal • Gate 2',
+    id: 'st01',
+    code: 'ST01',
+    name: 'Bến Bạch Đằng',
+    address: 'Số 10B Tôn Đức Thắng, Phường Bến Nghé, Quận 1',
+    latitude: 10.7725,
+    longitude: 106.7067,
+    orderIndex: 1,
+    isActive: true,
   },
   {
-    id: 'thu-thiem',
-    name: 'Thu Thiem Pier (D2)',
-    pierName: 'Thu Thiem Pier',
-    district: 'District 2',
-    shortName: 'Thu Thiem',
-    subtitle: 'District 2 Waterfront • Pontoon A',
+    id: 'st02',
+    code: 'ST02',
+    name: 'Bến Bình An',
+    address: 'Đường số 21, Phường Bình An, TP. Thủ Đức',
+    latitude: 10.785,
+    longitude: 106.721,
+    orderIndex: 2,
+    isActive: true,
   },
   {
-    id: 'van-thanh',
-    name: 'Van Thanh Pier',
-    pierName: 'Van Thanh Pier',
-    district: 'District 1',
-    shortName: 'Van Thanh',
-    subtitle: 'Park Interchange • Pontoon B',
+    id: 'st03',
+    code: 'ST03',
+    name: 'Bến Thanh Đa',
+    address: 'Phường 27, Quận Bình Thạnh',
+    latitude: 10.8256,
+    longitude: 106.7289,
+    orderIndex: 3,
+    isActive: true,
   },
   {
-    id: 'binh-an',
-    name: 'Binh An Pier',
-    pierName: 'Binh An Pier',
-    district: 'Binh Thanh',
-    shortName: 'Binh An',
-    subtitle: 'Binh Thanh • Pontoon A',
+    id: 'st04',
+    code: 'ST04',
+    name: 'Bến Hiệp Bình Chánh',
+    address: 'Đường số 10, Hiệp Bình Chánh, TP. Thủ Đức',
+    latitude: 10.8412,
+    longitude: 106.7321,
+    orderIndex: 4,
+    isActive: true,
   },
   {
-    id: 'linh-dong',
-    name: 'Linh Dong Hub',
-    pierName: 'Linh Dong Hub',
-    district: 'Thu Duc City',
-    shortName: 'Linh Dong',
-    subtitle: 'Thu Duc Terminus • Gate 1',
+    id: 'st05',
+    code: 'ST05',
+    name: 'Bến Linh Đông',
+    address: 'Đường Kha Vạn Cân, Phường Linh Đông, TP. Thủ Đức',
+    latitude: 10.8521,
+    longitude: 106.7554,
+    orderIndex: 5,
+    isActive: true,
   },
 ]
 
+export const PIER_OPTIONS: PierOption[] = STATION_SEEDS.map(toPierOption)
+
+// Pier ids are filled in from the stations at load time (see `getPierOptions`).
 export const DEFAULT_SEARCH_QUERY: SearchQuery = {
   tripType: 'one-way',
-  originId: 'bach-dang',
-  destinationId: 'thu-thiem',
-  dateId: 'dec-16',
+  originId: '',
+  destinationId: '',
+  dateId: toIsoDate(new Date()),
   passengers: '1 Adult • Standard',
   passengerNote: 'Main Panoramic Saloon',
 }
 
-export const DATE_OPTIONS: DateOption[] = [
-  { id: 'dec-14', weekday: 'Sun', label: 'Dec 14', fullLabel: 'Dec 14, 2025', fromFareVnd: 15000 },
-  { id: 'dec-15', weekday: 'Mon', label: 'Dec 15', fullLabel: 'Dec 15, 2025', fromFareVnd: 15000 },
-  {
-    id: 'dec-16',
-    weekday: 'Mon',
-    label: 'Dec 16',
-    fullLabel: 'Dec 16, 2025',
-    fromFareVnd: 15000,
-    isToday: true,
-    tripCount: 5,
-  },
-  { id: 'dec-17', weekday: 'Tue', label: 'Dec 17', fullLabel: 'Dec 17, 2025', fromFareVnd: 15000 },
-  { id: 'dec-18', weekday: 'Wed', label: 'Dec 18', fullLabel: 'Dec 18, 2025', fromFareVnd: 15000 },
-  { id: 'dec-19', weekday: 'Thu', label: 'Dec 19', fullLabel: 'Dec 19, 2025', fromFareVnd: 15000 },
-]
+/** A suggested route between two stations, by station code. */
+export interface NetworkRouteSeed extends Omit<NetworkRoute, 'originId' | 'destinationId'> {
+  originCode: string
+  destinationCode: string
+}
 
-export const NETWORK_ROUTES: NetworkRoute[] = [
+// The backend has no route list endpoint yet. This is the one route it seeds (RT01,
+// Bạch Đằng - Linh Đông, 45 min, 10.8 km); the fare is the default Trip.BasePrice.
+export const NETWORK_ROUTE_SEEDS: NetworkRouteSeed[] = [
   {
-    id: 'route-thu-thiem',
-    originId: 'bach-dang',
-    destinationId: 'thu-thiem',
-    badge: 'Direct Crossing',
-    summary: '12 min • High-frequency crossing between D1 and Thu Thiem',
+    id: 'rt01',
+    originCode: 'ST01',
+    destinationCode: 'ST05',
+    badge: 'Main Corridor',
+    summary: '45 min • 10.8 km river route between Bach Dang and Linh Dong',
     fromFareVnd: 15000,
-  },
-  {
-    id: 'route-binh-an',
-    originId: 'bach-dang',
-    destinationId: 'binh-an',
-    badge: 'Express Corridor',
-    summary: '24 min • Scenic river journey passing Saigon Pearl & landmarks',
-    fromFareVnd: 25000,
-  },
-  {
-    id: 'route-linh-dong',
-    originId: 'bach-dang',
-    destinationId: 'linh-dong',
-    badge: 'Scenic Full Route',
-    summary: '42 min • Full terminal-to-terminal scenic transit',
-    fromFareVnd: 35000,
   },
 ]
 
 export const TRIPS: Trip[] = [
   {
     id: 'wb-01',
+    kind: 'transit',
     vesselCode: 'WB-01',
     vesselName: 'Hydrofoil Catamaran',
     lineLabel: 'Line 1 Express',
@@ -132,6 +124,7 @@ export const TRIPS: Trip[] = [
   },
   {
     id: 'wb-03',
+    kind: 'transit',
     vesselCode: 'WB-03',
     vesselName: 'Catamaran Cruiser',
     lineLabel: 'Express Line 1',
@@ -157,6 +150,7 @@ export const TRIPS: Trip[] = [
   },
   {
     id: 'wb-02',
+    kind: 'transit',
     vesselCode: 'WB-02',
     vesselName: 'River Transit Vessel',
     lineLabel: 'Regular River Line 1',
@@ -182,6 +176,7 @@ export const TRIPS: Trip[] = [
   },
   {
     id: 'wb-05',
+    kind: 'transit',
     vesselCode: 'WB-05',
     vesselName: 'Aero Catamaran',
     lineLabel: 'Express Line 1',
@@ -207,6 +202,7 @@ export const TRIPS: Trip[] = [
   },
   {
     id: 'wb-07',
+    kind: 'sightseeing',
     vesselCode: 'WB-07',
     vesselName: 'Sunset Heritage Cruise',
     lineLabel: 'Heritage Route',

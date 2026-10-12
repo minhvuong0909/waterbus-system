@@ -1,46 +1,91 @@
+import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
+import { USE_MOCK } from '../../../constant/env'
 import { withDelay } from '../../../mocks/delay'
 import {
   BOARDING_STEPS,
-  DATE_OPTIONS,
-  NETWORK_ROUTES,
+  NETWORK_ROUTE_SEEDS,
   ONBOARD_AMENITIES,
   PIER_OPTIONS,
   TRIPS,
 } from '../../../mocks/tripSearch'
 import { localize, t } from '../../../i18n'
+import { apiRequest } from '../../../services/apiClient'
 import { addMinutes } from '../../../utils/time'
-import { formatDateLabel } from '../utils'
-import type { DateOption, NetworkRoute, PierOption, SearchQuery, Trip, TripDetail } from '../types'
+import type {
+  DateOption,
+  NetworkRoute,
+  PierOption,
+  SearchQuery,
+  StationDto,
+  Trip,
+  TripDetail,
+  TripDto,
+} from '../types'
+import {
+  buildDateOptions,
+  describeDate,
+  formatDateLabel,
+  pickPiers,
+  toPierOption,
+  toTrip,
+} from '../utils'
 
-// Mock service layer: swap for real API calls later without touching the UI.
-// `withDelay` returns the data translated into the active language, like a localized API.
-export function getPierOptions(): Promise<PierOption[]> {
-  return withDelay(PIER_OPTIONS)
+/** `GET /stations`: the active piers in river order. */
+export async function getPierOptions(): Promise<PierOption[]> {
+  if (USE_MOCK) return withDelay(PIER_OPTIONS)
+  const stations = await apiRequest<StationDto[]>(API_ENDPOINTS.stations)
+  return stations.map(toPierOption)
 }
 
-export function getNetworkRoutes(): Promise<NetworkRoute[]> {
-  return withDelay(NETWORK_ROUTES)
+// Mock: the backend has no route list endpoint yet. Seeds are matched to the real stations by
+// code, so a route is only offered when both of its piers exist.
+export async function getNetworkRoutes(): Promise<NetworkRoute[]> {
+  const piers = await getPierOptions()
+  const idOf = (code: string) => piers.find((p) => p.code === code)?.id
+  const routes = NETWORK_ROUTE_SEEDS.flatMap(({ originCode, destinationCode, ...route }) => {
+    const originId = idOf(originCode)
+    const destinationId = idOf(destinationCode)
+    return originId && destinationId ? [{ ...route, originId, destinationId }] : []
+  })
+  return withDelay(routes, 0)
 }
 
+/** Today and the following days. The backend has no per-day summary (fares, trip counts). */
 export function getDateOptions(): Promise<DateOption[]> {
-  return withDelay(DATE_OPTIONS)
+  return Promise.resolve(buildDateOptions())
 }
 
-/** Results ignore the pier pair in this mock; the same day's departures are always returned. */
-export function getTrips(query: SearchQuery): Promise<Trip[]> {
-  void query
-  return withDelay(TRIPS)
+/** `GET /trips/search` for the selected piers and day. */
+export async function getTrips(query: SearchQuery): Promise<Trip[]> {
+  if (USE_MOCK) return withDelay(TRIPS)
+  const dtos = await apiRequest<TripDto[]>(API_ENDPOINTS.trips.search, {
+    query: {
+      departureStationId: query.originId,
+      arrivalStationId: query.destinationId,
+      departureDate: query.dateId,
+    },
+  })
+  return dtos.map(toTrip)
 }
 
-const findPier = (id: string) => PIER_OPTIONS.find((p) => p.id === id) ?? PIER_OPTIONS[0]
-
-/** Falls back to the first trip and the default piers, so the page never errors. */
-export function getTripDetail(tripId: string | null, query: SearchQuery): Promise<TripDetail> {
-  const trip = TRIPS.find((item) => item.id === tripId) ?? TRIPS[0]
+/**
+ * Detail page data. The backend has no trip detail endpoint yet (roadmap P1-BE-05), so it is built
+ * from the trip chosen in the results list, plus static content. A trip that was not chosen in
+ * this session (direct URL, or picked on the home page) falls back to the mock trips.
+ */
+export async function getTripDetail(
+  selectedTrip: Trip | null,
+  tripId: string | null,
+  query: SearchQuery,
+): Promise<TripDetail> {
+  const trip = selectedTrip ?? TRIPS.find((item) => item.id === tripId) ?? TRIPS[0]
+  const piers = await getPierOptions()
+  const picked = pickPiers(piers, query)
+  const find = (id: string) => piers.find((p) => p.id === id) ?? piers[0]
   // Translate the pieces used to build sentences below; the rest is translated by `withDelay`.
-  const origin = localize(findPier(query.originId))
-  const destination = localize(findPier(query.destinationId))
-  const date = localize(DATE_OPTIONS.find((d) => d.id === query.dateId) ?? DATE_OPTIONS[2])
+  const origin = localize(find(picked.originId))
+  const destination = localize(find(picked.destinationId))
+  const date = describeDate(query.dateId)
 
   const detail: TripDetail = {
     ...trip,

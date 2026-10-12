@@ -45,9 +45,11 @@ export default function DateStrip({ dates, selectedId, tripCount, onSelect }: Da
                 {t('{tripCount} Trips', { tripCount })}
               </span>
             ) : (
-              <span className="text-[11px] font-medium text-teal-flow">
-                {t('From {price}', { price: formatVndSuffix(date.fromFareVnd) })}
-              </span>
+              date.fromFareVnd !== undefined && (
+                <span className="text-[11px] font-medium text-teal-flow">
+                  {t('From {price}', { price: formatVndSuffix(date.fromFareVnd) })}
+                </span>
+              )
             )}
           </button>
         )

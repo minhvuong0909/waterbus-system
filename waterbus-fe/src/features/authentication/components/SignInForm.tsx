@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Icon } from '../../../components/ui'
-import { SIGN_IN_DEFAULTS } from '../../../mocks/auth'
 import type { SignInPayload } from '../authenticationTypes'
 import AuthButton from './authButton'
 import AuthField from './AuthField'
@@ -20,8 +19,8 @@ export default function SignInForm({
   onGoogle,
   onSwitchToRegister,
 }: SignInFormProps) {
-  const [email, setEmail] = useState(SIGN_IN_DEFAULTS.email)
-  const [password, setPassword] = useState(SIGN_IN_DEFAULTS.password)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(true)
 
   const handleSubmit = (e: FormEvent) => {

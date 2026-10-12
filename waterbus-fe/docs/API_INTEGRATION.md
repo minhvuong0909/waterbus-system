@@ -3,7 +3,10 @@
 Tài liệu này liệt kê **từng màn hình FE cần API nào**, BE (`waterbus-be`) hiện đã có gì, và **còn thiếu / lệch gì** để hai bên nối được với nhau.
 Nội dung được đối chiếu trực tiếp với code BE (controllers, DTO, entities) và code FE (`src/features/*/services`, `types.ts`, `src/mocks`).
 
-> **Hiện trạng:** toàn bộ FE chạy bằng mock (`src/mocks/*`, các `*Service.ts` trả dữ liệu giả qua `withDelay`). FE **chưa gọi API nào**; `src/constant/apiEndpoints.ts` đang trống. Ý tưởng: đổi từng service từ mock sang gọi API thật mà không sửa UI.
+> **Hiện trạng:** FE đã có HTTP client (`src/services/apiClient.ts`), cấu hình qua `.env.local` (xem `.env.example`: `VITE_API_BASE_URL`, `VITE_USE_MOCK`).
+> Đã nối API thật: **đăng nhập** (`POST /auth/login`, lưu JWT, đăng xuất, tự đăng xuất khi 401), **danh sách bến** (`GET /stations`), **tìm chuyến** (`GET /trips/search`, gọi lại khi đổi bến/ngày).
+> Còn lại (BE chưa có endpoint) vẫn là mock trong `src/mocks/*`: đăng ký, Google, chi tiết chuyến, sơ đồ ghế, đặt vé, thanh toán, vé của tôi, tracking.
+> Đặt `VITE_USE_MOCK=true` để chạy toàn bộ bằng mock khi không có BE.
 
 Ký hiệu: ✅ BE đã có · ⚠️ BE có nhưng lệch với FE · ❌ BE chưa có
 
@@ -201,9 +204,9 @@ Mỗi bước là một nhánh/PR nhỏ, chỉ sau khi BE có endpoint tương �
 
 | # | Nhánh | Nội dung | Phụ thuộc BE |
 |---|---|---|---|
-| 1 | `feature/fe-api-client` | `.env`, HTTP client, gắn token, parse lỗi ProblemDetails, `Accept-Language` | Không |
-| 2 | `feature/fe-auth-login` | Nối `signIn`, lưu token, đăng xuất | Đã có |
-| 3 | `feature/fe-stations-trips` | Nối bến + tìm chuyến, đổi id sang Guid, map `TripDto` → `Trip` | Cần seed Trip |
+| 1 | `feature/fe-api-client` ✅ | `.env`, HTTP client, gắn token, parse lỗi ProblemDetails, `Accept-Language` | Không |
+| 2 | `feature/fe-auth-login` ✅ | Nối `signIn`, lưu token, đăng xuất, `PrivateRoute` theo role | Đã có |
+| 3 | `feature/fe-stations-trips` ✅ | Nối bến + tìm chuyến, đổi id sang Guid, map `TripDto` → `Trip` (chỉ có dữ liệu khi BE đã có Trip) | Cần seed Trip |
 | 4 | `feature/fe-trip-seats` | Chi tiết chuyến + sơ đồ ghế thật | P1-BE-05 |
 | 5 | `feature/fe-booking-vnpay` | Tạo booking, đếm ngược giữ ghế, VNPAY, route `/payment/callback` | Đã có (cần sửa giá) |
 | 6 | `feature/fe-my-tickets` | Tra cứu / vé của tôi | P1-BE-05, P1-BE-06 |

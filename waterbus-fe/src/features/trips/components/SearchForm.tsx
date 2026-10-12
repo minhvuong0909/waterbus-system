@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { useSearchQuery } from '../hooks/useTripSearch'
-import type { DateOption, PierOption, TripType } from '../types'
+import type { DateOption, JourneyType, PierOption } from '../types'
 import { formatDateLabel } from '../utils'
 import PierField from './PierField'
 import { t } from '../../../i18n'
@@ -13,7 +13,7 @@ interface SearchFormProps {
   dates: DateOption[]
 }
 
-const TRIP_TYPES: { id: TripType; label: string }[] = [
+const JOURNEY_TYPES: { id: JourneyType; label: string }[] = [
   { id: 'one-way', label: 'One-way Crossing' },
   { id: 'round-trip', label: 'Round-trip Cruise' },
 ]
@@ -80,7 +80,7 @@ export default function SearchForm({ piers, dates }: SearchFormProps) {
           className="inline-flex rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] p-1"
           role="tablist"
         >
-          {TRIP_TYPES.map((type) => (
+          {JOURNEY_TYPES.map((type) => (
             <button
               key={type.id}
               type="button"

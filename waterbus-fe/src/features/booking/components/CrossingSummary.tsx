@@ -48,9 +48,11 @@ export default function CrossingSummary({ trip, seat, seatId, totals }: Crossing
             <div className="flex justify-between">
               <div>
                 <div className="font-semibold text-deep-river">{trip.originPierLabel}</div>
-                <div className="text-xs text-on-surface-variant">
-                  {t('{originGate} • Pontoon Terminal', { originGate: trip.originGate })}
-                </div>
+                {trip.originGate && (
+                  <div className="text-xs text-on-surface-variant">
+                    {t('{originGate} • Pontoon Terminal', { originGate: trip.originGate })}
+                  </div>
+                )}
               </div>
               <span className="font-semibold text-deep-river">{trip.departTime}</span>
             </div>
@@ -61,11 +63,13 @@ export default function CrossingSummary({ trip, seat, seatId, totals }: Crossing
             <div className="flex justify-between">
               <div>
                 <div className="font-semibold text-deep-river">{trip.destinationPierLabel}</div>
-                <div className="text-xs text-on-surface-variant">
-                  {t('{destinationGate} • Park Promenade', {
-                    destinationGate: trip.destinationGate,
-                  })}
-                </div>
+                {trip.destinationGate && (
+                  <div className="text-xs text-on-surface-variant">
+                    {t('{destinationGate} • Park Promenade', {
+                      destinationGate: trip.destinationGate,
+                    })}
+                  </div>
+                )}
               </div>
               <span className="font-semibold text-deep-river">{trip.arriveTime}</span>
             </div>

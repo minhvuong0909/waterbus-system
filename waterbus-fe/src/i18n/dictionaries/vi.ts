@@ -119,7 +119,7 @@ export const vi: Record<string, string> = {
   'All Times': 'Mọi giờ',
   'All travel documents and vessel dispatch notifications will be routed here':
     'Mọi giấy tờ đi lại và thông báo điều phối tàu sẽ được gửi đến đây',
-  'All Vessels ({length})': 'Tất cả tàu ({length})',
+  'All Types': 'Tất cả loại',
   'Along Your River Journey': 'Dọc hành trình trên sông của bạn',
   'Already registered with Smart Waterbus?': 'Đã có tài khoản Smart Waterbus?',
   'Amount to pay': 'Số tiền cần thanh toán',
@@ -747,6 +747,7 @@ export const vi: Record<string, string> = {
     'Có thể hoàn tiền đến 30 phút trước giờ khởi hành. Hãy dùng "Yêu cầu hoàn tiền" và xác nhận để gửi.',
   'Register to save trips, tickets and passenger details.':
     'Đăng ký để lưu chuyến đi, vé và thông tin hành khách.',
+  Regular: 'Thường',
   'Regular crossing': 'Chuyến thường',
   'Regular River Line 1': 'Tuyến sông thường 1',
   'Regular Transit': 'Vận chuyển thường',
@@ -880,6 +881,7 @@ export const vi: Record<string, string> = {
   'Sightseeing stories are switched off. Follow the live vessel position and the remaining track on the map.':
     'Câu chuyện ngắm cảnh đang tắt. Hãy theo dõi vị trí tàu trực tiếp và đoạn còn lại trên bản đồ.',
   'Sign in': 'Đăng nhập',
+  'Sign out': 'Đăng xuất',
   'Sign In': 'Đăng nhập',
   'Sign in to manage your bookings and river journeys.':
     'Đăng nhập để quản lý đặt chỗ và hành trình trên sông.',
@@ -1059,7 +1061,7 @@ export const vi: Record<string, string> = {
   'Vessel Tracking': 'Theo dõi tàu',
   'Vessel WB-01 is operating on schedule. Boarding opens 10 minutes before departure.':
     'Tàu WB-01 đang chạy đúng lịch. Cho lên tàu 10 phút trước giờ khởi hành.',
-  'Vessel:': 'Tàu:',
+  'Trip type:': 'Loại chuyến:',
   'Vessel: {vesselNote}': 'Tàu: {vesselNote}',
   'Vibrant civic waterfront offering unobstructed panoramic views of the city skyline.':
     'Bờ sông sôi động của thành phố, tầm nhìn toàn cảnh không bị che ra đường chân trời.',

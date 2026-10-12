@@ -1,5 +1,5 @@
 import type { PassengerForm, Seat } from '../booking/types'
-import type { SearchQuery } from '../trips/types'
+import type { SearchQuery, Trip } from '../trips/types'
 
 export interface Ticket {
   id: string
@@ -45,6 +45,8 @@ export interface Ticket {
 export interface BookedSnapshot {
   id: string
   tripId: string
+  /** The trip chosen from the search results; null when only an id is known (mock trips). */
+  selectedTrip: Trip | null
   query: SearchQuery
   seat: Seat | undefined
   seatId: string

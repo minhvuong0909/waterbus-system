@@ -2,7 +2,7 @@ import { createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import { DEFAULT_PASSENGER, DEFAULT_SEAT_ID } from '../../mocks/booking'
 import { DEFAULT_SEARCH_QUERY } from '../../mocks/tripSearch'
-import type { SearchQuery } from '../trips/types'
+import type { SearchQuery, Trip } from '../trips/types'
 import type { PaymentMethodId } from '../payment/types'
 import type { PassengerForm, Voucher } from './types'
 
@@ -11,6 +11,8 @@ import type { PassengerForm, Voucher } from './types'
 export interface BookingState {
   query: SearchQuery
   selectedTripId: string | null
+  /** The trip picked from the search results, or null when only an id is known. */
+  selectedTrip: Trip | null
   seatId: string
   passenger: PassengerForm
   voucher: Voucher | null
@@ -21,6 +23,7 @@ export interface BookingState {
 const initialState: BookingState = {
   query: DEFAULT_SEARCH_QUERY,
   selectedTripId: null,
+  selectedTrip: null,
   seatId: DEFAULT_SEAT_ID,
   passenger: DEFAULT_PASSENGER,
   voucher: null,
@@ -35,8 +38,11 @@ const bookingSlice = createSlice({
     setQuery(state, action: PayloadAction<Partial<SearchQuery>>) {
       state.query = { ...state.query, ...action.payload }
     },
-    selectTrip(state, action: PayloadAction<string>) {
-      state.selectedTripId = action.payload
+    /** A full trip (from search results) or just an id (home page departures). */
+    selectTrip(state, action: PayloadAction<Trip | string>) {
+      const trip = typeof action.payload === 'string' ? null : action.payload
+      state.selectedTripId = trip ? trip.id : (action.payload as string)
+      state.selectedTrip = trip
     },
     selectSeat(state, action: PayloadAction<string>) {
       state.seatId = action.payload

@@ -50,10 +50,15 @@ export interface CorridorMap {
 
 // ---- Trip search -----------------------------------------------------------
 
-export type TripType = 'one-way' | 'round-trip'
+export type JourneyType = 'one-way' | 'round-trip'
+
+/** Regular river transit, or a sightseeing tour (BE `TripType`: Commuter / Sightseeing). */
+export type TripKind = 'transit' | 'sightseeing'
 
 export interface PierOption {
   id: string
+  /** Station code from the backend, e.g. "ST01". */
+  code: string
   /** Full label used in forms, e.g. "Bach Dang Pier (D1)". */
   name: string
   /** Pier name without the district code, e.g. "Bach Dang Pier". */
@@ -66,22 +71,24 @@ export interface PierOption {
 }
 
 export interface SearchQuery {
-  tripType: TripType
+  tripType: JourneyType
   originId: string
   destinationId: string
-  /** Id of the selected DateOption. */
+  /** Selected date as `YYYY-MM-DD` (the id of a DateOption). */
   dateId: string
   passengers: string
   passengerNote: string
 }
 
 export interface DateOption {
+  /** Calendar date as `YYYY-MM-DD`. */
   id: string
   weekday: string
   label: string
   /** Full date with year, e.g. "Dec 16, 2025". */
   fullLabel: string
-  fromFareVnd: number
+  /** Lowest fare of the day. Not provided by the backend yet, so usually absent. */
+  fromFareVnd?: number
   isToday?: boolean
   tripCount?: number
 }
@@ -106,7 +113,13 @@ export type TimeBand = 'morning' | 'afternoon' | 'sunset'
 
 export interface Trip {
   id: string
+  kind: TripKind
+  /**
+   * Vessel code. The backend's TripDto has no boat info yet, so for real trips this holds a
+   * short trip reference instead (see `tripReference`).
+   */
   vesselCode: string
+  /** Vessel name; for real trips the route name until TripDto exposes the boat. */
   vesselName: string
   /** Pill shown at the top of the card, e.g. "Express Line 1". */
   lineLabel: string
@@ -170,4 +183,32 @@ export interface TripDetail extends Trip {
   timeline: TimelineStep[]
   amenityDetails: AmenityDetail[]
   boardingSteps: BoardingStep[]
+}
+
+// ---- Backend DTOs -----------------------------------------------------------
+
+/** `GET /api/v1/stations` item (StationDto). */
+export interface StationDto {
+  id: string
+  code: string
+  name: string
+  address: string
+  latitude: number
+  longitude: number
+  orderIndex: number
+  isActive: boolean
+}
+
+/** `GET /api/v1/trips/search` item (TripDto). `tripType` is "Commuter" or "Sightseeing". */
+export interface TripDto {
+  id: string
+  routeName: string
+  departureStationName: string
+  arrivalStationName: string
+  departureTime: string
+  arrivalTime: string
+  durationMinutes: number
+  tripType: string
+  basePrice: number
+  availableSeatsCount: number
 }
