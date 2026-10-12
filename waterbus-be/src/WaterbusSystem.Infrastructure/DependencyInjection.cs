@@ -72,6 +72,12 @@ public static class DependencyInjection
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero
             };
+
+            // SignalR: đọc JWT từ query access_token cho đường dẫn /hubs
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = SignalRTokenReader.OnMessageReceived
+            };
         });
 
         // 3.1. Cấu hình Authorization Policies (Admin, Staff, Captain)
