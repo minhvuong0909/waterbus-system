@@ -6,6 +6,7 @@ Nội dung được đối chiếu trực tiếp với code BE (controllers, DTO
 > **Hiện trạng:** FE đã có HTTP client (`src/services/apiClient.ts`), cấu hình qua `.env.local` (xem `.env.example`: `VITE_API_BASE_URL`, `VITE_USE_MOCK`).
 > Đã nối API thật: **đăng nhập** (`POST /auth/login`, lưu JWT, đăng xuất, tự đăng xuất khi 401), **danh sách bến** (`GET /stations`), **tìm chuyến** (`GET /trips/search`, gọi lại khi đổi bến/ngày).
 > Còn lại (BE chưa có endpoint) vẫn là mock trong `src/mocks/*`: đăng ký, Google, chi tiết chuyến, sơ đồ ghế, đặt vé, thanh toán, vé của tôi, tracking.
+> Giai đoạn B (đặt vé): sơ đồ ghế theo bố cục tàu của BE (mock, `Seat`/`SeatMap`), sự kiện ghế realtime mô phỏng thay SignalR (`seatEvents.ts`), tạo booking + đếm ngược giữ ghế 600s (`createBooking` gọi `POST /bookings` khi seat id là Guid, hiện còn mock vì chưa có API sơ đồ ghế), trang `/payment/callback` (gọi thật `GET /payments/vnpay-return`), `/manage/:token` và chatbot đều là mock.
 > Đặt `VITE_USE_MOCK=true` để chạy toàn bộ bằng mock khi không có BE.
 
 Ký hiệu: ✅ BE đã có · ⚠️ BE có nhưng lệch với FE · ❌ BE chưa có
