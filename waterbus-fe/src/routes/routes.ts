@@ -9,6 +9,7 @@ export const ROUTES = {
   passengerDetails: '/booking/passenger',
   checkoutReview: '/booking/review',
   payment: '/payment',
+  paymentCallback: '/payment/callback',
   bookingSuccess: '/payment/success',
   myTickets: '/tickets',
   ticketDetail: '/tickets/detail',

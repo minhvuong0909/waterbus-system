@@ -4,6 +4,7 @@ import { useBooking } from '../../features/booking/hooks/useBooking'
 import type { BookingStep } from '../../features/booking/types'
 import { bookingReference, seatCode, seatTags } from '../../features/booking/utils'
 import PaymentMethodPanel from '../../features/payment/components/PaymentMethodPanel'
+import HoldCountdown from '../../features/booking/components/HoldCountdown'
 import PaymentOrderSummary from '../../features/payment/components/PaymentOrderSummary'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
@@ -60,10 +61,16 @@ export default function PaymentPage() {
             )}
           </p>
         </div>
-        <span className="inline-flex items-center gap-2 self-start rounded-xl bg-surface-container px-space-md py-2 text-xs text-on-surface-variant md:self-auto">
-          <Icon name="event_seat" className="text-[16px] text-teal-flow" />
-          {t('Your selected seat remains reserved while you complete payment.')}
-        </span>
+        <div className="self-start md:self-auto">
+          <HoldCountdown
+            fallback={
+              <span className="inline-flex items-center gap-2 rounded-xl bg-surface-container px-space-md py-2 text-xs text-on-surface-variant">
+                <Icon name="event_seat" className="text-[16px] text-teal-flow" />
+                {t('Your selected seat remains reserved while you complete payment.')}
+              </span>
+            }
+          />
+        </div>
       </div>
 
       <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">

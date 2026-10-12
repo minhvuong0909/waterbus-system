@@ -7,6 +7,7 @@ import { formatNumber, formatVnd, formatVndSuffix } from '../../../utils/format'
 import type { TripDetail } from '../../trips/types'
 import { validateVoucher } from '../services/bookingService'
 import type { PassengerForm, Seat, Voucher } from '../types'
+import type { BookingFailure } from '../hooks/useCreateBooking'
 import type { BookingTotals } from '../utils'
 import { seatCode, seatTags } from '../utils'
 import { BookingCard, CardHeading, SeatFeeRow, SummaryRow } from './SummaryParts'
@@ -278,11 +279,18 @@ export function OrderSummary({
   trip,
   totals,
   canContinue,
+  busy,
+  failure,
+  onContinue,
 }: {
   trip: TripDetail
   totals: BookingTotals
   /** False until the passenger accepts the carriage rules. */
   canContinue: boolean
+  /** True while the booking is being created. */
+  busy: boolean
+  failure: BookingFailure | null
+  onContinue: () => void
 }) {
   return (
     <BookingCard className="p-space-lg lg:sticky lg:top-24">
@@ -334,16 +342,31 @@ export function OrderSummary({
       </div>
 
       {canContinue ? (
-        <Link
-          to={ROUTES.payment}
-          className="group mt-space-md flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-headline-sm text-base font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary"
-        >
-          {t('Continue to Payment')}
-          <Icon
-            name="arrow_forward"
-            className="text-[18px] transition-transform group-hover:translate-x-1"
-          />
-        </Link>
+        <>
+          <button
+            type="button"
+            onClick={onContinue}
+            disabled={busy}
+            className="group mt-space-md flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-headline-sm text-base font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary disabled:opacity-70"
+          >
+            {busy ? t('Holding your seat…') : t('Continue to Payment')}
+            <Icon
+              name="arrow_forward"
+              className="text-[18px] transition-transform group-hover:translate-x-1"
+            />
+          </button>
+          {failure && (
+            <p role="alert" className="mt-2 text-center text-xs text-coral-glow">
+              {failure.message ||
+                t('We couldn’t hold your seat just now. Please check your connection and try again.')}{' '}
+              {failure.seatTaken && (
+                <Link to={ROUTES.seatSelection} className="font-semibold underline">
+                  {t('Choose another seat')}
+                </Link>
+              )}
+            </p>
+          )}
+        </>
       ) : (
         <>
           <button

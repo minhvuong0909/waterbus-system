@@ -1,6 +1,17 @@
 // Vietnamese translations. The key is the exact English source string.
 // Placeholders such as {count} must be kept as they are.
 export const vi: Record<string, string> = {
+  'Holding your seat…': 'Đang giữ chỗ…',
+  'We couldn’t hold your seat just now. Please check your connection and try again.': 'Chưa thể giữ chỗ lúc này. Vui lòng kiểm tra kết nối và thử lại.',
+  'Choose another seat': 'Chọn ghế khác',
+  'Your seat hold has expired and the seat was released.': 'Thời gian giữ chỗ đã hết và ghế đã được nhả.',
+  'Choose seats again': 'Chọn lại ghế',
+  'Your seat is held for': 'Ghế được giữ trong',
+  'Payment was not completed': 'Thanh toán chưa hoàn tất',
+  'Response code': 'Mã phản hồi',
+  'Nothing was charged if the payment did not go through. Your seat is held only for 10 minutes.': 'Bạn sẽ không bị trừ tiền nếu thanh toán không thành công. Ghế chỉ được giữ trong 10 phút.',
+  'Try payment again': 'Thanh toán lại',
+  'Payment Result': 'Kết quả thanh toán',
   '{cabin} • Air-Conditioned': '{cabin} • Máy lạnh',
   '{count} seats • live availability': '{count} ghế • cập nhật trực tiếp',
   'Cabin Surcharge': 'Phụ thu khoang',

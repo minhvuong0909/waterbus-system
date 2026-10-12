@@ -13,6 +13,8 @@ import type { PassengerForm, Seat } from '../../booking/types'
 import type { TripDetail } from '../../trips/types'
 import { ROUTES } from '../../../routes/routes'
 import { useAppDispatch } from '../../../store/hooks'
+import { holdCleared } from '../../booking/bookingSlice'
+import { useHoldCountdown } from '../../booking/hooks/useHoldCountdown'
 import { addBooking } from '../../tickets/ticketsSlice'
 import { bookedTicketId } from '../../tickets/utils'
 import { useAppSelector } from '../../../store/hooks'
@@ -39,6 +41,7 @@ export default function PaymentOrderSummary({
   const dispatch = useAppDispatch()
   const query = useAppSelector((s) => s.booking.query)
   const selectedTrip = useAppSelector((s) => s.booking.selectedTrip)
+  const { expired } = useHoldCountdown()
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
 
@@ -60,6 +63,7 @@ export default function PaymentOrderSummary({
           totalVnd: totals.totalVnd,
         }),
       )
+      dispatch(holdCleared())
       navigate(ROUTES.bookingSuccess)
     } catch {
       setBusy(false)
@@ -134,7 +138,7 @@ export default function PaymentOrderSummary({
       <button
         type="button"
         onClick={complete}
-        disabled={busy}
+        disabled={busy || expired}
         className="group mt-space-sm flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-headline-sm text-base font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary disabled:opacity-70"
       >
         {busy ? t('Confirming…') : t('I’ve Completed Payment')}

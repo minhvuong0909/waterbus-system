@@ -4,6 +4,10 @@ export const API_ENDPOINTS = {
     login: '/api/v1/auth/login',
   },
   stations: '/api/v1/stations',
+  bookings: '/api/v1/bookings',
+  payments: {
+    vnPayReturn: '/api/v1/payments/vnpay-return',
+  },
   trips: {
     search: '/api/v1/trips/search',
   },

@@ -1,6 +1,6 @@
 import { t } from '../../i18n'
 import type { TripDetail } from '../trips/types'
-import type { Seat, SeatCategory, Voucher } from './types'
+import type { PassengerForm, Seat, SeatCategory, Voucher } from './types'
 
 /** Cabin names, in the order they appear on the boat. */
 export const CABIN_ORDER = ['front', 'standard', 'outdoor'] as const
@@ -85,4 +85,10 @@ export function seatZone(seat: Seat | undefined): string {
 /** Mock booking reference, e.g. WB-2025-0842-A2. Real references will come from the backend. */
 export function bookingReference(seatId: string): string {
   return `WB-2025-0842-${seatId}`
+}
+
+/** Phone number as the backend expects it: digits only, with a leading 0 instead of "+84". */
+export function toCustomerPhone(passenger: Pick<PassengerForm, 'phone'>): string {
+  const digits = passenger.phone.replace(/\D/g, '')
+  return digits.startsWith('0') ? digits : `0${digits}`
 }

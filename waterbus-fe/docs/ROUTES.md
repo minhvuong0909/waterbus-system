@@ -15,6 +15,7 @@ Source of truth: `src/routes/routes.ts` (paths) and `src/routes/AppRoutes.tsx` (
 | `/booking/passenger` | Passenger details |
 | `/booking/review` | Review booking |
 | `/payment` | Payment |
+| `/payment/callback` | VNPay return page (checks the result, then shows success or a failure message) |
 | `/payment/success` | Booking confirmed |
 | `/tickets` | My tickets |
 | `/tickets/detail` | Ticket detail |

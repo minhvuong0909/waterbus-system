@@ -9,6 +9,7 @@ import {
   VoucherCard,
 } from '../../features/booking/components/CheckoutParts'
 import { useBooking } from '../../features/booking/hooks/useBooking'
+import { useCreateBooking } from '../../features/booking/hooks/useCreateBooking'
 import type { BookingStep } from '../../features/booking/types'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
@@ -30,6 +31,7 @@ export default function CheckoutReviewPage() {
     setVoucher,
     setTerms,
   } = useBooking()
+  const { submit, busy, failure } = useCreateBooking()
 
   if (error) return <ErrorState onRetry={retry} />
 
@@ -87,7 +89,14 @@ export default function CheckoutReviewPage() {
           <TermsConfirm checked={termsAccepted} onChange={setTerms} />
         </div>
         <div className="lg:col-span-4">
-          <OrderSummary trip={trip} totals={totals} canContinue={termsAccepted} />
+          <OrderSummary
+            trip={trip}
+            totals={totals}
+            canContinue={termsAccepted}
+            busy={busy}
+            failure={failure}
+            onContinue={() => submit(trip.id, totals.totalVnd)}
+          />
         </div>
       </div>
     </div>

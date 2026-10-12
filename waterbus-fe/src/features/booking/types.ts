@@ -66,3 +66,34 @@ export interface BookingStep {
   label: string
   detail: string
 }
+
+// ---- Booking (backend `POST /api/v1/bookings`) -------------------------------
+
+/** Body of the create booking request (CreateBookingCommand). */
+export interface CreateBookingRequest {
+  tripId: string
+  seatIds: string[]
+  customerName: string
+  customerEmail: string
+  /** 10-11 digits, as the backend validates. */
+  customerPhone: string
+}
+
+/** Response of the create booking request (BookingResponseDto). */
+export interface BookingResponse {
+  bookingId: string
+  bookingCode: string
+  totalAmount: number
+  status: string
+  /** How long the seats are held for payment, 600 seconds. */
+  holdDurationSeconds: number
+}
+
+/** The booking whose seats are being held while the traveler pays. */
+export interface BookingHold {
+  bookingId: string
+  bookingCode: string
+  totalAmount: number
+  /** When the hold ends, in ms since epoch. */
+  expiresAt: number
+}
