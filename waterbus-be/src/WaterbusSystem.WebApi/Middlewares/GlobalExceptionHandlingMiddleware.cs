@@ -60,6 +60,13 @@ public class GlobalExceptionHandlingMiddleware
                 problemDetails.Detail = concurrencyException.Message;
                 break;
 
+            case ForbiddenAccessException forbiddenException:
+                context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                problemDetails.Status = (int)HttpStatusCode.Forbidden;
+                problemDetails.Title = "Không có quyền thực hiện thao tác này.";
+                problemDetails.Detail = forbiddenException.Message;
+                break;
+
             case NotFoundException notFoundException:
                 context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                 problemDetails.Status = (int)HttpStatusCode.NotFound;

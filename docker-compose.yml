@@ -70,6 +70,10 @@ services:
       VnPay__HashSecret: ${VNPAY_HASH_SECRET:-}
       VnPay__BaseUrl: ${VNPAY_BASE_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
       VnPay__ReturnUrl: ${PUBLIC_URL:-http://localhost:8080}/payment/callback
+      Tracking__PersistIntervalSeconds: ${TRACKING_PERSIST_INTERVAL_SECONDS:-15}
+      Tracking__Simulator__Enabled: ${TRACKING_SIMULATOR_ENABLED:-false}
+      Tracking__Simulator__IntervalSeconds: ${TRACKING_SIMULATOR_INTERVAL_SECONDS:-3}
+      Tracking__Simulator__IncludeScheduledTrips: ${TRACKING_SIMULATOR_INCLUDE_SCHEDULED:-false}
     ports:
       # Chỉ mở trên máy host (127.0.0.1) để thử API/Swagger; deploy VPS không public cổng này
       - "127.0.0.1:${API_HOST_PORT:-5000}:8080"

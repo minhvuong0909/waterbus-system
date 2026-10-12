@@ -7,12 +7,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Application.Features.Tracking;
 using WaterbusSystem.Infrastructure.BackgroundJobs;
 using WaterbusSystem.Infrastructure.Identity;
 using WaterbusSystem.Infrastructure.Locking;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.Infrastructure.Services;
 using WaterbusSystem.Infrastructure.Services.Payment;
+using WaterbusSystem.Infrastructure.Services.Tracking;
 
 namespace WaterbusSystem.Infrastructure;
 
@@ -103,6 +105,11 @@ public static class DependencyInjection
 
         // 6. BackgroundService dọn dẹp Booking giữ chỗ quá hạn 10 phút chưa thanh toán
         services.AddHostedService<ExpiredBookingCleanupService>();
+
+        // 7. Theo dõi vị trí tàu: cache vị trí mới nhất (Redis) + giả lập GPS cho demo (mặc định tắt)
+        services.Configure<TrackingOptions>(configuration.GetSection(TrackingOptions.SectionName));
+        services.AddSingleton<IBoatPositionCache, RedisBoatPositionCache>();
+        services.AddHostedService<BoatSimulatorService>();
 
         return services;
 
