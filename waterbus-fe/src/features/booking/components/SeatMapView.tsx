@@ -7,7 +7,7 @@ import { t } from '../../../i18n'
 
 interface SeatMapViewProps {
   seatMap: SeatMap
-  selectedId: string
+  selectedIds: string[]
   /** Fare of the selected trip, used to show each cabin's surcharge. */
   fareVnd: number
   onSelect: (id: string) => void
@@ -136,7 +136,7 @@ function CabinHeading({ category, feeVnd }: { category: SeatCategory; feeVnd: nu
 }
 
 /** Top-down plan of the boat: front cabin, standard cabin and outdoor deck, seats A-B | aisle | C-D. */
-export default function SeatMapView({ seatMap, selectedId, fareVnd, onSelect }: SeatMapViewProps) {
+export default function SeatMapView({ seatMap, selectedIds, fareVnd, onSelect }: SeatMapViewProps) {
   const cabins = useMemo(
     () =>
       CABIN_ORDER.map((category) => {
@@ -189,7 +189,7 @@ export default function SeatMapView({ seatMap, selectedId, fareVnd, onSelect }: 
                 <SeatButton
                   key={column}
                   seat={seat}
-                  selected={selectedId === seat.id}
+                  selected={selectedIds.includes(seat.id)}
                   onSelect={onSelect}
                 />
               ) : (

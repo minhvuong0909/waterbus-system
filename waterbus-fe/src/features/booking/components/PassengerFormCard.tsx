@@ -9,8 +9,9 @@ import { t } from '../../../i18n'
 
 interface PassengerFormCardProps {
   passenger: PassengerForm
-  seatId: string
-  seatPosition: string
+  /** Codes of the chosen seats, e.g. "S01, F03". */
+  seatCodes: string
+  seatCount: number
   onChange: (patch: Partial<PassengerForm>) => void
 }
 
@@ -48,8 +49,8 @@ function Field({
 
 export default function PassengerFormCard({
   passenger,
-  seatId,
-  seatPosition,
+  seatCodes,
+  seatCount,
   onChange,
 }: PassengerFormCardProps) {
   const [assistOpen, setAssistOpen] = useState(true)
@@ -78,9 +79,14 @@ export default function PassengerFormCard({
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container">
             <Icon name="airline_seat_recline_extra" className="text-[15px]" />
-            {t('Seat {seatId} • {seatPosition}', { seatId, seatPosition })}
+            {t(seatCount === 1 ? 'Seat {seatCodes}' : 'Seats {seatCodes}', { seatCodes })}
           </span>
         </div>
+        {seatCount > 1 && (
+          <p className="mb-space-md rounded-lg bg-sand-light/70 px-3 py-2 text-xs text-on-surface-variant">
+            {t('One booking, one contact: all {count} tickets are issued in this name.', { count: seatCount })}
+          </p>
+        )}
 
         <div className="mb-space-lg">
           <div className="mb-1.5 text-xs font-semibold text-on-surface">

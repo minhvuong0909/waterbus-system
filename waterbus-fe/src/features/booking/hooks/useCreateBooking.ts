@@ -21,7 +21,7 @@ export interface BookingFailure {
 export function useCreateBooking() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const { seatId, passenger, hold } = useAppSelector((s) => s.booking)
+  const { seatIds, passenger, hold } = useAppSelector((s) => s.booking)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<BookingFailure | null>(null)
 
@@ -36,7 +36,7 @@ export function useCreateBooking() {
       const booking = await createBooking(
         {
           tripId,
-          seatIds: [seatId],
+          seatIds,
           customerName: passenger.fullName,
           customerEmail: passenger.email,
           customerPhone: toCustomerPhone(passenger),

@@ -50,10 +50,11 @@ export interface BookedSnapshot {
   /** The trip chosen from the search results; null when only an id is known (mock trips). */
   selectedTrip: Trip | null
   query: SearchQuery
-  seat: Seat | undefined
-  seatId: string
+  /** One ticket is issued per seat. */
+  seats: Seat[]
+  /** What each ticket cost, in the order of `seats`. */
+  fares: number[]
   passenger: PassengerForm
-  totalVnd: number
 }
 
 export interface TicketWallet {

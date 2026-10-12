@@ -15,9 +15,23 @@ export function cabinLabel(category: SeatCategory): string {
   return t(CABIN_LABEL[category])
 }
 
-/** Code printed on the seat. Falls back to `seatId` while the seat map is not loaded. */
-export function seatCode(seat: Seat | undefined, seatId: string): string {
-  return seat?.code ?? seatId
+/** Seats one booking may hold (the backend's CreateBookingCommandValidator allows 10). */
+export const MAX_SEATS_PER_BOOKING = 10
+
+/** "S01, F03": the codes printed on the seats. */
+export function seatCodes(seats: Seat[]): string {
+  return seats.map((s) => s.code).join(', ')
+}
+
+/** "1 Passenger" / "3 Passengers": there is one passenger per seat. */
+export function passengersLabel(count: number): string {
+  return count === 1 ? t('1 Passenger') : t('{count} Passengers', { count })
+}
+
+/** "Front Cabin / Standard Cabin": the cabins the seats are in, each named once. */
+export function cabinsLabel(seats: Seat[]): string {
+  const categories = CABIN_ORDER.filter((c) => seats.some((s) => s.category === c))
+  return categories.length > 0 ? categories.map(cabinLabel).join(' / ') : t('Main Saloon')
 }
 
 /** Extra charge of the seat: the fare times (multiplier - 1), so 0 for a standard seat. */
@@ -26,26 +40,45 @@ export function seatFeeFor(seat: Seat | undefined, fareVnd: number): number {
 }
 
 export interface BookingTotals {
+  seatCount: number
+  /** Trip fare for all seats (the backend charges the base price once per seat). */
   fareVnd: number
-  /** Cabin surcharge, 0 for a standard seat. */
+  /** Cabin surcharges of all seats, 0 when every seat is standard. */
   seatFeeVnd: number
   discountVnd: number
   totalVnd: number
 }
 
-/** The voucher discounts the trip fare only, never the seat surcharge. */
+/**
+ * What each ticket costs: the trip fare plus that seat's cabin surcharge, minus an equal share of
+ * the voucher discount (the voucher takes a percentage off the trip fare, never off a surcharge).
+ * The amounts add up exactly to the booking total.
+ */
+export function ticketFares(fareVnd: number, seats: Seat[], voucher: Voucher | null): number[] {
+  if (seats.length === 0) return []
+  const discountVnd = voucher ? Math.round((fareVnd * seats.length * voucher.percentOff) / 100) : 0
+  const share = Math.floor(discountVnd / seats.length)
+  return seats.map((seat, index) => {
+    // The first seat takes the rounding remainder, so no dong is lost.
+    const discount = share + (index === 0 ? discountVnd - share * seats.length : 0)
+    return Math.max(fareVnd + seatFeeFor(seat, fareVnd) - discount, 0)
+  })
+}
+
 export function computeTotals(
   trip: TripDetail,
-  seat: Seat | undefined,
+  seats: Seat[],
   voucher: Voucher | null,
 ): BookingTotals {
-  const seatFeeVnd = seatFeeFor(seat, trip.fareVnd)
-  const discountVnd = voucher ? Math.round((trip.fareVnd * voucher.percentOff) / 100) : 0
+  const fareVnd = trip.fareVnd * seats.length
+  const seatFeeVnd = seats.reduce((sum, seat) => sum + seatFeeFor(seat, trip.fareVnd), 0)
+  const discountVnd = voucher ? Math.round((fareVnd * voucher.percentOff) / 100) : 0
   return {
-    fareVnd: trip.fareVnd,
+    seatCount: seats.length,
+    fareVnd,
     seatFeeVnd,
     discountVnd,
-    totalVnd: Math.max(trip.fareVnd - discountVnd, 0) + seatFeeVnd,
+    totalVnd: Math.max(fareVnd - discountVnd, 0) + seatFeeVnd,
   }
 }
 
@@ -62,11 +95,15 @@ export function seatTags(seat: Seat | undefined): string {
     .join(' • ')
 }
 
-/** "Seat S01 (Window)", "Seat F03 (Front Cabin • Window)" or "Seat S02". */
-export function seatLabel(seat: Seat | undefined, seatId: string): string {
-  const id = seatCode(seat, seatId)
-  const tags = seatTags(seat)
-  return tags ? t('Seat {id} ({tags})', { id, tags }) : t('Seat {id}', { id })
+/** "Seat S01 (Window)" for one seat, "Seats S01, F03" for several. */
+export function selectedSeatsLabel(seats: Seat[]): string {
+  if (seats.length === 1) {
+    const tags = seatTags(seats[0])
+    return tags
+      ? t('Seat {id} ({tags})', { id: seats[0].code, tags })
+      : t('Seat {id}', { id: seats[0].code })
+  }
+  return t('Seats {ids}', { ids: seatCodes(seats) })
 }
 
 /** "Portside Window", "Starboard Aisle"... */
@@ -83,8 +120,8 @@ export function seatZone(seat: Seat | undefined): string {
 }
 
 /** Mock booking reference in the backend's format (WB + date and time + 3 digits). The backend issues the real one. */
-export function bookingReference(seatId: string): string {
-  const digits = seatId.replace(/\D/g, '').padStart(3, '0').slice(-3)
+export function bookingReference(seats: Seat[]): string {
+  const digits = seatCodes(seats).replace(/\D/g, '').padStart(3, '0').slice(-3)
   return `WB${new Date().toISOString().replace(/\D/g, '').slice(0, 8)}0000${digits}`
 }
 

@@ -9,7 +9,7 @@ import { validateVoucher } from '../services/bookingService'
 import type { PassengerForm, Seat, Voucher } from '../types'
 import type { BookingFailure } from '../hooks/useCreateBooking'
 import type { BookingTotals } from '../utils'
-import { seatCode, seatTags } from '../utils'
+import { seatTags } from '../utils'
 import { BookingCard, CardHeading, SeatFeeRow, SummaryRow } from './SummaryParts'
 import { t } from '../../../i18n'
 
@@ -44,15 +44,7 @@ function Fact({ label, value, accent }: { label: string; value: string; accent?:
   )
 }
 
-export function JourneyDetailsCard({
-  trip,
-  seat,
-  seatId,
-}: {
-  trip: TripDetail
-  seat: Seat | undefined
-  seatId: string
-}) {
+export function JourneyDetailsCard({ trip, seats }: { trip: TripDetail; seats: Seat[] }) {
   return (
     <BookingCard>
       <CardHeading
@@ -115,12 +107,10 @@ export function JourneyDetailsCard({
       <div className="mt-space-sm grid grid-cols-1 gap-space-sm md:grid-cols-2">
         <Fact label={t('Vessel')} value={trip.vesselCode} />
         <Fact
-          label={t('Selected Seat')}
-          value={
-            seatTags(seat)
-              ? `${seatCode(seat, seatId)} (${seatTags(seat)})`
-              : seatCode(seat, seatId)
-          }
+          label={seats.length > 1 ? t('Selected Seats') : t('Selected Seat')}
+          value={seats
+            .map((seat) => (seatTags(seat) ? `${seat.code} (${seatTags(seat)})` : seat.code))
+            .join(', ')}
           accent
         />
         <Fact label={t('Date')} value={trip.dateFull} />

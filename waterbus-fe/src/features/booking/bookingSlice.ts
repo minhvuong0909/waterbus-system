@@ -1,9 +1,10 @@
 import { createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
-import { DEFAULT_PASSENGER, DEFAULT_SEAT_ID } from '../../mocks/booking'
+import { DEFAULT_PASSENGER, DEFAULT_SEAT_IDS } from '../../mocks/booking'
 import { DEFAULT_SEARCH_QUERY } from '../../mocks/tripSearch'
 import type { SearchQuery, Trip } from '../trips/types'
 import type { PaymentMethodId } from '../payment/types'
+import { MAX_SEATS_PER_BOOKING } from './utils'
 import type { BookingHold, PassengerForm, Voucher } from './types'
 
 // Client-side booking state shared by the booking pages. Every field has a default,
@@ -13,7 +14,8 @@ export interface BookingState {
   selectedTripId: string | null
   /** The trip picked from the search results, or null when only an id is known. */
   selectedTrip: Trip | null
-  seatId: string
+  /** Chosen seats, in the order they were picked (up to MAX_SEATS_PER_BOOKING). */
+  seatIds: string[]
   passenger: PassengerForm
   voucher: Voucher | null
   termsAccepted: boolean
@@ -26,7 +28,7 @@ const initialState: BookingState = {
   query: DEFAULT_SEARCH_QUERY,
   selectedTripId: null,
   selectedTrip: null,
-  seatId: DEFAULT_SEAT_ID,
+  seatIds: DEFAULT_SEAT_IDS,
   passenger: DEFAULT_PASSENGER,
   voucher: null,
   termsAccepted: true,
@@ -50,8 +52,14 @@ const bookingSlice = createSlice({
     },
     // A booking is created from the trip, seat, passenger and fare, so changing any of them
     // makes an existing hold stale: it is dropped and a new booking is made at checkout.
-    selectSeat(state, action: PayloadAction<string>) {
-      state.seatId = action.payload
+    /** Adds the seat, or removes it when it is already chosen. Past the limit nothing is added. */
+    toggleSeat(state, action: PayloadAction<string>) {
+      const id = action.payload
+      if (state.seatIds.includes(id)) {
+        state.seatIds = state.seatIds.filter((seatId) => seatId !== id)
+      } else if (state.seatIds.length < MAX_SEATS_PER_BOOKING) {
+        state.seatIds.push(id)
+      }
       state.hold = null
     },
     updatePassenger(state, action: PayloadAction<Partial<PassengerForm>>) {
@@ -80,7 +88,7 @@ const bookingSlice = createSlice({
 export const {
   setQuery,
   selectTrip,
-  selectSeat,
+  toggleSeat,
   updatePassenger,
   applyVoucher,
   setTermsAccepted,

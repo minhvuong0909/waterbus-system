@@ -1,9 +1,9 @@
 import { t } from '../../i18n'
-import { bookingReference, seatCode, seatPosition, seatZone } from '../booking/utils'
+import { bookingReference, seatPosition, seatZone } from '../booking/utils'
 import type { PassengerForm, Seat } from '../booking/types'
 import type { TripDetail } from '../trips/types'
 import { toIsoDate } from '../../utils/time'
-import type { Ticket } from './types'
+import type { BookedSnapshot, Ticket } from './types'
 
 /** Ticket code in the backend's format ("TK" and 8 digits), derived from the trip and seat. */
 export function ticketCodeOf(tripId: string, seatId: string): string {
@@ -21,29 +21,36 @@ export function bookedTicketId(tripId: string, seatId: string): string {
   return `tkt-${tripId}-${seatId.toLowerCase()}`
 }
 
-interface BuildTicketInput {
-  trip: TripDetail
-  seat: Seat | undefined
-  seatId: string
-  passenger: PassengerForm
-  totalVnd: number
+/** Id of a booking made in this session: the trip and its seats. */
+export function bookingSnapshotId(tripId: string, seats: Seat[]): string {
+  return `bk-${tripId}-${seats.map((s) => s.id.toLowerCase()).join('-')}`
 }
 
-/** Turns the finished booking into a wallet ticket (mock: the backend will issue the real one). */
-export function buildBookedTicket({
-  trip,
-  seat,
-  seatId,
-  passenger,
-  totalVnd,
-}: BuildTicketInput): Ticket {
-  return {
-    id: bookedTicketId(trip.id, seatId),
+/** Ids of the tickets a booking issues, one per seat. */
+export function snapshotTicketIds(booking: BookedSnapshot): string[] {
+  return booking.seats.map((seat) => bookedTicketId(booking.tripId, seat.id))
+}
+
+interface BuildTicketsInput {
+  trip: TripDetail
+  seats: Seat[]
+  fares: number[]
+  passenger: PassengerForm
+}
+
+/**
+ * Turns the finished booking into wallet tickets, one per seat, all under the same booking
+ * reference (mock: the backend will issue the real ones).
+ */
+export function buildBookedTickets({ trip, seats, fares, passenger }: BuildTicketsInput): Ticket[] {
+  const bookingRef = bookingReference(seats)
+  return seats.map((seat, index) => ({
+    id: bookedTicketId(trip.id, seat.id),
     tripCode: trip.vesselCode,
     lineName: t('Smart Waterbus • {line}', { line: trip.lineLabel }),
     routeTag: t('Main Route'),
-    bookingRef: bookingReference(seatId),
-    ticketCode: ticketCodeOf(trip.id, seatId),
+    bookingRef,
+    ticketCode: ticketCodeOf(trip.id, seat.id),
     status: t('Confirmed'),
     completed: false,
     departTime: trip.departTime,
@@ -59,11 +66,11 @@ export function buildBookedTicket({
     dateId: trip.dateId,
     dateShort: trip.dateShort,
     passenger: passenger.fullName,
-    seat: t('Seat {id}', { id: seatCode(seat, seatId) }),
+    seat: t('Seat {id}', { id: seat.code }),
     seatNote: `${seatPosition(seat)} • ${seatZone(seat)}`,
-    windowSeat: Boolean(seat?.window),
-    fareVnd: totalVnd,
+    windowSeat: seat.window,
+    fareVnd: fares[index] ?? trip.fareVnd,
     vesselNote: `${trip.vesselName} ${trip.vesselCode}`,
     gate: trip.originShortName,
-  }
+  }))
 }

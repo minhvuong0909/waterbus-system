@@ -5,19 +5,18 @@ import { formatVnd } from '../../../utils/format'
 import type { TripDetail } from '../../trips/types'
 import type { Seat } from '../types'
 import type { BookingTotals } from '../utils'
-import { seatCode, seatLabel, seatZone } from '../utils'
+import { cabinsLabel, passengersLabel, seatCodes, selectedSeatsLabel } from '../utils'
 import { BookingCard, SeatFeeRow, SummaryRow, TotalRow } from './SummaryParts'
 import { t } from '../../../i18n'
 
 interface CrossingSummaryProps {
   trip: TripDetail
-  seat: Seat | undefined
-  seatId: string
+  seats: Seat[]
   totals: BookingTotals
 }
 
 /** Sticky sidebar on passenger details: timeline, vessel facts and fare lines. */
-export default function CrossingSummary({ trip, seat, seatId, totals }: CrossingSummaryProps) {
+export default function CrossingSummary({ trip, seats, totals }: CrossingSummaryProps) {
   return (
     <BookingCard className="p-space-lg lg:sticky lg:top-24">
       <div className="mb-space-md flex items-center justify-between">
@@ -79,18 +78,29 @@ export default function CrossingSummary({ trip, seat, seatId, totals }: Crossing
 
       <div className="mt-space-md space-y-2 rounded-xl bg-sand-light/60 p-space-md">
         <SummaryRow label={t('Vessel')} value={`${trip.vesselCode} ${trip.vesselName}`} />
-        <SummaryRow label={t('Selected Seat')} value={seatLabel(seat, seatId)} accent />
+        <SummaryRow
+          label={seats.length > 1 ? t('Selected Seats') : t('Selected Seat')}
+          value={selectedSeatsLabel(seats)}
+          accent
+        />
         <SummaryRow
           label={t('Cabin Class')}
-          value={t('{cabin} • Air-Conditioned', { cabin: seatZone(seat) })}
+          value={t('{cabin} • Air-Conditioned', { cabin: cabinsLabel(seats) })}
         />
-        <SummaryRow label={t('Passengers')} value={t('1 Passenger')} />
+        <SummaryRow label={t('Passengers')} value={passengersLabel(seats.length)} />
       </div>
 
       <div className="mt-space-md space-y-1.5">
-        <SummaryRow label={t('Standard River Fare')} value={formatVnd(totals.fareVnd)} />
+        <SummaryRow
+          label={
+            totals.seatCount > 1
+              ? t('Standard River Fare × {count}', { count: totals.seatCount })
+              : t('Standard River Fare')
+          }
+          value={formatVnd(totals.fareVnd)}
+        />
         <SeatFeeRow
-          label={t('Seat Reservation (Seat {id})', { id: seatCode(seat, seatId) })}
+          label={t('Seat Reservation ({seats})', { seats: seatCodes(seats) })}
           seatFeeVnd={totals.seatFeeVnd}
           includedText={t('Included (0 VND)')}
         />

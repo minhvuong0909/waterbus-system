@@ -1,6 +1,6 @@
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import { useBooking } from '../../features/booking/hooks/useBooking'
-import { bookingReference, seatCode, seatTags } from '../../features/booking/utils'
+import { bookingReference, cabinsLabel, passengersLabel, seatCodes } from '../../features/booking/utils'
 import {
   ConfirmationHero,
   ConfirmationSteps,
@@ -17,7 +17,7 @@ import { t } from '../../i18n'
 
 export default function BookingSuccessPage() {
   useDocumentTitle('Booking Confirmed')
-  const { loading, error, retry, trip, seat, seatId, passenger, totals } = useBooking()
+  const { loading, error, retry, trip, seats, passenger, totals } = useBooking()
   const steps = useFetch(getNextSteps)
   const failure = error ?? steps.error
 
@@ -34,7 +34,7 @@ export default function BookingSuccessPage() {
 
   if (loading || !trip || !totals || !steps.data) return <PageLoader />
 
-  const reference = bookingReference(seatId)
+  const reference = bookingReference(seats)
   const pier = trip.originPierName
   const nextSteps = steps.data.map((s) => ({
     ...s,
@@ -70,14 +70,20 @@ export default function BookingSuccessPage() {
                 arriveTime: trip.arriveTime,
                 arrivePier: trip.destinationPierName,
                 durationMins: trip.durationMins,
-                seat: t('Seat {id}', { id: seatCode(seat, seatId) }),
-                passenger: t('1 Passenger ({name})', { name: passenger.fullName }),
+                seat:
+                  seats.length === 1
+                    ? t('Seat {id}', { id: seats[0].code })
+                    : t('Seats {ids}', { ids: seatCodes(seats) }),
+                passenger: t('{passengers} ({name})', {
+                  passengers: passengersLabel(seats.length),
+                  name: passenger.fullName,
+                }),
                 status: t('Confirmed'),
                 totalVnd: totals.totalVnd,
                 reference,
                 seatNote: t('Trip {code} • {kind}', {
                   code: trip.vesselCode,
-                  kind: seatTags(seat) || t('Aisle'),
+                  kind: cabinsLabel(seats),
                 }),
               }}
             />

@@ -44,7 +44,7 @@ export const SEAT_MAP: SeatMap = {
 }
 
 /** A standard window seat, so the default booking never carries a surcharge. */
-export const DEFAULT_SEAT_ID = 'S01'
+export const DEFAULT_SEAT_IDS = ['S01']
 
 export const DEFAULT_PASSENGER: PassengerForm = {
   category: 'adult',

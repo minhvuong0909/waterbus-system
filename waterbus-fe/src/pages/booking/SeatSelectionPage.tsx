@@ -6,6 +6,7 @@ import {
   TripStrip,
 } from '../../features/booking/components/SeatSelectionParts'
 import { useBooking } from '../../features/booking/hooks/useBooking'
+import { MAX_SEATS_PER_BOOKING, seatCodes } from '../../features/booking/utils'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -30,7 +31,7 @@ const CUES = [
 
 export default function SeatSelectionPage() {
   useDocumentTitle('Choose Your Seat')
-  const { loading, error, retry, trip, seatMap, seat, seatId, totals, passenger, chooseSeat } =
+  const { loading, error, retry, trip, seatMap, seats, seatIds, seatLimitReached, totals, toggleSeat } =
     useBooking({ live: true })
 
   if (error) return <ErrorState onRetry={retry} />
@@ -73,12 +74,13 @@ export default function SeatSelectionPage() {
       </div>
 
       <div className="mt-space-md space-y-space-md">
-        <TripStrip trip={trip} seat={seat} />
+        <TripStrip trip={trip} seats={seats} totalVnd={totals.totalVnd} />
         <div className="flex items-center justify-between gap-2 rounded-xl border border-teal-flow/20 bg-sand-light/60 px-space-md py-2 text-xs text-on-surface-variant">
           <span className="flex items-center gap-2">
             <Icon name="touch_app" className="text-[18px] text-teal-flow" />
             {t(
-              'Tap an available seat to change your reservation. Seats are held for 10:00 during checkout.',
+              'Tap available seats to add or remove them, up to {max} per booking. Seats are held for 10:00 during checkout.',
+              { max: MAX_SEATS_PER_BOOKING },
             )}
           </span>
           <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-teal-flow">
@@ -87,13 +89,13 @@ export default function SeatSelectionPage() {
         </div>
       </div>
 
-      {seat && seat.status !== 'available' && (
+      {seats.some((s) => s.status !== 'available') && (
         <p
           role="alert"
           className="mt-space-md rounded-xl border border-coral-glow/30 bg-coral-glow/10 px-space-md py-2 text-sm text-deep-river"
         >
           {t('Seat {id} was just taken by another traveler. Please choose another seat.', {
-            id: seat.code,
+            id: seatCodes(seats.filter((s) => s.status !== 'available')),
           })}
         </p>
       )}
@@ -115,21 +117,15 @@ export default function SeatSelectionPage() {
             </div>
             <SeatMapView
               seatMap={seatMap}
-              selectedId={seatId}
+              selectedIds={seatIds}
               fareVnd={trip.fareVnd}
-              onSelect={chooseSeat}
+              onSelect={toggleSeat}
             />
           </div>
           <SeatRecommendation />
         </div>
         <div className="lg:col-span-5">
-          <BookingSummary
-            trip={trip}
-            seat={seat}
-            seatId={seatId}
-            totals={totals}
-            category={passenger.category.charAt(0).toUpperCase() + passenger.category.slice(1)}
-          />
+          <BookingSummary trip={trip} seats={seats} totals={totals} limitReached={seatLimitReached} />
         </div>
       </div>
 

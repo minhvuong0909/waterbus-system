@@ -8,6 +8,7 @@ Nội dung được đối chiếu trực tiếp với code BE (controllers, DTO
 > Còn lại (BE chưa có endpoint) vẫn là mock trong `src/mocks/*`: đăng ký, Google, chi tiết chuyến, sơ đồ ghế, đặt vé, thanh toán, vé của tôi, tracking.
 > Giai đoạn B (đặt vé): sơ đồ ghế theo bố cục tàu của BE (mock, `Seat`/`SeatMap`), sự kiện ghế realtime mô phỏng thay SignalR (`seatEvents.ts`), tạo booking + đếm ngược giữ ghế 600s (`createBooking` gọi `POST /bookings` khi seat id là Guid, hiện còn mock vì chưa có API sơ đồ ghế), trang `/payment/callback` (gọi thật `GET /payments/vnpay-return`), `/manage/:token` và chatbot đều là mock.
 > Giai đoạn C (khu vận hành `/admin/*`, `/captain`): BE chưa có endpoint admin nào, nên toàn bộ chạy trên dữ liệu giả lưu trong bộ nhớ (`features/admin/services/adminService.ts`, mất khi tải lại trang). Chỉ danh sách bến lấy từ `GET /stations`. Mỗi hàm bám contract đã lên kế hoạch ở `BACKEND_TASK_BREAKDOWN.md` (P1-BE-01..04, P3-BE-01) để sau này thay bằng `apiRequest`. Phân quyền theo role nằm ở `features/admin/navigation.ts`.
+> Đặt nhiều ghế: một đơn tối đa 10 ghế (`MAX_SEATS_PER_BOOKING`, theo `CreateBookingCommandValidator`), một người liên hệ cho cả đơn, mỗi ghế phát hành một vé. Tổng tiền = giá chuyến × số ghế + phụ thu khoang; BE hiện chưa tính phụ thu (bỏ qua `PriceMultiplier`) nên cần BE tính theo từng ghế.
 > Đặt `VITE_USE_MOCK=true` để chạy toàn bộ bằng mock khi không có BE.
 
 Ký hiệu: ✅ BE đã có · ⚠️ BE có nhưng lệch với FE · ❌ BE chưa có

@@ -7,7 +7,7 @@ import {
   SummaryRow,
   TotalRow,
 } from '../../booking/components/SummaryParts'
-import { seatLabel } from '../../booking/utils'
+import { passengersLabel, selectedSeatsLabel, ticketFares } from '../../booking/utils'
 import type { BookingTotals } from '../../booking/utils'
 import type { PassengerForm, Seat } from '../../booking/types'
 import type { TripDetail } from '../../trips/types'
@@ -16,7 +16,7 @@ import { useAppDispatch } from '../../../store/hooks'
 import { holdCleared } from '../../booking/bookingSlice'
 import { useHoldCountdown } from '../../booking/hooks/useHoldCountdown'
 import { addBooking } from '../../tickets/ticketsSlice'
-import { bookedTicketId } from '../../tickets/utils'
+import { bookingSnapshotId } from '../../tickets/utils'
 import { useAppSelector } from '../../../store/hooks'
 import { formatVnd, formatVndSuffix } from '../../../utils/format'
 import { confirmPayment } from '../services/paymentService'
@@ -24,16 +24,14 @@ import { t } from '../../../i18n'
 
 interface PaymentOrderSummaryProps {
   trip: TripDetail
-  seat: Seat | undefined
-  seatId: string
+  seats: Seat[]
   passenger: PassengerForm
   totals: BookingTotals
 }
 
 export default function PaymentOrderSummary({
   trip,
-  seat,
-  seatId,
+  seats,
   passenger,
   totals,
 }: PaymentOrderSummaryProps) {
@@ -41,6 +39,7 @@ export default function PaymentOrderSummary({
   const dispatch = useAppDispatch()
   const query = useAppSelector((s) => s.booking.query)
   const selectedTrip = useAppSelector((s) => s.booking.selectedTrip)
+  const voucher = useAppSelector((s) => s.booking.voucher)
   const { expired } = useHoldCountdown()
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -53,14 +52,13 @@ export default function PaymentOrderSummary({
       await confirmPayment()
       dispatch(
         addBooking({
-          id: bookedTicketId(trip.id, seatId),
+          id: bookingSnapshotId(trip.id, seats),
           tripId: trip.id,
           selectedTrip,
           query,
-          seat,
-          seatId,
+          seats,
+          fares: ticketFares(trip.fareVnd, seats, voucher),
           passenger,
-          totalVnd: totals.totalVnd,
         }),
       )
       dispatch(holdCleared())
@@ -102,14 +100,19 @@ export default function PaymentOrderSummary({
 
       <div className="mt-space-md space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-on-surface-variant">{t('Selected Seat')}</span>
+          <span className="text-on-surface-variant">
+            {seats.length > 1 ? t('Selected Seats') : t('Selected Seat')}
+          </span>
           <span className="rounded bg-surface-container px-2 py-0.5 text-xs font-semibold text-deep-river">
-            {seatLabel(seat, seatId)}
+            {selectedSeatsLabel(seats)}
           </span>
         </div>
         <SummaryRow
           label={t('Passenger')}
-          value={t('1 Passenger ({name})', { name: passenger.fullName })}
+          value={t('{passengers} ({name})', {
+            passengers: passengersLabel(seats.length),
+            name: passenger.fullName,
+          })}
         />
         <SummaryRow label={t('Date')} value={trip.dateFull} />
       </div>

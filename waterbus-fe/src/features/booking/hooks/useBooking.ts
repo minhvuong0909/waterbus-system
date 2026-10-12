@@ -4,7 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../../store/hooks'
 import { useTripDetail } from '../../trips/hooks/useTripSearch'
 import {
   applyVoucher,
-  selectSeat,
+  toggleSeat,
   setPaymentMethod,
   setTermsAccepted,
   updatePassenger,
@@ -13,7 +13,7 @@ import { getSeatMap } from '../services/bookingService'
 import { useLiveSeatMap } from './useLiveSeatMap'
 import type { PaymentMethodId } from '../../payment/types'
 import type { PassengerForm, Voucher } from '../types'
-import { computeTotals } from '../utils'
+import { MAX_SEATS_PER_BOOKING, computeTotals } from '../utils'
 
 interface UseBookingOptions {
   /** Apply seat holds from other travelers as they happen (only the seat page needs this). */
@@ -28,13 +28,18 @@ export function useBooking({ live = false }: UseBookingOptions = {}) {
   const loadedSeatMap = useFetch(getSeatMap)
   const seatMap = useLiveSeatMap(loadedSeatMap.data, detail?.id ?? null, live)
 
-  const seat = useMemo(
-    () => seatMap?.seats.find((s) => s.id === booking.seatId),
-    [seatMap, booking.seatId],
+  // The chosen seats as they are on the map now; an id the map does not know is left out.
+  const seats = useMemo(
+    () =>
+      booking.seatIds.flatMap((id) => {
+        const found = seatMap?.seats.find((s) => s.id === id)
+        return found ? [found] : []
+      }),
+    [seatMap, booking.seatIds],
   )
   const totals = useMemo(
-    () => (detail && seatMap ? computeTotals(detail, seat, booking.voucher) : undefined),
-    [detail, seatMap, seat, booking.voucher],
+    () => (detail && seatMap ? computeTotals(detail, seats, booking.voucher) : undefined),
+    [detail, seatMap, seats, booking.voucher],
   )
 
   return {
@@ -46,17 +51,24 @@ export function useBooking({ live = false }: UseBookingOptions = {}) {
     },
     trip: detail,
     seatMap,
-    seat,
-    seatId: booking.seatId,
+    seats,
+    seatIds: booking.seatIds,
+    /** True when no more seats can be added to this booking. */
+    seatLimitReached: booking.seatIds.length >= MAX_SEATS_PER_BOOKING,
     passenger: booking.passenger,
     voucher: booking.voucher,
     termsAccepted: booking.termsAccepted,
     paymentMethod: booking.paymentMethod,
     totals,
-    /** Sold, held and unknown seats are ignored, so the booking never targets a seat nobody can take. */
-    chooseSeat: (id: string) => {
+    /**
+     * Adds or removes a seat. Sold, held and unknown seats cannot be added, so the booking never
+     * targets a seat nobody can take; a chosen seat can always be removed.
+     */
+    toggleSeat: (id: string) => {
       const target = seatMap?.seats.find((s) => s.id === id)
-      if (target?.status === 'available') dispatch(selectSeat(id))
+      if (target && (target.status === 'available' || booking.seatIds.includes(id))) {
+        dispatch(toggleSeat(id))
+      }
     },
     editPassenger: (patch: Partial<PassengerForm>) => dispatch(updatePassenger(patch)),
     setVoucher: (v: Voucher | null) => dispatch(applyVoucher(v)),

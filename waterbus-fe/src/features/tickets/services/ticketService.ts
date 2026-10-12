@@ -2,7 +2,7 @@ import { withDelay } from '../../../mocks/delay'
 import { ApiError } from '../../../services/apiClient'
 import { buildAllTickets, buildManageBooking, buildTicketWallet } from '../../../mocks/tickets'
 import { getTripDetail } from '../../trips/services/tripService'
-import { buildBookedTicket } from '../utils'
+import { buildBookedTickets } from '../utils'
 import type { BookedSnapshot, ManageBooking, Ticket, TicketWallet } from '../types'
 
 // Mock service layer: swap for real API calls later without touching the UI.
@@ -37,18 +37,13 @@ export function requestRefund(
   return withDelay({ bookingCode, status: 'submitted' as const }, 500)
 }
 
-/** Rebuilds the wallet tickets for this session's bookings in the active language. */
-export function getBookedTickets(bookings: BookedSnapshot[]): Promise<Ticket[]> {
-  return Promise.all(
+/** Rebuilds the wallet tickets (one per seat) for this session's bookings in the active language. */
+export async function getBookedTickets(bookings: BookedSnapshot[]): Promise<Ticket[]> {
+  const perBooking = await Promise.all(
     bookings.map(async (b) => {
       const trip = await getTripDetail(b.selectedTrip, b.tripId, b.query)
-      return buildBookedTicket({
-        trip,
-        seat: b.seat,
-        seatId: b.seatId,
-        passenger: b.passenger,
-        totalVnd: b.totalVnd,
-      })
+      return buildBookedTickets({ trip, seats: b.seats, fares: b.fares, passenger: b.passenger })
     }),
   )
+  return perBooking.flat()
 }

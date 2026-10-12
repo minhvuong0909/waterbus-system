@@ -2,7 +2,7 @@ import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
 import BookingProgress from '../../features/booking/components/BookingProgress'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import type { BookingStep } from '../../features/booking/types'
-import { bookingReference, seatCode, seatTags } from '../../features/booking/utils'
+import { bookingReference, seatCodes } from '../../features/booking/utils'
 import PaymentMethodPanel from '../../features/payment/components/PaymentMethodPanel'
 import HoldCountdown from '../../features/booking/components/HoldCountdown'
 import PaymentOrderSummary from '../../features/payment/components/PaymentOrderSummary'
@@ -12,7 +12,7 @@ import { t } from '../../i18n'
 
 export default function PaymentPage() {
   useDocumentTitle('Complete Your Payment')
-  const { loading, error, retry, trip, seat, seatId, passenger, totals, paymentMethod, setMethod } =
+  const { loading, error, retry, trip, seats, passenger, totals, paymentMethod, setMethod } =
     useBooking()
 
   if (error) return <ErrorState onRetry={retry} />
@@ -23,7 +23,7 @@ export default function PaymentPage() {
     { label: 'Trip', detail: trip.lineLabel },
     {
       label: 'Seat',
-      detail: `${seatCode(seat, seatId)} ${seatTags(seat) || t('Aisle')}`,
+      detail: seatCodes(seats),
     },
     { label: 'Details', detail: passenger.fullName },
     { label: 'Checkout', detail: 'Order Confirmed' },
@@ -80,14 +80,13 @@ export default function PaymentPage() {
             method={paymentMethod}
             onMethod={setMethod}
             amountVnd={totals.totalVnd}
-            reference={bookingReference(seatId)}
+            reference={bookingReference(seats)}
           />
         </div>
         <div className="lg:col-span-4">
           <PaymentOrderSummary
             trip={trip}
-            seat={seat}
-            seatId={seatId}
+            seats={seats}
             passenger={passenger}
             totals={totals}
           />

@@ -5,12 +5,13 @@ import { formatVnd, formatVndSuffix } from '../../../utils/format'
 import type { TripDetail } from '../../trips/types'
 import type { Seat } from '../types'
 import type { BookingTotals } from '../utils'
-import { hasSurcharge, seatCode, seatFeeFor, seatPosition, seatZone } from '../utils'
+import { MAX_SEATS_PER_BOOKING } from '../utils'
+import { cabinsLabel, hasSurcharge, passengersLabel, seatFeeFor, seatPosition, seatZone } from '../utils'
 import { BookingCard, SeatFeeRow, SummaryRow, TotalRow } from './SummaryParts'
 import { t } from '../../../i18n'
 
 /** White strip under the page title: vessel, times, duration, fare and "Change Trip". */
-export function TripStrip({ trip, seat }: { trip: TripDetail; seat: Seat | undefined }) {
+export function TripStrip({ trip, seats, totalVnd }: { trip: TripDetail; seats: Seat[]; totalVnd: number }) {
   return (
     <div className="flex flex-col items-start justify-between gap-space-md rounded-2xl bg-white p-space-md shadow-[0_2px_16px_rgba(13,37,56,0.05)] md:flex-row md:items-center">
       <div className="flex flex-wrap items-center gap-space-md">
@@ -47,10 +48,13 @@ export function TripStrip({ trip, seat }: { trip: TripDetail; seat: Seat | undef
       <div className="flex items-center gap-space-lg">
         <div className="text-right">
           <div className="text-[11px] text-on-surface-variant">
-            {t('1 Passenger • {class}', { class: seatZone(seat) })}
+            {t('{passengers} • {class}', {
+              passengers: passengersLabel(seats.length),
+              class: cabinsLabel(seats),
+            })}
           </div>
           <div className="font-headline-sm text-lg font-bold text-deep-river">
-            {formatVndSuffix(trip.fareVnd + seatFeeFor(seat, trip.fareVnd))}
+            {formatVndSuffix(totalVnd)}
           </div>
         </div>
         <Link
@@ -95,17 +99,16 @@ export function SeatRecommendation() {
 
 interface BookingSummaryProps {
   trip: TripDetail
-  seat: Seat | undefined
-  seatId: string
+  seats: Seat[]
   totals: BookingTotals
-  /** Passenger category shown in the fare line, e.g. "Adult". */
-  category: string
+  /** True when no more seats can be added. */
+  limitReached: boolean
 }
 
-export function BookingSummary({ trip, seat, seatId, totals, category }: BookingSummaryProps) {
-  const surcharge = hasSurcharge(seat)
-  // An occupied or unknown seat (e.g. a stale selection) must not reach checkout.
-  const canContinue = seat?.status === 'available'
+export function BookingSummary({ trip, seats, totals, limitReached }: BookingSummaryProps) {
+  const surcharge = seats.some(hasSurcharge)
+  // An empty selection, or one with a seat somebody else took, must not reach checkout.
+  const canContinue = seats.length > 0 && seats.every((seat) => seat.status === 'available')
   return (
     <div className="space-y-space-md lg:sticky lg:top-24">
       <BookingCard className="p-space-lg">
@@ -144,38 +147,44 @@ export function BookingSummary({ trip, seat, seatId, totals, category }: Booking
             {t('Reserved Seat Choice')}
             <Icon name="airline_seat_recline_extra" className="text-[16px]" />
           </div>
-          <div className="mt-1 flex items-center justify-between">
-            <div className="font-headline-xl text-4xl font-bold leading-none text-deep-river">
-              {t('Seat')}
-              <br />
-              {seatCode(seat, seatId)}
-            </div>
-            <div className="text-right text-xs">
-              <div className="font-semibold text-teal-flow">{seatPosition(seat)} •</div>
-              <div className="text-teal-flow">{t('Main Saloon')}</div>
-              <div
-                className={`mt-1 rounded px-2 py-0.5 ${
-                  surcharge
-                    ? 'bg-signal-amber/20 font-semibold text-deep-river'
-                    : 'bg-white text-on-surface-variant'
-                }`}
-              >
-                {seatZone(seat)}
-              </div>
-            </div>
-          </div>
-          <p className="mt-2 text-xs text-on-surface-variant">
-            {seat?.category === 'front'
-              ? t('Front cabin seating, air-conditioned with a panoramic river view.')
-              : seat?.category === 'outdoor'
-              ? t('Open outdoor deck seating with a panoramic river view.')
-              : t('Standard Climate-Controlled Catamaran Seating with panoramic river view.')}
-          </p>
+          {seats.length === 0 ? (
+            <p className="mt-2 text-xs text-on-surface-variant">
+              {t('No seat chosen yet. Tap a seat on the map.')}
+            </p>
+          ) : (
+            <ul className="mt-1 divide-y divide-outline-variant/30">
+              {seats.map((seat) => {
+                const fee = seatFeeFor(seat, trip.fareVnd)
+                return (
+                  <li key={seat.id} className="flex items-center justify-between gap-2 py-1.5">
+                    <span className="font-headline-sm text-xl font-bold text-deep-river">
+                      {seat.code}
+                    </span>
+                    <span className="flex-1 text-right text-xs text-on-surface-variant">
+                      {seatPosition(seat)} • {seatZone(seat)}
+                    </span>
+                    <span className={`w-20 text-right text-xs ${fee > 0 ? 'font-semibold text-deep-river' : 'text-on-surface-variant'}`}>
+                      {fee > 0 ? `+${formatVndSuffix(fee)}` : t('Included')}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+          {limitReached && (
+            <p role="status" className="mt-2 text-xs text-coral-glow">
+              {t('You can book up to {max} seats at a time.', { max: MAX_SEATS_PER_BOOKING })}
+            </p>
+          )}
         </div>
 
         <div className="mt-space-md space-y-1.5">
           <SummaryRow
-            label={t('Standard Transit Fare (1 {category})', { category: t(category) })}
+            label={
+              totals.seatCount > 1
+                ? t('Standard Transit Fare × {count}', { count: totals.seatCount })
+                : t('Standard Transit Fare')
+            }
             value={formatVnd(totals.fareVnd)}
           />
           <SeatFeeRow

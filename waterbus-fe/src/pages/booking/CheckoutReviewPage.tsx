@@ -22,8 +22,7 @@ export default function CheckoutReviewPage() {
     error,
     retry,
     trip,
-    seat,
-    seatId,
+    seats,
     passenger,
     voucher,
     totals,
@@ -39,7 +38,7 @@ export default function CheckoutReviewPage() {
 
   const steps: BookingStep[] = [
     { label: 'Trip', detail: trip.lineLabel },
-    { label: 'Seat', detail: seat?.window ? 'Window Selected' : 'Aisle Selected' },
+    { label: 'Seat', detail: t('{count} Seats Selected', { count: seats.length }) },
     { label: 'Details', detail: passenger.fullName },
     { label: 'Checkout', detail: 'Review Order' },
     { label: 'Payment', detail: 'Instant QR / Card' },
@@ -82,7 +81,7 @@ export default function CheckoutReviewPage() {
 
       <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="space-y-space-md lg:col-span-8">
-          <JourneyDetailsCard trip={trip} seat={seat} seatId={seatId} />
+          <JourneyDetailsCard trip={trip} seats={seats} />
           <PassengerInfoCard passenger={passenger} />
           <ETicketContactCard passenger={passenger} />
           <VoucherCard voucher={voucher} onApply={setVoucher} />

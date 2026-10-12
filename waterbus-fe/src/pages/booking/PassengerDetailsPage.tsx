@@ -4,15 +4,14 @@ import CrossingSummary from '../../features/booking/components/CrossingSummary'
 import PassengerFormCard from '../../features/booking/components/PassengerFormCard'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import type { BookingStep } from '../../features/booking/types'
-import { seatCode, seatPosition } from '../../features/booking/utils'
+import { seatCodes } from '../../features/booking/utils'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 
 export default function PassengerDetailsPage() {
   useDocumentTitle('Passenger Details')
-  const { loading, error, retry, trip, seat, seatId, passenger, totals, editPassenger } =
-    useBooking()
+  const { loading, error, retry, trip, seats, passenger, totals, editPassenger } = useBooking()
 
   if (error) return <ErrorState onRetry={retry} />
 
@@ -20,7 +19,7 @@ export default function PassengerDetailsPage() {
 
   const steps: BookingStep[] = [
     { label: 'Trip', detail: 'Trip' },
-    { label: 'Seat', detail: t('Seat ({id})', { id: seatId }) },
+    { label: 'Seat', detail: t('Seat ({id})', { id: seatCodes(seats) }) },
     { label: 'Passenger Details', detail: 'Passenger Details' },
     { label: 'Checkout', detail: 'Checkout' },
     { label: 'Payment', detail: 'Payment' },
@@ -58,13 +57,13 @@ export default function PassengerDetailsPage() {
         <div className="lg:col-span-7">
           <PassengerFormCard
             passenger={passenger}
-            seatId={seatCode(seat, seatId)}
-            seatPosition={seatPosition(seat)}
+            seatCodes={seatCodes(seats)}
+            seatCount={seats.length}
             onChange={editPassenger}
           />
         </div>
         <div className="lg:col-span-5">
-          <CrossingSummary trip={trip} seat={seat} seatId={seatId} totals={totals} />
+          <CrossingSummary trip={trip} seats={seats} totals={totals} />
         </div>
       </div>
     </div>

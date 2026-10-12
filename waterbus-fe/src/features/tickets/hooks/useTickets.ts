@@ -8,6 +8,7 @@ import {
   getTicketWallet,
 } from '../services/ticketService'
 import { selectTicket } from '../ticketsSlice'
+import { snapshotTicketIds } from '../utils'
 import type { ManageBooking, Ticket, TicketWallet } from '../types'
 
 /** Tickets for the bookings made in this session, newest first. */
@@ -42,7 +43,9 @@ export function useTicketWallet() {
 
 export function useTicketDetail() {
   const id = useAppSelector((s) => s.tickets.selectedTicketId)
-  const isBooked = useAppSelector((s) => s.tickets.booked.some((b) => b.id === id))
+  const isBooked = useAppSelector((s) =>
+    s.tickets.booked.some((b) => snapshotTicketIds(b).includes(id ?? '')),
+  )
   const fetched = useFetch(() => getTicket(id))
   const booked = useBookedTickets()
 

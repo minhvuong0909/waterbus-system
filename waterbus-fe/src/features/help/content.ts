@@ -35,13 +35,18 @@ export const FAQ: FaqItem[] = [
       'Pick your departure and arrival piers and a date, choose a trip and a seat, enter the passenger details and pay. Your QR e-ticket is ready straight away in My Tickets.',
   },
   {
-    question: 'What is the difference between standard and VIP seats?',
+    question: 'What is the difference between the cabins?',
     answer:
-      'VIP seats are in the aft lounge (rows 5–6) with priority disembarkation, for a surcharge shown on the seat map. Standard seats have no extra fee.',
+      'The boat has a front cabin, a standard cabin and an outdoor deck. Front cabin and outdoor deck seats cost a little more, as shown on the seat map. Standard seats have no extra fee.',
+  },
+  {
+    question: 'Can I book several seats at once?',
+    answer:
+      'Yes, up to 10 seats in one booking. You enter one contact, and every ticket of the booking is issued in that name.',
   },
   {
     question: 'Which payment methods are accepted?',
-    answer: 'QR payment, bank cards, and the MoMo, VNPay and ZaloPay e-wallets.',
+    answer: 'Payment is made online through VNPay (QR code, bank card or e-wallet).',
   },
   {
     question: 'Can I get a refund?',
