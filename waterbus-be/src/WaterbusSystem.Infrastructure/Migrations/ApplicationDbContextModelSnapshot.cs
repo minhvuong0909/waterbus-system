@@ -367,9 +367,9 @@ namespace WaterbusSystem.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BoatId");
-
                     b.HasIndex("TripId");
+
+                    b.HasIndex("BoatId", "ObservedAt");
 
                     b.ToTable("BoatPositionEvents");
                 });
