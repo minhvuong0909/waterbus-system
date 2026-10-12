@@ -5,8 +5,10 @@ import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { formatVnd } from '../../../utils/format'
 import { addMinutes } from '../../../utils/time'
-import { askAssistant, requestRefund } from '../services/ticketService'
-import type { ChatMessage, ManageBooking, Ticket } from '../types'
+import { askAssistant } from '../../assistant/services/assistantService'
+import type { ChatMessage } from '../../assistant/types'
+import { requestRefund } from '../services/ticketService'
+import type { ManageBooking, Ticket } from '../types'
 import { t } from '../../../i18n'
 
 export type ManageOption = 'change' | 'refund' | 'voucher'
@@ -359,7 +361,7 @@ export function AssistantChat() {
     setBusy(true)
     let reply: string
     try {
-      reply = await askAssistant(replyKey)
+      reply = (await askAssistant(replyKey, { tripCards: false })).text
     } catch {
       reply = t('Sorry, I couldn’t reach the assistant. Please try again in a moment.')
     }

@@ -71,9 +71,3 @@ export interface ManageBooking {
   ticket: Ticket
   voucherCredit: VoucherCredit[]
 }
-
-export interface ChatMessage {
-  id: number
-  from: 'user' | 'assistant'
-  text: string
-}

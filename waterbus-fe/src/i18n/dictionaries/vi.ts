@@ -1,6 +1,15 @@
 // Vietnamese translations. The key is the exact English source string.
 // Placeholders such as {count} must be kept as they are.
 export const vi: Record<string, string> = {
+  'There are no more departures today. Try another date on the timetable.': 'Hôm nay không còn chuyến nào. Hãy thử chọn ngày khác trên lịch chạy.',
+  'Here are the next departures today:': 'Các chuyến khởi hành sắp tới hôm nay:',
+  'Hi! I can help with departures, refunds and vouchers. What would you like to know?': 'Xin chào! Mình có thể giúp về chuyến đi, hoàn vé và voucher. Bạn muốn hỏi gì?',
+  'Smart Waterbus Assistant': 'Trợ lý Smart Waterbus',
+  'Ask about trips and tickets': 'Hỏi về chuyến đi và vé',
+  'Close assistant': 'Đóng trợ lý',
+  'Open assistant': 'Mở trợ lý',
+  'Next departures': 'Chuyến sắp khởi hành',
+  'Type your question...': 'Nhập câu hỏi của bạn...',
   'This link is invalid or has expired': 'Liên kết không hợp lệ hoặc đã hết hạn',
   'Open the latest email or message we sent you, or look up your booking with your booking code.': 'Hãy mở email hoặc tin nhắn mới nhất chúng tôi đã gửi, hoặc tra cứu đơn đặt vé bằng mã đặt chỗ.',
   'Holding your seat…': 'Đang giữ chỗ…',

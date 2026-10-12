@@ -1,12 +1,6 @@
 import { withDelay } from '../../../mocks/delay'
 import { ApiError } from '../../../services/apiClient'
-import {
-  ALL_TICKETS,
-  ASSISTANT_FALLBACK,
-  ASSISTANT_REPLIES,
-  MANAGE_BOOKING,
-  TICKET_WALLET,
-} from '../../../mocks/tickets'
+import { ALL_TICKETS, MANAGE_BOOKING, TICKET_WALLET } from '../../../mocks/tickets'
 import { getTripDetail } from '../../trips/services/tripService'
 import { buildBookedTicket } from '../utils'
 import type { BookedSnapshot, ManageBooking, Ticket, TicketWallet } from '../types'
@@ -34,10 +28,6 @@ export function getManageBooking(token?: string): Promise<ManageBooking> {
     return Promise.reject(new ApiError(404, 'This link is invalid or has expired.'))
   }
   return withDelay(MANAGE_BOOKING)
-}
-
-export function askAssistant(message: string): Promise<string> {
-  return withDelay(ASSISTANT_REPLIES[message] ?? ASSISTANT_FALLBACK, 500)
 }
 
 /** Pretends to submit a refund request. Always accepted so the flow never gets stuck. */

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import AssistantWidget from '../features/assistant/components/AssistantWidget'
 import Footer from './footer/Footer'
 import Header from './header/Header'
 
@@ -13,6 +14,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       <Header />
       <main className="w-full flex-1 pt-20 print:pt-0">{children}</main>
       <Footer />
+      <AssistantWidget />
     </div>
   )
 }
