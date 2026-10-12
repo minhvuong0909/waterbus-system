@@ -296,7 +296,10 @@ public class ApplicationDbContextInitializer
                 .OrderBy(s => s.VisitOrder).ToListAsync();
             foreach (var stop in stops)
             {
-                trip.TripStopCalls.Add(new TripStopCall
+                // Add qua DbSet (không qua navigation của Trip đã nạp từ DB): Id Guid được gán sẵn phía client
+                // nên nếu thêm qua navigation, EF coi là bản ghi đã tồn tại và sinh UPDATE (0 dòng)
+                // -> DbUpdateConcurrencyException ở mọi lần khởi động sau lần đầu.
+                _context.TripStopCalls.Add(new TripStopCall
                 {
                     TripId = trip.Id,
                     RouteStopId = stop.RouteStopId,
