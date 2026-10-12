@@ -100,7 +100,7 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
                   <DepartureCard
                     key={d.id}
                     departure={d}
-                    onSelect={(id) => dispatch(selectTrip(id))}
+                    onSelect={(trip) => dispatch(selectTrip(trip))}
                   />
                 ))
               ) : (

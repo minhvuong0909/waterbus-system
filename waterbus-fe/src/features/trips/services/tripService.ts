@@ -7,10 +7,10 @@ import {
   NETWORK_ROUTE_SEEDS,
   ONBOARD_AMENITIES,
   PIER_OPTIONS,
-  TRIPS,
+  buildTrips,
 } from '../../../mocks/tripSearch'
 import { localize, t } from '../../../i18n'
-import { apiRequest } from '../../../services/apiClient'
+import { ApiError, apiRequest } from '../../../services/apiClient'
 import { addMinutes, toIsoDate } from '../../../utils/time'
 import type {
   DateOption,
@@ -58,7 +58,7 @@ export function getDateOptions(): Promise<DateOption[]> {
 
 /** `GET /trips/search` for the selected piers and day. */
 export async function getTrips(query: SearchQuery): Promise<Trip[]> {
-  if (USE_MOCK) return withDelay(TRIPS)
+  if (USE_MOCK) return withDelay(buildTrips())
   const dtos = await apiRequest<TripDto[]>(API_ENDPOINTS.trips.search, {
     query: {
       departureStationId: query.originId,
@@ -97,14 +97,18 @@ export async function getUpcomingTrips(limit: number): Promise<{
 /**
  * Detail page data. The backend has no trip detail endpoint yet (roadmap P1-BE-05), so it is built
  * from the trip chosen in the results list, plus static content. A trip that was not chosen in
- * this session (direct URL, or picked on the home page) falls back to the mock trips.
+ * this session (for example after a page reload) is only possible with mock data; with the real
+ * backend it is reported as not found.
  */
 export async function getTripDetail(
   selectedTrip: Trip | null,
   tripId: string | null,
   query: SearchQuery,
 ): Promise<TripDetail> {
-  const trip = selectedTrip ?? TRIPS.find((item) => item.id === tripId) ?? TRIPS[0]
+  const mockTrips = USE_MOCK ? buildTrips() : []
+  const trip = selectedTrip ?? mockTrips.find((item) => item.id === tripId) ?? mockTrips[0]
+  // Without the backend's trip detail endpoint, a real trip can only come from the search results.
+  if (!trip) throw new ApiError(404, t('This trip is no longer available. Please search again.'))
   const piers = await getPierOptions()
   const picked = pickPiers(piers, query)
   const find = (id: string) => piers.find((p) => p.id === id) ?? piers[0]

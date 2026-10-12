@@ -23,3 +23,17 @@ export function withDelay<T>(value: T, ms = 150): Promise<T> {
     }, ms)
   })
 }
+
+/**
+ * Like `withDelay`, but the data comes back as it is, without translating strings. Use it for data
+ * with identifiers and enum values (statuses, ids, codes), which a dictionary match must not change:
+ * for example translating the seat status "sold" would make the sold seat look free.
+ */
+export function withDelayExact<T>(value: T, ms = 150): Promise<T> {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (Date.now() - loadedAt < windowMs) reject(new Error('Mock network error'))
+      else resolve(structuredClone(value))
+    }, ms)
+  })
+}

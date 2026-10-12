@@ -1,4 +1,4 @@
-import { useEffect, useId } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
@@ -115,11 +115,19 @@ export function Modal({
   children: ReactNode
 }) {
   const titleId = useId()
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  // Move focus into the dialog when it opens and give it back to the button that opened it.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    dialogRef.current?.focus()
+    return () => opener?.focus?.()
+  }, [])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -130,10 +138,12 @@ export function Modal({
         className="absolute inset-0 cursor-default bg-deep-river/40"
       />
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative max-h-full w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
+        className="relative max-h-full w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-xl focus:outline-none"
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 id={titleId} className="font-headline-sm text-lg font-bold text-deep-river">

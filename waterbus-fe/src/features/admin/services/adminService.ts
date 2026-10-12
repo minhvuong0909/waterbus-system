@@ -1,6 +1,6 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { USE_MOCK } from '../../../constant/env'
-import { withDelay } from '../../../mocks/delay'
+import { withDelayExact } from '../../../mocks/delay'
 import { STATION_SEEDS } from '../../../mocks/tripSearch'
 import { ApiError, apiRequest } from '../../../services/apiClient'
 import { t } from '../../../i18n'
@@ -160,12 +160,18 @@ async function createDb(): Promise<AdminDb> {
 }
 
 let dbPromise: Promise<AdminDb> | undefined
-const db = () => (dbPromise ??= createDb())
+function db(): Promise<AdminDb> {
+  dbPromise ??= createDb().catch((error) => {
+    dbPromise = undefined // try again on the next call instead of caching the failure
+    throw error
+  })
+  return dbPromise
+}
 
-/** Resolves with `read(db)` after a short delay, as a copy the caller may not use to change the store. */
+/** Resolves with `read(db)` after a short delay, as a copy so callers cannot change the store. */
 async function query<T>(read: (data: AdminDb) => T): Promise<T> {
   const data = await db()
-  return withDelay(read(data))
+  return withDelayExact(read(data))
 }
 
 // ---- Stations -----------------------------------------------------------------
@@ -183,7 +189,7 @@ export async function createStation(input: NewStation): Promise<AdminStation> {
   checkStation(data, input)
   const station: AdminStation = { ...input, id: newId(), isActive: true }
   data.stations.push(station)
-  return withDelay(station)
+  return withDelayExact(station)
 }
 
 export async function updateStation(id: string, input: NewStation): Promise<AdminStation> {
@@ -192,7 +198,7 @@ export async function updateStation(id: string, input: NewStation): Promise<Admi
   if (!station) throw notFound()
   checkStation(data, input, id)
   Object.assign(station, input)
-  return withDelay(station)
+  return withDelayExact(station)
 }
 
 /** Soft delete. A station that an active route still uses cannot be removed. */
@@ -202,7 +208,7 @@ export async function deleteStation(id: string): Promise<void> {
     throw conflict(t('This station is used by an active route.'))
   }
   data.stations = data.stations.filter((s) => s.id !== id)
-  await withDelay(null)
+  await withDelayExact(null)
 }
 
 // ---- Routes -------------------------------------------------------------------
@@ -220,7 +226,7 @@ export async function createBoat(input: NewBoat): Promise<AdminBoat> {
   }
   const boat: AdminBoat = { ...input, id: newId(), totalSeats: totalSeatsOf(input), isActive: true }
   data.boats.push(boat)
-  return withDelay(boat)
+  return withDelayExact(boat)
 }
 
 /** Soft delete. A boat with trips still to run cannot be removed. */
@@ -231,7 +237,7 @@ export async function deleteBoat(id: string): Promise<void> {
   }
   const boat = data.boats.find((b) => b.id === id)
   if (boat) boat.isActive = false
-  await withDelay(null)
+  await withDelayExact(null)
 }
 
 // ---- Fares --------------------------------------------------------------------
@@ -241,7 +247,7 @@ export const getFares = () => query((d) => d.fares)
 export async function saveFares(fares: FareSettings): Promise<FareSettings> {
   const data = await db()
   data.fares = fares
-  return withDelay(fares)
+  return withDelayExact(fares)
 }
 
 // ---- Schedules and trips ------------------------------------------------------
@@ -253,7 +259,7 @@ export async function createSchedule(input: NewSchedule): Promise<AdminSchedule>
   if (!data.routes.some((r) => r.id === input.routeId)) throw notFound()
   const schedule: AdminSchedule = { ...input, id: newId(), isActive: true }
   data.schedules.push(schedule)
-  return withDelay(schedule)
+  return withDelayExact(schedule)
 }
 
 export async function setScheduleActive(id: string, isActive: boolean): Promise<void> {
@@ -261,7 +267,7 @@ export async function setScheduleActive(id: string, isActive: boolean): Promise<
   const schedule = data.schedules.find((s) => s.id === id)
   if (!schedule) throw notFound()
   schedule.isActive = isActive
-  await withDelay(null)
+  await withDelayExact(null)
 }
 
 /**
@@ -322,7 +328,7 @@ export async function generateTrips(
   }
   // Nothing is created unless every day in the range is free, so a failed run changes nothing.
   data.trips.push(...toAdd)
-  return withDelay({ created: toAdd.length, skipped })
+  return withDelayExact({ created: toAdd.length, skipped })
 }
 
 export const getTrips = () =>
@@ -341,7 +347,7 @@ export async function assignBoat(tripId: string, boatId: string): Promise<AdminT
     throw conflict(t('{boat} is already on another trip at that time.', { boat: boat.code }))
   }
   trip.boatId = boatId
-  return withDelay(trip)
+  return withDelayExact(trip)
 }
 
 // ---- Operations -----------------------------------------------------------------
@@ -369,7 +375,7 @@ export async function operateTrip(
   const result = OPERATION_RESULT[type]
   if (result) trip.status = result
   data.logs.push({ id: newId(), type, tripId, reason, by, at: new Date().toISOString() })
-  return withDelay(trip)
+  return withDelayExact(trip)
 }
 
 // ---- Radar --------------------------------------------------------------------
@@ -401,5 +407,5 @@ export async function getFleetPositions(): Promise<FleetPosition[]> {
         },
       ]
     })
-  return withDelay(positions, 0)
+  return withDelayExact(positions, 0)
 }

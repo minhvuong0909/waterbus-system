@@ -9,7 +9,7 @@ import {
   getTripDetail,
   getTrips,
 } from '../services/tripService'
-import type { PierOption, SearchQuery, Trip } from '../types'
+import type { DateOption, PierOption, SearchQuery, Trip } from '../types'
 import { pickPiers } from '../utils'
 
 export function useSearchQuery() {
@@ -32,11 +32,24 @@ function useDefaultPiers(piers: PierOption[] | undefined) {
   }, [piers, query.originId, query.destinationId])
 }
 
+/** Moves the chosen day to the first offered day when it is not offered (e.g. it is already past). */
+function useValidDate(dates: DateOption[] | undefined) {
+  const { query, updateQuery } = useSearchQuery()
+  useEffect(() => {
+    if (dates && dates.length > 0 && !dates.some((d) => d.id === query.dateId)) {
+      updateQuery({ dateId: dates[0].id })
+    }
+    // `updateQuery` is re-created on every render; only the offered days and the chosen one matter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dates, query.dateId])
+}
+
 export function useSearchForm() {
   const piers = useFetch(getPierOptions)
   const routes = useFetch(getNetworkRoutes)
   const dates = useFetch(getDateOptions)
   useDefaultPiers(piers.data)
+  useValidDate(dates.data)
   return {
     piers: piers.data,
     routes: routes.data,
@@ -51,6 +64,7 @@ export function useSearchResults() {
   const piers = useFetch(getPierOptions)
   const dates = useFetch(getDateOptions)
   useDefaultPiers(piers.data)
+  useValidDate(dates.data)
 
   // Search again whenever the piers or the day change. Until a pier pair is chosen the request
   // simply stays pending, so the page keeps showing its loader instead of an empty list.

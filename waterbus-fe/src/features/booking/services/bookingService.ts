@@ -1,7 +1,7 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { USE_MOCK } from '../../../constant/env'
 import { SEAT_MAP, VALID_VOUCHER } from '../../../mocks/booking'
-import { withDelay } from '../../../mocks/delay'
+import { withDelay, withDelayExact } from '../../../mocks/delay'
 import { apiRequest } from '../../../services/apiClient'
 import type { BookingResponse, CreateBookingRequest, SeatMap, Voucher } from '../types'
 
@@ -11,7 +11,8 @@ const HOLD_SECONDS = 600
 // Mock: the backend has no seat map endpoint yet (roadmap P1-BE-05). `SEAT_MAP` follows the boat
 // layout the backend seeds, and a real response will use the same `SeatMap` shape.
 export function getSeatMap(): Promise<SeatMap> {
-  return withDelay(SEAT_MAP)
+  // Exact: seat statuses such as "sold" are values the UI compares, not text to translate.
+  return withDelayExact(SEAT_MAP)
 }
 
 /** Resolves with the voucher when valid, or null. The result never blocks the flow. */
@@ -36,7 +37,7 @@ export function createBooking(
     return apiRequest<BookingResponse>(API_ENDPOINTS.bookings, { method: 'POST', body: request })
   }
   const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14)
-  return withDelay({
+  return withDelayExact({
     bookingId: crypto.randomUUID(),
     bookingCode: `WB${stamp}${Math.floor(100 + Math.random() * 900)}`,
     totalAmount: quotedTotalVnd,

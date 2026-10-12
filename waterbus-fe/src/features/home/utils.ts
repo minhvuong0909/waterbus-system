@@ -14,7 +14,7 @@ export function toDeparture(trip: Trip, origin: PierOption, destination: PierOpt
   const boarding = minutesToGo <= BOARDING_WINDOW_MINUTES
   return {
     id: `dep-${trip.id}`,
-    tripId: trip.id,
+    trip,
     time: trip.departTime,
     status: boarding ? t('Boarding') : sightseeing && trip.band === 'sunset' ? t('Twilight') : t('Scheduled'),
     statusKind: boarding ? 'boarding' : sightseeing && trip.band === 'sunset' ? 'twilight' : 'scheduled',

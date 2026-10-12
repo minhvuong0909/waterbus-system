@@ -123,15 +123,20 @@ function tripSeed(
   }
 }
 
-// Mock trips have the same shape as the real search results. The 15,000 base price is the backend
-// default (Trip.BasePrice); the sightseeing price follows the demo fare settings.
-export const TRIPS: Trip[] = [
-  tripSeed(1, '07:00', 'Commuter', 15000, 54),
-  tripSeed(2, '09:00', 'Commuter', 15000, 42),
-  tripSeed(3, '12:00', 'Commuter', 15000, 36),
-  tripSeed(4, '15:30', 'Commuter', 15000, 8),
-  tripSeed(5, '17:30', 'Sightseeing', 45000, 12),
-].map(toTrip)
+/**
+ * Mock trips of today, in the same shape as the real search results. Built on each call (not once
+ * at load) so the texts follow the active language and the day stays today. The 15,000 base price
+ * is the backend default (Trip.BasePrice); the sightseeing price follows the demo fare settings.
+ */
+export function buildTrips(): Trip[] {
+  return [
+    tripSeed(1, '07:00', 'Commuter', 15000, 54),
+    tripSeed(2, '09:00', 'Commuter', 15000, 42),
+    tripSeed(3, '12:00', 'Commuter', 15000, 36),
+    tripSeed(4, '15:30', 'Commuter', 15000, 8),
+    tripSeed(5, '17:30', 'Sightseeing', 45000, 12),
+  ].map(toTrip)
+}
 
 export const ONBOARD_AMENITIES: AmenityDetail[] = [
   {

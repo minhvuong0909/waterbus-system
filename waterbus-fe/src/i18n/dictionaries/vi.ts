@@ -1,6 +1,7 @@
 // Vietnamese translations. The key is the exact English source string.
 // Placeholders such as {count} must be kept as they are.
 export const vi: Record<string, string> = {
+  'This trip is no longer available. Please search again.': 'Chuyến này không còn khả dụng. Vui lòng tìm lại.',
   '© {year} Smart Waterbus. River Connects Greater Stories.': '© {year} Smart Waterbus. Dòng sông kết nối những câu chuyện lớn.',
   '{date}, {time} Departure': '{date}, khởi hành {time}',
   'Next Departure': 'Chuyến tiếp theo',
