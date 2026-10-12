@@ -3,13 +3,13 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { ErrorState, Icon } from '../../../components/ui'
 import { useFetch } from '../../../hooks'
 import { ApiError } from '../../../services/apiClient'
-import { ROUTES } from '../../../routes/routes'
 import type {
   AuthMode,
   AuthSession,
   RegisterPayload,
   SignInPayload,
 } from '../authenticationTypes'
+import { landingRouteFor } from '../../admin/navigation'
 import { useAuth } from '../hook/authenticationHook'
 import { getAuthShowcase, register, signIn, signInWithGoogle } from '../services/authenticationApi'
 import AuthShowcasePanel from './AuthShowcasePanel'
@@ -28,9 +28,6 @@ const COPY: Record<AuthMode, { title: string; subtitle: string }> = {
   },
 }
 
-// Where a successful sign-in lands when the user did not come from a protected page.
-const AFTER_AUTH = ROUTES.myTickets
-
 export default function AuthCard() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -41,14 +38,15 @@ export default function AuthCard() {
   const [failure, setFailure] = useState<string | null>(null)
   const showcase = useFetch(getAuthShowcase)
 
-  const destination = (location.state as { from?: string } | null)?.from ?? AFTER_AUTH
+  const from = (location.state as { from?: string } | null)?.from
 
   const finish = async (action: Promise<AuthSession>, remember = true) => {
     setSubmitting(true)
     setFailure(null)
     try {
-      startSession(await action, remember)
-      navigate(destination, { replace: true })
+      const session = await action
+      startSession(session, remember)
+      navigate(from ?? landingRouteFor(session.user.roles), { replace: true })
     } catch (error) {
       setSubmitting(false)
       // Only server-sent messages are shown as they are; a status of 0 means no connection.

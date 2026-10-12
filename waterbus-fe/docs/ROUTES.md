@@ -25,6 +25,22 @@ Source of truth: `src/routes/routes.ts` (paths) and `src/routes/AppRoutes.tsx` (
 | `/explore` | Explore river journeys |
 | `/sitemap` | All routes |
 
+Operations area (sign in required, roles in `src/features/admin/navigation.ts`):
+
+| Route | Screen | Roles |
+|---|---|---|
+| `/admin` | Overview | Admin, Dispatcher |
+| `/admin/radar` | Live Operations (Leaflet map of boats) | Admin, Dispatcher |
+| `/admin/trips` | Trips, change boat | Admin, Dispatcher |
+| `/admin/schedules` | Schedules, generate trips | Admin |
+| `/admin/stations` | Stations CRUD | Admin |
+| `/admin/boats` | Boats CRUD | Admin |
+| `/admin/fares` | Fares | Admin |
+| `/admin/incidents` | Weather alerts, suspend / cancel / terminate a trip | Admin, Dispatcher |
+| `/captain` | Captain portal (Start, Arrived, SOS, narration) | Captain, Admin |
+
+In mock mode (`VITE_USE_MOCK=true`) sign in with `admin@...`, `dispatcher@...` or `captain@...` (any password) to get that role.
+
 Unknown paths redirect to `/`.
 
 ## Trying the error screens

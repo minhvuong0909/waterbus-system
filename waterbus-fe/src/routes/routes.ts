@@ -20,6 +20,16 @@ export const ROUTES = {
   explore: '/explore',
   help: '/help',
   sitemap: '/sitemap',
+  // Operations area (Admin, Dispatcher) and the captain's portal.
+  admin: '/admin',
+  adminRadar: '/admin/radar',
+  adminTrips: '/admin/trips',
+  adminSchedules: '/admin/schedules',
+  adminStations: '/admin/stations',
+  adminBoats: '/admin/boats',
+  adminFares: '/admin/fares',
+  adminIncidents: '/admin/incidents',
+  captain: '/captain',
 } as const
 
 /** Pages listed on the /sitemap quick-navigation page. */

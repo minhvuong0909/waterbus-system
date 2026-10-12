@@ -11,7 +11,7 @@ import { toPierOption } from '../features/trips/utils'
 import { toIsoDate } from '../utils/time'
 
 // Mirrors the stations seeded by the backend (ApplicationDbContextInitializer), in river order.
-const STATION_SEEDS: StationDto[] = [
+export const STATION_SEEDS: StationDto[] = [
   {
     id: 'st01',
     code: 'ST01',

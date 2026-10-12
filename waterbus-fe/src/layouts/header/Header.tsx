@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { Logo } from '../../components/brand'
 import { Button, Icon } from '../../components/ui'
+import { landingRouteFor, STAFF_ROLES } from '../../features/admin/navigation'
+import { hasAnyRole } from '../../features/authentication/authenticationUtils'
 import { useAuth } from '../../features/authentication/hook/authenticationHook'
 import LanguageSwitcher from './LanguageSwitcher'
 import { ROUTES } from '../../routes/routes'
@@ -23,6 +25,7 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 export default function Header() {
   const [open, setOpen] = useState(false)
   const { user, signOut } = useAuth()
+  const staffArea = hasAnyRole(user, STAFF_ROLES) && user ? landingRouteFor(user.roles) : null
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 print:hidden border-b border-surface-container/60 bg-mist/90 shadow-[0_2px_12px_rgba(13,37,56,0.03)] backdrop-blur-xl">
@@ -57,6 +60,11 @@ export default function Header() {
               >
                 {user.fullName}
               </span>
+              {staffArea && (
+                <Button to={staffArea} variant="secondary" className="hidden whitespace-nowrap sm:inline-flex">
+                  {t('Operations')}
+                </Button>
+              )}
               <Button
                 variant="dark"
                 onClick={signOut}

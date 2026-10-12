@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { USE_MOCK } from '../../../constant/env'
+import { ROLES } from '../../../constant/roles'
 import { AUTH_SHOWCASE, MOCK_USER } from '../../../mocks/auth'
 import { withDelay } from '../../../mocks/delay'
 import { apiRequest } from '../../../services/apiClient'
@@ -13,9 +14,19 @@ import type {
 
 const MOCK_SESSION: AuthSession = { user: MOCK_USER, token: null }
 
+// Mock sign-in: "admin@...", "dispatcher@..." or "captain@..." get that role, anything else is a passenger.
+const MOCK_ROLES: Record<string, string> = {
+  admin: ROLES.admin,
+  dispatcher: ROLES.dispatcher,
+  captain: ROLES.captain,
+}
+const mockRoleOf = (email: string): string => MOCK_ROLES[email.split('@')[0].toLowerCase()] ?? ROLES.passenger
+
 /** `POST /auth/login`. Rejects with ApiError(401) when the email or password is wrong. */
 export async function signIn({ email, password }: SignInPayload): Promise<AuthSession> {
-  if (USE_MOCK) return withDelay({ ...MOCK_SESSION, user: { ...MOCK_USER, email } })
+  if (USE_MOCK) {
+    return withDelay({ ...MOCK_SESSION, user: { ...MOCK_USER, email, roles: [mockRoleOf(email)] } })
+  }
 
   const response = await apiRequest<LoginResponse>(API_ENDPOINTS.auth.login, {
     method: 'POST',
