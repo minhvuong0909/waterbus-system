@@ -5,10 +5,12 @@ namespace WaterbusSystem.Domain.Enums;
 /// </summary>
 public enum TripStatus
 {
-    Scheduled = 1,  // Đã lên lịch
-    Boarding = 2,   // Đang đón khách tại bến
-    InTransit = 3,  // Tàu đang di chuyển trên sông
-    Completed = 4,  // Chuyến đi hoàn thành
-    Cancelled = 5,  // Hủy chuyến (do bão hoặc sự cố kỹ thuật)
-    Delayed = 6     // Hoãn chuyến do thời tiết
+    Scheduled  = 1,  // Đã lên lịch, chưa bắt đầu
+    Boarding   = 2,  // Đang đón khách tại bến đầu
+    EnRoute    = 3,  // Tàu đang di chuyển
+    Suspended  = 4,  // Tạm dừng (sự cố, thời tiết)
+    Arrived    = 5,  // Tàu đã cập bến cuối
+    Completed  = 6,  // Chuyến hoàn thành (nghiệp vụ đóng)
+    Cancelled  = 7,  // Hủy chuyến
+    Terminated = 8   // Buộc dừng giữa chừng
 }

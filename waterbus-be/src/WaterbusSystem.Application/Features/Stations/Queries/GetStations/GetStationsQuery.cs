@@ -49,3 +49,52 @@ public class GetStationsQueryHandler : IRequestHandler<GetStationsQuery, List<St
             .ToListAsync(cancellationToken);
     }
 }
+
+/// <summary>
+/// Query lấy danh sách bến tàu có phân trang dành cho Admin quản trị
+/// </summary>
+public record GetStationsPagedQuery(
+    int PageNumber = 1,
+    int PageSize = 10,
+    bool? IsActiveOnly = null) : IRequest<WaterbusSystem.Application.Common.Models.PaginatedList<StationDto>>;
+
+public class GetStationsPagedQueryHandler : IRequestHandler<GetStationsPagedQuery, WaterbusSystem.Application.Common.Models.PaginatedList<StationDto>>
+{
+    private readonly IApplicationDbContext _context;
+
+    public GetStationsPagedQueryHandler(IApplicationDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<WaterbusSystem.Application.Common.Models.PaginatedList<StationDto>> Handle(GetStationsPagedQuery request, CancellationToken cancellationToken)
+    {
+        var query = _context.Stations
+            .AsNoTracking()
+            .Where(s => !s.IsDeleted);
+
+        if (request.IsActiveOnly.HasValue)
+        {
+            query = query.Where(s => s.IsActive == request.IsActiveOnly.Value);
+        }
+
+        var source = query
+            .OrderBy(s => s.OrderIndex)
+            .Select(s => new StationDto(
+                s.Id,
+                s.Code,
+                s.Name,
+                s.Address,
+                s.Latitude,
+                s.Longitude,
+                s.OrderIndex,
+                s.IsActive));
+
+        return await WaterbusSystem.Application.Common.Models.PaginatedList<StationDto>.CreateAsync(
+            source,
+            request.PageNumber,
+            request.PageSize,
+            cancellationToken);
+    }
+}
+

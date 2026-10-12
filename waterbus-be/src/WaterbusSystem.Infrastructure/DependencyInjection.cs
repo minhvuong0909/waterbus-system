@@ -1,4 +1,6 @@
 using System.Text;
+using Hangfire;
+using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -7,11 +9,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Application.Features.Incidents;
+using WaterbusSystem.Application.Features.Tracking;
+using WaterbusSystem.Infrastructure.BackgroundJobs;
 using WaterbusSystem.Infrastructure.Identity;
 using WaterbusSystem.Infrastructure.Locking;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.Infrastructure.Services;
 using WaterbusSystem.Infrastructure.Services.Payment;
+using WaterbusSystem.Infrastructure.Services.Tracking;
+using WaterbusSystem.Infrastructure.Services.Weather;
 
 namespace WaterbusSystem.Infrastructure;
 
@@ -19,8 +26,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection") 
-            ?? "Server=localhost,1433;Database=WaterbusDb;User Id=sa;Password=Waterbus@StrongP@ss2026!;TrustServerCertificate=True;MultipleActiveResultSets=true";
+        var connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException(
+                "Thiếu cấu hình ConnectionStrings:DefaultConnection. Hãy cấu hình qua User Secrets (local) hoặc biến môi trường (deploy), không hard-code trong appsettings.json.");
 
         // 1. Đăng ký CSDL SQL Server với EF Core 8
         services.AddDbContext<ApplicationDbContext>(options =>
@@ -43,7 +51,12 @@ public static class DependencyInjection
         .AddDefaultTokenProviders();
 
         // 3. Đăng ký Xác thực JWT Bearer
-        var jwtSecret = configuration["JwtSettings:Secret"] ?? "WaterbusSystemSuperSecretKeyWith256BitsMinimumLength2026!";
+        // LƯU Ý: Secret BẮT BUỘC phải lấy từ cấu hình (User Secrets / biến môi trường).
+        // Không dùng fallback hard-code vì JwtTokenGenerator cũng đọc đúng key này -> đảm bảo luôn đồng bộ,
+        // tránh trường hợp 2 nơi fallback lệch nhau khiến token sinh ra không bao giờ validate được.
+        var jwtSecret = configuration["JwtSettings:Secret"]
+            ?? throw new InvalidOperationException(
+                "Thiếu cấu hình JwtSettings:Secret. Hãy cấu hình qua User Secrets (local) hoặc biến môi trường (deploy).");
         var jwtIssuer = configuration["JwtSettings:Issuer"] ?? "WaterbusSystemApi";
         var jwtAudience = configuration["JwtSettings:Audience"] ?? "WaterbusClients";
 
@@ -65,6 +78,21 @@ public static class DependencyInjection
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero
             };
+
+            // SignalR: đọc JWT từ query access_token cho đường dẫn /hubs
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = SignalRTokenReader.OnMessageReceived
+            };
+        });
+
+        // 3.1. Cấu hình Authorization Policies (Admin, Staff, Captain)
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+            options.AddPolicy("StaffOnly", policy => policy.RequireRole("Staff"));
+            options.AddPolicy("CaptainOnly", policy => policy.RequireRole("Captain"));
+            options.AddPolicy("StaffOrAdmin", policy => policy.RequireRole("Admin", "Staff"));
         });
 
         // 4. Đăng ký Redis Distributed Lock Service (Lớp phòng thủ 1 chống Double-booking)
@@ -75,7 +103,49 @@ public static class DependencyInjection
         services.AddScoped<IVnPayService, VnPayService>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddTransient<IDateTimeService, DateTimeService>();
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<ISeatAvailabilityService, SeatAvailabilityService>();
+
+        // 6. BackgroundService dọn dẹp Booking giữ chỗ quá hạn 10 phút chưa thanh toán
+        services.AddHostedService<ExpiredBookingCleanupService>();
+
+        // 7. Theo dõi vị trí tàu: cache vị trí mới nhất (Redis) + giả lập GPS cho demo (mặc định tắt)
+        services.Configure<TrackingOptions>(configuration.GetSection(TrackingOptions.SectionName));
+        services.AddSingleton<IBoatPositionCache, RedisBoatPositionCache>();
+        services.AddHostedService<BoatSimulatorService>();
+
+        // 8. Hangfire (lưu job trong chính SQL Server, schema HangFire) + Weather Guard
+        services.AddHangfire(config => config
+            .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UseSqlServerStorage(connectionString, new SqlServerStorageOptions
+            {
+                SqlClientFactory = Microsoft.Data.SqlClient.SqlClientFactory.Instance,
+                PrepareSchemaIfNecessary = true
+            }));
+        services.AddHangfireServer(options => options.WorkerCount = 2);
+        services.AddScoped<WeatherGuardJob>();
+
+        services.Configure<WeatherOptions>(configuration.GetSection(WeatherOptions.SectionName));
+        var weatherProvider = configuration[$"{WeatherOptions.SectionName}:Provider"];
+        if (string.Equals(weatherProvider, "OpenWeatherMap", StringComparison.OrdinalIgnoreCase))
+        {
+            var timeoutSeconds = configuration.GetValue($"{WeatherOptions.SectionName}:TimeoutSeconds", 10);
+            var baseUrl = configuration[$"{WeatherOptions.SectionName}:BaseUrl"] ?? new WeatherOptions().BaseUrl;
+            services.AddHttpClient<IWeatherProvider, OpenWeatherMapProvider>(client =>
+            {
+                client.BaseAddress = new Uri(baseUrl);
+                client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+            });
+        }
+        else
+        {
+            services.AddSingleton<IWeatherProvider, FakeWeatherProvider>();
+        }
 
         return services;
+
     }
 }

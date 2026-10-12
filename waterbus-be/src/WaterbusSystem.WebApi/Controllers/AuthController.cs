@@ -26,7 +26,7 @@ public class AuthController : BaseApiController
     }
 
     /// <summary>
-    /// Đăng nhập tài khoản hệ thống (Admin, Dispatcher, Staff, Passenger)
+    /// Đăng nhập tài khoản hệ thống (Admin, Captain, Staff, Passenger)
     /// </summary>
     [HttpPost("login")]
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]

@@ -1,8 +1,11 @@
+using System.Threading.RateLimiting;
 using Microsoft.OpenApi.Models;
 using WaterbusSystem.Application;
 using WaterbusSystem.Infrastructure;
 using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.WebApi.BackgroundJobs;
 using WaterbusSystem.WebApi.Middlewares;
+using WaterbusSystem.WebApi.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +16,9 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 // 2. Cấu hình Controllers & JSON
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// SignalR hubs + publisher realtime (BoatTracking, SeatSync)
+builder.Services.AddRealtime();
 
 // 3. Cấu hình Swagger UI có nút Authorize Bearer JWT
 builder.Services.AddSwaggerGen(options =>
@@ -57,10 +63,42 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AppCorsPolicy", policy =>
     {
+        // AllowCredentials cần cho SignalR khi FE chạy khác origin (vd Vite dev :5173).
+        // Hợp lệ vì dùng WithOrigins cụ thể, không phải AllowAnyOrigin.
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
+});
+
+// Rate Limiting: chống spam booking từ Guest/anonymous
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy("BookingPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.Identity?.IsAuthenticated == true
+                ? httpContext.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                  ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"
+                : httpContext.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            success = false,
+            message = "Quá nhiều yêu cầu đặt vé. Vui lòng thử lại sau 1 phút.",
+            statusCode = 429
+        }, token);
+    };
 });
 
 var app = builder.Build();
@@ -85,7 +123,7 @@ using (var scope = app.Services.CreateScope())
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 app.UseMiddleware<RequestLocalizationMiddleware>();
 
-if (app.Environment.IsDevelopment() || true)
+if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
@@ -98,9 +136,14 @@ if (app.Environment.IsDevelopment() || true)
 app.UseHttpsRedirection();
 app.UseCors("AppCorsPolicy");
 
+app.UseRateLimiter();
+app.UseMiddleware<GuestAccessMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
+
 app.MapControllers();
+app.MapRealtimeHubs();
+app.UseBackgroundJobs();
 
 app.Run();

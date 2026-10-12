@@ -29,6 +29,18 @@ public abstract class BaseEntity
     public bool IsDeleted { get; set; } = false;
 
     /// <summary>
+    /// Định danh người tạo bản ghi (UserId dạng chuỗi lấy từ ICurrentUserService), tự động gán tại
+    /// ApplicationDbContext.SaveChangesAsync khi entity ở trạng thái Added. Null nếu được tạo bởi hệ thống/seed.
+    /// </summary>
+    public string? CreatedBy { get; set; }
+
+    /// <summary>
+    /// Định danh người chỉnh sửa gần nhất, tự động gán tại ApplicationDbContext.SaveChangesAsync
+    /// khi entity ở trạng thái Modified.
+    /// </summary>
+    public string? LastModifiedBy { get; set; }
+
+    /// <summary>
     /// Optimistic Concurrency Token (Lớp phòng thủ 2 chống Double-booking tại CSDL).
     /// Thuộc tính [Timestamp] báo cho EF Core tự động so sánh RowVersion trong mệnh đề WHERE khi UPDATE.
     /// Nếu có 2 transaction cùng cố gắng cập nhật 1 ghế, transaction thứ 2 sẽ bị ném DbUpdateConcurrencyException.

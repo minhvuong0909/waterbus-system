@@ -6,6 +6,11 @@ using WaterbusSystem.Domain.Enums;
 namespace WaterbusSystem.Application.Features.Trips.Queries.SearchTrips;
 
 /// <summary>
+/// Một bến dừng hợp lệ trên hành trình của chuyến tàu, phục vụ FE/Mobile cho khách chọn bến lên/bến xuống
+/// </summary>
+public record TripStopDto(Guid StationId, string StationName, int OrderIndex);
+
+/// <summary>
 /// DTO thông tin chuyến tàu phục vụ hiển thị Trip Card
 /// </summary>
 public record TripDto(
@@ -18,7 +23,8 @@ public record TripDto(
     int DurationMinutes,
     string TripType,
     decimal BasePrice,
-    int AvailableSeatsCount);
+    int AvailableSeatsCount,
+    List<TripStopDto> Stops);
 
 /// <summary>
 /// Query tìm kiếm chuyến tàu theo điều kiện lọc
@@ -47,7 +53,7 @@ public class SearchTripsQueryHandler : IRequestHandler<SearchTripsQuery, List<Tr
             .Include(t => t.Route)
                 .ThenInclude(r => r!.ArrivalStation)
             .Include(t => t.Boat)
-            .Include(t => t.Tickets)
+            .Include(t => t.Bookings).ThenInclude(b => b.SeatReservations)
             .Where(t => !t.IsDeleted && t.Status == TripStatus.Scheduled);
 
         if (request.DepartureStationId.HasValue)
@@ -73,15 +79,34 @@ public class SearchTripsQueryHandler : IRequestHandler<SearchTripsQuery, List<Tr
 
         var trips = await query.OrderBy(t => t.DepartureTime).ToListAsync(cancellationToken);
 
+        // Nạp toàn bộ bến đang hoạt động 1 lần duy nhất để suy ra danh sách bến dừng hợp lệ của từng chuyến.
+        // GIẢ ĐỊNH: mọi Trip dừng tuần tự ở mọi bến có OrderIndex nằm giữa Departure và Arrival của Route
+        // (xem ghi chú chi tiết tại CreateBookingCommandHandler).
+        var allStations = await _context.Stations
+            .AsNoTracking()
+            .Where(s => !s.IsDeleted && s.IsActive)
+            .Select(s => new TripStopDto(s.Id, s.Name, s.OrderIndex))
+            .ToListAsync(cancellationToken);
+
         return trips.Select(t =>
         {
             var totalBoatSeats = t.Boat?.TotalSeats ?? 60;
-            var bookedSeatsCount = t.Tickets.Count(tk => 
-                tk.Status == TicketStatus.Valid || 
-                tk.Status == TicketStatus.CheckedIn || 
-                tk.Status == TicketStatus.Pending);
+            var bookedSeatsCount = t.Bookings.SelectMany(b => b.SeatReservations)
+                .Where(r => r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed)
+                .Select(r => r.SeatId).Distinct().Count();
 
             var availableSeats = Math.Max(0, totalBoatSeats - bookedSeatsCount);
+
+            var depOrder = t.Route?.DepartureStation?.OrderIndex ?? 0;
+            var arrOrder = t.Route?.ArrivalStation?.OrderIndex ?? 0;
+            var minOrder = Math.Min(depOrder, arrOrder);
+            var maxOrder = Math.Max(depOrder, arrOrder);
+            var ascending = arrOrder >= depOrder;
+
+            var stops = allStations
+                .Where(s => s.OrderIndex >= minOrder && s.OrderIndex <= maxOrder)
+                .OrderBy(s => ascending ? s.OrderIndex : -s.OrderIndex)
+                .ToList();
 
             return new TripDto(
                 t.Id,
@@ -92,8 +117,9 @@ public class SearchTripsQueryHandler : IRequestHandler<SearchTripsQuery, List<Tr
                 t.ArrivalTime,
                 t.Route?.EstimatedDurationMinutes ?? 45,
                 t.TripType.ToString(),
-                t.BasePrice,
-                availableSeats);
+                0m /* TODO: implement FareRule pricing */,
+                availableSeats,
+                stops);
         }).ToList();
     }
 }

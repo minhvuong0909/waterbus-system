@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
 
 namespace WaterbusSystem.WebApi.Controllers;
@@ -12,9 +13,11 @@ public class BookingsController : BaseApiController
     /// Đặt vé và khóa ghế trong 10 phút. Ngăn chặn 100% tình trạng Overselling/Double-booking.
     /// </summary>
     [HttpPost]
+    [EnableRateLimiting("BookingPolicy")]
     [ProducesResponseType(typeof(BookingResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<BookingResponseDto>> CreateBooking([FromBody] CreateBookingCommand command)
     {
         var result = await Mediator.Send(command);

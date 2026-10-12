@@ -14,11 +14,11 @@ public class Trip : BaseEntity
     public Guid RouteId { get; set; }
     public Route? Route { get; set; }
 
-    public Guid BoatId { get; set; }
+    public Guid? BoatId { get; set; }
     public Boat? Boat { get; set; }
 
     /// <summary>
-    /// Thời gian khởi hành thực tế của chuyến (có múi giờ)
+    /// Thời gian khởi hành dự kiến của chuyến (có múi giờ)
     /// </summary>
     public DateTimeOffset DepartureTime { get; set; }
 
@@ -27,23 +27,26 @@ public class Trip : BaseEntity
     /// </summary>
     public DateTimeOffset ArrivalTime { get; set; }
 
+    public DateTimeOffset? SalesCloseAt { get; set; }
+    public DateTimeOffset? ActualDepartureTime { get; set; }
+    public DateTimeOffset? ActualArrivalTime { get; set; }
+    public bool IsDelayed { get; set; }
+
     /// <summary>
     /// Loại chuyến: Commuter hoặc Sightseeing
     /// </summary>
     public TripType TripType { get; set; } = TripType.Commuter;
 
     /// <summary>
-    /// Trạng thái chuyến tàu: Scheduled, Boarding, InTransit, Completed, Cancelled
+    /// Trạng thái chuyến tàu: Scheduled, Boarding, EnRoute, Arrived, Completed, Cancelled, Suspended, Terminated
     /// </summary>
     public TripStatus Status { get; set; } = TripStatus.Scheduled;
 
-    /// <summary>
-    /// Giá vé cơ bản áp dụng cho ghế tiêu chuẩn (VNĐ)
-    /// </summary>
-    public decimal BasePrice { get; set; } = 15000m;
+
 
     /// <summary>
     /// Danh sách các vé đã bán hoặc đang giữ cho chuyến tàu này
     /// </summary>
-    public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+    public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
+    public ICollection<TripStopCall> TripStopCalls { get; set; } = new List<TripStopCall>();
 }

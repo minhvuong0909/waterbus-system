@@ -16,7 +16,13 @@ public class Boat : BaseEntity
     public bool IsActive { get; set; } = true;
 
     /// <summary>
+    /// ID thuyền trưởng phụ trách điều khiển tàu (1:1 relationship với User thuyền trưởng)
+    /// </summary>
+    public Guid? CaptainUserId { get; set; }
+
+    /// <summary>
     /// Danh sách các ghế cố định trên tàu
     /// </summary>
     public ICollection<Seat> Seats { get; set; } = new List<Seat>();
 }
+

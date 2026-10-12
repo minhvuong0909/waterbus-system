@@ -11,39 +11,42 @@ public class CreateBookingValidatorTests
 {
     private readonly CreateBookingCommandValidator _validator = new();
 
+    private static CreateBookingCommand ValidCommand(List<Guid>? seatIds = null) => new(
+        TripId: Guid.NewGuid(),
+        SeatIds: seatIds ?? new List<Guid> { Guid.NewGuid(), Guid.NewGuid() },
+        BoardingStationId: Guid.NewGuid(),
+        DisembarkingStationId: Guid.NewGuid(),
+        CustomerName: "Nguyen Van A",
+        CustomerEmail: "nguyenvana@gmail.com",
+        CustomerPhone: "0901234567");
+
     [Fact]
     public void Validate_WhenAllFieldsAreValid_ShouldNotHaveAnyErrors()
     {
-        // Arrange
-        var command = new CreateBookingCommand(
-            TripId: Guid.NewGuid(),
-            SeatIds: new List<Guid> { Guid.NewGuid(), Guid.NewGuid() },
-            CustomerName: "Nguyen Van A",
-            CustomerEmail: "nguyenvana@gmail.com",
-            CustomerPhone: "0901234567");
+        var result = _validator.Validate(ValidCommand());
 
-        // Act
-        var result = _validator.Validate(command);
-
-        // Assert
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
     public void Validate_WhenSeatListIsEmpty_ShouldFailValidation()
     {
-        // Arrange
-        var command = new CreateBookingCommand(
-            TripId: Guid.NewGuid(),
-            SeatIds: new List<Guid>(), // Danh sách ghế rỗng
-            CustomerName: "Nguyen Van A",
-            CustomerEmail: "nguyenvana@gmail.com",
-            CustomerPhone: "0901234567");
+        var command = ValidCommand(new List<Guid>());
 
-        // Act
         var result = _validator.Validate(command);
 
-        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "SeatIds");
+    }
+
+    [Fact]
+    public void Validate_WhenSeatListHasDuplicateSeatId_ShouldFailValidation()
+    {
+        var duplicatedSeatId = Guid.NewGuid();
+        var command = ValidCommand(new List<Guid> { duplicatedSeatId, duplicatedSeatId });
+
+        var result = _validator.Validate(command);
+
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName == "SeatIds");
     }
@@ -51,19 +54,23 @@ public class CreateBookingValidatorTests
     [Fact]
     public void Validate_WhenEmailIsInvalid_ShouldFailValidation()
     {
-        // Arrange
-        var command = new CreateBookingCommand(
-            TripId: Guid.NewGuid(),
-            SeatIds: new List<Guid> { Guid.NewGuid() },
-            CustomerName: "Nguyen Van A",
-            CustomerEmail: "sai-dinh-dang-email",
-            CustomerPhone: "0901234567");
+        var command = ValidCommand() with { CustomerEmail = "sai-dinh-dang-email" };
 
-        // Act
         var result = _validator.Validate(command);
 
-        // Assert
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName == "CustomerEmail");
+    }
+
+    [Fact]
+    public void Validate_WhenBoardingAndDisembarkingStationAreSame_ShouldFailValidation()
+    {
+        var stationId = Guid.NewGuid();
+        var command = ValidCommand() with { BoardingStationId = stationId, DisembarkingStationId = stationId };
+
+        var result = _validator.Validate(command);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "DisembarkingStationId");
     }
 }

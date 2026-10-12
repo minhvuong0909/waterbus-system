@@ -25,8 +25,10 @@ public class VnPayService : IVnPayService
     public string CreatePaymentUrl(string bookingCode, decimal amount, string orderInfo, string ipAddress)
     {
         var vnpayConfig = _configuration.GetSection("VnPay");
-        var tmnCode = vnpayConfig["TmnCode"] ?? "2QXUI4J4";
-        var hashSecret = vnpayConfig["HashSecret"] ?? "RAOCTJRQAXNSYJXXTGZAHQUHIEUXVPUK";
+        var tmnCode = vnpayConfig["TmnCode"]
+            ?? throw new InvalidOperationException("Thiếu cấu hình VnPay:TmnCode.");
+        var hashSecret = vnpayConfig["HashSecret"]
+            ?? throw new InvalidOperationException("Thiếu cấu hình VnPay:HashSecret.");
         var baseUrl = vnpayConfig["BaseUrl"] ?? "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
         var returnUrl = vnpayConfig["ReturnUrl"] ?? "http://localhost:5173/payment/callback";
 
@@ -64,7 +66,8 @@ public class VnPayService : IVnPayService
     /// </summary>
     public bool ValidateSignature(IReadOnlyDictionary<string, string> query)
     {
-        var hashSecret = _configuration["VnPay:HashSecret"] ?? "RAOCTJRQAXNSYJXXTGZAHQUHIEUXVPUK";
+        var hashSecret = _configuration["VnPay:HashSecret"]
+            ?? throw new InvalidOperationException("Thiếu cấu hình VnPay:HashSecret.");
         _responseData.Clear();
 
         string receivedSecureHash = string.Empty;
@@ -107,6 +110,18 @@ public class VnPayService : IVnPayService
         var receivedBytes = Encoding.UTF8.GetBytes(receivedSecureHash.ToLowerInvariant());
 
         return CryptographicOperations.FixedTimeEquals(calculatedBytes, receivedBytes);
+    }
+
+    /// <summary>
+    /// Kiểm tra vnp_TmnCode nhận được từ Webhook IPN có khớp với mã merchant đã cấu hình hay không
+    /// (chặn request giả mạo IPN tới từ một merchant/cấu hình khác)
+    /// </summary>
+    public bool IsValidTmnCode(string tmnCode)
+    {
+        var configuredTmnCode = _configuration["VnPay:TmnCode"]
+            ?? throw new InvalidOperationException("Thiếu cấu hình VnPay:TmnCode.");
+
+        return string.Equals(tmnCode, configuredTmnCode, StringComparison.Ordinal);
     }
 
     private static string HmacSha512(string key, string input)
