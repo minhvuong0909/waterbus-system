@@ -30,7 +30,7 @@ const LEGAL = ['Passenger Rights', 'Privacy Policy', 'Waterway Transit Rules', '
 
 export default function Footer() {
   return (
-    <footer className="w-full border-t border-outline-variant/30 bg-surface-container-low">
+    <footer className="w-full print:hidden border-t border-outline-variant/30 bg-surface-container-low">
       <div className="mx-auto max-w-7xl px-margin pb-space-2xl pt-space-3xl">
         <div className="mb-space-3xl flex flex-col items-start justify-between gap-space-md rounded-2xl border border-outline-variant/30 bg-surface p-space-lg shadow-sm lg:flex-row lg:items-center">
           <div className="flex items-center gap-space-md">

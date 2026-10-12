@@ -55,12 +55,15 @@ export function useTicketDetail() {
   }
 }
 
-/** Booking-management data, pointed at the newest booking when there is one. */
-export function useManageBooking() {
-  const fetched = useFetch(getManageBooking)
+/**
+ * Booking-management data. Opened with a secure link `token` it is the booking behind that link;
+ * otherwise it is pointed at the newest booking of this session when there is one.
+ */
+export function useManageBooking(token?: string) {
+  const fetched = useFetch(() => getManageBooking(token), [token])
   const booked = useBookedTickets()
 
-  const newest = booked.data?.[0]
+  const newest = token === undefined ? booked.data?.[0] : undefined
   const manage: ManageBooking | undefined =
     fetched.data && newest
       ? { ...fetched.data, bookingCode: newest.bookingRef, ticket: newest }

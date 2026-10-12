@@ -1,4 +1,5 @@
 import { withDelay } from '../../../mocks/delay'
+import { ApiError } from '../../../services/apiClient'
 import {
   ALL_TICKETS,
   ASSISTANT_FALLBACK,
@@ -20,7 +21,18 @@ export function getTicket(id: string | null): Promise<Ticket> {
   return withDelay(ALL_TICKETS.find((t) => t.id === id) ?? TICKET_WALLET.next)
 }
 
-export function getManageBooking(): Promise<ManageBooking> {
+// A secure link token is a long random string (the shape the backend's magic links will have).
+const LINK_TOKEN = /^[A-Za-z0-9_-]{16,}$/
+
+/**
+ * Mock: the backend has no booking lookup or magic link yet (roadmap P1-BE-05 / P4-BE-03).
+ * Without a `token` this is the signed-in traveler's booking; with one it is the booking behind
+ * the link, or ApiError(404) when the link is not valid.
+ */
+export function getManageBooking(token?: string): Promise<ManageBooking> {
+  if (token !== undefined && !LINK_TOKEN.test(token)) {
+    return Promise.reject(new ApiError(404, 'This link is invalid or has expired.'))
+  }
   return withDelay(MANAGE_BOOKING)
 }
 

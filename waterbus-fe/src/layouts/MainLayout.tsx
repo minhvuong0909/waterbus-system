@@ -11,7 +11,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="flex min-h-screen flex-col bg-surface">
       <Header />
-      <main className="w-full flex-1 pt-20">{children}</main>
+      <main className="w-full flex-1 pt-20 print:pt-0">{children}</main>
       <Footer />
     </div>
   )

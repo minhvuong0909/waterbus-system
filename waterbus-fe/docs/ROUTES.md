@@ -20,6 +20,7 @@ Source of truth: `src/routes/routes.ts` (paths) and `src/routes/AppRoutes.tsx` (
 | `/tickets` | My tickets |
 | `/tickets/detail` | Ticket detail |
 | `/tickets/manage` | Manage booking |
+| `/manage/:token` | Manage booking opened from a secure link (no sign-in needed) |
 | `/tracking` | Live trip tracking |
 | `/explore` | Explore river journeys |
 | `/sitemap` | All routes |

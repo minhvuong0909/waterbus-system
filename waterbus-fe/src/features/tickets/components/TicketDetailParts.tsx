@@ -114,7 +114,7 @@ export function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassProps) {
           </div>
         </div>
 
-        <div className="mt-space-lg grid grid-cols-1 gap-space-sm sm:grid-cols-2">
+        <div className="mt-space-lg grid grid-cols-1 gap-space-sm sm:grid-cols-2 print:hidden">
           <button
             type="button"
             onClick={onEnlarge}

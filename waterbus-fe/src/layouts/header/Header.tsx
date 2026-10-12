@@ -25,7 +25,7 @@ export default function Header() {
   const { user, signOut } = useAuth()
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-surface-container/60 bg-mist/90 shadow-[0_2px_12px_rgba(13,37,56,0.03)] backdrop-blur-xl">
+    <header className="fixed inset-x-0 top-0 z-50 print:hidden border-b border-surface-container/60 bg-mist/90 shadow-[0_2px_12px_rgba(13,37,56,0.03)] backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-space-lg px-margin">
         <div className="flex items-center gap-space-xl">
           <Link to={ROUTES.home} aria-label={t('Smart Waterbus home')}>

@@ -1,6 +1,8 @@
 // Vietnamese translations. The key is the exact English source string.
 // Placeholders such as {count} must be kept as they are.
 export const vi: Record<string, string> = {
+  'This link is invalid or has expired': 'Liên kết không hợp lệ hoặc đã hết hạn',
+  'Open the latest email or message we sent you, or look up your booking with your booking code.': 'Hãy mở email hoặc tin nhắn mới nhất chúng tôi đã gửi, hoặc tra cứu đơn đặt vé bằng mã đặt chỗ.',
   'Holding your seat…': 'Đang giữ chỗ…',
   'We couldn’t hold your seat just now. Please check your connection and try again.': 'Chưa thể giữ chỗ lúc này. Vui lòng kiểm tra kết nối và thử lại.',
   'Choose another seat': 'Chọn ghế khác',

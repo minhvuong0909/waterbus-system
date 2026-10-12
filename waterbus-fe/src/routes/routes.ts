@@ -14,6 +14,8 @@ export const ROUTES = {
   myTickets: '/tickets',
   ticketDetail: '/tickets/detail',
   manageBooking: '/tickets/manage',
+  /** Secure link to one booking, sent to the traveler. `:token` is issued by the backend. */
+  manageByLink: '/manage/:token',
   liveTracking: '/tracking',
   explore: '/explore',
   help: '/help',

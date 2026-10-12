@@ -25,6 +25,7 @@ export default function TicketDetailPage() {
   return (
     <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
       <Breadcrumb
+        className="print:hidden"
         items={[
           { label: 'Home', to: ROUTES.home },
           { label: 'My Tickets', to: ROUTES.myTickets },
@@ -60,7 +61,7 @@ export default function TicketDetailPage() {
         <div className="lg:col-span-7">
           <TicketBoardingPass ticket={ticket} onEnlarge={() => setQrOpen(true)} />
         </div>
-        <div className="space-y-space-md lg:col-span-5">
+        <div className="space-y-space-md print:hidden lg:col-span-5">
           <TicketCorridorCard ticket={ticket} />
           <div className="relative h-44 overflow-hidden rounded-2xl bg-deep-river">
             <img
@@ -85,7 +86,7 @@ export default function TicketDetailPage() {
         </div>
       </div>
 
-      <div className="mt-space-lg">
+      <div className="mt-space-lg print:hidden">
         <BoardingGuidance ticket={ticket} />
       </div>
 

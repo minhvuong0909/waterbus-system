@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import {
   AssistantChat,
@@ -10,13 +11,26 @@ import {
 import type { ManageOption } from '../../features/tickets/components/ManageParts'
 import { useManageBooking } from '../../features/tickets/hooks/useTickets'
 import { useDocumentTitle } from '../../hooks'
+import { ApiError } from '../../services/apiClient'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 
 export default function ManageBookingPage() {
   useDocumentTitle('Manage Booking')
-  const { manage, loading, error, retry } = useManageBooking()
+  const { token } = useParams()
+  const { manage, loading, error, retry } = useManageBooking(token)
   const [option, setOption] = useState<ManageOption>('change')
+
+  if (error instanceof ApiError && error.status === 404) {
+    return (
+      <ErrorState
+        title={t('This link is invalid or has expired')}
+        message={t(
+          'Open the latest email or message we sent you, or look up your booking with your booking code.',
+        )}
+      />
+    )
+  }
 
   if (error) return <ErrorState onRetry={retry} />
 

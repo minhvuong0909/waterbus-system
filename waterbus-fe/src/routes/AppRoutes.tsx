@@ -39,6 +39,7 @@ const PAGES = [
   { path: ROUTES.myTickets, Page: MyTicketsPage },
   { path: ROUTES.ticketDetail, Page: TicketDetailPage },
   { path: ROUTES.manageBooking, Page: ManageBookingPage },
+  { path: ROUTES.manageByLink, Page: ManageBookingPage },
   { path: ROUTES.liveTracking, Page: LiveTrackingPage },
   { path: ROUTES.explore, Page: ExplorePage },
   { path: ROUTES.help, Page: HelpPage },
