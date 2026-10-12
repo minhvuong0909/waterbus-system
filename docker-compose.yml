@@ -77,6 +77,18 @@ services:
       Tracking__Simulator__Enabled: ${TRACKING_SIMULATOR_ENABLED:-false}
       Tracking__Simulator__IntervalSeconds: ${TRACKING_SIMULATOR_INTERVAL_SECONDS:-3}
       Tracking__Simulator__IncludeScheduledTrips: ${TRACKING_SIMULATOR_INCLUDE_SCHEDULED:-false}
+      Weather__Enabled: ${WEATHER_ENABLED:-true}
+      Weather__Provider: ${WEATHER_PROVIDER:-Fake}
+      Weather__ApiKey: ${OPENWEATHERMAP_API_KEY:-}
+      Weather__CronExpression: ${WEATHER_CRON:-*/15 * * * *}
+      Weather__LookaheadHours: ${WEATHER_LOOKAHEAD_HOURS:-3}
+      Weather__WindSpeedThresholdMs: ${WEATHER_WIND_THRESHOLD_MS:-10.6}
+      Weather__GustThresholdMs: ${WEATHER_GUST_THRESHOLD_MS:-17.2}
+      Weather__Fake__WindSpeedMs: ${WEATHER_FAKE_WIND_MS:-3}
+      Weather__Fake__WindGustMs: ${WEATHER_FAKE_GUST_MS:-}
+      Weather__Fake__ConditionCode: ${WEATHER_FAKE_CONDITION_CODE:-800}
+      Hangfire__Dashboard__Username: ${HANGFIRE_DASHBOARD_USER:-}
+      Hangfire__Dashboard__Password: ${HANGFIRE_DASHBOARD_PASSWORD:-}
     ports:
       # Chỉ mở trên máy host (127.0.0.1) để thử API/Swagger; deploy VPS không public cổng này
       - "127.0.0.1:${API_HOST_PORT:-5000}:8080"
