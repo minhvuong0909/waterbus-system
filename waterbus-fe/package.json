@@ -1,6 +1,7 @@
 {
   "name": "waterbus-fe",
   "private": true,
+  "packageManager": "pnpm@12.11.2",
   "version": "0.0.0",
   "type": "module",
   "scripts": {

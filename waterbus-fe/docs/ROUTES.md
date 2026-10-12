@@ -1,6 +1,6 @@
 # Routes
 
-Run `npm run dev` and open http://localhost:5173. The in-app index lives at `/sitemap`.
+Run `pnpm dev` and open http://localhost:5173. The in-app index lives at `/sitemap`.
 Passenger routes open directly by URL. `PrivateRoute` guards routes that need a signed-in role (none yet).
 Source of truth: `src/routes/routes.ts` (paths) and `src/routes/AppRoutes.tsx` (pages, lazy-loaded).
 

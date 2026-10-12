@@ -22,9 +22,10 @@ Sao chép `.env.example` thành `.env.local` (đã được git bỏ qua):
 ### Chạy thử giao diện không cần BE (dành cho người test)
 
 ```bash
+corepack enable   # một lần, để dùng pnpm (hoặc: npm i -g pnpm)
 cd waterbus-fe
-npm install
-npm run dev:mock      # mở http://localhost:5173
+pnpm install
+pnpm dev:mock      # mở http://localhost:5173
 ```
 
 Đăng nhập (mật khẩu nhập gì cũng được): `admin@x.vn` (Admin), `dispatcher@x.vn` (Dispatcher), `captain@x.vn` (Captain), email khác = hành khách. Khu vận hành ở `/admin` và `/captain`. Dữ liệu giả lưu trong bộ nhớ nên tải lại trang là về ban đầu.
@@ -143,13 +144,13 @@ smart-waterbus/
 ### 1️⃣ Cài đặt dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 2️⃣ Chạy ở môi trường phát triển (Development)
 
 ```bash
-npm run dev
+pnpm dev
 ```
 Mở trình duyệt tại đường dẫn mặc định: `http://localhost:5173`
 
@@ -157,21 +158,21 @@ Mở trình duyệt tại đường dẫn mặc định: `http://localhost:5173`
 
 ```bash
 # Kiểm tra Type Safety
-npm run typecheck
+pnpm typecheck
 
 # Kiểm tra Linter
-npm run lint
+pnpm lint
 ```
 
 ### 4️⃣ Build sản phẩm (Production Build)
 
 ```bash
-npm run build
+pnpm build
 ```
 
 Xem trước bản build đã nén:
 ```bash
-npm run preview
+pnpm preview
 ```
 
 ---

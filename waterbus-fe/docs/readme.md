@@ -89,19 +89,19 @@ handling - Predictable data flow - Easy debugging
 ### Install dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### Run development server
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 ### Build for production
 
 ```bash
-npm run build
+pnpm build
 ```
 
 ---
