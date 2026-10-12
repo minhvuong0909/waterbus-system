@@ -43,6 +43,8 @@ export function toPierOption(station: StationDto): PierOption {
     name: station.name,
     pierName: station.name,
     district: parts[parts.length - 1].trim(),
+    latitude: station.latitude,
+    longitude: station.longitude,
     shortName: station.name.replace(/^Bến\s+/i, ''),
     subtitle: station.address,
   }

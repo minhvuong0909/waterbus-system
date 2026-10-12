@@ -122,7 +122,7 @@ export function BookingSummary({ trip, seat, seatId, totals, category }: Booking
           <SummaryRow label={t('Route & Vessel')} value={trip.vesselName} />
           <SummaryRow
             label={t('Date & Time')}
-            value={t('Today, {time} Departure', { time: trip.departTime })}
+            value={t('{date}, {time} Departure', { date: trip.dateLabel, time: trip.departTime })}
           />
           <div className="flex items-center justify-between gap-2 pt-1 text-xs text-deep-river">
             <span className="flex items-center gap-1.5 font-medium">

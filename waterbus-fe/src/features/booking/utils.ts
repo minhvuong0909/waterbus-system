@@ -82,9 +82,10 @@ export function seatZone(seat: Seat | undefined): string {
   return seat ? cabinLabel(seat.category) : t('Main Saloon')
 }
 
-/** Mock booking reference, e.g. WB-2025-0842-A2. Real references will come from the backend. */
+/** Mock booking reference in the backend's format (WB + date and time + 3 digits). The backend issues the real one. */
 export function bookingReference(seatId: string): string {
-  return `WB-2025-0842-${seatId}`
+  const digits = seatId.replace(/\D/g, '').padStart(3, '0').slice(-3)
+  return `WB${new Date().toISOString().replace(/\D/g, '').slice(0, 8)}0000${digits}`
 }
 
 /** Phone number as the backend expects it: digits only, with a leading 0 instead of "+84". */

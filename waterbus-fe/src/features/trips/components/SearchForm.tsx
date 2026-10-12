@@ -143,7 +143,7 @@ export default function SearchForm({ piers, dates }: SearchFormProps) {
             icon="calendar_today"
             label={t('Date')}
             value={formatDateLabel(date)}
-            note={t('Service Every 15 min')}
+            note={t('Daily timetable')}
           />
         </div>
         <div className="lg:col-span-2">

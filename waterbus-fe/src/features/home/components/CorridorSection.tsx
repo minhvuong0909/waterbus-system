@@ -16,19 +16,11 @@ interface CorridorSectionProps {
   departures: Departure[]
 }
 
-// Which departures each filter pill keeps. 'all' keeps everything.
-const FILTER_LINES: Record<RouteFilter['id'], Departure['line'][] | null> = {
-  all: null,
-  line1: ['line1', 'direct'],
-  line2: ['line2'],
-  sunset: ['sunset'],
-}
-
 export default function CorridorSection({ filters, map, departures }: CorridorSectionProps) {
   const dispatch = useAppDispatch()
   const [active, setActive] = useState<RouteFilter['id']>('all')
-  const lines = FILTER_LINES[active]
-  const visible = lines ? departures.filter((d) => lines.includes(d.line)) : departures
+  // The filter ids 'transit' and 'sightseeing' are the trip kinds; 'all' keeps everything.
+  const visible = active === 'all' ? departures : departures.filter((d) => d.kind === active)
 
   return (
     <section className="w-full bg-mist py-space-3xl">
@@ -43,7 +35,8 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
             </h2>
             <p className="pt-1 text-body-md text-on-surface-variant">
               {t(
-                'Real-time monitoring across 18 river stations connecting District 1, Thu Thiem, Binh Thanh, and Thu Duc.',
+                'Real-time monitoring across {count} river stations connecting District 1, Binh Thanh, and Thu Duc.',
+                { count: map.piers.length },
               )}
             </p>
           </div>
@@ -93,7 +86,7 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
                   {t('Next Departures')}
                 </h3>
                 <span className="text-xs text-on-surface-variant">
-                  {t('Live from Bach Dang Pier')}
+                  {t('Live from {pier}', { pier: map.piers[0]?.name ?? '' })}
                 </span>
               </div>
               <span className="rounded-full bg-sand-light px-2.5 py-1 text-xs font-semibold text-teal-flow">
@@ -112,7 +105,7 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
                 ))
               ) : (
                 <p className="rounded-2xl border border-dashed border-outline-variant bg-surface p-space-lg text-center text-body-md text-on-surface-variant">
-                  {t('No departures on this line right now.')}
+                  {t('No more departures of this type today.')}
                 </p>
               )}
             </div>
@@ -121,7 +114,7 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
               <div className="flex items-center gap-2 text-deep-river">
                 <Icon name="schedule" className="text-[20px] text-teal-flow" />
                 <span className="text-xs font-medium">
-                  {t('Boats arrive every 15 mins during peak hours (06:30–09:00 & 16:30–19:30)')}
+                  {t('Departure times follow the daily timetable.')}
                 </span>
               </div>
               <Link

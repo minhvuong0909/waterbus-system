@@ -19,7 +19,7 @@ const CUES = [
   {
     icon: 'radar',
     title: 'Real-Time Vessel Tracking',
-    description: 'Track WB-01 hydrofoil speed and live catamaran dock ETA.',
+    description: 'Track SWB-01 speed and live dock ETA.',
   },
   {
     icon: 'accessible',

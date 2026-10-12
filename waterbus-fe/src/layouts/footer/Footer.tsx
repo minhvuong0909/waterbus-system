@@ -128,7 +128,7 @@ export default function Footer() {
         </div>
 
         <div className="flex flex-col items-center justify-between gap-space-md border-t border-outline-variant/30 pt-space-xl text-body-sm text-on-surface-variant md:flex-row">
-          <p>{t('© 2025 Smart Waterbus. River Connects Greater Stories.')}</p>
+          <p>{t('© {year} Smart Waterbus. River Connects Greater Stories.', { year: new Date().getFullYear() })}</p>
           <div className="flex flex-wrap items-center justify-center gap-space-lg font-medium">
             {LEGAL.map((label) => (
               <button key={label} type="button" className="transition-colors hover:text-deep-river">

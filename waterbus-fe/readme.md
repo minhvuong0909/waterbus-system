@@ -32,7 +32,7 @@ Chi tiết FE ⇄ BE: [`docs/API_INTEGRATION.md`](docs/API_INTEGRATION.md).
 - **Xác nhận đơn hàng**: Xem lại tóm tắt hành trình và quy định vận chuyển trước khi thanh toán.
 
 ### 2️⃣ Thanh Toán & Vé Điện Tử (Payment & E-Tickets)
-- **Cổng thanh toán đa dạng**: Hỗ trợ quét mã QR chuyển khoản, MoMo, ZaloPay và thẻ ngân hàng.
+- **Thanh toán qua VNPay**: BE hiện chỉ có cổng VNPay (QR, thẻ, ví qua VNPay). MoMo, ZaloPay chưa nằm trong phase 1.
 - **Mã QR Động & Chức năng sao chép**: Tiện lợi khi chuyển khoản trực tiếp với mã giao dịch tự động.
 - **Ví vé điện tử (Ticket Wallet)**: Lưu trữ vé đã đặt, vé đã sử dụng và vé đã hủy.
 - **Mã QR Check-in**: Xuất vé điện tử chứa mã QR để soát vé nhanh tại bến tàu.

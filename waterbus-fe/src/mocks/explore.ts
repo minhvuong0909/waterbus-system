@@ -19,7 +19,7 @@ export const EXPLORE_DATA: ExploreData = {
       title: 'Saigon Sunset & Skyline Voyage',
       description:
         'Glide past illuminated bridges and towering downtown landmarks as golden dusk illuminates the central river corridor.',
-      route: 'Bach Dang Pier ➔ Thu Thiem',
+      route: 'Bach Dang Pier ➔ Linh Dong Pier',
     },
     {
       id: 'colonial-wharves',
@@ -29,7 +29,7 @@ export const EXPLORE_DATA: ExploreData = {
       title: 'Colonial Wharves & Living Heritage',
       description:
         'Discover the storied waterfront, historic customs houses, and lush riverside promenades.',
-      route: 'Bach Dang Pier ➔ Binh An Pier',
+      route: 'Bach Dang Pier ➔ Linh Dong Pier',
     },
     {
       id: 'twilight-bridges',
@@ -39,7 +39,7 @@ export const EXPLORE_DATA: ExploreData = {
       title: 'Twilight Reflections & Bridge Lights',
       description:
         'Experience the city’s architectural skyline from the panoramic catamaran observation deck under an illuminated evening sky.',
-      route: 'Central Riverfront ➔ Thu Thiem Curve',
+      route: 'Bach Dang Pier ➔ Linh Dong Pier',
     },
   ],
   modes: [
@@ -78,7 +78,7 @@ export const EXPLORE_DATA: ExploreData = {
       id: 'ba-son',
       image: baSonImg,
       category: 'Heritage',
-      routeTag: 'Central Corridor',
+      routeTag: 'Route 01',
       title: 'Ba Son Waterfront',
       description:
         'Modernized waterfront promenade blending maritime heritage with contemporary public space.',
@@ -87,7 +87,7 @@ export const EXPLORE_DATA: ExploreData = {
       id: 'thu-thiem',
       image: vesselImg,
       category: 'Skyline',
-      routeTag: 'Line 1 Crossing',
+      routeTag: 'Route 01',
       title: 'Thu Thiem Promenade',
       description:
         'Vibrant civic waterfront offering unobstructed panoramic views of the city skyline.',
@@ -96,7 +96,7 @@ export const EXPLORE_DATA: ExploreData = {
       id: 'customs-house',
       image: ecoImg,
       category: 'Culture',
-      routeTag: 'Heritage Route',
+      routeTag: 'Route 01',
       title: 'Old Customs House',
       description:
         'Historic riverfront landmark reflecting the storied port heritage along the water.',
@@ -105,7 +105,7 @@ export const EXPLORE_DATA: ExploreData = {
       id: 'landmark-park',
       image: landmarkImg,
       category: 'Riverside',
-      routeTag: 'North Corridor',
+      routeTag: 'Route 01',
       title: 'Landmark River Park',
       description:
         'Expansive contemporary waterfront parkland connecting urban transit with scenic walking paths.',
@@ -139,10 +139,10 @@ export const EXPLORE_DATA: ExploreData = {
       emphasis: 'poi',
     },
     {
-      id: 'thu-thiem',
+      id: 'binh-an',
       icon: 'anchor',
-      title: 'Thu Thiem Pier',
-      subtitle: 'Skyline Promenade',
+      title: 'Binh An Pier',
+      subtitle: 'River Stop',
       x: 34,
       y: 50,
       emphasis: 'stop',
@@ -156,10 +156,10 @@ export const EXPLORE_DATA: ExploreData = {
       emphasis: 'poi',
     },
     {
-      id: 'binh-an',
+      id: 'linh-dong',
       icon: 'directions_boat',
-      title: 'Binh An Pier',
-      subtitle: 'Heritage Basin',
+      title: 'Linh Dong Pier',
+      subtitle: 'Terminus',
       x: 82,
       y: 14,
       emphasis: 'hub',

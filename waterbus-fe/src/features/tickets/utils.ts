@@ -2,7 +2,19 @@ import { t } from '../../i18n'
 import { bookingReference, seatCode, seatPosition, seatZone } from '../booking/utils'
 import type { PassengerForm, Seat } from '../booking/types'
 import type { TripDetail } from '../trips/types'
+import { toIsoDate } from '../../utils/time'
 import type { Ticket } from './types'
+
+/** Ticket code in the backend's format ("TK" and 8 digits), derived from the trip and seat. */
+export function ticketCodeOf(tripId: string, seatId: string): string {
+  let hash = 0
+  for (const char of `${tripId}${seatId}`) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) >>> 0
+  return `TK${String(hash % 100_000_000).padStart(8, '0')}`
+}
+
+/** True when the ticket is for today. */
+export const isTicketToday = (ticket: Pick<Ticket, 'dateId'>): boolean =>
+  ticket.dateId === toIsoDate(new Date())
 
 /** Stable id of the ticket for a trip and seat. */
 export function bookedTicketId(tripId: string, seatId: string): string {
@@ -29,9 +41,9 @@ export function buildBookedTicket({
     id: bookedTicketId(trip.id, seatId),
     tripCode: trip.vesselCode,
     lineName: t('Smart Waterbus • {line}', { line: trip.lineLabel }),
-    routeTag: t('Central Route'),
+    routeTag: t('Main Route'),
     bookingRef: bookingReference(seatId),
-    ticketCode: `TKT-${trip.vesselCode.replace('-', '')}-0842-${seatId}`,
+    ticketCode: ticketCodeOf(trip.id, seatId),
     status: t('Confirmed'),
     completed: false,
     departTime: trip.departTime,
@@ -44,6 +56,7 @@ export function buildBookedTicket({
     arriveDistrict: trip.destinationDistrict,
     durationMins: trip.durationMins,
     dateLabel: trip.dateFull,
+    dateId: trip.dateId,
     dateShort: trip.dateShort,
     passenger: passenger.fullName,
     seat: t('Seat {id}', { id: seatCode(seat, seatId) }),
@@ -51,6 +64,6 @@ export function buildBookedTicket({
     windowSeat: Boolean(seat?.window),
     fareVnd: totalVnd,
     vesselNote: `${trip.vesselName} ${trip.vesselCode}`,
-    gate: trip.originGate,
+    gate: trip.originShortName,
   }
 }

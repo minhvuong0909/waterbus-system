@@ -4,6 +4,7 @@ import QrCode from '../../../components/ticket/QrCode'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { formatVnd, formatVndSuffix } from '../../../utils/format'
+import { isTicketToday } from '../utils'
 import type { Ticket } from '../types'
 import { t } from '../../../i18n'
 
@@ -93,7 +94,7 @@ export function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassProps) {
             <dt className="text-[11px] text-on-surface-variant">{t('Travel Date')}</dt>
             <dd className="text-sm font-semibold text-deep-river">{ticket.dateLabel}</dd>
             <div className="text-[11px] text-teal-flow">
-              {ticket.completed ? t('Completed') : t('Today')}
+              {ticket.completed ? t('Completed') : isTicketToday(ticket) ? t('Today') : ticket.dateShort}
             </div>
           </div>
           <div>

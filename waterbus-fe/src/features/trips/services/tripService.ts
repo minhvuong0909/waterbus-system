@@ -3,6 +3,7 @@ import { USE_MOCK } from '../../../constant/env'
 import { withDelay } from '../../../mocks/delay'
 import {
   BOARDING_STEPS,
+  DEFAULT_SEARCH_QUERY,
   NETWORK_ROUTE_SEEDS,
   ONBOARD_AMENITIES,
   PIER_OPTIONS,
@@ -10,7 +11,7 @@ import {
 } from '../../../mocks/tripSearch'
 import { localize, t } from '../../../i18n'
 import { apiRequest } from '../../../services/apiClient'
-import { addMinutes } from '../../../utils/time'
+import { addMinutes, toIsoDate } from '../../../utils/time'
 import type {
   DateOption,
   NetworkRoute,
@@ -68,6 +69,31 @@ export async function getTrips(query: SearchQuery): Promise<Trip[]> {
   return dtos.map(toTrip)
 }
 
+/** Minutes since midnight of an "HH:mm" time. */
+const minutesOf = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+/**
+ * The next departures today on the main corridor (first to last pier), with the search they came
+ * from. Departures that already left are dropped.
+ */
+export async function getUpcomingTrips(limit: number): Promise<{
+  trips: Trip[]
+  piers: PierOption[]
+  search: Pick<SearchQuery, 'originId' | 'destinationId' | 'dateId'>
+}> {
+  const piers = await getPierOptions()
+  const search = { ...pickPiers(piers, DEFAULT_SEARCH_QUERY), dateId: toIsoDate(new Date()) }
+  const all = await getTrips({ ...DEFAULT_SEARCH_QUERY, ...search })
+  const now = new Date()
+  const trips = all
+    .filter((trip) => minutesOf(trip.departTime) >= now.getHours() * 60 + now.getMinutes())
+    .slice(0, limit)
+  return { trips, piers, search }
+}
+
 /**
  * Detail page data. The backend has no trip detail endpoint yet (roadmap P1-BE-05), so it is built
  * from the trip chosen in the results list, plus static content. A trip that was not chosen in
@@ -98,6 +124,7 @@ export async function getTripDetail(
     originDistrict: origin.district,
     destinationDistrict: destination.district,
     dateLabel: formatDateLabel(date),
+    dateId: date.id,
     dateFull: date.fullLabel,
     dateShort: date.label,
     timeline: [

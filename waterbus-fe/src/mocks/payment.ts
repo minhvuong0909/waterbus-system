@@ -16,11 +16,8 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
   },
 ]
 
-export const EWALLETS: Ewallet[] = [
-  { id: 'momo', name: 'MoMo', note: 'Pay with your MoMo balance' },
-  { id: 'vnpay', name: 'VNPay', note: 'Pay via VNPay QR or app' },
-  { id: 'zalopay', name: 'ZaloPay', note: 'Pay with your ZaloPay balance' },
-]
+// The backend only has the VNPay gateway; MoMo is not part of phase 1.
+export const EWALLETS: Ewallet[] = [{ id: 'vnpay', name: 'VNPay', note: 'Pay via VNPay QR or app' }]
 
 // {pier} is replaced with the origin pier name by the page.
 export const NEXT_STEPS: NextStep[] = [

@@ -38,7 +38,7 @@ export default function NetworkSection({ routes, piers }: NetworkSectionProps) {
         <div className="flex flex-wrap items-center gap-4 rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] px-4 py-2 text-xs font-medium text-on-surface-variant">
           <div className="flex items-center gap-1.5">
             <span className="h-1.5 w-3 rounded-full bg-teal-flow" />
-            <span className="font-semibold text-deep-river">{t('Line 1 Main Corridor')}</span>
+            <span className="font-semibold text-deep-river">{t('Route 01 Main Corridor')}</span>
           </div>
           <span className="text-outline-variant">•</span>
           <div className="flex items-center gap-1.5">
@@ -51,7 +51,7 @@ export default function NetworkSection({ routes, piers }: NetworkSectionProps) {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-aqua opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-teal-flow" />
             </span>
-            <span className="font-semibold text-teal-flow">{t('Live Vessel WB-01')}</span>
+            <span className="font-semibold text-teal-flow">{t('Live Vessel SWB-01')}</span>
           </div>
         </div>
       </div>

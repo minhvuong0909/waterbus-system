@@ -111,7 +111,7 @@ export default function PaymentOrderSummary({
           label={t('Passenger')}
           value={t('1 Passenger ({name})', { name: passenger.fullName })}
         />
-        <SummaryRow label={t('Date')} value={`${trip.dateLabel}, 2025`} />
+        <SummaryRow label={t('Date')} value={trip.dateFull} />
       </div>
 
       <div className="mt-space-md space-y-1.5 border-t border-surface-container pt-space-md">

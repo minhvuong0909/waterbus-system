@@ -4,19 +4,19 @@ import { t } from '../../../i18n'
 
 const NOTES = [
   {
-    icon: 'schedule',
-    title: 'Punctual Pier Boarding:',
-    text: 'Turnstiles open 10 min prior to departure. Boarding gate closes 3 min before cast-off.',
+    icon: 'timer',
+    title: 'Seat Hold:',
+    text: 'Your seat is held for 10 minutes while you complete payment.',
   },
   {
     icon: 'qr_code_scanner',
-    title: 'Instant Digital QR Pass:',
-    text: 'Digital ticket pass generated immediately upon booking for tap-and-go turnstiles.',
+    title: 'Digital QR Pass:',
+    text: 'Your e-ticket is issued as soon as the payment is confirmed.',
   },
   {
     icon: 'commute',
-    title: 'Transit Efficiency:',
-    text: '~12 min average crossing time avoiding all bridge congestion between D1 and Thu Thiem.',
+    title: 'Crossing Time:',
+    text: '~45 min between Bach Dang and Linh Dong, avoiding all bridge congestion.',
   },
 ]
 
@@ -33,19 +33,19 @@ export default function CorridorSidebar() {
           </h3>
         </div>
         <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-teal-flow shadow-sm">
-          {t('Line 1 Express • Calm River Flow')}
+          {t('Route 01 • Calm River Flow')}
         </span>
       </div>
 
       <div className="relative h-40 overflow-hidden rounded-xl border border-teal-flow/15 bg-white">
         <img
-          alt={t('Bach Dang to Thu Thiem river crossing map')}
+          alt={t('Bach Dang to Linh Dong river route map')}
           src={mapImage}
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-x-3 bottom-3 flex items-center justify-between rounded-lg bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-deep-river shadow-sm">
-          <span>{t('1.2 km navigable river crossing')}</span>
-          <span className="text-teal-flow">{t('WB-01 In Transit • 42 km/h')}</span>
+          <span>{t('10.8 km navigable river route')}</span>
+          <span className="text-teal-flow">{t('SWB-01 In Transit • 14.4 km/h')}</span>
         </div>
       </div>
 
@@ -67,7 +67,7 @@ export default function CorridorSidebar() {
         <div className="min-w-0 flex-1">
           <div className="font-headline-sm text-xs font-bold">{t('Waterway Assistant')}</div>
           <p className="text-[11px] text-sand-light/80">
-            {t('Need pier transfers or Sala connections?')}
+            {t('Need help with pier transfers or connections?')}
           </p>
         </div>
         <button

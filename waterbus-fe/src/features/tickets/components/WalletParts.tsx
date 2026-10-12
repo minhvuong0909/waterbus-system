@@ -3,6 +3,7 @@ import QrCode from '../../../components/ticket/QrCode'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { formatVnd } from '../../../utils/format'
+import { isTicketToday } from '../utils'
 import type { Ticket } from '../types'
 import { t } from '../../../i18n'
 
@@ -92,7 +93,7 @@ export function NextDepartureCard({
           <div className="mt-space-md grid grid-cols-2 gap-space-md border-t border-surface-container pt-space-md md:grid-cols-4">
             <Fact
               label={t('Travel Date')}
-              value={t('Today, {label}', { label: ticket.dateShort })}
+              value={isTicketToday(ticket) ? t('Today, {label}', { label: ticket.dateShort }) : ticket.dateShort}
             />
             <Fact label={t('Passenger')} value={ticket.passenger} />
             <Fact
@@ -139,8 +140,8 @@ export function NextDepartureCard({
               <circle cx="120" cy="30" r="8" fill="#147A7E" stroke="#fff" strokeWidth="2" />
             </svg>
             <div className="mt-1 flex justify-between text-[10px] text-on-surface-variant">
-              <span>{t('Bach Dang')}</span>
-              <span>{t('Thu Thiem')}</span>
+              <span>{ticket.departShort}</span>
+              <span>{ticket.arriveShort}</span>
             </div>
           </div>
 

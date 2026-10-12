@@ -320,7 +320,7 @@ export default function LiveTripMap({
               x="28"
               y="16"
             >
-              {t('DISTRICT 1 (D1)')}
+              {t('DISTRICT 1')}
             </text>
             <text fill="#43474C" fontFamily="Inter" fontSize="9" fontWeight="500" x="28" y="28">
               {t('HISTORIC RIVERFRONT')}
@@ -413,10 +413,10 @@ export default function LiveTripMap({
                 x="16"
                 y="21"
               >
-                {t('Thu Thiem Pier')}
+                {t('Linh Dong Pier')}
               </text>
               <text fill="#43474C" fontFamily="Inter" fontSize="10.5" x="16" y="37">
-                {t('Scheduled 08:42')}
+                {t('Scheduled 09:15')}
               </text>
             </g>
           </g>
@@ -460,7 +460,7 @@ export default function LiveTripMap({
                 x="28"
                 y="19"
               >
-                {t('WB-01 • En Route')}
+                {t('SWB-01 • En Route')}
               </text>
               <text fill="#9BF1F5" fontFamily="Inter" fontSize="9.5" fontWeight="600" x="28" y="32">
                 {t('Mid-Crossing')}

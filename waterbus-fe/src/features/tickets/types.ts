@@ -3,7 +3,7 @@ import type { SearchQuery, Trip } from '../trips/types'
 
 export interface Ticket {
   id: string
-  /** Vessel/trip code, e.g. "WB-01". */
+  /** Vessel/trip code, e.g. "SWB-01". */
   tripCode: string
   lineName: string
   /** Short label next to the trip code, e.g. "Return Route". */
@@ -24,6 +24,8 @@ export interface Ticket {
   arriveDistrict: string
   durationMins: number
   dateLabel: string
+  /** The travel day as `YYYY-MM-DD`. */
+  dateId: string
   /** Date without the year, e.g. "Dec 15". */
   dateShort: string
   passenger: string

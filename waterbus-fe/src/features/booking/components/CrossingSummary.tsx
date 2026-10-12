@@ -35,7 +35,7 @@ export default function CrossingSummary({ trip, seat, seatId, totals }: Crossing
             {trip.lineLabel}
           </span>
           <span className="text-on-surface-variant">
-            {trip.dateLabel.replace(', ', ' • ')}, 2025
+            {trip.dateFull}
           </span>
         </div>
         <div className="flex gap-3">

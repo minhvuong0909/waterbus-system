@@ -6,8 +6,9 @@ import type {
   SearchQuery,
   StationDto,
   Trip,
+  TripDto,
 } from '../features/trips/types'
-import { toPierOption } from '../features/trips/utils'
+import { toPierOption, toTrip } from '../features/trips/utils'
 import { toIsoDate } from '../utils/time'
 
 // Mirrors the stations seeded by the backend (ApplicationDbContextInitializer), in river order.
@@ -95,139 +96,42 @@ export const NETWORK_ROUTE_SEEDS: NetworkRouteSeed[] = [
   },
 ]
 
+/** A trip of today at `hour:minute` as the backend's TripDto describes it (boat SWB-01, route RT01). */
+function tripSeed(
+  n: number,
+  time: string,
+  tripType: TripDto['tripType'],
+  basePrice: number,
+  availableSeatsCount: number,
+): TripDto {
+  const [hours, minutes] = time.split(':').map(Number)
+  const departure = new Date()
+  departure.setHours(hours, minutes, 0, 0)
+  const durationMinutes = 45
+  return {
+    // The first 8 characters of the id are the trip reference shown in the UI, so each one differs.
+    id: `7f3a000${n}-0000-4000-8000-00000000000${n}`,
+    routeName: 'Bạch Đằng - Linh Đông',
+    departureStationName: 'Bến Bạch Đằng',
+    arrivalStationName: 'Bến Linh Đông',
+    departureTime: departure.toISOString(),
+    arrivalTime: new Date(departure.getTime() + durationMinutes * 60_000).toISOString(),
+    durationMinutes,
+    tripType,
+    basePrice,
+    availableSeatsCount,
+  }
+}
+
+// Mock trips have the same shape as the real search results. The 15,000 base price is the backend
+// default (Trip.BasePrice); the sightseeing price follows the demo fare settings.
 export const TRIPS: Trip[] = [
-  {
-    id: 'wb-01',
-    kind: 'transit',
-    vesselCode: 'WB-01',
-    vesselName: 'Hydrofoil Catamaran',
-    lineLabel: 'Line 1 Express',
-    highlight: { icon: 'bolt', label: 'RECOMMENDED • FASTEST' },
-    variant: 'featured',
-    departTime: '08:30',
-    arriveTime: '08:42',
-    originGate: 'Gate 2',
-    destinationGate: 'Pontoon A',
-    durationMins: 12,
-    crossingKind: 'Direct',
-    direct: true,
-    crossingCaption: 'Express crossing',
-    seatsCount: 28,
-    band: 'morning',
-    amenities: [
-      { icon: 'ac_unit', label: 'Air-Conditioned' },
-      { icon: 'visibility', label: 'Panoramic Windows' },
-      { icon: 'accessible', label: 'Step-Free Gangway' },
-    ],
-    fareVnd: 15000,
-    fareLabel: 'Standard Fare',
-  },
-  {
-    id: 'wb-03',
-    kind: 'transit',
-    vesselCode: 'WB-03',
-    vesselName: 'Catamaran Cruiser',
-    lineLabel: 'Express Line 1',
-    tagline: 'Commuter Priority',
-    variant: 'default',
-    departTime: '09:00',
-    arriveTime: '09:12',
-    originGate: 'Gate 1',
-    destinationGate: 'Pontoon A',
-    durationMins: 12,
-    crossingKind: 'Direct',
-    direct: true,
-    crossingCaption: 'Regular crossing',
-    seatsCount: 54,
-    band: 'morning',
-    amenities: [
-      { icon: 'ac_unit', label: 'Air-Conditioned' },
-      { icon: 'deck', label: 'Open Observation Deck' },
-      { icon: 'wifi', label: 'High-Speed Wi-Fi' },
-    ],
-    fareVnd: 15000,
-    fareLabel: 'Standard Fare',
-  },
-  {
-    id: 'wb-02',
-    kind: 'transit',
-    vesselCode: 'WB-02',
-    vesselName: 'River Transit Vessel',
-    lineLabel: 'Regular River Line 1',
-    tagline: 'Scenic River Pace',
-    variant: 'default',
-    departTime: '09:30',
-    arriveTime: '09:48',
-    originGate: 'Gate 2',
-    destinationGate: 'Pontoon B',
-    durationMins: 18,
-    crossingKind: 'Leisure Speed',
-    direct: false,
-    crossingCaption: 'Scenic glide',
-    seatsCount: 42,
-    band: 'morning',
-    amenities: [
-      { icon: 'air', label: 'Open Deck Breeze' },
-      { icon: 'visibility', label: 'Panoramic Windows' },
-      { icon: 'local_cafe', label: 'Fresh Drinks Kiosk' },
-    ],
-    fareVnd: 15000,
-    fareLabel: 'Standard Fare',
-  },
-  {
-    id: 'wb-05',
-    kind: 'transit',
-    vesselCode: 'WB-05',
-    vesselName: 'Aero Catamaran',
-    lineLabel: 'Express Line 1',
-    tagline: 'Quiet Work Zone',
-    variant: 'default',
-    departTime: '10:15',
-    arriveTime: '10:27',
-    originGate: 'Gate 1',
-    destinationGate: 'Pontoon A',
-    durationMins: 12,
-    crossingKind: 'Direct',
-    direct: true,
-    crossingCaption: 'Direct crossing',
-    seatsCount: 36,
-    band: 'morning',
-    amenities: [
-      { icon: 'ac_unit', label: 'Air-Conditioned' },
-      { icon: 'visibility', label: 'Panoramic Windows' },
-      { icon: 'accessible', label: 'Step-Free Gangway' },
-    ],
-    fareVnd: 15000,
-    fareLabel: 'Standard Fare',
-  },
-  {
-    id: 'wb-07',
-    kind: 'sightseeing',
-    vesselCode: 'WB-07',
-    vesselName: 'Sunset Heritage Cruise',
-    lineLabel: 'Heritage Route',
-    highlight: { icon: 'wb_twilight', label: 'SUNSET SPECIAL • GOLDEN HOUR' },
-    variant: 'sunset',
-    departTime: '17:30',
-    arriveTime: '18:15',
-    originGate: 'Heritage Berth',
-    destinationGate: 'Pontoon A',
-    durationMins: 45,
-    crossingKind: 'Landmark Loop',
-    direct: false,
-    crossingCaption: 'Includes Ba Son Bridge view',
-    seatsCount: 12,
-    seatsLow: true,
-    band: 'sunset',
-    amenities: [
-      { icon: 'local_bar', label: 'Complimentary Herbal Tea' },
-      { icon: 'headphones', label: 'Historical Audio Tour' },
-      { icon: 'deck', label: 'Sunset Skyline Deck' },
-    ],
-    fareVnd: 45000,
-    fareLabel: 'Experience Fare',
-  },
-]
+  tripSeed(1, '07:00', 'Commuter', 15000, 54),
+  tripSeed(2, '09:00', 'Commuter', 15000, 42),
+  tripSeed(3, '12:00', 'Commuter', 15000, 36),
+  tripSeed(4, '15:30', 'Commuter', 15000, 8),
+  tripSeed(5, '17:30', 'Sightseeing', 45000, 12),
+].map(toTrip)
 
 export const ONBOARD_AMENITIES: AmenityDetail[] = [
   {

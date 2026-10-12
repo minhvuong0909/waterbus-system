@@ -123,7 +123,7 @@ export function JourneyDetailsCard({
           }
           accent
         />
-        <Fact label={t('Date')} value={`${trip.dateLabel}, 2025`} />
+        <Fact label={t('Date')} value={trip.dateFull} />
       </div>
     </BookingCard>
   )

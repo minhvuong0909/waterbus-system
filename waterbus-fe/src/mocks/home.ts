@@ -31,10 +31,9 @@ export const HOME_DATA: HomeData = {
     },
   ],
   routeFilters: [
-    { id: 'all', label: 'All Routes' },
-    { id: 'line1', label: 'Line 1 (Express)' },
-    { id: 'line2', label: 'Line 2 (Heritage)' },
-    { id: 'sunset', label: 'Sunset Twilight' },
+    { id: 'all', label: 'All Trips' },
+    { id: 'transit', label: 'Regular' },
+    { id: 'sightseeing', label: 'Sightseeing' },
   ],
   stories: [
     {
@@ -44,9 +43,9 @@ export const HOME_DATA: HomeData = {
       badgeIcon: 'wb_sunny',
       badgeIconClass: 'text-coral-glow',
       fromPriceVnd: 45000,
-      durationMins: 50,
-      location: 'Bach Dang Pier',
-      title: 'Twilight Sunset at Thu Thiem',
+      durationMins: 45,
+      location: 'Bạch Đằng Pier',
+      title: 'Twilight Sunset on the Saigon River',
       description:
         'Watch the sunset cast copper light across Saigon’s highest skyscrapers, accompanied by bilingual ambient audio commentary.',
       trailingIcon: 'headphones',
@@ -58,9 +57,9 @@ export const HOME_DATA: HomeData = {
       badge: 'Heritage & History',
       badgeIcon: 'museum',
       badgeIconClass: 'text-sky-aqua',
-      fromPriceVnd: 35000,
-      durationMins: 40,
-      location: 'Cho Lon Wharf',
+      fromPriceVnd: 45000,
+      durationMins: 45,
+      location: 'Bạch Đằng Pier',
       title: 'Historic Waterfront & Colonial Wharfs',
       description:
         'Trace the 300-year maritime lineage of Gia Dinh, sailing past historic customs houses, ancient timber storehouses, and boat communities.',
@@ -73,10 +72,10 @@ export const HOME_DATA: HomeData = {
       badge: 'Nature & Escapes',
       badgeIcon: 'forest',
       badgeIconClass: 'text-teal-flow',
-      fromPriceVnd: 40000,
-      durationMins: 65,
-      location: 'Binh Quoi Pier',
-      title: 'Eco-Corridor to Thanh Da Peninsula',
+      fromPriceVnd: 45000,
+      durationMins: 45,
+      location: 'Thanh Đa Pier',
+      title: 'Eco-Corridor past Thanh Da Peninsula',
       description:
         'Escape into serene natural waterways framed by water palm groves and tranquil fishing hamlets tucked right inside city limits.',
       trailingIcon: 'nature_people',
@@ -99,7 +98,7 @@ export const HOME_DATA: HomeData = {
     {
       number: '03',
       title: 'Pay Securely',
-      description: 'Instant digital payment via MoMo, VNPay, or card with zero surcharges.',
+      description: 'Pay securely online through VNPay and get your e-ticket right away.',
       numberClass: 'bg-surface text-sky-aqua border border-outline-variant/30',
     },
     {

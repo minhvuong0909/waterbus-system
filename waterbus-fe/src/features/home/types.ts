@@ -6,7 +6,7 @@ export interface HeroCue {
 }
 
 export interface RouteFilter {
-  id: 'all' | 'line1' | 'line2' | 'sunset'
+  id: 'all' | 'transit' | 'sightseeing'
   label: string
 }
 

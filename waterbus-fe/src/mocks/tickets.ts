@@ -1,125 +1,101 @@
+import { seatFeeFor, seatPosition, seatZone } from '../features/booking/utils'
 import type { ManageBooking, Ticket, TicketWallet } from '../features/tickets/types'
+import { describeDate } from '../features/trips/utils'
+import { t } from '../i18n'
+import { toIsoDate } from '../utils/time'
+import { PIER_OPTIONS } from './tripSearch'
+import { SEAT_MAP } from './booking'
 
-const NEXT: Ticket = {
-  id: 'tkt-wb01-a2',
-  tripCode: 'WB-01',
-  lineName: 'Smart Waterbus • Line 1 Catamaran',
-  routeTag: 'Central Route',
-  bookingRef: 'WB-2025-0842-A2',
-  ticketCode: 'TKT-WB01-0842-A2',
-  status: 'Confirmed',
-  departTime: '08:30',
-  departPier: 'Bach Dang Pier',
-  departShort: 'Bach Dang',
-  departDistrict: 'District 1 Central',
-  arriveTime: '08:42',
-  arrivePier: 'Thu Thiem Pier',
-  arriveShort: 'Thu Thiem',
-  arriveDistrict: 'District 2 Waterfront',
-  durationMins: 12,
-  dateLabel: 'Dec 15, 2025',
-  dateShort: 'Dec 15',
-  passenger: 'Nguyen Van An',
-  seat: 'Seat A2',
-  seatNote: 'Window View • Main Deck',
-  windowSeat: true,
-  completed: false,
-  fareVnd: 15000,
-  vesselNote: 'River Catamaran WB-01',
-  gate: 'Gate 02',
+// Sample tickets for a traveler who has not booked anything yet. They follow what the backend
+// issues: boat SWB-01 on route RT01 (Bạch Đằng - Linh Đông, 45 minutes), seats and fares of the
+// boat layout, and booking / ticket codes in the backend's format. Dates are relative to today, so
+// they are built when asked for (in the active language) rather than once at load time.
+
+const ORIGIN = PIER_OPTIONS[0]
+const DESTINATION = PIER_OPTIONS[PIER_OPTIONS.length - 1]
+const BASE_FARE_VND = 15000
+const DURATION_MINS = 45
+const PASSENGER = 'Nguyen Van An'
+
+interface Sample {
+  id: string
+  /** Days from today (negative = past). */
+  day: number
+  time: string
+  seat: string
+  bookingSuffix: string
 }
 
-const LATER: Ticket[] = [
-  {
-    ...NEXT,
-    id: 'tkt-wb04-b4',
-    tripCode: 'WB-04',
-    routeTag: 'Return Route',
-    bookingRef: 'WB-2025-0850-B4',
-    ticketCode: 'TKT-WB04-0850-B4',
-    departTime: '17:45',
-    departPier: 'Thu Thiem Pier',
-    departShort: 'Thu Thiem',
-    departDistrict: 'District 2',
-    arriveTime: '17:57',
-    arrivePier: 'Bach Dang Pier',
-    arriveShort: 'Bach Dang',
-    arriveDistrict: 'District 1',
-    seat: 'Seat B4',
-    seatNote: 'Aisle • Main Deck',
-    windowSeat: false,
-    vesselNote: 'River Catamaran WB-04',
-  },
-  {
-    ...NEXT,
-    id: 'tkt-wb08-c1',
-    tripCode: 'WB-08',
-    routeTag: 'North Corridor',
-    bookingRef: 'WB-2025-0861-C1',
-    ticketCode: 'TKT-WB08-0861-C1',
-    dateLabel: 'Dec 18, 2025',
-    dateShort: 'Dec 18',
-    departTime: '09:15',
-    departDistrict: 'District 1',
-    arriveTime: '09:35',
-    arrivePier: 'Binh An Pier',
-    arriveShort: 'Binh An',
-    arriveDistrict: 'Thu Duc City',
-    durationMins: 20,
-    seat: 'Seat C1',
-    seatNote: 'Aisle • Main Deck',
-    windowSeat: false,
-    vesselNote: 'River Catamaran WB-08',
-  },
-]
+function ticketOf({ id, day, time, seat: seatCode, bookingSuffix }: Sample): Ticket {
+  const date = new Date()
+  date.setDate(date.getDate() + day)
+  const dateInfo = describeDate(toIsoDate(date))
+  const seat = SEAT_MAP.seats.find((s) => s.code === seatCode)
+  const [hours, minutes] = time.split(':').map(Number)
+  const arrival = hours * 60 + minutes + DURATION_MINS
+  const clock = (total: number) =>
+    `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+  const completed = day < 0
 
-const PAST: Ticket[] = [
-  {
-    ...NEXT,
-    id: 'tkt-past-a1',
-    status: 'Completed',
-    completed: true,
-    bookingRef: 'WB-2025-0790-A1',
-    ticketCode: 'TKT-WB01-0790-A1',
-    dateLabel: 'Dec 10, 2025',
-    dateShort: 'Dec 10',
-    seat: 'Seat A1',
-    seatNote: 'Window View • Main Deck',
-  },
-  {
-    ...NEXT,
-    id: 'tkt-past-b2',
-    status: 'Completed',
-    completed: true,
-    windowSeat: false,
-    tripCode: 'WB-03',
-    bookingRef: 'WB-2025-0791-B2',
-    ticketCode: 'TKT-WB03-0791-B2',
-    dateLabel: 'Dec 10, 2025',
-    dateShort: 'Dec 10',
-    departTime: '18:00',
-    departPier: 'Thu Thiem Pier',
-    departShort: 'Thu Thiem',
-    departDistrict: 'District 2',
-    arriveTime: '18:12',
-    arrivePier: 'Bach Dang Pier',
-    arriveShort: 'Bach Dang',
-    arriveDistrict: 'District 1',
-    seat: 'Seat B2',
-    seatNote: 'Aisle • Main Deck',
-  },
-]
+  return {
+    id,
+    tripCode: 'SWB-01',
+    lineName: t('Smart Waterbus • {line}', { line: 'Bạch Đằng - Linh Đông' }),
+    routeTag: t('Main Route'),
+    bookingRef: `WB${toIsoDate(date).replace(/-/g, '')}${time.replace(':', '')}00${bookingSuffix}`,
+    ticketCode: `TK${bookingSuffix.padStart(2, '0')}${String(10000 + Number(bookingSuffix) * 7).padStart(6, '0')}`,
+    status: completed ? t('Completed') : t('Confirmed'),
+    completed,
+    departTime: time,
+    departPier: ORIGIN.pierName,
+    departShort: ORIGIN.shortName,
+    departDistrict: ORIGIN.district,
+    arriveTime: clock(arrival),
+    arrivePier: DESTINATION.pierName,
+    arriveShort: DESTINATION.shortName,
+    arriveDistrict: DESTINATION.district,
+    durationMins: DURATION_MINS,
+    dateLabel: dateInfo.fullLabel,
+    dateId: dateInfo.id,
+    dateShort: dateInfo.label,
+    passenger: PASSENGER,
+    seat: t('Seat {id}', { id: seatCode }),
+    seatNote: `${seatPosition(seat)} • ${seatZone(seat)}`,
+    windowSeat: Boolean(seat?.window),
+    fareVnd: BASE_FARE_VND + seatFeeFor(seat, BASE_FARE_VND),
+    vesselNote: 'Saigon Waterbus 01 SWB-01',
+    gate: ORIGIN.shortName,
+  }
+}
 
-export const TICKET_WALLET: TicketWallet = { next: NEXT, later: LATER, past: PAST }
+export function buildTicketWallet(): TicketWallet {
+  return {
+    next: ticketOf({ id: 'tkt-sample-next', day: 1, time: '09:00', seat: 'S01', bookingSuffix: '11' }),
+    later: [
+      ticketOf({ id: 'tkt-sample-later-1', day: 3, time: '12:00', seat: 'F03', bookingSuffix: '12' }),
+      ticketOf({ id: 'tkt-sample-later-2', day: 5, time: '07:00', seat: 'O05', bookingSuffix: '13' }),
+    ],
+    past: [
+      ticketOf({ id: 'tkt-sample-past-1', day: -4, time: '09:00', seat: 'S12', bookingSuffix: '14' }),
+      ticketOf({ id: 'tkt-sample-past-2', day: -6, time: '12:00', seat: 'S20', bookingSuffix: '15' }),
+    ],
+  }
+}
 
-export const ALL_TICKETS: Ticket[] = [NEXT, ...LATER, ...PAST]
+export function buildAllTickets(): Ticket[] {
+  const { next, later, past } = buildTicketWallet()
+  return [next, ...later, ...past]
+}
 
-export const MANAGE_BOOKING: ManageBooking = {
-  bookingCode: 'SWB-8942-01',
-  ticket: NEXT,
-  voucherCredit: [
-    { code: 'WELCOME-RIVER', description: 'Welcome credit for first-time riders', valueVnd: 10000 },
-  ],
+export function buildManageBooking(): ManageBooking {
+  const { next } = buildTicketWallet()
+  return {
+    bookingCode: next.bookingRef,
+    ticket: next,
+    voucherCredit: [
+      { code: 'WELCOME-RIVER', description: 'Welcome credit for first-time riders', valueVnd: 10000 },
+    ],
+  }
 }
 
 // Canned assistant replies. Keys match the quick-action chips.
@@ -127,11 +103,11 @@ export const ASSISTANT_REPLIES: Record<string, string> = {
   'Change Trip':
     'I can help you review available options. Try "View Available Trips" to pick another departure today.',
   'Refund Help':
-    'Refunds are available up to 30 minutes before departure. Use "Request Refund" and confirm to submit.',
+    'You can request a refund from this page with "Request Refund". The pier team confirms every request.',
   'Explain Voucher':
     'Vouchers and credits are applied at checkout. You currently have one welcome credit on this booking.',
   'Trip Status':
-    'Vessel WB-01 is operating on schedule. Boarding opens 10 minutes before departure.',
+    'Vessel SWB-01 is operating on schedule.',
 }
 
 export const ASSISTANT_FALLBACK =

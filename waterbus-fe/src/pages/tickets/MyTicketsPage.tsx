@@ -7,6 +7,7 @@ import {
   UpcomingTripCard,
 } from '../../features/tickets/components/WalletParts'
 import { useTicketWallet } from '../../features/tickets/hooks/useTickets'
+import { isTicketToday } from '../../features/tickets/utils'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -87,7 +88,7 @@ export default function MyTicketsPage() {
         <>
           <div className="mt-space-lg flex items-center justify-between text-[11px] font-bold uppercase tracking-wider">
             <span className="flex items-center gap-2 text-teal-flow">
-              <span className="h-2 w-2 rounded-full bg-teal-flow" /> {t('Next Departure • Today')}
+              <span className="h-2 w-2 rounded-full bg-teal-flow" /> {isTicketToday(wallet.next) ? t('Next Departure • Today') : t('Next Departure')}
             </span>
             <span className="font-medium normal-case tracking-normal text-on-surface-variant">
               {t('Boarding Pier {gate}', { gate: wallet.next.gate })}

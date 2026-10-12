@@ -18,8 +18,6 @@ export interface Departure {
   vesselCode?: string
   /** Detail chips shown under the route, e.g. "12 min voyage". */
   details: string[]
-  /** Line the departure runs on; used by the corridor filter. */
-  line: 'line1' | 'line2' | 'sunset' | 'direct'
   priceVnd: number
 }
 
@@ -65,6 +63,8 @@ export interface PierOption {
   pierName: string
   /** District the pier is in, e.g. "District 1". */
   district: string
+  latitude: number
+  longitude: number
   /** Short label used on route cards, e.g. "Bach Dang". */
   shortName: string
   subtitle: string
@@ -176,6 +176,8 @@ export interface TripDetail extends Trip {
   originDistrict: string
   destinationDistrict: string
   dateLabel: string
+  /** The day of the trip as `YYYY-MM-DD`. */
+  dateId: string
   /** Full date with year, e.g. "Dec 16, 2025". */
   dateFull: string
   /** Date without the year, e.g. "Dec 16". */
