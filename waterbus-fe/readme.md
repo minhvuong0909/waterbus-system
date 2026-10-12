@@ -19,6 +19,16 @@ Sao chép `.env.example` thành `.env.local` (đã được git bỏ qua):
 | `VITE_API_BASE_URL` | Địa chỉ `waterbus-be`, mặc định `http://localhost:5000` |
 | `VITE_USE_MOCK` | `true`: mọi service trả dữ liệu giả, không cần BE. `false`: endpoint BE đã có thì gọi thật, phần chưa có vẫn dùng mock |
 
+### Chạy thử giao diện không cần BE (dành cho người test)
+
+```bash
+cd waterbus-fe
+npm install
+npm run dev:mock      # mở http://localhost:5173
+```
+
+Đăng nhập (mật khẩu nhập gì cũng được): `admin@x.vn` (Admin), `dispatcher@x.vn` (Dispatcher), `captain@x.vn` (Captain), email khác = hành khách. Khu vận hành ở `/admin` và `/captain`. Dữ liệu giả lưu trong bộ nhớ nên tải lại trang là về ban đầu.
+
 Chi tiết FE ⇄ BE: [`docs/API_INTEGRATION.md`](docs/API_INTEGRATION.md).
 
 ---
