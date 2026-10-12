@@ -1,5 +1,5 @@
 import { t } from '../../i18n'
-import { bookingReference, seatPosition, seatZone } from '../booking/utils'
+import { bookingReference, seatCode, seatPosition, seatZone } from '../booking/utils'
 import type { PassengerForm, Seat } from '../booking/types'
 import type { TripDetail } from '../trips/types'
 import type { Ticket } from './types'
@@ -46,7 +46,7 @@ export function buildBookedTicket({
     dateLabel: trip.dateFull,
     dateShort: trip.dateShort,
     passenger: passenger.fullName,
-    seat: t('Seat {id}', { id: seatId }),
+    seat: t('Seat {id}', { id: seatCode(seat, seatId) }),
     seatNote: `${seatPosition(seat)} • ${seatZone(seat)}`,
     windowSeat: Boolean(seat?.window),
     fareVnd: totalVnd,

@@ -8,7 +8,7 @@ import type { TripDetail } from '../../trips/types'
 import { validateVoucher } from '../services/bookingService'
 import type { PassengerForm, Seat, Voucher } from '../types'
 import type { BookingTotals } from '../utils'
-import { seatTags } from '../utils'
+import { seatCode, seatTags } from '../utils'
 import { BookingCard, CardHeading, SeatFeeRow, SummaryRow } from './SummaryParts'
 import { t } from '../../../i18n'
 
@@ -115,7 +115,11 @@ export function JourneyDetailsCard({
         <Fact label={t('Vessel')} value={trip.vesselCode} />
         <Fact
           label={t('Selected Seat')}
-          value={seatTags(seat) ? `${seatId} (${seatTags(seat)})` : seatId}
+          value={
+            seatTags(seat)
+              ? `${seatCode(seat, seatId)} (${seatTags(seat)})`
+              : seatCode(seat, seatId)
+          }
           accent
         />
         <Fact label={t('Date')} value={`${trip.dateLabel}, 2025`} />

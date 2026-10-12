@@ -5,7 +5,7 @@ import { formatVnd } from '../../../utils/format'
 import type { TripDetail } from '../../trips/types'
 import type { Seat } from '../types'
 import type { BookingTotals } from '../utils'
-import { isVip, seatLabel } from '../utils'
+import { seatCode, seatLabel, seatZone } from '../utils'
 import { BookingCard, SeatFeeRow, SummaryRow, TotalRow } from './SummaryParts'
 import { t } from '../../../i18n'
 
@@ -82,7 +82,7 @@ export default function CrossingSummary({ trip, seat, seatId, totals }: Crossing
         <SummaryRow label={t('Selected Seat')} value={seatLabel(seat, seatId)} accent />
         <SummaryRow
           label={t('Cabin Class')}
-          value={isVip(seat) ? t('VIP Lounge • Air-Conditioned') : t('Main Deck • Air-Conditioned')}
+          value={t('{cabin} • Air-Conditioned', { cabin: seatZone(seat) })}
         />
         <SummaryRow label={t('Passengers')} value={t('1 Passenger')} />
       </div>
@@ -90,7 +90,7 @@ export default function CrossingSummary({ trip, seat, seatId, totals }: Crossing
       <div className="mt-space-md space-y-1.5">
         <SummaryRow label={t('Standard River Fare')} value={formatVnd(totals.fareVnd)} />
         <SeatFeeRow
-          label={t('Seat Reservation (Seat {id})', { id: seatId })}
+          label={t('Seat Reservation (Seat {id})', { id: seatCode(seat, seatId) })}
           seatFeeVnd={totals.seatFeeVnd}
           includedText={t('Included (0 VND)')}
         />

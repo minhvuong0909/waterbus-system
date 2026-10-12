@@ -1,17 +1,21 @@
 import { memo, useMemo } from 'react'
 import { Icon } from '../../../components/ui'
 import { formatVndSuffix } from '../../../utils/format'
-import type { Seat, SeatMap } from '../types'
-import { seatTags } from '../utils'
+import type { Seat, SeatCategory, SeatMap } from '../types'
+import { CABIN_ORDER, cabinLabel, seatFeeFor, seatTags } from '../utils'
 import { t } from '../../../i18n'
 
 interface SeatMapViewProps {
   seatMap: SeatMap
   selectedId: string
-  /** Extra price of a VIP seat for the selected trip. */
-  vipFeeVnd: number
+  /** Fare of the selected trip, used to show each cabin's surcharge. */
+  fareVnd: number
   onSelect: (id: string) => void
 }
+
+const COLUMNS_LEFT = ['A', 'B'] as const
+const COLUMNS_RIGHT = ['C', 'D'] as const
+const GRID = 'grid grid-cols-[repeat(2,62px)_28px_repeat(2,62px)] items-center justify-center gap-x-2'
 
 const SeatButton = memo(function SeatButton({
   seat,
@@ -22,16 +26,19 @@ const SeatButton = memo(function SeatButton({
   selected: boolean
   onSelect: (id: string) => void
 }) {
-  const occupied = seat.status === 'occupied'
-  const vip = seat.tier === 'vip'
+  const sold = seat.status === 'sold'
+  const held = seat.status === 'held'
+  const unavailable = sold || held
+  const surcharge = seat.priceMultiplier > 1
   const tags = seatTags(seat)
+  const state = sold ? t('sold') : held ? t('held by another traveler') : ''
 
   return (
     <div className="relative">
-      {vip && (
+      {surcharge && (
         <span
           className={`absolute -left-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full text-white ${
-            occupied ? 'bg-outline' : 'bg-signal-amber'
+            unavailable ? 'bg-outline' : 'bg-signal-amber'
           }`}
         >
           <Icon name="workspace_premium" className="text-[11px]" />
@@ -40,7 +47,7 @@ const SeatButton = memo(function SeatButton({
       {seat.window && (
         <span
           className={`absolute -right-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white ${
-            occupied ? 'bg-outline' : 'bg-sky-aqua'
+            unavailable ? 'bg-outline' : 'bg-sky-aqua'
           }`}
         >
           {t('W')}
@@ -53,30 +60,32 @@ const SeatButton = memo(function SeatButton({
       )}
       <button
         type="button"
-        disabled={occupied}
+        disabled={unavailable}
         aria-pressed={selected}
-        aria-label={`${t('Seat {id}', { id: seat.id })}${tags ? `, ${tags}` : ''}${
-          occupied ? `, ${t('occupied')}` : ''
+        aria-label={`${t('Seat {id}', { id: seat.code })}${tags ? `, ${tags}` : ''}${
+          state ? `, ${state}` : ''
         }`}
         onClick={() => onSelect(seat.id)}
         className={`flex h-[46px] w-[62px] flex-col items-center justify-center rounded-lg border-2 text-[11px] font-semibold transition-all ${
           selected
             ? 'border-teal-flow bg-teal-flow text-white shadow-md'
-            : occupied
+            : sold
             ? 'cursor-not-allowed border-transparent bg-outline-variant/50 text-outline'
-            : vip
+            : held
+            ? 'cursor-not-allowed border-dashed border-signal-amber bg-signal-amber/15 text-deep-river/70'
+            : surcharge
             ? 'border-signal-amber/60 bg-signal-amber/10 text-deep-river hover:border-signal-amber hover:bg-signal-amber/20'
             : 'border-teal-flow/40 bg-white text-deep-river hover:border-teal-flow hover:bg-sand-light'
         }`}
       >
-        <Icon name="airline_seat_recline_normal" className="text-[16px]" />
-        {seat.id}
+        <Icon name={held ? 'hourglass_top' : 'airline_seat_recline_normal'} className="text-[16px]" />
+        {seat.code}
       </button>
     </div>
   )
 })
 
-export function SeatLegend({ vipFeeVnd }: { vipFeeVnd: number }) {
+export function SeatLegend() {
   return (
     <div className="flex flex-wrap items-center gap-space-md text-xs text-on-surface-variant">
       <span className="flex items-center gap-1.5">
@@ -92,10 +101,16 @@ export function SeatLegend({ vipFeeVnd }: { vipFeeVnd: number }) {
         {t('Selected')}
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="flex h-5 w-5 items-center justify-center rounded border-2 border-signal-amber/60 bg-signal-amber/10 text-signal-amber">
-          <Icon name="workspace_premium" className="text-[13px]" />
+        <span className="flex h-5 w-5 items-center justify-center rounded border-2 border-dashed border-signal-amber bg-signal-amber/15 text-deep-river/70">
+          <Icon name="hourglass_top" className="text-[12px]" />
         </span>
-        {t('VIP (+{fee})', { fee: formatVndSuffix(vipFeeVnd) })}
+        {t('Held by another traveler')}
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="flex h-5 w-5 items-center justify-center rounded bg-outline-variant/50 text-outline">
+          <Icon name="block" className="text-[13px]" />
+        </span>
+        {t('Sold')}
       </span>
       <span className="flex items-center gap-1.5">
         <span className="flex h-5 w-5 items-center justify-center rounded-full border border-sky-aqua bg-sky-aqua/20">
@@ -103,25 +118,34 @@ export function SeatLegend({ vipFeeVnd }: { vipFeeVnd: number }) {
         </span>
         {t('Window River View')}
       </span>
-      <span className="flex items-center gap-1.5">
-        <span className="flex h-5 w-5 items-center justify-center rounded bg-outline-variant/50 text-outline">
-          <Icon name="block" className="text-[13px]" />
-        </span>
-        {t('Occupied')}
-      </span>
     </div>
   )
 }
 
-/** Top-down cabin plan: 6 rows, seats A-B | aisle | C-D, bow at the top and gangway at the stern. */
-export default function SeatMapView({
-  seatMap,
-  selectedId,
-  vipFeeVnd,
-  onSelect,
-}: SeatMapViewProps) {
-  const seatsById = useMemo(() => new Map(seatMap.seats.map((s) => [s.id, s])), [seatMap.seats])
-  const seatAt = (row: number, column: Seat['column']) => seatsById.get(`${column}${row}`) as Seat
+function CabinHeading({ category, feeVnd }: { category: SeatCategory; feeVnd: number }) {
+  return (
+    <div className="flex items-center gap-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-teal-flow">
+      <span className="h-px flex-1 bg-teal-flow/30" />
+      {cabinLabel(category)}
+      {feeVnd > 0 && (
+        <span className="text-signal-amber">• +{formatVndSuffix(feeVnd)}</span>
+      )}
+      <span className="h-px flex-1 bg-teal-flow/30" />
+    </div>
+  )
+}
+
+/** Top-down plan of the boat: front cabin, standard cabin and outdoor deck, seats A-B | aisle | C-D. */
+export default function SeatMapView({ seatMap, selectedId, fareVnd, onSelect }: SeatMapViewProps) {
+  const cabins = useMemo(
+    () =>
+      CABIN_ORDER.map((category) => {
+        const seats = seatMap.seats.filter((s) => s.category === category)
+        const rows = [...new Set(seats.map((s) => s.row))].sort((a, b) => a - b)
+        return { category, seats, rows, feeVnd: seatFeeFor(seats[0], fareVnd) }
+      }).filter((cabin) => cabin.seats.length > 0),
+    [seatMap.seats, fareVnd],
+  )
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-teal-flow/20 bg-gradient-to-b from-[#E0F2F5] via-[#EBF7F8] to-[#E3EFF3] p-space-lg">
@@ -134,9 +158,6 @@ export default function SeatMapView({
           <Icon name="navigation" className="text-[14px]" />
           {t('Forward / Bow • River Cruise Direction')}
         </div>
-        <div className="mx-auto mb-space-md w-fit rounded-full border border-teal-flow/30 bg-teal-flow/10 px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-teal-flow">
-          {t('Wrap-Around Cockpit Bridge Glass')}
-        </div>
 
         <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-teal-flow">
           <span className="flex items-center gap-1">
@@ -146,7 +167,9 @@ export default function SeatMapView({
             {t('Starboard Window')} <Icon name="waves" className="text-[13px]" />
           </span>
         </div>
-        <div className="grid grid-cols-[repeat(2,62px)_28px_repeat(2,62px)] justify-center gap-x-2 text-center text-[10px] font-semibold text-on-surface-variant">
+        <div
+          className={`${GRID} text-center text-[10px] font-semibold text-on-surface-variant`}
+        >
           <span>{t('Port A')}</span>
           <span>{t('Aisle B')}</span>
           <span className="flex items-center justify-center">
@@ -157,41 +180,34 @@ export default function SeatMapView({
         </div>
 
         <div className="mt-2 space-y-3">
-          {seatMap.rows.map((row, index) => {
-            const startsVip =
-              seatAt(row, 'A').tier === 'vip' &&
-              seatAt(seatMap.rows[index - 1], 'A')?.tier !== 'vip'
+          {cabins.map(({ category, seats, rows, feeVnd }) => {
+            const seatAt = (row: number, column: Seat['column']) =>
+              seats.find((s) => s.row === row && s.column === column)
+            const renderSeat = (row: number, column: Seat['column']) => {
+              const seat = seatAt(row, column)
+              return seat ? (
+                <SeatButton
+                  key={column}
+                  seat={seat}
+                  selected={selectedId === seat.id}
+                  onSelect={onSelect}
+                />
+              ) : (
+                <span key={column} />
+              )
+            }
             return (
-              <div key={row} className="space-y-3">
-                {startsVip && (
-                  <div className="flex items-center gap-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-signal-amber">
-                    <span className="h-px flex-1 bg-signal-amber/40" />
-                    <Icon name="workspace_premium" className="text-[14px]" />
-                    {t('VIP Lounge • Priority exit • +{fee}', { fee: formatVndSuffix(vipFeeVnd) })}
-                    <span className="h-px flex-1 bg-signal-amber/40" />
+              <div key={category} className="space-y-3">
+                <CabinHeading category={category} feeVnd={feeVnd} />
+                {rows.map((row) => (
+                  <div key={row} className={GRID}>
+                    {COLUMNS_LEFT.map((c) => renderSeat(row, c))}
+                    <span className="flex h-6 items-center justify-center rounded bg-mist text-[9px] font-bold text-outline">
+                      {t('R{row}', { row })}
+                    </span>
+                    {COLUMNS_RIGHT.map((c) => renderSeat(row, c))}
                   </div>
-                )}
-                <div className="grid grid-cols-[repeat(2,62px)_28px_repeat(2,62px)] items-center justify-center gap-x-2">
-                  {(['A', 'B'] as const).map((c) => (
-                    <SeatButton
-                      key={c}
-                      seat={seatAt(row, c)}
-                      selected={selectedId === `${c}${row}`}
-                      onSelect={onSelect}
-                    />
-                  ))}
-                  <span className="flex h-6 items-center justify-center rounded bg-mist text-[9px] font-bold text-outline">
-                    {t('R{row}', { row })}
-                  </span>
-                  {(['C', 'D'] as const).map((c) => (
-                    <SeatButton
-                      key={c}
-                      seat={seatAt(row, c)}
-                      selected={selectedId === `${c}${row}`}
-                      onSelect={onSelect}
-                    />
-                  ))}
-                </div>
+                ))}
               </div>
             )
           })}

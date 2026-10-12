@@ -2,7 +2,8 @@ import { SEAT_MAP, VALID_VOUCHER } from '../../../mocks/booking'
 import { withDelay } from '../../../mocks/delay'
 import type { SeatMap, Voucher } from '../types'
 
-// Mock service layer: swap for real API calls later without touching the UI.
+// Mock: the backend has no seat map endpoint yet (roadmap P1-BE-05). `SEAT_MAP` follows the boat
+// layout the backend seeds, and a real response will use the same `SeatMap` shape.
 export function getSeatMap(): Promise<SeatMap> {
   return withDelay(SEAT_MAP)
 }

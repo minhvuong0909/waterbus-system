@@ -5,7 +5,7 @@ import { formatVnd, formatVndSuffix } from '../../../utils/format'
 import type { TripDetail } from '../../trips/types'
 import type { Seat } from '../types'
 import type { BookingTotals } from '../utils'
-import { isVip, seatFeeFor, seatClassLabel, seatPosition, seatZone } from '../utils'
+import { hasSurcharge, seatCode, seatFeeFor, seatPosition, seatZone } from '../utils'
 import { BookingCard, SeatFeeRow, SummaryRow, TotalRow } from './SummaryParts'
 import { t } from '../../../i18n'
 
@@ -47,7 +47,7 @@ export function TripStrip({ trip, seat }: { trip: TripDetail; seat: Seat | undef
       <div className="flex items-center gap-space-lg">
         <div className="text-right">
           <div className="text-[11px] text-on-surface-variant">
-            {t('1 Passenger • {class}', { class: seatClassLabel(seat) })}
+            {t('1 Passenger • {class}', { class: seatZone(seat) })}
           </div>
           <div className="font-headline-sm text-lg font-bold text-deep-river">
             {formatVndSuffix(trip.fareVnd + seatFeeFor(seat, trip.fareVnd))}
@@ -77,15 +77,15 @@ export function SeatRecommendation() {
         <ul className="mt-1 list-disc space-y-0.5 pl-4">
           <li>
             <strong className="text-deep-river">{t('Best River View:')}</strong>{' '}
-            {t('Portside window seats (A2–A4) offer open views of Ba Son Bridge and skyline.')}
+            {t('Window seats (columns A and D) look straight out over the river.')}
           </li>
           <li>
-            <strong className="text-deep-river">{t('Fastest Pier Exit:')}</strong>{' '}
-            {t('Aft seats (Row 5–6) are directly adjacent to the disembarkation gangway.')}
+            <strong className="text-deep-river">{t('Front Cabin:')}</strong>{' '}
+            {t('The front cabin is a quieter air-conditioned space, for a small surcharge.')}
           </li>
           <li>
-            <strong className="text-deep-river">{t('VIP Lounge:')}</strong>{' '}
-            {t('Rows 5–6 are VIP seats with priority disembarkation, for a small surcharge.')}
+            <strong className="text-deep-river">{t('Outdoor Deck:')}</strong>{' '}
+            {t('The outdoor deck is open to the breeze and the skyline, for a small surcharge.')}
           </li>
         </ul>
       </div>
@@ -103,7 +103,7 @@ interface BookingSummaryProps {
 }
 
 export function BookingSummary({ trip, seat, seatId, totals, category }: BookingSummaryProps) {
-  const vip = isVip(seat)
+  const surcharge = hasSurcharge(seat)
   // An occupied or unknown seat (e.g. a stale selection) must not reach checkout.
   const canContinue = seat?.status === 'available'
   return (
@@ -148,14 +148,14 @@ export function BookingSummary({ trip, seat, seatId, totals, category }: Booking
             <div className="font-headline-xl text-4xl font-bold leading-none text-deep-river">
               {t('Seat')}
               <br />
-              {seatId}
+              {seatCode(seat, seatId)}
             </div>
             <div className="text-right text-xs">
               <div className="font-semibold text-teal-flow">{seatPosition(seat)} •</div>
               <div className="text-teal-flow">{t('Main Saloon')}</div>
               <div
                 className={`mt-1 rounded px-2 py-0.5 ${
-                  vip
+                  surcharge
                     ? 'bg-signal-amber/20 font-semibold text-deep-river'
                     : 'bg-white text-on-surface-variant'
                 }`}
@@ -165,10 +165,10 @@ export function BookingSummary({ trip, seat, seatId, totals, category }: Booking
             </div>
           </div>
           <p className="mt-2 text-xs text-on-surface-variant">
-            {vip
-              ? t(
-                  'VIP lounge seating with extra legroom, priority disembarkation and panoramic river view.',
-                )
+            {seat?.category === 'front'
+              ? t('Front cabin seating, air-conditioned with a panoramic river view.')
+              : seat?.category === 'outdoor'
+              ? t('Open outdoor deck seating with a panoramic river view.')
               : t('Standard Climate-Controlled Catamaran Seating with panoramic river view.')}
           </p>
         </div>
@@ -179,7 +179,7 @@ export function BookingSummary({ trip, seat, seatId, totals, category }: Booking
             value={formatVnd(totals.fareVnd)}
           />
           <SeatFeeRow
-            label={vip ? t('VIP Seat Surcharge') : t('Seat Reservation Fee')}
+            label={surcharge ? t('Cabin Surcharge') : t('Seat Reservation Fee')}
             seatFeeVnd={totals.seatFeeVnd}
             includedText={t('Included (0 VND)')}
           />

@@ -3,39 +3,48 @@ import type {
   PassengerCategory,
   PassengerForm,
   Seat,
+  SeatCategory,
   SeatMap,
-  SeatTier,
 } from '../features/booking/types'
 
-const OCCUPIED = new Set(['B1', 'D1', 'C2', 'D4', 'A5', 'C6'])
 const COLUMNS = ['A', 'B', 'C', 'D'] as const
-const ROWS = [1, 2, 3, 4, 5, 6]
-/** The aft rows form the VIP lounge, next to the disembarkation gangway. */
-const VIP_ROWS = new Set([5, 6])
 
-const seats: Seat[] = ROWS.flatMap((row) =>
-  COLUMNS.map((column) => {
-    const id = `${column}${row}`
+// Same layout the backend seeds for boat SWB-01 (ApplicationDbContextInitializer):
+// 12 front cabin, 36 standard and 12 outdoor seats, four per row, with these fare multipliers.
+const CABINS: { prefix: string; category: SeatCategory; count: number; priceMultiplier: number }[] =
+  [
+    { prefix: 'F', category: 'front', count: 12, priceMultiplier: 1.2 },
+    { prefix: 'S', category: 'standard', count: 36, priceMultiplier: 1.0 },
+    { prefix: 'O', category: 'outdoor', count: 12, priceMultiplier: 1.1 },
+  ]
+
+const SOLD = new Set(['F02', 'F07', 'S03', 'S14', 'S15', 'S22', 'S30', 'O05'])
+const HELD = new Set(['S08', 'O10'])
+
+const seats: Seat[] = CABINS.flatMap(({ prefix, category, count, priceMultiplier }) =>
+  Array.from({ length: count }, (_, index) => {
+    const code = `${prefix}${String(index + 1).padStart(2, '0')}`
+    const column = COLUMNS[index % 4]
     return {
-      id,
-      row,
+      id: code,
+      code,
+      category,
+      row: Math.floor(index / 4) + 1,
       column,
-      status: OCCUPIED.has(id) ? ('occupied' as const) : ('available' as const),
-      tier: (VIP_ROWS.has(row) ? 'vip' : 'standard') as SeatTier,
+      priceMultiplier,
+      status: SOLD.has(code) ? ('sold' as const) : HELD.has(code) ? ('held' as const) : ('available' as const),
       window: column === 'A' || column === 'D',
     }
   }),
 )
 
 export const SEAT_MAP: SeatMap = {
-  deckName: 'Main Panoramic Deck',
-  vesselModel: 'River Glider Catamaran • High-speed twin hull',
-  rows: ROWS,
+  vesselName: 'Saigon Waterbus 01',
   seats,
 }
 
 /** A standard window seat, so the default booking never carries a surcharge. */
-export const DEFAULT_SEAT_ID = 'A2'
+export const DEFAULT_SEAT_ID = 'S01'
 
 export const DEFAULT_PASSENGER: PassengerForm = {
   category: 'adult',

@@ -10,35 +10,42 @@ import {
   updatePassenger,
 } from '../bookingSlice'
 import { getSeatMap } from '../services/bookingService'
+import { useLiveSeatMap } from './useLiveSeatMap'
 import type { PaymentMethodId } from '../../payment/types'
 import type { PassengerForm, Voucher } from '../types'
 import { computeTotals } from '../utils'
 
+interface UseBookingOptions {
+  /** Apply seat holds from other travelers as they happen (only the seat page needs this). */
+  live?: boolean
+}
+
 /** Everything a booking page needs: trip, seat, passenger, voucher and totals. */
-export function useBooking() {
+export function useBooking({ live = false }: UseBookingOptions = {}) {
   const dispatch = useAppDispatch()
   const booking = useAppSelector((s) => s.booking)
   const { detail, loading: tripLoading, error: tripError, retry: retryTrip } = useTripDetail()
-  const seatMap = useFetch(getSeatMap)
+  const loadedSeatMap = useFetch(getSeatMap)
+  const seatMap = useLiveSeatMap(loadedSeatMap.data, detail?.id ?? null, live)
 
   const seat = useMemo(
-    () => seatMap.data?.seats.find((s) => s.id === booking.seatId),
-    [seatMap.data, booking.seatId],
+    () => seatMap?.seats.find((s) => s.id === booking.seatId),
+    [seatMap, booking.seatId],
   )
   const totals = useMemo(
-    () => (detail && seatMap.data ? computeTotals(detail, seat, booking.voucher) : undefined),
-    [detail, seatMap.data, seat, booking.voucher],
+    () => (detail && seatMap ? computeTotals(detail, seat, booking.voucher) : undefined),
+    [detail, seatMap, seat, booking.voucher],
   )
 
   return {
-    loading: tripLoading || seatMap.loading || !detail || !seatMap.data,
-    error: tripError ?? seatMap.error,
+    loading: tripLoading || loadedSeatMap.loading || !detail || !seatMap,
+    error: tripError ?? loadedSeatMap.error,
     retry: () => {
       if (tripError) retryTrip()
-      if (seatMap.error) seatMap.retry()
+      if (loadedSeatMap.error) loadedSeatMap.retry()
     },
     trip: detail,
-    seatMap: seatMap.data,
+    seatMap,
     seat,
     seatId: booking.seatId,
     passenger: booking.passenger,
@@ -46,9 +53,9 @@ export function useBooking() {
     termsAccepted: booking.termsAccepted,
     paymentMethod: booking.paymentMethod,
     totals,
-    /** Occupied and unknown seats are ignored, so the booking never holds a seat nobody can take. */
+    /** Sold, held and unknown seats are ignored, so the booking never targets a seat nobody can take. */
     chooseSeat: (id: string) => {
-      const target = seatMap.data?.seats.find((s) => s.id === id)
+      const target = seatMap?.seats.find((s) => s.id === id)
       if (target?.status === 'available') dispatch(selectSeat(id))
     },
     editPassenger: (patch: Partial<PassengerForm>) => dispatch(updatePassenger(patch)),

@@ -4,7 +4,7 @@ import CrossingSummary from '../../features/booking/components/CrossingSummary'
 import PassengerFormCard from '../../features/booking/components/PassengerFormCard'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import type { BookingStep } from '../../features/booking/types'
-import { seatPosition } from '../../features/booking/utils'
+import { seatCode, seatPosition } from '../../features/booking/utils'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -58,7 +58,7 @@ export default function PassengerDetailsPage() {
         <div className="lg:col-span-7">
           <PassengerFormCard
             passenger={passenger}
-            seatId={seatId}
+            seatId={seatCode(seat, seatId)}
             seatPosition={seatPosition(seat)}
             onChange={editPassenger}
           />

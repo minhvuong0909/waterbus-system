@@ -6,7 +6,6 @@ import {
   TripStrip,
 } from '../../features/booking/components/SeatSelectionParts'
 import { useBooking } from '../../features/booking/hooks/useBooking'
-import { seatFeeFor } from '../../features/booking/utils'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -32,16 +31,11 @@ const CUES = [
 export default function SeatSelectionPage() {
   useDocumentTitle('Choose Your Seat')
   const { loading, error, retry, trip, seatMap, seat, seatId, totals, passenger, chooseSeat } =
-    useBooking()
+    useBooking({ live: true })
 
   if (error) return <ErrorState onRetry={retry} />
 
   if (loading || !trip || !seatMap || !totals) return <PageLoader />
-
-  const vipFeeVnd = seatFeeFor(
-    seatMap.seats.find((s) => s.tier === 'vip'),
-    trip.fareVnd,
-  )
 
   return (
     <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
@@ -93,6 +87,17 @@ export default function SeatSelectionPage() {
         </div>
       </div>
 
+      {seat && seat.status !== 'available' && (
+        <p
+          role="alert"
+          className="mt-space-md rounded-xl border border-coral-glow/30 bg-coral-glow/10 px-space-md py-2 text-sm text-deep-river"
+        >
+          {t('Seat {id} was just taken by another traveler. Please choose another seat.', {
+            id: seat.code,
+          })}
+        </p>
+      )}
+
       <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="space-y-space-md lg:col-span-7">
           <div className="rounded-2xl bg-white p-space-lg shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
@@ -100,16 +105,18 @@ export default function SeatSelectionPage() {
               <div>
                 <h2 className="flex items-center gap-2 font-headline-md text-headline-sm text-deep-river">
                   <span className="h-2 w-2 rounded-full bg-teal-flow" />
-                  {seatMap.deckName}
+                  {seatMap.vesselName}
                 </h2>
-                <p className="text-xs text-on-surface-variant">{seatMap.vesselModel}</p>
+                <p className="text-xs text-on-surface-variant">
+                  {t('{count} seats • live availability', { count: seatMap.seats.length })}
+                </p>
               </div>
-              <SeatLegend vipFeeVnd={vipFeeVnd} />
+              <SeatLegend />
             </div>
             <SeatMapView
               seatMap={seatMap}
               selectedId={seatId}
-              vipFeeVnd={vipFeeVnd}
+              fareVnd={trip.fareVnd}
               onSelect={chooseSeat}
             />
           </div>

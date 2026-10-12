@@ -1,20 +1,33 @@
 import { t } from '../../i18n'
 import type { TripDetail } from '../trips/types'
-import type { Seat, Voucher } from './types'
+import type { Seat, SeatCategory, Voucher } from './types'
 
-/** VIP seats cost this share of the trip fare on top of it (15,000 VND fare -> 9,000 VND extra). */
-const VIP_SURCHARGE_RATE = 0.6
-const VND_STEP = 1000
+/** Cabin names, in the order they appear on the boat. */
+export const CABIN_ORDER = ['front', 'standard', 'outdoor'] as const
 
-/** Extra charge for the seat's tier. Standard seats are free to reserve. */
+const CABIN_LABEL: Record<SeatCategory, string> = {
+  front: 'Front Cabin',
+  standard: 'Standard Cabin',
+  outdoor: 'Outdoor Deck',
+}
+
+export function cabinLabel(category: SeatCategory): string {
+  return t(CABIN_LABEL[category])
+}
+
+/** Code printed on the seat. Falls back to `seatId` while the seat map is not loaded. */
+export function seatCode(seat: Seat | undefined, seatId: string): string {
+  return seat?.code ?? seatId
+}
+
+/** Extra charge of the seat: the fare times (multiplier - 1), so 0 for a standard seat. */
 export function seatFeeFor(seat: Seat | undefined, fareVnd: number): number {
-  if (seat?.tier !== 'vip') return 0
-  return Math.round((fareVnd * VIP_SURCHARGE_RATE) / VND_STEP) * VND_STEP
+  return seat ? Math.round(fareVnd * (seat.priceMultiplier - 1)) : 0
 }
 
 export interface BookingTotals {
   fareVnd: number
-  /** VIP surcharge, 0 for a standard seat. */
+  /** Cabin surcharge, 0 for a standard seat. */
   seatFeeVnd: number
   discountVnd: number
   totalVnd: number
@@ -36,17 +49,24 @@ export function computeTotals(
   }
 }
 
-export const isVip = (seat: Seat | undefined): boolean => seat?.tier === 'vip'
+/** True for a seat that costs more than the base fare. */
+export const hasSurcharge = (seat: Seat | undefined): boolean => (seat?.priceMultiplier ?? 1) > 1
 
-/** "VIP • Window", "Window", "VIP" or "" (empty for a standard aisle seat). */
+/** "Front Cabin • Window", "Window", "Outdoor Deck" or "" (a standard aisle seat). */
 export function seatTags(seat: Seat | undefined): string {
-  return [isVip(seat) && t('VIP'), seat?.window && t('Window')].filter(Boolean).join(' • ')
+  return [
+    seat && seat.category !== 'standard' && cabinLabel(seat.category),
+    seat?.window && t('Window'),
+  ]
+    .filter(Boolean)
+    .join(' • ')
 }
 
-/** "Seat A2 (Window)", "Seat A5 (VIP • Window)" or "Seat B3". */
+/** "Seat S01 (Window)", "Seat F03 (Front Cabin • Window)" or "Seat S02". */
 export function seatLabel(seat: Seat | undefined, seatId: string): string {
+  const id = seatCode(seat, seatId)
   const tags = seatTags(seat)
-  return tags ? t('Seat {id} ({tags})', { id: seatId, tags }) : t('Seat {id}', { id: seatId })
+  return tags ? t('Seat {id} ({tags})', { id, tags }) : t('Seat {id}', { id })
 }
 
 /** "Portside Window", "Starboard Aisle"... */
@@ -57,14 +77,9 @@ export function seatPosition(seat: Seat | undefined): string {
   return t(`${side} ${kind}`)
 }
 
-/** Where the seat is on the vessel: "VIP Lounge" or "Main Deck". */
+/** Cabin the seat is in, e.g. "Front Cabin"; "Main Saloon" until the seat is known. */
 export function seatZone(seat: Seat | undefined): string {
-  return isVip(seat) ? t('VIP Lounge') : t('Main Deck')
-}
-
-/** Cabin class shown next to the fare: "VIP Class" or "Eco Class". */
-export function seatClassLabel(seat: Seat | undefined): string {
-  return isVip(seat) ? t('VIP Class') : t('Eco Class')
+  return seat ? cabinLabel(seat.category) : t('Main Saloon')
 }
 
 /** Mock booking reference, e.g. WB-2025-0842-A2. Real references will come from the backend. */

@@ -1,6 +1,6 @@
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import { useBooking } from '../../features/booking/hooks/useBooking'
-import { bookingReference, seatTags } from '../../features/booking/utils'
+import { bookingReference, seatCode, seatTags } from '../../features/booking/utils'
 import {
   ConfirmationHero,
   ConfirmationSteps,
@@ -70,7 +70,7 @@ export default function BookingSuccessPage() {
                 arriveTime: trip.arriveTime,
                 arrivePier: trip.destinationPierName,
                 durationMins: trip.durationMins,
-                seat: t('Seat {id}', { id: seatId }),
+                seat: t('Seat {id}', { id: seatCode(seat, seatId) }),
                 passenger: t('1 Passenger ({name})', { name: passenger.fullName }),
                 status: t('Confirmed'),
                 totalVnd: totals.totalVnd,
