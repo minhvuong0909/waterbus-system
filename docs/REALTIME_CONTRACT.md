@@ -92,6 +92,18 @@ Bật bằng biến môi trường (xem `.env.example`):
 
 Vị trí giả lập đi qua đúng luồng của GPS thật, chỉ khác `Source = "Simulated"` trong lịch sử.
 
+### Cảnh báo thời tiết (Weather Guard)
+
+Job Hangfire `weather-guard` (mặc định mỗi 15 phút) lấy thời tiết tại các bến của tuyến có chuyến sắp/đang chạy. Gió trung bình ≥ ngưỡng → `Medium`; gió giật ≥ ngưỡng hoặc dông → `High`. Mỗi tuyến chỉ có **một** Incident thời tiết đang mở trong khung `AlertWindowHours`; lượt sau chỉ cập nhật và liên kết thêm chuyến mới. `weatherAlert` chỉ được phát khi **tạo mới** hoặc **tăng mức** nghiêm trọng. **Không chuyến nào bị tự đổi trạng thái** (BR-INC-03): `operationDecision` của từng chuyến để `null` chờ Admin.
+
+| API (Admin) | Mục đích |
+|---|---|
+| `GET /api/v1/incidents?status=Open&incidentType=Weather&pageNumber=&pageSize=` | Danh sách sự cố, có `affectedTripCount`, `pendingDecisionCount` |
+| `GET /api/v1/incidents/{id}` | Chi tiết + `affectedTrips[]` (giờ khởi hành, trạng thái chuyến, quyết định) |
+| `POST /api/v1/incidents/weather-check` | Chạy Weather Guard ngay (demo), trả `{ routesChecked, incidentsCreated, incidentsUpdated, observationFailures }` |
+
+Demo không cần API key: `WEATHER_PROVIDER=Fake` + `WEATHER_FAKE_WIND_MS=15` (hoặc `WEATHER_FAKE_CONDITION_CODE=211`) rồi gọi `weather-check`.
+
 ## 2. `/hubs/seat-sync` — đồng bộ sơ đồ ghế
 
 Cho phép **ẩn danh (Guest)**, **chỉ đọc**. Giữ/nhả ghế luôn qua REST API, hub không có method nghiệp vụ.

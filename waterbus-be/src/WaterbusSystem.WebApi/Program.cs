@@ -3,6 +3,7 @@ using Microsoft.OpenApi.Models;
 using WaterbusSystem.Application;
 using WaterbusSystem.Infrastructure;
 using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.WebApi.BackgroundJobs;
 using WaterbusSystem.WebApi.Middlewares;
 using WaterbusSystem.WebApi.Realtime;
 
@@ -143,5 +144,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapRealtimeHubs();
+app.UseBackgroundJobs();
 
 app.Run();
