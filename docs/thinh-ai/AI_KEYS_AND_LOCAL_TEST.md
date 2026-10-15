@@ -9,10 +9,12 @@ Code độc lập hiện dùng OpenAI qua Semantic Kernel, Azure AI Speech cho M
 3. Chọn một voice `vi-VN-...Neural` có trong [danh sách Azure](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support?tabs=tts), ví dụ `vi-VN-HoaiMyNeural`. Đây là lựa chọn cấu hình, không phải BR của nhóm.
 4. Chọn định dạng MP3 của Speech SDK, ví dụ `Audio16Khz32KBitRateMonoMp3`.
 
-Từ thư mục `waterbus-be`, cấu hình WebApi local bằng User Secrets (thay placeholder trên máy của bạn):
+Từ thư mục `waterbus-be`, cấu hình WebApi local bằng User Secrets. Dán key khi PowerShell hỏi; ký tự không hiện là bình thường:
 
 ```powershell
-dotnet user-secrets set "AzureSpeech:SubscriptionKey" "<speech-key>" --project src/WaterbusSystem.WebApi
+$speechKey = Read-Host "Dán Azure Speech Key 1" -MaskInput
+dotnet user-secrets set "AzureSpeech:SubscriptionKey" $speechKey --project src/WaterbusSystem.WebApi/WaterbusSystem.WebApi.csproj
+Remove-Variable speechKey
 dotnet user-secrets set "AzureSpeech:Region" "<region-id>" --project src/WaterbusSystem.WebApi
 dotnet user-secrets set "AzureSpeech:DefaultVoiceName" "vi-VN-HoaiMyNeural" --project src/WaterbusSystem.WebApi
 dotnet user-secrets set "AzureSpeech:OutputFormat" "Audio16Khz32KBitRateMonoMp3" --project src/WaterbusSystem.WebApi
@@ -50,7 +52,25 @@ dotnet user-secrets set "AiBookingAssistant:OpenAI:ModelId" "gpt-4.1-mini" --pro
 
 Ở gốc repo, tạo `.env` từ `.env.example`, chỉ điền vào file local này các biến `AZURE_SPEECH_*`, `AZURE_BLOB_*`, `OPENAI_API_KEY`. Docker Compose chuyển chúng vào WebApi theo `docker-compose.yml`; `.env` nằm trong Git ignore. Để `AI_BOOKING_ENABLED=false` cho đến khi backend AI nối an toàn. Không dán `.env` hoặc `dotnet user-secrets list` vào báo cáo.
 
-- Azure Speech: live smoke tạo MP3 hợp lệ, nghe được; kết quả không tự lưu Blob.
-- Azure Blob: cần thử upload một asset thử nghiệm vào container private và đọc lại; unit test với mock không chứng minh cloud hoạt động.
+- Azure Speech: live smoke xác nhận Azure trả bytes có header MP3 và thời lượng dương; chưa nghe kiểm tra chất lượng giọng, kết quả không tự lưu Blob.
+- Azure Blob: có `AzureBlobLiveSmokeTests` opt-in để upload một blob thử nghiệm vào container private, kiểm tra tồn tại/đọc lại đúng bytes và xóa blob do chính test tạo. Test mặc định không gọi Azure; bytes thử chỉ có chữ ký ID3, **không phải MP3 nghe được**. Từ `waterbus-be`, sau khi lưu WebApi User Secrets ở trên, bật cờ trong đúng PowerShell đang chạy test:
+
+  ```powershell
+  $env:WATERBUS_AZURE_BLOB_SMOKE = "1"
+  dotnet test WaterbusSystem.sln --filter FullyQualifiedName~AzureBlobLiveSmokeTests
+  Remove-Item Env:WATERBUS_AZURE_BLOB_SMOKE
+  ```
+
+  Test chỉ được coi là đã gọi Blob thật nếu cờ bằng `1`; có thể tốn một lượng nhỏ phí giao dịch/lưu trữ. Nếu fail, kiểm tra container đã tồn tại, connection string đúng và Storage Account cho phép truy cập từ máy local. Không gửi connection string hoặc log chứa secret.
+- TTS → Blob bằng **MP3 nghe được**: `AzureAudioPipelineLiveSmokeTests` gọi Azure Speech thật qua `AudioAssetGenerationService`, upload Blob, tải lại và đối chiếu từng byte. Test xóa blob thử trên Azure sau khi chạy và giữ một bản MP3 trong `%LOCALAPPDATA%\Waterbus\smoke\` để nghe; không tạo/publish `AudioGuide`. Cần lưu cả bốn `AzureSpeech:*` và hai `AzureBlobAudioStorage:*` trong WebApi User Secrets (hoặc biến môi trường tương ứng). Từ `waterbus-be`:
+
+  ```powershell
+  $env:WATERBUS_AZURE_AUDIO_PIPELINE_SMOKE = "1"
+  dotnet test WaterbusSystem.sln --filter FullyQualifiedName~AzureAudioPipelineLiveSmokeTests
+  Remove-Item Env:WATERBUS_AZURE_AUDIO_PIPELINE_SMOKE
+  Get-ChildItem "$env:LOCALAPPDATA\Waterbus\smoke\azure-audio-*.mp3" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  ```
+
+  Mở file MP3 mới nhất để nghe. Cờ phải bằng `1` trong đúng phiên PowerShell chạy test; nếu không, test pass nhưng **không gọi Azure**. Bài này sử dụng quota Azure Speech và giao dịch Azure Blob. File local là dữ liệu thử ngoài repo; bạn có thể xóa sau khi nghe.
 - OpenAI: chỉ live test sau khi tool Trip Search và booking link dùng dữ liệu đúng BR FINAL.
 - GPS/Onboard Player: cần contract dispatch, ACK và safety override; unit test geofence chưa chứng minh loa tàu đã phát.
