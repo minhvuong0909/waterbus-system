@@ -48,3 +48,20 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+---
+
+## 📱 Module Soát Vé (Thành viên 4: Mobile App Developer - Tuấn)
+
+Module dành cho nhân viên soát vé (Staff Scanner) tại bến tàu Smart Waterbus.
+
+### Chức năng chính:
+1. **Giao diện Soát vé (Camera QR Scanner)**: Quét mã QR tốc độ cao, hỗ trợ flash, laser scanline, phản hồi rung haptic, hiển thị danh sách vé trong Booking và tích chọn hành khách check-in (BR-QR-03).
+2. **Cơ sở dữ liệu cục bộ (SQLite)**: Preload cache danh sách vé hợp lệ, thông tin chuyến và Public Key vào máy trước giờ mở cổng bến (BR-OFF-01).
+3. **Verify QR Offline**: Giải mã và xác thực chữ ký số bằng Public Key trực tiếp trên máy không cần gọi API (BR-QR-01, BR-QR-02).
+4. **Cơ chế Đồng bộ Idempotent Sync**: Background Task lưu sự kiện ngoại tuyến (`client_event_id` UUID v4 duy nhất) và tự động đẩy lô (Batch sync) lên Server khi có mạng (BR-OFF-03).
+
+### Chạy kiểm thử tự động:
+```bash
+npm run test:scanner
+```
