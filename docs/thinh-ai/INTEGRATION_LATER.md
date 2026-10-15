@@ -9,7 +9,7 @@ File này tách các công việc cần hợp tác sau khi các thành viên ho�
 | POI/RoutePoi/AudioGuide/BoatPositionEvent | Đã có entity, DbSet, EF mapping và migration | Có thể viết core TTS/geofence trên model hiện có. |
 | BoatTrackingHub (`P3-BE-01`) | Đã có Hub, tracking REST/cache và GPS simulator; xem `docs/REALTIME_CONTRACT.md` | Có nguồn vị trí để bàn contract adapter, nhưng chưa có đường gọi geofence và Onboard Player/ACK. Simulator mặc định tắt. |
 | POI CRUD và quản lý kịch bản (`P3-BE-03`, `P3-WEB-02`) | Chưa thấy API/UI trong source; `AudioGuide` không có script text | Chưa thể quyết định cách lưu/duyệt kịch bản hay form Admin. |
-| Audio storage/Onboard Player | Có Azure Blob MP3 adapter ở Infrastructure, unit test với mock; chưa có player/backend dispatch production | Cần account/container private, live upload/read thử và contract player để truy cập URI, phát ra loa. |
+| Audio storage/Onboard Player | Có Azure Blob MP3 adapter và service nhận script đã duyệt → TTS → Blob, unit test với mock; chưa có player/backend dispatch production | Cần account/container private, live upload/read thử, nguồn script/version của owner POI và contract player để truy cập URI, phát ra loa. |
 | Trip Search | Có `SearchTripsQuery`/`GET /api/v1/trips/search`; giá đang là `0m` TODO, stop list suy từ Station.OrderIndex | AI chỉ được dùng sau khi owner Trip Search xác nhận dữ liệu giờ/giá/bến chính xác. |
 | Booking link/Trip Card/chat widget | Frontend đã có chat widget và Trip Card, nhưng `assistantService.ts` vẫn trả canned/mock reply và chưa gọi AI backend | Cần thống nhất JSON/backend endpoint với Viễn và owner Booking; không xem widget hiện tại là Semantic Kernel chạy thật. |
 

@@ -33,6 +33,8 @@ dotnet user-secrets set "AzureBlobAudioStorage:ContainerName" "audio-guides-priv
 
 Adapter chỉ nhận MP3 hợp lệ, từ chối ghi đè cùng `AssetKey`, trả URI Blob không có SAS và không tự publish `AudioGuide`. Nếu sửa script/voice, caller phải cấp **AssetKey phiên bản mới**. Container private cần cơ chế cấp quyền đọc ngắn hạn cho Onboard Player ở bước tích hợp; URI lưu DB tự nó không phát được.
 
+`IAudioAssetGenerationService` đã nối TTS → Blob bằng kịch bản đã duyệt và `AssetKey` do caller cung cấp. Service chỉ trả metadata/URI; không tạo hoặc publish `AudioGuide`, không tự chọn version kịch bản.
+
 ## 3. OpenAI API key
 
 Tạo API key trong [OpenAI Platform](https://platform.openai.com/api-keys) cho project được nhóm cho phép dùng; kiểm tra ngân sách/quota trước khi bật. [OpenAI API quickstart](https://developers.openai.com/api/docs/quickstart). Không suy ra ChatGPT subscription đã có API credit, và không gửi key qua chat.
