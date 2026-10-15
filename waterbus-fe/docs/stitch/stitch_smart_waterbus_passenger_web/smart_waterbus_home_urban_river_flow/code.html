@@ -1,0 +1,1017 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Smart Waterbus — River Connects Greater Stories</title>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&amp;family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<style>
+    @layer base {
+      html, body { margin: 0; padding: 0; }
+      body { overscroll-behavior: none; }
+      main > :first-child { margin-top: 0 !important; }
+      main > :last-child { margin-bottom: 0 !important; }
+    }
+    ::-webkit-scrollbar { display: none; }
+    .font-script { font-family: 'Caveat', cursive; }
+  </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "sand-light": "#E9F0EC",
+            "coral-glow": "#F08A6B",
+            "surface-variant": "#e3e2e4",
+            "secondary-fixed-dim": "#7fd4d8",
+            "surface-bright": "#faf9fb",
+            "on-secondary-container": "#007074",
+            "outline": "#73777d",
+            "error-container": "#ffdad6",
+            "on-tertiary": "#ffffff",
+            "inverse-primary": "#b2c9e2",
+            "background": "#faf9fb",
+            "tertiary": "#190a00",
+            "secondary-container": "#9bf1f5",
+            "secondary-fixed": "#9bf1f5",
+            "on-tertiary-fixed": "#2c1600",
+            "on-background": "#1b1c1d",
+            "primary": "#000f1d",
+            "primary-fixed-dim": "#b2c9e2",
+            "on-primary": "#ffffff",
+            "primary-container": "#0d2538",
+            "deep-river": "#0D2538",
+            "surface-container-highest": "#e3e2e4",
+            "tertiary-fixed-dim": "#e8bf98",
+            "on-surface": "#1b1c1d",
+            "teal-flow": "#147A7E",
+            "surface-container-low": "#f5f3f5",
+            "on-secondary-fixed-variant": "#004f52",
+            "on-primary-container": "#778da4",
+            "surface-container-high": "#e9e8e9",
+            "on-error": "#ffffff",
+            "on-primary-fixed": "#041d30",
+            "on-surface-variant": "#43474c",
+            "signal-amber": "#E8B63E",
+            "on-primary-fixed-variant": "#33495d",
+            "on-secondary-fixed": "#002021",
+            "inverse-surface": "#303032",
+            "on-tertiary-container": "#a88460",
+            "sky-aqua": "#4FC3D8",
+            "surface-container-lowest": "#ffffff",
+            "outline-variant": "#c3c7cd",
+            "tertiary-fixed": "#ffdcbd",
+            "on-secondary": "#ffffff",
+            "mist": "#F4F7F8",
+            "secondary": "#00696d",
+            "surface-dim": "#dbd9db",
+            "surface": "#faf9fb",
+            "surface-tint": "#4b6176",
+            "on-error-container": "#93000a",
+            "on-tertiary-fixed-variant": "#5d4123",
+            "primary-fixed": "#cee5ff",
+            "surface-container": "#efedef",
+            "error": "#ba1a1a",
+            "ink": "#18242D",
+            "inverse-on-surface": "#f2f0f2",
+            "tertiary-container": "#351e04"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "2xl": "1rem",
+            "3xl": "1.5rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-3xl": "64px",
+            "space-sm": "8px",
+            "gutter": "24px",
+            "margin": "32px",
+            "space-lg": "24px",
+            "space-md": "16px",
+            "space-2xl": "48px",
+            "space-xl": "32px",
+            "space-xs": "4px"
+          },
+          "fontFamily": {
+            "body-lg": ["Inter", "sans-serif"],
+            "body-md": ["Inter", "sans-serif"],
+            "body-sm": ["Inter", "sans-serif"],
+            "numeric-md": ["Plus Jakarta Sans", "sans-serif"],
+            "numeric-lg": ["Plus Jakarta Sans", "sans-serif"],
+            "headline-sm": ["Plus Jakarta Sans", "sans-serif"],
+            "headline-md": ["Plus Jakarta Sans", "sans-serif"],
+            "headline-lg": ["Plus Jakarta Sans", "sans-serif"],
+            "headline-xl": ["Plus Jakarta Sans", "sans-serif"],
+            "headline-xl-mobile": ["Plus Jakarta Sans", "sans-serif"]
+          },
+          "fontSize": {
+            "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+            "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+            "numeric-md": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+            "numeric-lg": ["32px", { "lineHeight": "38px", "fontWeight": "700" }],
+            "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+            "headline-md": ["26px", { "lineHeight": "34px", "fontWeight": "600" }],
+            "headline-lg": ["38px", { "lineHeight": "46px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-xl": ["56px", { "lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "headline-xl-mobile": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.01em", "fontWeight": "700" }]
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-secondary-container selection:text-on-secondary-container">
+<!-- NAVIGATION BAR (Exact visual reference style) -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-mist/90 backdrop-blur-xl border-b border-surface-container/60 shadow-[0_2px_12px_rgba(13,37,56,0.03)]">
+<div class="h-20 max-w-7xl mx-auto px-margin flex items-center justify-between gap-space-lg">
+<div class="flex items-center gap-space-xl">
+<a class="flex items-center gap-space-sm group" data-path="explore" href="#">
+<img alt="Smart Waterbus Logo" class="h-9 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WiF1NNf59f3fm7YJTVwxqFCw3wL1kpEErVxVKdtffjYZSE8rQcimuCrd5m6V76pWXG5bJvJDdRoZpBEjA_GNbPglxJH1dQuFydgjV3UG19EwKFJxbV6q9TY0sodBd7F8JohBy0giL7H2aZ2jYp6R_WLIJf6FvCJQYgRhGklczPLysss8-K8zR_cZt3NH-u9tohMmc14WvzX5FGl4GzQ58s-iJ1ab1wCYtkCgBkJFkXHSazs2KBHG1lBF0l">
+</a>
+<nav class="hidden lg:flex items-center gap-space-xl" data-active-classes="text-teal-flow font-headline-sm text-headline-sm">
+<a aria-current="page" class="transition-colors text-teal-flow font-headline-sm text-body-lg font-semibold border-b-2 border-teal-flow pb-0.5" data-path="explore" href="#">Explore</a>
+<a class="text-on-surface-variant font-body-md text-body-md hover:text-deep-river transition-colors font-medium" data-path="routes" href="#">Routes</a>
+<a class="text-on-surface-variant font-body-md text-body-md hover:text-deep-river transition-colors font-medium" data-path="experience" href="#">Experience</a>
+<a class="text-on-surface-variant font-body-md text-body-md hover:text-deep-river transition-colors font-medium" data-path="about" href="#">About</a>
+</nav>
+</div>
+<div class="flex items-center gap-space-md">
+<button aria-label="Search routes and piers" class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-deep-river transition-all" type="button">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</button>
+<div class="relative hidden sm:flex items-center gap-space-xs px-space-sm py-space-xs rounded-full hover:bg-surface-container cursor-pointer transition-colors text-on-surface-variant hover:text-deep-river">
+<span class="material-symbols-outlined text-[18px]">language</span>
+<span class="font-body-sm text-body-sm font-semibold uppercase tracking-wider">EN</span>
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</div>
+<a class="hidden sm:inline-flex items-center justify-center px-6 py-2.5 rounded-full bg-deep-river text-on-primary font-headline-sm text-body-md hover:bg-primary-container transition-all shadow-sm" data-path="signin" href="#">
+          Sign in
+        </a>
+</div>
+</div>
+</header>
+<main class="w-full pt-20 bg-surface">
+<div class="flex flex-col w-full">
+<!-- 1. HERO SECTION (EXPANSIVE PANORAMIC CITY-RIVER CANVAS DIRECTLY MATCHING REF IMAGE 2) -->
+<section class="relative w-full min-h-[720px] lg:h-[86vh] lg:min-h-[780px] lg:max-h-[920px] overflow-hidden bg-gradient-to-b from-mist via-[#EDF4F5] to-surface flex flex-col justify-between">
+<!-- Panoramic Photographic Backdrop & Vessel Gliding Across River -->
+<div class="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+<img alt="Sleek Smart Waterbus electric catamaran gliding across the scenic Saigon River with skyline" class="w-full h-full object-cover object-[62%_center] lg:object-[68%_center] filter saturate-[1.08] brightness-[1.02]" src="https://lh3.googleusercontent.com/aida/AEtjO1VQrMFnNCgzOVzrR4pRwHYFihGLiHW1EK3w9klgnexf1_wkkb6QZImvFLcoaJsIPenE_8jeN_plTydFQgIwQRi-ie7SvDJbpF6euqt6OgfKJdLej0z0cts8Tu0mV63lOedmaIm9cZ3WMtfFU5zI0B-KGUiTrxoLW7rz62s7VMTGElsX4RQHDHXO0XpJv9U8_Wlt8Yl3uHs28lt_SZ2sLBXcNHfRz92GZNe4B3QKwFg9Y-rjSsFAYFcrwxit">
+<!-- Atmospheric gradient overlay that gracefully blends the left text zone with clean river daylight -->
+<div class="absolute inset-0 bg-gradient-to-r from-mist via-mist/85 sm:via-mist/60 to-transparent lg:w-[68%]"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-deep-river/80 via-transparent to-transparent opacity-90 lg:opacity-75"></div>
+<!-- Fine topo river lines overlay -->
+<svg class="absolute top-0 left-0 w-full h-full opacity-20 text-teal-flow" fill="none" preserveAspectRatio="none" viewBox="0 0 1440 800">
+<path d="M-80 160 C 220 120, 420 320, 780 240 C 1100 170, 1320 280, 1540 220" stroke="currentColor" stroke-linecap="round" stroke-width="32"></path>
+<path d="M-100 320 C 260 260, 520 440, 880 340 C 1180 260, 1380 400, 1580 330" stroke="currentColor" stroke-dasharray="10 16" stroke-width="16"></path>
+</svg>
+</div>
+<!-- Floating Live Telemetry Badge over the Vessel (Top Right in River Canvas) -->
+<div class="absolute top-8 right-8 lg:right-16 z-20 hidden md:flex items-center gap-3 bg-deep-river/85 backdrop-blur-md text-on-primary px-4 py-2 rounded-full shadow-[0_12px_32px_rgba(13,37,56,0.25)] border border-white/15">
+<div class="w-2.5 h-2.5 rounded-full bg-sky-aqua animate-ping"></div>
+<span class="font-numeric-md text-xs tracking-wider uppercase font-semibold text-sand-light">WB-01 • Bach Dang → Thu Thiem</span>
+<span class="text-white/40">|</span>
+<span class="text-xs font-semibold text-sky-aqua flex items-center gap-1">
+<span class="material-symbols-outlined text-[15px]">speed</span> 42 km/h • On Time
+          </span>
+</div>
+<!-- Hero Content Layer -->
+<div class="relative z-10 max-w-7xl mx-auto px-margin w-full pt-10 sm:pt-14 lg:pt-20">
+<div class="max-w-2xl space-y-space-md">
+<!-- Eyebrow Pill -->
+<div class="inline-flex items-center gap-2">
+<span class="font-headline-sm text-sm font-semibold tracking-wide text-teal-flow uppercase tracking-widest">
+                City Moves Differently from the River
+              </span>
+</div>
+<!-- Main Confident Headline with Stylish Script Accent -->
+<div class="relative space-y-1">
+<!-- Cursive callout positioned like reference "More than a ride" -->
+<div class="inline-block transform -rotate-3 translate-y-1 text-sky-aqua font-script text-3xl sm:text-4xl select-none drop-shadow-sm font-semibold">
+                More than a ride ~
+              </div>
+<h1 class="font-headline-xl text-4xl sm:text-5xl lg:text-headline-xl text-deep-river tracking-tight leading-[1.08] font-extrabold">
+                A Smarter Journey,<br>
+<span class="text-teal-flow">A Brighter Saigon</span>
+</h1>
+</div>
+<!-- Concise Supporting Paragraph -->
+<p class="font-body-lg text-base sm:text-body-lg text-ink/80 max-w-xl leading-relaxed pt-1">
+              Explore the city by water with real-time updates, seamless booking and unforgettable experiences.
+            </p>
+<!-- Primary & Secondary CTA Buttons -->
+<div class="flex flex-wrap items-center gap-4 pt-3">
+<a class="group inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl bg-teal-flow text-on-primary font-headline-sm text-base font-semibold hover:bg-secondary transition-all shadow-[0_12px_24px_-8px_rgba(20,122,126,0.42)] hover:shadow-[0_16px_32px_-6px_rgba(20,122,126,0.55)] transform hover:-translate-y-0.5" data-path="routes" href="#">
+<span>Explore Routes</span>
+<span class="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+<a class="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-surface/90 hover:bg-surface text-deep-river font-headline-sm text-base font-semibold transition-all shadow-md backdrop-blur-md border border-white/60 hover:shadow-lg" data-path="experience" href="#">
+<span>Discover Experience</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Horizontal Translucent Feature Cue Strip & Pagination (Direct Reference Layout) -->
+<div class="relative z-20 w-full max-w-7xl mx-auto px-margin pb-6 sm:pb-8 pt-12">
+<div class="bg-deep-river/75 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-white/15 shadow-[0_20px_40px_rgba(13,37,56,0.35)] flex flex-col lg:flex-row lg:items-center justify-between gap-4 text-on-primary">
+<!-- 4 Outline Feature Items -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 flex-1">
+<!-- Item 1 -->
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-sky-aqua flex-shrink-0 border border-white/10">
+<span class="material-symbols-outlined text-[22px]">radar</span>
+</div>
+<div class="min-w-0">
+<div class="font-headline-sm text-sm font-semibold text-white truncate">Real-time tracking</div>
+<div class="font-body-sm text-xs text-sand-light/80 truncate">Know where you are</div>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-coral-glow flex-shrink-0 border border-white/10">
+<span class="material-symbols-outlined text-[22px]">wb_twilight</span>
+</div>
+<div class="min-w-0">
+<div class="font-headline-sm text-sm font-semibold text-white truncate">Scenic journeys</div>
+<div class="font-body-sm text-xs text-sand-light/80 truncate">See a different side</div>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-sky-aqua flex-shrink-0 border border-white/10">
+<span class="material-symbols-outlined text-[22px]">confirmation_number</span>
+</div>
+<div class="min-w-0">
+<div class="font-headline-sm text-sm font-semibold text-white truncate">Easy booking</div>
+<div class="font-body-sm text-xs text-sand-light/80 truncate">Fast &amp; secure</div>
+</div>
+</div>
+<!-- Item 4 -->
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-secondary-fixed flex-shrink-0 border border-white/10">
+<span class="material-symbols-outlined text-[22px]">energy_savings_leaf</span>
+</div>
+<div class="min-w-0">
+<div class="font-headline-sm text-sm font-semibold text-white truncate">Sustainable travel</div>
+<div class="font-body-sm text-xs text-sand-light/80 truncate">Greener future</div>
+</div>
+</div>
+</div>
+<!-- Pagination Indicator (01 — 03 + Sleek Carousel Nav Arrows) -->
+<div class="flex items-center justify-end gap-3 pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-white/15 lg:pl-6">
+<span class="font-numeric-md text-sm text-sand-light font-semibold tracking-wider">01 <span class="text-white/40">—</span> 03</span>
+<div class="flex items-center gap-1.5">
+<button aria-label="Previous vessel" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[16px]">chevron_left</span>
+</button>
+<button aria-label="Next vessel" class="w-8 h-8 rounded-full bg-white text-deep-river hover:bg-sand-light flex items-center justify-center transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 2. SECTION 1: "More Than Transportation" (Surface Rhythm: Sand Light #E9F0EC container) -->
+<section class="w-full py-space-3xl bg-sand-light/60 border-y border-outline-variant/30">
+<div class="max-w-7xl mx-auto px-margin space-y-space-2xl">
+<!-- Section Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-md">
+<div class="space-y-space-xs max-w-2xl">
+<div class="inline-flex items-center gap-space-xs text-teal-flow font-body-sm text-body-sm font-bold uppercase tracking-widest">
+<span class="w-2 h-2 rounded-full bg-teal-flow"></span>
+                Why River Travel
+              </div>
+<h2 class="font-headline-lg text-headline-lg text-deep-river tracking-tight font-bold">
+                More Than Transportation — A New Way to See Saigon
+              </h2>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md">
+              From iconic skyline landmarks to hidden historical wharfs, Smart Waterbus brings you closer to the city's living river heritage.
+            </p>
+</div>
+<!-- Integrated Asymmetrical Modular Feature Layout with Outline Icons -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-lg">
+<!-- Modular Box 1: Fleet Telemetry -->
+<div class="group bg-surface rounded-2xl p-space-lg border border-[#E2E8F0] shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between space-y-space-md">
+<div class="space-y-space-md">
+<div class="w-12 h-12 rounded-xl bg-mist border border-teal-flow/20 flex items-center justify-center text-teal-flow group-hover:bg-teal-flow group-hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined text-[26px]">directions_boat</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-deep-river">Real-time Vessel Radar</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                  Live GPS telemetry, millisecond river arrival forecasts, and accurate passenger crowd gauges at every station.
+                </p>
+</div>
+<div class="pt-space-sm flex items-center gap-space-xs text-teal-flow font-body-sm text-body-sm font-semibold">
+<span>Always know where you are</span>
+<span class="material-symbols-outlined text-[16px]">sensors</span>
+</div>
+</div>
+<!-- Modular Box 2: Instant Booking -->
+<div class="group bg-surface rounded-2xl p-space-lg border border-[#E2E8F0] shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between space-y-space-md">
+<div class="space-y-space-md">
+<div class="w-12 h-12 rounded-xl bg-mist border border-teal-flow/20 flex items-center justify-center text-teal-flow group-hover:bg-teal-flow group-hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined text-[26px]">confirmation_number</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-deep-river">Easy &amp; Secure Booking</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                  Instant QR e-tickets, interactive deck seat selection, contactless checkout with Apple Pay, cards, and MoMo.
+                </p>
+</div>
+<div class="pt-space-sm flex items-center gap-space-xs text-teal-flow font-body-sm text-body-sm font-semibold">
+<span>Book in just a few taps</span>
+<span class="material-symbols-outlined text-[16px]">touch_app</span>
+</div>
+</div>
+<!-- Modular Box 3: Panoramic Comfort -->
+<div class="group bg-surface rounded-2xl p-space-lg border border-[#E2E8F0] shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between space-y-space-md">
+<div class="space-y-space-md">
+<div class="w-12 h-12 rounded-xl bg-mist border border-teal-flow/20 flex items-center justify-center text-teal-flow group-hover:bg-teal-flow group-hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined text-[26px]">anchor</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-deep-river">Scenic &amp; Cultural Routes</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                  Expansive panoramic windows, whisper-quiet electric cruising, refreshing open air deck, and curated audio stories.
+                </p>
+</div>
+<div class="pt-space-sm flex items-center gap-space-xs text-teal-flow font-body-sm text-body-sm font-semibold">
+<span>See a different side</span>
+<span class="material-symbols-outlined text-[16px]">photo_camera</span>
+</div>
+</div>
+<!-- Modular Box 4: Sustainable Future -->
+<div class="group bg-surface rounded-2xl p-space-lg border border-[#E2E8F0] shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between space-y-space-md">
+<div class="space-y-space-md">
+<div class="w-12 h-12 rounded-xl bg-mist border border-coral-glow/30 flex items-center justify-center text-coral-glow group-hover:bg-coral-glow group-hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined text-[26px]">energy_savings_leaf</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-deep-river">Sustainable Urban Transit</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                  Zero tailpipe emissions along Saigon’s vital river corridor, reducing street gridlock and protecting biodiversity.
+                </p>
+</div>
+<div class="pt-space-sm flex items-center gap-space-xs text-coral-glow font-body-sm text-body-sm font-semibold">
+<span>For a greener tomorrow</span>
+<span class="material-symbols-outlined text-[16px]">eco</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. SECTION 2: "Explore the River Corridor" (Signature Map Style directly from ref sheet) -->
+<section class="w-full py-space-3xl bg-mist">
+<div class="max-w-7xl mx-auto px-margin space-y-space-xl">
+<!-- Section Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-md">
+<div>
+<span class="font-body-sm text-body-sm text-teal-flow font-bold uppercase tracking-wider block">Connected Waterway Grid</span>
+<h2 class="font-headline-lg text-headline-lg text-deep-river tracking-tight font-bold">
+                Explore the River Corridor
+              </h2>
+<p class="font-body-md text-body-md text-on-surface-variant pt-1">
+                Real-time monitoring across 18 river stations connecting District 1, Thu Thiem, Binh Thanh, and Thu Duc.
+              </p>
+</div>
+<!-- Route Filter Pills -->
+<div class="inline-flex p-1 bg-surface-container rounded-full shadow-inner">
+<button class="px-space-md py-2 rounded-full bg-teal-flow text-on-primary font-body-sm text-body-sm font-semibold shadow-sm" type="button">All Routes</button>
+<button class="px-space-md py-2 rounded-full text-on-surface-variant hover:text-deep-river font-body-sm text-body-sm font-medium transition-colors" type="button">Line 1 (Express)</button>
+<button class="px-space-md py-2 rounded-full text-on-surface-variant hover:text-deep-river font-body-sm text-body-sm font-medium transition-colors" type="button">Line 2 (Heritage)</button>
+<button class="px-space-md py-2 rounded-full text-on-surface-variant hover:text-deep-river font-body-sm text-body-sm font-medium transition-colors" type="button">Sunset Twilight</button>
+</div>
+</div>
+<!-- Map Visualization + Timetable Departure Cards Bento -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-start">
+<!-- Map Visualization Surface (7 cols - Matches reference Map Style) -->
+<div class="lg:col-span-7 bg-surface rounded-[24px] p-space-lg shadow-sm border border-outline-variant/30 space-y-space-md">
+<div class="flex items-center justify-between pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="w-3 h-3 rounded-full bg-teal-flow animate-ping"></span>
+<span class="font-headline-sm text-headline-sm text-deep-river font-bold">Live Waterway Vector</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant bg-sand-light px-space-sm py-1 rounded-full font-medium">GPS Radar Live • 10s cycle</span>
+</div>
+<!-- Stylized Saigon River Meander Vector (Reference Map Layout) -->
+<div class="relative w-full h-[470px] bg-[#EEF5F4] rounded-2xl overflow-hidden shadow-inner flex items-center justify-center border border-teal-flow/15">
+<svg class="absolute inset-0 w-full h-full" fill="none" preserveAspectRatio="none" viewBox="0 0 700 460">
+<defs>
+<pattern height="35" id="river-mesh" patternUnits="userSpaceOnUse" width="35">
+<path d="M 35 0 L 0 0 0 35" fill="none" stroke="#D8E8E4" stroke-dasharray="2 3" stroke-width="0.75"></path>
+</pattern>
+<linearGradient id="saigon-waterway" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#4FC3D8" stop-opacity="0.9"></stop>
+<stop offset="45%" stop-color="#147A7E" stop-opacity="0.95"></stop>
+<stop offset="100%" stop-color="#0D2538" stop-opacity="0.9"></stop>
+</linearGradient>
+</defs>
+<rect fill="url(#river-mesh)" height="100%" width="100%"></rect>
+<!-- Saigon River Fluid S-Curve Ribbon -->
+<path d="M 20 60 C 170 80, 230 220, 360 210 C 490 200, 520 380, 680 390" opacity="0.4" stroke="#B2D8D6" stroke-linecap="round" stroke-linejoin="round" stroke-width="68"></path>
+<path d="M 20 60 C 170 80, 230 220, 360 210 C 490 200, 520 380, 680 390" stroke="url(#saigon-waterway)" stroke-linecap="round" stroke-linejoin="round" stroke-width="26"></path>
+<path d="M 20 60 C 170 80, 230 220, 360 210 C 490 200, 520 380, 680 390" stroke="#FFFFFF" stroke-dasharray="8 12" stroke-linecap="round" stroke-width="3.5"></path>
+</svg>
+<!-- Pier Station 1: Bach Dang (Major Terminal Hub) -->
+<div class="absolute top-[48px] left-[65px] flex items-center gap-space-xs group cursor-pointer z-10">
+<div class="w-7 h-7 rounded-full bg-deep-river text-on-primary flex items-center justify-center shadow-lg ring-4 ring-deep-river/20">
+<span class="material-symbols-outlined text-[15px]">anchor</span>
+</div>
+<div class="bg-surface-container-lowest px-3 py-1.5 rounded-xl shadow-md border border-outline-variant/30">
+<span class="font-headline-sm text-xs font-bold text-deep-river block">Bach Dang Pier</span>
+<span class="font-body-sm text-[10px] text-teal-flow font-semibold">Central D1 Terminal</span>
+</div>
+</div>
+<!-- Pier Station 2: Thu Thiem Pier -->
+<div class="absolute top-[160px] left-[225px] flex items-center gap-space-xs cursor-pointer z-10">
+<div class="w-6 h-6 rounded-full bg-teal-flow text-on-primary flex items-center justify-center shadow-md ring-4 ring-teal-flow/20">
+<span class="w-2.5 h-2.5 rounded-full bg-white"></span>
+</div>
+<div class="bg-surface-container-lowest px-3 py-1 rounded-xl shadow-md border border-outline-variant/30">
+<span class="font-headline-sm text-xs font-semibold text-deep-river block">Thu Thiem Pier</span>
+<span class="font-body-sm text-[10px] text-on-surface-variant">District 2 Waterfront</span>
+</div>
+</div>
+<!-- Active Vessel Pin (Cruising WB-03 - Reference Map Node Style) -->
+<div class="absolute top-[205px] left-[355px] transform -translate-x-1/2 -translate-y-1/2 z-20">
+<div class="relative flex flex-col items-center">
+<!-- Floating Vessel Info Card Matching Reference Map -->
+<div class="bg-deep-river text-on-primary px-3 py-2 rounded-xl shadow-xl flex items-center gap-2.5 mb-2 border border-white/20">
+<div class="w-7 h-7 rounded-lg bg-teal-flow flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-[18px]">directions_boat</span>
+</div>
+<div class="text-left">
+<div class="font-headline-sm text-xs font-bold leading-tight">WB-03 • On time</div>
+<div class="font-body-sm text-[11px] text-sky-aqua font-semibold">42 km/h • Next: Thu Thiem</div>
+</div>
+</div>
+<!-- Vessel Node Circle -->
+<div class="w-7 h-7 rounded-full bg-teal-flow ring-4 ring-teal-flow/30 flex items-center justify-center shadow-lg text-on-primary">
+<span class="material-symbols-outlined text-[16px] transform rotate-45">navigation</span>
+</div>
+</div>
+</div>
+<!-- Pier Station 3: Van Thanh -->
+<div class="absolute top-[260px] left-[435px] flex items-center gap-space-xs cursor-pointer z-10">
+<div class="w-5 h-5 rounded-full bg-teal-flow text-on-primary flex items-center justify-center shadow-md">
+<span class="w-2 h-2 rounded-full bg-on-primary"></span>
+</div>
+<div class="bg-surface-container-lowest px-2.5 py-1 rounded-lg shadow-md border border-outline-variant/30">
+<span class="font-headline-sm text-xs font-semibold text-deep-river block">Van Thanh</span>
+<span class="font-body-sm text-[10px] text-on-surface-variant">Park Interchange</span>
+</div>
+</div>
+<!-- Pier Station 4: Binh An -->
+<div class="absolute top-[320px] left-[520px] flex items-center gap-space-xs cursor-pointer z-10">
+<div class="w-5 h-5 rounded-full bg-teal-flow text-on-primary flex items-center justify-center shadow-md">
+<span class="w-2 h-2 rounded-full bg-on-primary"></span>
+</div>
+<div class="bg-surface-container-lowest px-2.5 py-1 rounded-lg shadow-md border border-outline-variant/30">
+<span class="font-headline-sm text-xs font-semibold text-deep-river block">Binh An Pier</span>
+<span class="font-body-sm text-[10px] text-on-surface-variant">Binh Thanh</span>
+</div>
+</div>
+<!-- Pier Station 5: Linh Dong (Terminus) -->
+<div class="absolute bottom-[35px] right-[40px] flex items-center gap-space-xs cursor-pointer z-10">
+<div class="w-7 h-7 rounded-full bg-deep-river text-on-primary flex items-center justify-center shadow-lg ring-4 ring-deep-river/20">
+<span class="material-symbols-outlined text-[15px]">flag</span>
+</div>
+<div class="bg-surface-container-lowest px-3 py-1.5 rounded-xl shadow-md border border-outline-variant/30">
+<span class="font-headline-sm text-xs font-bold text-deep-river block">Linh Dong Pier</span>
+<span class="font-body-sm text-[10px] text-teal-flow font-semibold">Thu Duc Terminus</span>
+</div>
+</div>
+<!-- Legend Overlay -->
+<div class="absolute bottom-4 left-4 bg-surface-container-lowest/90 backdrop-blur-md px-3 py-1.5 rounded-xl shadow-sm border border-outline-variant/30 text-deep-river flex items-center gap-3 text-[11px] font-medium">
+<span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-teal-flow"></span> Operational</span>
+<span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-aqua"></span> Vessel Tracking</span>
+<span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-signal-amber"></span> Tide Alert: Clear</span>
+</div>
+</div>
+</div>
+<!-- Live Departures Schedule (5 cols - Matching Card Style in Reference) -->
+<div class="lg:col-span-5 space-y-space-md">
+<div class="flex items-center justify-between">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-deep-river font-bold">Next Departures</h3>
+<span class="font-body-sm text-xs text-on-surface-variant">Live from Bach Dang Pier</span>
+</div>
+<span class="font-body-sm text-xs text-teal-flow font-semibold bg-sand-light px-2.5 py-1 rounded-full">Updated Live</span>
+</div>
+<!-- Trip Cards Matching Reference: WB-01, Bach Dang -> Thu Thiem, 30 min, VND 15,000 - 45,000 -->
+<div class="space-y-space-sm">
+<!-- Departure 1 -->
+<div class="bg-surface rounded-2xl p-4 shadow-sm border border-[#E2E8F0] hover:shadow-md hover:border-teal-flow/40 transition-all flex items-center justify-between gap-3 group">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-xl bg-mist border border-outline-variant/30 flex flex-col items-center justify-center text-deep-river flex-shrink-0">
+<span class="font-headline-sm text-sm font-bold">08:00</span>
+<span class="font-body-sm text-[10px] text-teal-flow font-semibold">On time</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5 font-headline-sm text-sm font-bold text-deep-river">
+<span>Bach Dang</span>
+<span class="material-symbols-outlined text-[15px] text-teal-flow">arrow_forward</span>
+<span>Thu Thiem</span>
+</div>
+<div class="flex items-center gap-2 font-body-sm text-xs text-on-surface-variant pt-0.5">
+<span class="text-teal-flow font-medium">WB-01</span>
+<span>•</span>
+<span>12 min voyage</span>
+<span>•</span>
+<span class="text-secondary font-medium">Direct</span>
+</div>
+</div>
+</div>
+<div class="text-right flex flex-col items-end">
+<span class="font-numeric-md text-sm font-bold text-deep-river">VND 15,000</span>
+<button class="mt-1 px-3.5 py-1 rounded-full bg-teal-flow text-on-primary font-body-sm text-xs font-semibold hover:bg-secondary transition-colors" type="button">Select</button>
+</div>
+</div>
+<!-- Departure 2 -->
+<div class="bg-surface rounded-2xl p-4 shadow-sm border border-[#E2E8F0] hover:shadow-md hover:border-teal-flow/40 transition-all flex items-center justify-between gap-3 group">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-xl bg-mist border border-outline-variant/30 flex flex-col items-center justify-center text-deep-river flex-shrink-0">
+<span class="font-headline-sm text-sm font-bold">08:30</span>
+<span class="font-body-sm text-[10px] text-teal-flow font-semibold">Boarding</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5 font-headline-sm text-sm font-bold text-deep-river">
+<span>Bach Dang</span>
+<span class="material-symbols-outlined text-[15px] text-teal-flow">arrow_forward</span>
+<span>Binh An</span>
+</div>
+<div class="flex items-center gap-2 font-body-sm text-xs text-on-surface-variant pt-0.5">
+<span class="text-teal-flow font-medium">WB-02</span>
+<span>•</span>
+<span>24 min express</span>
+<span>•</span>
+<span class="text-teal-flow font-medium">Line 1</span>
+</div>
+</div>
+</div>
+<div class="text-right flex flex-col items-end">
+<span class="font-numeric-md text-sm font-bold text-deep-river">VND 25,000</span>
+<button class="mt-1 px-3.5 py-1 rounded-full bg-teal-flow text-on-primary font-body-sm text-xs font-semibold hover:bg-secondary transition-colors" type="button">Select</button>
+</div>
+</div>
+<!-- Departure 3 -->
+<div class="bg-surface rounded-2xl p-4 shadow-sm border border-[#E2E8F0] hover:shadow-md hover:border-teal-flow/40 transition-all flex items-center justify-between gap-3 group">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-xl bg-mist border border-outline-variant/30 flex flex-col items-center justify-center text-deep-river flex-shrink-0">
+<span class="font-headline-sm text-sm font-bold">09:15</span>
+<span class="font-body-sm text-[10px] text-on-surface-variant">Scheduled</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5 font-headline-sm text-sm font-bold text-deep-river">
+<span>Bach Dang</span>
+<span class="material-symbols-outlined text-[15px] text-teal-flow">arrow_forward</span>
+<span>Linh Dong</span>
+</div>
+<div class="flex items-center gap-2 font-body-sm text-xs text-on-surface-variant pt-0.5">
+<span class="text-teal-flow font-medium">WB-03</span>
+<span>•</span>
+<span>42 min full run</span>
+<span>•</span>
+<span class="text-on-surface-variant">5 Piers</span>
+</div>
+</div>
+</div>
+<div class="text-right flex flex-col items-end">
+<span class="font-numeric-md text-sm font-bold text-deep-river">VND 35,000</span>
+<button class="mt-1 px-3.5 py-1 rounded-full bg-teal-flow text-on-primary font-body-sm text-xs font-semibold hover:bg-secondary transition-colors" type="button">Select</button>
+</div>
+</div>
+<!-- Departure 4 - Sunset Twilight Tour -->
+<div class="bg-gradient-to-r from-surface to-mist rounded-2xl p-4 shadow-sm border border-coral-glow/30 hover:shadow-md transition-all flex items-center justify-between gap-3">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-xl bg-coral-glow/15 border border-coral-glow/30 flex flex-col items-center justify-center text-coral-glow flex-shrink-0">
+<span class="font-headline-sm text-sm font-bold">17:30</span>
+<span class="font-body-sm text-[10px] text-coral-glow font-semibold">Twilight</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5 font-headline-sm text-sm font-bold text-deep-river">
+<span>Sunset Heritage Cruise</span>
+</div>
+<div class="flex items-center gap-2 font-body-sm text-xs text-on-surface-variant pt-0.5">
+<span>60 min scenic</span>
+<span>•</span>
+<span class="text-coral-glow font-medium">Audio Guide Included</span>
+</div>
+</div>
+</div>
+<div class="text-right flex flex-col items-end">
+<span class="font-numeric-md text-sm font-bold text-deep-river">VND 45,000</span>
+<button class="mt-1 px-3.5 py-1 rounded-full bg-coral-glow text-on-primary font-body-sm text-xs font-semibold hover:opacity-90 transition-opacity" type="button">Reserve</button>
+</div>
+</div>
+</div>
+<!-- Peak Hour Info strip -->
+<div class="p-3.5 rounded-xl bg-sand-light/80 flex items-center justify-between border border-teal-flow/20">
+<div class="flex items-center gap-2 text-deep-river">
+<span class="material-symbols-outlined text-teal-flow text-[20px]">schedule</span>
+<span class="font-body-sm text-xs font-medium">Boats arrive every 15 mins during peak hours (06:30–09:00 &amp; 16:30–19:30)</span>
+</div>
+<a class="font-body-sm text-xs text-teal-flow font-bold hover:underline flex items-center gap-0.5" href="#">
+<span>Timetable</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 4. SECTION 3: "Discover the City from the River" (Surface Rhythm: Clean White Canvas + Editorial Layout) -->
+<section class="w-full py-space-3xl bg-surface-container-lowest">
+<div class="max-w-7xl mx-auto px-margin space-y-space-2xl">
+<!-- Section Header -->
+<div class="space-y-space-xs max-w-2xl">
+<span class="font-body-sm text-body-sm text-coral-glow font-bold uppercase tracking-wider block">River Stories &amp; Destinations</span>
+<h2 class="font-headline-lg text-headline-lg text-deep-river tracking-tight font-bold">
+              A Different Perspective on Saigon’s Skyline &amp; Heritage
+            </h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+              Immerse yourself in centuries of river commerce, shimmering night architecture, and peaceful winding canals away from crowded streets.
+            </p>
+</div>
+<!-- 3 Large Scenic Editorial Cards with Storytelling Badges -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-xl">
+<!-- Story Card 1 -->
+<article class="group bg-surface rounded-[24px] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col border border-outline-variant/30">
+<div class="relative w-full h-72 overflow-hidden bg-deep-river/10">
+<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" data-alt="Twilight sunset reflection across Saigon skyline" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA7lhOpwmqsbU3ep1SGjdN98HG4OdjmuFEIsNo-ZzLOkZe-3bnssGVFFjTECwRad1uRayvTVQ042JQ19ucIyhamBYFxMsXWM2u9kBHG4_mmHFhcRfASlWIMg0FENVOifq1oAGNbj_ajBKzkCcFvKp1FP8cdBasNZi4mYR4GZUChzp6eLUDzr11TZ9z0AjrEkJtz2IVMdbHgT4OjqLIA0O478qhyZQZxdRTaqc3idrKqmuvxLND4RJKtXQ')"></div>
+<div class="absolute top-4 left-4 bg-deep-river/85 backdrop-blur-md px-3 py-1 rounded-full text-on-primary font-body-sm text-xs font-medium flex items-center gap-1.5 border border-white/10">
+<span class="material-symbols-outlined text-[15px] text-coral-glow">wb_sunny</span>
+<span>Golden Hour Special</span>
+</div>
+<div class="absolute bottom-4 right-4 bg-surface/90 backdrop-blur-md px-3.5 py-1 rounded-full text-deep-river font-numeric-md text-sm font-bold shadow-sm">
+                  From VND 45,000
+                </div>
+</div>
+<div class="p-space-lg flex-1 flex flex-col justify-between space-y-space-md">
+<div class="space-y-space-sm">
+<div class="flex items-center gap-2 text-on-surface-variant font-body-sm text-xs">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">timer</span> 50 mins</span>
+<span>•</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">pin_drop</span> Bach Dang Pier</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-deep-river font-bold group-hover:text-teal-flow transition-colors">
+                    Twilight Sunset at Thu Thiem
+                  </h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                    Watch the sunset cast copper light across Saigon’s highest skyscrapers, accompanied by bilingual ambient audio commentary.
+                  </p>
+</div>
+<div class="pt-space-sm flex items-center justify-between text-teal-flow font-body-md text-body-md font-semibold border-t border-surface-container pt-3">
+<span class="group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                    Explore Tour
+                    <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</span>
+<span class="material-symbols-outlined text-[20px] text-coral-glow">headphones</span>
+</div>
+</div>
+</article>
+<!-- Story Card 2 -->
+<article class="group bg-surface rounded-[24px] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col border border-outline-variant/30">
+<div class="relative w-full h-72 overflow-hidden bg-deep-river/10">
+<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" data-alt="Colonial waterfront customs and ancient wharfs" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDQBpWSGdok6B3LiOvaXji4CHRfjwN9Xl6cqk5YrkhrctfYn5rROvKyWxVIIPAkkCThyDUTCnPSjZrarwK5cC-3xBa350k8And0iNp6fgO7gJz9ij8OE0dMkYZqsXb3FYSKACm8Y3GkyHRKf9shlvA9n1TtpqN4lqmqKI3O7A475mWq8qmPoJ7p5t139IMjScYMSjSc9N5vYpm35UzzJEdcEoo8od5sQt9EHizdPchWkN1cFjJrAnIlbA')"></div>
+<div class="absolute top-4 left-4 bg-deep-river/85 backdrop-blur-md px-3 py-1 rounded-full text-on-primary font-body-sm text-xs font-medium flex items-center gap-1.5 border border-white/10">
+<span class="material-symbols-outlined text-[15px] text-sky-aqua">museum</span>
+<span>Heritage &amp; History</span>
+</div>
+<div class="absolute bottom-4 right-4 bg-surface/90 backdrop-blur-md px-3.5 py-1 rounded-full text-deep-river font-numeric-md text-sm font-bold shadow-sm">
+                  From VND 35,000
+                </div>
+</div>
+<div class="p-space-lg flex-1 flex flex-col justify-between space-y-space-md">
+<div class="space-y-space-sm">
+<div class="flex items-center gap-2 text-on-surface-variant font-body-sm text-xs">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">timer</span> 40 mins</span>
+<span>•</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">pin_drop</span> Cho Lon Wharf</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-deep-river font-bold group-hover:text-teal-flow transition-colors">
+                    Historic Waterfront &amp; Colonial Wharfs
+                  </h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                    Trace the 300-year maritime lineage of Gia Dinh, sailing past historic customs houses, ancient timber storehouses, and boat communities.
+                  </p>
+</div>
+<div class="pt-space-sm flex items-center justify-between text-teal-flow font-body-md text-body-md font-semibold border-t border-surface-container pt-3">
+<span class="group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                    Explore Tour
+                    <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</span>
+<span class="material-symbols-outlined text-[20px] text-teal-flow">auto_stories</span>
+</div>
+</div>
+</article>
+<!-- Story Card 3 -->
+<article class="group bg-surface rounded-[24px] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col border border-outline-variant/30">
+<div class="relative w-full h-72 overflow-hidden bg-deep-river/10">
+<div class="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-700" data-alt="Lush green canal nature along Thanh Da" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBTotn8dqhWjlhP86dEXrbDq5yVdwkc0yUQCqy7r-ZWi1SVfAjjFPutGjOayaIg2zNvyJidvhQphBTitZvsAisaBLfOJr11Rr5sixX3q_udUS8EIfaMOBV89z5J4u0fhQgcfcmWLpMosBxwV9rWV_ZVnOpEQMANH00rqS222f93UziOHpkLK0eEdjf9IFmBXMbdpZqI0ou8CzeesNrT102CFJZK9arQzmR-ffatZJJtD2if2PPYAFexUg')"></div>
+<div class="absolute top-4 left-4 bg-deep-river/85 backdrop-blur-md px-3 py-1 rounded-full text-on-primary font-body-sm text-xs font-medium flex items-center gap-1.5 border border-white/10">
+<span class="material-symbols-outlined text-[15px] text-teal-flow">forest</span>
+<span>Nature &amp; Escapes</span>
+</div>
+<div class="absolute bottom-4 right-4 bg-surface/90 backdrop-blur-md px-3.5 py-1 rounded-full text-deep-river font-numeric-md text-sm font-bold shadow-sm">
+                  From VND 40,000
+                </div>
+</div>
+<div class="p-space-lg flex-1 flex flex-col justify-between space-y-space-md">
+<div class="space-y-space-sm">
+<div class="flex items-center gap-2 text-on-surface-variant font-body-sm text-xs">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">timer</span> 65 mins</span>
+<span>•</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">pin_drop</span> Binh Quoi Pier</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-deep-river font-bold group-hover:text-teal-flow transition-colors">
+                    Eco-Corridor to Thanh Da Peninsula
+                  </h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                    Escape into serene natural waterways framed by water palm groves and tranquil fishing hamlets tucked right inside city limits.
+                  </p>
+</div>
+<div class="pt-space-sm flex items-center justify-between text-teal-flow font-body-md text-body-md font-semibold border-t border-surface-container pt-3">
+<span class="group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                    Explore Tour
+                    <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</span>
+<span class="material-symbols-outlined text-[20px] text-secondary">nature_people</span>
+</div>
+</div>
+</article>
+</div>
+</div>
+</section>
+<!-- 5. SECTION 4: "How It Works" (Surface Rhythm: Sand Light #E9F0EC container + Airy horizontal journey timeline) -->
+<section class="w-full py-space-3xl bg-sand-light/50 border-y border-outline-variant/30">
+<div class="max-w-7xl mx-auto px-margin space-y-space-2xl">
+<!-- Section Header -->
+<div class="text-center max-w-xl mx-auto space-y-space-xs">
+<span class="font-body-sm text-body-sm text-teal-flow font-bold uppercase tracking-wider block">Effortless Commute</span>
+<h2 class="font-headline-lg text-headline-lg text-deep-river tracking-tight font-bold">How It Works</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+              From trip planning to boarding turnstiles in under sixty seconds.
+            </p>
+</div>
+<!-- 4 Connected Steps Timeline -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-space-lg relative">
+<!-- Connecting line across desktop -->
+<div aria-hidden="true" class="hidden md:block absolute top-7 left-16 right-16 h-0.5 bg-outline-variant/60 z-0"></div>
+<!-- Step 1 -->
+<div class="relative z-10 flex flex-col items-center text-center space-y-space-md">
+<div class="w-14 h-14 rounded-2xl bg-surface shadow-md flex items-center justify-center text-deep-river font-headline-sm text-body-lg font-bold border border-outline-variant/30">
+                01
+              </div>
+<div class="space-y-space-xs">
+<h3 class="font-headline-sm text-headline-sm text-deep-river font-bold">Plan Journey</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                  Pick your departure station, destination pier, and preferred schedule.
+                </p>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="relative z-10 flex flex-col items-center text-center space-y-space-md">
+<div class="w-14 h-14 rounded-2xl bg-surface shadow-md flex items-center justify-center text-teal-flow font-headline-sm text-body-lg font-bold border border-outline-variant/30">
+                02
+              </div>
+<div class="space-y-space-xs">
+<h3 class="font-headline-sm text-headline-sm text-deep-river font-bold">Choose Seat</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                  Select panoramic window saloon seats or breezy open-deck viewing benches.
+                </p>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="relative z-10 flex flex-col items-center text-center space-y-space-md">
+<div class="w-14 h-14 rounded-2xl bg-surface shadow-md flex items-center justify-center text-sky-aqua font-headline-sm text-body-lg font-bold border border-outline-variant/30">
+                03
+              </div>
+<div class="space-y-space-xs">
+<h3 class="font-headline-sm text-headline-sm text-deep-river font-bold">Pay Securely</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                  Instant digital payment via MoMo, VNPay, or card with zero surcharges.
+                </p>
+</div>
+</div>
+<!-- Step 4 -->
+<div class="relative z-10 flex flex-col items-center text-center space-y-space-md">
+<div class="w-14 h-14 rounded-2xl bg-teal-flow text-on-primary shadow-md flex items-center justify-center font-headline-sm text-body-lg font-bold">
+                04
+              </div>
+<div class="space-y-space-xs">
+<h3 class="font-headline-sm text-headline-sm text-deep-river font-bold">Board with QR</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                  Scan your e-ticket barcode at turnstiles and step aboard directly.
+                </p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 6. SECTION 5: "Next-Generation River Mobility Systems" (Surface Rhythm: Powerful Dark Deep River Contrast Anchor) -->
+<section class="w-full py-space-3xl bg-deep-river text-on-primary relative overflow-hidden">
+<!-- Background flow contours -->
+<div aria-hidden="true" class="absolute inset-0 pointer-events-none opacity-10">
+<svg class="w-full h-full text-sky-aqua" fill="none" viewBox="0 0 1440 600">
+<path d="M-100 200 C 300 100, 600 400, 1100 250 C 1300 200, 1500 300, 1600 260" stroke="currentColor" stroke-width="64"></path>
+</svg>
+</div>
+<div class="relative max-w-7xl mx-auto px-margin space-y-space-2xl z-10">
+<!-- Section Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-md">
+<div class="space-y-space-xs max-w-xl">
+<span class="font-body-sm text-body-sm text-sky-aqua font-bold uppercase tracking-wider block">Intelligent Navigation Tech</span>
+<h2 class="font-headline-lg text-headline-lg text-on-primary tracking-tight font-bold">
+                Next-Generation River Mobility Systems
+              </h2>
+</div>
+<p class="font-body-md text-body-md text-sand-light/80 max-w-md">
+              Behind every quiet river glide is an advanced telemetry stack coordinating vessels, tides, pier turnstiles, and passenger comfort.
+            </p>
+</div>
+<!-- 4 Tech Feature Blocks with Teal & Sky Aqua Icons -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-lg">
+<!-- Feature 1 -->
+<div class="p-space-lg rounded-2xl bg-ink/75 backdrop-blur-sm space-y-space-md border border-white/10 hover:border-teal-flow/50 transition-colors shadow-sm">
+<div class="w-12 h-12 rounded-xl bg-teal-flow/20 text-sky-aqua flex items-center justify-center border border-teal-flow/30">
+<span class="material-symbols-outlined text-[28px]">satellite_alt</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-primary font-bold">Realtime Fleet Telemetry</h3>
+<p class="font-body-md text-body-md text-sand-light/75">
+                GPS vessel tracking with 10-second refresh cycles and dynamic arrival predictions displayed across all pier monitors.
+              </p>
+<div class="pt-space-xs font-numeric-md text-sm font-semibold text-sky-aqua">99.4% On-Time Index</div>
+</div>
+<!-- Feature 2 -->
+<div class="p-space-lg rounded-2xl bg-ink/75 backdrop-blur-sm space-y-space-md border border-white/10 hover:border-teal-flow/50 transition-colors shadow-sm">
+<div class="w-12 h-12 rounded-xl bg-teal-flow/20 text-sky-aqua flex items-center justify-center border border-teal-flow/30">
+<span class="material-symbols-outlined text-[28px]">translate</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-primary font-bold">Multilingual Platform</h3>
+<p class="font-body-md text-body-md text-sand-light/75">
+                Seamless digital booking and onboard signage in Vietnamese, English, Japanese, Korean, and French for global explorers.
+              </p>
+<div class="pt-space-xs font-numeric-md text-sm font-semibold text-sky-aqua">5 Supported Languages</div>
+</div>
+<!-- Feature 3 -->
+<div class="p-space-lg rounded-2xl bg-ink/75 backdrop-blur-sm space-y-space-md border border-white/10 hover:border-teal-flow/50 transition-colors shadow-sm">
+<div class="w-12 h-12 rounded-xl bg-teal-flow/20 text-sky-aqua flex items-center justify-center border border-teal-flow/30">
+<span class="material-symbols-outlined text-[28px]">psychology</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-primary font-bold">AI Route Concierge</h3>
+<p class="font-body-md text-body-md text-sand-light/75">
+                Dynamic journey recommendations tuned to hourly river tidal shifts, golden hour sunlight angles, and seat availability.
+              </p>
+<div class="pt-space-xs font-numeric-md text-sm font-semibold text-sky-aqua">Tide-Aware Planning</div>
+</div>
+<!-- Feature 4 -->
+<div class="p-space-lg rounded-2xl bg-ink/75 backdrop-blur-sm space-y-space-md border border-white/10 hover:border-teal-flow/50 transition-colors shadow-sm">
+<div class="w-12 h-12 rounded-xl bg-teal-flow/20 text-sky-aqua flex items-center justify-center border border-teal-flow/30">
+<span class="material-symbols-outlined text-[28px]">podcasts</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-primary font-bold">Immersive Audio Guide</h3>
+<p class="font-body-md text-body-md text-sand-light/75">
+                Geo-fenced automated audio storytelling that synchronizes precisely with the vessel's GPS coordinates as you cruise past landmarks.
+              </p>
+<div class="pt-space-xs font-numeric-md text-sm font-semibold text-sky-aqua">32 Geo-Trigger Points</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 7. SECTION 6: Final CTA Banner (Hero-Like Deep River & Teal Flow Gradient) -->
+<section class="w-full py-space-3xl bg-surface">
+<div class="max-w-7xl mx-auto px-margin">
+<div class="relative rounded-[28px] overflow-hidden bg-gradient-to-r from-deep-river via-primary to-teal-flow p-space-2xl md:p-space-3xl text-on-primary shadow-xl">
+<!-- Fluid Wave Background Curves -->
+<div aria-hidden="true" class="absolute inset-0 opacity-15 pointer-events-none">
+<svg class="w-full h-full" fill="none" viewBox="0 0 1200 400">
+<path d="M0 200 Q 300 100, 600 200 T 1200 200" stroke="#FFFFFF" stroke-linecap="round" stroke-width="40"></path>
+<path d="M0 260 Q 300 160, 600 260 T 1200 260" stroke="#4FC3D8" stroke-dasharray="12 16" stroke-width="20"></path>
+</svg>
+</div>
+<div class="relative z-10 max-w-2xl space-y-space-lg">
+<!-- Live Operations Status Badge -->
+<div class="inline-flex items-center gap-space-sm px-space-md py-1.5 rounded-full bg-white/10 backdrop-blur-md font-body-sm text-body-sm text-sand-light border border-white/15">
+<span class="w-2.5 h-2.5 rounded-full bg-sky-aqua animate-ping"></span>
+<span>Normal River Operations • Optimal Water Level • 14 Vessels Active</span>
+</div>
+<h2 class="font-headline-lg text-3xl sm:text-headline-lg md:text-headline-xl text-on-primary tracking-tight leading-tight font-bold">
+                Ready to Experience Saigon from the Water?
+              </h2>
+<p class="font-body-lg text-body-lg text-sand-light/90 max-w-xl">
+                Join over 1.2M passengers discovering effortless urban mobility, breezy commutes, and breathtaking twilight river journeys.
+              </p>
+<!-- Action Buttons -->
+<div class="flex flex-wrap items-center gap-space-md pt-space-xs">
+<a class="inline-flex items-center justify-center gap-space-sm px-space-xl py-4 rounded-xl bg-teal-flow text-on-primary font-headline-sm text-body-lg font-semibold hover:bg-secondary transition-all shadow-lg" data-path="routes" href="#">
+<span>Plan Your Journey Now</span>
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</a>
+<a class="inline-flex items-center justify-center gap-space-xs px-space-xl py-4 rounded-xl bg-surface/10 hover:bg-surface/20 text-on-primary font-headline-sm text-body-lg font-semibold backdrop-blur-md transition-all border border-white/20" data-path="explore" href="#">
+<span class="material-symbols-outlined text-[20px]">calendar_month</span>
+<span>View Live Timetable</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- FOOTER (Clean, Comprehensive with Logo IMAGE_6 and Status Badge) -->
+<footer class="w-full bg-surface-container-low border-t border-outline-variant/30">
+<div class="max-w-7xl mx-auto px-margin pt-space-3xl pb-space-2xl">
+<!-- Live Corridor Status Ribbon -->
+<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-md pb-space-2xl bg-surface rounded-2xl p-space-lg mb-space-3xl border border-outline-variant/30 shadow-sm">
+<div class="flex items-center gap-space-md">
+<span class="flex h-3 w-3 relative">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-flow opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-teal-flow"></span>
+</span>
+<div>
+<span class="font-headline-sm text-headline-sm text-deep-river font-bold block">River Corridor Status: Normal Service</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">All 18 river stations operational • Average headway 12 mins • Water condition: Calm</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-body-sm text-body-sm text-teal-flow bg-sand-light px-space-md py-1.5 rounded-full font-semibold border border-teal-flow/20">Waterway Patrol Active</span>
+</div>
+</div>
+<!-- Links Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-space-2xl pb-space-3xl">
+<div class="lg:col-span-2 space-y-space-md pr-space-xl">
+<div class="flex items-center gap-space-sm">
+<img alt="Smart Waterbus Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WiF1NNf59f3fm7YJTVwxqFCw3wL1kpEErVxVKdtffjYZSE8rQcimuCrd5m6V76pWXG5bJvJDdRoZpBEjA_GNbPglxJH1dQuFydgjV3UG19EwKFJxbV6q9TY0sodBd7F8JohBy0giL7H2aZ2jYp6R_WLIJf6FvCJQYgRhGklczPLysss8-K8zR_cZt3NH-u9tohMmc14WvzX5FGl4GzQ58s-iJ1ab1wCYtkCgBkJFkXHSazs2KBHG1lBF0l">
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-sm">
+            Pioneering high-frequency electric river transit and immersive city voyages. Experience sustainable urban waterways crafted for commuters and explorers alike.
+          </p>
+<div class="flex items-center gap-space-md pt-space-xs">
+<a aria-label="River radar" class="w-9 h-9 rounded-full bg-surface flex items-center justify-center text-on-surface-variant hover:text-teal-flow hover:bg-mist border border-outline-variant/30 transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">radar</span>
+</a>
+<a aria-label="Navigation map" class="w-9 h-9 rounded-full bg-surface flex items-center justify-center text-on-surface-variant hover:text-teal-flow hover:bg-mist border border-outline-variant/30 transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">explore</span>
+</a>
+<a aria-label="Live alerts channel" class="w-9 h-9 rounded-full bg-surface flex items-center justify-center text-on-surface-variant hover:text-teal-flow hover:bg-mist border border-outline-variant/30 transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">notifications_active</span>
+</a>
+<a aria-label="Pier terminal hub" class="w-9 h-9 rounded-full bg-surface flex items-center justify-center text-on-surface-variant hover:text-teal-flow hover:bg-mist border border-outline-variant/30 transition-colors" href="#">
+<span class="material-symbols-outlined text-[18px]">anchor</span>
+</a>
+</div>
+</div>
+<div class="space-y-space-md">
+<span class="font-headline-sm text-body-lg text-deep-river font-bold block">Quick Links</span>
+<ul class="space-y-space-sm font-body-md text-body-md text-on-surface-variant">
+<li><a class="hover:text-deep-river transition-colors" data-path="routes" href="#">Routes &amp; Lines</a></li>
+<li><a class="hover:text-deep-river transition-colors" data-path="explore" href="#">Timetable &amp; Headways</a></li>
+<li><a class="hover:text-deep-river transition-colors" data-path="about" href="#">Pier Terminals &amp; Amenities</a></li>
+<li><a class="hover:text-deep-river transition-colors" data-path="about" href="#">Fleet &amp; Waterway Safety</a></li>
+</ul>
+</div>
+<div class="space-y-space-md">
+<span class="font-headline-sm text-body-lg text-deep-river font-bold block">Tourism Experiences</span>
+<ul class="space-y-space-sm font-body-md text-body-md text-on-surface-variant">
+<li><a class="hover:text-deep-river transition-colors" data-path="experience" href="#">Sunset Golden Hour Cruise</a></li>
+<li><a class="hover:text-deep-river transition-colors" data-path="experience" href="#">Historical River Tour</a></li>
+<li><a class="hover:text-deep-river transition-colors" data-path="experience" href="#">Heritage Audio Guide</a></li>
+<li><a class="hover:text-deep-river transition-colors" data-path="experience" href="#">Charter &amp; Group Escapes</a></li>
+</ul>
+</div>
+<div class="space-y-space-md">
+<span class="font-headline-sm text-body-lg text-deep-river font-bold block">Support &amp; Contact</span>
+<div class="space-y-space-xs font-body-md text-body-md text-on-surface-variant">
+<p class="text-deep-river font-semibold">Operational Hours</p>
+<p class="font-body-sm text-body-sm">Mon – Sun: 06:00 – 23:00</p>
+<p class="text-deep-river font-semibold pt-space-xs">Dispatch Hotline</p>
+<p class="font-body-sm text-body-sm">+84 (0) 28 3822 5555</p>
+</div>
+<div class="pt-space-xs">
+<div class="inline-flex items-center gap-space-sm px-space-md py-space-xs rounded-xl bg-surface border border-outline-variant/30">
+<span class="material-symbols-outlined text-teal-flow text-[20px]">qr_code_2</span>
+<span class="font-body-sm text-body-sm text-deep-river font-semibold">Transit App Scanner</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Legal & Copyright -->
+<div class="pt-space-xl border-t border-outline-variant/30 flex flex-col md:flex-row items-center justify-between gap-space-md font-body-sm text-body-sm text-on-surface-variant">
+<p>© 2025 Smart Waterbus. River Connects Greater Stories.</p>
+<div class="flex items-center gap-space-lg font-medium">
+<a class="hover:text-deep-river transition-colors" href="#">Passenger Rights</a>
+<a class="hover:text-deep-river transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-deep-river transition-colors" href="#">Waterway Transit Rules</a>
+<a class="hover:text-deep-river transition-colors" href="#">Accessibility</a>
+</div>
+</div>
+</div>
+</footer>
+</body></html>

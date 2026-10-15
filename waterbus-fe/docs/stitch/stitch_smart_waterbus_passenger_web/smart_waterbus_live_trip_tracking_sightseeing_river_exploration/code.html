@@ -1,0 +1,694 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base { html, body { margin: 0; padding: 0; } body { overscroll-behavior: none; } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; }
+@keyframes soundwave {
+  0%, 100% { height: 4px; }
+  50% { height: 18px; }
+}
+.wave-bar-1 { animation: soundwave 1.2s ease-in-out infinite; }
+.wave-bar-2 { animation: soundwave 0.9s ease-in-out infinite 0.2s; }
+.wave-bar-3 { animation: soundwave 1.4s ease-in-out infinite 0.4s; }
+.wave-bar-4 { animation: soundwave 1.0s ease-in-out infinite 0.1s; }
+.wave-bar-5 { animation: soundwave 1.3s ease-in-out infinite 0.3s; }
+</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "primary-fixed-dim": "#b2c9e2", "deep-river": "#0D2538", "error": "#ba1a1a", "surface-container": "#efedef", "on-primary": "#ffffff", "error-container": "#ffdad6", "secondary-container": "#9bf1f5", "on-secondary": "#ffffff", "secondary-fixed-dim": "#7fd4d8", "secondary": "#00696d", "on-background": "#1b1c1d", "sand-light": "#E9F0EC", "surface-variant": "#e3e2e4", "coral-glow": "#F08A6B", "signal-amber": "#E8B63E", "mist": "#F4F7F8", "on-tertiary-container": "#a88460", "on-error": "#ffffff", "on-surface": "#1b1c1d", "on-surface-variant": "#43474c", "on-tertiary-fixed": "#2c1600", "teal-flow": "#147A7E", "tertiary-fixed-dim": "#e8bf98", "tertiary": "#190a00", "on-tertiary-fixed-variant": "#5d4123", "ink": "#18242D", "primary-fixed": "#cee5ff", "primary-container": "#0d2538", "on-tertiary": "#ffffff", "surface": "#faf9fb", "inverse-primary": "#b2c9e2", "surface-container-high": "#e9e8e9", "on-secondary-fixed-variant": "#004f52", "surface-dim": "#dbd9db", "tertiary-container": "#351e04", "surface-container-low": "#f5f3f5", "on-error-container": "#93000a", "on-primary-container": "#778da4", "surface-container-lowest": "#ffffff", "tertiary-fixed": "#ffdcbd", "surface-tint": "#4b6176", "on-secondary-container": "#007074", "secondary-fixed": "#9bf1f5", "inverse-on-surface": "#f2f0f2", "on-primary-fixed-variant": "#33495d", "background": "#faf9fb", "outline-variant": "#c3c7cd", "inverse-surface": "#303032", "on-primary-fixed": "#041d30", "primary": "#000f1d", "sky-aqua": "#4FC3D8", "surface-bright": "#faf9fb", "on-secondary-fixed": "#002021", "outline": "#73777d", "surface-container-highest": "#e3e2e4" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-3xl": "64px", "space-sm": "8px", "space-xs": "4px", "margin": "32px", "gutter": "24px", "space-lg": "24px", "space-2xl": "48px", "space-xl": "32px", "space-md": "16px" }, "fontFamily": { "numeric-md": [ "Plus Jakarta Sans" ], "headline-md": [ "Plus Jakarta Sans" ], "numeric-lg": [ "Plus Jakarta Sans" ], "body-lg": [ "Inter" ], "headline-lg": [ "Plus Jakarta Sans" ], "body-md": [ "Inter" ], "headline-xl": [ "Plus Jakarta Sans" ], "headline-xl-mobile": [ "Plus Jakarta Sans" ], "body-sm": [ "Inter" ], "headline-sm": [ "Plus Jakarta Sans" ] }, "fontSize": { "numeric-md": [ "18px", { "lineHeight": "24px", "fontWeight": "600" } ], "headline-md": [ "26px", { "lineHeight": "34px", "fontWeight": "600" } ], "numeric-lg": [ "32px", { "lineHeight": "38px", "fontWeight": "700" } ], "body-lg": [ "16px", { "lineHeight": "24px", "fontWeight": "400" } ], "headline-lg": [ "38px", { "lineHeight": "46px", "letterSpacing": "-0.01em", "fontWeight": "600" } ], "body-md": [ "14px", { "lineHeight": "20px", "fontWeight": "400" } ], "headline-xl": [ "56px", { "lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "700" } ], "headline-xl-mobile": [ "36px", { "lineHeight": "44px", "letterSpacing": "-0.01em", "fontWeight": "700" } ], "body-sm": [ "12px", { "lineHeight": "16px", "fontWeight": "400" } ], "headline-sm": [ "20px", { "lineHeight": "28px", "fontWeight": "600" } ] } } } };</script></head><body class="bg-[#F2F6F7] font-body-md text-body-md text-on-surface antialiased"><header class="fixed top-0 left-0 right-0 z-50 bg-[#F4F7F8]/90 backdrop-blur-xl shadow-[0_1px_12px_rgba(13,37,56,0.06)] border-b border-[#CBD5E1]/40"><div class="h-20 max-w-7xl mx-auto px-margin flex items-center justify-between gap-space-lg"><div class="flex items-center gap-space-md"><img alt="Brand logo. - Primary color: #0d2538
+- Font: plusJakartaSans
+- Mode: light
+- Roundness: rounded-md
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WiF1NNf59f3fm7YJTVwxqFCw3wL1kpEErVxVKdtffjYZSE8rQcimuCrd5m6V76pWXG5bJvJDdRoZpBEjA_GNbPglxJH1dQuFydgjV3UG19EwKFJxbV6q9TY0sodBd7F8JohBy0giL7H2aZ2jYp6R_WLIJf6FvCJQYgRhGklczPLysss8-K8zR_cZt3NH-u9tohMmc14WvzX5FGl4GzQ58s-iJ1ab1wCYtkCgBkJFkXHSazs2KBHG1lBF0l"><span class="font-headline-sm text-headline-sm text-deep-river tracking-tight">Smart Waterbus</span></div><nav class="hidden lg:flex items-center gap-space-sm" data-active-classes="bg-surface-container text-deep-river font-semibold rounded-lg"><a class="px-space-md py-space-sm rounded-lg font-body-md text-body-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" data-path="explore" href="#">Explore</a><a class="px-space-md py-space-sm rounded-lg font-body-md text-body-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" data-path="routes" href="#">Routes</a><a class="px-space-md py-space-sm rounded-lg font-body-md text-body-md text-teal-flow font-semibold bg-teal-flow/10 transition-colors" data-path="experience" href="#">Experience</a><a class="px-space-md py-space-sm rounded-lg font-body-md text-body-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" data-path="about" href="#">About</a></nav><div class="flex items-center gap-space-md"><button aria-label="Search" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">search</span></button><div class="flex items-center gap-space-xs text-on-surface-variant hover:text-on-surface px-space-sm py-space-xs rounded-lg cursor-pointer transition-colors"><span class="material-symbols-outlined text-[18px]">language</span><span class="font-headline-sm text-body-sm font-semibold tracking-wide">EN</span></div><a class="hidden sm:inline-flex items-center justify-center px-space-lg py-space-sm rounded-xl bg-teal-flow text-on-primary font-headline-sm text-body-md hover:bg-secondary transition-colors shadow-sm" data-path="booking" href="#">Book a Trip</a><div class="w-8 h-8 rounded-full bg-deep-river flex items-center justify-center text-white"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-20 bg-[#F2F6F7] min-h-screen"><div class="flex flex-col w-full">
+<!-- Interactive Live Tracker & Sightseeing Experience Container -->
+<div class="max-w-7xl mx-auto w-full px-margin py-space-xl flex flex-col gap-space-xl">
+<!-- Breadcrumb & Header Section with Journey Mode Selector -->
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-space-lg">
+<div class="flex flex-col gap-space-xs">
+<nav class="flex items-center gap-space-xs font-body-sm text-body-sm text-on-surface-variant">
+<a class="hover:text-teal-flow transition-colors" href="#">Home</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<a class="hover:text-teal-flow transition-colors" href="#">My Tickets</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-deep-river font-semibold">Live Trip</span>
+</nav>
+<div class="flex flex-wrap items-center gap-space-md mt-space-xs">
+<h1 class="font-headline-lg text-headline-lg text-deep-river tracking-tight">Your Journey in Real Time</h1>
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-flow/10 text-teal-flow font-headline-sm text-body-sm font-bold border border-teal-flow/20 shadow-xs">
+<span class="relative flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-aqua opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-flow"></span>
+</span>
+            En Route • On Schedule
+          </div>
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-deep-river text-white font-headline-sm text-body-sm font-semibold tracking-wide">
+<span class="material-symbols-outlined text-[15px] text-sky-aqua">directions_boat</span>
+            Trip WB-01
+          </div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">
+          Follow your catamaran crossing along the central Saigon River with real-time positioning, contextual river heritage stories, and synchronized audio commentary.
+        </p>
+</div>
+<!-- Right Side: Journey-Mode Selector Pill & Primary Actions -->
+<div class="flex flex-col sm:flex-row items-start sm:items-center gap-space-sm self-start lg:self-auto">
+<!-- Segmented Journey Mode Switcher -->
+<div class="bg-white/90 p-1 rounded-2xl shadow-sm border border-slate-200/80 flex items-center">
+<button class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-deep-river text-white font-headline-sm text-body-sm font-semibold shadow-xs">
+<span class="material-symbols-outlined text-[17px] text-coral-glow">headphones</span>
+<span>Sightseeing Experience</span>
+<span class="w-1.5 h-1.5 rounded-full bg-teal-flow animate-pulse"></span>
+</button>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-on-surface-variant hover:text-deep-river font-body-sm text-body-sm font-medium transition-colors">
+<span class="material-symbols-outlined text-[16px]">commute</span>
+<span>Regular Transit</span>
+</button>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded-xl bg-white hover:bg-surface-container border border-slate-200/80 text-deep-river font-body-md transition-colors shadow-sm" onclick="document.getElementById('qr-modal').classList.remove('hidden')">
+<span class="material-symbols-outlined text-[18px] text-teal-flow">qr_code_2</span>
+<span class="font-semibold text-body-sm">View Ticket</span>
+</button>
+<button class="flex items-center gap-space-xs px-3.5 py-2 rounded-xl bg-sand-light hover:bg-[#dfe8e2] text-deep-river font-body-md transition-colors shadow-sm" id="trip-details-btn">
+<span class="material-symbols-outlined text-[18px]">info</span>
+<span class="font-medium text-body-sm">Trip Details</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Main Two-Column Hero Area: 68% Dominant River Map + 32% River Story & Audio Experience Panel -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-start">
+<!-- LEFT COLUMN: Signature Vector River Map Canvas (68% ~ 8 cols) -->
+<div class="lg:col-span-8 bg-white rounded-[24px] shadow-[0_4px_24px_rgba(13,37,56,0.06)] border border-slate-200/80 overflow-hidden flex flex-col relative min-h-[660px]">
+<!-- Top Floating Map Toolbar: Layer Switcher + Vessel Tag + Zoom Controls -->
+<div class="absolute top-space-md left-space-md right-space-md z-20 flex items-center justify-between pointer-events-none"><div class="flex items-center gap-space-sm pointer-events-auto">
+  <div class="px-space-md py-1.5 bg-white/95 backdrop-blur-md rounded-full shadow-sm border border-slate-200/60 flex items-center gap-2">
+    <span class="w-2.5 h-2.5 rounded-full bg-teal-flow animate-pulse"></span>
+    <span class="font-headline-sm text-body-sm font-bold text-deep-river">Saigon River Central Corridor</span>
+  </div>
+  <div class="hidden sm:flex px-3 py-1.5 bg-deep-river text-white backdrop-blur-md rounded-full shadow-sm items-center gap-1.5 font-headline-sm text-body-sm font-semibold">
+    <span class="material-symbols-outlined text-[16px] text-coral-glow">tour</span>
+    <span class="">Sightseeing Layer Active</span>
+  </div>
+</div>
+<div class="flex items-center gap-space-xs pointer-events-auto">
+  <div class="flex flex-col bg-white/95 backdrop-blur-md rounded-xl shadow-sm border border-slate-200/60 p-1">
+    <button aria-label="Zoom in" class="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-deep-river hover:bg-surface-container rounded-lg transition-colors">
+      <span class="material-symbols-outlined text-[18px]">add</span>
+    </button>
+    <button aria-label="Zoom out" class="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-deep-river hover:bg-surface-container rounded-lg transition-colors">
+      <span class="material-symbols-outlined text-[18px]">remove</span>
+    </button>
+  </div>
+  <button aria-label="Recenter View" class="w-10 h-10 bg-white/95 backdrop-blur-md rounded-xl shadow-sm border border-slate-200/60 flex items-center justify-center text-deep-river hover:text-teal-flow transition-colors">
+    <span class="material-symbols-outlined text-[20px] text-teal-flow">my_location</span>
+  </button>
+</div></div>
+<!-- Stylized Vector Saigon River Map Surface -->
+<div class="relative w-full h-[660px] bg-[#E8F2EF] select-none overflow-hidden"><svg class="w-full h-full" fill="none" viewBox="0 0 920 660" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <!-- Layered River Gradients -->
+  <linearGradient id="riverDepth" x1="0%" y1="30%" x2="100%" y2="70%">
+    <stop offset="0%" stop-color="#D7F3F6"></stop>
+    <stop offset="35%" stop-color="#C0ECF3"></stop>
+    <stop offset="65%" stop-color="#A2E2ED"></stop>
+    <stop offset="100%" stop-color="#8CD7E4"></stop>
+  </linearGradient>
+  <linearGradient id="riverShadingWest" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%" stop-color="#00696D" stop-opacity="0.15"></stop>
+    <stop offset="100%" stop-color="#00696D" stop-opacity="0"></stop>
+  </linearGradient>
+  <linearGradient id="riverShadingEast" x1="100%" y1="0%" x2="0%" y2="0%">
+    <stop offset="0%" stop-color="#00696D" stop-opacity="0.14"></stop>
+    <stop offset="100%" stop-color="#00696D" stop-opacity="0"></stop>
+  </linearGradient>
+  <linearGradient id="routeGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#147A7E"></stop>
+    <stop offset="100%" stop-color="#00696D"></stop>
+  </linearGradient>
+  <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+    <feGaussianBlur stdDeviation="5" result="blur"></feGaussianBlur>
+    <feComposite in="SourceGraphic" in2="blur" operator="over"></feComposite>
+  </filter>
+  <filter id="activePoiHalo" x="-50%" y="-50%" width="200%" height="200%">
+    <feGaussianBlur stdDeviation="8" result="blur"></feGaussianBlur>
+    <feComposite in="SourceGraphic" in2="blur" operator="over"></feComposite>
+  </filter>
+  <radialGradient id="poiPulseWarm">
+    <stop offset="0%" stop-color="#F08A6B" stop-opacity="0.7"></stop>
+    <stop offset="50%" stop-color="#E8B63E" stop-opacity="0.3"></stop>
+    <stop offset="100%" stop-color="#F08A6B" stop-opacity="0"></stop>
+  </radialGradient>
+  <radialGradient id="vesselWakeGradient" cx="0%" cy="50%" r="100%">
+    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.8"></stop>
+    <stop offset="60%" stop-color="#4FC3D8" stop-opacity="0.4"></stop>
+    <stop offset="100%" stop-color="#4FC3D8" stop-opacity="0"></stop>
+  </radialGradient>
+</defs>
+
+<!-- 1. LANDMASS BASE -->
+<!-- D1 West Shoreline Landmass -->
+<path d="M0 0 H335 C308 125 268 208 246 308 C220 422 284 532 296 660 H0 V0 Z" fill="#F4F7F8"></path>
+<!-- D2 Thu Thiem East Shoreline Landmass -->
+<path d="M920 0 H588 C610 112 662 222 682 332 C702 442 642 552 622 660 H920 V0 Z" fill="#EEF5F2"></path>
+
+<!-- 2. WATERBODY (SAIGON RIVER) WITH MULTI-LAYER DEPTH -->
+<path d="M335 0 C308 125 268 208 246 308 C220 422 284 532 296 660 H622 C642 552 702 442 682 332 C662 222 610 112 588 0 Z" fill="url(#riverDepth)"></path>
+<!-- Shoreline Inner Depth Shading -->
+<path d="M335 0 C308 125 268 208 246 308 C220 422 284 532 296 660 L350 660 C336 530 274 420 298 308 C318 210 358 125 385 0 Z" fill="url(#riverShadingWest)"></path>
+<path d="M588 0 C610 112 662 222 682 332 C702 442 642 552 622 660 L570 660 C590 552 650 442 630 332 C610 222 558 112 536 0 Z" fill="url(#riverShadingEast)"></path>
+
+<!-- River Surface Water Ripples and Organic Current Streamlines -->
+<g stroke="#FFFFFF" opacity="0.55" stroke-linecap="round" fill="none">
+  <path d="M385 60 C365 140 338 220 328 300 C316 400 366 500 380 600" stroke-width="2" stroke-dasharray="24 20"></path>
+  <path d="M445 40 C420 130 405 230 415 320 C425 410 470 510 488 610" stroke-width="2.5" stroke-dasharray="36 24"></path>
+  <path d="M510 50 C490 145 482 235 496 325 C512 415 548 515 554 620" stroke-width="2" stroke-dasharray="28 22"></path>
+  <path d="M555 80 C542 160 542 245 562 335 C580 415 596 505 588 590" stroke-width="1.8" stroke-dasharray="18 20"></path>
+</g>
+
+<!-- 3. URBAN FABRIC & SHORELINE ARCHITECTURE (Muted, Elegant Context) -->
+<!-- D1 West Shore: Building Silhouettes & Blocks -->
+<g opacity="0.28" fill="#0D2538">
+  <rect x="40" y="90" width="48" height="38" rx="3"></rect>
+  <rect x="96" y="82" width="36" height="46" rx="3"></rect>
+  <rect x="140" y="100" width="54" height="28" rx="3"></rect>
+  <rect x="30" y="180" width="62" height="42" rx="3"></rect>
+  <rect x="100" y="172" width="50" height="50" rx="3"></rect>
+  <rect x="158" y="185" width="40" height="37" rx="3"></rect>
+  <rect x="35" y="290" width="52" height="45" rx="3"></rect>
+  <rect x="95" y="285" width="42" height="50" rx="3"></rect>
+  <rect x="145" y="300" width="38" height="35" rx="3"></rect>
+  <rect x="45" y="390" width="65" height="38" rx="3"></rect>
+  <rect x="118" y="382" width="55" height="46" rx="3"></rect>
+  <rect x="30" y="490" width="75" height="44" rx="3">
+  <rect x="115" y="480" width="60" height="54" rx="3"></rect>
+</rect></g>
+<!-- D1 Soft Green Esplanade Pockets -->
+<g opacity="0.3" fill="#9FC8B3">
+  <path d="M220 120 C235 170 215 220 200 260 H235 C245 220 260 170 250 120 Z"></path>
+  <path d="M175 350 C185 390 195 440 215 480 H235 C215 440 205 390 195 350 Z"></path>
+</g>
+<!-- D1 Esplanade Waterfront Boulevard Line -->
+<path d="M335 0 C308 125 268 208 246 308 C220 422 284 532 296 660" fill="none" stroke="#CBD5E1" stroke-width="6" opacity="0.7"></path>
+<path d="M330 0 C304 125 264 208 242 308 C216 422 280 532 292 660" fill="none" stroke="#147A7E" stroke-width="1.5" opacity="0.45"></path>
+
+<!-- D2 Thu Thiem East Shore: Parks, Waterway Canals & Waterfront Boulevards -->
+<g opacity="0.35" fill="#D2E7DC">
+  <circle cx="780" cy="220" r="90"></circle>
+  <path d="M700 370 C720 340 760 330 810 340 C850 350 880 390 870 430 C840 450 780 440 720 430 Z"></path>
+  <circle cx="750" cy="520" r="70"></circle>
+</g>
+<g opacity="0.3" stroke="#94A3B8" stroke-width="1.2" fill="none">
+  <path d="M680 140 L880 180" stroke-dasharray="4 4"></path>
+  <path d="M700 300 L890 330" stroke-dasharray="4 4"></path>
+  <path d="M660 460 L890 490" stroke-dasharray="4 4"></path>
+  <path d="M790 0 V660" stroke-dasharray="3 3"></path>
+</g>
+<!-- D2 Shoreline Promenade Line -->
+<path d="M588 0 C610 112 662 222 682 332 C702 442 642 552 622 660" fill="none" stroke="#CBD5E1" stroke-width="6" opacity="0.7"></path>
+<path d="M592 0 C614 112 666 222 686 332 C706 442 646 552 626 660" fill="none" stroke="#147A7E" stroke-width="1.5" opacity="0.45"></path>
+
+<!-- 4. BA SON BRIDGE (THU THIEM 2) ARCHITECTURAL CURVE -->
+<g opacity="0.6">
+  <!-- Bridge Deck Span crossing the river curve -->
+  <path d="M 292 90 C 430 110, 500 120, 608 145" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"></path>
+  <path d="M 292 90 C 430 110, 500 120, 608 145" fill="none" stroke="#475569" stroke-width="3.5" stroke-linecap="round"></path>
+  <!-- Cable-Stayed Tower & Fan Cables -->
+  <path d="M 515 80 L 522 125" stroke="#0D2538" stroke-width="3.5" stroke-linecap="round"></path>
+  <path d="M 515 80 L 460 115 M 515 80 L 485 119 M 515 80 L 550 133 M 515 80 L 575 139" stroke="#73777D" stroke-width="0.9" opacity="0.7"></path>
+  <!-- Bridge Label -->
+  <rect x="395" y="78" width="86" height="18" rx="4" fill="#FFFFFF" opacity="0.9"></rect>
+  <text x="438" y="90" text-anchor="middle" fill="#43474C" font-family="Plus Jakarta Sans" font-size="8.5" font-weight="700" letter-spacing="0.3">BA SON BRIDGE</text>
+</g>
+
+<!-- 5. DISTRICT LABELS (Elegant Minimal Cartographic Badges) -->
+<g>
+  <g transform="translate(36, 42)">
+    <rect fill="#FFFFFF" height="36" rx="8" width="215" opacity="0.94" stroke="#CBD5E1" stroke-width="1"></rect>
+    <circle cx="16" cy="18" r="4" fill="#147A7E"></circle>
+    <text fill="#0D2538" font-family="Plus Jakarta Sans" font-size="10.5" font-weight="800" letter-spacing="0.5" x="28" y="16">DISTRICT 1 (D1)</text>
+    <text fill="#43474C" font-family="Inter" font-size="9" font-weight="500" x="28" y="28">HISTORIC RIVERFRONT</text>
+  </g>
+  <g transform="translate(674, 42)">
+    <rect fill="#FFFFFF" height="36" rx="8" width="220" opacity="0.94" stroke="#CBD5E1" stroke-width="1"></rect>
+    <circle cx="16" cy="18" r="4" fill="#4FC3D8"></circle>
+    <text fill="#0D2538" font-family="Plus Jakarta Sans" font-size="10.5" font-weight="800" letter-spacing="0.5" x="28" y="16">THU THIEM (D2)</text>
+    <text fill="#43474C" font-family="Inter" font-size="9" font-weight="500" x="28" y="28">PROMENADE &amp; FINANCIAL CORRIDOR</text>
+  </g>
+</g>
+
+<!-- 6. TRANSIT WATERWAY CORRIDOR & ROUTE TRACK -->
+<!-- A. Completed Route Track: Bach Dang Pier (248, 280) -> Catamaran Position (510, 322) -->
+<path d="M 248 280 C 330 280, 420 302, 510 322" fill="none" stroke="#147A7E" stroke-width="5.5" stroke-linecap="round" filter="url(#softGlow)"></path>
+<path d="M 248 280 C 330 280, 420 302, 510 322" fill="none" stroke="#9BF1F5" stroke-width="1.8" stroke-linecap="round" opacity="0.8"></path>
+
+<!-- B. Flow Indicator Directional Chevrons on Completed Path -->
+<g fill="#FFFFFF" opacity="0.9">
+  <polygon points="340,283 331,278 333,283 331,288"></polygon>
+  <polygon points="425,301 416,296 418,301 416,306"></polygon>
+</g>
+
+<!-- C. Remaining Route Track: Catamaran (510, 322) -> Thu Thiem Pier (672, 350) -->
+<path d="M 510 322 C 565 334, 620 344, 672 350" fill="none" stroke="#4FC3D8" stroke-width="4" stroke-dasharray="8 6" stroke-linecap="round" opacity="0.95"></path>
+<polygon fill="#4FC3D8" points="592,339 583,334 585,339 583,344"></polygon>
+
+<!-- 7. SIGHTSEEING POI MARKERS -->
+<!-- POI 1: PASSED - Customs House -->
+<g class="cursor-pointer group" transform="translate(230, 430)">
+  <circle cx="0" cy="0" r="14" fill="#E3E2E4"></circle>
+  <circle cx="0" cy="0" r="5" fill="#73777D"></circle>
+  <g transform="translate(-155, -20)">
+    <rect fill="#FFFFFF" height="40" rx="8" stroke="#CBD5E1" stroke-width="1" width="145" opacity="0.95"></rect>
+    <circle cx="16" cy="20" r="8" fill="#73777D" opacity="0.15"></circle>
+    <text fill="#73777D" font-family="Material Symbols Outlined" font-size="12" x="10" y="24">history_edu</text>
+    <text fill="#43474C" font-family="Plus Jakarta Sans" font-size="10.5" font-weight="700" x="30" y="17">Customs House</text>
+    <text fill="#73777D" font-family="Inter" font-size="9" x="30" y="29">Passed • 08:32</text>
+  </g>
+</g>
+
+<!-- POI 2: ACTIVE STORY - Ba Son Waterfront & Naval Heritage -->
+<!-- A. Curved Synergistic Glow Beam: Catamaran (510, 322) -> Ba Son POI (345, 168) -> Right-hand Audio Panel (920, 180) -->
+<path d="M 345 168 Q 430 230 510 322" fill="none" stroke="#F08A6B" stroke-width="2.5" stroke-dasharray="6 4" opacity="0.6"></path>
+<path d="M 345 168 Q 630 140 920 180" fill="none" stroke="#F08A6B" stroke-width="2" stroke-dasharray="4 4" opacity="0.35"></path>
+
+<g transform="translate(345, 168)">
+  <!-- Radiant Active Glowing Halos -->
+  <circle cx="0" cy="0" r="38" fill="url(#poiPulseWarm)" class="animate-ping" style="animation-duration: 2.2s;"></circle>
+  <circle cx="0" cy="0" r="24" fill="#F08A6B" opacity="0.22"></circle>
+  <circle cx="0" cy="0" r="14" fill="#0D2538" stroke="#F08A6B" stroke-width="3" filter="url(#softGlow)"></circle>
+  <text fill="#F08A6B" font-family="Material Symbols Outlined" font-size="13" text-anchor="middle" x="0" y="4.5">headphones</text>
+  
+  <!-- Elevated Active Story Card Callout -->
+  <g transform="translate(-95, -72)">
+    <rect fill="#0D2538" filter="url(#activePoiHalo)" height="56" rx="12" width="190"></rect>
+    <polygon fill="#0D2538" points="95,56 88,64 102,64"></polygon>
+    <!-- Live amber pulse beacon -->
+    <circle cx="18" cy="18" r="4" fill="#F08A6B"></circle>
+    <circle cx="18" cy="18" r="6" fill="#F08A6B" opacity="0.6" class="animate-ping"></circle>
+    <text fill="#F08A6B" font-family="Plus Jakarta Sans" font-size="9" font-weight="800" letter-spacing="0.6" x="28" y="21">NOW APPROACHING • ACTIVE STORY</text>
+    <text fill="#FFFFFF" font-family="Plus Jakarta Sans" font-size="11.5" font-weight="700" x="18" y="37">Ba Son Waterfront</text>
+    <text fill="#CEEFF4" font-family="Inter" font-size="9" font-weight="500" x="18" y="49">Naval Heritage &amp; Skyline Guide</text>
+  </g>
+</g>
+
+<!-- POI 3: UPCOMING - Thu Thiem Skyline & Waterfront Park -->
+<g class="cursor-pointer" transform="translate(680, 230)">
+  <circle cx="0" cy="0" r="14" fill="#FFFFFF" stroke="#4FC3D8" stroke-width="2.5"></circle>
+  <circle cx="0" cy="0" r="5" fill="#147A7E"></circle>
+  <g transform="translate(18, -20)">
+    <rect fill="#FFFFFF" height="42" rx="8" stroke="#CBD5E1" stroke-width="1" width="164" opacity="0.96"></rect>
+    <circle cx="16" cy="21" r="9" fill="#147A7E" opacity="0.15"></circle>
+    <text fill="#147A7E" font-family="Material Symbols Outlined" font-size="13" x="10" y="25">apartment</text>
+    <text fill="#0D2538" font-family="Plus Jakarta Sans" font-size="10.5" font-weight="700" x="30" y="18">Thu Thiem Skyline</text>
+    <text fill="#147A7E" font-family="Inter" font-size="9" font-weight="600" x="30" y="31">Upcoming • ~3 min</text>
+  </g>
+</g>
+
+<!-- POI 4: TERMINAL PROXIMITY - Landmark Waterfront Plaza -->
+<g class="cursor-pointer" transform="translate(650, 480)">
+  <circle cx="0" cy="0" r="12" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.8"></circle>
+  <circle cx="0" cy="0" r="4" fill="#94A3B8"></circle>
+  <g transform="translate(16, -18)">
+    <rect fill="#FFFFFF" height="36" rx="8" stroke="#CBD5E1" stroke-width="1" width="150" opacity="0.92"></rect>
+    <circle cx="14" cy="18" r="8" fill="#94A3B8" opacity="0.15"></circle>
+    <text fill="#73777D" font-family="Material Symbols Outlined" font-size="12" x="9" y="22">museum</text>
+    <text fill="#43474C" font-family="Plus Jakarta Sans" font-size="10" font-weight="600" x="26" y="16">Landmark Waterfront Plaza</text>
+    <text fill="#73777D" font-family="Inter" font-size="8.5" x="26" y="27">Terminal Docking • 08:42</text>
+  </g>
+</g>
+
+<!-- 8. ORIGIN & TERMINAL PIER NODES -->
+<!-- Origin: Bach Dang Pier -->
+<g transform="translate(248, 280)">
+  <rect x="-34" y="-11" width="36" height="22" rx="4" fill="#0D2538"></rect>
+  <circle cx="0" cy="0" r="15" fill="#147A7E"></circle>
+  <circle cx="0" cy="0" r="6.5" fill="#FFFFFF"></circle>
+  <g transform="translate(-165, -58)">
+    <rect fill="#FFFFFF" filter="drop-shadow(0 2px 8px rgba(0,0,0,0.08))" height="52" rx="10" stroke="#CBD5E1" stroke-width="1" width="154"></rect>
+    <circle cx="22" cy="26" r="12" fill="#147A7E" opacity="0.12"></circle>
+    <text fill="#147A7E" font-family="Material Symbols Outlined" font-size="16" x="14" y="31">dock</text>
+    <text fill="#0D2538" font-family="Plus Jakarta Sans" font-size="12" font-weight="800" x="42" y="21">Bach Dang Pier</text>
+    <text fill="#147A7E" font-family="Inter" font-size="10.5" font-weight="600" x="42" y="37">Departed 08:30</text>
+  </g>
+</g>
+
+<!-- Destination: Thu Thiem Pier -->
+<g transform="translate(672, 350)">
+  <rect x="-2" y="-11" width="36" height="22" rx="4" fill="#0D2538"></rect>
+  <circle cx="0" cy="0" r="16" fill="#FFFFFF" stroke="#147A7E" stroke-width="2.5"></circle>
+  <circle cx="0" cy="0" r="8" fill="#4FC3D8"></circle>
+  <circle cx="0" cy="0" r="3.5" fill="#FFFFFF"></circle>
+  <g transform="translate(20, -28)">
+    <rect fill="#FFFFFF" filter="drop-shadow(0 2px 8px rgba(0,0,0,0.08))" height="52" rx="10" stroke="#CBD5E1" stroke-width="1" width="158"></rect>
+    <circle cx="22" cy="26" r="12" fill="#4FC3D8" opacity="0.18"></circle>
+    <text fill="#007074" font-family="Material Symbols Outlined" font-size="16" x="14" y="31">pin_drop</text>
+    <text fill="#0D2538" font-family="Plus Jakarta Sans" font-size="12" font-weight="800" x="42" y="21">Thu Thiem Pier</text>
+    <text fill="#43474C" font-family="Inter" font-size="10.5" x="42" y="37">Scheduled 08:42</text>
+  </g>
+</g>
+
+<!-- 9. SLEEK TOP-DOWN SMART WATERBUS CATAMARAN (60% Progress at 510, 322) -->
+<g transform="translate(510, 322)">
+  <!-- Ambient Radar Position Beacon -->
+  <circle cx="0" cy="0" r="36" fill="#4FC3D8" opacity="0.2" class="animate-ping" style="animation-duration: 2.6s;"></circle>
+  <circle cx="0" cy="0" r="24" fill="#147A7E" opacity="0.18"></circle>
+  
+  <!-- Catamaran Heading ~14 degrees toward Thu Thiem -->
+  <g transform="rotate(14)">
+    <!-- V-Shaped Hydrodynamic Wake Behind Twin Hulls -->
+    <path d="M -24 -9 L -52 -18 M -24 9 L -52 18" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" opacity="0.8"></path>
+    <path d="M -20 0 L -46 0" stroke="#FFFFFF" stroke-width="1.4" stroke-dasharray="3 3" stroke-linecap="round" opacity="0.6"></path>
+    
+    <!-- Twin Catamaran Hull Outlines -->
+    <!-- Port Hull (Top) -->
+    <path d="M -22 -12 C -10 -14, 14 -12, 24 -7 C 14 -3, -10 -4, -22 -6 Z" fill="#0D2538"></path>
+    <!-- Starboard Hull (Bottom) -->
+    <path d="M -22 6 C -10 4, 14 3, 24 7 C 14 12, -10 14, -22 12 Z" fill="#0D2538"></path>
+    <!-- Bridging Central Cabin Deck -->
+    <rect x="-16" y="-6" width="30" height="12" rx="3" fill="#147A7E"></rect>
+    <!-- Aerodynamic Cabin Glass Tint -->
+    <path d="M -6 -4.5 L 8 -3.5 C 11 -1.5, 11 1.5, 8 3.5 L -6 4.5 Z" fill="#D7F3F6"></path>
+    <!-- Bow Forward Direction Arrow Dot -->
+    <circle cx="14" cy="0" r="2.2" fill="#4FC3D8"></circle>
+  </g>
+  
+  <!-- Refined Catamaran Vessel Status Badge -->
+  <g transform="translate(-68, -68)">
+    <rect fill="#0D2538" filter="drop-shadow(0 6px 16px rgba(13,37,56,0.35))" height="44" rx="10" width="136"></rect>
+    <polygon fill="#0D2538" points="68,44 61,51 75,51"></polygon>
+    <circle cx="18" cy="22" r="4.5" fill="#4FC3D8"></circle>
+    <circle cx="18" cy="22" r="7" fill="#4FC3D8" opacity="0.6" class="animate-ping"></circle>
+    <text fill="#FFFFFF" font-family="Plus Jakarta Sans" font-size="11" font-weight="800" x="28" y="19">WB-01 • En Route</text>
+    <text fill="#9BF1F5" font-family="Inter" font-size="9.5" font-weight="600" x="28" y="32">Mid-Crossing</text>
+  </g>
+</g>
+</svg>
+
+<!-- Bottom Map Crossing Summary & Sightseeing Legend Strip -->
+<div class="absolute bottom-space-md left-space-md right-space-md pointer-events-none">
+  <div class="bg-white/95 backdrop-blur-md rounded-2xl p-space-md shadow-md border border-slate-200/60 flex flex-wrap items-center justify-between gap-space-md pointer-events-auto">
+    <div class="flex items-center gap-space-md">
+      <div class="w-10 h-10 rounded-xl bg-teal-flow/10 text-teal-flow flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-[22px]">nature_people</span>
+      </div>
+      <div>
+        <div class="font-headline-sm text-body-sm text-deep-river font-bold">Saigon Scenic River Corridor</div>
+        <div class="font-body-sm text-body-sm text-on-surface-variant">Estimated remaining crossing: <strong class="text-deep-river font-semibold">~5 minutes (1.2 km)</strong></div>
+      </div>
+    </div>
+    <!-- Map Legend -->
+    <div class="flex flex-wrap items-center gap-space-md text-body-sm text-on-surface-variant font-medium">
+      <div class="flex items-center gap-1.5">
+        <span class="w-3.5 h-1.5 rounded-full bg-teal-flow"></span>
+        <span class="">Completed track</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="w-3.5 h-1.5 rounded-full border-t-2 border-dashed border-sky-aqua"></span>
+        <span class="">Remaining track</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-coral-glow"></span>
+        <span class="">Active Audio POI</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-deep-river"></span>
+        <span class="">Terminal Pier</span>
+      </div>
+    </div>
+  </div>
+</div></div>
+</div>
+<!-- RIGHT COLUMN: NOW PLAYING / RIVER STORY EXPERIENCE PANEL (32% ~ 4 cols) -->
+<div class="lg:col-span-4 flex flex-col gap-space-lg">
+<!-- Primary "Now Approaching" Sightseeing & Audio Experience Card -->
+<div class="bg-white rounded-[22px] p- space-lg p-5 shadow-[0_4px_24px_rgba(13,37,56,0.06)] border border-slate-200/80 flex flex-col gap-4 relative overflow-hidden">
+<!-- Subtle decorative corner accent -->
+<div class="absolute -top-10 -right-10 w-28 h-28 bg-coral-glow/10 rounded-full blur-2xl pointer-events-none"></div>
+<!-- Top Story Header with Live Waveform -->
+<div class="flex items-center justify-between">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-coral-glow/15 text-coral-glow font-headline-sm text-body-sm font-bold">
+<span class="material-symbols-outlined text-[15px]">headphones</span>
+<span>NOW APPROACHING</span>
+</div>
+<!-- Animated Audio Waveform Graphic -->
+<div class="flex items-end gap-1 h-5 px-2 py-1 rounded-md bg-mist text-teal-flow">
+<span class="w-1 bg-teal-flow rounded-full wave-bar-1"></span>
+<span class="w-1 bg-teal-flow rounded-full wave-bar-2"></span>
+<span class="w-1 bg-teal-flow rounded-full wave-bar-3"></span>
+<span class="w-1 bg-teal-flow rounded-full wave-bar-4"></span>
+<span class="w-1 bg-teal-flow rounded-full wave-bar-5"></span>
+</div>
+</div>
+<!-- Story Title & Intro -->
+<div>
+<h2 class="font-headline-sm text-headline-sm text-deep-river font-bold leading-tight">Ba Son Waterfront &amp; Naval Heritage</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1.5 leading-relaxed">
+            Where historic shipyard drydocks meet Saigon's cutting-edge riverside skyline. Gaze portside as the catamaran glides past the waterfront promenade.
+          </p>
+</div>
+<!-- Scenic River Thumbnail with Duration & Audio Badge -->
+<div class="relative h-48 w-full rounded-2xl overflow-hidden group shadow-sm">
+<img alt="Modern catamaran waterbus cruising past the iconic Saigon skyline and waterfront promenade" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="https://lh3.googleusercontent.com/aida/AEtjO1VQrMFnNCgzOVzrR4pRwHYFihGLiHW1EK3w9klgnexf1_wkkb6QZImvFLcoaJsIPenE_8jeN_plTydFQgIwQRi-ie7SvDJbpF6euqt6OgfKJdLej0z0cts8Tu0mV63lOedmaIm9cZ3WMtfFU5zI0B-KGUiTrxoLW7rz62s7VMTGElsX4RQHDHXO0XpJv9U8_Wlt8Yl3uHs28lt_SZ2sLBXcNHfRz92GZNe4B3QKwFg9Y-rjSsFAYFcrwxit">
+<div class="absolute inset-0 bg-gradient-to-t from-deep-river/80 via-deep-river/20 to-transparent"></div>
+<!-- Top left category tag -->
+<div class="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-deep-river/80 backdrop-blur-md text-white font-headline-sm text-body-sm font-semibold border border-white/10">
+<span class="material-symbols-outlined text-[14px] text-sky-aqua">volume_up</span>
+<span>River Story • 2 min</span>
+</div>
+<!-- Floating bottom info -->
+<div class="absolute bottom-3 left-3 right-3 text-white flex items-center justify-between">
+<span class="text-xs font-semibold text-sky-aqua flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-coral-glow animate-ping"></span> Portside Panorama
+            </span>
+<span class="text-xs bg-white/20 backdrop-blur-md px-2 py-0.5 rounded text-white font-medium">GPS Auto-Triggered</span>
+</div>
+</div>
+<!-- Integrated Audio Player Component -->
+<div class="bg-mist rounded-2xl p-4 flex flex-col gap-3 border border-slate-200/60">
+<div class="flex items-center justify-between">
+<div>
+<span class="text-xs font-bold text-teal-flow uppercase tracking-wider">Audio Guide</span>
+<div class="font-headline-sm text-body-md text-deep-river font-bold">Ep 03: The Awakening Riverfront</div>
+</div>
+<!-- Multilingual Audio Selector Pill -->
+<div class="flex items-center gap-1 bg-white rounded-lg p-1 border border-slate-200/80 text-xs font-bold">
+<button class="px-1.5 py-0.5 rounded bg-deep-river text-white">EN</button>
+<button class="px-1.5 py-0.5 rounded text-on-surface-variant hover:text-deep-river">VI</button>
+<button class="px-1.5 py-0.5 rounded text-on-surface-variant hover:text-deep-river">FR</button>
+<button class="px-1.5 py-0.5 rounded text-on-surface-variant hover:text-deep-river">JP</button>
+</div>
+</div>
+<!-- Scrubber Progress Bar -->
+<div class="flex flex-col gap-1">
+<div class="relative w-full h-2 bg-slate-200 rounded-full overflow-hidden cursor-pointer">
+<div class="h-full bg-teal-flow rounded-full shadow-[0_0_8px_rgba(20,122,126,0.6)]" style="width: 38%"></div>
+</div>
+<div class="flex items-center justify-between text-xs text-on-surface-variant font-medium">
+<span class="text-teal-flow font-semibold">0:48</span>
+<span>2:15</span>
+</div>
+</div>
+<!-- Playback Control Buttons -->
+<div class="flex items-center justify-center gap-4 pt-1">
+<button aria-label="Replay 10 seconds" class="w-9 h-9 rounded-full bg-white hover:bg-slate-100 flex items-center justify-center text-on-surface-variant hover:text-deep-river transition-colors shadow-xs">
+<span class="material-symbols-outlined text-[19px]">replay_10</span>
+</button>
+<button aria-label="Pause Audio" class="w-12 h-12 rounded-full bg-teal-flow hover:bg-secondary text-white flex items-center justify-center shadow-md hover:scale-105 transition-all">
+<span class="material-symbols-outlined text-[26px]">pause</span>
+</button>
+<button aria-label="Forward 10 seconds" class="w-9 h-9 rounded-full bg-white hover:bg-slate-100 flex items-center justify-center text-on-surface-variant hover:text-deep-river transition-colors shadow-xs">
+<span class="material-symbols-outlined text-[19px]">forward_10</span>
+</button>
+</div>
+</div>
+<!-- Compact Live Trip Summary Box -->
+<div class="bg-surface-container-low rounded-2xl p-3.5 flex flex-col gap-2.5 border border-slate-200/50">
+<div class="flex items-center justify-between text-body-sm">
+<div class="flex items-center gap-1.5 font-semibold text-deep-river">
+<span class="material-symbols-outlined text-[16px] text-teal-flow">airline_seat_recline_extra</span>
+<span>Seat A2 (Window Corridor)</span>
+</div>
+<div class="text-right text-teal-flow font-bold">
+              Est. Arrival 08:42
+            </div>
+</div>
+<div class="flex items-center justify-between text-xs text-on-surface-variant">
+<span>Trip WB-01 • Catamaran</span>
+<span class="font-medium text-deep-river">~5 mins remaining</span>
+</div>
+<div class="grid grid-cols-2 gap-2 pt-1">
+<button class="py-2 px-3 rounded-xl bg-teal-flow hover:bg-secondary text-white font-headline-sm text-body-sm font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors" onclick="document.getElementById('qr-modal').classList.remove('hidden')">
+<span class="material-symbols-outlined text-[17px]">qr_code</span>
+<span>View QR Ticket</span>
+</button>
+<button class="py-2 px-3 rounded-xl bg-white hover:bg-slate-100 border border-slate-200/80 text-deep-river font-headline-sm text-body-sm font-semibold flex items-center justify-center gap-1.5 transition-colors">
+<span class="material-symbols-outlined text-[17px] text-on-surface-variant">receipt_long</span>
+<span>Trip Receipt</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- HORIZONTAL "ALONG YOUR JOURNEY" STORYLINE RIBBON (Below Map) -->
+<div class="w-full bg-white rounded-[24px] p-space-xl shadow-[0_4px_24px_rgba(13,37,56,0.06)] border border-slate-200/80 flex flex-col gap-space-md">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+<div>
+<span class="text-xs font-bold text-teal-flow uppercase tracking-wider">Spatial Itinerary</span>
+<h3 class="font-headline-sm text-headline-sm text-deep-river font-bold">Along Your River Journey</h3>
+</div>
+<div class="flex items-center gap-2 text-body-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px] text-coral-glow">explore</span>
+<span>Interactive Audio &amp; Sightseeing POIs</span>
+</div>
+</div>
+<!-- 4-Stage Connected Progression Ribbon -->
+<div class="relative w-full pt-2">
+<!-- Continuous Background Connection Line -->
+<div class="absolute top-[28px] left-10 right-10 h-1 bg-slate-200 hidden md:block z-0"></div>
+<div class="absolute top-[28px] left-10 w-1/3 h-1 bg-teal-flow hidden md:block z-0"></div>
+<!-- Grid of 4 Story Progression Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-space-md relative z-10">
+<!-- Stage 1: PASSED -->
+<div class="bg-mist/70 hover:bg-mist transition-colors rounded-2xl p-4 border border-slate-200/80 flex flex-col gap-2.5 opacity-85">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded-full bg-teal-flow text-white flex items-center justify-center ring-4 ring-white shadow-xs">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</div>
+<span class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-200 text-on-surface-variant">08:30 • Passed</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-body-md text-deep-river font-bold">Bach Dang Pier &amp; Customs House</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Departed Gate 2. Glided past the French colonial heritage Customs Building.</p>
+</div>
+<div class="flex items-center gap-1 text-xs text-teal-flow font-medium pt-1">
+<span class="material-symbols-outlined text-[14px]">headphones</span>
+<span>Audio Story Completed</span>
+</div>
+</div>
+<!-- Stage 2: NOW ACTIVE -->
+<div class="bg-gradient-to-b from-teal-flow/5 to-white rounded-2xl p-4 border-2 border-teal-flow shadow-md flex flex-col gap-2.5 relative">
+<div class="absolute -top-3 right-4 px-2.5 py-0.5 rounded-full bg-coral-glow text-white text-[11px] font-extrabold tracking-wide uppercase shadow-xs">
+              Listening Now
+            </div>
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded-full bg-deep-river text-white flex items-center justify-center ring-4 ring-teal-flow/20 shadow-xs animate-pulse">
+<span class="material-symbols-outlined text-[18px] text-coral-glow">volume_up</span>
+</div>
+<span class="text-xs font-bold px-2 py-0.5 rounded bg-teal-flow/15 text-teal-flow">Mid-Crossing</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-body-md text-deep-river font-bold">Ba Son Waterfront</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Historic French drydock shipyard modernized into waterfront promenade.</p>
+</div>
+<div class="flex items-center gap-1.5 text-xs text-teal-flow font-bold pt-1">
+<span class="w-2 h-2 rounded-full bg-teal-flow animate-ping"></span>
+<span>Playing Audio Ep 03 (0:48 / 2:15)</span>
+</div>
+</div>
+<!-- Stage 3: NEXT -->
+<div class="bg-mist/70 hover:bg-mist transition-colors rounded-2xl p-4 border border-slate-200/80 flex flex-col gap-2.5">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded-full bg-white text-teal-flow border-2 border-sky-aqua flex items-center justify-center ring-4 ring-white shadow-xs">
+<span class="material-symbols-outlined text-[18px]">apartment</span>
+</div>
+<span class="text-xs font-semibold px-2 py-0.5 rounded bg-sky-aqua/20 text-deep-river">Next • ~3 min</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-body-md text-deep-river font-bold">Thu Thiem Promenade Skyline</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Vibrant contemporary architectural skyline shaping Ho Chi Minh City's new financial core.</p>
+</div>
+<div class="flex items-center gap-1 text-xs text-on-surface-variant font-medium pt-1">
+<span class="material-symbols-outlined text-[14px]">headphones</span>
+<span>Audio Ready: Ep 04 (1:45 min)</span>
+</div>
+</div>
+<!-- Stage 4: LATER -->
+<div class="bg-mist/70 hover:bg-mist transition-colors rounded-2xl p-4 border border-slate-200/80 flex flex-col gap-2.5">
+<div class="flex items-center justify-between">
+<div class="w-8 h-8 rounded-full bg-white text-on-surface-variant border-2 border-slate-300 flex items-center justify-center ring-4 ring-white">
+<span class="material-symbols-outlined text-[18px]">pin_drop</span>
+</div>
+<span class="text-xs font-medium px-2 py-0.5 rounded bg-slate-200 text-on-surface-variant">Est. 08:42</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-body-md text-deep-river font-bold">Landmark Riverside Park</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Terminal docking at Thu Thiem Pier with direct connections to waterfront sculpture plaza.</p>
+</div>
+<div class="flex items-center gap-1 text-xs text-on-surface-variant font-medium pt-1">
+<span class="material-symbols-outlined text-[14px]">explore</span>
+<span>Walking tour suggestions ready</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- QR TICKET MODAL (Passenger overlay) -->
+<div class="hidden fixed inset-0 z-50 flex items-center justify-center p-space-md bg-deep-river/60 backdrop-blur-sm" id="qr-modal">
+<div class="bg-white rounded-[24px] max-w-sm w-full p-space-xl shadow-xl flex flex-col items-center text-center relative border border-slate-200">
+<button class="absolute top-4 right-4 w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-deep-river transition-colors" onclick="document.getElementById('qr-modal').classList.add('hidden')">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+<div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-flow/10 text-teal-flow font-headline-sm text-body-sm font-semibold mb-space-sm">
+<span class="material-symbols-outlined text-[16px]">check_circle</span> Valid Passenger Boarding Pass
+      </div>
+<h3 class="font-headline-md text-headline-md text-deep-river font-bold">Ticket WB-01-A2</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-space-md">Nguyen Van An • Seat A2 (Window Corridor)</p>
+<!-- Minimal SVG QR Visual representation -->
+<div class="p-4 bg-mist rounded-2xl shadow-inner mb-space-md">
+<svg class="w-44 h-44" fill="currentColor" viewBox="0 0 100 100">
+<!-- QR Frame Markers -->
+<rect fill="#0D2538" height="24" rx="3" width="24" x="10" y="10"></rect>
+<rect fill="#FFFFFF" height="14" rx="1" width="14" x="15" y="15"></rect>
+<rect fill="#147A7E" height="8" rx="1" width="8" x="18" y="18"></rect>
+<rect fill="#0D2538" height="24" rx="3" width="24" x="66" y="10"></rect>
+<rect fill="#FFFFFF" height="14" rx="1" width="14" x="71" y="15"></rect>
+<rect fill="#147A7E" height="8" rx="1" width="8" x="74" y="18"></rect>
+<rect fill="#0D2538" height="24" rx="3" width="24" x="10" y="66"></rect>
+<rect fill="#FFFFFF" height="14" rx="1" width="14" x="15" y="71"></rect>
+<rect fill="#147A7E" height="8" rx="1" width="8" x="18" y="74"></rect>
+<!-- Stylized Data Matrix Dots -->
+<circle cx="42" cy="16" fill="#0D2538" r="3"></circle>
+<circle cx="52" cy="16" fill="#147A7E" r="2.5"></circle>
+<circle cx="42" cy="26" fill="#147A7E" r="2.5"></circle>
+<circle cx="54" cy="26" fill="#0D2538" r="3.5"></circle>
+<circle cx="48" cy="38" fill="#0D2538" r="3"></circle>
+<circle cx="20" cy="46" fill="#147A7E" r="2.5"></circle>
+<circle cx="32" cy="46" fill="#0D2538" r="3.5"></circle>
+<circle cx="68" cy="46" fill="#147A7E" r="3"></circle>
+<circle cx="80" cy="46" fill="#0D2538" r="2.5"></circle>
+<circle cx="42" cy="54" fill="#0D2538" r="3"></circle>
+<circle cx="56" cy="54" fill="#147A7E" r="2.5"></circle>
+<circle cx="48" cy="68" fill="#147A7E" r="3"></circle>
+<circle cx="68" cy="68" fill="#0D2538" r="2.5"></circle>
+<circle cx="80" cy="68" fill="#0D2538" r="3.5"></circle>
+<circle cx="42" cy="80" fill="#0D2538" r="3"></circle>
+<circle cx="56" cy="80" fill="#147A7E" r="3"></circle>
+<circle cx="70" cy="82" fill="#0D2538" r="2.5"></circle>
+</svg>
+</div>
+<div class="w-full flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant bg-surface-container-low px-space-md py-2.5 rounded-xl mb-space-md">
+<span>Bach Dang → Thu Thiem</span>
+<span class="text-deep-river font-bold">08:30 – 08:42</span>
+</div>
+<button class="w-full py-space-sm rounded-xl bg-teal-flow text-on-primary font-headline-sm text-body-md font-semibold hover:bg-secondary transition-colors" onclick="document.getElementById('qr-modal').classList.add('hidden')">
+        Done
+      </button>
+</div>
+</div>
+<!-- Micro-interaction JS -->
+<script>
+    const refreshBtn = document.getElementById('refresh-btn');
+    const refreshIcon = document.getElementById('refresh-icon');
+    if (refreshBtn && refreshIcon) {
+      refreshBtn.addEventListener('click', () => {
+        refreshIcon.classList.add('rotate-180');
+        setTimeout(() => {
+          refreshIcon.classList.remove('rotate-180');
+        }, 500);
+      });
+    }
+  </script>
+</div></main><footer class="w-full bg-sand-light text-on-surface border-t border-slate-200/80"><div class="max-w-7xl mx-auto px-margin pt-space-3xl pb-space-2xl"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-xl"><div class="flex flex-col gap-space-md"><div class="flex items-center gap-space-sm"><img alt="Brand logo. - Primary color: #0d2538
+- Font: plusJakartaSans
+- Mode: light
+- Roundness: rounded-md
+" class="h-7 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WiF1NNf59f3fm7YJTVwxqFCw3wL1kpEErVxVKdtffjYZSE8rQcimuCrd5m6V76pWXG5bJvJDdRoZpBEjA_GNbPglxJH1dQuFydgjV3UG19EwKFJxbV6q9TY0sodBd7F8JohBy0giL7H2aZ2jYp6R_WLIJf6FvCJQYgRhGklczPLysss8-K8zR_cZt3NH-u9tohMmc14WvzX5FGl4GzQ58s-iJ1ab1wCYtkCgBkJFkXHSazs2KBHG1lBF0l"><span class="font-headline-sm text-headline-sm text-deep-river font-bold">Smart Waterbus</span></div><p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">Urban river transportation engineered for seamless commuter journeys, panoramic city touring, and modern zero-emission transit along the central waterway corridor.</p><div class="flex items-center gap-space-sm pt-space-xs text-on-surface-variant"><span class="material-symbols-outlined text-[20px]">directions_boat</span><span class="material-symbols-outlined text-[20px]">electric_bolt</span><span class="material-symbols-outlined text-[20px]">water</span></div></div><div class="flex flex-col gap-space-md"><h4 class="font-headline-sm text-body-lg text-deep-river font-bold">Quick Links</h4><ul class="flex flex-col gap-space-sm font-body-md text-body-md text-on-surface-variant"><li><a class="hover:text-teal-flow transition-colors" data-path="routes" href="#">Pier Network &amp; Stations</a></li><li><a class="hover:text-teal-flow transition-colors" data-path="schedules" href="#">Timetables &amp; Live Tracker</a></li><li><a class="hover:text-teal-flow transition-colors" data-path="booking" href="#">Fares &amp; Travel Passes</a></li><li><a class="hover:text-teal-flow transition-colors" data-path="safety" href="#">Waterway Safety Guidelines</a></li></ul></div><div class="flex flex-col gap-space-md"><h4 class="font-headline-sm text-body-lg text-deep-river font-bold">Tourism Experiences</h4><ul class="flex flex-col gap-space-sm font-body-md text-body-md text-on-surface-variant"><li><a class="hover:text-teal-flow transition-colors" data-path="experience" href="#">River Sunset Cruises</a></li><li><a class="hover:text-teal-flow transition-colors" data-path="cultural-pass" href="#">Heritage Pier Excursions</a></li><li><a class="hover:text-teal-flow transition-colors" data-path="private-charters" href="#">Private Event Charters</a></li><li><a class="hover:text-teal-flow transition-colors" data-path="audio-guide" href="#">Multilingual Audio Tours</a></li></ul></div><div class="flex flex-col gap-space-md"><h4 class="font-headline-sm text-body-lg text-deep-river font-semibold">Support &amp; Contact</h4><p class="font-body-md text-body-md text-on-surface-variant">Terminal Central Pier, Gate 4<br>Operating Daily: 05:30 – 23:00</p><p class="font-body-md text-body-md text-on-surface-variant">Dispatch &amp; Support: +1 (800) 555-RIVER<br>help@smartwaterbus.transit</p><div class="flex items-center gap-space-xs text-teal-flow pt-space-xs"><span class="material-symbols-outlined text-[18px]">check_circle</span><span class="font-body-sm text-body-sm font-medium">Transit Operations Active</span></div></div></div><div class="mt-space-2xl pt-space-lg flex flex-col md:flex-row items-center justify-between gap-space-md font-body-sm text-body-sm text-on-surface-variant"><p>© 2025 Smart Waterbus Authority. All rights reserved.</p><div class="flex flex-wrap items-center gap-space-md"><a class="hover:text-on-surface transition-colors" data-path="passenger-rights" href="#">Passenger Rights</a><a class="hover:text-on-surface transition-colors" data-path="privacy-policy" href="#">Privacy Policy</a><a class="hover:text-on-surface transition-colors" data-path="waterway-rules" href="#">Waterway Transit Rules</a><a class="hover:text-on-surface transition-colors" data-path="accessibility" href="#">Accessibility</a></div></div></div></footer>
+
+</body></html>

@@ -1,0 +1,37 @@
+import { ROLES } from '../../constant/roles'
+import { ROUTES } from '../../routes/routes'
+
+export interface AdminNavItem {
+  to: string
+  label: string
+  icon: string
+  /** Roles that may open the page. */
+  roles: readonly string[]
+}
+
+const { admin, dispatcher, captain } = ROLES
+
+/** Sidebar of the operations area, in the order of the design guide (DESIGN.md, Admin / Dispatcher). */
+export const ADMIN_NAV: AdminNavItem[] = [
+  { to: ROUTES.admin, label: 'Overview', icon: 'dashboard', roles: [admin, dispatcher] },
+  { to: ROUTES.adminRadar, label: 'Live Operations', icon: 'radar', roles: [admin, dispatcher] },
+  { to: ROUTES.adminTrips, label: 'Trips', icon: 'directions_boat', roles: [admin, dispatcher] },
+  { to: ROUTES.adminSchedules, label: 'Schedules', icon: 'calendar_month', roles: [admin] },
+  { to: ROUTES.adminStations, label: 'Stations', icon: 'anchor', roles: [admin] },
+  { to: ROUTES.adminBoats, label: 'Boats', icon: 'sailing', roles: [admin] },
+  { to: ROUTES.adminFares, label: 'Fares', icon: 'payments', roles: [admin] },
+  { to: ROUTES.adminIncidents, label: 'Incidents', icon: 'warning', roles: [admin, dispatcher] },
+]
+
+/** Roles allowed in the captain's portal. */
+export const CAPTAIN_ROLES = [captain, admin] as const
+
+/** Roles that work in the operations area at all. */
+export const STAFF_ROLES = [admin, dispatcher, captain] as const
+
+/** Where a user lands after signing in. */
+export function landingRouteFor(roles: readonly string[]): string {
+  if (roles.includes(admin) || roles.includes(dispatcher)) return ROUTES.admin
+  if (roles.includes(captain)) return ROUTES.captain
+  return ROUTES.myTickets
+}

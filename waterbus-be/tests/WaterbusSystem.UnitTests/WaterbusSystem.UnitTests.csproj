@@ -12,6 +12,7 @@
     <ProjectReference Include="..\..\src\WaterbusSystem.Domain\WaterbusSystem.Domain.csproj" />
     <ProjectReference Include="..\..\src\WaterbusSystem.Application\WaterbusSystem.Application.csproj" />
     <ProjectReference Include="..\..\src\WaterbusSystem.Infrastructure\WaterbusSystem.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\WaterbusSystem.WebApi\WaterbusSystem.WebApi.csproj" />
   </ItemGroup>
 
   <ItemGroup>

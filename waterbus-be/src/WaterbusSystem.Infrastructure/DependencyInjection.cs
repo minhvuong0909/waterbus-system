@@ -1,4 +1,6 @@
 using System.Text;
+using Hangfire;
+using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +9,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Application.Features.Incidents;
+using WaterbusSystem.Application.Features.Tracking;
 using WaterbusSystem.Infrastructure.BackgroundJobs;
 using WaterbusSystem.Infrastructure.Identity;
 using WaterbusSystem.Infrastructure.Locking;
@@ -15,6 +19,8 @@ using WaterbusSystem.Infrastructure.Services;
 using WaterbusSystem.Infrastructure.Services.AiBooking;
 using WaterbusSystem.Infrastructure.Services.Payment;
 using WaterbusSystem.Infrastructure.Services.Tts;
+using WaterbusSystem.Infrastructure.Services.Tracking;
+using WaterbusSystem.Infrastructure.Services.Weather;
 
 namespace WaterbusSystem.Infrastructure;
 
@@ -74,6 +80,12 @@ public static class DependencyInjection
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero
             };
+
+            // SignalR: đọc JWT từ query access_token cho đường dẫn /hubs
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = SignalRTokenReader.OnMessageReceived
+            };
         });
 
         // 3.1. Cấu hình Authorization Policies (Admin, Staff, Captain)
@@ -117,6 +129,41 @@ public static class DependencyInjection
 
         // 9. BackgroundService dọn dẹp Booking giữ chỗ quá hạn 10 phút chưa thanh toán
         services.AddHostedService<ExpiredBookingCleanupService>();
+
+        // 7. Theo dõi vị trí tàu: cache vị trí mới nhất (Redis) + giả lập GPS cho demo (mặc định tắt)
+        services.Configure<TrackingOptions>(configuration.GetSection(TrackingOptions.SectionName));
+        services.AddSingleton<IBoatPositionCache, RedisBoatPositionCache>();
+        services.AddHostedService<BoatSimulatorService>();
+
+        // 8. Hangfire (lưu job trong chính SQL Server, schema HangFire) + Weather Guard
+        services.AddHangfire(config => config
+            .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+            .UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings()
+            .UseSqlServerStorage(connectionString, new SqlServerStorageOptions
+            {
+                SqlClientFactory = Microsoft.Data.SqlClient.SqlClientFactory.Instance,
+                PrepareSchemaIfNecessary = true
+            }));
+        services.AddHangfireServer(options => options.WorkerCount = 2);
+        services.AddScoped<WeatherGuardJob>();
+
+        services.Configure<WeatherOptions>(configuration.GetSection(WeatherOptions.SectionName));
+        var weatherProvider = configuration[$"{WeatherOptions.SectionName}:Provider"];
+        if (string.Equals(weatherProvider, "OpenWeatherMap", StringComparison.OrdinalIgnoreCase))
+        {
+            var timeoutSeconds = configuration.GetValue($"{WeatherOptions.SectionName}:TimeoutSeconds", 10);
+            var baseUrl = configuration[$"{WeatherOptions.SectionName}:BaseUrl"] ?? new WeatherOptions().BaseUrl;
+            services.AddHttpClient<IWeatherProvider, OpenWeatherMapProvider>(client =>
+            {
+                client.BaseAddress = new Uri(baseUrl);
+                client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+            });
+        }
+        else
+        {
+            services.AddSingleton<IWeatherProvider, FakeWeatherProvider>();
+        }
 
         return services;
 

@@ -3,7 +3,9 @@ using Microsoft.OpenApi.Models;
 using WaterbusSystem.Application;
 using WaterbusSystem.Infrastructure;
 using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.WebApi.BackgroundJobs;
 using WaterbusSystem.WebApi.Middlewares;
+using WaterbusSystem.WebApi.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +16,9 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 // 2. Cấu hình Controllers & JSON
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// SignalR hubs + publisher realtime (BoatTracking, SeatSync)
+builder.Services.AddRealtime();
 
 // 3. Cấu hình Swagger UI có nút Authorize Bearer JWT
 builder.Services.AddSwaggerGen(options =>
@@ -58,9 +63,12 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AppCorsPolicy", policy =>
     {
+        // AllowCredentials cần cho SignalR khi FE chạy khác origin (vd Vite dev :5173).
+        // Hợp lệ vì dùng WithOrigins cụ thể, không phải AllowAnyOrigin.
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
@@ -135,5 +143,7 @@ app.UseAuthorization();
 
 
 app.MapControllers();
+app.MapRealtimeHubs();
+app.UseBackgroundJobs();
 
 app.Run();
