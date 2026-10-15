@@ -1,0 +1,418 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Smart Waterbus — Manage Booking</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            deep: '#0D2538',
+            teal: {
+              DEFAULT: '#147A7E',
+              dark: '#0e5a5d',
+              light: '#E8F6F7'
+            },
+            aqua: {
+              DEFAULT: '#4FC3D8',
+              soft: '#E8F7FA'
+            },
+            mist: '#F4F7F8',
+            sand: '#E9F0EC',
+            ink: '#18242D',
+            coral: '#F08A6B',
+            amber: '#E8B63E'
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            body: ['"Inter"', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-mist text-ink font-sans antialiased min-h-screen flex flex-col">
+<!-- TOP NAVIGATION -->
+<header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-gray-100 px-8 py-3.5 flex items-center justify-between">
+<div class="flex items-center space-x-10">
+<!-- Brand Logo -->
+<a class="flex items-center space-x-3 group" href="#">
+<div class="w-10 h-10 rounded-xl bg-deep flex items-center justify-center text-white shadow-sm">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V6s-1 1-4 1-5-2-8-2-4 1-4 1v9z"></path>
+<path d="M2 19s2-1.5 5-1.5 4 2 7 2 5-1.5 8-1.5"></path>
+</svg>
+</div>
+<div>
+<div class="text-base font-bold text-deep tracking-tight leading-none group-hover:text-teal transition-colors">Smart Waterbus</div>
+<div class="text-[10px] tracking-wider uppercase font-semibold text-teal mt-0.5">Urban River Transit</div>
+</div>
+</a>
+<!-- Main Nav Links -->
+<nav class="hidden md:flex items-center space-x-7 text-sm font-medium text-gray-600">
+<a class="hover:text-deep transition-colors" href="#">Home</a>
+<a class="hover:text-deep transition-colors" href="#">Routes</a>
+<a class="hover:text-deep transition-colors" href="#">Explore</a>
+<a class="text-teal font-semibold flex items-center gap-1.5" href="#">
+<span>My Tickets</span>
+<span class="w-1.5 h-1.5 rounded-full bg-teal"></span>
+</a>
+<a class="hover:text-deep transition-colors" href="#">Experience</a>
+<a class="hover:text-deep transition-colors" href="#">About</a>
+</nav>
+</div>
+<div class="flex items-center space-x-4">
+<!-- Search & Lang -->
+<button class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+<div class="flex items-center gap-1 text-xs font-semibold text-gray-600 border border-gray-200 px-2.5 py-1.5 rounded-full bg-white">
+<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"></circle><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" stroke-linecap="round" stroke-width="2"></path></svg>
+<span>EN</span>
+</div>
+<!-- Account Pill -->
+<a class="flex items-center gap-2 border border-gray-200 bg-white hover:border-teal/50 px-3.5 py-1.5 rounded-full text-xs font-semibold text-deep transition-all shadow-sm" href="#">
+<div class="w-5 h-5 rounded-full bg-sand flex items-center justify-center text-teal">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<span>Account</span>
+</a>
+</div>
+</header>
+<!-- MAIN WRAPPER -->
+<main class="flex-grow max-w-[1120px] w-full mx-auto px-6 py-8 space-y-6">
+<!-- 1. PAGE HEADER & BREADCRUMBS -->
+<div class="space-y-2">
+<nav class="flex items-center space-x-2 text-xs font-medium text-gray-500">
+<a class="hover:text-deep transition-colors" href="#">Home</a>
+<svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<a class="hover:text-deep transition-colors" href="#">My Tickets</a>
+<svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span class="text-teal font-semibold">Manage Booking</span>
+</nav>
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+<div>
+<h1 class="text-2xl sm:text-3xl font-extrabold text-deep tracking-tight">Manage Your Booking</h1>
+<p class="text-xs sm:text-sm text-gray-600 mt-1">Review your trip details and choose the support action you need.</p>
+</div>
+<!-- Booking Ref Identifier -->
+<div class="flex items-center gap-2.5 self-start sm:self-auto">
+<div class="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-500 flex items-center gap-1.5 shadow-sm">
+<span>Booking Code:</span>
+<span class="font-mono text-deep font-bold tracking-wide">SWB-8942-01</span>
+</div>
+<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-teal-light text-teal border border-[#BCE6EB]">
+<span class="w-2 h-2 rounded-full bg-teal"></span>
+            Confirmed
+          </span>
+</div>
+</div>
+</div>
+<!-- 2. CURRENT BOOKING SUMMARY -->
+<div class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-6">
+<!-- Top Row: Trip Number, Route Name, and Secondary Action Buttons -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-gray-100">
+<div class="flex items-center gap-3.5">
+<div class="w-12 h-12 rounded-xl bg-deep text-white flex items-center justify-center font-bold text-sm tracking-wider shadow-sm flex-shrink-0">
+            WB-01
+          </div>
+<div>
+<div class="text-xs font-semibold text-teal tracking-wide uppercase">Trip WB-01</div>
+<div class="text-lg font-bold text-deep">Bach Dang Pier → Thu Thiem Pier</div>
+</div>
+</div>
+<!-- Secondary Actions -->
+<div class="flex items-center gap-2.5">
+<a class="px-3.5 py-2 bg-mist hover:bg-sand text-deep border border-gray-200 text-xs font-semibold rounded-xl transition-colors flex items-center gap-1.5 shadow-sm" href="#">
+<svg class="w-3.5 h-3.5 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>View Ticket</span>
+</a>
+<a class="px-3.5 py-2 bg-mist hover:bg-sand text-deep border border-gray-200 text-xs font-semibold rounded-xl transition-colors flex items-center gap-1.5 shadow-sm" href="#">
+<svg class="w-3.5 h-3.5 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Track Trip</span>
+</a>
+</div>
+</div>
+<!-- Route Line & Timings -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center py-1">
+<!-- Departure Pier -->
+<div class="md:col-span-4 space-y-0.5">
+<div class="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Departure</div>
+<div class="text-xl font-extrabold text-deep">Bach Dang Pier</div>
+<div class="text-base font-bold text-teal">08:30</div>
+</div>
+<!-- Clean River Route Line Motif -->
+<div class="md:col-span-4 flex flex-col items-center justify-center px-4 py-2">
+<div class="text-[11px] font-semibold text-teal tracking-wide mb-1.5">12 min crossing</div>
+<div class="w-full relative flex items-center">
+<div class="w-2.5 h-2.5 rounded-full border-2 border-teal bg-white z-10 flex-shrink-0"></div>
+<div class="flex-grow h-1 bg-sand mx-1 rounded-full relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-r from-teal to-aqua rounded-full"></div>
+</div>
+<div class="w-2.5 h-2.5 rounded-full bg-teal z-10 flex-shrink-0"></div>
+</div>
+</div>
+<!-- Arrival Pier -->
+<div class="md:col-span-4 space-y-0.5 md:text-right">
+<div class="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Arrival</div>
+<div class="text-xl font-extrabold text-deep">Thu Thiem Pier</div>
+<div class="text-base font-bold text-teal">08:42</div>
+</div>
+</div>
+<!-- Concise Meta Bar (Only Seat, Passenger, Fare, Status) -->
+<div class="pt-4 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+<div>
+<span class="text-gray-400 block text-[11px]">Seat</span>
+<span class="font-bold text-deep text-sm">Seat A2</span>
+</div>
+<div>
+<span class="text-gray-400 block text-[11px]">Passenger</span>
+<span class="font-bold text-deep text-sm">1 Passenger</span>
+</div>
+<div>
+<span class="text-gray-400 block text-[11px]">Fare</span>
+<span class="font-bold text-deep text-sm">15,000 VND</span>
+</div>
+<div>
+<span class="text-gray-400 block text-[11px]">Status</span>
+<span class="font-bold text-teal text-sm">Confirmed</span>
+</div>
+</div>
+</div>
+<!-- 3. TRIP STATUS (ONE state only, calm banner) -->
+<div class="bg-[#E8F6F7] text-[#147A7E] border border-[#BCE6EB] rounded-xl px-4 py-3 flex items-center gap-3">
+<div class="w-6 h-6 rounded-full bg-teal text-white flex items-center justify-center flex-shrink-0">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path></svg>
+</div>
+<div class="text-xs sm:text-sm">
+<span class="font-bold">Trip Operating Normally.</span>
+<span class="text-teal/80 ml-1">Vessel WB-01 is operating on schedule.</span>
+</div>
+</div>
+<!-- 4. MANAGE BOOKING ACTIONS ("Manage Your Trip") -->
+<div class="space-y-3 pt-2">
+<div>
+<h2 class="text-lg font-bold text-deep">Manage Your Trip</h2>
+<p class="text-xs text-gray-500">Choose a support option for this booking.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<!-- Action 1: Change Trip (Active/Selected) -->
+<div class="bg-white rounded-2xl p-5 border-2 border-teal shadow-sm relative flex flex-col justify-between transition-all">
+<div class="space-y-2.5">
+<div class="w-9 h-9 rounded-xl bg-teal-light text-teal flex items-center justify-center">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div>
+<div class="flex items-center justify-between">
+<h3 class="text-sm font-bold text-deep">Change Trip</h3>
+<span class="w-2 h-2 rounded-full bg-teal"></span>
+</div>
+<p class="text-xs text-gray-500 mt-1 leading-relaxed">Choose another available trip.</p>
+</div>
+</div>
+<button class="mt-4 w-full py-2 bg-teal text-white rounded-xl text-xs font-semibold hover:bg-teal-dark transition-colors shadow-sm">
+            Change Trip
+          </button>
+</div>
+<!-- Action 2: Request Refund -->
+<div class="bg-white rounded-2xl p-5 border border-slate-200/80 hover:border-gray-300 shadow-sm flex flex-col justify-between transition-all">
+<div class="space-y-2.5">
+<div class="w-9 h-9 rounded-xl bg-mist text-gray-700 flex items-center justify-center">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div>
+<h3 class="text-sm font-bold text-deep">Request Refund</h3>
+<p class="text-xs text-gray-500 mt-1 leading-relaxed">Submit a refund request.</p>
+</div>
+</div>
+<button class="mt-4 w-full py-2 bg-mist hover:bg-sand text-deep rounded-xl text-xs font-semibold transition-colors border border-gray-200">
+            Request Refund
+          </button>
+</div>
+<!-- Action 3: Voucher / Credit -->
+<div class="bg-white rounded-2xl p-5 border border-slate-200/80 hover:border-gray-300 shadow-sm flex flex-col justify-between transition-all">
+<div class="space-y-2.5">
+<div class="w-9 h-9 rounded-xl bg-mist text-teal flex items-center justify-center">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div>
+<h3 class="text-sm font-bold text-deep">Voucher / Credit</h3>
+<p class="text-xs text-gray-500 mt-1 leading-relaxed">View voucher or credit associated with this booking.</p>
+</div>
+</div>
+<button class="mt-4 w-full py-2 bg-mist hover:bg-sand text-deep rounded-xl text-xs font-semibold transition-colors border border-gray-200">
+            View Voucher
+          </button>
+</div>
+</div>
+</div>
+<!-- 5 & 6. SELECTED ACTION PREVIEW & COMPACT AI HELP -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2 items-start">
+<!-- 5. SELECTED ACTION PREVIEW (Change Trip Preview) - 70% width on desktop -->
+<div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
+<div class="flex items-center justify-between pb-3 border-b border-gray-100">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-teal"></span>
+<h3 class="text-sm font-bold text-deep">Change Trip Preview</h3>
+</div>
+<span class="text-[11px] font-semibold text-teal bg-teal-light px-2.5 py-0.5 rounded-full">Active Selection</span>
+</div>
+<!-- Lightweight Comparison (Current vs Alternative) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+<!-- Current Trip Mini Card -->
+<div class="p-3.5 rounded-xl border border-gray-200 bg-mist/60 space-y-1.5">
+<div class="text-[10px] font-bold uppercase tracking-wider text-gray-400">Current Trip</div>
+<div class="text-base font-extrabold text-deep">08:30 → 08:42</div>
+<div class="text-xs text-gray-600">Bach Dang → Thu Thiem</div>
+<div class="text-[11px] font-semibold text-teal pt-0.5">Seat A2</div>
+</div>
+<!-- Suggested Alternative -->
+<div class="p-3.5 rounded-xl border border-dashed border-teal/50 bg-teal-light/30 space-y-1.5">
+<div class="text-[10px] font-bold uppercase tracking-wider text-teal">Suggested Alternative</div>
+<div class="text-base font-extrabold text-deep">09:00 → 09:12</div>
+<div class="text-xs text-gray-600">Bach Dang → Thu Thiem</div>
+<div class="text-[11px] font-medium text-gray-500 pt-0.5">Seats available</div>
+</div>
+</div>
+<div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-100">
+<span class="text-xs text-gray-500">Need another time today?</span>
+<button class="w-full sm:w-auto px-5 py-2 bg-teal hover:bg-teal-dark text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1.5">
+<span>View Available Trips</span>
+<span>→</span>
+</button>
+</div>
+</div>
+<!-- 6. COMPACT AI HELP ("Need Help?") - 30% width on desktop, subtle accent card -->
+<div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-3.5">
+<!-- Header -->
+<div class="flex items-start justify-between pb-2.5 border-b border-gray-100">
+<div class="flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-lg bg-deep text-teal flex items-center justify-center shadow-sm">
+<svg class="w-4 h-4 text-aqua" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+<div>
+<h3 class="text-xs font-bold text-deep uppercase tracking-wider">Need Help?</h3>
+<p class="text-[11px] text-gray-500">Ask Smart Waterbus Assistant about this booking.</p>
+</div>
+</div>
+</div>
+<!-- Small conversation example -->
+<div class="space-y-2 text-xs">
+<!-- User -->
+<div class="flex justify-end">
+<div class="bg-sand text-deep px-3 py-1.5 rounded-xl rounded-br-sm max-w-[85%] font-medium">
+              I need to change my trip.
+            </div>
+</div>
+<!-- Assistant -->
+<div class="flex justify-start">
+<div class="bg-mist text-gray-700 border border-gray-200 px-3 py-1.5 rounded-xl rounded-bl-sm max-w-[90%] text-[11px] leading-relaxed">
+              I can help you review available options.
+            </div>
+</div>
+</div>
+<!-- Quick Action Pills -->
+<div class="pt-1">
+<div class="flex flex-wrap gap-1.5">
+<button class="px-2.5 py-1 bg-mist hover:bg-sand border border-gray-200 rounded-lg text-[11px] text-deep font-medium transition-colors">
+              Change Trip
+            </button>
+<button class="px-2.5 py-1 bg-mist hover:bg-sand border border-gray-200 rounded-lg text-[11px] text-deep font-medium transition-colors">
+              Refund Help
+            </button>
+<button class="px-2.5 py-1 bg-mist hover:bg-sand border border-gray-200 rounded-lg text-[11px] text-deep font-medium transition-colors">
+              Explain Voucher
+            </button>
+<button class="px-2.5 py-1 bg-mist hover:bg-sand border border-gray-200 rounded-lg text-[11px] text-deep font-medium transition-colors">
+              Trip Status
+            </button>
+</div>
+</div>
+<!-- Input Box -->
+<div class="pt-1">
+<div class="flex items-center bg-mist border border-gray-200 rounded-xl px-3 py-1.5 text-xs focus-within:border-teal/60 focus-within:bg-white transition-all">
+<input class="bg-transparent text-deep placeholder-gray-400 focus:outline-none w-full text-xs py-0.5" placeholder="Ask about changing trips or refunds..." type="text">
+<button class="text-teal hover:text-deep p-1 transition-colors">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<p class="text-[10px] text-gray-400 mt-1.5 text-center">Actions require passenger confirmation.</p>
+</div>
+</div>
+</div>
+</main>
+<!-- OPERATIONAL FOOTER -->
+<footer class="bg-white border-t border-gray-200 mt-16 pt-12 pb-8">
+<div class="max-w-[1120px] mx-auto px-6">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-8 pb-10 border-b border-gray-100">
+<!-- Col 1: Brand Info -->
+<div class="space-y-3">
+<div class="flex items-center space-x-2">
+<div class="w-8 h-8 rounded-lg bg-deep flex items-center justify-center text-white">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V6s-1 1-4 1-5-2-8-2-4 1-4 1v9z"></path>
+<path d="M2 19s2-1.5 5-1.5 4 2 7 2 5-1.5 8-1.5"></path>
+</svg>
+</div>
+<span class="text-base font-bold text-deep">Smart Waterbus</span>
+</div>
+<p class="text-xs text-gray-500 leading-relaxed font-body">
+            Intelligent, serene river transit and premium waterway touring for modern cities.
+          </p>
+<div class="flex items-center gap-2 text-xs font-semibold text-teal pt-1">
+<span class="w-2 h-2 rounded-full bg-teal"></span>
+<span>All river corridors operating smoothly</span>
+</div>
+</div>
+<!-- Col 2: Quick Links -->
+<div>
+<h4 class="text-xs font-bold text-deep uppercase tracking-wider mb-3">Quick Links</h4>
+<ul class="space-y-2 text-xs text-gray-600 font-body">
+<li><a class="hover:text-teal transition-colors" href="#">Book a Ticket</a></li>
+<li><a class="hover:text-teal transition-colors" href="#">Schedules &amp; Piers</a></li>
+<li><a class="hover:text-teal transition-colors" href="#">Interactive City Map</a></li>
+<li><a class="hover:text-teal transition-colors" href="#">Live Fleet Tracking</a></li>
+<li><a class="hover:text-teal transition-colors" href="#">Transit Passes</a></li>
+</ul>
+</div>
+<!-- Col 3: Tourism Experiences -->
+<div>
+<h4 class="text-xs font-bold text-deep uppercase tracking-wider mb-3">Tourism Experiences</h4>
+<ul class="space-y-2 text-xs text-gray-600 font-body">
+<li><a class="hover:text-teal transition-colors" href="#">Sunset Promenade Cruise</a></li>
+<li><a class="hover:text-teal transition-colors" href="#">Heritage River Tour</a></li>
+<li><a class="hover:text-teal transition-colors" href="#">Skyline Night Lights</a></li>
+<li><a class="hover:text-teal transition-colors" href="#">Private River Charters</a></li>
+</ul>
+</div>
+<!-- Col 4: Support & Contact -->
+<div>
+<h4 class="text-xs font-bold text-deep uppercase tracking-wider mb-3">Support &amp; Contact</h4>
+<ul class="space-y-2 text-xs text-gray-600 font-body">
+<li><a class="hover:text-teal transition-colors" href="#">Help Center &amp; FAQs</a></li>
+<li><a class="hover:text-teal transition-colors" href="#">Accessibility &amp; Pier Access</a></li>
+<li><a class="hover:text-teal transition-colors" href="#">Pier Concierge Desk</a></li>
+<li class="pt-1 text-gray-400 flex items-center gap-1.5">
+<svg class="w-3.5 h-3.5 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span>Daily Passenger Service</span>
+</li>
+</ul>
+</div>
+</div>
+<!-- Bottom Legal Row -->
+<div class="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-400 gap-3 font-body">
+<p>© 2025 Smart Waterbus Transit Authority. All rights reserved.</p>
+<div class="flex items-center space-x-6">
+<a class="hover:text-gray-600 transition-colors" href="#">Terms of Carriage</a>
+<a class="hover:text-gray-600 transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-gray-600 transition-colors" href="#">Safety Protocols</a>
+</div>
+</div>
+</div>
+</footer>
+</body></html>

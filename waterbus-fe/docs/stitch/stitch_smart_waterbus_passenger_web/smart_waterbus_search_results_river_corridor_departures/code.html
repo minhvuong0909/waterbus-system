@@ -1,0 +1,866 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Smart Waterbus - Available Departures</title>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+    @layer base {
+      html, body { margin: 0; padding: 0; }
+      body { overscroll-behavior: none; }
+    }
+    ::-webkit-scrollbar { display: none; }
+  </style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "sky-aqua": "#4FC3D8",
+            "surface-dim": "#dbd9db",
+            "surface-container": "#efedef",
+            "on-background": "#1b1c1d",
+            "primary-container": "#0d2538",
+            "surface-variant": "#e3e2e4",
+            "on-secondary-fixed-variant": "#004f52",
+            "inverse-on-surface": "#f2f0f2",
+            "tertiary": "#190a00",
+            "mist": "#F4F7F8",
+            "on-tertiary-fixed": "#2c1600",
+            "on-secondary-container": "#007074",
+            "on-primary-fixed-variant": "#33495d",
+            "primary-fixed": "#cee5ff",
+            "on-secondary-fixed": "#002021",
+            "on-secondary": "#ffffff",
+            "secondary-fixed-dim": "#7fd4d8",
+            "teal-flow": "#147A7E",
+            "sand-light": "#E9F0EC",
+            "on-surface-variant": "#43474c",
+            "inverse-primary": "#b2c9e2",
+            "primary-fixed-dim": "#b2c9e2",
+            "surface-container-high": "#e9e8e9",
+            "on-surface": "#1b1c1d",
+            "signal-amber": "#E8B63E",
+            "surface-container-low": "#f5f3f5",
+            "on-primary": "#ffffff",
+            "tertiary-fixed": "#ffdcbd",
+            "on-primary-container": "#778da4",
+            "inverse-surface": "#303032",
+            "background": "#faf9fb",
+            "coral-glow": "#F08A6B",
+            "outline": "#73777d",
+            "error-container": "#ffdad6",
+            "on-primary-fixed": "#041d30",
+            "tertiary-container": "#351e04",
+            "outline-variant": "#c3c7cd",
+            "surface-bright": "#faf9fb",
+            "ink": "#18242D",
+            "secondary": "#00696d",
+            "surface-tint": "#4b6176",
+            "deep-river": "#0D2538",
+            "on-error": "#ffffff",
+            "on-tertiary": "#ffffff",
+            "error": "#ba1a1a",
+            "secondary-container": "#9bf1f5",
+            "surface-container-lowest": "#ffffff",
+            "surface-container-highest": "#e3e2e4",
+            "surface": "#F4F7F8",
+            "tertiary-fixed-dim": "#e8bf98",
+            "primary": "#000f1d",
+            "on-tertiary-fixed-variant": "#5d4123",
+            "on-tertiary-container": "#a88460",
+            "secondary-fixed": "#9bf1f5",
+            "on-error-container": "#93000a"
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "2xl": "1rem",
+            "3xl": "1.5rem",
+            "full": "9999px"
+          },
+          spacing: {
+            "margin": "32px",
+            "space-lg": "24px",
+            "space-3xl": "64px",
+            "space-xs": "4px",
+            "space-2xl": "48px",
+            "gutter": "24px",
+            "space-xl": "32px",
+            "space-sm": "8px",
+            "space-md": "16px"
+          },
+          fontFamily: {
+            "headline-md": ["Plus Jakarta Sans", "sans-serif"],
+            "body-sm": ["Inter", "sans-serif"],
+            "headline-xl-mobile": ["Plus Jakarta Sans", "sans-serif"],
+            "numeric-lg": ["Plus Jakarta Sans", "sans-serif"],
+            "body-md": ["Inter", "sans-serif"],
+            "numeric-md": ["Plus Jakarta Sans", "sans-serif"],
+            "headline-lg": ["Plus Jakarta Sans", "sans-serif"],
+            "headline-sm": ["Plus Jakarta Sans", "sans-serif"],
+            "body-lg": ["Inter", "sans-serif"],
+            "headline-xl": ["Plus Jakarta Sans", "sans-serif"]
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-mist font-body-md text-body-md text-on-surface antialiased selection:bg-secondary-container selection:text-on-secondary-container min-h-screen">
+<!-- Level 1 Base Navigation Header -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-mist/95 backdrop-blur-xl border-b border-[#0D2538]/10 shadow-[0_1px_8px_rgba(13,37,56,0.03)]">
+<div class="h-20 max-w-7xl mx-auto px-margin flex items-center justify-between gap-space-lg">
+<div class="flex items-center gap-space-xl">
+<a class="flex items-center gap-space-sm group" data-path="explore" href="#">
+<img alt="Smart Waterbus Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WiF1NNf59f3fm7YJTVwxqFCw3wL1kpEErVxVKdtffjYZSE8rQcimuCrd5m6V76pWXG5bJvJDdRoZpBEjA_GNbPglxJH1dQuFydgjV3UG19EwKFJxbV6q9TY0sodBd7F8JohBy0giL7H2aZ2jYp6R_WLIJf6FvCJQYgRhGklczPLysss8-K8zR_cZt3NH-u9tohMmc14WvzX5FGl4GzQ58s-iJ1ab1wCYtkCgBkJFkXHSazs2KBHG1lBF0l">
+<span class="font-headline-sm text-headline-sm text-deep-river tracking-tight">Smart Waterbus</span>
+</a>
+<nav class="hidden lg:flex items-center gap-space-xl">
+<a class="text-on-surface-variant font-body-md text-body-md hover:text-deep-river transition-colors" data-path="home" href="#">Home</a>
+<a aria-current="page" class="transition-colors text-teal-flow font-headline-sm text-headline-sm font-semibold" data-path="routes" href="#">Routes / Search Journey</a>
+<a class="text-on-surface-variant font-body-md text-body-md hover:text-deep-river transition-colors" data-path="experience" href="#">Experience</a>
+<a class="text-on-surface-variant font-body-md text-body-md hover:text-deep-river transition-colors" data-path="about" href="#">About</a>
+</nav>
+</div>
+<div class="flex items-center gap-space-md">
+<button aria-label="Search routes and piers" class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-white hover:text-deep-river transition-all" type="button">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</button>
+<div class="relative hidden sm:flex items-center gap-space-xs px-space-sm py-space-xs rounded-full hover:bg-white cursor-pointer transition-colors text-on-surface-variant hover:text-deep-river">
+<span class="material-symbols-outlined text-[18px]">language</span>
+<span class="font-body-sm text-body-sm font-semibold uppercase tracking-wider">EN</span>
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</div>
+<a class="hidden md:inline-flex items-center justify-center px-space-lg py-space-sm rounded-full bg-teal-flow text-on-primary font-body-md text-body-md font-semibold hover:bg-secondary transition-all shadow-[0_2px_10px_rgba(20,122,126,0.2)]" data-path="book-a-trip" href="#">Book a Trip</a>
+<div class="w-9 h-9 rounded-full bg-deep-river flex items-center justify-center text-white cursor-pointer shadow-xs">
+<span class="material-symbols-outlined text-[18px]">person</span>
+</div>
+</div>
+</div>
+</header>
+<main class="w-full pt-24 pb-16 bg-mist">
+<div class="max-w-7xl mx-auto px-margin flex flex-col gap-space-xl">
+<!-- LEVEL 3 SUPPORTING ZONE: Unified Search Summary & Flow -->
+<section class="w-full flex flex-col gap-space-md">
+<!-- Top Row: Page Title, Subtitle & Live Status Chip -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-md pt-2">
+<div>
+<div class="inline-flex items-center gap-space-xs px-2.5 py-0.5 rounded-full bg-sand-light border border-teal-flow/20 text-deep-river font-body-sm text-xs font-semibold uppercase tracking-wider mb-2">
+<span class="w-2 h-2 rounded-full bg-teal-flow"></span>
+              Saigon River Corridor #1
+            </div>
+<h1 class="font-headline-lg text-2xl md:text-3xl lg:text-[34px] leading-tight text-deep-river font-bold tracking-tight">Available Departures</h1>
+<p class="font-body-md text-on-surface-variant text-sm mt-1">Select your river crossing across the Saigon River transit corridor.</p>
+</div>
+<div class="flex items-center gap-space-sm self-start md:self-end">
+<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary-container/70 border border-teal-flow/20 text-on-secondary-container font-body-sm text-xs font-bold shadow-xs">
+<span class="material-symbols-outlined text-[16px] text-teal-flow">waves</span>
+              All River Terminals Operational • Calm River Flow
+            </span>
+</div>
+</div>
+<!-- Unified Search Summary Bar (Floating crisp white surface on Mist) -->
+<div class="bg-white rounded-2xl p-space-md border border-[#0D2538]/10 shadow-[0_4px_16px_rgba(13,37,56,0.04)] flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-space-md">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-space-md flex-1 items-center">
+<!-- Origin -->
+<div class="flex items-center gap-space-sm pl-1">
+<div class="w-10 h-10 rounded-full bg-sand-light flex items-center justify-center text-teal-flow shrink-0">
+<span class="material-symbols-outlined text-[20px]">trip_origin</span>
+</div>
+<div class="min-w-0">
+<span class="block text-[11px] font-semibold text-outline uppercase tracking-wider">Origin Pier</span>
+<span class="block font-headline-sm text-sm md:text-base text-deep-river font-bold truncate">Bach Dang Pier (D1)</span>
+</div>
+</div>
+<!-- Destination -->
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-sand-light flex items-center justify-center text-teal-flow shrink-0">
+<span class="material-symbols-outlined text-[20px]">location_on</span>
+</div>
+<div class="min-w-0">
+<span class="block text-[11px] font-semibold text-outline uppercase tracking-wider">Destination Pier</span>
+<span class="block font-headline-sm text-sm md:text-base text-deep-river font-bold truncate">Thu Thiem Pier (D2)</span>
+</div>
+</div>
+<!-- Date -->
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-sand-light flex items-center justify-center text-deep-river shrink-0">
+<span class="material-symbols-outlined text-[20px]">calendar_today</span>
+</div>
+<div class="min-w-0">
+<span class="block text-[11px] font-semibold text-outline uppercase tracking-wider">Departure Date</span>
+<span class="block text-sm font-semibold text-deep-river">Today, Dec 16</span>
+</div>
+</div>
+<!-- Passenger -->
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-sand-light flex items-center justify-center text-deep-river shrink-0">
+<span class="material-symbols-outlined text-[20px]">group</span>
+</div>
+<div class="min-w-0">
+<span class="block text-[11px] font-semibold text-outline uppercase tracking-wider">Passengers</span>
+<span class="block text-sm font-semibold text-deep-river">1 Adult • Standard</span>
+</div>
+</div>
+</div>
+<!-- Action -->
+<div class="xl:pl-space-md flex items-center justify-end shrink-0 border-t xl:border-t-0 xl:border-l border-slate-100 pt-3 xl:pt-0">
+<button class="w-full xl:w-auto inline-flex items-center justify-center gap-space-xs px- space-lg px-5 py-2.5 rounded-full bg-sand-light text-deep-river hover:bg-[#dfe9e5] transition-all font-body-md text-xs md:text-sm font-semibold border border-teal-flow/15" id="edit-search-toggle" type="button">
+<span class="material-symbols-outlined text-[18px] text-teal-flow">tune</span>
+              Modify Search
+            </button>
+</div>
+</div>
+<!-- 6-Day Fare Selector Strip -->
+<div class="flex items-center gap-space-sm overflow-x-auto pb-1">
+<button class="px-4 py-2.5 rounded-xl bg-white hover:bg-sand-light/60 border border-[#0D2538]/10 text-on-surface-variant transition-all font-body-sm text-body-sm shrink-0 flex flex-col items-center min-w-[100px] shadow-xs">
+<span class="uppercase text-[10px] font-semibold text-outline">Sun</span>
+<span class="font-headline-sm text-sm font-bold text-deep-river">Dec 14</span>
+<span class="text-[11px] text-teal-flow font-medium">From 15,000 VND</span>
+</button>
+<button class="px-4 py-2.5 rounded-xl bg-white hover:bg-sand-light/60 border border-[#0D2538]/10 text-on-surface-variant transition-all font-body-sm text-body-sm shrink-0 flex flex-col items-center min-w-[100px] shadow-xs">
+<span class="uppercase text-[10px] font-semibold text-outline">Mon</span>
+<span class="font-headline-sm text-sm font-bold text-deep-river">Dec 15</span>
+<span class="text-[11px] text-teal-flow font-medium">From 15,000 VND</span>
+</button>
+<button class="px-5 py-2.5 rounded-xl bg-deep-river text-on-primary shadow-sm shrink-0 flex flex-col items-center min-w-[115px] ring-2 ring-teal-flow/40">
+<span class="uppercase text-[10px] font-bold text-sky-aqua tracking-wide">Today • Mon</span>
+<span class="font-headline-sm text-sm font-bold text-on-primary">Dec 16</span>
+<span class="inline-flex items-center px-2 py-0.5 mt-0.5 rounded-full bg-teal-flow text-[10px] font-semibold text-white">5 Trips</span>
+</button>
+<button class="px-4 py-2.5 rounded-xl bg-white hover:bg-sand-light/60 border border-[#0D2538]/10 text-on-surface-variant transition-all font-body-sm text-body-sm shrink-0 flex flex-col items-center min-w-[100px] shadow-xs">
+<span class="uppercase text-[10px] font-semibold text-outline">Tue</span>
+<span class="font-headline-sm text-sm font-bold text-deep-river">Dec 17</span>
+<span class="text-[11px] text-teal-flow font-medium">From 15,000 VND</span>
+</button>
+<button class="px-4 py-2.5 rounded-xl bg-white hover:bg-sand-light/60 border border-[#0D2538]/10 text-on-surface-variant transition-all font-body-sm text-body-sm shrink-0 flex flex-col items-center min-w-[100px] shadow-xs">
+<span class="uppercase text-[10px] font-semibold text-outline">Wed</span>
+<span class="font-headline-sm text-sm font-bold text-deep-river">Dec 18</span>
+<span class="text-[11px] text-teal-flow font-medium">From 15,000 VND</span>
+</button>
+<button class="px-4 py-2.5 rounded-xl bg-white hover:bg-sand-light/60 border border-[#0D2538]/10 text-on-surface-variant transition-all font-body-sm text-body-sm shrink-0 flex flex-col items-center min-w-[100px] shadow-xs">
+<span class="uppercase text-[10px] font-semibold text-outline">Thu</span>
+<span class="font-headline-sm text-sm font-bold text-deep-river">Dec 19</span>
+<span class="text-[11px] text-teal-flow font-medium">From 15,000 VND</span>
+</button>
+</div>
+<!-- Filter & Sorting Bar -->
+<div class="flex flex-wrap items-center justify-between gap-space-md pt-1">
+<div class="flex items-center gap-1.5 overflow-x-auto">
+<button class="filter-pill active px-3.5 py-1.5 rounded-full bg-deep-river text-on-primary font-body-sm text-xs font-semibold transition-all">All Times</button>
+<button class="filter-pill px-3.5 py-1.5 rounded-full bg-white border border-[#0D2538]/10 hover:bg-sand-light/50 text-on-surface-variant hover:text-deep-river font-body-sm text-xs font-medium transition-all shadow-xs">Morning</button>
+<button class="filter-pill px-3.5 py-1.5 rounded-full bg-white border border-[#0D2538]/10 hover:bg-sand-light/50 text-on-surface-variant hover:text-deep-river font-body-sm text-xs font-medium transition-all shadow-xs">Afternoon</button>
+<button class="filter-pill px-3.5 py-1.5 rounded-full bg-white border border-[#0D2538]/10 hover:bg-sand-light/50 text-on-surface-variant hover:text-deep-river font-body-sm text-xs font-medium transition-all shadow-xs">Sunset</button>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex items-center gap-1.5 bg-white border border-[#0D2538]/10 px-3 py-1.5 rounded-full shadow-xs">
+<span class="text-xs text-outline">Vessel:</span>
+<select class="bg-transparent text-xs text-deep-river font-semibold focus:outline-none cursor-pointer">
+<option value="all">All Vessels (5)</option>
+<option value="hydrofoil">Hydrofoil Catamaran (WB-01)</option>
+<option value="catamaran">Catamaran Cruiser (WB-03)</option>
+<option value="transit">River Transit (WB-02)</option>
+<option value="aero">Aero Catamaran (WB-05)</option>
+<option value="heritage">Sunset Heritage (WB-07)</option>
+</select>
+</div>
+<div class="flex items-center gap-1.5 bg-white border border-[#0D2538]/10 px-3 py-1.5 rounded-full shadow-xs">
+<span class="material-symbols-outlined text-[15px] text-teal-flow">swap_vert</span>
+<span class="text-xs text-outline">Sort:</span>
+<select class="bg-transparent text-xs text-deep-river font-semibold focus:outline-none cursor-pointer" id="sort-selector">
+<option value="time">Earliest Departure</option>
+<option value="speed">Fastest Crossing</option>
+<option value="price">Lowest Fare</option>
+</select>
+</div>
+</div>
+</div>
+</section>
+<!-- TWO-COLUMN WORKSPACE: 5 SELECTABLE TRIP CARDS (LEFT) + RIVER CORRIDOR SUPPORT (RIGHT) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-start">
+<!-- LEFT COLUMN: 5 SELECTABLE TRIP CARDS -->
+<div class="lg:col-span-8 flex flex-col gap-space-md">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-space-xs text-sm text-deep-river">
+<span class="font-bold text-teal-flow">5 Departures</span>
+<span class="text-on-surface-variant">scheduled for today</span>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface-variant text-xs">
+<span class="w-2 h-2 rounded-full bg-teal-flow animate-pulse"></span>
+              Real-time boarding gate &amp; turnstile sync
+            </div>
+</div>
+<!-- TRIP 1: RECOMMENDED & FASTEST (WB-01 Hydrofoil Catamaran) -->
+<article class="bg-white border-2 border-teal-flow/40 rounded-2xl p-space-lg shadow-[0_4px_20px_rgba(20,122,126,0.08)] hover:shadow-md transition-all duration-200">
+<div class="flex flex-wrap items-center justify-between gap-space-sm mb-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container text-xs font-bold tracking-wide">
+<span class="material-symbols-outlined text-[15px]">bolt</span>
+                  RECOMMENDED • FASTEST
+                </span>
+<span class="inline-flex items-center px-2.5 py-1 rounded-full bg-sand-light text-deep-river text-xs font-semibold">
+                  Line 1 Express
+                </span>
+</div>
+<div class="flex items-center gap-1.5 text-teal-flow text-xs font-bold">
+<span class="w-2 h-2 rounded-full bg-teal-flow"></span>
+                28 Seats Left
+              </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-space-md items-center">
+<!-- Vessel Identity -->
+<div class="md:col-span-3 flex md:flex-col items-center md:items-start gap-space-sm">
+<div class="w-16 h-14 md:w-20 md:h-14 rounded-lg bg-mist overflow-hidden shrink-0 border border-[#0D2538]/10">
+<img alt="WB-01 Hydrofoil Catamaran" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1VQrMFnNCgzOVzrR4pRwHYFihGLiHW1EK3w9klgnexf1_wkkb6QZImvFLcoaJsIPenE_8jeN_plTydFQgIwQRi-ie7SvDJbpF6euqt6OgfKJdLej0z0cts8Tu0mV63lOedmaIm9cZ3WMtfFU5zI0B-KGUiTrxoLW7rz62s7VMTGElsX4RQHDHXO0XpJv9U8_Wlt8Yl3uHs28lt_SZ2sLBXcNHfRz92GZNe4B3QKwFg9Y-rjSsFAYFcrwxit">
+</div>
+<div>
+<span class="font-headline-sm text-base text-deep-river font-bold block">WB-01</span>
+<span class="text-xs text-on-surface-variant font-medium">Hydrofoil Catamaran</span>
+</div>
+</div>
+<!-- Journey Schedule Track -->
+<div class="md:col-span-6 flex items-center justify-between gap-space-sm py-1">
+<div class="text-left">
+<div class="font-headline-md text-xl md:text-2xl font-bold text-deep-river">08:30</div>
+<div class="text-xs font-semibold text-deep-river">Bach Dang Pier (D1)</div>
+<div class="text-[11px] text-on-surface-variant">Gate 2</div>
+</div>
+<div class="flex-1 flex flex-col items-center px-2">
+<span class="text-xs text-teal-flow font-bold mb-1">12 min • Direct</span>
+<div class="w-full flex items-center relative">
+<div class="w-2.5 h-2.5 rounded-full bg-teal-flow shrink-0"></div>
+<div class="flex-1 h-0.5 bg-gradient-to-r from-teal-flow via-sky-aqua to-teal-flow relative">
+<div class="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white shadow-xs border border-teal-flow flex items-center justify-center text-teal-flow">
+<span class="material-symbols-outlined text-[10px]">directions_boat</span>
+</div>
+</div>
+<div class="w-2.5 h-2.5 rounded-full bg-teal-flow shrink-0"></div>
+</div>
+<span class="text-[11px] text-on-surface-variant mt-1">Express crossing</span>
+</div>
+<div class="text-right">
+<div class="font-headline-md text-xl md:text-2xl font-bold text-deep-river">08:42</div>
+<div class="text-xs font-semibold text-deep-river">Thu Thiem Pier (D2)</div>
+<div class="text-[11px] text-on-surface-variant">Pontoon A</div>
+</div>
+</div>
+<!-- Price & CTA -->
+<div class="md:col-span-3 flex md:flex-col items-end justify-between md:justify-center gap-2 md:text-right bg-sand-light/60 md:bg-transparent p-space-sm md:p-0 rounded-xl">
+<div>
+<span class="text-[11px] uppercase tracking-wider text-outline font-semibold block">Standard Fare</span>
+<div class="font-headline-md text-xl font-bold text-deep-river">15,000 <span class="text-xs font-medium text-on-surface-variant">VND</span></div>
+</div>
+<a class="inline-flex items-center justify-center gap-1.5 px-space-lg py-2 rounded-full bg-teal-flow text-on-primary text-sm font-semibold hover:bg-secondary transition-all shadow-[0_2px_8px_rgba(20,122,126,0.25)]" data-path="seat-selection" href="#">
+                  Select Trip
+                  <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Concise Amenities (Max 3) -->
+<div class="mt-space-md pt-space-sm border-t border-[#0D2538]/5 flex flex-wrap items-center gap-space-md text-on-surface-variant text-xs">
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">ac_unit</span> Air-Conditioned</span>
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">visibility</span> Panoramic Windows</span>
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">accessible</span> Step-Free Gangway</span>
+</div>
+</article>
+<!-- TRIP 2: COMMUTER PRIORITY (WB-03 Catamaran Cruiser) -->
+<article class="bg-white border border-[#0D2538]/10 rounded-2xl p-space-lg shadow-xs hover:shadow-md transition-all duration-200">
+<div class="flex flex-wrap items-center justify-between gap-space-sm mb-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full bg-sand-light text-deep-river text-xs font-bold">
+                  Express Line 1
+                </span>
+<span class="text-xs text-on-surface-variant font-medium">Commuter Priority</span>
+</div>
+<div class="flex items-center gap-1 text-teal-flow text-xs font-semibold">
+<span class="w-2 h-2 rounded-full bg-teal-flow"></span>
+                54 Seats Available
+              </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-space-md items-center">
+<div class="md:col-span-3 flex md:flex-col items-center md:items-start gap-space-sm">
+<div class="w-16 h-14 md:w-20 md:h-14 rounded-lg bg-mist overflow-hidden shrink-0 border border-[#0D2538]/10">
+<img alt="WB-03 Catamaran Cruiser" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1VQrMFnNCgzOVzrR4pRwHYFihGLiHW1EK3w9klgnexf1_wkkb6QZImvFLcoaJsIPenE_8jeN_plTydFQgIwQRi-ie7SvDJbpF6euqt6OgfKJdLej0z0cts8Tu0mV63lOedmaIm9cZ3WMtfFU5zI0B-KGUiTrxoLW7rz62s7VMTGElsX4RQHDHXO0XpJv9U8_Wlt8Yl3uHs28lt_SZ2sLBXcNHfRz92GZNe4B3QKwFg9Y-rjSsFAYFcrwxit">
+</div>
+<div>
+<span class="font-headline-sm text-base text-deep-river font-bold block">WB-03</span>
+<span class="text-xs text-on-surface-variant font-medium">Catamaran Cruiser</span>
+</div>
+</div>
+<div class="md:col-span-6 flex items-center justify-between gap-space-sm py-1">
+<div class="text-left">
+<div class="font-headline-md text-xl md:text-2xl font-bold text-deep-river">09:00</div>
+<div class="text-xs font-semibold text-deep-river">Bach Dang Pier (D1)</div>
+<div class="text-[11px] text-on-surface-variant">Gate 1</div>
+</div>
+<div class="flex-1 flex flex-col items-center px-2">
+<span class="text-xs text-deep-river font-semibold mb-1">12 min • Direct</span>
+<div class="w-full flex items-center relative">
+<div class="w-2.5 h-2.5 rounded-full bg-deep-river shrink-0"></div>
+<div class="flex-1 h-0.5 bg-slate-200 relative"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-deep-river shrink-0"></div>
+</div>
+<span class="text-[11px] text-on-surface-variant mt-1">Regular crossing</span>
+</div>
+<div class="text-right">
+<div class="font-headline-md text-xl md:text-2xl font-bold text-deep-river">09:12</div>
+<div class="text-xs font-semibold text-deep-river">Thu Thiem Pier (D2)</div>
+<div class="text-[11px] text-on-surface-variant">Pontoon A</div>
+</div>
+</div>
+<div class="md:col-span-3 flex md:flex-col items-end justify-between md:justify-center gap-2 md:text-right bg-sand-light/60 md:bg-transparent p-space-sm md:p-0 rounded-xl">
+<div>
+<span class="text-[11px] uppercase tracking-wider text-outline font-semibold block">Standard Fare</span>
+<div class="font-headline-md text-xl font-bold text-deep-river">15,000 <span class="text-xs font-medium text-on-surface-variant">VND</span></div>
+</div>
+<a class="inline-flex items-center justify-center gap-1.5 px-space-lg py-2 rounded-full bg-sand-light hover:bg-teal-flow hover:text-on-primary text-deep-river text-sm font-semibold transition-all border border-teal-flow/20" data-path="seat-selection" href="#">
+                  Select Trip
+                  <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="mt-space-md pt-space-sm border-t border-[#0D2538]/5 flex flex-wrap items-center gap-space-md text-on-surface-variant text-xs">
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">ac_unit</span> Air-Conditioned</span>
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">deck</span> Open Observation Deck</span>
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">wifi</span> High-Speed Wi-Fi</span>
+</div>
+</article>
+<!-- TRIP 3: SCENIC RIVER PACE (WB-02 River Transit Vessel) -->
+<article class="bg-white border border-[#0D2538]/10 rounded-2xl p-space-lg shadow-xs hover:shadow-md transition-all duration-200">
+<div class="flex flex-wrap items-center justify-between gap-space-sm mb-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full bg-sand-light text-deep-river text-xs font-bold">
+                  Regular River Line 1
+                </span>
+<span class="text-xs text-on-surface-variant font-medium">Scenic River Pace</span>
+</div>
+<div class="flex items-center gap-1 text-on-surface-variant text-xs font-medium">
+<span class="w-2 h-2 rounded-full bg-teal-flow"></span>
+                42 Seats Left
+              </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-space-md items-center">
+<div class="md:col-span-3 flex md:flex-col items-center md:items-start gap-space-sm">
+<div class="w-16 h-14 md:w-20 md:h-14 rounded-lg bg-mist overflow-hidden shrink-0 border border-[#0D2538]/10">
+<img alt="WB-02 River Transit Vessel" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1VQrMFnNCgzOVzrR4pRwHYFihGLiHW1EK3w9klgnexf1_wkkb6QZImvFLcoaJsIPenE_8jeN_plTydFQgIwQRi-ie7SvDJbpF6euqt6OgfKJdLej0z0cts8Tu0mV63lOedmaIm9cZ3WMtfFU5zI0B-KGUiTrxoLW7rz62s7VMTGElsX4RQHDHXO0XpJv9U8_Wlt8Yl3uHs28lt_SZ2sLBXcNHfRz92GZNe4B3QKwFg9Y-rjSsFAYFcrwxit">
+</div>
+<div>
+<span class="font-headline-sm text-base text-deep-river font-bold block">WB-02</span>
+<span class="text-xs text-on-surface-variant font-medium">River Transit Vessel</span>
+</div>
+</div>
+<div class="md:col-span-6 flex items-center justify-between gap-space-sm py-1">
+<div class="text-left">
+<div class="font-headline-md text-xl md:text-2xl font-bold text-deep-river">09:30</div>
+<div class="text-xs font-semibold text-deep-river">Bach Dang Pier (D1)</div>
+<div class="text-[11px] text-on-surface-variant">Gate 2</div>
+</div>
+<div class="flex-1 flex flex-col items-center px-2">
+<span class="text-xs text-deep-river font-semibold mb-1">18 min • Leisure Speed</span>
+<div class="w-full flex items-center relative">
+<div class="w-2.5 h-2.5 rounded-full bg-outline shrink-0"></div>
+<div class="flex-1 h-0.5 bg-slate-200 relative"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-outline shrink-0"></div>
+</div>
+<span class="text-[11px] text-on-surface-variant mt-1">Scenic glide</span>
+</div>
+<div class="text-right">
+<div class="font-headline-md text-xl md:text-2xl font-bold text-deep-river">09:48</div>
+<div class="text-xs font-semibold text-deep-river">Thu Thiem Pier (D2)</div>
+<div class="text-[11px] text-on-surface-variant">Pontoon B</div>
+</div>
+</div>
+<div class="md:col-span-3 flex md:flex-col items-end justify-between md:justify-center gap-2 md:text-right bg-sand-light/60 md:bg-transparent p-space-sm md:p-0 rounded-xl">
+<div>
+<span class="text-[11px] uppercase tracking-wider text-outline font-semibold block">Standard Fare</span>
+<div class="font-headline-md text-xl font-bold text-deep-river">15,000 <span class="text-xs font-medium text-on-surface-variant">VND</span></div>
+</div>
+<a class="inline-flex items-center justify-center gap-1.5 px-space-lg py-2 rounded-full bg-sand-light hover:bg-teal-flow hover:text-on-primary text-deep-river text-sm font-semibold transition-all border border-teal-flow/20" data-path="seat-selection" href="#">
+                  Select Trip
+                  <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="mt-space-md pt-space-sm border-t border-[#0D2538]/5 flex flex-wrap items-center gap-space-md text-on-surface-variant text-xs">
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">air</span> Open Deck Breeze</span>
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">visibility</span> Panoramic Windows</span>
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">local_cafe</span> Fresh Drinks Kiosk</span>
+</div>
+</article>
+<!-- TRIP 4: AERO CATAMARAN (WB-05 Aero Catamaran) -->
+<article class="bg-white border border-[#0D2538]/10 rounded-2xl p-space-lg shadow-xs hover:shadow-md transition-all duration-200">
+<div class="flex flex-wrap items-center justify-between gap-space-sm mb-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full bg-sand-light text-deep-river text-xs font-bold">
+                  Express Line 1
+                </span>
+<span class="text-xs text-on-surface-variant font-medium">Quiet Work Zone</span>
+</div>
+<div class="flex items-center gap-1 text-teal-flow text-xs font-semibold">
+<span class="w-2 h-2 rounded-full bg-teal-flow"></span>
+                36 Seats Left
+              </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-space-md items-center">
+<div class="md:col-span-3 flex md:flex-col items-center md:items-start gap-space-sm">
+<div class="w-16 h-14 md:w-20 md:h-14 rounded-lg bg-mist overflow-hidden shrink-0 border border-[#0D2538]/10">
+<img alt="WB-05 Aero Catamaran" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1VQrMFnNCgzOVzrR4pRwHYFihGLiHW1EK3w9klgnexf1_wkkb6QZImvFLcoaJsIPenE_8jeN_plTydFQgIwQRi-ie7SvDJbpF6euqt6OgfKJdLej0z0cts8Tu0mV63lOedmaIm9cZ3WMtfFU5zI0B-KGUiTrxoLW7rz62s7VMTGElsX4RQHDHXO0XpJv9U8_Wlt8Yl3uHs28lt_SZ2sLBXcNHfRz92GZNe4B3QKwFg9Y-rjSsFAYFcrwxit">
+</div>
+<div>
+<span class="font-headline-sm text-base text-deep-river font-bold block">WB-05</span>
+<span class="text-xs text-on-surface-variant font-medium">Aero Catamaran</span>
+</div>
+</div>
+<div class="md:col-span-6 flex items-center justify-between gap-space-sm py-1">
+<div class="text-left">
+<div class="font-headline-md text-xl md:text-2xl font-bold text-deep-river">10:15</div>
+<div class="text-xs font-semibold text-deep-river">Bach Dang Pier (D1)</div>
+<div class="text-[11px] text-on-surface-variant">Gate 1</div>
+</div>
+<div class="flex-1 flex flex-col items-center px-2">
+<span class="text-xs text-deep-river font-semibold mb-1">12 min • Direct</span>
+<div class="w-full flex items-center relative">
+<div class="w-2.5 h-2.5 rounded-full bg-deep-river shrink-0"></div>
+<div class="flex-1 h-0.5 bg-slate-200 relative"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-deep-river shrink-0"></div>
+</div>
+<span class="text-[11px] text-on-surface-variant mt-1">Direct crossing</span>
+</div>
+<div class="text-right">
+<div class="font-headline-md text-xl md:text-2xl font-bold text-deep-river">10:27</div>
+<div class="text-xs font-semibold text-deep-river">Thu Thiem Pier (D2)</div>
+<div class="text-[11px] text-on-surface-variant">Pontoon A</div>
+</div>
+</div>
+<div class="md:col-span-3 flex md:flex-col items-end justify-between md:justify-center gap-2 md:text-right bg-sand-light/60 md:bg-transparent p-space-sm md:p-0 rounded-xl">
+<div>
+<span class="text-[11px] uppercase tracking-wider text-outline font-semibold block">Standard Fare</span>
+<div class="font-headline-md text-xl font-bold text-deep-river">15,000 <span class="text-xs font-medium text-on-surface-variant">VND</span></div>
+</div>
+<a class="inline-flex items-center justify-center gap-1.5 px-space-lg py-2 rounded-full bg-sand-light hover:bg-teal-flow hover:text-on-primary text-deep-river text-sm font-semibold transition-all border border-teal-flow/20" data-path="seat-selection" href="#">
+                  Select Trip
+                  <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="mt-space-md pt-space-sm border-t border-[#0D2538]/5 flex flex-wrap items-center gap-space-md text-on-surface-variant text-xs">
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">ac_unit</span> Air-Conditioned</span>
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">visibility</span> Panoramic Windows</span>
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-teal-flow">accessible</span> Step-Free Gangway</span>
+</div>
+</article>
+<!-- TRIP 5: SUNSET SPECIAL (WB-07 Sunset Heritage Cruise) -->
+<article class="bg-white border-2 border-coral-glow/40 rounded-2xl p-space-lg shadow-[0_4px_20px_rgba(240,138,107,0.1)] hover:shadow-md transition-all duration-200">
+<div class="flex flex-wrap items-center justify-between gap-space-sm mb-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#F08A6B]/15 text-[#c75e3e] text-xs font-bold tracking-wide">
+<span class="material-symbols-outlined text-[15px]">wb_twilight</span>
+                  SUNSET SPECIAL • GOLDEN HOUR
+                </span>
+<span class="inline-flex items-center px-2.5 py-1 rounded-full bg-sand-light text-deep-river text-xs font-semibold">
+                  Heritage Route
+                </span>
+</div>
+<div class="flex items-center gap-1 text-[#c75e3e] text-xs font-bold">
+<span class="w-2 h-2 rounded-full bg-coral-glow"></span>
+                Limited: Only 12 Seats Left
+              </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-space-md items-center">
+<div class="md:col-span-3 flex md:flex-col items-center md:items-start gap-space-sm">
+<div class="w-16 h-14 md:w-20 md:h-14 rounded-lg bg-mist overflow-hidden shrink-0 border border-[#0D2538]/10">
+<img alt="WB-07 Sunset Heritage Cruise" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1VQrMFnNCgzOVzrR4pRwHYFihGLiHW1EK3w9klgnexf1_wkkb6QZImvFLcoaJsIPenE_8jeN_plTydFQgIwQRi-ie7SvDJbpF6euqt6OgfKJdLej0z0cts8Tu0mV63lOedmaIm9cZ3WMtfFU5zI0B-KGUiTrxoLW7rz62s7VMTGElsX4RQHDHXO0XpJv9U8_Wlt8Yl3uHs28lt_SZ2sLBXcNHfRz92GZNe4B3QKwFg9Y-rjSsFAYFcrwxit">
+</div>
+<div>
+<span class="font-headline-sm text-base text-deep-river font-bold block">WB-07</span>
+<span class="text-xs text-on-surface-variant font-medium">Sunset Heritage Cruise</span>
+</div>
+</div>
+<div class="md:col-span-6 flex items-center justify-between gap-space-sm py-1">
+<div class="text-left">
+<div class="font-headline-md text-xl md:text-2xl font-bold text-deep-river">17:30</div>
+<div class="text-xs font-semibold text-deep-river">Bach Dang Pier (D1)</div>
+<div class="text-[11px] text-on-surface-variant">Heritage Berth</div>
+</div>
+<div class="flex-1 flex flex-col items-center px-2">
+<span class="text-xs text-coral-glow font-bold mb-1">45 min • Landmark Loop</span>
+<div class="w-full flex items-center relative">
+<div class="w-2.5 h-2.5 rounded-full bg-coral-glow shrink-0"></div>
+<div class="flex-1 h-0.5 bg-gradient-to-r from-coral-glow via-signal-amber to-coral-glow relative">
+<div class="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white shadow-xs border border-coral-glow flex items-center justify-center text-coral-glow">
+<span class="material-symbols-outlined text-[10px]">sailing</span>
+</div>
+</div>
+<div class="w-2.5 h-2.5 rounded-full bg-coral-glow shrink-0"></div>
+</div>
+<span class="text-[11px] text-on-surface-variant mt-1">Includes Ba Son Bridge view</span>
+</div>
+<div class="text-right">
+<div class="font-headline-md text-xl md:text-2xl font-bold text-deep-river">18:15</div>
+<div class="text-xs font-semibold text-deep-river">Thu Thiem Pier (D2)</div>
+<div class="text-[11px] text-on-surface-variant">Pontoon A</div>
+</div>
+</div>
+<div class="md:col-span-3 flex md:flex-col items-end justify-between md:justify-center gap-2 md:text-right bg-sand-light/60 md:bg-transparent p-space-sm md:p-0 rounded-xl">
+<div>
+<span class="text-[11px] uppercase tracking-wider text-outline font-semibold block">Experience Fare</span>
+<div class="font-headline-md text-xl font-bold text-deep-river">45,000 <span class="text-xs font-medium text-on-surface-variant">VND</span></div>
+</div>
+<a class="inline-flex items-center justify-center gap-1.5 px-space-lg py-2 rounded-full bg-coral-glow text-on-primary text-sm font-semibold hover:opacity-95 transition-all shadow-[0_2px_8px_rgba(240,138,107,0.35)]" data-path="seat-selection" href="#">
+                  Select Trip
+                  <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</a>
+</div>
+</div>
+<div class="mt-space-md pt-space-sm border-t border-[#0D2538]/5 flex flex-wrap items-center gap-space-md text-on-surface-variant text-xs">
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-coral-glow">local_bar</span> Complimentary Herbal Tea</span>
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-coral-glow">headphones</span> Historical Audio Tour</span>
+<span class="inline-flex items-center gap-1"><span class="material-symbols-outlined text-[15px] text-coral-glow">deck</span> Sunset Skyline Deck</span>
+</div>
+</article>
+</div>
+<!-- RIGHT SIDEBAR: COHESIVE WATERBUS RIVER CORRIDOR SURFACE -->
+<aside class="lg:col-span-4 sticky top-28">
+<div class="bg-sand-light border border-[#0D2538]/10 rounded-3xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<!-- Header -->
+<div class="flex items-center justify-between">
+<div>
+<span class="text-[11px] font-semibold text-outline uppercase tracking-wider block">Corridor Overview</span>
+<h2 class="font-headline-sm text-base font-bold text-deep-river">Corridor Crossing Overview</h2>
+</div>
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/90 border border-teal-flow/20 text-teal-flow text-xs font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-teal-flow animate-pulse"></span>
+                Line 1 Express • Calm River Flow
+              </span>
+</div>
+<!-- Compact River Map -->
+<div class="relative w-full h-52 bg-white rounded-2xl overflow-hidden border border-[#0D2538]/10 flex items-center justify-center shadow-xs">
+<svg class="w-full h-full" fill="none" viewBox="0 0 340 200" xmlns="http://www.w3.org/2000/svg">
+<!-- River Shape -->
+<path d="M-20,30 C70,45 110,120 170,110 C230,100 250,165 360,155 L360,220 L-20,220 Z" fill="#E9F0EC" opacity="0.95"></path>
+<path d="M-20,80 C60,95 120,145 190,135 C260,120 270,190 360,180 L360,220 L-20,220 Z" fill="#9bf1f5" opacity="0.45"></path>
+<!-- Crossing Path -->
+<path d="M68,65 C108,75 158,105 220,135" stroke="#147A7E" stroke-dasharray="4 4" stroke-linecap="round" stroke-width="3"></path>
+<path d="M68,65 L118,88" stroke="#147A7E" stroke-linecap="round" stroke-width="3"></path>
+<!-- Active Vessel Marker -->
+<g transform="translate(114, 84)">
+<circle cx="6" cy="6" fill="#147A7E" opacity="0.2" r="10"></circle>
+<circle cx="6" cy="6" fill="#147A7E" r="6"></circle>
+<circle cx="6" cy="6" fill="#ffffff" r="2.5"></circle>
+</g>
+<!-- Pier Nodes -->
+<g transform="translate(42, 45)">
+<rect fill="#0D2538" height="24" rx="12" width="70"></rect>
+<circle cx="12" cy="12" fill="#4FC3D8" r="4"></circle>
+<text fill="#ffffff" font-family="Plus Jakarta Sans" font-size="9" font-weight="600" x="22" y="16">Bach Dang</text>
+</g>
+<g transform="translate(205, 130)">
+<rect fill="#0D2538" height="24" rx="12" width="70"></rect>
+<circle cx="12" cy="12" fill="#F08A6B" r="4"></circle>
+<text fill="#ffffff" font-family="Plus Jakarta Sans" font-size="9" font-weight="600" x="22" y="16">Thu Thiem</text>
+</g>
+<!-- Geographic & Flow indicators -->
+<text fill="#147A7E" font-family="Inter" font-size="9" font-weight="600" x="135" y="45">Saigon River Flow →</text>
+<text fill="#73777d" font-family="Inter" font-size="9" x="18" y="185">District 1 Hub</text>
+<text fill="#73777d" font-family="Inter" font-size="9" x="200" y="25">Thu Duc City • D2</text>
+</svg>
+<div class="absolute bottom-2 left-2 bg-white/95 px-2.5 py-1 rounded-md text-[11px] text-deep-river font-semibold shadow-xs">
+                1.2 km navigable river crossing
+              </div>
+<div class="absolute bottom-2 right-2 bg-white/95 px-2.5 py-1 rounded-md text-[11px] text-teal-flow font-bold shadow-xs">
+                WB-01 In Transit • 42 km/h
+              </div>
+</div>
+<!-- Selected Crossing Context & Notes -->
+<div class="bg-white rounded-2xl p-space-md border border-[#0D2538]/10 space-y-3 text-xs text-on-surface-variant shadow-xs">
+<div class="flex items-start gap-2.5">
+<span class="material-symbols-outlined text-[18px] text-teal-flow shrink-0 mt-0.5">schedule</span>
+<div>
+<strong class="text-deep-river font-semibold">Punctual Pier Boarding:</strong>
+<span> Turnstiles open 10 min prior to departure. Boarding gate closes 3 min before cast-off.</span>
+</div>
+</div>
+<div class="flex items-start gap-2.5">
+<span class="material-symbols-outlined text-[18px] text-teal-flow shrink-0 mt-0.5">qr_code_scanner</span>
+<div>
+<strong class="text-deep-river font-semibold">Instant Digital QR Pass:</strong>
+<span> Digital ticket pass generated immediately upon booking for tap-and-go turnstiles.</span>
+</div>
+</div>
+<div class="flex items-start gap-2.5">
+<span class="material-symbols-outlined text-[18px] text-teal-flow shrink-0 mt-0.5">commute</span>
+<div>
+<strong class="text-deep-river font-semibold">Transit Efficiency:</strong>
+<span> ~12 min average crossing time avoiding all bridge congestion between D1 and Thu Thiem.</span>
+</div>
+</div>
+</div>
+<!-- Waterway Assistant / Pier Concierge -->
+<div class="bg-deep-river text-on-primary rounded-2xl p-space-md flex items-center justify-between gap-space-sm shadow-sm">
+<div class="flex items-center gap-2.5">
+<div class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-sky-aqua shrink-0">
+<span class="material-symbols-outlined text-[18px]">support_agent</span>
+</div>
+<div>
+<span class="text-xs font-bold block text-white">Waterway Assistant</span>
+<span class="text-[11px] text-primary-fixed-dim">Need pier transfers or Sala connections?</span>
+</div>
+</div>
+<button class="px-3 py-1.5 rounded-full bg-teal-flow text-white hover:bg-secondary text-xs font-semibold flex items-center gap-1 shrink-0 transition-colors" type="button">
+<span>Ask Pier Concierge</span>
+<span class="material-symbols-outlined text-[14px]">send</span>
+</button>
+</div>
+</div>
+</aside>
+</div>
+<!-- LEVEL 3 SUPPORTING SURFACE: Compact 3-Item Passenger Reassurance Strip -->
+<section class="w-full bg-sand-light border border-[#0D2538]/10 rounded-2xl p-space-lg shadow-xs">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg items-center divide-y md:divide-y-0 md:divide-x divide-[#0D2538]/10">
+<!-- Item 1 -->
+<div class="flex items-start gap-space-md pt-2 md:pt-0">
+<div class="w-11 h-11 rounded-xl bg-white border border-[#0D2538]/10 text-teal-flow flex items-center justify-center shrink-0 shadow-xs">
+<span class="material-symbols-outlined text-[22px]">qr_code_2</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-sm font-bold text-deep-river">QR E-Ticket Boarding</h3>
+<p class="text-xs text-on-surface-variant mt-0.5">Instant digital ticket pass with tap-and-go access at turnstiles.</p>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="flex items-start gap-space-md pt-4 md:pt-0 md:pl-space-lg">
+<div class="w-11 h-11 rounded-xl bg-white border border-[#0D2538]/10 text-teal-flow flex items-center justify-center shrink-0 shadow-xs">
+<span class="material-symbols-outlined text-[22px]">radar</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-sm font-bold text-deep-river">Real-Time Vessel Tracking</h3>
+<p class="text-xs text-on-surface-variant mt-0.5">Live GPS positioning and accurate pier arrival predictions.</p>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="flex items-start gap-space-md pt-4 md:pt-0 md:pl-space-lg">
+<div class="w-11 h-11 rounded-xl bg-white border border-[#0D2538]/10 text-teal-flow flex items-center justify-center shrink-0 shadow-xs">
+<span class="material-symbols-outlined text-[22px]">airline_seat_recline_extra</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-sm font-bold text-deep-river">Seat Selection Next</h3>
+<p class="text-xs text-on-surface-variant mt-0.5">Choose panoramic windows or open deck seats in the immediate next step.</p>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Clean Footer (Level 1 Surface Integration matching DESIGN.md) -->
+<footer class="w-full bg-mist border-t border-[#0D2538]/10">
+<div class="max-w-7xl mx-auto px-margin pt-space-2xl pb-space-xl">
+<!-- River Operational Status Banner -->
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md bg-white rounded-2xl p-space-md border border-[#0D2538]/10 mb-space-2xl shadow-xs">
+<div class="flex items-center gap-space-md">
+<span class="flex h-3 w-3 relative">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-flow opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-teal-flow"></span>
+</span>
+<div>
+<span class="font-headline-sm text-sm font-bold text-deep-river block">River Corridor Status: Normal Service</span>
+<span class="text-xs text-on-surface-variant">All 18 river stations operational • Average frequency 12 mins • Water condition: Calm</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="text-xs text-teal-flow bg-secondary-container/60 px-3 py-1 rounded-full font-semibold">Waterway Patrol Active</span>
+</div>
+</div>
+<!-- Links Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-space-xl pb-space-2xl">
+<div class="lg:col-span-2 space-y-space-md pr-space-lg">
+<div class="flex items-center gap-space-sm">
+<img alt="Smart Waterbus Logo" class="h-7 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WiF1NNf59f3fm7YJTVwxqFCw3wL1kpEErVxVKdtffjYZSE8rQcimuCrd5m6V76pWXG5bJvJDdRoZpBEjA_GNbPglxJH1dQuFydgjV3UG19EwKFJxbV6q9TY0sodBd7F8JohBy0giL7H2aZ2jYp6R_WLIJf6FvCJQYgRhGklczPLysss8-K8zR_cZt3NH-u9tohMmc14WvzX5FGl4GzQ58s-iJ1ab1wCYtkCgBkJFkXHSazs2KBHG1lBF0l">
+<span class="font-headline-sm text-base font-bold text-deep-river tracking-tight">Smart Waterbus</span>
+</div>
+<p class="font-body-md text-xs text-on-surface-variant max-w-sm leading-relaxed">
+            Pioneering high-frequency electric river transit and immersive city voyages. Experience sustainable urban waterways crafted for commuters and explorers alike.
+          </p>
+<div class="flex items-center gap-space-sm pt-1">
+<a aria-label="River radar" class="w-8 h-8 rounded-full bg-white border border-[#0D2538]/10 flex items-center justify-center text-on-surface-variant hover:text-teal-flow hover:bg-sand-light transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">radar</span>
+</a>
+<a aria-label="Navigation map" class="w-8 h-8 rounded-full bg-white border border-[#0D2538]/10 flex items-center justify-center text-on-surface-variant hover:text-teal-flow hover:bg-sand-light transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">explore</span>
+</a>
+<a aria-label="Live alerts channel" class="w-8 h-8 rounded-full bg-white border border-[#0D2538]/10 flex items-center justify-center text-on-surface-variant hover:text-teal-flow hover:bg-sand-light transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">notifications_active</span>
+</a>
+<a aria-label="Pier terminal hub" class="w-8 h-8 rounded-full bg-white border border-[#0D2538]/10 flex items-center justify-center text-on-surface-variant hover:text-teal-flow hover:bg-sand-light transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">anchor</span>
+</a>
+</div>
+</div>
+<div class="space-y-space-sm">
+<span class="font-headline-sm text-sm font-bold text-deep-river block">Quick Links</span>
+<ul class="space-y-1.5 text-xs text-on-surface-variant">
+<li><a class="hover:text-deep-river transition-colors" data-path="routes" href="#">Routes &amp; Lines</a></li>
+<li><a class="hover:text-deep-river transition-colors" data-path="explore" href="#">Timetable &amp; Live Headways</a></li>
+<li><a class="hover:text-deep-river transition-colors" data-path="about" href="#">Pier Terminals &amp; Amenities</a></li>
+<li><a class="hover:text-deep-river transition-colors" data-path="about" href="#">Fleet &amp; Waterway Safety</a></li>
+</ul>
+</div>
+<div class="space-y-space-sm">
+<span class="font-headline-sm text-sm font-bold text-deep-river block">Tourism Experiences</span>
+<ul class="space-y-1.5 text-xs text-on-surface-variant">
+<li><a class="hover:text-deep-river transition-colors" data-path="experience" href="#">Sunset Golden Hour Cruise</a></li>
+<li><a class="hover:text-deep-river transition-colors" data-path="experience" href="#">Historical River Tour</a></li>
+<li><a class="hover:text-deep-river transition-colors" data-path="experience" href="#">Heritage Audio Guide</a></li>
+<li><a class="hover:text-deep-river transition-colors" data-path="experience" href="#">Charter &amp; Group Escapes</a></li>
+</ul>
+</div>
+<div class="space-y-space-sm">
+<span class="font-headline-sm text-sm font-bold text-deep-river block">Support &amp; Contact</span>
+<div class="space-y-1 text-xs text-on-surface-variant">
+<p class="text-deep-river font-semibold">Operational Hours</p>
+<p>Mon – Sun: 06:00 – 23:00</p>
+<p class="text-deep-river font-semibold pt-1">Dispatch Hotline</p>
+<p>+1 (800) 555-RIVER</p>
+</div>
+</div>
+</div>
+<div class="pt-space-md border-t border-[#0D2538]/10 flex flex-col md:flex-row items-center justify-between gap-space-sm text-xs text-on-surface-variant">
+<p>© 2025 Smart Waterbus. River Connects Greater Stories.</p>
+<div class="flex items-center gap-space-md">
+<a class="hover:text-deep-river transition-colors" href="#">Passenger Rights</a>
+<a class="hover:text-deep-river transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-deep-river transition-colors" href="#">Waterway Transit Rules</a>
+<a class="hover:text-deep-river transition-colors" href="#">Accessibility</a>
+</div>
+</div>
+</div>
+</footer>
+<!-- Micro-interaction JS -->
+<script>
+    (function() {
+      const filterPills = document.querySelectorAll('.filter-pill');
+      filterPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+          filterPills.forEach(p => {
+            p.classList.remove('bg-deep-river', 'text-on-primary', 'font-semibold');
+            p.classList.add('bg-white', 'border', 'border-[#0D2538]/10', 'text-on-surface-variant', 'font-medium');
+          });
+          pill.classList.remove('bg-white', 'border', 'border-[#0D2538]/10', 'text-on-surface-variant', 'font-medium');
+          pill.classList.add('bg-deep-river', 'text-on-primary', 'font-semibold');
+        });
+      });
+
+      const editBtn = document.getElementById('edit-search-toggle');
+      if (editBtn) {
+        editBtn.addEventListener('click', () => {
+          alert('Ready to modify: Bach Dang Pier (D1) to Thu Thiem Pier (D2). Adjust parameters in search dialog.');
+        });
+      }
+    })();
+  </script>
+</body></html>

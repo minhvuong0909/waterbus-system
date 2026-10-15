@@ -1,1 +1,53 @@
-export {}
+/** Every route path in the app. Use these constants instead of string literals. */
+export const ROUTES = {
+  home: '/',
+  signIn: '/sign-in',
+  search: '/search',
+  searchResults: '/search/results',
+  tripDetail: '/trip',
+  seatSelection: '/booking/seats',
+  passengerDetails: '/booking/passenger',
+  checkoutReview: '/booking/review',
+  payment: '/payment',
+  paymentCallback: '/payment/callback',
+  bookingSuccess: '/payment/success',
+  myTickets: '/tickets',
+  ticketDetail: '/tickets/detail',
+  manageBooking: '/tickets/manage',
+  /** Secure link to one booking, sent to the traveler. `:token` is issued by the backend. */
+  manageByLink: '/manage/:token',
+  liveTracking: '/tracking',
+  explore: '/explore',
+  help: '/help',
+  sitemap: '/sitemap',
+  // Operations area (Admin, Dispatcher) and the captain's portal.
+  admin: '/admin',
+  adminRadar: '/admin/radar',
+  adminTrips: '/admin/trips',
+  adminSchedules: '/admin/schedules',
+  adminStations: '/admin/stations',
+  adminBoats: '/admin/boats',
+  adminFares: '/admin/fares',
+  adminIncidents: '/admin/incidents',
+  captain: '/captain',
+} as const
+
+/** Pages listed on the /sitemap quick-navigation page. */
+export const SITEMAP_ENTRIES: { path: string; title: string }[] = [
+  { path: ROUTES.home, title: 'Home' },
+  { path: ROUTES.signIn, title: 'Sign in' },
+  { path: ROUTES.search, title: 'Search journey' },
+  { path: ROUTES.searchResults, title: 'Search results' },
+  { path: ROUTES.tripDetail, title: 'Trip detail' },
+  { path: ROUTES.seatSelection, title: 'Seat selection' },
+  { path: ROUTES.passengerDetails, title: 'Passenger details' },
+  { path: ROUTES.checkoutReview, title: 'Review booking' },
+  { path: ROUTES.payment, title: 'Payment' },
+  { path: ROUTES.bookingSuccess, title: 'Booking confirmed' },
+  { path: ROUTES.myTickets, title: 'My tickets' },
+  { path: ROUTES.ticketDetail, title: 'Ticket detail' },
+  { path: ROUTES.manageBooking, title: 'Manage booking' },
+  { path: ROUTES.liveTracking, title: 'Live trip tracking' },
+  { path: ROUTES.explore, title: 'Explore river journeys' },
+  { path: ROUTES.help, title: 'Help & About' },
+]
