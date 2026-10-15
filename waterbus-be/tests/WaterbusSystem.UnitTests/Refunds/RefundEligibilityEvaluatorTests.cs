@@ -119,13 +119,13 @@ public class RefundEligibilityEvaluatorTests
     }
 
     [Fact]
-    public void Evaluate_WhenTicketAlreadyCancelledOrCompleted_ShouldNotBeEligible()
+    public void Evaluate_WhenTripCancelsPaidTicket_StillRefundsItButNeverCompletedTickets()
     {
         var trip = new Trip { Status = TripStatus.Cancelled };
         var booking = MakeBooking(Call(1), Call(3));
 
         RefundEligibilityEvaluator.Evaluate(MakeTicket(TicketStatus.Cancelled), booking, trip)
-            .IsEligible.Should().BeFalse();
+            .IsEligible.Should().BeTrue();
 
         RefundEligibilityEvaluator.Evaluate(MakeTicket(TicketStatus.Completed), booking, trip)
             .IsEligible.Should().BeFalse();

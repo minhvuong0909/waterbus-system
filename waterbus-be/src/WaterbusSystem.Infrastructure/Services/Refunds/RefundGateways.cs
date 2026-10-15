@@ -46,15 +46,17 @@ public class VnPayRefundGateway : IRefundGateway
             cancellationToken);
 
         // 05 = đang xử lý, 06 = đã gửi yêu cầu hoàn sang ngân hàng -> giữ ở trạng thái chờ đối soát.
-        if (result.IsSuccess && result.IsPendingProcessing)
+        if (result.IsPendingProcessing || result.ResponseCode is "94" or "99" or "97")
         {
             return RefundGatewayResult.Pending(result.RefundTransactionNo);
         }
 
-        if (result.IsSuccess)
+        if (result.IsSuccess && result.TransactionStatus == "00")
         {
             return RefundGatewayResult.Succeeded(result.RefundTransactionNo ?? request.RequestId);
         }
+
+        if (result.IsSuccess) return RefundGatewayResult.Pending(result.RefundTransactionNo);
 
         _logger.LogWarning(
             "[REFUND] VNPAY từ chối yêu cầu hoàn {Reference} (code {Code}): {Message}. Chuyển sang xử lý thủ công.",

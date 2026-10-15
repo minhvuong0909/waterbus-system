@@ -52,4 +52,8 @@ public class RefundsController : BaseApiController
         var result = await Mediator.Send(command);
         return Ok(result);
     }
+    [HttpPost("{refundId:guid}/reconcile")]
+    public async Task<IActionResult> Reconcile(Guid refundId) => Ok(new { status = await Mediator.Send(
+        new WaterbusSystem.Application.Features.Refunds.Commands.ReconcileRefund.ReconcileRefundCommand(refundId,
+            HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1"), HttpContext.RequestAborted) });
 }

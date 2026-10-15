@@ -63,14 +63,13 @@ public class CreateBookingValidatorTests
     }
 
     [Fact]
-    public void Validate_WhenBoardingAndDisembarkingStationAreSame_ShouldFailValidation()
+    public void Validate_WhenStationIsRepeated_ShouldLeaveJourneyValidationToTripCalls()
     {
         var stationId = Guid.NewGuid();
         var command = ValidCommand() with { BoardingStationId = stationId, DisembarkingStationId = stationId };
 
         var result = _validator.Validate(command);
 
-        result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.PropertyName == "DisembarkingStationId");
+        result.IsValid.Should().BeTrue();
     }
 }

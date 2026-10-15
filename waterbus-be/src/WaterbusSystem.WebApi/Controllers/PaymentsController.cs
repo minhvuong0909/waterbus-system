@@ -19,11 +19,12 @@ public class PaymentsController : BaseApiController
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> CreateVnPayUrl([FromBody] CreateVnPayUrlRequest request)
+    public async Task<IActionResult> CreateVnPayUrl([FromBody] CreateVnPayUrlRequest request,
+        [FromHeader(Name = "X-Guest-Token")] string? accessToken)
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
 
-        var result = await Mediator.Send(new CreateVnPayUrlCommand(request.OrderId, ipAddress));
+        var result = await Mediator.Send(new CreateVnPayUrlCommand(request.OrderId, ipAddress, accessToken), HttpContext.RequestAborted);
 
         return Ok(result);
     }
@@ -49,18 +50,12 @@ public class PaymentsController : BaseApiController
     /// Xử lý callback khi trình duyệt khách hàng chuyển hướng trở lại sau thanh toán
     /// </summary>
     [HttpGet("vnpay-return")]
-    public IActionResult VnPayReturn([FromServices] Application.Common.Interfaces.IVnPayService vnPayService)
-    {
-        var isValid = vnPayService.ValidateSignature(ToQueryDictionary(Request.Query));
-        var responseCode = Request.Query["vnp_ResponseCode"].ToString();
-        var bookingCode = Request.Query["vnp_TxnRef"].ToString();
+    public async Task<IActionResult> VnPayReturn() => Ok(await Mediator.Send(
+        new WaterbusSystem.Application.Features.Payments.Queries.GetVnPayReturn.GetVnPayReturnQuery(ToQueryDictionary(Request.Query)), HttpContext.RequestAborted));
 
-        return Ok(new
-        {
-            success = isValid && responseCode == "00",
-            bookingCode,
-            responseCode,
-            message = responseCode == "00" ? "Thanh toán thành công" : "Giao dịch không thành công hoặc bị hủy"
-        });
-    }
+    [HttpPost("{orderId:guid}/attempts/{paymentId:guid}/reconcile")]
+    public async Task<IActionResult> Reconcile(Guid orderId, Guid paymentId,
+        [FromHeader(Name = "X-Guest-Token")] string? accessToken) => Ok(await Mediator.Send(
+        new WaterbusSystem.Application.Features.Payments.Commands.ReconcilePayment.ReconcilePaymentCommand(orderId, paymentId,
+            accessToken, HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1"), HttpContext.RequestAborted));
 }

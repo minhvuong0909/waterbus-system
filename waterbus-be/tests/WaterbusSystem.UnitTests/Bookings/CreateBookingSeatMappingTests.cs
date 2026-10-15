@@ -40,7 +40,7 @@ public class CreateBookingSeatMappingTests
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var seed = TestDbContextFactory.SeedTrip(context);
-        var handler = new CreateBookingCommandHandler(
+        var handler = CommercialHandlerFactory.Booking(
             context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
 
         // Cố tình đảo thứ tự ghế so với thứ tự seed trong CSDL.
@@ -72,7 +72,7 @@ public class CreateBookingSeatMappingTests
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var seed = TestDbContextFactory.SeedTrip(context);
-        var handler = new CreateBookingCommandHandler(
+        var handler = CommercialHandlerFactory.Booking(
             context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
 
         var result = await handler.Handle(
@@ -88,7 +88,7 @@ public class CreateBookingSeatMappingTests
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var seed = TestDbContextFactory.SeedTrip(context);
-        var handler = new CreateBookingCommandHandler(
+        var handler = CommercialHandlerFactory.Booking(
             context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
 
         var command = CommandFor(
@@ -117,7 +117,7 @@ public class CreateBookingSeatMappingTests
             TimeSpan.FromMinutes(10),
             TimeSpan.FromMinutes(15));
 
-        var handler = new CreateBookingCommandHandler(
+        var handler = CommercialHandlerFactory.Booking(
             context, new FakeDistributedLockService(), new SeatAvailabilityService(context), failingSession);
 
         var result = await handler.Handle(

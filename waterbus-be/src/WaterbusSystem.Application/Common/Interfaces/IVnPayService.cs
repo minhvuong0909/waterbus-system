@@ -12,7 +12,7 @@ public interface IVnPayService
     /// <summary>
     /// Sinh URL thanh toán cho lệnh pay (vnp_Command=pay), có ký HMAC-SHA512 kiểu payment.
     /// </summary>
-    string CreatePaymentUrl(string merchantReference, decimal amount, string orderInfo, string ipAddress);
+    string CreatePaymentUrl(string merchantReference, decimal amount, string orderInfo, string ipAddress, DateTimeOffset? createdAt = null, DateTimeOffset? expiresAt = null);
 
     /// <summary>
     /// Kiểm tra tính hợp lệ của chữ ký HMAC-SHA512 nhận từ Webhook IPN / Callback.
@@ -42,6 +42,7 @@ public interface IVnPayService
 public sealed record VnPayQueryResult
 {
     public bool IsSuccess { get; init; }
+    public string? MerchantReference { get; init; }
     public string ResponseCode { get; init; } = string.Empty;
     public string Message { get; init; } = string.Empty;
     public string? TransactionStatus { get; init; }
@@ -85,6 +86,7 @@ public sealed record VnPayRefundRequest
 public sealed record VnPayRefundResult
 {
     public bool IsSuccess { get; init; }
+    public string? MerchantReference { get; init; }
     public string ResponseCode { get; init; } = string.Empty;
     public string Message { get; init; } = string.Empty;
     public string? TransactionStatus { get; init; }

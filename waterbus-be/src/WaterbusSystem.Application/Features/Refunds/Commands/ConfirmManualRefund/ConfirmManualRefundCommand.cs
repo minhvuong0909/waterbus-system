@@ -26,7 +26,7 @@ public sealed record ConfirmManualRefundResultDto(
 public record ConfirmManualRefundCommand(
     Guid RefundTransactionId,
     string Evidence,
-    string? GatewayReference) : IRequest<ConfirmManualRefundResultDto>;
+    string? GatewayReference, decimal ConfirmedAmount) : IRequest<ConfirmManualRefundResultDto>;
 
 public class ConfirmManualRefundCommandValidator : AbstractValidator<ConfirmManualRefundCommand>
 {
@@ -34,6 +34,8 @@ public class ConfirmManualRefundCommandValidator : AbstractValidator<ConfirmManu
     {
         RuleFor(x => x.RefundTransactionId)
             .NotEmpty().WithMessage("Mã giao dịch hoàn tiền không được để trống.");
+
+        RuleFor(x => x.ConfirmedAmount).GreaterThan(0);
 
         RuleFor(x => x.Evidence)
             .NotEmpty().WithMessage("Phải cung cấp bằng chứng đã hoàn tiền (mã chuyển khoản, ảnh biên nhận...).")
@@ -46,15 +48,22 @@ public class ConfirmManualRefundCommandHandler
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly ICommercialTransactionRunner _transactions;
 
-    public ConfirmManualRefundCommandHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public ConfirmManualRefundCommandHandler(IApplicationDbContext context, ICurrentUserService currentUserService, ICommercialTransactionRunner transactions)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _transactions = transactions;
     }
 
     public async Task<ConfirmManualRefundResultDto> Handle(
         ConfirmManualRefundCommand request, CancellationToken cancellationToken)
+    {
+        return await _transactions.RunAsync(() => ConfirmAsync(request, cancellationToken), cancellationToken);
+    }
+
+    private async Task<ConfirmManualRefundResultDto> ConfirmAsync(ConfirmManualRefundCommand request, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(_currentUserService.UserId, out var adminId))
         {
@@ -66,7 +75,7 @@ public class ConfirmManualRefundCommandHandler
         }
 
         var refund = await _context.FinancialTransactions
-            .Include(t => t.RefundAllocations)
+            .Include(t => t.RefundAllocations).Include(t => t.OriginalPayment).Include(t => t.RefundBooking).ThenInclude(b => b!.Tickets)
             .FirstOrDefaultAsync(
                 t => t.Id == request.RefundTransactionId
                      && t.TransactionType == FinancialTransactionType.Refund,
@@ -79,6 +88,9 @@ public class ConfirmManualRefundCommandHandler
             throw new ConcurrencyException("Giao dịch hoàn tiền này đã được xác nhận hoàn thành trước đó.");
         }
 
+        if (refund.Status == FinancialTransactionStatus.Processing && refund.GatewayName != "Manual")
+            throw new ConcurrencyException("Gateway có thể đang hoàn tiền. Phải đối soát trước khi chuyển khoản thủ công.");
+
         if (refund.Status == FinancialTransactionStatus.Failed)
         {
             throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
@@ -88,7 +100,10 @@ public class ConfirmManualRefundCommandHandler
             });
         }
 
-        if (refund.RefundAllocations.Count == 0)
+        if (refund.RefundAllocations.Count == 0 && !(refund.IdempotencyKey.StartsWith("LATE_REFUND_") &&
+            refund.OriginalPayment?.Status == FinancialTransactionStatus.Succeeded &&
+            refund.OriginalPayment.FailureReason?.StartsWith("ReconciliationRequired:") == true &&
+            refund.Amount == refund.OriginalPayment.Amount && refund.RefundBooking?.Tickets.Count == 0))
         {
             throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
             {
@@ -97,11 +112,13 @@ public class ConfirmManualRefundCommandHandler
             });
         }
 
+        if (request.ConfirmedAmount != refund.Amount) throw new ConcurrencyException("Số tiền đối soát không khớp khoản hoàn.");
+
         // BR-RF-10: lưu bằng chứng/định danh đối soát và người xác nhận trước khi ghi Succeeded.
         refund.Status = FinancialTransactionStatus.Succeeded;
         refund.ManualProcessedByAdminId = adminId;
         refund.ManualRefundEvidence = request.Evidence.Trim();
-        refund.GatewayName ??= "Manual";
+        refund.GatewayName = "Manual";
         refund.GatewayReference = request.GatewayReference ?? refund.GatewayReference;
         refund.CompletedAt = DateTimeOffset.UtcNow;
         refund.FailureReason = null;

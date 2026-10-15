@@ -14,7 +14,7 @@ namespace WaterbusSystem.Infrastructure.Services.Checkout;
 /// sự vẫn nằm ở SeatReservation trong SQL Server, nên mất Redis chỉ ảnh hưởng trải nghiệm
 /// đếm ngược, không ảnh hưởng tính nhất quán khi commit.
 /// </summary>
-public class RedisCheckoutSessionStore : ICheckoutSessionStore
+public class RedisCheckoutSessionStore : ICheckoutSessionStore, IDisposable
 {
     private readonly IConnectionMultiplexer? _redis;
     private readonly ILogger<RedisCheckoutSessionStore> _logger;
@@ -26,12 +26,14 @@ public class RedisCheckoutSessionStore : ICheckoutSessionStore
 
         try
         {
-            _redis = ConnectionMultiplexer.Connect(redisConn);
-            _logger.LogInformation("Khởi tạo kết nối Redis cho CheckoutSession tại {RedisEndpoint}", redisConn);
+            var options = ConfigurationOptions.Parse(redisConn);
+            options.AbortOnConnectFail = false; options.ConnectTimeout = 1000;
+            _redis = ConnectionMultiplexer.Connect(options);
+            _logger.LogInformation("Khởi tạo kết nối Redis cho CheckoutSession.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Không kết nối được Redis tại {RedisConnection} cho CheckoutSession.", redisConn);
+            _logger.LogError(ex, "Không kết nối được Redis cho CheckoutSession.");
         }
     }
 
@@ -66,6 +68,8 @@ public class RedisCheckoutSessionStore : ICheckoutSessionStore
 
         return await _redis!.GetDatabase().KeyDeleteAsync(key);
     }
+
+    public void Dispose() => _redis?.Dispose();
 
     private bool IsAvailable => _redis is { IsConnected: true };
 }

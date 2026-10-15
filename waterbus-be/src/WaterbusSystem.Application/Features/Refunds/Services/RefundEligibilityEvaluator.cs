@@ -58,10 +58,8 @@ public static class RefundEligibilityEvaluator
                 "Đoạn đi đã được phục vụ đến đúng bến xuống dự kiến trước khi chuyến gặp sự cố.");
         }
 
-        if (ticket.Status is TicketStatus.Cancelled or TicketStatus.Terminated)
-        {
-            return RefundDecision.NotEligible("Vé đã bị vô hiệu hoá từ trước nên không phát sinh khoản hoàn mới.");
-        }
+        // Cancelled/Terminated là trạng thái quyền đi tàu, không chứng minh đã refund.
+        // Request handler kiểm tra allocation/giao dịch để chống hoàn lần hai.
 
         // BR-RF-01 (Cancelled trước khi bắt đầu) và BR-RF-04 (chưa được phục vụ do Trip bị dừng
         // hoặc đã bắt đầu nhưng bị cắt giữa chừng): cùng một xử lý - hoàn 100% paid allocation.

@@ -63,6 +63,11 @@ public class ConfirmVnPayIpnCommandHandlerTests
         context.SeatReservations.Add(reservation);
 
         context.Bookings.Add(booking);
+        booking.Order!.ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10);
+        context.FinancialTransactions.Add(new FinancialTransaction { Order = booking.Order, OrderId = booking.OrderId,
+            TransactionType = FinancialTransactionType.Payment, Status = FinancialTransactionStatus.Requested,
+            Amount = totalAmount, GatewayName = "VNPAY", MerchantReference = booking.BookingCode,
+            GatewayRequestCreatedAt = DateTimeOffset.UtcNow, IdempotencyKey = "PAY_" + booking.Id });
         context.SaveChanges();
         return booking;
     }
@@ -94,6 +99,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         ["vnp_Amount"] = amount.ToString(),
         ["vnp_TxnRef"] = bookingCode,
         ["vnp_ResponseCode"] = responseCode,
+        ["vnp_TransactionStatus"] = responseCode == "00" ? "00" : "02",
         ["vnp_TransactionNo"] = "14000111",
         ["vnp_PayDate"] = "20261002153045"
     };
@@ -104,7 +110,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         using var context = TestDbContextFactory.CreateDbContext();
         var booking = SeedPendingBooking(context, 150000m);
         var vnPayService = CreateVnPayService();
-        var handler = new ConfirmVnPayIpnCommandHandler(context, vnPayService);
+        var handler = CommercialHandlerFactory.Ipn(context, vnPayService);
 
         var fields = BuildBaseFields(booking.BookingCode, 15000000, "00");
         var query = BuildSignedIpnQuery(fields, HashSecret);
@@ -151,7 +157,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         using var context = TestDbContextFactory.CreateDbContext();
         var booking = SeedPendingBooking(context, 150000m);
         var vnPayService = CreateVnPayService();
-        var handler = new ConfirmVnPayIpnCommandHandler(context, vnPayService);
+        var handler = CommercialHandlerFactory.Ipn(context, vnPayService);
 
         var fields = BuildBaseFields(booking.BookingCode, 15000000, "00");
         fields["vnp_TmnCode"] = "WRONG_MERCHANT";
@@ -162,7 +168,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         result.RspCode.Should().Be("99");
         context.Bookings.Single(b => b.Id == booking.Id).Status.Should().Be(BookingStatus.PendingPayment);
         context.Tickets.Should().BeEmpty();
-        context.FinancialTransactions.Should().BeEmpty();
+        context.FinancialTransactions.Should().OnlyContain(t => t.Status == FinancialTransactionStatus.Requested);
     }
 
     [Fact]
@@ -171,7 +177,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         using var context = TestDbContextFactory.CreateDbContext();
         var booking = SeedPendingBooking(context, 150000m);
         var vnPayService = CreateVnPayService();
-        var handler = new ConfirmVnPayIpnCommandHandler(context, vnPayService);
+        var handler = CommercialHandlerFactory.Ipn(context, vnPayService);
 
         var fields = BuildBaseFields(booking.BookingCode, 15000000, "00");
         var query = BuildSignedIpnQuery(fields, HashSecret);
@@ -188,7 +194,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         using var context = TestDbContextFactory.CreateDbContext();
         var booking = SeedPendingBooking(context, 150000m);
         var vnPayService = CreateVnPayService();
-        var handler = new ConfirmVnPayIpnCommandHandler(context, vnPayService);
+        var handler = CommercialHandlerFactory.Ipn(context, vnPayService);
 
         var fields = BuildBaseFields(booking.BookingCode, 1, "00"); // số tiền sai hoàn toàn so với tổng Order
         var query = BuildSignedIpnQuery(fields, HashSecret);
@@ -204,7 +210,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         using var context = TestDbContextFactory.CreateDbContext();
         var booking = SeedPendingBooking(context, 150000m);
         var vnPayService = CreateVnPayService();
-        var handler = new ConfirmVnPayIpnCommandHandler(context, vnPayService);
+        var handler = CommercialHandlerFactory.Ipn(context, vnPayService);
 
         var fields = BuildBaseFields(booking.BookingCode, 15000000, "00");
         var query = BuildSignedIpnQuery(fields, HashSecret);
@@ -225,10 +231,11 @@ public class ConfirmVnPayIpnCommandHandlerTests
         using var context = TestDbContextFactory.CreateDbContext();
         var booking = SeedPendingBooking(context, 150000m);
         booking.Status = BookingStatus.Confirmed;
+        context.FinancialTransactions.Single().Status = FinancialTransactionStatus.Succeeded;
         context.SaveChanges();
 
         var vnPayService = CreateVnPayService();
-        var handler = new ConfirmVnPayIpnCommandHandler(context, vnPayService);
+        var handler = CommercialHandlerFactory.Ipn(context, vnPayService);
 
         var fields = BuildBaseFields(booking.BookingCode, 15000000, "00");
         var query = BuildSignedIpnQuery(fields, HashSecret);
@@ -244,7 +251,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         using var context = TestDbContextFactory.CreateDbContext();
         var booking = SeedPendingBooking(context, 150000m);
         var vnPayService = CreateVnPayService();
-        var handler = new ConfirmVnPayIpnCommandHandler(context, vnPayService);
+        var handler = CommercialHandlerFactory.Ipn(context, vnPayService);
 
         var fields = BuildBaseFields(booking.BookingCode, 15000000, "24"); // 24 = giao dịch bị hủy
         var query = BuildSignedIpnQuery(fields, HashSecret);

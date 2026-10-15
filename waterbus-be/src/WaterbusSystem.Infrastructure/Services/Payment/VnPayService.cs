@@ -38,7 +38,7 @@ public class VnPayService : IVnPayService
         _logger = logger;
     }
 
-    public string CreatePaymentUrl(string merchantReference, decimal amount, string orderInfo, string ipAddress)
+    public string CreatePaymentUrl(string merchantReference, decimal amount, string orderInfo, string ipAddress, DateTimeOffset? createdAt = null, DateTimeOffset? expiresAt = null)
     {
         var hashSecret = RequireSecret();
         var baseUrl = _configuration["VnPay:BaseUrl"] ?? DefaultBaseUrl;
@@ -52,7 +52,8 @@ public class VnPayService : IVnPayService
             ["vnp_TmnCode"] = RequireTmnCode(),
             // Số tiền nhân 100 theo quy ư���c của VNPAY (15.000 VND -> 1.500.000)
             ["vnp_Amount"] = ((long)(amount * 100)).ToString(),
-            ["vnp_CreateDate"] = DateTime.Now.ToString("yyyyMMddHHmmss"),
+            ["vnp_CreateDate"] = GatewayTime(createdAt ?? DateTimeOffset.UtcNow),
+            ["vnp_ExpireDate"] = GatewayTime(expiresAt ?? DateTimeOffset.UtcNow.AddMinutes(15)),
             ["vnp_CurrCode"] = "VND",
             ["vnp_IpAddr"] = ipAddress,
             ["vnp_Locale"] = "vn",
@@ -85,7 +86,7 @@ public class VnPayService : IVnPayService
             {
                 receivedSecureHash = value;
             }
-            else
+            else if (!key.Equals("vnp_SecureHashType", StringComparison.OrdinalIgnoreCase))
             {
                 responseData[key] = value;
             }
@@ -114,7 +115,7 @@ public class VnPayService : IVnPayService
     public async Task<VnPayQueryResult> QueryTransactionAsync(
         string merchantReference, string transactionDate, string ipAddress, CancellationToken cancellationToken = default)
     {
-        var createDate = DateTime.Now.ToString("yyyyMMddHHmmss");
+        var createDate = GatewayTime(DateTimeOffset.UtcNow);
         var requestId = GenerateRequestId("QDR");
 
         // Thứ tự field trong checksum là CỐ ĐỊNH theo đặc tả merchant_webapi, không sort.
@@ -153,6 +154,7 @@ public class VnPayService : IVnPayService
         {
             // 00 = yêu cầu querydr thực hiện thành công (kể cả giao dịch đã hoàn).
             IsSuccess = response.GetValueOrDefault("vnp_ResponseCode") == "00",
+            MerchantReference = response.GetValueOrDefault("vnp_TxnRef"),
             ResponseCode = response.GetValueOrDefault("vnp_ResponseCode") ?? string.Empty,
             Message = response.GetValueOrDefault("vnp_Message") ?? string.Empty,
             TransactionStatus = transactionStatus,
@@ -167,8 +169,10 @@ public class VnPayService : IVnPayService
     public async Task<VnPayRefundResult> RefundAsync(
         VnPayRefundRequest request, CancellationToken cancellationToken = default)
     {
-        var createDate = DateTime.Now.ToString("yyyyMMddHHmmss");
-        var requestId = GenerateRequestId("RFD");
+        var createDate = GatewayTime(DateTimeOffset.UtcNow);
+        var requestId = request.RequestId;
+        if (requestId.Length is < 1 or > 32 || requestId.Any(c => !char.IsAsciiLetterOrDigit(c)))
+            throw new ArgumentException("Refund RequestId must be 1-32 ASCII alphanumeric characters.");
 
         // vnp_TransactionType: 02 = hoàn trả toàn phần, 03 = hoàn trả một phần.
         var transactionType = request.IsFullRefund ? "02" : "03";
@@ -219,6 +223,7 @@ public class VnPayService : IVnPayService
         {
             // 00 = yêu cầu refund đã được tiếp nhận thành công.
             IsSuccess = responseCode == "00",
+            MerchantReference = response.GetValueOrDefault("vnp_TxnRef"),
             ResponseCode = responseCode,
             Message = response.GetValueOrDefault("vnp_Message") ?? string.Empty,
             TransactionStatus = transactionStatus,
@@ -243,7 +248,7 @@ public class VnPayService : IVnPayService
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("[VNPAY] HTTP {StatusCode} từ {Endpoint}: {Body}", response.StatusCode, endpoint, json);
+                _logger.LogError("[VNPAY] HTTP {StatusCode} từ {Endpoint}", response.StatusCode, endpoint);
                 return new Dictionary<string, string>
                 {
                     ["vnp_ResponseCode"] = "99",
@@ -251,7 +256,10 @@ public class VnPayService : IVnPayService
                 };
             }
 
-            return ParseResponse(json);
+            var parsed = ParseResponse(json);
+            if (!ValidateMerchantResponse(parsed, body))
+                return new Dictionary<string, string> { ["vnp_ResponseCode"] = "97", ["vnp_Message"] = "Unverified gateway response; reconciliation required" };
+            return parsed;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -291,7 +299,7 @@ public class VnPayService : IVnPayService
 
             return result;
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
         {
             return new Dictionary<string, string>
             {
@@ -326,6 +334,25 @@ public class VnPayService : IVnPayService
         var hashBytes = hmac.ComputeHash(inputBytes);
         return BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLower();
     }
+
+    private bool ValidateMerchantResponse(Dictionary<string, string> response, Dictionary<string, string> request)
+    {
+        var names = new List<string> { "vnp_ResponseId", "vnp_Command", "vnp_ResponseCode", "vnp_Message",
+            "vnp_TmnCode", "vnp_TxnRef", "vnp_Amount", "vnp_BankCode", "vnp_PayDate", "vnp_TransactionNo",
+            "vnp_TransactionType", "vnp_TransactionStatus", "vnp_OrderInfo" };
+        if (request["vnp_Command"] == "querydr") names.AddRange(["vnp_PromotionCode", "vnp_PromotionAmount"]);
+        var expected = HmacSha512(RequireSecret(), string.Join("|", names.Select(n => response.GetValueOrDefault(n, ""))));
+        var received = response.GetValueOrDefault("vnp_SecureHash", "").ToLowerInvariant();
+        return CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(expected), Encoding.ASCII.GetBytes(received))
+            && response.GetValueOrDefault("vnp_TmnCode") == RequireTmnCode()
+            && response.GetValueOrDefault("vnp_Command") == request["vnp_Command"]
+            && response.GetValueOrDefault("vnp_TxnRef") == request["vnp_TxnRef"]
+            && (request["vnp_Command"] != "refund" ||
+                (response.GetValueOrDefault("vnp_Amount") == request["vnp_Amount"] &&
+                 response.GetValueOrDefault("vnp_TransactionType") == request["vnp_TransactionType"]));
+    }
+
+    public static string GatewayTime(DateTimeOffset instant) => instant.ToOffset(TimeSpan.FromHours(7)).ToString("yyyyMMddHHmmss");
 
     private string RequireTmnCode() =>
         _configuration["VnPay:TmnCode"]

@@ -81,6 +81,16 @@ public class CheckoutSessionService : ICheckoutSessionService
         return state;
     }
 
+    public async Task<CheckoutSessionState> HoldUntilAsync(string sessionId, Guid orderId,
+        IReadOnlyList<SeatHold> holds, DateTimeOffset expiresAt, CancellationToken cancellationToken = default)
+    {
+        if (expiresAt <= _clock.Now) throw new InvalidOperationException("Checkout expired.");
+        var state = new CheckoutSessionState { SessionId = sessionId, OrderId = orderId,
+            Holds = holds.Distinct().ToList(), ExpiresAt = expiresAt };
+        await _store.SetAsync(Key(sessionId), JsonSerializer.Serialize(state, SerializerOptions), expiresAt - _clock.Now, cancellationToken);
+        return state;
+    }
+
     public async Task<CheckoutSessionState?> GetAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
@@ -101,7 +111,7 @@ public class CheckoutSessionService : ICheckoutSessionService
         }
 
         // Phòng vệ lớp TTL: kho có thể trả về giá trị cũ nếu cấu hình TTL vừa bị rút ngắn.
-        if (state.ExpiresAt <= _clock.Now)
+        if ((state.IsPaymentPending ? state.PaymentPendingExpiresAt ?? state.ExpiresAt : state.ExpiresAt) <= _clock.Now)
         {
             await _store.RemoveAsync(Key(sessionId), cancellationToken);
             return null;
@@ -115,6 +125,16 @@ public class CheckoutSessionService : ICheckoutSessionService
             ? Task.FromResult(false)
             : _store.RemoveAsync(Key(sessionId), cancellationToken);
 
+    public async Task<CheckoutSessionState?> MarkPaymentPendingUntilAsync(string sessionId, Guid orderId,
+        DateTimeOffset expiresAt, CancellationToken cancellationToken = default)
+    {
+        var existing = await GetAsync(sessionId, cancellationToken);
+        if (existing is null || expiresAt <= _clock.Now) return null;
+        var state = existing with { OrderId = orderId, IsPaymentPending = true, PaymentPendingExpiresAt = expiresAt };
+        await _store.SetAsync(Key(sessionId), JsonSerializer.Serialize(state, SerializerOptions), expiresAt - _clock.Now, cancellationToken);
+        return state;
+    }
+
     public async Task<CheckoutSessionState?> MarkPaymentPendingAsync(
         string sessionId, Guid orderId, CancellationToken cancellationToken = default)
     {
@@ -124,6 +144,7 @@ public class CheckoutSessionService : ICheckoutSessionService
             return null;
         }
 
+        if (existing.IsPaymentPending) return existing;
         var now = _clock.Now;
         var state = existing with
         {
@@ -132,8 +153,8 @@ public class CheckoutSessionService : ICheckoutSessionService
             PaymentPendingExpiresAt = now.Add(_paymentPendingTtl)
         };
 
-        // BR-HOLD-03: cửa sổ PaymentPending là cửa sổ RIÊNG, không kéo dài hạn giữ ghế.
-        var remaining = state.ExpiresAt - now;
+        // Cửa sổ chờ payment riêng, chỉ mở một lần; giữ state đến hết cửa sổ này.
+        var remaining = state.PaymentPendingExpiresAt!.Value - now;
         if (remaining <= TimeSpan.Zero)
         {
             return null;

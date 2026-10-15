@@ -1,4 +1,5 @@
 using MediatR;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Refunds.Services;
@@ -43,18 +44,53 @@ public record RequestRefundCommand(
     string? IpAddress = null,
     string? CreatedBy = null) : IRequest<RequestRefundResultDto>;
 
+public sealed class RequestRefundCommandValidator : AbstractValidator<RequestRefundCommand>
+{
+    public RequestRefundCommandValidator()
+    {
+        RuleFor(x => x.BookingId).NotEmpty();
+        RuleFor(x => x.Reason).NotEmpty().MaximumLength(200);
+    }
+}
+
 public class RequestRefundCommandHandler : IRequestHandler<RequestRefundCommand, RequestRefundResultDto>
 {
     private readonly IApplicationDbContext _context;
     private readonly IEnumerable<IRefundGateway> _refundGateways;
+    private readonly ICommercialTransactionRunner _transactions;
 
-    public RequestRefundCommandHandler(IApplicationDbContext context, IEnumerable<IRefundGateway> refundGateways)
+    public RequestRefundCommandHandler(IApplicationDbContext context, IEnumerable<IRefundGateway> refundGateways, ICommercialTransactionRunner transactions)
     {
         _context = context;
         _refundGateways = refundGateways;
+        _transactions = transactions;
     }
 
     public async Task<RequestRefundResultDto> Handle(RequestRefundCommand request, CancellationToken cancellationToken)
+    {
+        var prepared = await _transactions.RunAsync(() => PrepareAsync(request, cancellationToken), cancellationToken);
+        if (prepared.Request is not null)
+        {
+            RefundGatewayResult outcome;
+            try { outcome = await prepared.Gateway.RefundAsync(prepared.Request, cancellationToken); }
+            catch (Exception) { outcome = RefundGatewayResult.Pending(); }
+            await _transactions.RunAsync(async () =>
+            {
+                ApplyGatewayOutcome(prepared.Refund, outcome, DateTimeOffset.UtcNow);
+                await _context.SaveChangesAsync(cancellationToken);
+                return true;
+            }, cancellationToken);
+        }
+        var refund = prepared.Refund;
+        return new RequestRefundResultDto(refund.Id, refund.OrderId, refund.RefundBookingId!.Value,
+            refund.Amount, refund.Currency, refund.Status.ToString(), refund.GatewayName ?? "",
+            refund.Status == FinancialTransactionStatus.Requested || refund.GatewayName == "Manual", prepared.Allocations);
+    }
+
+    private record PreparedRefund(FinancialTransaction Refund, IRefundGateway Gateway,
+        RefundGatewayRequest? Request, IReadOnlyList<RefundTicketAllocationDto> Allocations);
+
+    private async Task<PreparedRefund> PrepareAsync(RequestRefundCommand request, CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
 
@@ -74,13 +110,22 @@ public class RequestRefundCommandHandler : IRequestHandler<RequestRefundCommand,
             });
         }
 
+        var existing = await _context.FinancialTransactions.Include(r => r.RefundAllocations).ThenInclude(a => a.Ticket)
+            .FirstOrDefaultAsync(r => r.RefundBookingId == booking.Id && r.TransactionType == FinancialTransactionType.Refund &&
+                (r.Status == FinancialTransactionStatus.Requested || r.Status == FinancialTransactionStatus.Processing ||
+                 r.Status == FinancialTransactionStatus.Succeeded), cancellationToken);
+        if (existing is not null)
+            return new PreparedRefund(existing, SelectGateway(), null, existing.RefundAllocations
+                .Select(a => new RefundTicketAllocationDto(a.TicketId, a.Ticket!.TicketCode, a.Amount, "Existing refund")).ToList());
+
         var trip = booking.Trip;
 
         // BR-PAY-03: Refund phải tham chiếu một Payment thành công thuộc cùng Order.
         var payment = await _context.FinancialTransactions
             .Where(t => t.OrderId == booking.OrderId
                         && t.TransactionType == FinancialTransactionType.Payment
-                        && t.Status == FinancialTransactionStatus.Succeeded)
+                        && t.Status == FinancialTransactionStatus.Succeeded
+                        && (booking.Tickets.Count == 0 || t.FailureReason == null || !t.FailureReason.StartsWith("ReconciliationRequired:")))
             .OrderByDescending(t => t.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -94,6 +139,8 @@ public class RequestRefundCommandHandler : IRequestHandler<RequestRefundCommand,
         }
 
         var tickets = booking.Tickets.ToList();
+        if (tickets.Count == 0 && payment.FailureReason?.StartsWith("ReconciliationRequired:") == true)
+            return await PrepareLatePaymentRefundAsync(booking, payment, request, cancellationToken);
         if (tickets.Count == 0)
         {
             throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
@@ -118,7 +165,7 @@ public class RequestRefundCommandHandler : IRequestHandler<RequestRefundCommand,
         }
 
         // BR-PAY-06: số tiền hoàn tính theo paid allocation, không vượt số đã thu còn có thể hoàn.
-        var refundableAmount = eligible.Sum(d => d.Ticket.PaidFareSnapshot);
+        var refundableAmount = 0m;
 
         var alreadyRefundedTicketIds = await _context.RefundTicketAllocations
             .AsNoTracking()
@@ -140,16 +187,14 @@ public class RequestRefundCommandHandler : IRequestHandler<RequestRefundCommand,
             throw new ConcurrencyException("Các vé này đã có yêu cầu hoàn tiền trước đó. Không được hoàn trùng.");
         }
 
+        refundableAmount = refundableTickets.Sum(d => d.Ticket.PaidFareSnapshot);
+
         // Số tiền còn có thể hoàn = tiền đã thu - tổng các khoản đã hoàn/đang xử lý.
-        var settledRefundTotal = await _context.RefundTicketAllocations
-            .AsNoTracking()
-            .Where(a => a.RefundTransaction != null
-                        && a.RefundTransaction.OrderId == booking.OrderId
-                        && a.RefundTransaction.TransactionType == FinancialTransactionType.Refund
-                        && (a.RefundTransaction.Status == FinancialTransactionStatus.Succeeded
-                            || a.RefundTransaction.Status == FinancialTransactionStatus.Processing
-                            || a.RefundTransaction.Status == FinancialTransactionStatus.Requested))
-            .SumAsync(a => (decimal?)a.Amount, cancellationToken) ?? 0m;
+        var settledRefundTotal = await _context.FinancialTransactions.AsNoTracking()
+            .Where(r => r.OriginalPaymentId == payment.Id && r.TransactionType == FinancialTransactionType.Refund &&
+                (r.Status == FinancialTransactionStatus.Requested || r.Status == FinancialTransactionStatus.Processing ||
+                 r.Status == FinancialTransactionStatus.Succeeded))
+            .SumAsync(r => (decimal?)r.Amount, cancellationToken) ?? 0m;
 
         var refundableBalance = payment.Amount - settledRefundTotal;
         if (refundableAmount > refundableBalance)
@@ -176,10 +221,10 @@ public class RequestRefundCommandHandler : IRequestHandler<RequestRefundCommand,
             TransactionType = FinancialTransactionType.Refund,
             Amount = refundableAmount,
             Currency = payment.Currency,
-            Status = FinancialTransactionStatus.Requested,
+            Status = FinancialTransactionStatus.Processing,
             GatewayName = gateway.Name,
             MerchantReference = payment.MerchantReference,
-            IdempotencyKey = $"REFUND_{booking.Id}_{now:yyyyMMddHHmmssfff}",
+            IdempotencyKey = $"REFUND_{booking.Id:N}",
             ProcessedAt = now
         };
 
@@ -218,37 +263,49 @@ public class RequestRefundCommandHandler : IRequestHandler<RequestRefundCommand,
             ? BookingStatus.Cancelled
             : BookingStatus.Terminated;
 
-        var gatewayResult = await gateway.RefundAsync(
-            new RefundGatewayRequest
+        var gatewayRequest = new RefundGatewayRequest
             {
                 MerchantReference = payment.MerchantReference ?? payment.GatewayReference ?? booking.BookingCode,
                 GatewayReference = payment.GatewayReference,
-                RequestId = refund.IdempotencyKey,
-                TransactionDate = (payment.GatewayRequestCreatedAt ?? now).ToString("yyyyMMddHHmmss"),
+                RequestId = refund.Id.ToString("N"),
+                TransactionDate = (payment.GatewayRequestCreatedAt ?? throw new InvalidOperationException("Original payment request time missing")).ToOffset(TimeSpan.FromHours(7)).ToString("yyyyMMddHHmmss"),
                 Amount = refundableAmount,
                 CreatedBy = request.CreatedBy ?? "system",
                 // vnp_IpAddr là trường bắt buộc của API VNPAY (độ dài 7-45), nên không được để rỗng.
                 IpAddress = string.IsNullOrWhiteSpace(request.IpAddress) ? "127.0.0.1" : request.IpAddress,
-                OrderInfo = $"Hoan tien {request.Reason}".Replace("|", " "),
-                IsFullRefund = refundableAmount >= refundableBalance
-            },
-            cancellationToken);
-
-        ApplyGatewayOutcome(refund, gatewayResult, now);
-
+                OrderInfo = "Refund waterbus " + refund.Id.ToString("N"),
+                IsFullRefund = refundableAmount == payment.Amount
+            };
         _context.FinancialTransactions.Add(refund);
         await _context.SaveChangesAsync(cancellationToken);
+        return new PreparedRefund(refund, gateway, gatewayRequest, allocations);
+    }
 
-        return new RequestRefundResultDto(
-            refund.Id,
-            booking.OrderId,
-            booking.Id,
-            refund.Amount,
-            refund.Currency,
-            refund.Status.ToString(),
-            gateway.Name,
-            RequiresManualAction: refund.Status != FinancialTransactionStatus.Succeeded,
-            Tickets: allocations);
+    private async Task<PreparedRefund> PrepareLatePaymentRefundAsync(Booking booking, FinancialTransaction payment,
+        RequestRefundCommand request, CancellationToken ct)
+    {
+        // Tiền nhận sau expiry không có Ticket allocation: hoàn toàn bộ receipt không có quyền đi tàu.
+        if (await _context.Tickets.AnyAsync(t => t.Booking!.OrderId == booking.OrderId, ct))
+            throw new ConcurrencyException("Khoản payment muộn có vé cần đối soát riêng.");
+        var existing = await _context.FinancialTransactions.Include(r => r.RefundAllocations)
+            .FirstOrDefaultAsync(r => r.OriginalPaymentId == payment.Id && r.TransactionType == FinancialTransactionType.Refund, ct);
+        var gateway = SelectGateway();
+        if (existing is not null) return new PreparedRefund(existing, gateway, null, []);
+        var refund = new FinancialTransaction { Order = booking.Order, OrderId = booking.OrderId,
+            RefundBooking = booking, RefundBookingId = booking.Id, OriginalPayment = payment, OriginalPaymentId = payment.Id,
+            TransactionType = FinancialTransactionType.Refund, Status = FinancialTransactionStatus.Processing,
+            Amount = payment.Amount, Currency = payment.Currency, GatewayName = gateway.Name,
+            IdempotencyKey = "LATE_REFUND_" + payment.Id.ToString("N"), MerchantReference = payment.MerchantReference };
+        var date = payment.GatewayRequestCreatedAt ?? throw new ConcurrencyException("Thiếu thời điểm payment gốc.");
+        _context.FinancialTransactions.Add(refund);
+        await _context.SaveChangesAsync(ct);
+        return new PreparedRefund(refund, gateway, new RefundGatewayRequest
+        {
+            MerchantReference = payment.MerchantReference!, GatewayReference = payment.GatewayReference,
+            RequestId = refund.Id.ToString("N"), TransactionDate = date.ToOffset(TimeSpan.FromHours(7)).ToString("yyyyMMddHHmmss"),
+            Amount = refund.Amount, CreatedBy = request.CreatedBy ?? "system", IpAddress = request.IpAddress ?? "127.0.0.1",
+            OrderInfo = "Refund late waterbus payment", IsFullRefund = true
+        }, []);
     }
 
     /// <summary>

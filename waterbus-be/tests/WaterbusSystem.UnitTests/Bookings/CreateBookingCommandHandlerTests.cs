@@ -23,7 +23,7 @@ public class CreateBookingCommandHandlerTests
         using var context = TestDbContextFactory.CreateDbContext();
         var seed = TestDbContextFactory.SeedTrip(context);
 
-        var handler = new CreateBookingCommandHandler(context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
+        var handler = CommercialHandlerFactory.Booking(context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
 
         var command = new CreateBookingCommand(
             TripId: seed.Trip.Id,
@@ -79,7 +79,7 @@ public class CreateBookingCommandHandlerTests
         using var context = TestDbContextFactory.CreateDbContext();
         var seed = TestDbContextFactory.SeedTrip(context);
 
-        var handler = new CreateBookingCommandHandler(context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
+        var handler = CommercialHandlerFactory.Booking(context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
 
         // seed.SeatOnOtherBoat thuộc otherBoat, không phải boat vận hành seed.Trip
         var command = new CreateBookingCommand(
@@ -102,7 +102,7 @@ public class CreateBookingCommandHandlerTests
         using var context = TestDbContextFactory.CreateDbContext();
         var seed = TestDbContextFactory.SeedTrip(context);
 
-        var handler = new CreateBookingCommandHandler(context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
+        var handler = CommercialHandlerFactory.Booking(context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
 
         // Khách 1: A -> B (chặng [1,2))
         var firstBooking = await handler.Handle(new CreateBookingCommand(
@@ -126,7 +126,7 @@ public class CreateBookingCommandHandlerTests
         using var context = TestDbContextFactory.CreateDbContext();
         var seed = TestDbContextFactory.SeedTrip(context);
 
-        var handler = new CreateBookingCommandHandler(context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
+        var handler = CommercialHandlerFactory.Booking(context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
 
         // Khách 1: A -> C (toàn tuyến, chặng [1,3))
         await handler.Handle(new CreateBookingCommand(
@@ -150,7 +150,7 @@ public class CreateBookingCommandHandlerTests
         // Dùng chung 1 FakeDistributedLockService để mô phỏng 2 request tranh chấp cùng 1 ghế
         var sharedLockService = new FakeDistributedLockService();
 
-        var handler1 = new CreateBookingCommandHandler(context, sharedLockService, new SeatAvailabilityService(context));
+        var handler1 = CommercialHandlerFactory.Booking(context, sharedLockService, new SeatAvailabilityService(context));
 
         var command = new CreateBookingCommand(
             seed.Trip.Id, new List<Guid> { seed.Seat1.Id }, seed.StationA.Id, seed.StationC.Id,

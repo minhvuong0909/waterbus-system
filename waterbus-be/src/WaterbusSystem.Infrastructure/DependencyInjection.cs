@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Bookings.Services;
+using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
 using WaterbusSystem.Application.Features.Incidents;
 using WaterbusSystem.Application.Features.Tracking;
 using WaterbusSystem.Infrastructure.BackgroundJobs;
@@ -112,6 +113,18 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<ISeatAvailabilityService, SeatAvailabilityService>();
+        services.AddScoped<ICommercialTransactionRunner, SqlCommercialTransactionRunner>();
+        services.AddScoped<BookingCreationService>();
+        services.AddScoped<CheckoutCommitEffects>();
+        services.AddScoped<WaterbusSystem.Application.Features.Payments.Services.PaymentConfirmationService>();
+        services.AddScoped<CheckoutAccessService>();
+        services.AddScoped<IBookingQrSigner, RsaBookingQrSigner>();
+        services.AddSingleton(new CheckoutOptions
+        {
+            SessionTtlMinutes = configuration.GetValue("Checkout:SessionTtlMinutes", 10),
+            PaymentPendingTtlMinutes = configuration.GetValue("Checkout:PaymentPendingTtlMinutes", 15),
+            AccessTokenTtlDays = configuration.GetValue("Checkout:AccessTokenTtlDays", 30)
+        });
 
         // 5.1 BR-RF-10: hai nhánh hoàn tiền. Ưu tiên gateway tự động (VNPAY); nếu gateway không hỗ trợ
         // hoặc lỗi không xử lý được, yêu cầu hoàn chuyển sang nhánh thủ công của Admin.
@@ -129,8 +142,8 @@ public static class DependencyInjection
             return new CheckoutSessionService(
                 sp.GetRequiredService<ICheckoutSessionStore>(),
                 sp.GetRequiredService<IDateTimeService>(),
-                ReadMinutes(configuration, "Checkout:SessionTtlMinutes", fallbackMinutes: 10),
-                ReadMinutes(configuration, "Checkout:PaymentPendingTtlMinutes", fallbackMinutes: 15));
+                sp.GetRequiredService<CheckoutOptions>().HoldDuration,
+                sp.GetRequiredService<CheckoutOptions>().PaymentDuration);
         });
 
         // 6. BackgroundService dọn dẹp Booking giữ chỗ quá hạn 10 phút chưa thanh toán

@@ -37,6 +37,9 @@ public interface ICheckoutSessionService
         string sessionId, Guid orderId, IReadOnlyList<SeatHold> holds, CancellationToken cancellationToken = default);
 
     /// <summary>Đọc trạng thái phiên; trả null nếu không tồn tại hoặc đã hết hạn.</summary>
+    Task<CheckoutSessionState> HoldUntilAsync(string sessionId, Guid orderId, IReadOnlyList<SeatHold> holds,
+        DateTimeOffset expiresAt, CancellationToken cancellationToken = default);
+
     Task<CheckoutSessionState?> GetAsync(string sessionId, CancellationToken cancellationToken = default);
 
     /// <summary>Giải phóng toàn bộ hold của phiên. BR-HOLD-03 / BR-PAY-05.</summary>
@@ -46,6 +49,9 @@ public interface ICheckoutSessionService
     /// BR-HOLD-03: đánh dấu phiên đang chờ gateway xác nhận, có cửa sổ PaymentPending riêng
     /// để callback trễ vẫn còn cơ hội được đối soát.
     /// </summary>
+    Task<CheckoutSessionState?> MarkPaymentPendingUntilAsync(string sessionId, Guid orderId,
+        DateTimeOffset expiresAt, CancellationToken cancellationToken = default);
+
     Task<CheckoutSessionState?> MarkPaymentPendingAsync(
         string sessionId, Guid orderId, CancellationToken cancellationToken = default);
 }
