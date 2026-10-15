@@ -1,4 +1,5 @@
 using System.Text;
+using Azure.Storage.Blobs;
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -17,6 +18,7 @@ using WaterbusSystem.Infrastructure.Locking;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.Infrastructure.Services;
 using WaterbusSystem.Infrastructure.Services.AiBooking;
+using WaterbusSystem.Infrastructure.Services.AudioStorage;
 using WaterbusSystem.Infrastructure.Services.Payment;
 using WaterbusSystem.Infrastructure.Services.Tts;
 using WaterbusSystem.Infrastructure.Services.Tracking;
@@ -126,6 +128,22 @@ public static class DependencyInjection
         services.Configure<AzureSpeechOptions>(configuration.GetSection(AzureSpeechOptions.SectionName));
         services.AddTransient<IAzureSpeechSynthesizerClient, DefaultAzureSpeechSynthesizerClient>();
         services.AddScoped<ITextToSpeechService, AzureSpeechTtsService>();
+
+        // Kho MP3 private. Chỉ khởi tạo client khi chức năng lưu audio được gọi;
+        // ứng dụng vẫn khởi động được trước khi team cấp Azure Storage credential.
+        services.Configure<AzureBlobAudioStorageOptions>(configuration.GetSection(AzureBlobAudioStorageOptions.SectionName));
+        services.AddScoped<IAudioStorageService>(provider =>
+        {
+            var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AzureBlobAudioStorageOptions>>().Value;
+            if (string.IsNullOrWhiteSpace(options.ConnectionString) || string.IsNullOrWhiteSpace(options.ContainerName))
+                throw new InvalidOperationException("Thiếu AzureBlobAudioStorage:ConnectionString hoặc ContainerName. Cấu hình secret ngoài Git trước khi lưu MP3.");
+
+            var container = new BlobContainerClient(options.ConnectionString, options.ContainerName);
+            return new AzureBlobAudioStorageService(
+                container,
+                provider.GetRequiredService<FluentValidation.IValidator<WaterbusSystem.Application.Common.Models.StoreAudioCommand>>(),
+                provider.GetRequiredService<ILogger<AzureBlobAudioStorageService>>());
+        });
 
         // 9. BackgroundService dọn dẹp Booking giữ chỗ quá hạn 10 phút chưa thanh toán
         services.AddHostedService<ExpiredBookingCleanupService>();

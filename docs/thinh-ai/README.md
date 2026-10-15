@@ -1,5 +1,7 @@
 # Hướng dẫn triển khai phần việc của Thịnh
 
+Hướng dẫn lấy và cấu hình key an toàn: [AI_KEYS_AND_LOCAL_TEST.md](AI_KEYS_AND_LOCAL_TEST.md).
+
 Tài liệu này là bản hướng dẫn triển khai cho **phần AI của Thịnh**, đối chiếu Google Drive với repo tại ngày 09/10/2026. Tab `module` của Google Doc “Bản sao của Waterbus Management” ghi rõ **“Thành viên 5: AI Developer – Thịnh”**, gồm:
 
 - **AI Booking Assistant:** Semantic Kernel kết nối OpenAI/Gemini, function/plugin gọi API tìm chuyến và trả dữ liệu cho UI Card.

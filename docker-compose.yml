@@ -74,6 +74,14 @@ services:
       VnPay__BaseUrl: ${VNPAY_BASE_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
       VnPay__ReturnUrl: ${PUBLIC_URL:-http://localhost:8080}/payment/callback
       Tracking__PersistIntervalSeconds: ${TRACKING_PERSIST_INTERVAL_SECONDS:-15}
+      AzureSpeech__SubscriptionKey: ${AZURE_SPEECH_KEY:-}
+      AzureSpeech__Region: ${AZURE_SPEECH_REGION:-}
+      AzureSpeech__DefaultVoiceName: ${AZURE_SPEECH_VOICE:-}
+      AzureSpeech__OutputFormat: ${AZURE_SPEECH_OUTPUT_FORMAT:-Audio16Khz32KBitRateMonoMp3}
+      AzureBlobAudioStorage__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING:-}
+      AzureBlobAudioStorage__ContainerName: ${AZURE_BLOB_AUDIO_CONTAINER:-audio-guides-private}
+      AiBookingAssistant__OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+      AiBookingAssistant__OpenAI__IsEnabled: ${AI_BOOKING_ENABLED:-false}
       Tracking__Simulator__Enabled: ${TRACKING_SIMULATOR_ENABLED:-false}
       Tracking__Simulator__IntervalSeconds: ${TRACKING_SIMULATOR_INTERVAL_SECONDS:-3}
       Tracking__Simulator__IncludeScheduledTrips: ${TRACKING_SIMULATOR_INCLUDE_SCHEDULED:-false}
