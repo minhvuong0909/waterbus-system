@@ -1,0 +1,580 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@600;700;800&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"on-tertiary-container":"#a88460","surface":"#faf9fb","primary-fixed-dim":"#b2c9e2","mist":"#F4F7F8","on-primary-container":"#778da4","on-primary-fixed-variant":"#33495d","surface-container":"#efedef","primary":"#000f1d","on-surface":"#1b1c1d","on-error-container":"#93000a","surface-variant":"#e3e2e4","secondary-fixed-dim":"#7fd4d8","on-secondary-fixed":"#002021","sky-aqua":"#4FC3D8","deep-river":"#0D2538","inverse-surface":"#303032","primary-fixed":"#cee5ff","surface-container-lowest":"#ffffff","error":"#ba1a1a","coral-glow":"#F08A6B","background":"#faf9fb","on-secondary-fixed-variant":"#004f52","on-error":"#ffffff","signal-amber":"#E8B63E","surface-dim":"#dbd9db","secondary-fixed":"#9bf1f5","inverse-primary":"#b2c9e2","on-secondary":"#ffffff","ink":"#18242D","on-surface-variant":"#43474c","on-tertiary-fixed":"#2c1600","outline-variant":"#c3c7cd","on-secondary-container":"#007074","tertiary-container":"#351e04","teal-flow":"#147A7E","on-tertiary-fixed-variant":"#5d4123","error-container":"#ffdad6","outline":"#73777d","primary-container":"#0d2538","on-primary":"#ffffff","tertiary-fixed-dim":"#e8bf98","surface-container-high":"#e9e8e9","surface-container-low":"#f5f3f5","secondary-container":"#9bf1f5","sand-light":"#E9F0EC","inverse-on-surface":"#f2f0f2","on-tertiary":"#ffffff","surface-bright":"#faf9fb","surface-container-highest":"#e3e2e4","on-background":"#1b1c1d","secondary":"#00696d","on-primary-fixed":"#041d30","tertiary-fixed":"#ffdcbd","tertiary":"#190a00","surface-tint":"#4b6176"},borderRadius:{DEFAULT:"0.25rem",lg:"0.5rem",xl:"0.75rem",full:"9999px"},spacing:{margin:"32px","space-lg":"24px","space-xl":"32px","space-md":"16px","space-3xl":"64px",gutter:"24px","space-2xl":"48px","space-sm":"8px","space-xs":"4px"},fontFamily:{"headline-sm":["Plus Jakarta Sans"],"headline-xl":["Plus Jakarta Sans"],"body-sm":["Inter"],"body-md":["Inter"],"body-lg":["Inter"],"numeric-md":["Plus Jakarta Sans"],"headline-xl-mobile":["Plus Jakarta Sans"],"headline-lg":["Plus Jakarta Sans"],"headline-md":["Plus Jakarta Sans"],"numeric-lg":["Plus Jakarta Sans"]},fontSize:{"headline-sm":["20px",{lineHeight:"28px",fontWeight:"600"}],"headline-xl":["56px",{lineHeight:"64px",letterSpacing:"-0.02em",fontWeight:"700"}],"body-sm":["12px",{lineHeight:"16px",fontWeight:"400"}],"body-md":["14px",{lineHeight:"20px",fontWeight:"400"}],"body-lg":["16px",{lineHeight:"24px",fontWeight:"400"}],"numeric-md":["18px",{lineHeight:"24px",fontWeight:"600"}],"headline-xl-mobile":["36px",{lineHeight:"44px",letterSpacing:"-0.01em",fontWeight:"700"}],"headline-lg":["38px",{lineHeight:"46px",letterSpacing:"-0.01em",fontWeight:"600"}],"headline-md":["26px",{lineHeight:"34px",fontWeight:"600"}],"numeric-lg":["32px",{lineHeight:"38px",fontWeight:"700"}]}}}};</script></head><body class="bg-[#EEF4F6] font-body-md text-deep-river min-h-screen antialiased"><header class="fixed top-0 w-full z-50 bg-[#EEF4F6]/90 backdrop-blur-xl border-b border-slate-200/80 shadow-[0_1px_8px_rgba(0,0,0,0.03)]"><div class="h-20 max-w-7xl mx-auto px-6 lg:px-12 flex items-center justify-between gap-gutter"><div class="flex items-center gap-space-md"><img alt="Brand logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WiF1NNf59f3fm7YJTVwxqFCw3wL1kpEErVxVKdtffjYZSE8rQcimuCrd5m6V76pWXG5bJvJDdRoZpBEjA_GNbPglxJH1dQuFydgjV3UG19EwKFJxbV6q9TY0sodBd7F8JohBy0giL7H2aZ2jYp6R_WLIJf6FvCJQYgRhGklczPLysss8-K8zR_cZt3NH-u9tohMmc14WvzX5FGl4GzQ58s-iJ1ab1wCYtkCgBkJFkXHSazs2KBHG1lBF0l"><span class="font-headline-sm text-headline-sm text-deep-river tracking-tight">Smart Waterbus</span></div><nav class="hidden lg:flex items-center gap-space-lg" data-active-classes="bg-primary-container text-on-primary-container font-semibold rounded-lg px-space-md py-space-xs"><a class="text-on-surface-variant font-body-md text-body-md hover:text-deep-river transition-colors" data-path="home" href="#">Home</a><a class="text-on-surface-variant font-body-md text-body-md hover:text-deep-river transition-colors" data-path="routes" href="#">Routes</a><a class="text-on-surface-variant font-body-md text-body-md hover:text-deep-river transition-colors" data-path="experience" href="#">Experience</a><a class="text-on-surface-variant font-body-md text-body-md hover:text-deep-river transition-colors" data-path="about" href="#">About</a></nav><div class="flex items-center gap-space-md"><button class="p-space-xs rounded-full text-on-surface-variant hover:text-deep-river hover:bg-white transition-colors flex items-center justify-center" type="button"><span class="material-symbols-outlined">search</span></button><div class="flex items-center gap-space-xs px-space-sm py-space-xs rounded-lg text-deep-river font-body-md text-body-md"><span class="material-symbols-outlined text-[18px]">language</span><span class="font-semibold">EN</span></div><a class="hidden sm:inline-flex items-center justify-center px-space-lg py-space-sm bg-teal-flow text-on-primary font-body-md text-body-md rounded-lg font-semibold shadow-[0_1px_8px_rgba(20,122,126,0.2)] hover:bg-secondary transition-colors" data-path="book-a-trip" href="#">Book a Trip</a><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-20 bg-[#EEF4F6]"><div class="flex flex-col w-full max-w-7xl mx-auto px-6 lg:px-12 py-space-xl text-deep-river font-body-md">
+<!-- BREADCRUMB & HEADER -->
+<div class="flex flex-col gap-space-sm mb-space-lg">
+<div class="flex items-center gap-space-sm text-body-sm text-on-surface-variant font-body-sm">
+<a class="hover:text-deep-river transition-colors" data-path="home" href="#">Home</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<a class="hover:text-deep-river transition-colors" data-path="routes" href="#">Search Results</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-on-surface-variant">Trip WB-01</span>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-teal-flow font-semibold">Choose Your Seat</span>
+</div>
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-md">
+<div>
+<div class="inline-flex items-center gap-space-xs px-space-sm py-0.5 rounded-full bg-sand-light text-teal-flow font-semibold text-body-sm mb-space-xs border border-teal-flow/20">
+<span class="material-symbols-outlined text-[16px]">airline_seat_recline_extra</span>
+          Step 2 of 4: Seat Selection
+        </div>
+<h1 class="font-headline-lg text-headline-lg text-deep-river tracking-tight">Choose Your Seat</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mt-1">Select your preferred seat in the climate-controlled panoramic salon.</p>
+</div>
+<div class="flex items-center gap-space-md text-body-sm text-on-surface-variant bg-white/70 px-space-md py-1.5 rounded-lg border border-slate-200/60 shadow-xs">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-signal-amber animate-pulse"></span>
+<span>Fast-filling morning service</span>
+</div>
+<span class="text-outline-variant">•</span>
+<div class="flex items-center gap-1 text-teal-flow font-semibold">
+<span class="material-symbols-outlined text-[18px]">timer</span>
+<span>Cart holds for 10:00</span>
+</div>
+</div>
+</div>
+</div>
+<!-- TRIP SUMMARY CONTEXT STRIP -->
+<div class="w-full bg-white rounded-xl p-space-md lg:px-space-lg lg:py-space-md border border-slate-200 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-space-md mb-space-lg">
+<div class="flex items-center gap-space-md flex-wrap lg:flex-nowrap">
+<div class="flex items-center gap-space-sm bg-primary-container text-white px-space-md py-1.5 rounded-lg shadow-xs">
+<span class="material-symbols-outlined text-sky-aqua text-[20px]">directions_boat</span>
+<span class="font-headline-sm text-headline-sm tracking-tight text-white">WB-01</span>
+<span class="text-body-sm px-1.5 py-0.5 rounded bg-white/15 text-primary-fixed font-medium">Express</span>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex flex-col">
+<span class="font-headline-sm text-numeric-md font-semibold text-deep-river leading-tight">08:30</span>
+<span class="text-body-sm text-on-surface-variant">Bach Dang Pier (D1)</span>
+</div>
+<div class="flex items-center px-space-xs text-on-surface-variant">
+<div class="w-10 h-[2px] bg-slate-200 relative">
+<span class="material-symbols-outlined absolute -top-2 left-1/2 -translate-x-1/2 text-[16px] text-teal-flow">arrow_forward</span>
+</div>
+</div>
+<div class="flex flex-col">
+<span class="font-headline-sm text-numeric-md font-semibold text-deep-river leading-tight">08:42</span>
+<span class="text-body-sm text-on-surface-variant">Thu Thiem Pier (D2)</span>
+</div>
+</div>
+<div class="hidden xl:flex items-center gap-space-xs bg-[#EEF4F6] px-space-md py-1 rounded-lg text-body-sm text-on-surface-variant border border-slate-200/50">
+<span class="material-symbols-outlined text-teal-flow text-[18px]">schedule</span>
+<span>12 min Direct Crossing</span>
+</div>
+</div>
+<div class="flex items-center justify-between md:justify-end gap-space-lg pt-space-sm md:pt-0 border-t md:border-t-0 border-slate-100">
+<div class="flex flex-col text-left md:text-right">
+<span class="text-body-sm text-on-surface-variant">1 Passenger • Eco Class</span>
+<span class="font-headline-sm text-numeric-md font-bold text-deep-river">15,000 VND</span>
+</div>
+<button class="inline-flex items-center gap-1 px-space-md py-1.5 rounded-lg text-teal-flow font-semibold hover:bg-sand-light transition-colors text-body-sm border border-transparent hover:border-teal-flow/20" type="button">
+<span>Change Trip</span>
+<span class="material-symbols-outlined text-[16px]">edit</span>
+</button>
+</div>
+</div>
+<!-- CRISP GUIDANCE BANNER -->
+<div class="w-full bg-[#EBF2F0] border border-teal-flow/20 rounded-xl px-space-md py-2.5 flex items-center justify-between gap-space-md mb-space-lg">
+<div class="flex items-center gap-2 text-deep-river text-body-sm font-medium">
+<span class="material-symbols-outlined text-teal-flow text-[20px]">touch_app</span>
+<span>Tap an available seat to change your reservation. Seats are held for 10:00 during checkout.</span>
+</div>
+<div class="hidden sm:flex items-center gap-1.5 text-[11px] text-teal-flow font-semibold uppercase tracking-wider">
+<span class="w-1.5 h-1.5 rounded-full bg-teal-flow animate-ping"></span>
+<span>Live Inventory</span>
+</div>
+</div>
+<!-- MAIN TWO-COLUMN BOOKING INTERFACE -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-start">
+<!-- LEFT COLUMN: VESSEL DECK SEAT MAP HERO (approx 68% / 8 cols) -->
+<div class="lg:col-span-8 flex flex-col gap-space-md">
+<!-- CABIN SEAT CONTAINER WITH ENHANCED SPATIAL ARCHITECTURE -->
+<div class="bg-white rounded-2xl p-space-md md:p-space-xl border border-slate-200 shadow-sm relative overflow-hidden">
+<!-- DECK HEADER & CLEAR LEGEND -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-md pb-space-lg border-b border-slate-100">
+<div>
+<div class="flex items-center gap-space-xs">
+<span class="w-2.5 h-2.5 rounded-full bg-teal-flow"></span>
+<h2 class="font-headline-sm text-headline-sm text-deep-river">Main Panoramic Deck</h2>
+</div>
+<p class="text-body-sm text-on-surface-variant mt-0.5">River Glider Catamaran • High-speed twin hull</p>
+</div>
+<!-- SEAT MAP LEGEND -->
+<div class="flex items-center flex-wrap gap-space-md text-body-sm">
+<div class="flex items-center gap-1.5">
+<div class="w-6 h-6 rounded-md bg-white border-2 border-teal-flow/40 flex items-center justify-center text-teal-flow font-bold text-[10px]">
+              A1
+            </div>
+<span class="text-on-surface-variant">Available</span>
+</div>
+<div class="flex items-center gap-1.5">
+<div class="w-6 h-6 rounded-md bg-teal-flow text-white flex items-center justify-center font-bold text-[10px] shadow-xs">
+              A2
+            </div>
+<span class="text-deep-river font-semibold">Selected</span>
+</div>
+<div class="flex items-center gap-1.5">
+<div class="relative w-6 h-6 rounded-md bg-white border-2 border-teal-flow/30 flex items-center justify-center">
+<span class="w-2.5 h-2.5 rounded-full bg-sky-aqua"></span>
+</div>
+<span class="text-on-surface-variant">Window River View</span>
+</div>
+<div class="flex items-center gap-1.5">
+<div class="w-6 h-6 rounded-md bg-[#D9E2E8] border border-slate-300 text-slate-400 flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">block</span>
+</div>
+<span class="text-on-surface-variant">Occupied</span>
+</div>
+</div>
+</div>
+<!-- 2.5D VESSEL CABIN SCHEMATIC & CATAMARAN WATER FLOW -->
+<div class="relative w-full mx-auto my-space-md bg-gradient-to-b from-[#E0F2F5] via-[#EBF7F8] to-[#E3EFF3] rounded-2xl p-3 sm:p-space-lg border border-teal-flow/20 shadow-inner overflow-hidden">
+<!-- WATER BACKGROUND CURRENTS & RIVER TEXTURE -->
+<div class="absolute inset-0 pointer-events-none opacity-45 bg-[radial-gradient(#147a7e_1px,transparent_1px)] [background-size:18px_18px]"></div>
+<!-- RIVER CURRENT / WAKE VECTORS -->
+<div class="absolute inset-x-0 top-3 flex justify-between px-6 pointer-events-none opacity-30 text-teal-flow">
+<span class="material-symbols-outlined text-[24px]">waves</span>
+<span class="material-symbols-outlined text-[24px]">water</span>
+<span class="material-symbols-outlined text-[24px]">waves</span>
+</div>
+<div class="absolute inset-x-0 bottom-4 flex justify-between px-8 pointer-events-none opacity-25 text-teal-flow">
+<span class="material-symbols-outlined text-[26px]">water</span>
+<span class="material-symbols-outlined text-[26px]">waves</span>
+<span class="material-symbols-outlined text-[26px]">water</span>
+</div>
+<!-- TWIN HULL / CATAMARAN SPONSON WATER FLOW LINES & PANORAMIC WATERFRONT LABELS -->
+<div class="absolute left-1 sm:left-3 top-20 bottom-20 flex flex-col justify-between items-center text-teal-flow/70 select-none z-0">
+<div class="w-2.5 sm:w-3.5 h-full rounded-full bg-gradient-to-b from-sky-aqua/30 via-teal-flow/20 to-teal-flow/40 border border-teal-flow/30 shadow-sm flex items-center justify-center relative">
+<span class="text-[10px] font-bold tracking-widest uppercase [writing-mode:vertical-rl] rotate-180 text-teal-flow/90 py-4">Portside Hull • Saigon Skyline View</span>
+</div>
+</div>
+<div class="absolute right-1 sm:right-3 top-20 bottom-20 flex flex-col justify-between items-center text-teal-flow/70 select-none z-0">
+<div class="w-2.5 sm:w-3.5 h-full rounded-full bg-gradient-to-b from-sky-aqua/30 via-teal-flow/20 to-teal-flow/40 border border-teal-flow/30 shadow-sm flex items-center justify-center relative">
+<span class="text-[10px] font-bold tracking-widest uppercase [writing-mode:vertical-rl] text-teal-flow/90 py-4">Starboard Hull • Thu Thiem Waterfront View</span>
+</div>
+</div>
+<!-- STREAMLINED ARCHITECTURAL CATAMARAN VESSEL HULL (2.5D SHADOWED VESSEL) -->
+<div class="max-w-lg mx-auto bg-[#FAFBFD] rounded-t-[160px] rounded-b-2xl shadow-xl border-2 border-slate-200/90 relative z-10 overflow-hidden ring-1 ring-teal-flow/20">
+<!-- VESSEL DECK PLANKING ACCENTS (SUBTLE MODERN NAUTICAL FLOORING) -->
+<div class="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(to_bottom,#cbd5e1_1px,transparent_1px)] [background-size:100%_28px]"></div>
+<!-- BOW / CAPTAIN BRIDGE PANORAMIC GLASS -->
+<div class="relative text-center pt-space-md pb-space-sm bg-gradient-to-b from-[#0D2538]/10 via-[#0D2538]/5 to-transparent border-b border-dashed border-slate-200">
+<div class="inline-flex items-center justify-center gap-1.5 px-space-md py-1 rounded-full bg-white/95 text-deep-river font-semibold text-body-sm shadow-sm border border-teal-flow/30">
+<span class="material-symbols-outlined text-teal-flow text-[18px] animate-bounce">navigation</span>
+<span class="tracking-wide">FORWARD / BOW • RIVER CRUISE DIRECTION</span>
+</div>
+<!-- CURVED PANORAMIC WINDSHIELD VISUAL -->
+<div class="relative w-64 max-w-full h-8 mx-auto mt-2">
+<div class="w-full h-full border-t-2 border-x-2 border-teal-flow/60 rounded-t-full bg-gradient-to-b from-sky-aqua/30 via-teal-flow/15 to-transparent backdrop-blur-xs shadow-inner"></div>
+<span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-teal-flow tracking-widest uppercase">Wrap-Around Cockpit Bridge Glass</span>
+</div>
+</div>
+<!-- CABIN SALON INTERIOR (SEATS + PANORAMIC WINDOW SILLS) -->
+<div class="relative px-3 sm:px-6 py- space-y-3 sm:space-y-4 my-2">
+<!-- PANORAMIC WINDOW STRIPS INDICATORS (EXTERIOR ALIGNMENT) -->
+<div class="flex items-center justify-between text-[10px] font-bold text-teal-flow px-2 uppercase tracking-wider pb-1">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[13px] text-sky-aqua">waves</span> Portside Panoramic Window</span>
+<span class="flex items-center gap-1">Starboard Window <span class="material-symbols-outlined text-[13px] text-sky-aqua">waves</span></span>
+</div>
+<!-- COLUMN LABELS -->
+<div class="grid grid-cols-5 text-center text-body-sm font-semibold text-on-surface-variant px-1 pb-1">
+<div class="text-teal-flow font-bold">Port A</div>
+<div class="text-slate-600">Aisle B</div>
+<div class="text-[10px] uppercase tracking-widest text-teal-flow flex items-center justify-center font-bold gap-0.5">
+<span class="material-symbols-outlined text-[12px]">keyboard_double_arrow_down</span> Aisle
+    </div>
+<div class="text-slate-600">Aisle C</div>
+<div class="text-teal-flow font-bold">Starboard D</div>
+</div>
+<!-- ROW 1 -->
+<div class="grid grid-cols-5 items-center gap-2 sm:gap-3">
+<!-- A1 Available (Window) -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="A1" data-type="Window" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">A1</span>
+<span class="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-sky-aqua text-deep-river flex items-center justify-center text-[9px] font-extrabold shadow-xs" title="Window View">W</span>
+</button>
+<!-- B1 Booked -->
+<div class="flex flex-col items-center justify-center h-14 rounded-xl bg-[#D9E2E8] border border-slate-300 text-slate-400 p-1 cursor-not-allowed opacity-80" title="Seat B1 is booked">
+<span class="material-symbols-outlined text-slate-400 text-[20px]">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-semibold text-slate-500">B1</span>
+</div>
+<!-- AISLE ROW 1 (ILLUMINATED STRIP) -->
+<div class="flex flex-col items-center justify-center text-body-sm">
+<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white border border-teal-flow/20 text-teal-flow shadow-xs">R1</span>
+</div>
+<!-- C1 Available -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="C1" data-type="Aisle" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">C1</span>
+</button>
+<!-- D1 Booked (Window) -->
+<div class="relative flex flex-col items-center justify-center h-14 rounded-xl bg-[#D9E2E8] border border-slate-300 text-slate-400 p-1 cursor-not-allowed opacity-80" title="Seat D1 is booked">
+<span class="material-symbols-outlined text-slate-400 text-[20px]">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-semibold text-slate-500">D1</span>
+<span class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-slate-300 text-slate-500 flex items-center justify-center text-[9px] font-bold">W</span>
+</div>
+</div>
+<!-- ROW 2 (With Selected Seat A2) -->
+<div class="grid grid-cols-5 items-center gap-2 sm:gap-3">
+<!-- A2 SELECTED (Window) -->
+<button class="seat-btn relative flex flex-col items-center justify-center h-14 rounded-xl bg-teal-flow text-white shadow-md border-2 border-teal-flow transition-all p-1 ring-2 ring-teal-flow/30" data-price="15,000" data-seat="A2" data-type="Window" type="button">
+<span class="material-symbols-outlined text-white text-[20px]">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-white">A2</span>
+<span class="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-sky-aqua text-deep-river flex items-center justify-center text-[9px] font-extrabold shadow-xs" title="Window View">W</span>
+<span class="mine-badge absolute -top-2 -right-1.5 px-1.5 py-0.2 rounded-full bg-signal-amber text-deep-river text-[9px] font-extrabold shadow-sm tracking-tight">SELECTED</span>
+</button>
+<!-- B2 Available -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="B2" data-type="Aisle" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">B2</span>
+</button>
+<!-- AISLE ROW 2 -->
+<div class="flex flex-col items-center justify-center text-body-sm">
+<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white border border-teal-flow/20 text-teal-flow shadow-xs">R2</span>
+</div>
+<!-- C2 Booked -->
+<div class="flex flex-col items-center justify-center h-14 rounded-xl bg-[#D9E2E8] border border-slate-300 text-slate-400 p-1 cursor-not-allowed opacity-80" title="Seat C2 is booked">
+<span class="material-symbols-outlined text-slate-400 text-[20px]">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-semibold text-slate-500">C2</span>
+</div>
+<!-- D2 Available (Window) -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="D2" data-type="Window" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">D2</span>
+<span class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-sky-aqua text-deep-river flex items-center justify-center text-[9px] font-extrabold shadow-xs" title="Window View">W</span>
+</button>
+</div>
+<!-- ROW 3 -->
+<div class="grid grid-cols-5 items-center gap-2 sm:gap-3">
+<!-- A3 Available (Window) -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="A3" data-type="Window" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">A3</span>
+<span class="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-sky-aqua text-deep-river flex items-center justify-center text-[9px] font-extrabold shadow-xs" title="Window View">W</span>
+</button>
+<!-- B3 Available -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="B3" data-type="Aisle" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">B3</span>
+</button>
+<!-- AISLE ROW 3 -->
+<div class="flex flex-col items-center justify-center text-body-sm">
+<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white border border-teal-flow/20 text-teal-flow shadow-xs">R3</span>
+</div>
+<!-- C3 Available -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="C3" data-type="Aisle" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">C3</span>
+</button>
+<!-- D3 Available (Window) -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="D3" data-type="Window" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">D3</span>
+<span class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-sky-aqua text-deep-river flex items-center justify-center text-[9px] font-extrabold shadow-xs" title="Window View">W</span>
+</button>
+</div>
+<!-- ROW 4 -->
+<div class="grid grid-cols-5 items-center gap-2 sm:gap-3">
+<!-- A4 Available (Window) -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="A4" data-type="Window" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">A4</span>
+<span class="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-sky-aqua text-deep-river flex items-center justify-center text-[9px] font-extrabold shadow-xs" title="Window View">W</span>
+</button>
+<!-- B4 Available -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="B4" data-type="Aisle" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">B4</span>
+</button>
+<!-- AISLE ROW 4 -->
+<div class="flex flex-col items-center justify-center text-body-sm">
+<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white border border-teal-flow/20 text-teal-flow shadow-xs">R4</span>
+</div>
+<!-- C4 Available -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="C4" data-type="Aisle" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">C4</span>
+</button>
+<!-- D4 Booked (Window) -->
+<div class="relative flex flex-col items-center justify-center h-14 rounded-xl bg-[#D9E2E8] border border-slate-300 text-slate-400 p-1 cursor-not-allowed opacity-80" title="Seat D4 is booked">
+<span class="material-symbols-outlined text-slate-400 text-[20px]">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-semibold text-slate-500">D4</span>
+<span class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-slate-300 text-slate-500 flex items-center justify-center text-[9px] font-bold">W</span>
+</div>
+</div>
+<!-- ROW 5 -->
+<div class="grid grid-cols-5 items-center gap-2 sm:gap-3">
+<!-- A5 Booked (Window) -->
+<div class="relative flex flex-col items-center justify-center h-14 rounded-xl bg-[#D9E2E8] border border-slate-300 text-slate-400 p-1 cursor-not-allowed opacity-80" title="Seat A5 is booked">
+<span class="material-symbols-outlined text-slate-400 text-[20px]">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-semibold text-slate-500">A5</span>
+<span class="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-slate-300 text-slate-500 flex items-center justify-center text-[9px] font-bold">W</span>
+</div>
+<!-- B5 Available -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="B5" data-type="Aisle" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">B5</span>
+</button>
+<!-- AISLE ROW 5 -->
+<div class="flex flex-col items-center justify-center text-body-sm">
+<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white border border-teal-flow/20 text-teal-flow shadow-xs">R5</span>
+</div>
+<!-- C5 Available -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="C5" data-type="Aisle" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">C5</span>
+</button>
+<!-- D5 Booked (Window) -->
+<div class="relative flex flex-col items-center justify-center h-14 rounded-xl bg-[#D9E2E8] border border-slate-300 text-slate-400 p-1 cursor-not-allowed opacity-80" title="Seat D5 is booked">
+<span class="material-symbols-outlined text-slate-400 text-[20px]">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-semibold text-slate-500">D5</span>
+<span class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-slate-300 text-slate-500 flex items-center justify-center text-[9px] font-bold">W</span>
+</div>
+</div>
+<!-- ROW 6 -->
+<div class="grid grid-cols-5 items-center gap-2 sm:gap-3">
+<!-- A6 Booked -->
+<div class="relative flex flex-col items-center justify-center h-14 rounded-xl bg-[#D9E2E8] border border-slate-300 text-slate-400 p-1 cursor-not-allowed opacity-80" title="Seat A6 is booked">
+<span class="material-symbols-outlined text-slate-400 text-[20px]">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-semibold text-slate-500">A6</span>
+</div>
+<!-- B6 Booked -->
+<div class="relative flex flex-col items-center justify-center h-14 rounded-xl bg-[#D9E2E8] border border-slate-300 text-slate-400 p-1 cursor-not-allowed opacity-80" title="Seat B6 is booked">
+<span class="material-symbols-outlined text-slate-400 text-[20px]">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-semibold text-slate-500">B6</span>
+</div>
+<!-- AISLE ROW 6 -->
+<div class="flex flex-col items-center justify-center text-body-sm">
+<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-white border border-teal-flow/20 text-teal-flow shadow-xs">R6</span>
+</div>
+<!-- C6 Booked -->
+<div class="relative flex flex-col items-center justify-center h-14 rounded-xl bg-[#D9E2E8] border border-slate-300 text-slate-400 p-1 cursor-not-allowed opacity-80" title="Seat C6 is booked">
+<span class="material-symbols-outlined text-slate-400 text-[20px]">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-semibold text-slate-500">C6</span>
+</div>
+<!-- D6 Available (Window) -->
+<button class="seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1" data-price="15,000" data-seat="D6" data-type="Window" type="button">
+<span class="material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform">airline_seat_recline_normal</span>
+<span class="font-numeric-md text-[12px] font-bold text-deep-river">D6</span>
+<span class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-sky-aqua text-deep-river flex items-center justify-center text-[9px] font-extrabold shadow-xs" title="Window View">W</span>
+</button>
+</div>
+</div>
+<!-- REAR STERN / GANGWAY & LUGGAGE AREA -->
+<div class="pt-space-md mt-space-md border-dashed border-t-2 border-slate-200 bg-white/70 p-space-md flex flex-col items-center gap-space-sm text-center">
+<div class="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 text-body-sm text-on-surface-variant">
+<div class="flex items-center justify-center gap-1.5 bg-[#EBF2F0] px-space-md py-2 rounded-lg border border-teal-flow/20 text-deep-river font-medium">
+<span class="material-symbols-outlined text-[18px] text-teal-flow">luggage</span>
+<span>Luggage Compartment</span>
+</div>
+<div class="flex items-center justify-center gap-1.5 bg-[#EBF2F0] px-space-md py-2 rounded-lg border border-teal-flow/20 text-deep-river font-medium">
+<span class="material-symbols-outlined text-[18px] text-signal-amber">door_open</span>
+<span>Stern Boarding Gate / Entry</span>
+</div>
+</div>
+<div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[14px] text-teal-flow">arrow_downward</span>
+<span>Aft Gangway • Disembarkation Point</span>
+<span class="material-symbols-outlined text-[14px] text-teal-flow">arrow_downward</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- COMPACT SEAT RECOMMENDATION CARD -->
+<div class="bg-white rounded-xl p-space-md border border-teal-flow/30 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-md bg-gradient-to-r from-white via-white to-[#EBF7F8]">
+<div class="flex items-start gap-3">
+<div class="w-9 h-9 rounded-lg bg-[#EBF2F0] text-teal-flow flex items-center justify-center shrink-0 border border-teal-flow/20">
+<span class="material-symbols-outlined text-[20px]">lightbulb</span>
+</div>
+<div class="space-y-1">
+<h3 class="font-headline-sm text-body-md font-bold text-deep-river flex items-center gap-1.5">
+        Seat Recommendation
+      </h3>
+<ul class="text-body-sm text-on-surface-variant space-y-0.5 list-disc list-inside">
+<li><strong class="text-deep-river font-semibold">Best River View:</strong> Portside window seats (A2–A4) offer open views of Ba Son Bridge and skyline.</li>
+<li><strong class="text-deep-river font-semibold">Fastest Pier Exit:</strong> Aft seats (Row 5–6) are directly adjacent to the disembarkation gangway.</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<!-- RIGHT COLUMN: STICKY COMPACT BOOKING SUMMARY PANEL (approx 32% / 4 cols) -->
+<div class="lg:col-span-4 flex flex-col gap-space-md sticky top-24">
+<div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-md flex flex-col gap-space-md">
+<div class="flex items-center justify-between border-b border-slate-100 pb-space-sm">
+<h3 class="font-headline-sm text-headline-sm text-deep-river">Booking Summary</h3>
+<span class="px-space-sm py-0.5 rounded-full bg-secondary-container text-on-secondary-container font-semibold text-body-sm">Trip WB-01</span>
+</div>
+<!-- TRIP DETAILS CARD -->
+<div class="flex flex-col gap-space-xs bg-[#F7FAFA] p-space-md rounded-xl border border-slate-200/80">
+<div class="flex items-center justify-between text-body-sm text-on-surface-variant">
+<span>Route &amp; Vessel</span>
+<span class="font-semibold text-deep-river">River Glider Catamaran</span>
+</div>
+<div class="flex items-center justify-between text-body-sm text-on-surface-variant">
+<span>Date &amp; Time</span>
+<span class="font-semibold text-deep-river">Today, 08:30 Departure</span>
+</div>
+<div class="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between text-body-sm">
+<div class="flex items-center gap-1.5 text-deep-river font-semibold">
+<span class="material-symbols-outlined text-teal-flow text-[18px]">directions_boat</span>
+<span>Bach Dang Pier ➔ Thu Thiem Pier</span>
+</div>
+<span class="text-teal-flow font-medium text-[12px] bg-white px-2 py-0.5 rounded border border-teal-flow/20">WB-01 Direct (12 min)</span>
+</div>
+</div>
+<!-- SELECTED SEAT HIGHLIGHT CARD -->
+<div class="bg-[#EBF2F0] rounded-xl p-space-md flex flex-col gap-space-xs border border-teal-flow/30 shadow-xs" id="selected-seat-card">
+<div class="flex items-center justify-between text-body-sm">
+<span class="font-bold text-teal-flow uppercase tracking-wider text-[11px]">Reserved Seat Choice</span>
+<span class="material-symbols-outlined text-teal-flow text-[20px]">airline_seat_recline_normal</span>
+</div>
+<div class="flex items-baseline justify-between mt-1">
+<div class="flex items-baseline gap-2">
+<span class="font-headline-xl text-3xl font-extrabold text-deep-river leading-none tracking-tight" id="display-seat-id">Seat A2</span>
+<span class="text-body-sm font-semibold text-teal-flow" id="display-seat-desc">Portside Window • Main Saloon</span>
+</div>
+<span class="text-body-sm px-2 py-0.5 rounded bg-white text-deep-river font-semibold border border-slate-200 text-[11px]">Main Deck</span>
+</div>
+<p class="text-body-sm text-on-surface-variant text-[12px] mt-1">Standard Climate-Controlled Catamaran Seating with panoramic river view.</p>
+</div>
+<!-- TRANSPARENT FARE BREAKDOWN -->
+<div class="flex flex-col gap-2 py-1">
+<div class="flex justify-between text-body-sm text-on-surface-variant">
+<span>Standard Transit Fare (1 Adult)</span>
+<span class="text-deep-river font-medium">15,000 VND</span>
+</div>
+<div class="flex justify-between text-body-sm text-on-surface-variant">
+<span>Seat Reservation Fee</span>
+<span class="text-teal-flow font-semibold">Included (0 VND)</span>
+</div>
+<div class="flex justify-between text-body-sm text-on-surface-variant">
+<span>Harbor Fees &amp; VAT</span>
+<span class="text-teal-flow font-semibold">Included</span>
+</div>
+<div class="pt-space-sm mt-1 border-t border-slate-200 flex items-baseline justify-between">
+<div>
+<span class="font-headline-sm text-headline-sm text-deep-river">Total Fare</span>
+<span class="block text-[11px] text-slate-500">All fees &amp; taxes included</span>
+</div>
+<div class="text-right">
+<span class="font-numeric-lg text-2xl lg:text-numeric-lg font-bold text-deep-river" id="display-total-price">15,000 VND</span>
+</div>
+</div>
+</div>
+<!-- PRIMARY ACTION & CONCISE REASSURANCE -->
+<div class="flex flex-col gap-space-sm pt-1">
+<a class="w-full inline-flex items-center justify-center gap-space-sm px-space-lg py-3.5 bg-teal-flow text-white font-headline-sm text-headline-sm rounded-xl font-semibold shadow-md hover:bg-secondary transition-all group" data-path="passenger-details" href="#">
+<span>Continue to Passenger Details</span>
+<span class="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+<div class="flex items-center justify-center gap-1 text-[12px] text-on-surface-variant py-0.5">
+<button class="hover:text-deep-river transition-colors font-medium text-teal-flow" type="button">Change Trip</button>
+<span class="text-slate-300">•</span>
+<button class="hover:text-deep-river transition-colors" type="button">Fare Policies</button>
+</div>
+</div>
+<!-- CONCISE REASSURANCE NOTE -->
+<div class="bg-[#F4F7F8] p-3 rounded-xl flex items-center gap-2.5 text-[12px] text-deep-river border border-slate-200/60">
+<span class="material-symbols-outlined text-teal-flow text-[20px] shrink-0">timer</span>
+<span>Seats held for 10:00 during checkout. Instant digital QR boarding pass delivered immediately.</span>
+</div>
+</div>
+<!-- PIER CONCIERGE HELP CARD -->
+<div class="bg-white rounded-xl p-space-md border border-slate-200 shadow-sm flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-full bg-sand-light text-teal-flow flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">support_agent</span>
+</div>
+<div>
+<div class="text-body-sm font-semibold text-deep-river">Bach Dang Pier Concierge</div>
+<div class="text-[11px] text-on-surface-variant">Daily 06:00 - 22:00 Live Assistance</div>
+</div>
+</div>
+<a class="text-teal-flow font-semibold text-body-sm hover:underline" data-path="support" href="#">Contact</a>
+</div>
+</div>
+</div>
+<!-- BOTTOM REASSURANCE VALUE STRIP -->
+<div class="mt-space-2xl pt-space-md grid grid-cols-1 md:grid-cols-3 gap-space-lg">
+<div class="flex items-center gap-space-md bg-white p-space-lg rounded-xl border border-slate-200 shadow-sm">
+<div class="w-12 h-12 rounded-xl bg-sand-light flex items-center justify-center text-teal-flow shrink-0">
+<span class="material-symbols-outlined text-[28px]">qr_code_scanner</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-headline-sm text-deep-river">QR E-Ticket Boarding</h4>
+<p class="text-body-sm text-on-surface-variant mt-0.5">Tap and go at automated turnstiles across all river piers.</p>
+</div>
+</div>
+<div class="flex items-center gap-space-md bg-white p-space-lg rounded-xl border border-slate-200 shadow-sm">
+<div class="w-12 h-12 rounded-xl bg-sand-light flex items-center justify-center text-teal-flow shrink-0">
+<span class="material-symbols-outlined text-[28px]">radar</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-headline-sm text-deep-river">Real-Time Vessel Tracking</h4>
+<p class="text-body-sm text-on-surface-variant mt-0.5">Track WB-01 hydrofoil speed and live catamaran dock ETA.</p>
+</div>
+</div>
+<div class="flex items-center gap-space-md bg-white p-space-lg rounded-xl border border-slate-200 shadow-sm">
+<div class="w-12 h-12 rounded-xl bg-sand-light flex items-center justify-center text-teal-flow shrink-0">
+<span class="material-symbols-outlined text-[28px]">accessible</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-headline-sm text-deep-river">100% Step-Free Access</h4>
+<p class="text-body-sm text-on-surface-variant mt-0.5">Universal low-incline gangways on all docks and catamarans.</p>
+</div>
+</div>
+</div>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const seatButtons = document.querySelectorAll('.seat-btn');
+    const displaySeatId = document.getElementById('display-seat-id');
+    const displaySeatDesc = document.getElementById('display-seat-desc');
+
+    seatButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Reset all available seat styling
+        seatButtons.forEach(b => {
+          b.className = 'seat-btn group relative flex flex-col items-center justify-center h-14 rounded-xl bg-white border-2 border-teal-flow/35 hover:border-teal-flow shadow-sm hover:shadow hover:bg-[#EBF2F0] transition-all p-1';
+          const icon = b.querySelector('.material-symbols-outlined');
+          if (icon) {
+            icon.className = 'material-symbols-outlined text-teal-flow text-[20px] group-hover:scale-110 transition-transform';
+          }
+          const textSpan = b.querySelector('.font-numeric-md');
+          if (textSpan) {
+            textSpan.className = 'font-numeric-md text-[12px] font-bold text-deep-river';
+          }
+          const badge = b.querySelector('.mine-badge');
+          if (badge) badge.remove();
+        });
+
+        // Set active state for clicked button
+        btn.className = 'seat-btn relative flex flex-col items-center justify-center h-14 rounded-xl bg-teal-flow text-white shadow-md border-2 border-teal-flow transition-all p-1 ring-2 ring-teal-flow/30';
+        const activeIcon = btn.querySelector('.material-symbols-outlined');
+        if (activeIcon) {
+          activeIcon.className = 'material-symbols-outlined text-white text-[20px]';
+        }
+        const activeText = btn.querySelector('.font-numeric-md');
+        if (activeText) {
+          activeText.className = 'font-numeric-md text-[12px] font-bold text-white';
+        }
+
+        // Add SELECTED badge
+        const badge = document.createElement('span');
+        badge.className = 'mine-badge absolute -top-2 -right-1.5 px-1.5 py-0.2 rounded-full bg-signal-amber text-deep-river text-[9px] font-extrabold shadow-sm tracking-tight';
+        badge.textContent = 'SELECTED';
+        btn.appendChild(badge);
+
+        // Update summary text
+        const seat = btn.getAttribute('data-seat') || 'A2';
+        const type = btn.getAttribute('data-type') || 'Standard';
+        if (displaySeatId) displaySeatId.textContent = `Seat ${seat}`;
+        if (displaySeatDesc) {
+          const side = (seat.startsWith('A') || seat.startsWith('B')) ? 'Portside' : 'Starboard';
+          displaySeatDesc.textContent = `${side} ${type} • Main Saloon`;
+        }
+      });
+    });
+  });
+</script></main><footer class="w-full bg-surface-container-low mt-space-3xl"><div class="max-w-7xl mx-auto px-6 lg:px-12 py-space-3xl"><div class="grid grid-cols-1 md:grid-cols-4 gap-space-2xl"><div class="flex flex-col gap-space-md"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-teal-flow text-[28px]">directions_boat</span><span class="font-headline-sm text-headline-sm text-deep-river">Smart Waterbus</span></div><p class="font-body-md text-body-md text-on-surface-variant">Intelligent, serene river transit and premium waterway touring for modern cities.</p></div><div><h4 class="font-headline-sm text-headline-sm text-deep-river mb-space-md">Quick Links</h4><ul class="space-y-space-sm"><li class="font-body-md text-body-md"><a class="text-on-surface-variant hover:text-deep-river transition-colors" data-path="book-a-trip" href="#">Book a Ticket</a></li><li class="font-body-md text-body-md"><a class="text-on-surface-variant hover:text-deep-river transition-colors" data-path="routes" href="#">Schedules &amp; Piers</a></li><li class="font-body-md text-body-md"><a class="text-on-surface-variant hover:text-deep-river transition-colors" data-path="live-tracking" href="#">Live Fleet Tracking</a></li><li class="font-body-md text-body-md"><a class="text-on-surface-variant hover:text-deep-river transition-colors" data-path="passes-fares" href="#">Transit Passes</a></li></ul></div><div><h4 class="font-headline-sm text-headline-sm text-deep-river mb-space-md">Tourism Experiences</h4><ul class="space-y-space-sm"><li class="font-body-md text-body-md"><a class="text-on-surface-variant hover:text-deep-river transition-colors" data-path="experience" href="#">Sunset Promenade Cruise</a></li><li class="font-body-md text-body-md"><a class="text-on-surface-variant hover:text-deep-river transition-colors" data-path="experience" href="#">Heritage River Tour</a></li><li class="font-body-md text-body-md"><a class="text-on-surface-variant hover:text-deep-river transition-colors" data-path="experience" href="#">Skyline Night Lights</a></li><li class="font-body-md text-body-md"><a class="text-on-surface-variant hover:text-deep-river transition-colors" data-path="experience" href="#">Private River Charters</a></li></ul></div><div><h4 class="font-headline-sm text-headline-sm text-deep-river mb-space-md">Support &amp; Contact</h4><ul class="space-y-space-sm"><li class="font-body-md text-body-md"><a class="text-on-surface-variant hover:text-deep-river transition-colors" data-path="support" href="#">Help Center &amp; FAQs</a></li><li class="font-body-md text-body-md"><a class="text-on-surface-variant hover:text-deep-river transition-colors" data-path="accessibility" href="#">Accessibility &amp; Pier Access</a></li><li class="font-body-md text-body-md"><a class="text-on-surface-variant hover:text-deep-river transition-colors" data-path="contact" href="#">Pier Concierge Desk</a></li><li class="font-body-md text-body-md text-on-surface-variant">Operational daily 06:00 – 23:00</li></ul></div></div><div class="mt-space-2xl pt-space-xl flex flex-col sm:flex-row items-center justify-between gap-space-md text-on-surface-variant font-body-sm text-body-sm"><p>© 2025 Smart Waterbus Transit Authority. All rights reserved.</p><div class="flex items-center gap-space-lg"><a class="hover:text-deep-river transition-colors" data-path="terms" href="#">Terms of Carriage</a><a class="hover:text-deep-river transition-colors" data-path="privacy" href="#">Privacy Policy</a><a class="hover:text-deep-river transition-colors" data-path="safety" href="#">Safety Protocols</a></div></div></div></footer></body></html>

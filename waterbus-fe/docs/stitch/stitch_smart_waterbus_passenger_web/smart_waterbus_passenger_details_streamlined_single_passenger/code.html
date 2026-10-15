@@ -1,0 +1,585 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><title>Smart Waterbus</title><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      "colors": {
+        "primary-fixed": "#cee5ff",
+        "surface-container": "#efedef",
+        "ink": "#18242D",
+        "on-surface-variant": "#43474c",
+        "teal-flow": "#147A7E",
+        "outline": "#73777d",
+        "outline-variant": "#c3c7cd",
+        "on-secondary-container": "#007074",
+        "secondary": "#00696d",
+        "inverse-on-surface": "#f2f0f2",
+        "on-surface": "#1b1c1d",
+        "tertiary": "#190a00",
+        "on-primary": "#ffffff",
+        "on-tertiary-fixed": "#2c1600",
+        "surface-variant": "#e3e2e4",
+        "on-background": "#1b1c1d",
+        "secondary-fixed": "#9bf1f5",
+        "tertiary-container": "#351e04",
+        "surface-dim": "#dbd9db",
+        "secondary-fixed-dim": "#7fd4d8",
+        "surface-tint": "#4b6176",
+        "surface-container-highest": "#e3e2e4",
+        "inverse-surface": "#303032",
+        "surface-bright": "#faf9fb",
+        "on-secondary-fixed": "#002021",
+        "on-primary-container": "#778da4",
+        "primary-fixed-dim": "#b2c9e2",
+        "on-secondary": "#ffffff",
+        "surface": "#faf9fb",
+        "coral-glow": "#F08A6B",
+        "deep-river": "#0D2538",
+        "error-container": "#ffdad6",
+        "mist": "#F4F7F8",
+        "on-secondary-fixed-variant": "#004f52",
+        "inverse-primary": "#b2c9e2",
+        "primary": "#000f1d",
+        "on-primary-fixed-variant": "#33495d",
+        "primary-container": "#0d2538",
+        "tertiary-fixed": "#ffdcbd",
+        "tertiary-fixed-dim": "#e8bf98",
+        "surface-container-low": "#f5f3f5",
+        "sky-aqua": "#4FC3D8",
+        "secondary-container": "#9bf1f5",
+        "error": "#ba1a1a",
+        "on-tertiary-fixed-variant": "#5d4123",
+        "surface-container-high": "#e9e8e9",
+        "on-error-container": "#93000a",
+        "sand-light": "#E9F0EC",
+        "on-error": "#ffffff",
+        "signal-amber": "#E8B63E",
+        "surface-container-lowest": "#ffffff",
+        "on-tertiary": "#ffffff",
+        "on-primary-fixed": "#041d30",
+        "on-tertiary-container": "#a88460",
+        "background": "#faf9fb"
+      },
+      "borderRadius": {
+        "DEFAULT": "0.25rem",
+        "lg": "0.5rem",
+        "xl": "0.75rem",
+        "full": "9999px"
+      },
+      "spacing": {
+        "space-xs": "4px",
+        "gutter": "24px",
+        "margin": "32px",
+        "space-xl": "32px",
+        "space-md": "16px",
+        "space-lg": "24px",
+        "space-2xl": "48px",
+        "space-3xl": "64px",
+        "space-sm": "8px"
+      },
+      "fontFamily": {
+        "headline-sm": [
+          "Plus Jakarta Sans"
+        ],
+        "body-md": [
+          "Inter"
+        ],
+        "numeric-md": [
+          "Plus Jakarta Sans"
+        ],
+        "numeric-lg": [
+          "Plus Jakarta Sans"
+        ],
+        "headline-xl-mobile": [
+          "Plus Jakarta Sans"
+        ],
+        "headline-xl": [
+          "Plus Jakarta Sans"
+        ],
+        "body-lg": [
+          "Inter"
+        ],
+        "body-sm": [
+          "Inter"
+        ],
+        "headline-lg": [
+          "Plus Jakarta Sans"
+        ],
+        "headline-md": [
+          "Plus Jakarta Sans"
+        ]
+      },
+      "fontSize": {
+        "headline-sm": [
+          "20px",
+          {
+            "lineHeight": "28px",
+            "fontWeight": "600"
+          }
+        ],
+        "body-md": [
+          "14px",
+          {
+            "lineHeight": "20px",
+            "fontWeight": "400"
+          }
+        ],
+        "numeric-md": [
+          "18px",
+          {
+            "lineHeight": "24px",
+            "fontWeight": "600"
+          }
+        ],
+        "numeric-lg": [
+          "32px",
+          {
+            "lineHeight": "38px",
+            "fontWeight": "700"
+          }
+        ],
+        "headline-xl-mobile": [
+          "36px",
+          {
+            "lineHeight": "44px",
+            "letterSpacing": "-0.01em",
+            "fontWeight": "700"
+          }
+        ],
+        "headline-xl": [
+          "56px",
+          {
+            "lineHeight": "64px",
+            "letterSpacing": "-0.02em",
+            "fontWeight": "700"
+          }
+        ],
+        "body-lg": [
+          "16px",
+          {
+            "lineHeight": "24px",
+            "fontWeight": "400"
+          }
+        ],
+        "body-sm": [
+          "12px",
+          {
+            "lineHeight": "16px",
+            "fontWeight": "400"
+          }
+        ],
+        "headline-lg": [
+          "38px",
+          {
+            "lineHeight": "46px",
+            "letterSpacing": "-0.01em",
+            "fontWeight": "600"
+          }
+        ],
+        "headline-md": [
+          "26px",
+          {
+            "lineHeight": "34px",
+            "fontWeight": "600"
+          }
+        ]
+      }
+    }
+  }
+}</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-secondary-container selection:text-on-secondary-container"><header class="fixed top-0 left-0 right-0 z-50 bg-mist/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-20 max-w-7xl mx-auto px-margin flex items-center justify-between gap-space-lg"><div class="flex items-center gap-space-xl"><a class="flex items-center gap-space-sm group" data-path="explore" href="#"><img alt="Smart Waterbus Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WiF1NNf59f3fm7YJTVwxqFCw3wL1kpEErVxVKdtffjYZSE8rQcimuCrd5m6V76pWXG5bJvJDdRoZpBEjA_GNbPglxJH1dQuFydgjV3UG19EwKFJxbV6q9TY0sodBd7F8JohBy0giL7H2aZ2jYp6R_WLIJf6FvCJQYgRhGklczPLysss8-K8zR_cZt3NH-u9tohMmc14WvzX5FGl4GzQ58s-iJ1ab1wCYtkCgBkJFkXHSazs2KBHG1lBF0l"><span class="font-headline-sm text-headline-sm text-deep-river tracking-tight">Smart Waterbus</span></a><nav class="hidden lg:flex items-center gap-space-xl" data-active-classes="text-teal-flow font-headline-sm text-headline-sm"><a aria-current="page" class="transition-colors text-teal-flow font-headline-sm text-headline-sm" data-path="explore" href="#">Explore</a><a class="text-on-surface-variant font-body-md text-body-md hover:text-deep-river transition-colors" data-path="routes" href="#">Routes</a><a class="text-on-surface-variant font-body-md text-body-md hover:text-deep-river transition-colors" data-path="experience" href="#">Experience</a><a class="text-on-surface-variant font-body-md text-body-md hover:text-deep-river transition-colors" data-path="about" href="#">About</a></nav></div><div class="flex items-center gap-space-md"><button aria-label="Search routes and piers" class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-deep-river transition-all" type="button"><span class="material-symbols-outlined text-[20px]">search</span></button><div class="relative hidden sm:flex items-center gap-space-xs px-space-sm py-space-xs rounded-full hover:bg-surface-container cursor-pointer transition-colors text-on-surface-variant hover:text-deep-river"><span class="material-symbols-outlined text-[18px]">language</span><span class="font-body-sm text-body-sm font-semibold uppercase tracking-wider">EN</span><span class="material-symbols-outlined text-[16px]">expand_more</span></div><a class="hidden md:inline-flex items-center justify-center px-space-lg py-space-sm rounded-full bg-teal-flow text-on-primary font-body-md text-body-md hover:bg-secondary transition-all shadow-[0_2px_10px_rgba(20,122,126,0.18)]" data-path="book-a-trip" href="#">Book a Trip</a><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="w-full pt-20 bg-surface"><div class="flex flex-col w-full">
+<!-- Progress Stepper & Context Header Bar -->
+<section class="w-full bg-mist py-space-lg">
+<div class="max-w-7xl mx-auto px-margin">
+<!-- Breadcrumb -->
+<nav aria-label="Breadcrumb" class="flex items-center gap-space-xs text-on-surface-variant font-body-sm text-body-sm mb-space-md">
+<a class="hover:text-deep-river transition-colors" data-path="explore" href="#">Home</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<a class="hover:text-deep-river transition-colors" data-path="routes" href="#">Booking</a>
+<span class="material-symbols-outlined text-[14px]">chevron_right</span>
+<span class="text-deep-river font-medium">Passenger Details</span>
+</nav>
+<!-- 4-Step Journey Stepper -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md md:p-space-lg shadow-sm">
+<div class="grid grid-cols-2 sm:grid-cols-5 gap-space-sm sm:gap-space-md items-center">
+<!-- Step 1: Trip (Completed) -->
+<div class="flex items-center gap-space-xs sm:gap-space-sm">
+<div class="w-7 h-7 rounded-full bg-teal-flow text-on-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</div>
+<div class="min-w-0">
+<span class="font-body-sm text-body-sm text-on-surface-variant uppercase tracking-wider block text-[11px]">Step 1</span>
+<p class="font-headline-sm text-body-sm text-deep-river font-semibold truncate">Trip</p>
+</div>
+</div>
+<!-- Step 2: Seat (Completed) -->
+<div class="flex items-center gap-space-xs sm:gap-space-sm">
+<div class="w-7 h-7 rounded-full bg-teal-flow text-on-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</div>
+<div class="min-w-0">
+<span class="font-body-sm text-body-sm text-on-surface-variant uppercase tracking-wider block text-[11px]">Step 2</span>
+<p class="font-headline-sm text-body-sm text-deep-river font-semibold truncate">Seat (A2)</p>
+</div>
+</div>
+<!-- Step 3: Passenger Details (Active) -->
+<div class="flex items-center gap-space-xs sm:gap-space-sm">
+<div class="w-7 h-7 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-headline-sm text-body-sm font-bold shrink-0">
+3
+</div>
+<div class="min-w-0">
+<div class="flex items-center gap-space-xs">
+<span class="font-body-sm text-body-sm text-teal-flow uppercase font-semibold tracking-wider text-[11px]">Active</span>
+<span class="w-1.5 h-1.5 rounded-full bg-teal-flow"></span>
+</div>
+<p class="font-headline-sm text-body-sm text-deep-river font-bold truncate">Passenger Details</p>
+</div>
+</div>
+<!-- Step 4: Checkout (Upcoming) -->
+<div class="flex items-center gap-space-xs sm:gap-space-sm opacity-60">
+<div class="w-7 h-7 rounded-full bg-surface-container text-on-surface-variant flex items-center justify-center font-headline-sm text-body-sm shrink-0">
+4
+</div>
+<div class="min-w-0">
+<span class="font-body-sm text-body-sm text-on-surface-variant uppercase tracking-wider block text-[11px]">Step 4</span>
+<p class="font-headline-sm text-body-sm text-on-surface font-medium truncate">Checkout</p>
+</div>
+</div>
+<!-- Step 5: Payment (Upcoming) -->
+<div class="flex items-center gap-space-xs sm:gap-space-sm opacity-60 col-span-2 sm:col-span-1">
+<div class="w-7 h-7 rounded-full bg-surface-container text-on-surface-variant flex items-center justify-center font-headline-sm text-body-sm shrink-0">
+5
+</div>
+<div class="min-w-0">
+<span class="font-body-sm text-body-sm text-on-surface-variant uppercase tracking-wider block text-[11px]">Step 5</span>
+<p class="font-headline-sm text-body-sm text-on-surface font-medium truncate">Payment</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Page Title & Operational Status Strip -->
+<section class="w-full bg-mist pb-space-lg">
+<div class="max-w-7xl mx-auto px-margin flex flex-col md:flex-row md:items-end justify-between gap-space-md">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-deep-river">Passenger Details</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-space-xs">Please enter traveler information for this crossing.</p>
+</div>
+<div class="inline-flex items-center gap-space-sm bg-sand-light px-space-md py-space-xs rounded-full self-start md:self-auto"><span class="w-2 h-2 rounded-full bg-teal-flow"></span>
+<span class="font-body-sm text-body-sm text-deep-river font-medium">River Crossing WB-01</span></div>
+</div>
+</section>
+<!-- Main Booking Layout: 2 Columns (65% / 35%) -->
+<section class="w-full bg-mist pb-space-3xl">
+<div class="max-w-7xl mx-auto px-margin">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-start">
+<!-- LEFT COLUMN: Passenger Information Form (8 cols / ~67%) -->
+<div class="lg:col-span-8 space-y-space-lg">
+<!-- Primary Passenger Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-xl shadow-sm space-y-space-xl">
+<!-- Section Header & Seat Badge -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm pb-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-sand-light text-teal-flow flex items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">person</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-deep-river">Passenger 1 (Primary Traveler)</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Primary traveler</p>
+</div>
+</div>
+<div class="inline-flex items-center gap-space-xs px-space-md py-space-xs rounded-full bg-secondary-container text-on-secondary-container">
+<span class="material-symbols-outlined text-[16px]">airline_seat_recline_extra</span>
+<span class="font-body-sm text-body-sm font-semibold">Seat A2 • Portside Window</span>
+</div>
+</div>
+<!-- Passenger Category Segmented Selector -->
+<div>
+<label class="font-body-sm text-body-sm text-on-surface-variant block mb-space-xs font-medium">Traveler Category</label>
+<div class="grid grid-cols-3 gap-space-sm p-space-xs bg-surface-container-low rounded-xl">
+<button class="py-space-sm px-space-md rounded-lg bg-surface-container-lowest text-deep-river font-headline-sm text-body-md font-semibold shadow-sm transition-all text-center flex items-center justify-center gap-space-xs" type="button">
+<span>Adult</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant font-normal">(18–59)</span>
+</button>
+<button class="py-space-sm px-space-md rounded-lg text-on-surface-variant hover:text-deep-river font-headline-sm text-body-md font-medium transition-all text-center flex items-center justify-center gap-space-xs" type="button">
+<span>Senior</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant font-normal">(60+)</span>
+</button>
+<button class="py-space-sm px-space-md rounded-lg text-on-surface-variant hover:text-deep-river font-headline-sm text-body-md font-medium transition-all text-center flex items-center justify-center gap-space-xs" type="button">
+<span>Child</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant font-normal">(&lt;12)</span>
+</button>
+</div>
+</div>
+<!-- Form Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-lg pt-space-xs">
+<!-- Full Name -->
+<div class="space-y-space-xs">
+<label class="font-body-sm text-body-sm text-deep-river font-semibold flex items-center justify-between" for="passengerName"><span>Full Name</span></label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-space-md flex items-center pointer-events-none text-outline">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+</div>
+<input class="w-full pl-11 pr-space-md py-space-sm rounded-xl bg-surface-container-low text-deep-river font-body-md text-body-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-teal-flow transition-all" id="passengerName" placeholder="Enter traveler's full name" type="text" value="Nguyen Van An">
+</div>
+</div>
+<!-- Date of Birth -->
+<div class="space-y-space-xs">
+<label class="font-body-sm text-body-sm text-deep-river font-semibold flex items-center justify-between" for="passengerDob">
+<span>Date of Birth</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm font-normal">DD / MM / YYYY</span>
+</label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-space-md flex items-center pointer-events-none text-outline">
+<span class="material-symbols-outlined text-[20px]">calendar_today</span>
+</div>
+<input class="w-full pl-11 pr-space-md py-space-sm rounded-xl bg-surface-container-low text-deep-river font-body-md text-body-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-teal-flow transition-all" id="passengerDob" placeholder="DD / MM / YYYY" type="text" value="14 / 08 / 1994">
+</div>
+</div>
+<!-- Phone Number -->
+<div class="space-y-space-xs">
+<label class="font-body-sm text-body-sm text-deep-river font-semibold flex items-center justify-between" for="passengerPhone"><span>Phone Number</span></label>
+<div class="flex gap-space-xs">
+<div class="flex items-center gap-space-xs px-space-md py-space-sm rounded-xl bg-surface-container-low text-deep-river font-body-md text-body-md shrink-0">
+<span class="font-medium">VN</span>
+<span class="text-on-surface-variant">+84</span>
+</div>
+<div class="relative flex-1">
+<input class="w-full px-space-md py-space-sm rounded-xl bg-surface-container-low text-deep-river font-body-md text-body-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-teal-flow transition-all" id="passengerPhone" placeholder="908 123 456" type="tel" value="908 123 456">
+</div>
+</div>
+</div>
+<!-- Email Address -->
+<div class="space-y-space-xs">
+<label class="font-body-sm text-body-sm text-deep-river font-semibold flex items-center justify-between" for="passengerEmail"><span>Email Address</span></label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-space-md flex items-center pointer-events-none text-outline">
+<span class="material-symbols-outlined text-[20px]">mail</span>
+</div>
+<input class="w-full pl-11 pr-space-md py-space-sm rounded-xl bg-surface-container-low text-deep-river font-body-md text-body-md focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-teal-flow transition-all" id="passengerEmail" placeholder="name@email.com" type="email" value="an.nguyen@smartwaterbus.vn">
+</div>
+</div>
+</div>
+<!-- Optional Transit Identity Note -->
+<!-- Visual Separator -->
+<div class="h-px w-full bg-surface-container"></div>
+<!-- Contact Information & E-Ticket Notification Section -->
+<div class="space-y-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-full bg-sand-light text-teal-flow flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">contact_mail</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-deep-river">Booking Contact &amp; E-Ticket Recipient</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">All travel documents and vessel dispatch notifications will be routed here</p>
+</div>
+</div>
+<!-- Reassurance checkbox -->
+<div class="bg-surface-container-low p-space-md rounded-xl flex items-start gap-space-md">
+<div class="pt-0.5">
+<input checked="" class="w-5 h-5 rounded text-teal-flow accent-teal-flow cursor-pointer" id="contactSync" type="checkbox">
+</div>
+<label class="cursor-pointer" for="contactSync"><span class="font-body-md text-body-md text-deep-river font-medium block">Use passenger details as booking contact</span></label>
+</div>
+</div>
+<!-- Visual Separator -->
+<div class="h-px w-full bg-surface-container"></div>
+<!-- Optional Boarding Assistance Section -->
+<div class="space-y-space-md">
+<div class="flex items-center justify-between cursor-pointer group" id="assistanceToggleBtn" onclick="toggleAssistance()">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-full bg-sand-light text-teal-flow flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">accessible_forward</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-deep-river group-hover:text-teal-flow transition-colors">Need boarding assistance?</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Optional assistance services at the pier</p>
+</div>
+</div>
+<button aria-label="Toggle assistance menu" class="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-deep-river group-hover:bg-surface-container transition-all" type="button">
+<span class="material-symbols-outlined text-[20px] transition-transform duration-200" id="assistanceChevron">expand_more</span>
+</button>
+</div>
+<!-- Collapsible Content -->
+<div class="space-y-space-md pt-space-xs" id="assistanceContent"><div class="grid grid-cols-1 sm:grid-cols-3 gap-space-sm">
+<label class="p-space-md rounded-xl bg-surface-container-low hover:bg-sand-light cursor-pointer flex flex-col gap-space-xs transition-colors group">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-teal-flow text-[22px]">accessible</span>
+<input class="accent-teal-flow w-4 h-4 rounded" name="assistanceType" type="checkbox">
+</div>
+<span class="font-body-sm text-body-sm text-deep-river font-semibold">Mobility assistance</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Ramp and boarding guidance</span>
+</label>
+<label class="p-space-md rounded-xl bg-surface-container-low hover:bg-sand-light cursor-pointer flex flex-col gap-space-xs transition-colors group">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-teal-flow text-[22px]">child_friendly</span>
+<input class="accent-teal-flow w-4 h-4 rounded" name="assistanceType" type="checkbox">
+</div>
+<span class="font-body-sm text-body-sm text-deep-river font-semibold">Travelling with a child</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Stroller boarding support</span>
+</label>
+<label class="p-space-md rounded-xl bg-surface-container-low hover:bg-sand-light cursor-pointer flex flex-col gap-space-xs transition-colors group">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-teal-flow text-[22px]">help_outline</span>
+<input class="accent-teal-flow w-4 h-4 rounded" name="assistanceType" type="checkbox">
+</div>
+<span class="font-body-sm text-body-sm text-deep-river font-semibold">Other assistance</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">General pier assistance</span>
+</label>
+</div></div>
+</div>
+</div>
+<!-- Quick Passenger Reassurance Badge -->
+<div class="flex flex-col sm:flex-row items-center justify-between gap-space-md p-space-md rounded-xl bg-surface-container-lowest shadow-sm">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-teal-flow text-[24px]">lock</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">
+                Your passenger information is protected by 256-bit waterway security encryption.
+              </span>
+</div>
+<a class="font-body-sm text-body-sm text-teal-flow font-semibold hover:underline shrink-0" data-path="routes" href="#">
+              Return to seat map
+            </a>
+</div>
+</div>
+<!-- RIGHT COLUMN: Sticky Booking Summary Panel (4 cols / ~33%) -->
+<div class="lg:col-span-4">
+<div class="sticky top-24 bg-surface-container-lowest rounded-xl p-space-xl shadow-sm space-y-space-lg">
+<!-- Summary Header -->
+<div class="flex items-center justify-between pb-space-sm">
+<h2 class="font-headline-sm text-headline-sm text-deep-river">Crossing Summary</h2>
+<span class="px-space-sm py-[2px] rounded-full bg-secondary-container text-on-secondary-container font-body-sm text-body-sm font-semibold">
+                Trip WB-01
+              </span>
+</div>
+<!-- Route Visual: Bach Dang Pier -> Thu Thiem Pier -->
+<div class="bg-surface-container-low rounded-xl p-space-md space-y-space-md">
+<div class="flex items-center justify-between">
+<span class="font-body-sm text-body-sm text-teal-flow font-bold uppercase tracking-wider">Line 1 Express</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Today • Dec 15, 2025</span>
+</div>
+<!-- Visual Stops Pathway -->
+<div class="relative pl-6 space-y-space-lg">
+<!-- Vertical River Track line -->
+<div class="absolute left-2.5 top-2 bottom-2 w-0.5 bg-sky-aqua"></div>
+<!-- Origin -->
+<div class="relative">
+<div class="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full bg-teal-flow"></div>
+<div class="flex items-baseline justify-between">
+<div>
+<p class="font-headline-sm text-body-md text-deep-river font-bold">Bach Dang Pier (D1)</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Gate 2 • Pontoon Terminal</p>
+</div>
+<span class="font-headline-sm text-body-md text-deep-river font-bold">08:30</span>
+</div>
+</div>
+<!-- Mid transit indicator -->
+<div class="relative py-1">
+<div class="inline-flex items-center gap-space-xs bg-surface-container-lowest px-space-sm py-[2px] rounded-full shadow-sm text-teal-flow font-body-sm text-[11px] font-semibold">
+<span class="material-symbols-outlined text-[14px]">directions_boat</span>
+<span>12 min river run</span>
+</div>
+</div>
+<!-- Destination -->
+<div class="relative">
+<div class="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full bg-coral-glow"></div>
+<div class="flex items-baseline justify-between">
+<div>
+<p class="font-headline-sm text-body-md text-deep-river font-bold">Thu Thiem Pier (D2)</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Pontoon A • Park Promenade</p>
+</div>
+<span class="font-headline-sm text-body-md text-deep-river font-bold">08:42</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Seat & Vessel Specs Card -->
+<div class="p-space-md rounded-xl bg-sand-light space-y-space-sm">
+<div class="flex items-center justify-between text-deep-river">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Vessel</span>
+<span class="font-headline-sm text-body-md font-semibold">WB-01 River Catamaran</span>
+</div>
+<div class="flex items-center justify-between text-deep-river">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Selected Seat</span>
+<span class="font-headline-sm text-body-md font-semibold text-teal-flow">Seat A2 (Window)</span>
+</div>
+<div class="flex items-center justify-between text-deep-river">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Cabin Class</span>
+<span class="font-body-sm text-body-sm font-medium">Main Deck • Air-Conditioned</span>
+</div>
+<div class="flex items-center justify-between text-deep-river"><span class="font-body-sm text-body-sm text-on-surface-variant">Passengers</span>
+<span class="font-body-sm text-body-sm font-medium">1 Passenger</span></div>
+</div>
+<!-- Price Breakdown -->
+<div class="space-y-space-xs pt-space-xs">
+<div class="flex items-center justify-between font-body-sm text-body-sm text-on-surface-variant">
+<span>Standard River Fare</span>
+<span class="text-deep-river font-medium">15,000 VND</span>
+</div>
+<div class="flex items-center justify-between font-body-sm text-body-sm text-on-surface-variant">
+<span>Seat Reservation (Seat A2)</span>
+<span class="text-teal-flow font-medium">Included (0 VND)</span>
+</div>
+<div class="flex items-center justify-between font-body-sm text-body-sm text-on-surface-variant">
+<span>Pier Dues &amp; VAT</span>
+<span class="text-teal-flow font-medium">Included</span>
+</div>
+<div class="h-px w-full bg-surface-container my-space-sm"></div>
+<div class="flex items-baseline justify-between pt-space-xs">
+<div>
+<span class="font-headline-sm text-body-md text-deep-river font-bold block">Total Amount</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">All taxes &amp; fees included</span>
+</div>
+<span class="font-headline-md text-headline-md text-deep-river font-bold">15,000 VND</span>
+</div>
+</div>
+<!-- Action Button & Seat Modification -->
+<div class="space-y-space-sm pt-space-xs">
+<a class="w-full flex items-center justify-center gap-space-sm py-space-md px-space-lg rounded-xl bg-teal-flow text-on-primary font-headline-sm text-body-md font-semibold hover:bg-deep-river transition-all shadow-md group" data-path="book-a-trip" href="#">
+<span>Continue to Checkout</span>
+<span class="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+<a class="block text-center font-body-sm text-body-sm text-teal-flow hover:text-deep-river font-semibold py-space-xs transition-colors" data-path="routes" href="#">Change Seat</a>
+</div>
+<!-- Seat Lock Countdown & Security Assurance -->
+<div class="pt-space-xs border-t border-surface-container space-y-space-xs">
+<p class="font-body-sm text-[12px] text-center text-on-surface-variant">
+Your selected seat remains reserved while you complete checkout.
+</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Reassurance & Waterway Guarantee Strip -->
+</div>
+<!-- Inline Interaction Script -->
+<script>
+  function toggleAssistance() {
+    const content = document.getElementById('assistanceContent');
+    const chevron = document.getElementById('assistanceChevron');
+    if (content.classList.contains('hidden')) {
+      content.classList.remove('hidden');
+      chevron.style.transform = 'rotate(180deg)';
+    } else {
+      content.classList.add('hidden');
+      chevron.style.transform = 'rotate(0deg)';
+    }
+  }
+
+  // Seat hold timer countdown simulation
+  (function initSeatCountdown() {
+    let timeLeft = 8 * 60 + 45; // 8 mins 45 secs
+    const timerElem = document.getElementById('countdownTimer');
+    if (!timerElem) return;
+
+    setInterval(() => {
+      if (timeLeft <= 0) return;
+      timeLeft--;
+      const minutes = Math.floor(timeLeft / 60);
+      const seconds = timeLeft % 60;
+      timerElem.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }, 1000);
+  })();
+</script></main><footer class="w-full bg-surface-container-low"><div class="max-w-7xl mx-auto px-margin pt-space-3xl pb-space-2xl"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-space-2xl pb-space-3xl"><div class="lg:col-span-2 space-y-space-md pr-space-xl"><div class="flex items-center gap-space-sm"><img alt="Smart Waterbus Logo" class="h-7 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WiF1NNf59f3fm7YJTVwxqFCw3wL1kpEErVxVKdtffjYZSE8rQcimuCrd5m6V76pWXG5bJvJDdRoZpBEjA_GNbPglxJH1dQuFydgjV3UG19EwKFJxbV6q9TY0sodBd7F8JohBy0giL7H2aZ2jYp6R_WLIJf6FvCJQYgRhGklczPLysss8-K8zR_cZt3NH-u9tohMmc14WvzX5FGl4GzQ58s-iJ1ab1wCYtkCgBkJFkXHSazs2KBHG1lBF0l"><span class="font-headline-sm text-headline-sm text-deep-river tracking-tight">Smart Waterbus</span></div><p class="font-body-md text-body-md text-on-surface-variant max-w-sm">Pioneering high-frequency electric river transit and immersive city voyages. Experience sustainable urban waterways crafted for commuters and explorers alike.</p><div class="flex items-center gap-space-md pt-space-xs"><a aria-label="River radar" class="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-teal-flow hover:bg-surface-container-high transition-colors" href="#"><span class="material-symbols-outlined text-[18px]">radar</span></a><a aria-label="Navigation map" class="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-teal-flow hover:bg-surface-container-high transition-colors" href="#"><span class="material-symbols-outlined text-[18px]">explore</span></a><a aria-label="Live alerts channel" class="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-teal-flow hover:bg-surface-container-high transition-colors" href="#"><span class="material-symbols-outlined text-[18px]">notifications_active</span></a><a aria-label="Pier terminal hub" class="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-teal-flow hover:bg-surface-container-high transition-colors" href="#"><span class="material-symbols-outlined text-[18px]">anchor</span></a></div></div><div class="space-y-space-md"><span class="font-headline-sm text-headline-sm text-deep-river block">Quick Links</span><ul class="space-y-space-sm font-body-md text-body-md text-on-surface-variant"><li><a class="hover:text-deep-river transition-colors" data-path="routes" href="#">Routes &amp; Lines</a></li><li><a class="hover:text-deep-river transition-colors" data-path="explore" href="#">Timetable &amp; Live Headways</a></li><li><a class="hover:text-deep-river transition-colors" data-path="about" href="#">Pier Terminals &amp; Amenities</a></li><li><a class="hover:text-deep-river transition-colors" data-path="about" href="#">Fleet &amp; Waterway Safety</a></li></ul></div><div class="space-y-space-md"><span class="font-headline-sm text-headline-sm text-deep-river block">Tourism Experiences</span><ul class="space-y-space-sm font-body-md text-body-md text-on-surface-variant"><li><a class="hover:text-deep-river transition-colors" data-path="experience" href="#">Sunset Golden Hour Cruise</a></li><li><a class="hover:text-deep-river transition-colors" data-path="experience" href="#">Historical River Tour</a></li><li><a class="hover:text-deep-river transition-colors" data-path="experience" href="#">Heritage Audio Guide</a></li><li><a class="hover:text-deep-river transition-colors" data-path="experience" href="#">Charter &amp; Group Escapes</a></li></ul></div><div class="space-y-space-md"><span class="font-headline-sm text-headline-sm text-deep-river block">Support &amp; Contact</span><div class="space-y-space-xs font-body-md text-body-md text-on-surface-variant"><p class="text-deep-river font-medium">Operational Hours</p><p class="font-body-sm text-body-sm">Mon – Sun: 06:00 – 23:00</p><p class="text-deep-river font-medium pt-space-xs">Dispatch Hotline</p><p class="font-body-sm text-body-sm">+1 (800) 555-RIVER</p></div><div class="pt-space-xs"><div class="inline-flex items-center gap-space-sm px-space-md py-space-xs rounded-lg bg-surface-container"><span class="material-symbols-outlined text-teal-flow text-[20px]">qr_code_2</span><span class="font-body-sm text-body-sm text-on-surface">Transit App Scanner</span></div></div></div></div><div class="pt-space-xl flex flex-col md:flex-row items-center justify-between gap-space-md font-body-sm text-body-sm text-on-surface-variant"><p>© 2025 Smart Waterbus. River Connects Greater Stories.</p><div class="flex items-center gap-space-lg"><a class="hover:text-deep-river transition-colors" href="#">Passenger Rights</a><a class="hover:text-deep-river transition-colors" href="#">Privacy Policy</a><a class="hover:text-deep-river transition-colors" href="#">Waterway Transit Rules</a><a class="hover:text-deep-river transition-colors" href="#">Accessibility</a></div></div></div></footer></body></html>
