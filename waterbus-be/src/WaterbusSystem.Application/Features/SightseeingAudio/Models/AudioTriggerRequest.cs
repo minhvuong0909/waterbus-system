@@ -10,6 +10,8 @@ public record AudioTriggerRequest
     public Guid TripId { get; init; }
     public Guid BoatId { get; init; }
     public Guid RouteId { get; init; }
+    public Guid RoutePoiId { get; init; }
+    public int RoutePoiDisplayOrder { get; init; }
     public Guid PoiId { get; init; }
     public string PoiName { get; init; } = string.Empty;
     public Guid AudioGuideId { get; init; }

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
@@ -49,6 +51,10 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
         if (tripContext.TripId == Guid.Empty || tripContext.BoatId == Guid.Empty || tripContext.RouteId == Guid.Empty)
             return PoiAudioTriggerEvaluationResult.Skipped(TriggerDecisionReason.InvalidTripContext,
                 "Ngữ cảnh Trip/Boat/Route không hợp lệ.");
+
+        if (tripContext.NextRoutePoiDisplayOrder is <= 0)
+            return PoiAudioTriggerEvaluationResult.Skipped(TriggerDecisionReason.InvalidTripContext,
+                "Thứ tự RoutePoi tiếp theo phải là số dương.");
 
         if (position.BoatId == Guid.Empty || !position.TripId.HasValue || position.TripId == Guid.Empty
             || position.ObservedAt == default
@@ -104,8 +110,19 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
         }
 
         // 7. Lọc các POI thuộc đúng tuyến của chuyến
-        var routeCandidates = poiCandidates
+        var allRouteCandidates = poiCandidates
             .Where(c => c.RouteId == tripContext.RouteId)
+            .ToList();
+
+        if (allRouteCandidates.GroupBy(c => c.PoiId)
+            .Any(group => group.Count() > 1 && group.Any(c => c.RoutePoiId == Guid.Empty)))
+            return PoiAudioTriggerEvaluationResult.Skipped(
+                TriggerDecisionReason.InvalidTripContext,
+                "POI xuất hiện nhiều lần trên tuyến nhưng thiếu RoutePoiId để chống phát lặp đúng từng lần xuất hiện.");
+
+        var routeCandidates = allRouteCandidates
+            .Where(c => !tripContext.NextRoutePoiDisplayOrder.HasValue
+                || c.DisplayOrder == tripContext.NextRoutePoiDisplayOrder.Value)
             .ToList();
 
         if (routeCandidates.Count == 0)
@@ -124,6 +141,7 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
         bool encounteredInactiveRoutePoi = false;
         bool encounteredInvalidPoiCoordinates = false;
         bool encounteredMissingPoiCoordinates = false;
+        int inZoneCount = 0;
 
         foreach (var candidate in routeCandidates)
         {
@@ -178,6 +196,8 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
                 continue;
             }
 
+            inZoneCount++;
+
             // Tính khoảng cách chính xác theo mét
             double distanceMeters = _distanceCalculator.CalculateDistanceMeters(
                 position.Latitude,
@@ -201,7 +221,7 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
             // Kiểm tra chống kích hoạt lặp lại trong cùng lượt ghé (BR-EXP-05)
             bool alreadyTriggered = await _deduplicationService.HasBeenTriggeredAsync(
                 tripContext.TripId,
-                candidate.PoiId,
+                DeduplicationId(candidate),
                 tripContext.VisitId,
                 cancellationToken);
 
@@ -216,6 +236,12 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
                 publishedVietnameseAudio,
                 distanceMeters));
         }
+
+        // Không đoán tiến độ tuyến từ GPS khi các vùng POI chồng nhau.
+        if (!tripContext.NextRoutePoiDisplayOrder.HasValue && inZoneCount > 1)
+            return PoiAudioTriggerEvaluationResult.Skipped(
+                TriggerDecisionReason.AmbiguousRouteProgress,
+                "Nhiều vùng POI chồng nhau; cần thứ tự RoutePoi tiếp theo từ tiến độ hành trình.");
 
         // 9. Xử lý trường hợp không có ứng viên nào thỏa mãn
         if (qualifiedMatches.Count == 0)
@@ -268,24 +294,28 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
                 "Tàu hiện nằm ngoài bán kính kích hoạt của tất cả POI trên tuyến.");
         }
 
-        // 10. Thứ tự tạm cho offline test: gần nhất rồi DisplayOrder.
-        // Quy tắc POI overlap production phải chốt với owner tuyến/player.
+        // 10. Khi tiến độ đã xác định, chỉ xét RoutePoi tương ứng; không ưu tiên POI gần nhất.
         var bestMatch = qualifiedMatches
-            .OrderBy(m => m.DistanceMeters)
-            .ThenBy(m => m.Candidate.DisplayOrder)
+            .OrderBy(m => m.Candidate.DisplayOrder)
+            .ThenBy(m => m.DistanceMeters)
             .First();
 
+        var deduplicationId = DeduplicationId(bestMatch.Candidate);
+
         if (!await _deduplicationService.TryReserveAsync(
-            tripContext.TripId, bestMatch.Candidate.PoiId, tripContext.VisitId, cancellationToken))
+            tripContext.TripId, deduplicationId, tripContext.VisitId, cancellationToken))
             return PoiAudioTriggerEvaluationResult.Skipped(
                 TriggerDecisionReason.AlreadyTriggeredForVisit,
                 "POI này đã có yêu cầu trigger cho lượt ghé hiện tại.");
 
         var triggerRequest = new AudioTriggerRequest
         {
+            RequestId = StableRequestId(tripContext.TripId, deduplicationId, tripContext.VisitId),
             TripId = tripContext.TripId,
             BoatId = tripContext.BoatId,
             RouteId = tripContext.RouteId,
+            RoutePoiId = bestMatch.Candidate.RoutePoiId,
+            RoutePoiDisplayOrder = bestMatch.Candidate.DisplayOrder,
             PoiId = bestMatch.Candidate.PoiId,
             PoiName = bestMatch.Candidate.PoiName,
             AudioGuideId = bestMatch.AudioGuide.AudioGuideId,
@@ -306,22 +336,23 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
         catch (OperationCanceledException)
         {
             await _deduplicationService.ReleaseReservationAsync(
-                tripContext.TripId, bestMatch.Candidate.PoiId, tripContext.VisitId, CancellationToken.None);
+                tripContext.TripId, deduplicationId, tripContext.VisitId, CancellationToken.None);
             throw;
         }
         catch (Exception ex)
         {
             await _deduplicationService.ReleaseReservationAsync(
-                tripContext.TripId, bestMatch.Candidate.PoiId, tripContext.VisitId, CancellationToken.None);
+                tripContext.TripId, deduplicationId, tripContext.VisitId, CancellationToken.None);
             _logger?.LogWarning("Không dispatch được trigger audio ({ExceptionType}).", ex.GetType().Name);
             return PoiAudioTriggerEvaluationResult.Skipped(
                 TriggerDecisionReason.DispatchFailed, "Không gửi được yêu cầu phát audio tới Onboard Player.");
         }
 
-        if (!dispatchResult.IsDispatched || dispatchResult.RequestId != triggerRequest.RequestId)
+        if (!dispatchResult.IsDispatched || !dispatchResult.IsAcceptedByPlayer
+            || dispatchResult.RequestId != triggerRequest.RequestId)
         {
             await _deduplicationService.ReleaseReservationAsync(
-                tripContext.TripId, bestMatch.Candidate.PoiId, tripContext.VisitId, CancellationToken.None);
+                tripContext.TripId, deduplicationId, tripContext.VisitId, CancellationToken.None);
             _logger?.LogWarning("Gửi yêu cầu phát audio cho POI {PoiId} trên Trip {TripId} thất bại.",
                 bestMatch.Candidate.PoiId, tripContext.TripId);
 
@@ -330,10 +361,10 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
                 "Gửi yêu cầu phát audio tới Onboard Player thất bại.");
         }
 
-        // 12. Ghi nhận chống lặp sau khi dispatch thành công
+        // 12. Chỉ ghi nhận sau ACK player đã chấp nhận lệnh; chưa phải ACK bắt đầu phát.
         await _deduplicationService.MarkAsTriggeredAsync(
             tripContext.TripId,
-            bestMatch.Candidate.PoiId,
+            deduplicationId,
             tripContext.VisitId,
             CancellationToken.None);
 
@@ -357,6 +388,17 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
         PoiGeofenceCandidate Candidate,
         AudioGuideCandidate AudioGuide,
         double DistanceMeters);
+
+    private static Guid DeduplicationId(PoiGeofenceCandidate candidate) =>
+        candidate.RoutePoiId == Guid.Empty ? candidate.PoiId : candidate.RoutePoiId;
+
+    // Cùng lượt ghé retry dùng cùng RequestId để player có thể khử trùng lệnh đã nhận.
+    private static Guid StableRequestId(Guid tripId, Guid routePoiId, string? visitId)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(
+            $"{tripId:N}:{routePoiId:N}:{(visitId is null ? "0" : "1:" + visitId)}"));
+        return new Guid(bytes.AsSpan(0, 16));
+    }
 
     private static bool IsStableAssetIdentifier(string? assetUri) =>
         !string.IsNullOrWhiteSpace(assetUri)

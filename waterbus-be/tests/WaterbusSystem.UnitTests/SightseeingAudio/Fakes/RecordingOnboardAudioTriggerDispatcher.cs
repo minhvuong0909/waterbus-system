@@ -17,6 +17,7 @@ public sealed class RecordingOnboardAudioTriggerDispatcher : IOnboardAudioTrigge
     /// Cho phép cấu hình giả lập lỗi dispatch (ví dụ mất kết nối mạng với tàu).
     /// </summary>
     public bool ShouldFailDispatch { get; set; }
+    public bool ShouldOmitPlayerAck { get; set; }
 
     /// <summary>
     /// Thông điệp lỗi khi giả lập dispatch thất bại.
@@ -74,7 +75,10 @@ public sealed class RecordingOnboardAudioTriggerDispatcher : IOnboardAudioTrigge
             _dispatchedRequests.Add(request);
         }
 
-        return AudioTriggerDispatchResult.Success(
+        if (ShouldOmitPlayerAck)
+            return AudioTriggerDispatchResult.SentWithoutPlayerAck(request.RequestId);
+
+        return AudioTriggerDispatchResult.PlayerAccepted(
             request.RequestId,
             $"Đã gửi lệnh phát audio cho POI '{request.PoiName}' tới Onboard Player.");
     }

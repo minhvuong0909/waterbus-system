@@ -14,7 +14,8 @@ public interface IOnboardAudioTriggerDispatcher
     /// </summary>
     /// <param name="request">Thông tin yêu cầu kích hoạt.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Kết quả gửi yêu cầu (đã dispatch thành công tới transport layer).</returns>
+    /// <returns>Kết quả gửi lệnh và ACK player chấp nhận xếp lệnh phát. Transport thành công nhưng
+    /// chưa có ACK phải trả SentWithoutPlayerAck; không được báo đã phát ra loa.</returns>
     Task<AudioTriggerDispatchResult> DispatchTriggerRequestAsync(
         AudioTriggerRequest request,
         CancellationToken cancellationToken = default);

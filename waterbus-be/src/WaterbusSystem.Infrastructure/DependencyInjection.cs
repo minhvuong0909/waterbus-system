@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.Incidents;
 using WaterbusSystem.Application.Features.Tracking;
 using WaterbusSystem.Infrastructure.BackgroundJobs;
@@ -118,8 +119,11 @@ public static class DependencyInjection
         // - Owner Web/Booking chốt hợp đồng URL đặt vé.
         // - Cấu hình OpenAI API Key qua User Secrets / biến môi trường.
         services.Configure<OpenAiAssistantOptions>(configuration.GetSection(OpenAiAssistantOptions.SectionName));
-        // Chưa đăng ký IAiBookingAssistantService/adapter: ITripSearchTool và IBookingLinkTool
-        // chưa có implementation production được owner xác nhận. Đăng ký ở bước tích hợp.
+        // Adapter đã có để thử local; cả LLM và hai contract tích hợp đều tắt mặc định.
+        services.Configure<AiBookingIntegrationOptions>(configuration.GetSection(AiBookingIntegrationOptions.SectionName));
+        services.AddScoped<ITripSearchTool, MediatRTripSearchTool>();
+        services.AddScoped<IBookingLinkTool, ConfiguredBookingLinkTool>();
+        services.AddScoped<IAiBookingAssistantService, SemanticKernelAiBookingAssistantService>();
 
         // 7. Tính khoảng cách địa lý cho geofence POI (NetTopologySuite, stateless)
         services.AddSingleton<IGeoDistanceCalculator, NtsGeoDistanceCalculator>();

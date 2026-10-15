@@ -54,5 +54,8 @@ public enum TriggerDecisionReason
     InvalidTripContext = 16,
 
     /// <summary>Tọa độ POI nằm ngoài phạm vi vĩ độ/kinh độ hợp lệ.</summary>
-    PoiCoordinatesInvalid = 17
+    PoiCoordinatesInvalid = 17,
+
+    /// <summary>Nhiều vùng POI chồng nhau nhưng chưa biết thứ tự RoutePoi tiếp theo.</summary>
+    AmbiguousRouteProgress = 18
 }

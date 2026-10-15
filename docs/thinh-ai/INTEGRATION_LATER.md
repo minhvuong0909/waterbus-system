@@ -11,7 +11,7 @@ File này tách các công việc cần hợp tác sau khi các thành viên ho�
 | POI CRUD và quản lý kịch bản (`P3-BE-03`, `P3-WEB-02`) | Chưa thấy API/UI trong source; `AudioGuide` không có script text | Chưa thể quyết định cách lưu/duyệt kịch bản hay form Admin. |
 | Audio storage/Onboard Player | Có Azure Blob MP3 adapter và service nhận script đã duyệt → TTS → Blob; smoke test upload/đọc lại/xóa Blob và test nối Azure Speech → service → Blob → tải MP3 thật đã pass với tài nguyên dev cá nhân ngày 15/10/2026. Chưa có player/backend dispatch production | Cần account/container private cho môi trường nhóm, nguồn script/version của owner POI và contract player để truy cập URI, phát ra loa. Bài test dùng câu thử, không chứng minh kịch bản đã duyệt/AudioGuide/loa tàu chạy. |
 | Trip Search | Có `SearchTripsQuery`/`GET /api/v1/trips/search`; giá đang là `0m` TODO, stop list suy từ Station.OrderIndex | AI chỉ được dùng sau khi owner Trip Search xác nhận dữ liệu giờ/giá/bến chính xác. |
-| Booking link/Trip Card/chat widget | Frontend đã có chat widget và Trip Card, nhưng `assistantService.ts` vẫn trả canned/mock reply và chưa gọi AI backend | Cần thống nhất JSON/backend endpoint với Viễn và owner Booking; không xem widget hiện tại là Semantic Kernel chạy thật. |
+| Booking link/Trip Card/chat widget | Backend đã có Semantic Kernel adapter, hai tool adapter, DI và `POST /api/v1/AiAssistant/chat` (tắt mặc định); `assistantService.ts` vẫn trả canned/mock reply | Cần owner Trip Search xác nhận giá/bến, owner Web/Booking xác nhận template link, Viễn nối widget; không xem Web hiện tại là Semantic Kernel chạy thật. |
 
 Initializer hiện seed một Trip demo loại `Commuter` với stop calls. Có Trip demo **không chứng minh** luồng Sightseeing/audio chạy được; test tích hợp phải tạo Trip Sightseeing hợp lệ theo BR FINAL.
 
@@ -37,9 +37,9 @@ Cần chốt trước khi nối:
 
 1. Vị trí có `BoatId`, `TripId`, latitude, longitude, `ObservedAt`, source và tốc độ không? Xác thực Boat/Trip và chống mẫu GPS cũ ở đâu?
 2. Route/Trip/RoutePoi nào được phục vụ, kể cả hành trình vòng và nhiều lần ghé cùng POI?
-3. `TriggerRadiusM = null` nghĩa là dùng default cấu hình hay vô hiệu trigger?
-4. Chống phát lặp theo `TripId + PoiId + lượt ghé` lưu ở đâu và reset khi nào?
-5. BR FINAL đã chốt gửi đến Onboard Player/máy tính trên Boat; dùng event/command nào, có ACK không, ai xác nhận audio **thực sự phát**?
+3. `TriggerRadiusM = null` đã chọn không trigger; xem `AUDIO_TRIGGER_DECISIONS.md`. Owner tuyến cần cấu hình bán kính dương.
+4. Chống phát lặp đã chọn khóa `TripId + RoutePoiId + VisitId`; tracking/tiến độ cần cấp `NextRoutePoiDisplayOrder` và `VisitId` ổn định. Cần kho dedup production; không reset theo GPS.
+5. BR FINAL đã chốt gửi đến Onboard Player/máy tính trên Boat. Contract do Thịnh đề xuất: `RequestId` ổn định, ACK player đã chấp nhận xếp lệnh trước khi đánh dấu trigger; ACK bắt đầu phát là trạng thái khác. Cần owner player xác nhận kênh/timeout/trạng thái và hiện thực trên thiết bị.
 6. Dừng/nhường ưu tiên khi Suspended/Terminated/cảnh báo an toàn được thực thi ở backend, player hay cả hai?
 7. Nếu nhóm có service ETA riêng, ranh giới không gian tên/DTO giữa nó và geofence POI là gì để tránh code trùng?
 

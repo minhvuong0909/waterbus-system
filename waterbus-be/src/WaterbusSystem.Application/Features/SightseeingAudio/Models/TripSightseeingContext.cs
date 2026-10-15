@@ -27,4 +27,10 @@ public record TripSightseeingContext
     /// Định danh lượt ghé tùy chọn (nếu hành trình vòng có nhiều lượt ghé cùng POI).
     /// </summary>
     public string? VisitId { get; init; }
+
+    /// <summary>
+    /// Thứ tự RoutePoi tiếp theo do nguồn tiến độ hành trình cung cấp. Khi nhiều vùng
+    /// POI chồng nhau, không tự suy thứ tự này từ khoảng cách GPS.
+    /// </summary>
+    public int? NextRoutePoiDisplayOrder { get; init; }
 }

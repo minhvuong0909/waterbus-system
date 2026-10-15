@@ -46,7 +46,19 @@ dotnet user-secrets set "AiBookingAssistant:OpenAI:ApiKey" "<openai-api-key>" --
 dotnet user-secrets set "AiBookingAssistant:OpenAI:ModelId" "gpt-4.1-mini" --project src/WaterbusSystem.WebApi
 ```
 
-**Chưa bật `IsEnabled=true` chỉ vì đã có key.** `IAiBookingAssistantService` chưa được đăng ký vào API vì Trip Search hiện trả giá `0`/stop giả định và booking-link tool production chưa được owner xác nhận. Giữ `IsEnabled=false` đến khi contract được nối và kiểm thử.
+**Chưa bật `IsEnabled=true` chỉ vì đã có key.** `IAiBookingAssistantService`, hai tool adapter và `POST /api/v1/AiAssistant/chat` đã có trong backend, nhưng mặc định tắt. Trip Search hiện trả giá `0`/stop giả định; booking-link template chưa được owner Web/Booking xác nhận. Hai cờ `AiBookingAssistant:Integration:IsTripSearchContractVerified` và `IsBookingLinkContractVerified` mặc định `false`; không tự bật để lấy Trip Card production sai.
+
+Có thể thử **OpenAI thật + Semantic Kernel function calling với trip fixture test** (không dùng Trip Search/Booking thật):
+
+```powershell
+$env:WATERBUS_OPENAI_BOOKING_SMOKE = '1'
+dotnet test WaterbusSystem.sln --filter FullyQualifiedName~OpenAiBookingLiveSmokeTests
+Remove-Item Env:WATERBUS_OPENAI_BOOKING_SMOKE
+```
+
+Chạy trong `waterbus-be/` sau khi lưu key bằng User Secrets như trên. Test opt-in này có thể phát sinh chi phí OpenAI; pass chỉ chứng minh provider/plugin hoạt động với dữ liệu fixture, **không** chứng minh giá/bến/link/UI chạy thật. Không in hoặc gửi key trong chat/log.
+
+Nếu test trả `IsFallback=true`, dòng assert hiện cho biết **loại exception và HTTP status**, không in key hoặc nội dung phản hồi. HTTP 429 có thể là hết credit/hạn mức chi tiêu hoặc chạm rate limit; kiểm tra billing/limits của đúng OpenAI project, không retry liên tục khi hết credit. Nếu `tools=` rỗng, request đã lỗi trước khi function `SearchTrips` chạy. Xóa cờ PowerShell bằng `Remove-Item Env:WATERBUS_OPENAI_BOOKING_SMOKE` (không có dấu `?`).
 
 ## 4. Docker Compose và kiểm thử thật
 
@@ -72,5 +84,5 @@ dotnet user-secrets set "AiBookingAssistant:OpenAI:ModelId" "gpt-4.1-mini" --pro
   ```
 
   Mở file MP3 mới nhất để nghe. Cờ phải bằng `1` trong đúng phiên PowerShell chạy test; nếu không, test pass nhưng **không gọi Azure**. Bài này sử dụng quota Azure Speech và giao dịch Azure Blob. File local là dữ liệu thử ngoài repo; bạn có thể xóa sau khi nghe.
-- OpenAI: chỉ live test sau khi tool Trip Search và booking link dùng dữ liệu đúng BR FINAL.
+- OpenAI: có thể smoke test provider/plugin độc lập bằng fixture; live test **end-to-end với dữ liệu thật** chỉ sau khi owner xác nhận Trip Search và booking link, rồi Viễn nối UI.
 - GPS/Onboard Player: cần contract dispatch, ACK và safety override; unit test geofence chưa chứng minh loa tàu đã phát.

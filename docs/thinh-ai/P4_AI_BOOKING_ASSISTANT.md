@@ -15,6 +15,8 @@ Drive **đã giao Thịnh AI Booking Assistant** (Semantic Kernel, OpenAI/Gemini
 
 Hiện `SearchTripsQuery` trong source có `BasePrice = 0` TODO và suy bến dừng theo `Station.OrderIndex`; không dùng giá/bến đó như sự thật cho người dùng trước khi owner sửa/xác nhận contract.
 
+Backend đã chuẩn bị `MediatRTripSearchTool` (gọi cùng query mà API Trip Search dùng), `ConfiguredBookingLinkTool` (chỉ chấp nhận template HTTPS do owner cung cấp), DI và `POST /api/v1/AiAssistant/chat`. Các cờ xác nhận contract mặc định tắt. Adapter tìm chuyến còn chặn mọi kết quả có giá `<= 0` hoặc thiếu bến; không bật cờ chỉ để “có card”. Mẫu link có `{tripId}` và tùy contract có `{boardingStationId}`, `{disembarkingStationId}`, `{passengerCount}`; không giả định `/trip` hiện tại là luồng đặt vé thật. Viễn vẫn sở hữu kết nối widget và render UI Card.
+
 ## Gate trước khi triển khai
 
 Trước khi tích hợp, thống nhất với nhóm:

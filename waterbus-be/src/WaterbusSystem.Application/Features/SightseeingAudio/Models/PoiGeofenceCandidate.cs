@@ -6,6 +6,8 @@ namespace WaterbusSystem.Application.Features.SightseeingAudio.Models;
 /// </summary>
 public record PoiGeofenceCandidate
 {
+    /// <summary>ID bản ghi RoutePoi, dùng phân biệt cùng POI xuất hiện nhiều lần trên một tuyến.</summary>
+    public Guid RoutePoiId { get; init; }
     public Guid PoiId { get; init; }
     public string PoiName { get; init; } = string.Empty;
     public Guid RouteId { get; init; }

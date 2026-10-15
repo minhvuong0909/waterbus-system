@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using WaterbusSystem.Application.Features.AiBooking;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.AiBooking.Models;
 using WaterbusSystem.Infrastructure.Services.AiBooking.Plugins;
@@ -74,7 +75,7 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
 
         if (!config.IsEnabled || string.IsNullOrWhiteSpace(config.ApiKey))
         {
-            throw new InvalidOperationException("AI Booking Assistant chưa được kích hoạt hoặc thiếu OpenAI API key.");
+            throw new AiBookingUnavailableException();
         }
         if (config.MaxToolCallsPerTurn is < 1 or > 20 || config.TimeoutSeconds is < 1 or > 120)
             throw new InvalidOperationException("Giới hạn tool call hoặc timeout của AI Booking Assistant không hợp lệ.");
@@ -166,13 +167,31 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
         }
         catch (Exception ex)
         {
-            // SDK exception có thể chứa prompt/credential; chỉ ghi loại lỗi an toàn.
-            _logger.LogError("Dịch vụ OpenAI qua Semantic Kernel lỗi ({ExceptionType}).", ex.GetType().Name);
+            // SDK exception có thể chứa prompt/credential; chỉ ghi loại lỗi và HTTP status an toàn.
+            _logger.LogError("Dịch vụ OpenAI qua Semantic Kernel lỗi ({ExceptionType}, HTTP {StatusCode}).",
+                ex.GetType().Name, SafeHttpStatusCode(ex));
             return new AiBookingChatResponse(
                 TextAnswer: "Xin lỗi quý khách, hiện tại dịch vụ trợ lý ảo đang gặp sự cố kết nối. Quý khách vui lòng thử lại sau.",
                 Cards: Array.Empty<AiTripCardDto>(),
                 ExecutedTools: plugin.ExecutedTools,
                 IsFallback: true);
         }
+    }
+
+    private static int? SafeHttpStatusCode(Exception exception)
+    {
+        for (var current = exception; current != null; current = current.InnerException)
+        {
+            if (current is HttpRequestException httpException && httpException.StatusCode.HasValue)
+                return (int)httpException.StatusCode.Value;
+
+            // Semantic Kernel/OpenAI SDK có thể bọc HTTP error trong kiểu exception riêng.
+            var value = current.GetType().GetProperty("StatusCode")?.GetValue(current);
+            if (value is System.Net.HttpStatusCode status)
+                return (int)status;
+            if (value is int code && code is >= 100 and <= 599)
+                return code;
+        }
+        return null;
     }
 }

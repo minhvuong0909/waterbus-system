@@ -82,6 +82,9 @@ services:
       AzureBlobAudioStorage__ContainerName: ${AZURE_BLOB_AUDIO_CONTAINER:-audio-guides-private}
       AiBookingAssistant__OpenAI__ApiKey: ${OPENAI_API_KEY:-}
       AiBookingAssistant__OpenAI__IsEnabled: ${AI_BOOKING_ENABLED:-false}
+      AiBookingAssistant__Integration__IsTripSearchContractVerified: ${AI_TRIP_SEARCH_CONTRACT_VERIFIED:-false}
+      AiBookingAssistant__Integration__IsBookingLinkContractVerified: ${AI_BOOKING_LINK_CONTRACT_VERIFIED:-false}
+      AiBookingAssistant__Integration__BookingUrlTemplate: ${AI_BOOKING_URL_TEMPLATE:-}
       Tracking__Simulator__Enabled: ${TRACKING_SIMULATOR_ENABLED:-false}
       Tracking__Simulator__IntervalSeconds: ${TRACKING_SIMULATOR_INTERVAL_SECONDS:-3}
       Tracking__Simulator__IncludeScheduledTrips: ${TRACKING_SIMULATOR_INCLUDE_SCHEDULED:-false}

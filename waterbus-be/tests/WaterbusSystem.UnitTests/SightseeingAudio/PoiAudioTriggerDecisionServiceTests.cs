@@ -252,7 +252,7 @@ public class PoiAudioTriggerDecisionServiceTests
     // ─────────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task EvaluateAndTrigger_TwoCandidatePois_PrioritizesClosestPoi()
+    public async Task EvaluateAndTrigger_TwoOverlappingPoisWithoutProgress_DoesNotGuess()
     {
         var tripContext = CreateValidTripContext();
 
@@ -289,11 +289,74 @@ public class PoiAudioTriggerDecisionServiceTests
         var boatPos = CreateBoatPosition(BachDangLat, BachDangLng);
         var result = await _service.EvaluateAndTriggerAsync(boatPos, tripContext, new[] { poi2, poi1 });
 
-        result.ShouldTrigger.Should().BeTrue();
-        // Ưu tiên POI gần nhất (poi1 cách 0m, dù poi2 có DisplayOrder = 1)
-        result.TriggeredPoiId.Should().Be(poi1.PoiId);
-        result.TriggeredPoiName.Should().Be("Bến Bạch Đằng");
+        result.ShouldTrigger.Should().BeFalse();
+        result.Reason.Should().Be(TriggerDecisionReason.AmbiguousRouteProgress);
+        _dispatcher.DispatchedCount.Should().Be(0);
+
+        var nextPoiContext = tripContext with { NextRoutePoiDisplayOrder = 1 };
+        var orderedResult = await _service.EvaluateAndTriggerAsync(boatPos, nextPoiContext, new[] { poi2, poi1 });
+        orderedResult.ShouldTrigger.Should().BeTrue();
+        orderedResult.TriggeredPoiId.Should().Be(poi2Id, "RoutePoi thứ tự 1 được ưu tiên dù ở xa hơn");
         _dispatcher.DispatchedCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task EvaluateAndTrigger_SamePoiAtTwoRouteOccurrences_DeduplicatesEachOccurrence()
+    {
+        var firstRoutePoiId = Guid.NewGuid();
+        var secondRoutePoiId = Guid.NewGuid();
+        var first = CreateValidPoiCandidate(displayOrder: 1) with { RoutePoiId = firstRoutePoiId };
+        var second = CreateValidPoiCandidate(displayOrder: 2) with { RoutePoiId = secondRoutePoiId };
+        var position = CreateBoatPosition(BachDangLat, BachDangLng);
+        var context = CreateValidTripContext();
+
+        var firstResult = await _service.EvaluateAndTriggerAsync(position,
+            context with { NextRoutePoiDisplayOrder = 1 }, new[] { first, second });
+        var firstRepeat = await _service.EvaluateAndTriggerAsync(position,
+            context with { NextRoutePoiDisplayOrder = 1 }, new[] { first, second });
+        var secondResult = await _service.EvaluateAndTriggerAsync(position,
+            context with { NextRoutePoiDisplayOrder = 2 }, new[] { first, second });
+
+        firstResult.ShouldTrigger.Should().BeTrue();
+        firstRepeat.Reason.Should().Be(TriggerDecisionReason.AlreadyTriggeredForVisit);
+        secondResult.ShouldTrigger.Should().BeTrue();
+        _dispatcher.DispatchedCount.Should().Be(2);
+        firstResult.TriggerRequest!.RoutePoiId.Should().Be(firstRoutePoiId);
+        secondResult.TriggerRequest!.RoutePoiId.Should().Be(secondRoutePoiId);
+    }
+
+    [Fact]
+    public async Task EvaluateAndTrigger_RepeatedPoiWithoutRoutePoiId_DoesNotConflateOccurrences()
+    {
+        var first = CreateValidPoiCandidate(displayOrder: 1);
+        var second = CreateValidPoiCandidate(displayOrder: 2);
+
+        var result = await _service.EvaluateAndTriggerAsync(
+            CreateBoatPosition(BachDangLat, BachDangLng),
+            CreateValidTripContext() with { NextRoutePoiDisplayOrder = 1 },
+            new[] { first, second });
+
+        result.Reason.Should().Be(TriggerDecisionReason.InvalidTripContext);
+        _dispatcher.DispatchedCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task EvaluateAndTrigger_SentWithoutPlayerAck_RetriesWithSameRequestId()
+    {
+        var position = CreateBoatPosition(BachDangLat, BachDangLng);
+        var context = CreateValidTripContext();
+        var candidate = CreateValidPoiCandidate();
+        _dispatcher.ShouldOmitPlayerAck = true;
+
+        var unacknowledged = await _service.EvaluateAndTriggerAsync(position, context, new[] { candidate });
+        _dispatcher.ShouldOmitPlayerAck = false;
+        var acknowledged = await _service.EvaluateAndTriggerAsync(position, context, new[] { candidate });
+
+        unacknowledged.Reason.Should().Be(TriggerDecisionReason.DispatchFailed);
+        acknowledged.ShouldTrigger.Should().BeTrue();
+        _dispatcher.DispatchedRequests.Should().HaveCount(2);
+        _dispatcher.DispatchedRequests[0].RequestId.Should().Be(_dispatcher.DispatchedRequests[1].RequestId);
+        acknowledged.HasOnboardPlaybackAcknowledged.Should().BeFalse();
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
