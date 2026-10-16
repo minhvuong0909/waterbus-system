@@ -80,7 +80,7 @@ jobs:
           retention-days: 7
 
   frontend:
-    name: Frontend (build)
+    name: Frontend (lint + test + build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -101,6 +101,12 @@ jobs:
 
       - name: Install
         run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
 
       - name: Build (tsc + vite)
         run: pnpm build

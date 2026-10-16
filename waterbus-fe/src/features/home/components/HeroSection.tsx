@@ -5,12 +5,15 @@ import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import type { HeroCue } from '../types'
 import { t } from '../../../i18n'
+import { usePrefersReducedMotion } from '../../../hooks'
 
 interface HeroSectionProps {
   cues: HeroCue[]
 }
 
 export default function HeroSection({ cues }: HeroSectionProps) {
+  // With reduced motion the poster stays still instead of a looping video.
+  const reducedMotion = usePrefersReducedMotion()
   return (
     <section className="relative flex min-h-[720px] w-full flex-col justify-between overflow-hidden bg-gradient-to-b from-mist via-[#EDF4F5] to-surface lg:h-[86vh] lg:max-h-[920px] lg:min-h-[780px]">
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
@@ -21,11 +24,11 @@ export default function HeroSection({ cues }: HeroSectionProps) {
           className="h-full w-full object-cover object-[62%_center] saturate-[1.08] lg:object-[68%_center]"
           src={heroVideo}
           poster={heroPoster}
-          autoPlay
+          autoPlay={!reducedMotion}
           muted
-          loop
+          loop={!reducedMotion}
           playsInline
-          preload="auto"
+          preload="metadata"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-deep-river/85 via-deep-river/55 to-transparent lg:w-[72%]" />
         <div className="absolute inset-0 bg-gradient-to-t from-deep-river/85 via-transparent to-deep-river/25" />

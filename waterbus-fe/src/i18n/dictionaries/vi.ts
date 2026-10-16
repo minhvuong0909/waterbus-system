@@ -692,6 +692,7 @@ export const vi: Record<string, string> = {
   'Explore Journey': 'Xem hành trình',
   'Explore river journeys': 'Khám phá hành trình trên sông',
   'Explore River Journeys': 'Khám phá hành trình trên sông',
+  'Skip to main content': 'Bỏ qua tới nội dung chính',
   'Explore Routes': 'Xem các tuyến',
   'Explore scenic waterfront promenades, river parks, and cultural viewpoints along your route.':
     'Khám phá lối đi dạo ven sông, công viên và điểm ngắm văn hóa dọc tuyến của bạn.',

@@ -10,6 +10,7 @@ import {
 } from '../../features/explore/components/ExploreSections'
 import { getExploreData } from '../../features/explore/services/exploreService'
 import { useDocumentTitle, useFetch } from '../../hooks'
+import { Reveal } from '../../components/motion'
 import { ErrorState, PageLoader } from '../../components/ui'
 
 export default function ExplorePage() {
@@ -22,7 +23,7 @@ export default function ExplorePage() {
   if (loading || !data) return <PageLoader />
 
   return (
-    <div>
+    <Reveal>
       <ExploreHero onStories={() => storiesRef.current?.scrollIntoView({ behavior: 'smooth' })} />
       <JourneysSection journeys={data.journeys} />
       <ModesSection modes={data.modes} />
@@ -30,6 +31,6 @@ export default function ExplorePage() {
       <StoriesSection data={data} sectionRef={storiesRef} />
       <CorridorSection data={data} />
       <StepAboardBanner />
-    </div>
+    </Reveal>
   )
 }

@@ -9,7 +9,7 @@ export default function HowItWorksSection({ steps }: HowItWorksSectionProps) {
   return (
     <section className="w-full border-y border-outline-variant/30 bg-sand-light/50 py-space-3xl">
       <div className="mx-auto max-w-7xl space-y-space-2xl px-margin">
-        <div className="mx-auto max-w-xl space-y-space-xs text-center">
+        <div data-reveal className="mx-auto max-w-xl space-y-space-xs text-center">
           <span className="block text-body-sm font-bold uppercase tracking-wider text-teal-flow">
             {t('Effortless Commute')}
           </span>
@@ -29,6 +29,7 @@ export default function HowItWorksSection({ steps }: HowItWorksSectionProps) {
           {steps.map((step) => (
             <div
               key={step.number}
+              data-reveal
               className="relative z-10 flex flex-col items-center space-y-space-md text-center"
             >
               <div

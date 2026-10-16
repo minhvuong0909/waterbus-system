@@ -108,6 +108,7 @@ export function JourneysSection({ journeys }: { journeys: ExploreData['journeys'
             <Link
               key={j.id}
               to={ROUTES.searchResults}
+              data-reveal
               className="group overflow-hidden rounded-panel border border-outline-variant/30 bg-white shadow-sm transition-all hover:shadow-xl"
             >
               <div className="relative h-52 overflow-hidden">
@@ -308,6 +309,7 @@ export function LandmarksSection({
             <Link
               key={l.id}
               to={ROUTES.liveTracking}
+              data-reveal
               className="group overflow-hidden rounded-2xl border border-outline-variant/30 bg-white shadow-sm transition-all hover:shadow-lg"
             >
               <div className="relative h-40 overflow-hidden">

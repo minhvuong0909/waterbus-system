@@ -13,7 +13,7 @@ export default function StoriesSection({ stories }: StoriesSectionProps) {
   return (
     <section className="w-full bg-surface-container-lowest py-space-3xl">
       <div className="mx-auto max-w-7xl space-y-space-2xl px-margin">
-        <div className="max-w-2xl space-y-space-xs">
+        <div data-reveal className="max-w-2xl space-y-space-xs">
           <span className="block text-body-sm font-bold uppercase tracking-wider text-coral-glow">
             {t('River Stories & Destinations')}
           </span>
