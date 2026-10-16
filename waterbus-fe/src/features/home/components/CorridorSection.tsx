@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import RiverMap from '../../../components/map/RiverMap'
+import PierMap from '../../../components/map/PierMap'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { useAppDispatch } from '../../../store/hooks'
@@ -64,7 +64,7 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
                 </span>
               </div>
             </div>
-            <RiverMap
+            <PierMap
               map={map}
               pierActions={(pier) => (
                 <Link

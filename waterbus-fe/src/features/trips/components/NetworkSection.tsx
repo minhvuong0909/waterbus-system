@@ -1,4 +1,4 @@
-import RiverMap from '../../../components/map/RiverMap'
+import PierMap from '../../../components/map/PierMap'
 import { buildCorridorMap } from '../../home/utils'
 import { Icon } from '../../../components/ui'
 import { formatVndSuffix } from '../../../utils/format'
@@ -57,7 +57,7 @@ export default function NetworkSection({ routes, piers }: NetworkSectionProps) {
 
       <div className="mt-6 grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
         <div className="lg:col-span-8">
-          <RiverMap
+          <PierMap
             map={buildCorridorMap(piers)}
             pierActions={(p) => (
               <>
