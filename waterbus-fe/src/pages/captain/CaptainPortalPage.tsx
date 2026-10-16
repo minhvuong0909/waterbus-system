@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { ErrorState, Icon, PageLoader } from '../../components/ui'
 import { ActionButton, Modal, Notice, StatusBadge } from '../../features/admin/components/AdminUi'
+import GpsSharePanel from '../../features/admin/components/GpsSharePanel'
+import { USE_MOCK } from '../../constant/env'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import { getBoats, getRoutes, getTrips, operateTrip } from '../../features/admin/services/adminService'
 import type { AdminTrip, OperationType } from '../../features/admin/types'
@@ -119,6 +121,8 @@ export default function CaptainPortalPage() {
           <StatusBadge status={trip.status} />
         </div>
       </div>
+
+      {!USE_MOCK && user && <GpsSharePanel userId={user.id} />}
 
       <div className="flex gap-3">
         <BigButton icon="play_arrow" label={t('Start trip')} tone="teal" disabled={!can('Start') || action.busy} onClick={() => perform('Start', t('Started by the captain.'))} />

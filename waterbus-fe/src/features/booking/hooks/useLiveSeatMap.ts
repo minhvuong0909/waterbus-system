@@ -18,7 +18,8 @@ export function useLiveSeatMap(
     if (!enabled || !seatMap || !tripId) return
     const freeIds = seatMap.seats.filter((s) => s.status === 'available').map((s) => s.id)
     return subscribeSeatEvents(tripId, freeIds, (event) => {
-      const status: SeatStatus = event.type === 'SeatLocked' ? 'held' : 'available'
+      const status: SeatStatus =
+        event.type === 'SeatSold' ? 'sold' : event.type === 'SeatLocked' ? 'held' : 'available'
       setLive((current) => ({
         map: seatMap,
         // Changes recorded for an older map are dropped.

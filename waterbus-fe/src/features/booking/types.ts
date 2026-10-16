@@ -28,9 +28,9 @@ export interface SeatMap {
   seats: Seat[]
 }
 
-/** Seat hold changes pushed in real time (SignalR `SeatLocked` / `SeatUnlocked`). */
+/** Seat changes pushed in real time (seat-sync hub `seatHeld` / `seatReleased` / `seatSold`). */
 export interface SeatEvent {
-  type: 'SeatLocked' | 'SeatUnlocked'
+  type: 'SeatLocked' | 'SeatUnlocked' | 'SeatSold'
   tripId: string
   seatId: string
 }
