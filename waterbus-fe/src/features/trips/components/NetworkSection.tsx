@@ -1,4 +1,5 @@
-import NetworkMap from '../../../components/map/NetworkMap'
+import RiverMap from '../../../components/map/RiverMap'
+import { buildCorridorMap } from '../../home/utils'
 import { Icon } from '../../../components/ui'
 import { formatVndSuffix } from '../../../utils/format'
 import { useSearchQuery } from '../hooks/useTripSearch'
@@ -30,9 +31,7 @@ export default function NetworkSection({ routes, piers }: NetworkSectionProps) {
             </h2>
           </div>
           <p className="mt-1 text-sm text-on-surface-variant">
-            {t(
-              'Select a popular waterway connection or trace vessels across our five active piers.',
-            )}
+            {t('Click a pier to see its photo and address, or pick a popular connection.')}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-4 rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] px-4 py-2 text-xs font-medium text-on-surface-variant">
@@ -58,7 +57,27 @@ export default function NetworkSection({ routes, piers }: NetworkSectionProps) {
 
       <div className="mt-6 grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
         <div className="lg:col-span-8">
-          <NetworkMap />
+          <RiverMap
+            map={buildCorridorMap(piers)}
+            pierActions={(p) => (
+              <>
+                <button
+                  type="button"
+                  onClick={() => updateQuery({ originId: p.id })}
+                  className="rounded-full bg-teal-flow px-3 py-1.5 text-xs font-semibold text-on-primary hover:bg-secondary"
+                >
+                  {t('Depart from here')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateQuery({ destinationId: p.id })}
+                  className="rounded-full border border-teal-flow/40 px-3 py-1.5 text-xs font-semibold text-teal-flow hover:bg-sand-light"
+                >
+                  {t('Arrive here')}
+                </button>
+              </>
+            )}
+          />
         </div>
         <div className="flex flex-col justify-between gap-3 lg:col-span-4">
           {routes.map((route) => (

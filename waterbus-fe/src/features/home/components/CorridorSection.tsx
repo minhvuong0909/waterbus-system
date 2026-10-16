@@ -4,7 +4,7 @@ import RiverMap from '../../../components/map/RiverMap'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { useAppDispatch } from '../../../store/hooks'
-import { selectTrip } from '../../booking/bookingSlice'
+import { selectTrip, setQuery } from '../../booking/bookingSlice'
 import DepartureCard from '../../trips/components/DepartureCard'
 import type { CorridorMap, Departure } from '../../trips/types'
 import type { RouteFilter } from '../types'
@@ -64,7 +64,18 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
                 </span>
               </div>
             </div>
-            <RiverMap map={map} />
+            <RiverMap
+              map={map}
+              pierActions={(pier) => (
+                <Link
+                  to={ROUTES.search}
+                  onClick={() => dispatch(setQuery({ originId: pier.id }))}
+                  className="rounded-full bg-teal-flow px-3 py-1.5 text-xs font-semibold text-on-primary hover:bg-secondary"
+                >
+                  {t('Plan a trip from here')}
+                </Link>
+              )}
+            />
           </div>
 
           <div className="space-y-space-md lg:col-span-5">

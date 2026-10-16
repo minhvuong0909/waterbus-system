@@ -1,10 +1,15 @@
+import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { Icon } from '../ui'
+import PierPopup from './PierPopup'
 import type { CorridorMap, Pier } from '../../features/trips/types'
 import { t } from '../../i18n'
 
 interface RiverMapProps {
   map: CorridorMap
   className?: string
+  /** Buttons shown in the card of the clicked pier. */
+  pierActions?: (pier: Pier) => ReactNode
 }
 
 const PIER_STYLES: Record<Pier['kind'], { dot: string; label: string; sub: string }> = {
@@ -31,8 +36,10 @@ const PIER_ICON: Partial<Record<Pier['kind'], string>> = { hub: 'anchor', termin
  * Stylised river corridor map: SVG ribbon + absolutely positioned pier nodes and vessel pin.
  * Node positions are percentages so the map scales with its container.
  */
-export default function RiverMap({ map, className = '' }: RiverMapProps) {
+export default function RiverMap({ map, className = '', pierActions }: RiverMapProps) {
   const { piers, vessel } = map
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selected = piers.find((p) => p.id === selectedId)
 
   return (
     <div
@@ -90,9 +97,13 @@ export default function RiverMap({ map, className = '' }: RiverMapProps) {
         const style = PIER_STYLES[pier.kind]
         const icon = PIER_ICON[pier.kind]
         return (
-          <div
+          <button
             key={pier.id}
-            className="absolute z-10 flex cursor-pointer items-center gap-space-xs"
+            type="button"
+            aria-pressed={pier.id === selectedId}
+            aria-label={pier.name}
+            onClick={() => setSelectedId(pier.id === selectedId ? null : pier.id)}
+            className="absolute z-10 flex cursor-pointer items-center gap-space-xs text-left"
             style={{ left: `${pier.x}%`, top: `${pier.y}%` }}
           >
             <div
@@ -110,7 +121,7 @@ export default function RiverMap({ map, className = '' }: RiverMapProps) {
               <span className="block font-headline-sm text-deep-river">{pier.name}</span>
               <span className={`text-[10px] ${style.sub}`}>{pier.subtitle}</span>
             </div>
-          </div>
+          </button>
         )
       })}
 
@@ -140,6 +151,14 @@ export default function RiverMap({ map, className = '' }: RiverMapProps) {
           </div>
         </div>
       </div>
+
+      {selected && (
+        <PierPopup
+          pier={selected}
+          onClose={() => setSelectedId(null)}
+          actions={pierActions?.(selected)}
+        />
+      )}
 
       <div className="absolute bottom-4 left-4 flex items-center gap-3 rounded-xl border border-outline-variant/30 bg-surface-container-lowest/90 px-3 py-1.5 text-[11px] font-medium text-deep-river shadow-sm backdrop-blur-md">
         <span className="flex items-center gap-1.5">

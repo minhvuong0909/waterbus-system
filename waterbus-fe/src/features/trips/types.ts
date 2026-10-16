@@ -29,6 +29,11 @@ export interface Pier {
   x: number
   y: number
   kind: 'hub' | 'stop' | 'terminus'
+  /** Station code, e.g. "ST01"; names the photo file of the pier. */
+  code?: string
+  address?: string
+  latitude?: number
+  longitude?: number
 }
 
 export interface Vessel {
