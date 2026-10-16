@@ -512,6 +512,8 @@ public class BoatPositionEventConfiguration : IEntityTypeConfiguration<BoatPosit
         builder.Property(x => x.Longitude).HasPrecision(10, 7);
         builder.Property(x => x.SpeedKnots).HasPrecision(6, 2);
         builder.Property(x => x.Source).HasMaxLength(20).IsRequired();
+        // Tra vị trí mới nhất / lịch sử theo tàu
+        builder.HasIndex(x => new { x.BoatId, x.ObservedAt });
         builder.HasOne(x => x.Boat).WithMany()
             .HasForeignKey(x => x.BoatId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.Trip).WithMany()

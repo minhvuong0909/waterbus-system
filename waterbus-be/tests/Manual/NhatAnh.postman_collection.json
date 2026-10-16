@@ -1,0 +1,405 @@
+{
+  "info": {
+    "name": "Nhat Anh - Commercial API local demo",
+    "description": "Run folder 1, then Simulate-LocalVnPayIpn.ps1, then folder 2. Folder 3 is alternative cancel flow before IPN. Demo is synthetic; no real payment. Owner token is captured in runtime collection variables; do not commit exported token values. See docs/NHAT_ANH_TEST_GUIDE.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:5189",
+      "type": "string"
+    },
+    {
+      "key": "tripId",
+      "value": "046e0c1e-1e38-4401-833f-5f9d19e1590e",
+      "type": "string"
+    },
+    {
+      "key": "seatId",
+      "value": "ad90f311-8375-4f57-a489-0876afbf50e2",
+      "type": "string"
+    },
+    {
+      "key": "boardingStationId",
+      "value": "2770c928-6eee-439b-a048-c7b10f6d25c4",
+      "type": "string"
+    },
+    {
+      "key": "disembarkingStationId",
+      "value": "b8fc8f11-0329-4cf4-b808-c834c9bc2619",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "bookingId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "guestToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "merchantReference",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paymentDeadline",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "holdDeadline",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1 - Before payment",
+      "item": [
+        {
+          "name": "01 Search available trips",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/trips/search"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Hold Draft - captures owner token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/checkouts/holds",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"legs\": [\n    {\n      \"tripId\": \"{{tripId}}\",\n      \"seatIds\": [\n        \"{{seatId}}\"\n      ],\n      \"boardingStationId\": \"{{boardingStationId}}\",\n      \"disembarkingStationId\": \"{{disembarkingStationId}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) { const d=pm.response.json(); pm.collectionVariables.set(\"orderId\",d.orderId); pm.collectionVariables.set(\"bookingId\",d.bookings[0].bookingId); pm.collectionVariables.set(\"guestToken\",d.accessToken); pm.collectionVariables.set(\"holdDeadline\",d.expiresAt); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Owner reads checkout",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Guest-Token",
+                "value": "{{guestToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/checkouts/{{orderId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Missing token must be forbidden",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/checkouts/{{orderId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 QR before payment must be denied",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Guest-Token",
+                "value": "{{guestToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/checkouts/{{orderId}}/bookings/{{bookingId}}/qr"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Submit buyer - same hold deadline",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Guest-Token",
+                "value": "{{guestToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/checkouts/{{orderId}}/submit",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerName\": \"Demo Buyer\",\n  \"customerEmail\": \"demo@example.com\",\n  \"customerPhone\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Create payment attempt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Guest-Token",
+                "value": "{{guestToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/payments/create-vnpay-url",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { const d=pm.response.json(); pm.collectionVariables.set(\"merchantReference\",d.merchantReference); pm.collectionVariables.set(\"paymentDeadline\",d.expiresAt); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Retry - same reference and deadline",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Guest-Token",
+                "value": "{{guestToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/payments/create-vnpay-url",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) { const d=pm.response.json(); pm.test(\"Same attempt\",()=>pm.expect(d.merchantReference).to.eql(pm.collectionVariables.get(\"merchantReference\"))); pm.test(\"Same deadline\",()=>pm.expect(d.expiresAt).to.eql(pm.collectionVariables.get(\"paymentDeadline\"))); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 - After local IPN script",
+      "item": [
+        {
+          "name": "09 Read confirmed checkout / ticket",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Guest-Token",
+                "value": "{{guestToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/checkouts/{{orderId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 Fetch per-Booking RSA QR",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Guest-Token",
+                "value": "{{guestToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/checkouts/{{orderId}}/bookings/{{bookingId}}/qr"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Public key for scanner",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/checkouts/qr-public-key"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 - Alternative cancel flow",
+      "item": [
+        {
+          "name": "Cancel unpaid draft/pending checkout (run before IPN only)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Guest-Token",
+                "value": "{{guestToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/checkouts/{{orderId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expected HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

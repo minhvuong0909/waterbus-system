@@ -1,0 +1,145 @@
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Icon } from '../../../components/ui'
+import {
+  BookingCard,
+  SeatFeeRow,
+  SummaryRow,
+  TotalRow,
+} from '../../booking/components/SummaryParts'
+import { passengersLabel, selectedSeatsLabel } from '../../booking/utils'
+import type { BookingTotals } from '../../booking/utils'
+import type { PurchaserForm, Seat } from '../../booking/types'
+import type { TripDetail } from '../../trips/types'
+import { ROUTES } from '../../../routes/routes'
+import { useAppSelector } from '../../../store/hooks'
+import { useHoldCountdown } from '../../booking/hooks/useHoldCountdown'
+import { formatVnd } from '../../../utils/format'
+import { createPaymentUrl } from '../services/paymentService'
+import { t } from '../../../i18n'
+
+interface PaymentOrderSummaryProps {
+  trip: TripDetail
+  seats: Seat[]
+  purchaser: PurchaserForm
+  totals: BookingTotals
+}
+
+export default function PaymentOrderSummary({
+  trip,
+  seats,
+  purchaser,
+  totals,
+}: PaymentOrderSummaryProps) {
+  const navigate = useNavigate()
+  const order = useAppSelector((s) => s.booking.order)
+  const { hold, expired } = useHoldCountdown()
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  // BR-PAY-01: paying only sends the traveler to the gateway. The ticket is issued when the
+  // backend verifies the payment, and the callback page waits for that; there is no "I have paid".
+  const pay = async () => {
+    if (!hold) return
+    setBusy(true)
+    setFailed(false)
+    try {
+      const url = await createPaymentUrl(hold.orderId, order?.accessToken ?? hold.accessToken)
+      if (url.startsWith('/')) navigate(url)
+      else window.location.assign(url)
+    } catch {
+      setBusy(false)
+      setFailed(true)
+    }
+  }
+
+  return (
+    <BookingCard className="p-space-lg lg:sticky lg:top-24">
+      <div className="mb-space-md flex items-center justify-between">
+        <h2 className="font-headline-md text-headline-sm text-deep-river">{t('Order Summary')}</h2>
+        <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[11px] font-bold text-teal-flow">
+          {t('Trip {vesselCode}', { vesselCode: trip.vesselCode })}
+        </span>
+      </div>
+
+      <div className="rounded-xl bg-mist/70 p-space-md">
+        <div className="flex items-start justify-between text-xs font-semibold text-deep-river">
+          <span>
+            {trip.originPierLabel}
+            <span className="block font-normal text-teal-flow">{trip.departTime}</span>
+          </span>
+          <Icon name="sailing" className="text-[18px] text-teal-flow" />
+          <span className="text-right">
+            {trip.destinationPierLabel}
+            <span className="block font-normal text-teal-flow">{trip.arriveTime}</span>
+          </span>
+        </div>
+        <div className="my-2 h-px bg-outline-variant/60" />
+        <div className="flex items-center justify-between text-[11px] text-on-surface-variant">
+          <span>{t('Direct Line')}</span>
+          <span>{t('{durationMins} min crossing', { durationMins: trip.durationMins })}</span>
+          <span>{t('Non-stop')}</span>
+        </div>
+      </div>
+
+      <div className="mt-space-md space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-on-surface-variant">
+            {seats.length > 1 ? t('Selected Seats') : t('Selected Seat')}
+          </span>
+          <span className="rounded bg-surface-container px-2 py-0.5 text-xs font-semibold text-deep-river">
+            {selectedSeatsLabel(seats)}
+          </span>
+        </div>
+        <SummaryRow label={t('Passengers')} value={passengersLabel(seats.length)} />
+        <SummaryRow label={t('Buyer')} value={purchaser.fullName} />
+        <SummaryRow label={t('Date')} value={trip.dateFull} />
+      </div>
+
+      <div className="mt-space-md space-y-1.5 border-t border-surface-container pt-space-md">
+        <SummaryRow label={t('Trip Fare')} value={formatVnd(totals.fareVnd)} />
+        <SeatFeeRow
+          label={t('Seat Fee')}
+          seatFeeVnd={totals.seatFeeVnd}
+          includedText={t('Included')}
+        />
+      </div>
+      <div className="mt-space-sm border-t border-surface-container pt-space-sm">
+        <TotalRow
+          label={t('Total Amount')}
+          caption={t('All taxes & fees included')}
+          amountVnd={totals.totalVnd}
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={pay}
+        disabled={busy || expired || !hold}
+        className="group mt-space-sm flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-headline-sm text-base font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary disabled:opacity-70"
+      >
+        {busy ? t('Opening the payment page…') : t('Pay with VNPay')}
+        <Icon
+          name="arrow_forward"
+          className="text-[18px] transition-transform group-hover:translate-x-1"
+        />
+      </button>
+      <p className="mt-2 text-center text-xs text-on-surface-variant">
+        {t('You will be redirected to VNPay. Your tickets are issued once the payment is confirmed.')}
+      </p>
+      {failed && (
+        <p role="alert" className="mt-2 text-center text-xs text-coral-glow">
+          {t('We couldn’t open the payment page. Nothing was charged, please try again.')}
+        </p>
+      )}
+      <div className="mt-space-sm text-center">
+        <Link
+          to={ROUTES.checkoutReview}
+          className="text-xs text-on-surface-variant hover:text-deep-river"
+        >
+          {t('← Back to Checkout')}
+        </Link>
+      </div>
+    </BookingCard>
+  )
+}

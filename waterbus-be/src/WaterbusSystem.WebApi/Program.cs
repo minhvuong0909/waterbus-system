@@ -1,9 +1,12 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 using WaterbusSystem.Application;
 using WaterbusSystem.Infrastructure;
 using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.WebApi.BackgroundJobs;
 using WaterbusSystem.WebApi.Middlewares;
+using WaterbusSystem.WebApi.Realtime;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +17,9 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 // 2. Cấu hình Controllers & JSON
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// SignalR hubs + publisher realtime (BoatTracking, SeatSync)
+builder.Services.AddRealtime();
 
 // 3. Cấu hình Swagger UI có nút Authorize Bearer JWT
 builder.Services.AddSwaggerGen(options =>
@@ -58,9 +64,12 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AppCorsPolicy", policy =>
     {
+        // AllowCredentials cần cho SignalR khi FE chạy khác origin (vd Vite dev :5173).
+        // Hợp lệ vì dùng WithOrigins cụ thể, không phải AllowAnyOrigin.
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
@@ -81,9 +90,32 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 
+    options.AddPolicy("AiAssistantPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        if (context.HttpContext.Request.Path.StartsWithSegments("/api/v1/AiAssistant"))
+        {
+            context.HttpContext.Response.ContentType = "application/problem+json";
+            await context.HttpContext.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Status = StatusCodes.Status429TooManyRequests,
+                Title = "Quá nhiều yêu cầu tới trợ lý AI.",
+                Detail = "Vui lòng thử lại sau một phút.",
+                Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
+            }, token);
+            return;
+        }
         await context.HttpContext.Response.WriteAsJsonAsync(new
         {
             success = false,
@@ -135,5 +167,7 @@ app.UseAuthorization();
 
 
 app.MapControllers();
+app.MapRealtimeHubs();
+app.UseBackgroundJobs();
 
 app.Run();

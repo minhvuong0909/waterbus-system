@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using WaterbusSystem.Application.Common.Exceptions;
+using WaterbusSystem.Application.Features.AiBooking;
 using WaterbusSystem.Domain.Exceptions;
 
 namespace WaterbusSystem.WebApi.Middlewares;
@@ -45,6 +46,13 @@ public class GlobalExceptionHandlingMiddleware
 
         switch (exception)
         {
+            case AiBookingUnavailableException:
+                context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                problemDetails.Status = (int)HttpStatusCode.ServiceUnavailable;
+                problemDetails.Title = "Trợ lý AI chưa sẵn sàng.";
+                problemDetails.Detail = "Vui lòng thử lại sau.";
+                break;
+
             case ValidationException validationException:
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 problemDetails.Status = (int)HttpStatusCode.BadRequest;
@@ -58,6 +66,13 @@ public class GlobalExceptionHandlingMiddleware
                 problemDetails.Status = (int)HttpStatusCode.Conflict;
                 problemDetails.Title = "Xung đột dữ liệu giữ chỗ / Double-booking.";
                 problemDetails.Detail = concurrencyException.Message;
+                break;
+
+            case ForbiddenAccessException forbiddenException:
+                context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                problemDetails.Status = (int)HttpStatusCode.Forbidden;
+                problemDetails.Title = "Không có quyền thực hiện thao tác này.";
+                problemDetails.Detail = forbiddenException.Message;
                 break;
 
             case NotFoundException notFoundException:
