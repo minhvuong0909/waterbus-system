@@ -1,4 +1,5 @@
 using System.Text;
+using Azure.Storage.Blobs;
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.Incidents;
 using WaterbusSystem.Application.Features.Tracking;
 using WaterbusSystem.Infrastructure.BackgroundJobs;
@@ -16,7 +18,10 @@ using WaterbusSystem.Infrastructure.Identity;
 using WaterbusSystem.Infrastructure.Locking;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.Infrastructure.Services;
+using WaterbusSystem.Infrastructure.Services.AiBooking;
+using WaterbusSystem.Infrastructure.Services.AudioStorage;
 using WaterbusSystem.Infrastructure.Services.Payment;
+using WaterbusSystem.Infrastructure.Services.Tts;
 using WaterbusSystem.Infrastructure.Services.Tracking;
 using WaterbusSystem.Infrastructure.Services.Weather;
 
@@ -107,7 +112,44 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<ISeatAvailabilityService, SeatAvailabilityService>();
 
-        // 6. BackgroundService dọn dẹp Booking giữ chỗ quá hạn 10 phút chưa thanh toán
+        // 6. AI Booking Assistant (OpenAI gpt-4.1-mini qua Semantic Kernel)
+        // Mặc định ở trạng thái chưa kích hoạt (IsEnabled = false, ApiKey chưa cấu hình).
+        // Phụ thuộc còn thiếu trước khi kích hoạt production:
+        // - Owner Trip Search hoàn thiện FareRule pricing (hiện BasePrice = 0 TODO) và danh sách stops thực tế.
+        // - Owner Web/Booking chốt hợp đồng URL đặt vé.
+        // - Cấu hình OpenAI API Key qua User Secrets / biến môi trường.
+        services.Configure<OpenAiAssistantOptions>(configuration.GetSection(OpenAiAssistantOptions.SectionName));
+        // Adapter đã có để thử local; cả LLM và hai contract tích hợp đều tắt mặc định.
+        services.Configure<AiBookingIntegrationOptions>(configuration.GetSection(AiBookingIntegrationOptions.SectionName));
+        services.AddScoped<ITripSearchTool, MediatRTripSearchTool>();
+        services.AddScoped<IBookingLinkTool, ConfiguredBookingLinkTool>();
+        services.AddScoped<IAiBookingAssistantService, SemanticKernelAiBookingAssistantService>();
+
+        // 7. Tính khoảng cách địa lý cho geofence POI (NetTopologySuite, stateless)
+        services.AddSingleton<IGeoDistanceCalculator, NtsGeoDistanceCalculator>();
+
+        // 8. Azure AI Speech Text-to-Speech (Neural Voice MP3 tiếng Việt)
+        services.Configure<AzureSpeechOptions>(configuration.GetSection(AzureSpeechOptions.SectionName));
+        services.AddTransient<IAzureSpeechSynthesizerClient, DefaultAzureSpeechSynthesizerClient>();
+        services.AddScoped<ITextToSpeechService, AzureSpeechTtsService>();
+
+        // Kho MP3 private. Chỉ khởi tạo client khi chức năng lưu audio được gọi;
+        // ứng dụng vẫn khởi động được trước khi team cấp Azure Storage credential.
+        services.Configure<AzureBlobAudioStorageOptions>(configuration.GetSection(AzureBlobAudioStorageOptions.SectionName));
+        services.AddScoped<IAudioStorageService>(provider =>
+        {
+            var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AzureBlobAudioStorageOptions>>().Value;
+            if (string.IsNullOrWhiteSpace(options.ConnectionString) || string.IsNullOrWhiteSpace(options.ContainerName))
+                throw new InvalidOperationException("Thiếu AzureBlobAudioStorage:ConnectionString hoặc ContainerName. Cấu hình secret ngoài Git trước khi lưu MP3.");
+
+            var container = new BlobContainerClient(options.ConnectionString, options.ContainerName);
+            return new AzureBlobAudioStorageService(
+                container,
+                provider.GetRequiredService<FluentValidation.IValidator<WaterbusSystem.Application.Common.Models.StoreAudioCommand>>(),
+                provider.GetRequiredService<ILogger<AzureBlobAudioStorageService>>());
+        });
+
+        // 9. BackgroundService dọn dẹp Booking giữ chỗ quá hạn 10 phút chưa thanh toán
         services.AddHostedService<ExpiredBookingCleanupService>();
 
         // 7. Theo dõi vị trí tàu: cache vị trí mới nhất (Redis) + giả lập GPS cho demo (mặc định tắt)

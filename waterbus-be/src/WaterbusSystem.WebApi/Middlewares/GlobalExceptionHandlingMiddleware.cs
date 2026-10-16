@@ -2,6 +2,7 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using WaterbusSystem.Application.Common.Exceptions;
+using WaterbusSystem.Application.Features.AiBooking;
 using WaterbusSystem.Domain.Exceptions;
 
 namespace WaterbusSystem.WebApi.Middlewares;
@@ -45,6 +46,13 @@ public class GlobalExceptionHandlingMiddleware
 
         switch (exception)
         {
+            case AiBookingUnavailableException:
+                context.Response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                problemDetails.Status = (int)HttpStatusCode.ServiceUnavailable;
+                problemDetails.Title = "Trợ lý AI chưa sẵn sàng.";
+                problemDetails.Detail = "Vui lòng thử lại sau.";
+                break;
+
             case ValidationException validationException:
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 problemDetails.Status = (int)HttpStatusCode.BadRequest;
