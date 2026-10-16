@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 using WaterbusSystem.Application;
 using WaterbusSystem.Infrastructure;
@@ -89,9 +90,32 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 
+    options.AddPolicy("AiAssistantPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        if (context.HttpContext.Request.Path.StartsWithSegments("/api/v1/AiAssistant"))
+        {
+            context.HttpContext.Response.ContentType = "application/problem+json";
+            await context.HttpContext.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Status = StatusCodes.Status429TooManyRequests,
+                Title = "Quá nhiều yêu cầu tới trợ lý AI.",
+                Detail = "Vui lòng thử lại sau một phút.",
+                Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
+            }, token);
+            return;
+        }
         await context.HttpContext.Response.WriteAsJsonAsync(new
         {
             success = false,
