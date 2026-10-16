@@ -2,7 +2,6 @@ import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
 import SeatMapView, { SeatLegend } from '../../features/booking/components/SeatMapView'
 import {
   BookingSummary,
-  SeatRecommendation,
   TripStrip,
 } from '../../features/booking/components/SeatSelectionParts'
 import { useBooking } from '../../features/booking/hooks/useBooking'
@@ -88,7 +87,6 @@ export default function SeatSelectionPage() {
               onSelect={toggleSeat}
             />
           </div>
-          <SeatRecommendation />
         </div>
         <div className="lg:col-span-5">
           <BookingSummary trip={trip} seats={seats} totals={totals} limitReached={seatLimitReached} />

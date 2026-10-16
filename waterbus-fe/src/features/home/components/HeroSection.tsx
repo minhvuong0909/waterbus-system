@@ -3,15 +3,10 @@ import heroVideo from '../../../assets/videos/saigon-waterbus.mp4'
 import heroPoster from '../../../assets/videos/saigon-waterbus-poster.jpg'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
-import type { HeroCue } from '../types'
 import { t } from '../../../i18n'
 import { usePrefersReducedMotion } from '../../../hooks'
 
-interface HeroSectionProps {
-  cues: HeroCue[]
-}
-
-export default function HeroSection({ cues }: HeroSectionProps) {
+export default function HeroSection() {
   // With reduced motion the poster stays still instead of a looping video.
   const reducedMotion = usePrefersReducedMotion()
   return (
@@ -65,34 +60,6 @@ export default function HeroSection({ cues }: HeroSectionProps) {
                 className="text-[20px] transition-transform group-hover:translate-x-1"
               />
             </Link>
-            <Link
-              to={ROUTES.explore}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/15 px-7 py-3.5 font-headline-sm text-base font-semibold text-white shadow-md backdrop-blur-md transition-all hover:bg-white/25 hover:shadow-lg"
-            >
-              {t('Discover Experience')}
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      <div className="relative z-20 mx-auto w-full max-w-7xl px-margin pb-6 pt-12 sm:pb-8">
-        <div className="flex flex-col justify-between gap-4 rounded-2xl border border-white/15 bg-deep-river/75 p-4 text-on-primary shadow-[0_20px_40px_rgba(13,37,56,0.35)] backdrop-blur-xl sm:p-5 lg:flex-row lg:items-center">
-          <div className="grid flex-1 grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
-            {cues.map((cue) => (
-              <div key={cue.title} className="flex items-center gap-3">
-                <div
-                  className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/10 ${cue.iconClass}`}
-                >
-                  <Icon name={cue.icon} className="text-[22px]" />
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate font-headline-sm text-sm font-semibold text-white">
-                    {cue.title}
-                  </div>
-                  <div className="truncate text-xs text-sand-light/80">{cue.subtitle}</div>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>

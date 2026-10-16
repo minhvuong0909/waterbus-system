@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ErrorState, FeatureStrip, PageLoader, StatusPill } from '../../components/ui'
+import { ErrorState, PageLoader, StatusPill } from '../../components/ui'
 import CorridorSidebar from '../../features/trips/components/CorridorSidebar'
 import DateStrip from '../../features/trips/components/DateStrip'
 import ResultFilters from '../../features/trips/components/ResultFilters'
@@ -10,24 +10,6 @@ import { formatDateLabel } from '../../features/trips/utils'
 import { useSearchResults } from '../../features/trips/hooks/useTripSearch'
 import { useDocumentTitle } from '../../hooks'
 import { t } from '../../i18n'
-
-const CUES = [
-  {
-    icon: 'qr_code_2',
-    title: 'QR E-Ticket Boarding',
-    description: 'Instant digital ticket pass with tap-and-go access at turnstiles.',
-  },
-  {
-    icon: 'radar',
-    title: 'Real-Time Vessel Tracking',
-    description: 'Live GPS positioning and accurate pier arrival predictions.',
-  },
-  {
-    icon: 'airline_seat_recline_extra',
-    title: 'Seat Selection Next',
-    description: 'Choose panoramic windows or open deck seats in the immediate next step.',
-  },
-]
 
 export default function SearchResultsPage() {
   useDocumentTitle('Available Departures')
@@ -135,7 +117,6 @@ export default function SearchResultsPage() {
           <CorridorSidebar />
         </div>
 
-        <FeatureStrip items={CUES} variant="panel" />
       </div>
     </div>
   )

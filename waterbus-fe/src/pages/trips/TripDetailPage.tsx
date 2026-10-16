@@ -1,4 +1,4 @@
-import { Breadcrumb, ErrorState, FeatureStrip, Icon, PageLoader } from '../../components/ui'
+import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
 import TripAside from '../../features/trips/components/TripAside'
 import {
   BoardingSteps,
@@ -10,24 +10,6 @@ import { useTripDetail } from '../../features/trips/hooks/useTripSearch'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
-
-const CUES = [
-  {
-    icon: 'qr_code_scanner',
-    title: 'QR Ticket Boarding',
-    description: 'Instant mobile ticket verification',
-  },
-  {
-    icon: 'event_seat',
-    title: 'Seat Selection Next',
-    description: 'Select your preferred seat on the next screen',
-  },
-  {
-    icon: 'navigation',
-    title: 'Live Trip Tracking',
-    description: 'Real-time updates available after booking confirmation',
-  },
-]
 
 export default function TripDetailPage() {
   const { detail, loading, error, retry } = useTripDetail()
@@ -89,7 +71,6 @@ export default function TripDetailPage() {
         <TripAside trip={detail} />
       </div>
 
-      <FeatureStrip items={CUES} variant="panel" className="mt-space-xl" />
     </div>
   )
 }

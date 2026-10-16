@@ -20,7 +20,7 @@ export default function HomePage() {
 
   return (
     <Reveal className="flex w-full flex-col">
-      <HeroSection cues={home.heroCues} />
+      <HeroSection />
       <CorridorSection filters={home.routeFilters} map={corridor} departures={departures} />
       <HowItWorksSection steps={home.steps} />
       <StoriesSection stories={home.stories} />

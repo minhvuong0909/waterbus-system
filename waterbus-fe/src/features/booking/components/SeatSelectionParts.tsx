@@ -68,35 +68,6 @@ export function TripStrip({ trip, seats, totalVnd }: { trip: TripDetail; seats: 
   )
 }
 
-export function SeatRecommendation() {
-  return (
-    <div className="flex items-start gap-space-md rounded-2xl border border-teal-flow/20 bg-gradient-to-r from-sand-light/70 to-white p-space-md">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-teal-flow shadow-sm">
-        <Icon name="lightbulb" className="text-[22px]" />
-      </div>
-      <div className="text-xs text-on-surface-variant">
-        <div className="font-headline-sm text-sm font-bold text-deep-river">
-          {t('Seat Recommendation')}
-        </div>
-        <ul className="mt-1 list-disc space-y-0.5 pl-4">
-          <li>
-            <strong className="text-deep-river">{t('Best River View:')}</strong>{' '}
-            {t('Window seats (columns A and D) look straight out over the river.')}
-          </li>
-          <li>
-            <strong className="text-deep-river">{t('Front Cabin:')}</strong>{' '}
-            {t('The front cabin is a quieter air-conditioned space, for a small surcharge.')}
-          </li>
-          <li>
-            <strong className="text-deep-river">{t('Outdoor Deck:')}</strong>{' '}
-            {t('The outdoor deck is open to the breeze and the skyline, for a small surcharge.')}
-          </li>
-        </ul>
-      </div>
-    </div>
-  )
-}
-
 interface BookingSummaryProps {
   trip: TripDetail
   seats: Seat[]

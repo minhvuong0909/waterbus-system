@@ -1,10 +1,8 @@
 import { useRef } from 'react'
 import {
-  CorridorSection,
   ExploreHero,
   JourneysSection,
   LandmarksSection,
-  ModesSection,
   StepAboardBanner,
   StoriesSection,
 } from '../../features/explore/components/ExploreSections'
@@ -26,10 +24,8 @@ export default function ExplorePage() {
     <Reveal>
       <ExploreHero onStories={() => storiesRef.current?.scrollIntoView({ behavior: 'smooth' })} />
       <JourneysSection journeys={data.journeys} />
-      <ModesSection modes={data.modes} />
       <LandmarksSection categories={data.categories} landmarks={data.landmarks} />
       <StoriesSection data={data} sectionRef={storiesRef} />
-      <CorridorSection data={data} />
       <StepAboardBanner />
     </Reveal>
   )
