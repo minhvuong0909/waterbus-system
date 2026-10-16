@@ -26,7 +26,17 @@ public class VnPayServiceTests
             })
             .Build();
 
-        return new VnPayService(configuration);
+        // HttpClient không được dùng cho các test này (chỉ test checksum pay/ipn) nhưng vẫn phải cấp
+        // để khớp constructor. Handler giả để chắc chắn không phát sinh request mạng.
+        return new VnPayService(configuration, new HttpClient(new NeverCalledHandler()),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<VnPayService>.Instance);
+    }
+
+    private sealed class NeverCalledHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Test này không được phát sinh request ra ngoài.");
     }
 
     private static Dictionary<string, string> ParseQuery(string url)
