@@ -12,6 +12,11 @@ const NOTES = [
     title: 'Digital QR Pass:',
     text: 'Your e-ticket is issued as soon as the payment is confirmed.',
   },
+  {
+    icon: 'how_to_reg',
+    title: 'Check-in:',
+    text: 'Show your booking QR to the pier staff at your boarding pier before check-in closes.',
+  },
 ]
 
 /** Short booking rules next to the departures; the full details live on the later steps. */

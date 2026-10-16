@@ -1,4 +1,4 @@
-import { ErrorState, PageLoader } from '../../components/ui'
+import { ErrorState, Icon, PageLoader } from '../../components/ui'
 import NetworkSection from '../../features/trips/components/NetworkSection'
 import SearchForm from '../../features/trips/components/SearchForm'
 import { useSearchForm } from '../../features/trips/hooks/useTripSearch'
@@ -21,11 +21,6 @@ export default function SearchJourneyPage() {
             <h1 className="font-headline-sm text-3xl font-extrabold leading-tight tracking-tight text-deep-river sm:text-4xl lg:text-[42px]">
               {t('Plan Your River Journey')}
             </h1>
-            <p className="mt-1.5 max-w-2xl text-base leading-relaxed text-on-surface-variant">
-              {t(
-                'Select your departure pier and destination along the Saigon River transit corridor.',
-              )}
-            </p>
           </div>
         </div>
       </section>
@@ -35,7 +30,16 @@ export default function SearchJourneyPage() {
       </section>
 
       <section className="mx-auto mb-12 max-w-7xl px-6 lg:px-12">
-        <NetworkSection routes={routes} piers={piers} />
+        <details className="group rounded-2xl border border-teal-flow/20 bg-white shadow-sm">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-4 font-headline-sm text-base font-bold text-deep-river">
+            {t('Browse the river network')}
+            <Icon
+              name="expand_more"
+              className="text-[22px] text-teal-flow transition-transform group-open:rotate-180"
+            />
+          </summary>
+          <NetworkSection routes={routes} piers={piers} />
+        </details>
       </section>
 
     </div>
