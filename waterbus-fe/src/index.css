@@ -68,41 +68,6 @@
   font-size: 18px;
 }
 
-/* River illustration: ripples drift along the water, the boat bobs and the hub piers pulse. */
-@keyframes river-flow {
-  to {
-    stroke-dashoffset: -72;
-  }
-}
-@keyframes boat-bob {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-3px);
-  }
-}
-@keyframes pier-ripple {
-  0% {
-    transform: scale(1);
-    opacity: 0.7;
-  }
-  100% {
-    transform: scale(2.2);
-    opacity: 0;
-  }
-}
-.river-flow path {
-  animation: river-flow 6s linear infinite;
-}
-.boat-bob {
-  animation: boat-bob 3s ease-in-out infinite;
-}
-.pier-ripple {
-  animation: pier-ripple 2.6s ease-out infinite;
-}
-
 /* Pier pin on the street map: a disc with an anchor, dark when selected. */
 .pier-pin__disc {
   display: flex;
@@ -125,4 +90,21 @@
 }
 .pier-pin .material-symbols-outlined {
   font-size: 18px;
+}
+
+/* The vessel on the street map: an amber disc with a boat. */
+.vessel-pin__disc {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #e8b63e;
+  color: #0d2538;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(13, 37, 56, 0.35);
+}
+.vessel-pin .material-symbols-outlined {
+  font-size: 20px;
 }

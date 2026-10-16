@@ -31,36 +31,24 @@ const MOCK_VESSEL_PROGRESS = 0.45
 /** Route RT01 is 10.8 km and takes 45 minutes. */
 const MOCK_VESSEL_SPEED_KMH = 14.4
 
-/** The river on the map artwork, as points in percent of the canvas from the first pier to the last. */
-const RIVER_PATH: [number, number][] = [
-  [9, 10],
-  [32, 35],
-  [62, 57],
-  [74, 70],
-  [78, 84],
-]
-
 /**
- * The corridor drawn on the home page map. The map is a schematic, so the piers are spread along
- * the river artwork in river order (not by their coordinates), and a mock vessel sails part-way.
+ * The corridor shown on the maps: the piers at their coordinates and a mock vessel sailing part-way
+ * along the line that joins them in river order.
  */
 export function buildCorridorMap(piers: PierOption[]): CorridorMap {
-  const placed = piers.map((pier, index) => {
-    const [x, y] = positionAlong(RIVER_PATH, piers.length > 1 ? index / (piers.length - 1) : 0)
-    return {
-      id: pier.id,
-      name: pier.name,
-      subtitle: pier.district,
-      code: pier.code,
-      address: pier.subtitle,
-      latitude: pier.latitude,
-      longitude: pier.longitude,
-      x,
-      y,
-      kind: (index === 0 ? 'hub' : index === piers.length - 1 ? 'terminus' : 'stop') as 'hub' | 'stop' | 'terminus',
-    }
-  })
-  const [x, y] = positionAlong(RIVER_PATH, MOCK_VESSEL_PROGRESS)
+  const placed = piers.map((pier) => ({
+    id: pier.id,
+    name: pier.name,
+    subtitle: pier.district,
+    code: pier.code,
+    address: pier.subtitle,
+    latitude: pier.latitude,
+    longitude: pier.longitude,
+  }))
+  const [latitude, longitude] = positionAlong(
+    piers.map((p): [number, number] => [p.latitude, p.longitude]),
+    MOCK_VESSEL_PROGRESS,
+  )
   const next = piers[Math.min(Math.ceil(MOCK_VESSEL_PROGRESS * (piers.length - 1)), piers.length - 1)]
 
   return {
@@ -70,8 +58,8 @@ export function buildCorridorMap(piers: PierOption[]): CorridorMap {
       status: t('On time'),
       speedKmh: MOCK_VESSEL_SPEED_KMH,
       nextPier: next?.shortName ?? '',
-      x,
-      y,
+      latitude,
+      longitude,
     },
   }
 }

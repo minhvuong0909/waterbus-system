@@ -1573,10 +1573,6 @@ export const vi: Record<string, string> = {
   'We couldn’t prepare your order just now. Please check your connection and try again.': 'Chưa chuẩn bị được đơn hàng. Vui lòng kiểm tra kết nối và thử lại.',
   'Ticket sales are closed for this trip.': 'Chuyến này đã đóng bán vé.',
   'Pay by QR code, bank card or e-wallet on the secure VNPay page.': 'Thanh toán bằng mã QR, thẻ ngân hàng hoặc ví điện tử trên trang VNPay an toàn.',
-  'Diagram':
-    'Sơ đồ',
-  'Map':
-    'Bản đồ',
   'Loading map…':
     'Đang tải bản đồ…',
 }

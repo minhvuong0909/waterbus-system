@@ -1,10 +1,13 @@
-import PierMap from '../../../components/map/PierMap'
+import { lazy, Suspense } from 'react'
 import { buildCorridorMap } from '../../home/utils'
 import { Icon } from '../../../components/ui'
 import { formatVndSuffix } from '../../../utils/format'
 import { useSearchQuery } from '../hooks/useTripSearch'
 import type { NetworkRoute, PierOption } from '../types'
 import { t } from '../../../i18n'
+
+// The map pulls in Leaflet and its styles, so it loads after the rest of the page.
+const PierMap = lazy(() => import('../../../components/map/PierMap'))
 
 interface NetworkSectionProps {
   routes: NetworkRoute[]
@@ -57,27 +60,35 @@ export default function NetworkSection({ routes, piers }: NetworkSectionProps) {
 
       <div className="mt-6 grid grid-cols-1 items-stretch gap-6 lg:grid-cols-12">
         <div className="lg:col-span-8">
-          <PierMap
-            map={buildCorridorMap(piers)}
-            pierActions={(p) => (
-              <>
-                <button
-                  type="button"
-                  onClick={() => updateQuery({ originId: p.id })}
-                  className="rounded-full bg-teal-flow px-3 py-1.5 text-xs font-semibold text-on-primary hover:bg-secondary"
-                >
-                  {t('Depart from here')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => updateQuery({ destinationId: p.id })}
-                  className="rounded-full border border-teal-flow/40 px-3 py-1.5 text-xs font-semibold text-teal-flow hover:bg-sand-light"
-                >
-                  {t('Arrive here')}
-                </button>
-              </>
-            )}
-          />
+          <Suspense
+            fallback={
+              <div className="flex h-[470px] items-center justify-center rounded-2xl bg-surface-container text-sm text-on-surface-variant">
+                {t('Loading map…')}
+              </div>
+            }
+          >
+            <PierMap
+              map={buildCorridorMap(piers)}
+              pierActions={(p) => (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => updateQuery({ originId: p.id })}
+                    className="rounded-full bg-teal-flow px-3 py-1.5 text-xs font-semibold text-on-primary hover:bg-secondary"
+                  >
+                    {t('Depart from here')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateQuery({ destinationId: p.id })}
+                    className="rounded-full border border-teal-flow/40 px-3 py-1.5 text-xs font-semibold text-teal-flow hover:bg-sand-light"
+                  >
+                    {t('Arrive here')}
+                  </button>
+                </>
+              )}
+            />
+          </Suspense>
         </div>
         <div className="flex flex-col justify-between gap-3 lg:col-span-4">
           {routes.map((route) => (
