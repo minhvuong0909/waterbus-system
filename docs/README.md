@@ -1,23 +1,41 @@
-# Tài liệu Smart Waterbus
+# 📚 Trung Tâm Tài Liệu & Đặc Tả Kỹ Thuật (Smart Waterbus Docs)
 
-## Nguồn chuẩn
+Thư mục chứa toàn bộ tài liệu nghiệp vụ chuẩn, hợp đồng API liên module, kiến trúc CSDL và hướng dẫn tích hợp hệ thống **Smart Waterbus**.
 
-- [Business Rules v2.0 FINAL](Smart_Waterbus_Business_Rules_v2_0_FINAL_2026-09-29.md) — ưu tiên hơn các roadmap/bản đề xuất cũ. File DOCX cùng tên là bản dùng để chia sẻ/in.
-- [Quy ước dự án](CONVENTIONS.md), [đối chiếu domain](DOMAIN_BR_ALIGNMENT.md), [Logical ERD](02_Logical_ERD_REVIEWED.dbml).
+---
 
-## Hợp đồng và tích hợp
+## 🏛️ 1. Nguồn Chuẩn Nghiệp Vụ & Kiến Trúc (Core Baseline)
 
-- [API chi tiết chuyến và sơ đồ ghế](TRIP_READ_API.md).
-- [Checkout/payment/refund/QR](NHAT_ANH_COMMERCIAL_API.md), [hướng dẫn test giao dịch](NHAT_ANH_TEST_GUIDE.md).
-- [SignalR contract](REALTIME_CONTRACT.md).
-- [Lỗi tích hợp còn mở](KNOWN_ISSUES.md) — thay các báo cáo review PR tạm riêng lẻ.
-- [Hạ tầng SQL/Redis để chạy test](../waterbus-be/tests/infrastructure/README.md).
-- [Tài liệu AI/audio](thinh-ai/README.md).
+| Tài liệu | Mục đích & Ý nghĩa | Mức độ ưu tiên |
+|---|---|---|
+| [**Business Rules v2.0 FINAL**](Smart_Waterbus_Business_Rules_v2_0_FINAL_2026-09-29.md) | **Quy tắc nghiệp vụ chuẩn hóa cao nhất của toàn bộ hệ thống** (29/09/2026). Bản gốc bằng văn bản quyết định mọi hành vi về vé, ghế, tiền và sự cố. *(Bản DOCX cùng tên dùng để in ấn/bảo vệ đồ án)*. | 🔴 Bắt buộc tuân thủ tuyệt đối |
+| [**Quy Ước Dự Án (CONVENTIONS.md)**](CONVENTIONS.md) | Quy chuẩn chi tiết về cấu trúc mã nguồn, naming conventions, xử lý lỗi, kiểm thử và bảo mật. | 🔴 Bắt buộc tuân thủ |
+| [**Logical ERD Reviewed**](02_Logical_ERD_REVIEWED.dbml) | Thiết kế cơ sở dữ liệu chi tiết gồm 33 thực thể, quan hệ ràng buộc, khóa chính, khóa ngoại và chỉ mục. | 🟡 Chuẩn thiết kế CSDL |
+| [**Đối Chiếu Domain (DOMAIN_BR_ALIGNMENT.md)**](DOMAIN_BR_ALIGNMENT.md) | Bảng đối soát từng trường dữ liệu và ràng buộc giữa Domain Model trong code và Business Rules. | 🟡 Tài liệu tham chiếu |
 
-## Kế hoạch và lịch sử
+---
 
-- [Roadmap](TASK_BREAKDOWN_ROADMAP.md), [chia việc backend](BACKEND_TASK_BREAKDOWN.md): kế hoạch lịch sử, không thay thế BR FINAL hoặc trạng thái code hiện tại.
-- [Rà soát ERD](05_AUDIT_REPORT_VI.md), [báo cáo TV6](TV6_KIET_REPORT.md).
-- [Bản đề xuất BR v1.0](archive/Smart_Waterbus_Business_Rules_Proposed_v1_0.docx): đã được v2.0 thay thế, chỉ giữ để tra cứu lịch sử.
+## 🔌 2. Hợp Đồng API & Tích Hợp Liên Module (Contracts & Integration)
 
-Không xóa tài liệu chuyên môn/nguồn đối chiếu của thành viên chỉ vì không được import trong source code.
+| Hợp đồng | Phân hệ liên quan | Nội dung chính |
+|---|---|---|
+| [**TRIP_READ_API.md**](TRIP_READ_API.md) | Backend ⇄ Frontend | Hợp đồng API chi tiết chuyến tàu (`/trips/{id}`) và sơ đồ ghế trống theo đoạn hành trình (`/trips/{id}/seat-availability`). |
+| [**NHAT_ANH_COMMERCIAL_API.md**](NHAT_ANH_COMMERCIAL_API.md) | Backend ⇄ Frontend / Mobile | Đặc tả giao dịch thương mại: Checkout giữ chỗ, tạo đơn, xác thực thanh toán VNPay, chữ ký số QR RSA và yêu cầu hoàn tiền. |
+| [**NHAT_ANH_TEST_GUIDE.md**](NHAT_ANH_TEST_GUIDE.md) | QA / Backend Developers | Hướng dẫn kiểm thử giao dịch tài chính, phân bổ hoàn tiền và bảo vệ chống Double-booking. |
+| [**REALTIME_CONTRACT.md**](REALTIME_CONTRACT.md) | Backend ⇄ Frontend Web | Đặc tả SignalR Hubs (`/hubs/seat-sync`, `/hubs/boat-tracking`), định dạng sự kiện và cơ chế join group. |
+| [**Tài Liệu Module AI (thinh-ai/)**](thinh-ai/README.md) | AI Developer | Tổng hợp tài liệu Semantic Kernel, Azure Speech TTS, trắc địa Geofence POI và hướng dẫn cấu hình key. |
+| [**Lỗi Tích Hợp Còn Mở (KNOWN_ISSUES.md)**](KNOWN_ISSUES.md) | Toàn đội ngũ | Theo dõi các lỗi kỹ thuật và các điểm cần đồng bộ liên module còn tồn đọng. |
+| [**Hạ Tầng SQL/Redis Test**](../waterbus-be/tests/infrastructure/README.md) | DevOps / Testing | Hướng dẫn chạy kiểm thử tích hợp trên container Docker SQL Server 2022 và 3 node Redis độc lập. |
+
+---
+
+## 📜 3. Tài Liệu Lịch Sử & Báo Cáo Thành Viên (Historical & Reports)
+
+*Các tài liệu sau đây phản ánh quá trình triển khai ban đầu hoặc báo cáo đánh giá đồ án, không dùng để ghi đè Business Rules v2.0 FINAL*:
+
+- [**Roadmap Tổng Thể (TASK_BREAKDOWN_ROADMAP.md)**](TASK_BREAKDOWN_ROADMAP.md) & [**Chia Việc Backend (BACKEND_TASK_BREAKDOWN.md)**](BACKEND_TASK_BREAKDOWN.md): Kế hoạch phân chia công việc các giai đoạn.
+- [**Rà Soát ERD (05_AUDIT_REPORT_VI.md)**](05_AUDIT_REPORT_VI.md): Báo cáo đối chiếu Conceptual vs Logical ERD nộp giảng viên.
+- [**Báo Cáo Kỹ Thuật TV6 (TV6_KIET_REPORT.md)**](TV6_KIET_REPORT.md): Báo cáo tiến độ phân hệ Real-time, DevOps & Background Jobs của Kiệt.
+- [**Đề Xuất BR v1.0 Cũ (archive/Smart_Waterbus_Business_Rules_Proposed_v1_0.docx)**](archive/Smart_Waterbus_Business_Rules_Proposed_v1_0.docx): Bản thảo cũ, lưu trữ làm bằng chứng tiến độ đồ án.
+
+> ⚠️ **Lưu ý bảo vệ tài liệu**: Tuyệt đối không xóa tài liệu chuyên môn hoặc báo cáo đóng góp của các thành viên trong thư mục `docs/`.
