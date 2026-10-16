@@ -29,6 +29,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.81.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
+    <PackageReference Include="RedLock.net" Version="2.3.2" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.1.2" />
 
     <!-- Redis Cache & Khóa phân tán chống Overselling (SET NX PX + Lua safe-release qua StackExchange.Redis) -->

@@ -21,8 +21,14 @@ public static class TestDbContextFactory
         return new ApplicationDbContext(options, currentUserService: null);
     }
 
+    /// <summary>Giá vé chuẩn dùng trong test, theo BR-FARE-01 (phẳng theo TripType x SeatClass).</summary>
+    public const decimal StandardCommuterFare = 15000m;
+    public const decimal SightseeingStandardFare = 100000m;
+
     /// <summary>
-    /// Seed 3 bến (OrderIndex 1,2,3), 1 Route Bến1 -> Bến3, 1 Boat 2 ghế, 1 Trip Scheduled ngày mai.
+    /// Seed 3 bến, 1 Route Bến1 -> Bến3 với 3 RouteStop, 1 Boat 2 ghế cùng SeatClass,
+    /// FareRule cho các TripType, và 1 Trip Scheduled ngày mai kèm 3 TripStopCall
+    /// (VisitOrder 1,2,3) làm nguồn sự thật cho việc xác định đoạn đi.
     /// </summary>
     public static TripSeedData SeedTrip(ApplicationDbContext context)
     {
@@ -43,6 +49,11 @@ public static class TestDbContextFactory
         };
         context.Routes.Add(route);
 
+        // BR-SEAT-01: Seat thuộc một SeatClass cấu hình được; giá chỉ theo TripType x SeatClass.
+        var standardClass = new SeatClass { Code = "SC02", Name = "Tieu chuan", IsActive = true };
+        var premiumClass = new SeatClass { Code = "SC01", Name = "Khoang truc VIP", IsActive = true };
+        context.SeatClasses.AddRange(standardClass, premiumClass);
+
         var boat = new Boat
         {
             Code = "SWB-TEST",
@@ -54,8 +65,8 @@ public static class TestDbContextFactory
             IsActive = true
         };
 
-        var seat1 = new Seat { BoatId = boat.Id, SeatCode = "S01", RowNumber = 1, ColumnNumber = 1, IsActive = true };
-        var seat2 = new Seat { BoatId = boat.Id, SeatCode = "S02", RowNumber = 1, ColumnNumber = 2, IsActive = true };
+        var seat1 = new Seat { BoatId = boat.Id, SeatClass = standardClass, SeatClassId = standardClass.Id, SeatCode = "S01", RowNumber = 1, ColumnNumber = 1, IsActive = true };
+        var seat2 = new Seat { BoatId = boat.Id, SeatClass = standardClass, SeatClassId = standardClass.Id, SeatCode = "S02", RowNumber = 1, ColumnNumber = 2, IsActive = true };
         boat.Seats.Add(seat1);
         boat.Seats.Add(seat2);
         context.Boats.Add(boat);
@@ -70,9 +81,17 @@ public static class TestDbContextFactory
             YearBuilt = 2024,
             IsActive = true
         };
-        var seatOnOtherBoat = new Seat { BoatId = otherBoat.Id, SeatCode = "X01", RowNumber = 1, ColumnNumber = 1, IsActive = true };
+        var seatOnOtherBoat = new Seat { BoatId = otherBoat.Id, SeatClass = standardClass, SeatClassId = standardClass.Id, SeatCode = "X01", RowNumber = 1, ColumnNumber = 1, IsActive = true };
         otherBoat.Seats.Add(seatOnOtherBoat);
         context.Boats.Add(otherBoat);
+
+        // BR-FARE-01/02: giá phẳng theo TripType x SeatClass. EffectiveFrom chỉ dùng quản lý
+        // phiên bản bảng giá do Admin cấu hình, KHÔNG phải giá động theo giờ chạy.
+        var fareFrom = DateTimeOffset.UtcNow.AddDays(-1);
+        context.FareRules.AddRange(
+            new FareRule { TripType = nameof(TripType.Commuter), SeatClass = standardClass, SeatClassId = standardClass.Id, Price = StandardCommuterFare, Currency = "VND", EffectiveFrom = fareFrom, IsActive = true },
+            new FareRule { TripType = nameof(TripType.Sightseeing), SeatClass = standardClass, SeatClassId = standardClass.Id, Price = SightseeingStandardFare, Currency = "VND", EffectiveFrom = fareFrom, IsActive = true },
+            new FareRule { TripType = nameof(TripType.Commuter), SeatClass = premiumClass, SeatClassId = premiumClass.Id, Price = 20000m, Currency = "VND", EffectiveFrom = fareFrom, IsActive = true });
 
         var trip = new Trip
         {
@@ -82,7 +101,8 @@ public static class TestDbContextFactory
             ArrivalTime = DateTimeOffset.UtcNow.AddDays(1).AddMinutes(30),
             TripType = TripType.Commuter,
             Status = TripStatus.Scheduled,
-            // BasePrice = 15000m
+            // BR-TIME-02: mốc đóng bán do Admin cấu hình, null = chưa cấu hình.
+            SalesCloseAt = null
         };
         context.Trips.Add(trip);
 
@@ -95,7 +115,7 @@ public static class TestDbContextFactory
 
         context.SaveChanges();
 
-        return new TripSeedData(stationA, stationB, stationC, route, boat, seat1, seat2, otherBoat, seatOnOtherBoat, trip);
+        return new TripSeedData(stationA, stationB, stationC, route, boat, seat1, seat2, otherBoat, seatOnOtherBoat, trip, standardClass, premiumClass);
     }
 
     // Commercial principals are real fixture data, even when the tested service only reads reservations.
@@ -135,7 +155,9 @@ public static class TestDbContextFactory
         Seat Seat2,
         Boat OtherBoat,
         Seat SeatOnOtherBoat,
-        Trip Trip);
+        Trip Trip,
+        SeatClass StandardClass,
+        SeatClass PremiumClass);
 }
 
 

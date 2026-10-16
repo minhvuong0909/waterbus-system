@@ -1,0 +1,41 @@
+name: waterbus-integration
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${WATERBUS_INTEGRATION_SQL_PASSWORD:?Run Run-IntegrationTests.ps1}
+    ports:
+      - "127.0.0.1:11433:1433"
+    volumes:
+      - sqlserver_test_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 30s
+
+  redis1:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:16379:6379"]
+    healthcheck: &redis_health
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis2:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:16380:6379"]
+    healthcheck: *redis_health
+
+  redis3:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:16381:6379"]
+    healthcheck: *redis_health
+
+volumes:
+  sqlserver_test_data:

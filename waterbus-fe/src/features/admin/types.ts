@@ -80,12 +80,15 @@ export interface FareSettings {
 
 export interface WeatherAlert {
   id: string
-  /** 1 = warning, 2 = stop operations (wind above the 38 km/h threshold). */
+  /** 1 = warning, 2 = stop operations (BE severity Medium = 1, High = 2). */
   level: 1 | 2
-  windSpeedKmh: number
+  /** Only known for mock alerts; a real alert carries the wind in its message. */
+  windSpeedKmh?: number
   message: string
   /** ISO 8601 */
   issuedAt: string
+  /** Trips linked to the alert (BE `IncidentTrip`), when known. */
+  affectedTripCount?: number
 }
 
 /** What a dispatcher or captain did, kept as an audit trail. */
@@ -134,4 +137,33 @@ export interface GenerateTripsInput {
   /** `YYYY-MM-DD` */
   fromDate: string
   toDate: string
+}
+
+/** A boat as `GET /api/v1/boats` returns it. */
+export interface FleetBoat {
+  id: string
+  code: string
+  name: string
+  isActive: boolean
+  captainUserId: string | null
+}
+
+/** Last known position of a boat, from `GET /tracking/boats` or the `boatPosition` hub event. */
+export interface LiveBoatPosition {
+  boatId: string
+  /** Set while the boat runs a trip (Boarding, EnRoute or Suspended). */
+  tripId: string | null
+  latitude: number
+  longitude: number
+  speedKnots: number | null
+  /** ISO 8601 */
+  observedAt: string
+}
+
+/** Result of `POST /incidents/weather-check`. */
+export interface WeatherCheckResult {
+  routesChecked: number
+  incidentsCreated: number
+  incidentsUpdated: number
+  observationFailures: number
 }
