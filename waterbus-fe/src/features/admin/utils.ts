@@ -1,10 +1,11 @@
-import { numberLocale } from '../../i18n'
+import { numberLocale, t } from '../../i18n'
 import type {
   AdminRoute,
   AdminStation,
   AdminTrip,
   AdminTripStatus,
   OperationType,
+  WeatherAlert,
 } from './types'
 
 /** Day number the backend uses in `Schedule.DaysOfWeek`: 1 = Monday ... 7 = Sunday. */
@@ -127,4 +128,16 @@ export function formatDateTime(iso: string): string {
 /** "07:30" */
 export function formatClockTime(iso: string): string {
   return new Date(iso).toLocaleTimeString(numberLocale(), { hour: '2-digit', minute: '2-digit' })
+}
+
+/** Clock time with seconds, for live data that changes every few seconds. */
+export function formatClockTimeWithSeconds(iso: string): string {
+  return new Date(iso).toLocaleTimeString(numberLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+/** Heading of a weather alert: mock alerts know the wind speed, real ones carry it in the message. */
+export function weatherAlertTitle(alert: WeatherAlert): string {
+  return alert.windSpeedKmh != null
+    ? t('Level {level} • wind {speed} km/h', { level: alert.level, speed: alert.windSpeedKmh })
+    : t('Level {level} weather warning', { level: alert.level })
 }

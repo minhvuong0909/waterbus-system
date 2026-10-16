@@ -34,6 +34,7 @@ import {
   totalSeatsOf,
   tripProgress,
 } from '../utils'
+import { getOpenWeatherAlerts } from './operationsService'
 
 // The backend has no admin endpoints yet (roadmap P1-BE-01..04, P3, P4). Everything below works on
 // an in-memory copy of the data, so changes last until the page is reloaded. Only the station list
@@ -352,7 +353,9 @@ export async function assignBoat(tripId: string, boatId: string): Promise<AdminT
 
 // ---- Operations -----------------------------------------------------------------
 
-export const getWeatherAlerts = () => query((d) => d.alerts)
+/** Open weather alerts: real incidents from the weather guard, or the mock list with `VITE_USE_MOCK`. */
+export const getWeatherAlerts = (): Promise<WeatherAlert[]> =>
+  USE_MOCK ? query((d) => d.alerts) : getOpenWeatherAlerts()
 
 export const getOperationLogs = () => query((d) => [...d.logs].sort((a, b) => b.at.localeCompare(a.at)))
 

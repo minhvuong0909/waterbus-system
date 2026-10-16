@@ -20,7 +20,11 @@ import {
   operateTrip,
 } from '../../features/admin/services/adminService'
 import type { AdminTrip, OperationType } from '../../features/admin/types'
-import { DISPATCH_OPERATIONS, allowedOperations, formatDateTime, isFinished } from '../../features/admin/utils'
+import { DISPATCH_OPERATIONS, allowedOperations, formatDateTime, isFinished, weatherAlertTitle } from '../../features/admin/utils'
+import { useFleetHub } from '../../features/admin/hooks/useFleetHub'
+import { runWeatherCheck } from '../../features/admin/services/operationsService'
+import type { WeatherCheckResult } from '../../features/admin/types'
+import { USE_MOCK } from '../../constant/env'
 import { useAuth } from '../../features/authentication/hook/authenticationHook'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
@@ -113,10 +117,15 @@ export default function IncidentsPage() {
   const [version, reload] = useReload()
   const trips = useFetch(getTrips, [version])
   const logs = useFetch(getOperationLogs, [version])
-  const alerts = useFetch(getWeatherAlerts)
+  const [alertVersion, reloadAlerts] = useReload()
+  const alerts = useFetch(getWeatherAlerts, [alertVersion])
   const routes = useFetch(getRoutes)
   const boats = useFetch(getBoats)
   const [pending, setPending] = useState<{ trip: AdminTrip; type: OperationType } | null>(null)
+  const weatherCheck = useSubmit()
+  const [checkResult, setCheckResult] = useState<WeatherCheckResult | null>(null)
+  // New weather incidents appear as soon as the weather guard records them.
+  useFleetHub({ onAlert: reloadAlerts, onReconnected: reloadAlerts }, !USE_MOCK)
   const state = combineFetches(trips, logs, alerts, routes, boats)
 
   if (state.error) return <ErrorState onRetry={state.retry} />
@@ -171,17 +180,52 @@ export default function IncidentsPage() {
     <>
       <PageHeader title="Incidents" description="Weather warnings, and the controls to hold, cancel or end a trip." />
 
+      {!USE_MOCK && (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <ActionButton
+            icon="cloud_sync"
+            tone="secondary"
+            disabled={weatherCheck.busy}
+            onClick={async () => {
+              setCheckResult(null)
+              const result = await weatherCheck.run(runWeatherCheck)
+              if (result) {
+                setCheckResult(result)
+                reloadAlerts()
+              }
+            }}
+          >
+            {weatherCheck.busy ? t('Working…') : t('Check the weather now')}
+          </ActionButton>
+          {checkResult && (
+            <span className="text-sm text-on-surface-variant">
+              {t('Checked {routes} routes: {created} new, {updated} updated alerts.', {
+                routes: checkResult.routesChecked,
+                created: checkResult.incidentsCreated,
+                updated: checkResult.incidentsUpdated,
+              })}
+            </span>
+          )}
+          {weatherCheck.error && <Notice tone="error">{weatherCheck.error}</Notice>}
+        </div>
+      )}
+
+      {alerts.data.length === 0 && (
+        <p className="mb-6 text-sm text-on-surface-variant">{t('No weather warning right now.')}</p>
+      )}
       <div className="mb-6 grid gap-3 md:grid-cols-2">
         {alerts.data.map((alert) => (
           <Panel key={alert.id} className="border-signal-amber/50 bg-signal-amber/10">
             <div className="flex items-start gap-3">
               <Icon name="air" className="text-[24px] text-signal-amber" />
               <div className="text-sm">
-                <div className="font-bold text-deep-river">
-                  {t('Level {level} • wind {speed} km/h', { level: alert.level, speed: alert.windSpeedKmh })}
-                </div>
+                <div className="font-bold text-deep-river">{weatherAlertTitle(alert)}</div>
                 <div className="text-on-surface-variant">{t(alert.message)}</div>
-                <div className="mt-1 text-xs text-on-surface-variant">{formatDateTime(alert.issuedAt)}</div>
+                <div className="mt-1 text-xs text-on-surface-variant">
+                  {formatDateTime(alert.issuedAt)}
+                  {alert.affectedTripCount != null &&
+                    ` • ${t('{count} trips affected', { count: alert.affectedTripCount })}`}
+                </div>
               </div>
             </div>
           </Panel>
