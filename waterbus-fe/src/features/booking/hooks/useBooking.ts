@@ -25,8 +25,11 @@ export function useBooking({ live = false }: UseBookingOptions = {}) {
   const dispatch = useAppDispatch()
   const booking = useAppSelector((s) => s.booking)
   const { detail, loading: tripLoading, error: tripError, retry: retryTrip } = useTripDetail()
-  const loadedSeatMap = useFetch(getSeatMap)
-  const seatMap = useLiveSeatMap(loadedSeatMap.data, detail?.id ?? null, live)
+  const loadedSeatMap = useFetch(
+    () => getSeatMap(booking.selectedTripId, booking.query.originId, booking.query.destinationId),
+    [booking.selectedTripId, booking.query.originId, booking.query.destinationId],
+  )
+  const seatMap = useLiveSeatMap(loadedSeatMap.data, detail?.id ?? null, live, loadedSeatMap.retry)
 
   // The chosen seats as they are on the map now; an id the map does not know is left out.
   const seats = useMemo(

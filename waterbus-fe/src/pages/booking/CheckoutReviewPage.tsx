@@ -1,4 +1,5 @@
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
+import HoldCountdown from '../../features/booking/components/HoldCountdown'
 import BookingProgress from '../../features/booking/components/BookingProgress'
 import {
   JourneyDetailsCard,
@@ -7,7 +8,7 @@ import {
   TermsConfirm,
 } from '../../features/booking/components/CheckoutParts'
 import { useBooking } from '../../features/booking/hooks/useBooking'
-import { useCreateBooking } from '../../features/booking/hooks/useCreateBooking'
+import { useSubmitCheckout } from '../../features/booking/hooks/useCheckout'
 import type { BookingStep } from '../../features/booking/types'
 import { isBookingComplete } from '../../features/booking/utils'
 import { useDocumentTitle } from '../../hooks'
@@ -29,7 +30,7 @@ export default function CheckoutReviewPage() {
     termsAccepted,
     setTerms,
   } = useBooking()
-  const { submit, busy, failure } = useCreateBooking()
+  const { submit, busy, failure } = useSubmitCheckout()
 
   if (error) return <ErrorState onRetry={retry} />
 
@@ -59,7 +60,7 @@ export default function CheckoutReviewPage() {
         <BookingProgress steps={steps} current={3} variant="bars" />
       </div>
 
-      <div className="mt-space-xl">
+      <div className="mt-space-xl flex flex-col justify-between gap-space-md md:flex-row md:items-end">
         <div>
           <h1 className="font-headline-xl text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-xl">
             {t('Review Your Booking')}
@@ -67,6 +68,9 @@ export default function CheckoutReviewPage() {
           <p className="text-body-md text-on-surface-variant">
             {t('Confirm your trip, passenger, seat, and fare before proceeding to payment.')}
           </p>
+        </div>
+        <div className="self-start md:self-auto">
+          <HoldCountdown />
         </div>
       </div>
 
@@ -83,7 +87,7 @@ export default function CheckoutReviewPage() {
             canContinue={termsAccepted && isBookingComplete(purchaser, seatIds, passengers)}
             busy={busy}
             failure={failure}
-            onContinue={() => submit(trip.id, totals.totalVnd)}
+            onContinue={submit}
           />
         </div>
       </div>

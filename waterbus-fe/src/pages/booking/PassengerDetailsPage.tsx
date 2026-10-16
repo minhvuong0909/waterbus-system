@@ -1,6 +1,7 @@
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import BookingProgress from '../../features/booking/components/BookingProgress'
 import CrossingSummary from '../../features/booking/components/CrossingSummary'
+import HoldCountdown from '../../features/booking/components/HoldCountdown'
 import PassengerFormCard from '../../features/booking/components/PassengerFormCard'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import type { BookingStep } from '../../features/booking/types'
@@ -50,7 +51,7 @@ export default function PassengerDetailsPage() {
         <BookingProgress steps={steps} current={2} variant="circles" />
       </div>
 
-      <div className="mt-space-lg">
+      <div className="mt-space-lg flex flex-col justify-between gap-space-md md:flex-row md:items-end">
         <div>
           <h1 className="font-headline-xl text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-lg">
             {t('Passenger Details')}
@@ -58,6 +59,9 @@ export default function PassengerDetailsPage() {
           <p className="text-body-md text-on-surface-variant">
             {t('Please enter traveler information for this crossing.')}
           </p>
+        </div>
+        <div className="self-start md:self-auto">
+          <HoldCountdown />
         </div>
       </div>
 

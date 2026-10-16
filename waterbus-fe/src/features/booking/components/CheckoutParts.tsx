@@ -4,7 +4,7 @@ import { ROUTES } from '../../../routes/routes'
 import { formatNumber, formatVnd } from '../../../utils/format'
 import type { TripDetail } from '../../trips/types'
 import type { PurchaserForm, Seat, SeatPassengerForm } from '../types'
-import type { BookingFailure } from '../hooks/useCreateBooking'
+import type { BookingFailure } from '../hooks/useCheckout'
 import type { BookingTotals } from '../utils'
 import { seatTags } from '../utils'
 import { BookingCard, CardHeading, SeatFeeRow, SummaryRow } from './SummaryParts'
@@ -272,7 +272,7 @@ export function OrderSummary({
             disabled={busy}
             className="group mt-space-md flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-headline-sm text-base font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary disabled:opacity-70"
           >
-            {busy ? t('Holding your seat…') : t('Continue to Payment')}
+            {busy ? t('Preparing your order…') : t('Continue to Payment')}
             <Icon
               name="arrow_forward"
               className="text-[18px] transition-transform group-hover:translate-x-1"
@@ -281,7 +281,7 @@ export function OrderSummary({
           {failure && (
             <p role="alert" className="mt-2 text-center text-xs text-coral-glow">
               {failure.message ||
-                t('We couldn’t hold your seat just now. Please check your connection and try again.')}{' '}
+                t('We couldn’t prepare your order just now. Please check your connection and try again.')}{' '}
               {failure.seatTaken && (
                 <Link to={ROUTES.seatSelection} className="font-semibold underline">
                   {t('Choose another seat')}

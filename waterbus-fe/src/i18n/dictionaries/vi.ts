@@ -1558,4 +1558,19 @@ export const vi: Record<string, string> = {
     'Đến bến này',
   'Click a pier to see its photo and address, or pick a popular connection.':
     'Bấm vào một bến để xem ảnh và địa chỉ, hoặc chọn một tuyến phổ biến.',
+  'Photos coming soon':
+    'Ảnh sẽ sớm được cập nhật',
+  '{name}, photo {current} of {total}':
+    '{name}, ảnh {current}/{total}',
+  'Previous photo':
+    'Ảnh trước',
+  'Next photo':
+    'Ảnh tiếp theo',
+  'Photo {number}':
+    'Ảnh {number}',
+  'This trip does not stop at both of the chosen piers.': 'Chuyến này không dừng ở cả hai bến đã chọn.',
+  'Preparing your order…': 'Đang chuẩn bị đơn hàng…',
+  'We couldn’t prepare your order just now. Please check your connection and try again.': 'Chưa chuẩn bị được đơn hàng. Vui lòng kiểm tra kết nối và thử lại.',
+  'Ticket sales are closed for this trip.': 'Chuyến này đã đóng bán vé.',
+  'Pay by QR code, bank card or e-wallet on the secure VNPay page.': 'Thanh toán bằng mã QR, thẻ ngân hàng hoặc ví điện tử trên trang VNPay an toàn.',
 }

@@ -18,6 +18,8 @@ export interface BoardingPassData {
   status: string
   totalVnd: number
   reference: string
+  /** What the QR encodes: the signed credential from the backend; the reference when absent. */
+  qrValue?: string
   seatNote: string
 }
 
@@ -104,7 +106,7 @@ export default function BoardingPassCard({ pass }: { pass: BoardingPassData }) {
             {t('Boarding QR')}
           </div>
           <div className="rounded-xl bg-white p-2 shadow-sm">
-            <QrCode value={pass.reference} size={132} />
+            <QrCode value={pass.qrValue ?? pass.reference} size={132} />
           </div>
           <div className="mt-2 font-mono text-[11px] font-semibold text-deep-river">
             {pass.reference}

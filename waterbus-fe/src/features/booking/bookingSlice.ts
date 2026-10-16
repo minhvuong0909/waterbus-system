@@ -68,8 +68,8 @@ const bookingSlice = createSlice({
       state.hold = null
       state.order = null
     },
-    // A checkout is created from the trip, seats, names and fare, so changing any of them
-    // makes an existing hold stale: it is dropped and a new checkout is made at review.
+    // The hold is made for the trip and seats, so changing either makes it stale: it is dropped
+    // (the order is released when the next hold is made). Names are sent later, on submit.
     /** Adds the seat, or removes it when it is already chosen. Past the limit nothing is added. */
     toggleSeat(state, action: PayloadAction<string>) {
       const id = action.payload
@@ -83,7 +83,6 @@ const bookingSlice = createSlice({
     },
     updatePurchaser(state, action: PayloadAction<Partial<PurchaserForm>>) {
       state.purchaser = { ...state.purchaser, ...action.payload }
-      state.hold = null
     },
     updateSeatPassenger(
       state,
@@ -91,11 +90,14 @@ const bookingSlice = createSlice({
     ) {
       const { seatId, patch } = action.payload
       state.passengers[seatId] = { ...EMPTY_SEAT_PASSENGER, ...state.passengers[seatId], ...patch }
-      state.hold = null
     },
     holdStarted(state, action: PayloadAction<BookingHold>) {
       state.hold = action.payload
       state.order = { orderId: action.payload.orderId, accessToken: action.payload.accessToken }
+    },
+    /** Buyer and passengers were submitted: the order now waits for payment. */
+    holdSubmitted(state) {
+      if (state.hold) state.hold.submitted = true
     },
     holdCleared(state) {
       state.hold = null
@@ -123,6 +125,7 @@ export const {
   setTermsAccepted,
   setPaymentMethod,
   holdStarted,
+  holdSubmitted,
   holdCleared,
   orderSettled,
 } = bookingSlice.actions

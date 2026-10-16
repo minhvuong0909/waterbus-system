@@ -1,7 +1,14 @@
 import { t } from '../../i18n'
 import type { TripDetail } from '../trips/types'
 import type {
-  CreateCheckoutRequest,
+  CreateHoldRequest,
+  Journey,
+  SeatMap,
+  SubmitCheckoutRequest,
+  TripDetailDto,
+  TripSeatDto,
+  TripSeatMapDto,
+  TripStopDto,
   PurchaserForm,
   Seat,
   SeatCategory,
@@ -56,17 +63,24 @@ export interface BookingTotals {
 
 /** What each ticket costs: the trip fare plus that seat's cabin surcharge. */
 export function ticketFares(fareVnd: number, seats: Seat[]): number[] {
-  return seats.map((seat) => fareVnd + seatFeeFor(seat, fareVnd))
+  return seats.map((seat) => seat.priceVnd ?? fareVnd + seatFeeFor(seat, fareVnd))
 }
 
 export function computeTotals(trip: TripDetail, seats: Seat[]): BookingTotals {
+  // Seats from the backend carry their own fare (flat per seat class, BR-FARE), so there is no
+  // separate surcharge; the mock map prices a seat as the trip fare times its multiplier.
+  if (seats.length > 0 && seats.every((seat) => seat.priceVnd !== undefined)) {
+    const fareVnd = seats.reduce((sum, seat) => sum + (seat.priceVnd ?? 0), 0)
+    return { seatCount: seats.length, fareVnd, seatFeeVnd: 0, totalVnd: fareVnd }
+  }
   const fareVnd = trip.fareVnd * seats.length
   const seatFeeVnd = seats.reduce((sum, seat) => sum + seatFeeFor(seat, trip.fareVnd), 0)
   return { seatCount: seats.length, fareVnd, seatFeeVnd, totalVnd: fareVnd + seatFeeVnd }
 }
 
 /** True for a seat that costs more than the base fare. */
-export const hasSurcharge = (seat: Seat | undefined): boolean => (seat?.priceMultiplier ?? 1) > 1
+export const hasSurcharge = (seat: Seat | undefined): boolean =>
+  seat?.priceVnd === undefined && (seat?.priceMultiplier ?? 1) > 1
 
 /** "Front Cabin • Window", "Window", "Outdoor Deck" or "" (a standard aisle seat). */
 export function seatTags(seat: Seat | undefined): string {
@@ -156,34 +170,123 @@ export function isBookingComplete(
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export const isGuid = (value: string): boolean => GUID.test(value)
 
-interface CheckoutInput {
+interface HoldInput {
   tripId: string
   originId: string
   destinationId: string
   seatIds: string[]
-  purchaser: PurchaserForm
-  passengers: Record<string, SeatPassengerForm>
+  /** Real stops of the trip, when the seat map came from the backend. */
+  journey?: Journey
 }
 
-/** The `POST /checkouts` body: one leg, with the passengers in the same order as the seats. */
-export function buildCheckoutRequest(input: CheckoutInput): CreateCheckoutRequest {
-  const { tripId, originId, destinationId, seatIds, purchaser, passengers } = input
+/** The `POST /checkouts/holds` body: one leg, naming the real stops when they are known. */
+export function buildHoldRequest(input: HoldInput): CreateHoldRequest {
+  const { tripId, originId, destinationId, seatIds, journey } = input
   return {
-    customerName: purchaser.fullName.trim(),
-    customerEmail: purchaser.email.trim(),
-    customerPhone: toCustomerPhone(purchaser),
     legs: [
       {
         tripId,
         seatIds,
         boardingStationId: originId,
         disembarkingStationId: destinationId,
-        passengers: seatIds.map((id) => ({
-          name: passengers[id]?.fullName.trim() ?? '',
-          email: passengers[id]?.email.trim() || undefined,
-          phone: passengers[id]?.phone.trim() || undefined,
-        })),
+        boardingCallId: journey?.boardingCallId,
+        disembarkingCallId: journey?.disembarkingCallId,
       },
     ],
+  }
+}
+
+interface SubmitInput {
+  bookingId: string
+  seatIds: string[]
+  purchaser: PurchaserForm
+  passengers: Record<string, SeatPassengerForm>
+}
+
+/** The submit body: the buyer, and the passenger of every held seat (BR-COM-06/07). */
+export function buildSubmitRequest(input: SubmitInput): SubmitCheckoutRequest {
+  const { bookingId, seatIds, purchaser, passengers } = input
+  return {
+    customerName: purchaser.fullName.trim(),
+    customerEmail: purchaser.email.trim(),
+    customerPhone: toCustomerPhone(purchaser),
+    passengers: seatIds.map((seatId) => ({
+      bookingId,
+      seatId,
+      name: passengers[seatId]?.fullName.trim() ?? '',
+      email: passengers[seatId]?.email.trim() || undefined,
+      phone: passengers[seatId]?.phone.trim() || undefined,
+    })),
+  }
+}
+
+/**
+ * The boarding and alighting stops for the chosen piers: the first stop at the origin pier that
+ * allows boarding, followed later in the trip by a stop at the destination that allows alighting.
+ * Uses the trip's real stops, never the pier order (a loop trip can call at one pier twice).
+ */
+export function pickJourney(
+  stops: TripStopDto[],
+  originId: string,
+  destinationId: string,
+): { boarding: TripStopDto; disembarking: TripStopDto } | null {
+  const usable = stops.filter((stop) => stop.status !== 'Skipped')
+  const sameStation = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+  const boardings = usable
+    .filter((stop) => stop.canBoard && sameStation(stop.stationId, originId))
+    .sort((a, b) => a.visitOrder - b.visitOrder)
+  for (const boarding of boardings) {
+    const disembarking = usable
+      .filter(
+        (stop) =>
+          stop.canAlight &&
+          sameStation(stop.stationId, destinationId) &&
+          stop.visitOrder > boarding.visitOrder,
+      )
+      .sort((a, b) => a.visitOrder - b.visitOrder)[0]
+    if (disembarking) return { boarding, disembarking }
+  }
+  return null
+}
+
+const COLUMN_LETTERS = ['A', 'B', 'C', 'D'] as const
+
+function seatCategoryOf(className: string | null): SeatCategory {
+  const name = (className ?? '').toLowerCase()
+  if (name.includes('front')) return 'front'
+  if (name.includes('outdoor') || name.includes('deck')) return 'outdoor'
+  return 'standard'
+}
+
+function toSeat(dto: TripSeatDto): Seat {
+  const column = COLUMN_LETTERS[Math.min(Math.max(dto.columnNumber, 1), 4) - 1]
+  const status: Seat['status'] =
+    dto.status === 'available' ? 'available' : dto.status === 'held' ? 'held' : 'sold'
+  return {
+    id: dto.seatId,
+    code: dto.seatCode,
+    category: seatCategoryOf(dto.seatClassName),
+    row: dto.rowNumber,
+    column,
+    priceMultiplier: 1,
+    // A seat without a fare (or otherwise unavailable) cannot be chosen, so it is shown as taken.
+    status: dto.price === null ? 'sold' : status,
+    window: column === 'A' || column === 'D',
+    priceVnd: dto.price ?? undefined,
+  }
+}
+
+/** Maps the backend seat map of one journey segment to the seat map the pages use. */
+export function toSeatMap(dto: TripSeatMapDto, detail: Pick<TripDetailDto, 'boat'>): SeatMap {
+  return {
+    vesselName: detail.boat?.name ?? '',
+    seats: dto.seats.map(toSeat),
+    canBook: dto.canBook,
+    journey: {
+      boardingCallId: dto.boardingCallId,
+      disembarkingCallId: dto.disembarkingCallId,
+      boardingVisitOrder: dto.boardingVisitOrder,
+      disembarkingVisitOrder: dto.disembarkingVisitOrder,
+    },
   }
 }

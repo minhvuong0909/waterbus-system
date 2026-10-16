@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { PurchaserForm, SeatPassengerForm } from './types'
 import {
-  buildCheckoutRequest,
+  buildHoldRequest,
+  buildSubmitRequest,
+  computeTotals,
+  pickJourney,
+  toSeatMap,
   isBookingComplete,
   purchaserErrors,
   seatPassengerErrors,
@@ -54,12 +58,35 @@ describe('isBookingComplete', () => {
   })
 })
 
-describe('buildCheckoutRequest', () => {
-  it('sends one passenger per seat, in seat order, and leaves optional fields out', () => {
-    const request = buildCheckoutRequest({
+describe('buildHoldRequest', () => {
+  it('names the real stops when the journey is known', () => {
+    const request = buildHoldRequest({
       tripId: 't',
       originId: 'o',
       destinationId: 'd',
+      seatIds: ['s1'],
+      journey: {
+        boardingCallId: 'cb',
+        disembarkingCallId: 'cd',
+        boardingVisitOrder: 1,
+        disembarkingVisitOrder: 3,
+      },
+    })
+    expect(request.legs[0]).toMatchObject({
+      tripId: 't',
+      seatIds: ['s1'],
+      boardingStationId: 'o',
+      disembarkingStationId: 'd',
+      boardingCallId: 'cb',
+      disembarkingCallId: 'cd',
+    })
+  })
+})
+
+describe('buildSubmitRequest', () => {
+  it('sends one passenger per held seat, tied to the booking, and leaves optional fields out', () => {
+    const request = buildSubmitRequest({
+      bookingId: 'b',
       seatIds: ['s2', 's1'],
       purchaser: PURCHASER,
       passengers: {
@@ -67,17 +94,97 @@ describe('buildCheckoutRequest', () => {
         s2: { fullName: 'B', email: '', phone: '0901234567' },
       },
     })
+    expect(request).toMatchObject({ customerName: 'Nguyen Van An', customerEmail: 'an@example.com' })
     expect(request.customerPhone).toBeUndefined()
-    expect(request.legs).toHaveLength(1)
-    expect(request.legs[0]).toMatchObject({
-      tripId: 't',
-      seatIds: ['s2', 's1'],
-      boardingStationId: 'o',
-      disembarkingStationId: 'd',
-      passengers: [
-        { name: 'B', email: undefined, phone: '0901234567' },
-        { name: 'A', email: 'a@x.vn', phone: undefined },
-      ],
+    expect(request.passengers).toEqual([
+      { bookingId: 'b', seatId: 's2', name: 'B', email: undefined, phone: '0901234567' },
+      { bookingId: 'b', seatId: 's1', name: 'A', email: 'a@x.vn', phone: undefined },
+    ])
+  })
+})
+
+const stop = (callId: string, stationId: string, visitOrder: number, extra = {}) => ({
+  callId,
+  stationId,
+  stationName: stationId,
+  visitOrder,
+  canBoard: true,
+  canAlight: true,
+  status: 'Scheduled',
+  ...extra,
+})
+
+describe('pickJourney', () => {
+  it('uses the stops of the trip in visit order', () => {
+    const stops = [stop('c1', 'A', 1), stop('c2', 'B', 2), stop('c3', 'C', 3)]
+    const journey = pickJourney(stops, 'A', 'C')
+    expect(journey?.boarding.callId).toBe('c1')
+    expect(journey?.disembarking.callId).toBe('c3')
+  })
+
+  it('rejects the wrong direction and skipped stops', () => {
+    const stops = [stop('c1', 'A', 1), stop('c2', 'B', 2), stop('c3', 'C', 3, { status: 'Skipped' })]
+    expect(pickJourney(stops, 'B', 'A')).toBeNull()
+    expect(pickJourney(stops, 'A', 'C')).toBeNull()
+  })
+
+  it('tells apart two calls at the same pier on a loop trip', () => {
+    const stops = [stop('c1', 'A', 1), stop('c2', 'B', 2), stop('c3', 'A', 3)]
+    expect(pickJourney(stops, 'B', 'A')?.disembarking.callId).toBe('c3')
+  })
+})
+
+describe('toSeatMap', () => {
+  const seat = (id: string, code: string, col: number, cls: string, price: number | null, status: string) => ({
+    seatId: id,
+    seatCode: code,
+    rowNumber: 1,
+    columnNumber: col,
+    seatClassId: cls,
+    seatClassName: cls,
+    price,
+    currency: 'VND',
+    status,
+    unavailableReason: null,
+    holdExpiresAt: null,
+  })
+  const dto = {
+    tripId: 't',
+    boatId: 'b',
+    boardingCallId: 'cb',
+    disembarkingCallId: 'cd',
+    boardingVisitOrder: 1,
+    disembarkingVisitOrder: 3,
+    canBook: true,
+    salesState: 'open',
+    availableSeatsCount: 1,
+    asOf: '',
+    seats: [
+      seat('s1', 'S01', 1, 'Standard', 15000, 'available'),
+      seat('s2', 'F01', 2, 'Front Cabin', 18000, 'held'),
+      seat('s3', 'S02', 3, 'Standard', null, 'unavailable'),
+    ],
+  }
+
+  it('maps seats, cabins, columns, fares and the journey', () => {
+    const map = toSeatMap(dto, { boat: { boatId: 'b', code: 'SWB-01', name: 'Saigon Waterbus 01' } })
+    expect(map.vesselName).toBe('Saigon Waterbus 01')
+    expect(map.journey).toMatchObject({ boardingCallId: 'cb', disembarkingVisitOrder: 3 })
+    expect(map.seats[0]).toMatchObject({
+      id: 's1',
+      column: 'A',
+      window: true,
+      category: 'standard',
+      status: 'available',
+      priceVnd: 15000,
     })
+    expect(map.seats[1]).toMatchObject({ category: 'front', status: 'held', window: false })
+  })
+
+  it('shows a seat without a fare as taken, and totals use the seat fares', () => {
+    const map = toSeatMap(dto, { boat: null })
+    expect(map.seats[2].status).toBe('sold')
+    const totals = computeTotals({ fareVnd: 0 } as never, [map.seats[0], map.seats[1]])
+    expect(totals).toMatchObject({ fareVnd: 33000, seatFeeVnd: 0, totalVnd: 33000 })
   })
 })

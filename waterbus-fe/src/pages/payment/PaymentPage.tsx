@@ -14,7 +14,7 @@ import { t } from '../../i18n'
 export default function PaymentPage() {
   useDocumentTitle('Complete Your Payment')
   const hold = useAppSelector((s) => s.booking.hold)
-  const { loading, error, retry, trip, seats, purchaser, totals, paymentMethod, setMethod } =
+  const { loading, error, retry, trip, seats, purchaser, totals } =
     useBooking()
 
   if (error) return <ErrorState onRetry={retry} />
@@ -75,8 +75,6 @@ export default function PaymentPage() {
         <div className="lg:col-span-8">
           <PaymentMethodPanel
             tripCode={trip.vesselCode}
-            method={paymentMethod}
-            onMethod={setMethod}
             amountVnd={totals.totalVnd}
             reference={hold?.bookingCodes[0] ?? bookingReference(seats)}
           />

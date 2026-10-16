@@ -124,12 +124,22 @@ export function SeatLegend() {
   )
 }
 
-function CabinHeading({ category, feeVnd }: { category: SeatCategory; feeVnd: number }) {
+function CabinHeading({
+  category,
+  feeVnd,
+  priceVnd,
+}: {
+  category: SeatCategory
+  feeVnd: number
+  /** Fare of a seat in this cabin when the backend priced it; shown instead of a surcharge. */
+  priceVnd?: number
+}) {
   return (
     <div className="flex items-center gap-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-teal-flow">
       <span className="h-px flex-1 bg-teal-flow/30" />
       {cabinLabel(category)}
-      {feeVnd > 0 && (
+      {priceVnd !== undefined && <span className="text-deep-river">• {formatVndSuffix(priceVnd)}</span>}
+      {priceVnd === undefined && feeVnd > 0 && (
         <span className="text-signal-amber">• +{formatVndSuffix(feeVnd)}</span>
       )}
       <span className="h-px flex-1 bg-teal-flow/30" />
@@ -144,7 +154,13 @@ export default function SeatMapView({ seatMap, selectedIds, fareVnd, onSelect }:
       CABIN_ORDER.map((category) => {
         const seats = seatMap.seats.filter((s) => s.category === category)
         const rows = [...new Set(seats.map((s) => s.row))].sort((a, b) => a - b)
-        return { category, seats, rows, feeVnd: seatFeeFor(seats[0], fareVnd) }
+        return {
+          category,
+          seats,
+          rows,
+          feeVnd: seatFeeFor(seats[0], fareVnd),
+          priceVnd: seats[0]?.priceVnd,
+        }
       }).filter((cabin) => cabin.seats.length > 0),
     [seatMap.seats, fareVnd],
   )
@@ -182,7 +198,7 @@ export default function SeatMapView({ seatMap, selectedIds, fareVnd, onSelect }:
         </div>
 
         <div className="mt-2 space-y-3">
-          {cabins.map(({ category, seats, rows, feeVnd }) => {
+          {cabins.map(({ category, seats, rows, feeVnd, priceVnd }) => {
             const seatAt = (row: number, column: Seat['column']) =>
               seats.find((s) => s.row === row && s.column === column)
             const renderSeat = (row: number, column: Seat['column']) => {
@@ -200,7 +216,7 @@ export default function SeatMapView({ seatMap, selectedIds, fareVnd, onSelect }:
             }
             return (
               <div key={category} className="space-y-3">
-                <CabinHeading category={category} feeVnd={feeVnd} />
+                <CabinHeading category={category} feeVnd={feeVnd} priceVnd={priceVnd} />
                 {rows.map((row) => (
                   <div key={row} className={GRID}>
                     {COLUMNS_LEFT.map((c) => renderSeat(row, c))}

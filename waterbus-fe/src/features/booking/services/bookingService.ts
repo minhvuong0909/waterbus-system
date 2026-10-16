@@ -2,9 +2,18 @@ import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { USE_MOCK } from '../../../constant/env'
 import { SEAT_MAP } from '../../../mocks/booking'
 import { withDelayExact } from '../../../mocks/delay'
-import { apiRequest } from '../../../services/apiClient'
-import type { CheckoutDetail, CheckoutResponse, CreateCheckoutRequest, SeatMap } from '../types'
-import { isGuid } from '../utils'
+import { t } from '../../../i18n'
+import { ApiError, apiRequest } from '../../../services/apiClient'
+import type {
+  CheckoutDetail,
+  CheckoutResponse,
+  CreateHoldRequest,
+  SeatMap,
+  SubmitCheckoutRequest,
+  TripDetailDto,
+  TripSeatMapDto,
+} from '../types'
+import { isGuid, pickJourney, toSeatMap } from '../utils'
 
 const HOLD_SECONDS = 600
 
@@ -12,45 +21,55 @@ const HOLD_SECONDS = 600
 export const guestHeaders = (accessToken: string | null): Record<string, string> =>
   accessToken ? { 'X-Guest-Token': accessToken } : {}
 
-// Mock: the backend has no seat map endpoint yet (roadmap P1-BE-05). `SEAT_MAP` follows the boat
-// layout the backend seeds, and a real response will use the same `SeatMap` shape.
-export function getSeatMap(): Promise<SeatMap> {
-  // Exact: seat statuses such as "sold" are values the UI compares, not text to translate.
-  return withDelayExact(SEAT_MAP)
+/** True when the ids of a trip and its piers come from the backend (Guids), not from the mocks. */
+export function isLiveTrip(tripId: string | null, originId: string, destinationId: string): boolean {
+  return !USE_MOCK && tripId !== null && [tripId, originId, destinationId].every(isGuid)
 }
 
 /**
- * True when the checkout can go to the real backend: not in mock mode, and the trip, stations and
- * seats are all backend Guids. The mock seat map uses seat codes (no seat endpoint yet), so until
- * the seat map is real, bookings made from it are mock ones.
+ * Seat map of the trip for the chosen piers. A backend trip loads `GET /trips/{id}` (to find the
+ * real boarding and alighting stops) and then `GET /trips/{id}/seats` for that segment, with the
+ * fare and availability of each seat. A mock trip (mock mode, or ids that are not Guids) keeps the
+ * mock layout of the boat.
  */
-export function canUseLiveCheckout(request: CreateCheckoutRequest): boolean {
-  return (
-    !USE_MOCK &&
-    request.legs.every(
-      (leg) =>
-        isGuid(leg.tripId) &&
-        isGuid(leg.boardingStationId) &&
-        isGuid(leg.disembarkingStationId) &&
-        leg.seatIds.every(isGuid),
-    )
-  )
+export async function getSeatMap(
+  tripId: string | null,
+  originId: string,
+  destinationId: string,
+): Promise<SeatMap> {
+  if (!isLiveTrip(tripId, originId, destinationId) || tripId === null) {
+    // Exact: seat statuses such as "sold" are values the UI compares, not text to translate.
+    return withDelayExact(SEAT_MAP)
+  }
+  const detail = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
+  const journey = pickJourney(detail.stops, originId, destinationId)
+  if (!journey) {
+    throw new ApiError(409, t('This trip does not stop at both of the chosen piers.'))
+  }
+  const dto = await apiRequest<TripSeatMapDto>(API_ENDPOINTS.trips.seats(tripId), {
+    query: {
+      boardingCallId: journey.boarding.callId,
+      disembarkingCallId: journey.disembarking.callId,
+    },
+  })
+  return toSeatMap(dto, detail)
 }
 
 /**
- * `POST /checkouts`: creates the order, one booking per trip, and holds the seats (BR-HOLD).
- * Rejects with ApiError(409) when a seat is already held or sold, and ApiError(400) with
- * `fieldErrors` for invalid details. No ticket exists yet: tickets are issued only after the
- * backend verifies the payment (BR-PAY-01).
+ * `POST /checkouts/holds`: holds the seats before the buyer is known (BR-HOLD). The order stays a
+ * Draft until it is submitted. Rejects with ApiError(409) when a seat is already held or sold.
+ * The response carries the hold deadline (`expiresAt`) and the guest token of the order, which is
+ * only returned here.
  *
- * MOCK (see `canUseLiveCheckout`): returns an order worth `quotedTotalVnd` without any request.
+ * MOCK (a mock trip, see `isLiveTrip`): returns an order without any request.
  */
-export function createCheckout(
-  request: CreateCheckoutRequest,
+export function createHold(
+  request: CreateHoldRequest,
   quotedTotalVnd: number,
 ): Promise<CheckoutResponse> {
-  if (canUseLiveCheckout(request)) {
-    return apiRequest<CheckoutResponse>(API_ENDPOINTS.checkouts.create, {
+  const [leg] = request.legs
+  if (isLiveTrip(leg.tripId, leg.boardingStationId, leg.disembarkingStationId)) {
+    return apiRequest<CheckoutResponse>(API_ENDPOINTS.checkouts.holds, {
       method: 'POST',
       body: request,
     })
@@ -61,7 +80,7 @@ export function createCheckout(
     orderId,
     quotedTotal: quotedTotalVnd,
     currency: 'VND',
-    status: 'PendingPayment',
+    status: 'Draft',
     expiresAt: new Date(Date.now() + HOLD_SECONDS * 1000).toISOString(),
     accessToken: null,
     bookings: [
@@ -69,12 +88,32 @@ export function createCheckout(
         bookingId: crypto.randomUUID(),
         bookingCode: `WB${stamp}${Math.floor(100 + Math.random() * 900)}`,
         totalAmount: quotedTotalVnd,
-        status: 'PendingPayment',
+        status: 'Draft',
         holdDurationSeconds: HOLD_SECONDS,
         orderId,
-        orderStatus: 'PendingPayment',
+        orderStatus: 'Draft',
       },
     ],
+  })
+}
+
+/**
+ * `POST /checkouts/{orderId}/submit`: gives the held order its buyer and passengers and makes it
+ * payable (PendingPayment). No ticket is issued yet (BR-COM-08). MOCK order (no token): no request.
+ */
+export async function submitCheckout(
+  orderId: string,
+  accessToken: string | null,
+  request: SubmitCheckoutRequest,
+): Promise<void> {
+  if (!accessToken) {
+    await withDelayExact(true)
+    return
+  }
+  await apiRequest<unknown>(API_ENDPOINTS.checkouts.submit(orderId), {
+    method: 'POST',
+    body: request,
+    headers: guestHeaders(accessToken),
   })
 }
 
@@ -95,6 +134,37 @@ export function getCheckout(orderId: string, accessToken: string | null): Promis
     })
   }
   return apiRequest<CheckoutDetail>(API_ENDPOINTS.checkouts.byId(orderId), {
+    headers: guestHeaders(accessToken),
+  })
+}
+
+/** Credential of a paid booking (BE `BookingQrCredential`). */
+export interface BookingQr {
+  /** Compact RS256 JWS the Staff Scanner verifies offline; this is what the QR encodes. */
+  payload: string
+  algorithm: string
+  keyId: string
+  credentialVersion: number
+}
+
+/**
+ * `GET /checkouts/{orderId}/bookings/{bookingId}/qr`: the boarding QR of a booking, available
+ * only after payment is confirmed. MOCK order (no token): a placeholder payload.
+ */
+export function getBookingQr(
+  orderId: string,
+  bookingId: string,
+  accessToken: string | null,
+): Promise<BookingQr> {
+  if (!accessToken) {
+    return withDelayExact({
+      payload: `MOCK.${bookingId}`,
+      algorithm: 'none',
+      keyId: 'mock',
+      credentialVersion: 0,
+    })
+  }
+  return apiRequest<BookingQr>(API_ENDPOINTS.checkouts.qr(orderId, bookingId), {
     headers: guestHeaders(accessToken),
   })
 }

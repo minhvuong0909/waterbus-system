@@ -94,29 +94,22 @@ Lệch khác:
 
 FE `TripDetail` cần thêm: nhãn bến đầy đủ + quận, `timeline[]`, `amenityDetails[]`, `boardingSteps[]`. Gợi ý: BE trả phần dữ liệu thật (bến, giờ, tàu, giá, ghế trống); `timeline`/`amenityDetails`/`boardingSteps` là nội dung tĩnh nên **giữ ở FE** (i18n), chỉ cần thêm một vài field vào DTO.
 
-### 2.5 Chọn ghế — `/booking/seats`
+### 2.5 Chọn ghế thật — `/booking/seats`
 
-| FE (service) | BE | Trạng thái |
+| FE | BE | Trạng thái |
 |---|---|---|
-| `getSeatMap()` | — (không có endpoint sơ đồ ghế theo chuyến) | ❌ P1-BE-05 / P1-WEB-03 |
-| `validateVoucher(code)` | — | ❌ chưa có voucher trong BE |
+| `getSeatMap(tripId, originId, destId)` bước 1 | `GET /api/v1/trips/{tripId}` → `stops[]` (`callId`, `stationId`, `visitOrder`, `canBoard`, `canAlight`, `status`), `boat`, `canBook` | ✅ |
+| bước 2 | `GET /api/v1/trips/{tripId}/seats?boardingCallId&disembarkingCallId` → `{canBook, salesState, boardingVisitOrder, disembarkingVisitOrder, seats[{seatId, seatCode, rowNumber, columnNumber, seatClassName, price, status, holdExpiresAt}]}` (công khai, no-store) | ✅ |
+| `subscribeSeatEvents` | SignalR `/hubs/seat-sync` (`JoinTrip`; `seatHeld/seatReleased/seatSold`) | ✅ |
 
-**Mô hình ghế lệch nhau** (cần chốt với leader trước khi code):
+- Điểm lên/xuống lấy từ **stop thật** của chuyến (`pickJourney`): stop đầu tiên ở bến đi có `canBoard`, rồi stop ở bến đến có `canAlight` và `visitOrder` lớn hơn (bỏ stop `Skipped`). Không dùng `Station.OrderIndex`; chuyến vòng có hai lần ghé một bến vẫn đúng.
+- Ghế: `seatId` là Guid; cabin suy từ `seatClassName` (Front/Outdoor/khác = Standard); cột `columnNumber` 1–4 → A–D; **giá lấy thẳng `price`** của từng ghế (giá phẳng theo loại chuyến × hạng ghế, BR-FARE) nên không còn phụ thu `PriceMultiplier`. Ghế `unavailable`/thiếu giá hiển thị là đã bán (không chọn được). `canBook=false` khoá nút Continue.
+- Realtime theo **đoạn**: mỗi event có `boardingVisitOrder/disembarkingVisitOrder`; FE chỉ áp dụng khi `b < myDisembark && d > myBoard`. Sau reconnect FE tải lại seat map bằng REST (event lúc mất kết nối không được gửi bù).
+- Chuyến mock (mock mode hoặc id không phải Guid): giữ sơ đồ mock cũ, đánh dấu rõ trong code (`isLiveTrip`).
 
-| | FE | BE |
-|---|---|---|
-| Phân loại | `standard` / `vip` (khoang cuối, phụ thu) | `FrontCabin` / `Standard` / `Outdoor` |
-| Bố cục | Hàng `row` + cột `A–D`, cột A/D là ghế cửa sổ | `RowNumber` + `ColumnNumber` (số), `SeatCode` |
-| Giá | Phụ thu VIP cộng thêm vào giá vé | `Seat.PriceMultiplier` |
-| Trạng thái | `available` / `occupied` | Suy ra từ `Ticket` (Valid/CheckedIn/Pending) + Redis lock |
-| Số ghế | Theo mock | 60 ghế / tàu, 3 khoang |
+### 2.6 Thông tin hành khách — `/booking/passenger`
 
-Cần quyết định: map `FrontCabin/Outdoor/Standard` ↔ `standard/vip` ra sao, hay sửa FE theo 3 khoang? Ghế "cửa sổ" là thuộc tính FE tự suy ra hay BE trả?
-Ghế đang được giữ bởi người khác (Redis lock) cũng nên được tính là `occupied`; BE hiện chỉ biết ghế đã có vé.
-
-### 2.6 Thông tin hành khách & xem lại — `/booking/passenger`, `/booking/review`
-
-Không có API riêng; dữ liệu đi cùng `POST /checkouts` (mục 2.7). Theo BR v2.0:
+Không có API riêng; dữ liệu đi cùng `POST /checkouts/{id}/submit` (mục 2.7). Theo BR v2.0:
 
 | Đối tượng | Trường | Bắt buộc | Nguồn BR |
 |---|---|---|---|
@@ -125,46 +118,47 @@ Không có API riêng; dữ liệu đi cùng `POST /checkouts` (mục 2.7). Theo
 | Người mua | `customerName`, `customerEmail` | ✅ | BR-COM-07 |
 | | `customerPhone` | tuỳ chọn (10–11 chữ số nếu có) | BR-COM-07 |
 
-FE: `PurchaserForm` + `passengers: Record<seatId, SeatPassengerForm>` trong `bookingSlice`; kiểm tra bằng `purchaserErrors` / `seatPassengerErrors` / `isBookingComplete` (`features/booking/utils.ts`), nút "Continue" bị khoá tới khi đủ. `passengers[i]` khớp `seatIds[i]` (cùng thứ tự). Đã bỏ: hạng khách, ngày sinh, hỗ trợ lên tàu (không có trong BR v2.0).
+FE: `PurchaserForm` + `passengers: Record<seatId, SeatPassengerForm>` trong `bookingSlice`; kiểm tra bằng `purchaserErrors` / `seatPassengerErrors` / `isBookingComplete`, nút Continue khoá tới khi đủ. Đã bỏ: hạng khách, ngày sinh, hỗ trợ lên tàu (không có trong BR v2.0).
 
-### 2.7 Tạo đơn & giữ ghế — cuối bước review (`useCreateBooking`)
+### 2.7 Giữ ghế rồi gửi người mua (`useSeatHold`, `useSubmitCheckout`)
+
+Luồng đúng BR-HOLD: **giữ ghế trước, nhập người mua sau**.
+
+| Bước | FE | BE |
+|---|---|---|
+| Ở trang chọn ghế, bấm Continue | `createHold` | `POST /api/v1/checkouts/holds` body `{legs:[{tripId, seatIds[], boardingStationId, disembarkingStationId, boardingCallId, disembarkingCallId}]}` → `201 {orderId, quotedTotal, status:"Draft", expiresAt, accessToken, bookings[]}` |
+| Ở trang review, bấm Continue to Payment | `submitCheckout` | `POST /api/v1/checkouts/{orderId}/submit` + `X-Guest-Token`, body `{customerName, customerEmail, customerPhone?, passengers:[{bookingId, seatId, name, email?, phone?}]}` → Draft → PendingPayment |
+| Đổi ghế sau khi đã giữ | `cancelCheckout` rồi giữ lại | `DELETE /api/v1/checkouts/{orderId}` |
+
+- **Hạn giữ thật:** `expiresAt` của backend → `hold.expiresAt` → `HoldCountdown` (hiện ở trang ghế, hành khách, review, thanh toán). Hết hạn → báo và quay lại chọn ghế.
+- **Guest token:** `accessToken` chỉ trả **một lần** ở response giữ ghế → lưu trong `booking.hold`/`booking.order` (Redux, nhân bản sang `sessionStorage` để sống qua lần chuyển sang VNPay và quay lại). Mọi lời gọi sau gửi `X-Guest-Token` (`apiRequest({ headers })`).
+- `409` → ghế vừa bị giữ/bán → chọn ghế khác; `400` + `errors` → báo lỗi.
+- Chưa dùng `PUT /checkouts/{id}/bookings/{id}/seats` (đổi ghế tại chỗ) và `POST /checkouts` (tạo đủ một lần); FE hiện luôn đi đường holds → submit. `legs` hiện 1 chuyến, chưa có UI khứ hồi.
+- Chưa có Ticket ở bước này: vé chỉ phát sau khi thanh toán được xác nhận (BR-COM-08).
+
+### 2.8 Thanh toán, vé và QR — `/payment`, `/payment/callback`, `/payment/success`
 
 | FE | BE | Trạng thái |
 |---|---|---|
-| `createCheckout(request)` | `POST /api/v1/checkouts` body `{customerName, customerEmail, customerPhone?, legs:[{tripId, seatIds[], boardingStationId, disembarkingStationId, passengers[{name,email?,phone?}]}]}` → `201 {orderId, quotedTotal, currency, status, expiresAt, accessToken, bookings[]}` | ✅ |
-| `getCheckout(orderId)` | `GET /api/v1/checkouts/{orderId}` (header `X-Guest-Token`) → `{orderId, status, quotedTotal, expiresAt, bookings[{… tickets[]}], payments[]}` | ✅ |
-| `cancelCheckout(orderId)` | `DELETE /api/v1/checkouts/{orderId}` | ✅ (dùng khi sửa thông tin sau khi đã giữ ghế) |
-
-- **Giữ ghế thật:** `expiresAt` của backend → `hold.expiresAt` → `HoldCountdown` (không còn hằng 600s ở FE). `legs` hiện 1 chuyến; BE cho 1–2 (khứ hồi), FE chưa có UI khứ hồi.
-- **Guest token:** `accessToken` chỉ trả **một lần** ở response tạo → lưu trong `booking.hold`/`booking.order` (Redux, nhân bản vào `sessionStorage` để sống qua lần chuyển sang VNPay và quay lại). Mọi lời gọi sau gửi header `X-Guest-Token` (`apiRequest({ headers })`).
-- `409` → ghế vừa bị giữ/bán → quay lại chọn ghế; `400` + `errors` → báo theo trường.
-- Chưa có `PUT /checkouts/{id}/bookings/{id}/seats`, `/holds` (giữ ghế trước khi nhập người mua) trong FE; không cần cho luồng hiện tại.
-- Chưa có Ticket ở bước này: vé chỉ phát sau khi thanh toán xác nhận (BR-COM-08).
-
-### 2.8 Thanh toán — `/payment`, `/payment/callback`, `/payment/success`
-
-| FE | BE | Trạng thái |
-|---|---|---|
-| `createPaymentUrl(orderId)` | `POST /api/v1/payments/create-vnpay-url` body `{orderId}` + `X-Guest-Token` → `{paymentUrl, orderId, merchantReference, amount, expiresAt}` | ✅ |
-| `verifyVnPayReturn(search)` | `GET /api/v1/payments/vnpay-return?...` → `{success, merchantReference, responseCode, message}` (chỉ kiểm tra chữ ký chuyển hướng) | ✅ |
-| `useOrderConfirmation` (poll) | `GET /api/v1/checkouts/{orderId}` → `status` | ✅ |
+| `createPaymentUrl(orderId)` | `POST /api/v1/payments/create-vnpay-url` body `{orderId}` + `X-Guest-Token` → `{paymentUrl, merchantReference, amount, expiresAt}` | ✅ |
+| `verifyVnPayReturn(search)` | `GET /api/v1/payments/vnpay-return?...` → `{success, merchantReference, responseCode, message}` (chỉ kiểm chữ ký chuyển hướng) | ✅ |
+| `useOrderConfirmation` (poll) | `GET /api/v1/checkouts/{orderId}` → `status`, `bookings[].tickets[]` | ✅ |
 | `reconcilePayment` | `POST /api/v1/payments/{orderId}/attempts/{paymentId}/reconcile` | ✅ |
+| `getBookingQr` | `GET /api/v1/checkouts/{orderId}/bookings/{bookingId}/qr` → `{payload (JWS RS256), algorithm, keyId, credentialVersion}` | ✅ |
 | — | `GET/POST /api/v1/payments/vnpay-ipn` (VNPAY gọi ngầm, FE không gọi) | ✅ |
+| (chưa dùng) | `GET /api/v1/checkouts/qr-public-key` — dành cho Staff Scanner | ✅ |
 
 Luồng (BR-PAY-01: chỉ IPN đã xác minh mới là bằng chứng thanh toán):
-1. `/payment`: nút **Pay with VNPay** → `create-vnpay-url` → `window.location.assign(paymentUrl)`. **Đã bỏ nút "I've Completed Payment"** (trình duyệt không được tự báo đã trả).
-2. VNPAY chuyển về `/payment/callback?...` (`VnPay:ReturnUrl`). Trang gọi `vnpay-return` rồi **poll `GET /checkouts/{orderId}` mỗi 3 giây (tối đa ~2 phút)** tới khi `status` là:
-   - `Confirmed` → sang `/payment/success` (vé đã phát; tên vé lấy từ `bookings[].tickets[]`);
-   - `Expired` / `Cancelled` → báo ghế đã nhả, chọn ghế lại;
-   - hết thời gian chờ → nút **Check again** và **Verify with the bank** (gọi `reconcile`, rồi đọc lại trạng thái).
-   Nếu `vnpay-return` báo không thành công → hiện lỗi ngay, cho thử thanh toán lại khi hold còn hạn.
-3. `/payment/success` chỉ hiển thị khi `status = Confirmed`; không có đơn / chưa xác nhận → báo "chưa xác nhận".
-
-Giao diện chọn QR/thẻ/ví ở `/payment` vẫn là minh hoạ (mọi cách đều qua VNPAY); nên rút gọn ở bước sau.
+1. `/payment`: nút **Pay with VNPay** → `create-vnpay-url` → `window.location.assign(paymentUrl)`. Không còn nút "I've Completed Payment"; panel QR/thẻ/ví giả đã gỡ, chỉ còn VNPay.
+2. VNPAY chuyển về `/payment/callback?...`. Trang gọi `vnpay-return` rồi **poll `GET /checkouts/{orderId}` mỗi 3 giây (tối đa ~2 phút)** tới khi `status` là `Confirmed` → `/payment/success`; `Expired`/`Cancelled` → báo ghế đã nhả; hết thời gian chờ → **Check again** / **Verify with the bank** (`reconcile`).
+3. `/payment/success` chỉ hiển thị khi `Confirmed`: tên hành khách lấy từ `tickets[].passengerName`, mã đặt chỗ từ `bookingCode`, và **QR thật** = `payload` của `GET …/qr` (component `QrCode` dùng thư viện `qrcode`, quét được; Staff Scanner verify offline bằng public key).
 
 ### 2.8a Chạy thật hay mock
 
-`createCheckout`/`getCheckout`/`createPaymentUrl` gọi backend thật khi `VITE_USE_MOCK=false` **và** trip, bến, ghế đều là Guid (`canUseLiveCheckout`). **Sơ đồ ghế vẫn là mock** (BE chưa có endpoint ghế theo chuyến, chỉ có `/trips/search`), id ghế là mã như `S01` nên đặt vé từ UI hiện **luôn rơi vào nhánh mock**: đơn giả (`accessToken = null`), "cổng thanh toán" là chính trang callback với `mock=1`, `getCheckout` trả `Confirmed`. Khi BE có API sơ đồ ghế (Guid thật) thì luồng tự chuyển sang backend thật, không cần đổi code luồng.
+- `VITE_USE_MOCK=false` **và** trip + hai bến đều là Guid (`isLiveTrip`) → toàn bộ luồng gọi backend thật: trip detail, seat map, holds, submit, create-vnpay-url, poll, QR.
+- Mock mode hoặc id không phải Guid → chuyến, sơ đồ ghế, giữ ghế, thanh toán đều mock: đơn không có `accessToken`, "cổng thanh toán" là chính trang callback với `mock=1`, `getCheckout` trả `Confirmed`, QR là chuỗi giả.
+- **Chưa nghiệm thu E2E với VNPay sandbox** (cần BE chạy với `VnPay__*`/`Qr__PrivateKeyPem` và URL IPN công khai); đã kiểm bằng unit test (mock `fetch`) và chạy thử luồng mock trên trình duyệt.
+- Còn lệch phía tìm chuyến: `TripDto.basePrice` hiện là 0 (placeholder) nên giá ở danh sách chuyến chưa đúng; giá chuẩn lấy từ seat map (xem `docs/KNOWN_ISSUES.md`).
 
 ### 2.9 Vé của tôi — `/tickets`, `/tickets/detail`, `/tickets/manage`
 

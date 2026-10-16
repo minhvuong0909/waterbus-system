@@ -1,9 +1,11 @@
 import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
+import HoldCountdown from '../../features/booking/components/HoldCountdown'
 import SeatMapView, { SeatLegend } from '../../features/booking/components/SeatMapView'
 import {
   BookingSummary,
   TripStrip,
 } from '../../features/booking/components/SeatSelectionParts'
+import { useSeatHold } from '../../features/booking/hooks/useCheckout'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import { MAX_SEATS_PER_BOOKING, seatCodes } from '../../features/booking/utils'
 import { useDocumentTitle } from '../../hooks'
@@ -14,6 +16,7 @@ export default function SeatSelectionPage() {
   useDocumentTitle('Choose Your Seat')
   const { loading, error, retry, trip, seatMap, seats, seatIds, seatLimitReached, totals, toggleSeat } =
     useBooking({ live: true })
+  const hold = useSeatHold()
 
   if (error) return <ErrorState onRetry={retry} />
 
@@ -39,9 +42,15 @@ export default function SeatSelectionPage() {
             {t('Choose Your Seat')}
           </h1>
         </div>
-        <span className="inline-flex items-center gap-1 self-start rounded-xl bg-white px-space-md py-2 text-xs font-semibold text-teal-flow shadow-sm md:self-auto">
-          <Icon name="timer" className="text-[15px]" /> {t('Cart holds for 10:00')}
-        </span>
+        <div className="self-start md:self-auto">
+          <HoldCountdown
+            fallback={
+              <span className="inline-flex items-center gap-1 rounded-xl bg-white px-space-md py-2 text-xs font-semibold text-teal-flow shadow-sm">
+                <Icon name="timer" className="text-[15px]" /> {t('Cart holds for 10:00')}
+              </span>
+            }
+          />
+        </div>
       </div>
 
       <div className="mt-space-md space-y-space-md">
@@ -89,7 +98,16 @@ export default function SeatSelectionPage() {
           </div>
         </div>
         <div className="lg:col-span-5">
-          <BookingSummary trip={trip} seats={seats} totals={totals} limitReached={seatLimitReached} />
+          <BookingSummary
+            trip={trip}
+            seats={seats}
+            totals={totals}
+            limitReached={seatLimitReached}
+            canBook={seatMap.canBook !== false}
+            onContinue={() => hold.submit(trip.id, totals.totalVnd, seatMap.journey)}
+            busy={hold.busy}
+            failure={hold.failure}
+          />
         </div>
       </div>
 

@@ -15,6 +15,7 @@ import {
   QuickActions,
   WhatsNext,
 } from '../../features/payment/components/ConfirmationParts'
+import { getBookingQr } from '../../features/booking/services/bookingService'
 import { useOrderConfirmation } from '../../features/payment/hooks/useOrderConfirmation'
 import { getNextSteps } from '../../features/payment/services/paymentService'
 import BoardingPassCard from '../../features/tickets/components/BoardingPassCard'
@@ -33,8 +34,18 @@ export default function BookingSuccessPage() {
   const { loading, error, retry, trip, seats, purchaser, totals } = useBooking()
   const steps = useFetch(getNextSteps)
   const { phase, detail } = useOrderConfirmation()
-  const failure = error ?? steps.error
   const confirmed = phase === 'confirmed'
+  const bookingId = detail?.bookings[0]?.bookingId
+  const order = useAppSelector((s) => s.booking.order)
+  // The boarding QR is issued only for a paid booking (BR-COM-08); the scanner verifies it offline.
+  const qr = useFetch(
+    () =>
+      confirmed && order && bookingId
+        ? getBookingQr(order.orderId, bookingId, order.accessToken)
+        : Promise.resolve(null),
+    [confirmed, bookingId],
+  )
+  const failure = error ?? steps.error ?? qr.error
 
   // The tickets of the confirmed order go into the wallet (names by seat, as the traveler typed them).
   useEffect(() => {
@@ -58,6 +69,7 @@ export default function BookingSuccessPage() {
         onRetry={() => {
           if (error) retry()
           if (steps.error) steps.retry()
+          if (qr.error) qr.retry()
         }}
       />
     )
@@ -82,7 +94,7 @@ export default function BookingSuccessPage() {
     )
   }
 
-  if (loading || !trip || !totals || !steps.data || !confirmed) return <PageLoader />
+  if (loading || !trip || !totals || !steps.data || !confirmed || qr.loading) return <PageLoader />
 
   const orderedSeats = detail?.bookings.flatMap((b) => b.tickets) ?? []
   const reference = detail?.bookings[0]?.bookingCode ?? bookingReference(seats)
@@ -134,6 +146,7 @@ export default function BookingSuccessPage() {
                 status: t('Confirmed'),
                 totalVnd: totals.totalVnd,
                 reference,
+                qrValue: qr.data?.payload,
                 seatNote: t('Trip {code} • {kind}', {
                   code: trip.vesselCode,
                   kind: cabinsLabel(seats),
