@@ -42,7 +42,7 @@ export const FAQ: FaqItem[] = [
   {
     question: 'Can I book several seats at once?',
     answer:
-      'Yes, up to 10 seats in one booking. You enter one contact, and every ticket of the booking is issued in that name.',
+      'Yes, up to 10 seats in one booking. You enter the name of the passenger for each seat (email and phone are optional), plus the buyer’s name and email. Each ticket is issued in its passenger’s name, and the e-tickets go to the buyer.',
   },
   {
     question: 'Which payment methods are accepted?',

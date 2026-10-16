@@ -6,12 +6,13 @@ import {
   toggleSeat,
   setPaymentMethod,
   setTermsAccepted,
-  updatePassenger,
+  updatePurchaser,
+  updateSeatPassenger,
 } from '../bookingSlice'
 import { getSeatMap } from '../services/bookingService'
 import { useLiveSeatMap } from './useLiveSeatMap'
 import type { PaymentMethodId } from '../../payment/types'
-import type { PassengerForm } from '../types'
+import type { PurchaserForm, SeatPassengerForm } from '../types'
 import { MAX_SEATS_PER_BOOKING, computeTotals } from '../utils'
 
 interface UseBookingOptions {
@@ -54,7 +55,9 @@ export function useBooking({ live = false }: UseBookingOptions = {}) {
     seatIds: booking.seatIds,
     /** True when no more seats can be added to this booking. */
     seatLimitReached: booking.seatIds.length >= MAX_SEATS_PER_BOOKING,
-    passenger: booking.passenger,
+    purchaser: booking.purchaser,
+    /** The passenger of each chosen seat, by seat id. */
+    passengers: booking.passengers,
     termsAccepted: booking.termsAccepted,
     paymentMethod: booking.paymentMethod,
     totals,
@@ -68,7 +71,9 @@ export function useBooking({ live = false }: UseBookingOptions = {}) {
         dispatch(toggleSeat(id))
       }
     },
-    editPassenger: (patch: Partial<PassengerForm>) => dispatch(updatePassenger(patch)),
+    editPurchaser: (patch: Partial<PurchaserForm>) => dispatch(updatePurchaser(patch)),
+    editSeatPassenger: (seatId: string, patch: Partial<SeatPassengerForm>) =>
+      dispatch(updateSeatPassenger({ seatId, patch })),
     setTerms: (v: boolean) => dispatch(setTermsAccepted(v)),
     setMethod: (m: PaymentMethodId) => dispatch(setPaymentMethod(m)),
   }

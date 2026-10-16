@@ -7,12 +7,14 @@ import PaymentMethodPanel from '../../features/payment/components/PaymentMethodP
 import HoldCountdown from '../../features/booking/components/HoldCountdown'
 import PaymentOrderSummary from '../../features/payment/components/PaymentOrderSummary'
 import { useDocumentTitle } from '../../hooks'
+import { useAppSelector } from '../../store/hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 
 export default function PaymentPage() {
   useDocumentTitle('Complete Your Payment')
-  const { loading, error, retry, trip, seats, passenger, totals, paymentMethod, setMethod } =
+  const hold = useAppSelector((s) => s.booking.hold)
+  const { loading, error, retry, trip, seats, purchaser, totals, paymentMethod, setMethod } =
     useBooking()
 
   if (error) return <ErrorState onRetry={retry} />
@@ -25,7 +27,7 @@ export default function PaymentPage() {
       label: 'Seat',
       detail: seatCodes(seats),
     },
-    { label: 'Details', detail: passenger.fullName },
+    { label: 'Details', detail: purchaser.fullName },
     { label: 'Checkout', detail: 'Order Confirmed' },
     { label: 'Payment', detail: 'Instant QR / Card' },
   ]
@@ -76,14 +78,14 @@ export default function PaymentPage() {
             method={paymentMethod}
             onMethod={setMethod}
             amountVnd={totals.totalVnd}
-            reference={bookingReference(seats)}
+            reference={hold?.bookingCodes[0] ?? bookingReference(seats)}
           />
         </div>
         <div className="lg:col-span-4">
           <PaymentOrderSummary
             trip={trip}
             seats={seats}
-            passenger={passenger}
+            purchaser={purchaser}
             totals={totals}
           />
         </div>

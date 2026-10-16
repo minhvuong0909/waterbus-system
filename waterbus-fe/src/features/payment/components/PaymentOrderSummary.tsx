@@ -7,61 +7,46 @@ import {
   SummaryRow,
   TotalRow,
 } from '../../booking/components/SummaryParts'
-import { passengersLabel, selectedSeatsLabel, ticketFares } from '../../booking/utils'
+import { passengersLabel, selectedSeatsLabel } from '../../booking/utils'
 import type { BookingTotals } from '../../booking/utils'
-import type { PassengerForm, Seat } from '../../booking/types'
+import type { PurchaserForm, Seat } from '../../booking/types'
 import type { TripDetail } from '../../trips/types'
 import { ROUTES } from '../../../routes/routes'
-import { useAppDispatch } from '../../../store/hooks'
-import { holdCleared } from '../../booking/bookingSlice'
-import { useHoldCountdown } from '../../booking/hooks/useHoldCountdown'
-import { addBooking } from '../../tickets/ticketsSlice'
-import { bookingSnapshotId } from '../../tickets/utils'
 import { useAppSelector } from '../../../store/hooks'
+import { useHoldCountdown } from '../../booking/hooks/useHoldCountdown'
 import { formatVnd } from '../../../utils/format'
-import { confirmPayment } from '../services/paymentService'
+import { createPaymentUrl } from '../services/paymentService'
 import { t } from '../../../i18n'
 
 interface PaymentOrderSummaryProps {
   trip: TripDetail
   seats: Seat[]
-  passenger: PassengerForm
+  purchaser: PurchaserForm
   totals: BookingTotals
 }
 
 export default function PaymentOrderSummary({
   trip,
   seats,
-  passenger,
+  purchaser,
   totals,
 }: PaymentOrderSummaryProps) {
   const navigate = useNavigate()
-  const dispatch = useAppDispatch()
-  const query = useAppSelector((s) => s.booking.query)
-  const selectedTrip = useAppSelector((s) => s.booking.selectedTrip)
-  const { expired } = useHoldCountdown()
+  const order = useAppSelector((s) => s.booking.order)
+  const { hold, expired } = useHoldCountdown()
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
 
-  // Mock: always succeeds, then moves on to the confirmation page.
-  const complete = async () => {
+  // BR-PAY-01: paying only sends the traveler to the gateway. The ticket is issued when the
+  // backend verifies the payment, and the callback page waits for that; there is no "I have paid".
+  const pay = async () => {
+    if (!hold) return
     setBusy(true)
     setFailed(false)
     try {
-      await confirmPayment()
-      dispatch(
-        addBooking({
-          id: bookingSnapshotId(trip.id, seats),
-          tripId: trip.id,
-          selectedTrip,
-          query,
-          seats,
-          fares: ticketFares(trip.fareVnd, seats),
-          passenger,
-        }),
-      )
-      dispatch(holdCleared())
-      navigate(ROUTES.bookingSuccess)
+      const url = await createPaymentUrl(hold.orderId, order?.accessToken ?? hold.accessToken)
+      if (url.startsWith('/')) navigate(url)
+      else window.location.assign(url)
     } catch {
       setBusy(false)
       setFailed(true)
@@ -106,13 +91,8 @@ export default function PaymentOrderSummary({
             {selectedSeatsLabel(seats)}
           </span>
         </div>
-        <SummaryRow
-          label={t('Passenger')}
-          value={t('{passengers} ({name})', {
-            passengers: passengersLabel(seats.length),
-            name: passenger.fullName,
-          })}
-        />
+        <SummaryRow label={t('Passengers')} value={passengersLabel(seats.length)} />
+        <SummaryRow label={t('Buyer')} value={purchaser.fullName} />
         <SummaryRow label={t('Date')} value={trip.dateFull} />
       </div>
 
@@ -134,19 +114,22 @@ export default function PaymentOrderSummary({
 
       <button
         type="button"
-        onClick={complete}
-        disabled={busy || expired}
+        onClick={pay}
+        disabled={busy || expired || !hold}
         className="group mt-space-sm flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-headline-sm text-base font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary disabled:opacity-70"
       >
-        {busy ? t('Confirming…') : t('I’ve Completed Payment')}
+        {busy ? t('Opening the payment page…') : t('Pay with VNPay')}
         <Icon
           name="arrow_forward"
           className="text-[18px] transition-transform group-hover:translate-x-1"
         />
       </button>
+      <p className="mt-2 text-center text-xs text-on-surface-variant">
+        {t('You will be redirected to VNPay. Your tickets are issued once the payment is confirmed.')}
+      </p>
       {failed && (
         <p role="alert" className="mt-2 text-center text-xs text-coral-glow">
-          {t('We couldn’t confirm your payment. Nothing was charged, please try again.')}
+          {t('We couldn’t open the payment page. Nothing was charged, please try again.')}
         </p>
       )}
       <div className="mt-space-sm text-center">

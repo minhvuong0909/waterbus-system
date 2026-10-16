@@ -4,8 +4,8 @@ import { ROUTES } from '../../../routes/routes'
 import { ApiError } from '../../../services/apiClient'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
 import { holdStarted } from '../bookingSlice'
-import { createBooking } from '../services/bookingService'
-import { toCustomerPhone } from '../utils'
+import { cancelCheckout, createCheckout } from '../services/bookingService'
+import { buildCheckoutRequest } from '../utils'
 
 export interface BookingFailure {
   /** Message to show. Empty means the generic "try again" text. */
@@ -15,13 +15,13 @@ export interface BookingFailure {
 }
 
 /**
- * Creates the booking at the end of checkout (this is what holds the seats for 10 minutes) and
- * moves on to payment. A hold that is still running for the same choices is reused.
+ * Creates the checkout at the end of review (this is what holds the seats, until the backend's
+ * `expiresAt`) and moves on to payment. A hold that is still running for the same choices is reused.
  */
 export function useCreateBooking() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const { seatIds, passenger, hold } = useAppSelector((s) => s.booking)
+  const { seatIds, purchaser, passengers, hold, query, order } = useAppSelector((s) => s.booking)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<BookingFailure | null>(null)
 
@@ -32,23 +32,30 @@ export function useCreateBooking() {
     }
     setBusy(true)
     setFailure(null)
+    // A stale order (the traveler edited something) still holds its seats: release it first.
+    if (order && !order.settled) await cancelCheckout(order.orderId, order.accessToken)
     try {
-      const booking = await createBooking(
-        {
+      const checkout = await createCheckout(
+        buildCheckoutRequest({
           tripId,
+          originId: query.originId,
+          destinationId: query.destinationId,
           seatIds,
-          customerName: passenger.fullName,
-          customerEmail: passenger.email,
-          customerPhone: toCustomerPhone(passenger),
-        },
+          purchaser,
+          passengers,
+        }),
         totalVnd,
       )
+      const holdSeconds = checkout.bookings[0]?.holdDurationSeconds ?? 0
       dispatch(
         holdStarted({
-          bookingId: booking.bookingId,
-          bookingCode: booking.bookingCode,
-          totalAmount: booking.totalAmount,
-          expiresAt: Date.now() + booking.holdDurationSeconds * 1000,
+          orderId: checkout.orderId,
+          accessToken: checkout.accessToken,
+          bookingCodes: checkout.bookings.map((b) => b.bookingCode),
+          totalAmount: checkout.quotedTotal,
+          expiresAt: checkout.expiresAt
+            ? Date.parse(checkout.expiresAt)
+            : Date.now() + holdSeconds * 1000,
         }),
       )
       navigate(ROUTES.payment)

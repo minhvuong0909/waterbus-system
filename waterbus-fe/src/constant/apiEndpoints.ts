@@ -4,9 +4,15 @@ export const API_ENDPOINTS = {
     login: '/api/v1/auth/login',
   },
   stations: '/api/v1/stations',
-  bookings: '/api/v1/bookings',
+  checkouts: {
+    create: '/api/v1/checkouts',
+    byId: (orderId: string) => `/api/v1/checkouts/${orderId}`,
+  },
   payments: {
+    createVnPayUrl: '/api/v1/payments/create-vnpay-url',
     vnPayReturn: '/api/v1/payments/vnpay-return',
+    reconcile: (orderId: string, paymentId: string) =>
+      `/api/v1/payments/${orderId}/attempts/${paymentId}/reconcile`,
   },
   trips: {
     search: '/api/v1/trips/search',

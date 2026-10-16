@@ -1,5 +1,5 @@
 import type {
-  PassengerForm,
+  PurchaserForm,
   Seat,
   SeatCategory,
   SeatMap,
@@ -44,10 +44,9 @@ export const SEAT_MAP: SeatMap = {
 /** A standard window seat, so the default booking never carries a surcharge. */
 export const DEFAULT_SEAT_IDS = ['S01']
 
-export const DEFAULT_PASSENGER: PassengerForm = {
+export const DEFAULT_PURCHASER: PurchaserForm = {
   fullName: 'Nguyen Van An',
   phoneCode: '+84',
   phone: '908 123 456',
   email: 'an.nguyen@smartwaterbus.vn',
-  useAsContact: true,
 }

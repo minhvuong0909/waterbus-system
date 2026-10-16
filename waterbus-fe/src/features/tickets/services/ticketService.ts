@@ -36,7 +36,7 @@ export async function getBookedTickets(bookings: BookedSnapshot[]): Promise<Tick
   const perBooking = await Promise.all(
     bookings.map(async (b) => {
       const trip = await getTripDetail(b.selectedTrip, b.tripId, b.query)
-      return buildBookedTickets({ trip, seats: b.seats, fares: b.fares, passenger: b.passenger })
+      return buildBookedTickets({ trip, seats: b.seats, fares: b.fares, passengerNames: b.passengerNames })
     }),
   )
   return perBooking.flat()

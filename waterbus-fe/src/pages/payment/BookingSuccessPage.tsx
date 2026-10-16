@@ -1,23 +1,56 @@
+import { useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import { useBooking } from '../../features/booking/hooks/useBooking'
-import { bookingReference, cabinsLabel, passengersLabel, seatCodes } from '../../features/booking/utils'
+import {
+  bookingReference,
+  cabinsLabel,
+  passengersLabel,
+  seatCodes,
+  ticketFares,
+} from '../../features/booking/utils'
 import {
   ConfirmationHero,
   ConfirmationSteps,
   QuickActions,
   WhatsNext,
 } from '../../features/payment/components/ConfirmationParts'
+import { useOrderConfirmation } from '../../features/payment/hooks/useOrderConfirmation'
 import { getNextSteps } from '../../features/payment/services/paymentService'
 import BoardingPassCard from '../../features/tickets/components/BoardingPassCard'
+import { addBooking } from '../../features/tickets/ticketsSlice'
+import { bookingSnapshotId } from '../../features/tickets/utils'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { t } from '../../i18n'
 
+/** Shown only once the backend reports the order as paid (BR-PAY-01), never from the browser alone. */
 export default function BookingSuccessPage() {
   useDocumentTitle('Booking Confirmed')
-  const { loading, error, retry, trip, seats, passenger, totals } = useBooking()
+  const dispatch = useAppDispatch()
+  const { query, selectedTrip, passengers } = useAppSelector((s) => s.booking)
+  const { loading, error, retry, trip, seats, purchaser, totals } = useBooking()
   const steps = useFetch(getNextSteps)
+  const { phase, detail } = useOrderConfirmation()
   const failure = error ?? steps.error
+  const confirmed = phase === 'confirmed'
+
+  // The tickets of the confirmed order go into the wallet (names by seat, as the traveler typed them).
+  useEffect(() => {
+    if (!confirmed || !trip || seats.length === 0) return
+    dispatch(
+      addBooking({
+        id: bookingSnapshotId(trip.id, seats),
+        tripId: trip.id,
+        selectedTrip,
+        query,
+        seats,
+        fares: ticketFares(trip.fareVnd, seats),
+        passengerNames: seats.map((seat) => passengers[seat.id]?.fullName ?? ''),
+      }),
+    )
+  }, [confirmed, trip, seats, selectedTrip, query, passengers, dispatch])
 
   if (failure) {
     return (
@@ -30,9 +63,29 @@ export default function BookingSuccessPage() {
     )
   }
 
-  if (loading || !trip || !totals || !steps.data) return <PageLoader />
+  if (phase === 'none' || phase === 'failed' || phase === 'timeout') {
+    return (
+      <div className="mx-auto max-w-lg px-margin py-space-3xl text-center">
+        <h1 className="font-headline-md text-headline-md text-deep-river">
+          {t('Your booking is not confirmed')}
+        </h1>
+        <p className="mt-space-sm text-body-md text-on-surface-variant">
+          {t('We have not received a confirmed payment for this order.')}
+        </p>
+        <Link
+          to={ROUTES.payment}
+          className="mt-space-md inline-flex rounded-full bg-teal-flow px-6 py-2.5 font-semibold text-on-primary"
+        >
+          {t('Back to payment')}
+        </Link>
+      </div>
+    )
+  }
 
-  const reference = bookingReference(seats)
+  if (loading || !trip || !totals || !steps.data || !confirmed) return <PageLoader />
+
+  const orderedSeats = detail?.bookings.flatMap((b) => b.tickets) ?? []
+  const reference = detail?.bookings[0]?.bookingCode ?? bookingReference(seats)
   const pier = trip.originPierName
   const nextSteps = steps.data.map((s) => ({
     ...s,
@@ -40,6 +93,11 @@ export default function BookingSuccessPage() {
     description: s.description.replace('{pier}', pier),
     chipLabel: s.chipLabel.replace('{pier}', pier),
   }))
+  // Names as the backend issued them; the typed names stand in for a mock order.
+  const names =
+    orderedSeats.length > 0
+      ? orderedSeats.map((ticket) => ticket.passengerName)
+      : seats.map((seat) => passengers[seat.id]?.fullName ?? '')
 
   return (
     <div>
@@ -55,7 +113,7 @@ export default function BookingSuccessPage() {
       </div>
 
       <div className="mx-auto max-w-7xl px-margin pb-space-2xl pt-space-lg">
-        <ConfirmationHero reference={reference} email={passenger.email} />
+        <ConfirmationHero reference={reference} email={purchaser.email} />
 
         <div className="mt-space-2xl grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
           <div className="lg:col-span-7">
@@ -72,10 +130,7 @@ export default function BookingSuccessPage() {
                   seats.length === 1
                     ? t('Seat {id}', { id: seats[0].code })
                     : t('Seats {ids}', { ids: seatCodes(seats) }),
-                passenger: t('{passengers} ({name})', {
-                  passengers: passengersLabel(seats.length),
-                  name: passenger.fullName,
-                }),
+                passenger: `${passengersLabel(seats.length)}: ${names.join(', ')}`,
                 status: t('Confirmed'),
                 totalVnd: totals.totalVnd,
                 reference,
@@ -93,7 +148,6 @@ export default function BookingSuccessPage() {
       </div>
 
       <WhatsNext steps={nextSteps} />
-
     </div>
   )
 }

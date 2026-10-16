@@ -13,10 +13,12 @@ interface CrossingSummaryProps {
   trip: TripDetail
   seats: Seat[]
   totals: BookingTotals
+  /** False until the buyer and every seat's passenger are filled in correctly. */
+  canContinue: boolean
 }
 
 /** Sticky sidebar on passenger details: timeline, vessel facts and fare lines. */
-export default function CrossingSummary({ trip, seats, totals }: CrossingSummaryProps) {
+export default function CrossingSummary({ trip, seats, totals, canContinue }: CrossingSummaryProps) {
   return (
     <BookingCard className="p-space-lg lg:sticky lg:top-24">
       <div className="mb-space-md flex items-center justify-between">
@@ -114,16 +116,32 @@ export default function CrossingSummary({ trip, seats, totals }: CrossingSummary
         />
       </div>
 
-      <Link
-        to={ROUTES.checkoutReview}
-        className="group mt-space-sm flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-headline-sm text-base font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary"
-      >
-        {t('Continue to Checkout')}
-        <Icon
-          name="arrow_forward"
-          className="text-[18px] transition-transform group-hover:translate-x-1"
-        />
-      </Link>
+      {canContinue ? (
+        <Link
+          to={ROUTES.checkoutReview}
+          className="group mt-space-sm flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-headline-sm text-base font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary"
+        >
+          {t('Continue to Checkout')}
+          <Icon
+            name="arrow_forward"
+            className="text-[18px] transition-transform group-hover:translate-x-1"
+          />
+        </Link>
+      ) : (
+        <>
+          <button
+            type="button"
+            disabled
+            className="mt-space-sm flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-headline-sm text-base font-semibold text-on-primary opacity-50"
+          >
+            {t('Continue to Checkout')}
+            <Icon name="arrow_forward" className="text-[18px]" />
+          </button>
+          <p role="status" className="mt-2 text-center text-xs text-on-surface-variant">
+            {t('Enter a name for every passenger and the buyer’s name and email to continue.')}
+          </p>
+        </>
+      )}
       <div className="mt-space-sm text-center">
         <Link
           to={ROUTES.seatSelection}

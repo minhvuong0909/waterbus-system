@@ -1,6 +1,12 @@
 import { t } from '../../i18n'
 import type { TripDetail } from '../trips/types'
-import type { PassengerForm, Seat, SeatCategory } from './types'
+import type {
+  CreateCheckoutRequest,
+  PurchaserForm,
+  Seat,
+  SeatCategory,
+  SeatPassengerForm,
+} from './types'
 
 /** Cabin names, in the order they appear on the boat. */
 export const CABIN_ORDER = ['front', 'standard', 'outdoor'] as const
@@ -102,8 +108,82 @@ export function bookingReference(seats: Seat[]): string {
   return `WB${new Date().toISOString().replace(/\D/g, '').slice(0, 8)}0000${digits}`
 }
 
-/** Phone number as the backend expects it: digits only, with a leading 0 instead of "+84". */
-export function toCustomerPhone(passenger: Pick<PassengerForm, 'phone'>): string {
-  const digits = passenger.phone.replace(/\D/g, '')
+/** Purchaser phone as the backend expects it: digits only with a leading 0, or undefined when none. */
+export function toCustomerPhone(purchaser: Pick<PurchaserForm, 'phone'>): string | undefined {
+  const digits = purchaser.phone.replace(/\D/g, '')
+  if (!digits) return undefined
   return digits.startsWith('0') ? digits : `0${digits}`
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const isEmail = (value: string) => EMAIL.test(value.trim())
+
+/** BR-COM-07: the purchaser needs a name and an email; the phone is optional but must be valid. */
+export function purchaserErrors(purchaser: PurchaserForm): Partial<Record<keyof PurchaserForm, string>> {
+  const errors: Partial<Record<keyof PurchaserForm, string>> = {}
+  if (!purchaser.fullName.trim()) errors.fullName = t('Please enter the buyer’s full name.')
+  if (!isEmail(purchaser.email)) errors.email = t('Please enter a valid email address.')
+  const phone = toCustomerPhone(purchaser)
+  if (phone && !/^[0-9]{10,11}$/.test(phone)) errors.phone = t('Phone number must have 10 to 11 digits.')
+  return errors
+}
+
+/** BR-COM-06: every seat needs a passenger name; email and phone are optional. */
+export function seatPassengerErrors(
+  passenger: SeatPassengerForm | undefined,
+): Partial<Record<keyof SeatPassengerForm, string>> {
+  const errors: Partial<Record<keyof SeatPassengerForm, string>> = {}
+  if (!passenger?.fullName.trim()) errors.fullName = t('Please enter the passenger’s full name.')
+  if (passenger?.email.trim() && !isEmail(passenger.email)) {
+    errors.email = t('Please enter a valid email address.')
+  }
+  return errors
+}
+
+/** True when the purchaser and the passenger of every chosen seat are filled in correctly. */
+export function isBookingComplete(
+  purchaser: PurchaserForm,
+  seatIds: string[],
+  passengers: Record<string, SeatPassengerForm>,
+): boolean {
+  return (
+    seatIds.length > 0 &&
+    Object.keys(purchaserErrors(purchaser)).length === 0 &&
+    seatIds.every((id) => Object.keys(seatPassengerErrors(passengers[id])).length === 0)
+  )
+}
+
+const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+export const isGuid = (value: string): boolean => GUID.test(value)
+
+interface CheckoutInput {
+  tripId: string
+  originId: string
+  destinationId: string
+  seatIds: string[]
+  purchaser: PurchaserForm
+  passengers: Record<string, SeatPassengerForm>
+}
+
+/** The `POST /checkouts` body: one leg, with the passengers in the same order as the seats. */
+export function buildCheckoutRequest(input: CheckoutInput): CreateCheckoutRequest {
+  const { tripId, originId, destinationId, seatIds, purchaser, passengers } = input
+  return {
+    customerName: purchaser.fullName.trim(),
+    customerEmail: purchaser.email.trim(),
+    customerPhone: toCustomerPhone(purchaser),
+    legs: [
+      {
+        tripId,
+        seatIds,
+        boardingStationId: originId,
+        disembarkingStationId: destinationId,
+        passengers: seatIds.map((id) => ({
+          name: passengers[id]?.fullName.trim() ?? '',
+          email: passengers[id]?.email.trim() || undefined,
+          phone: passengers[id]?.phone.trim() || undefined,
+        })),
+      },
+    ],
+  }
 }

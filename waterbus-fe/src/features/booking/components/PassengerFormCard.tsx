@@ -1,16 +1,20 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
-import type { PassengerForm } from '../types'
+import type { PurchaserForm, Seat, SeatPassengerForm } from '../types'
+import { purchaserErrors, seatPassengerErrors, seatTags } from '../utils'
 import { BookingCard } from './SummaryParts'
 import { t } from '../../../i18n'
 
 interface PassengerFormCardProps {
-  passenger: PassengerForm
-  /** Codes of the chosen seats, e.g. "S01, F03". */
-  seatCodes: string
-  seatCount: number
-  onChange: (patch: Partial<PassengerForm>) => void
+  purchaser: PurchaserForm
+  /** The chosen seats; each one needs its own passenger (BR-COM-06). */
+  seats: Seat[]
+  /** Passenger of each seat, by seat id. */
+  passengers: Record<string, SeatPassengerForm>
+  onPurchaser: (patch: Partial<PurchaserForm>) => void
+  onPassenger: (seatId: string, patch: Partial<SeatPassengerForm>) => void
 }
 
 const FIELD =
@@ -20,11 +24,14 @@ function Field({
   label,
   hint,
   icon,
+  error,
   children,
 }: {
   label: string
   hint?: string
   icon?: string
+  /** Message shown under the field; empty when the value is fine or not checked yet. */
+  error?: string
   children: React.ReactNode
 }) {
   return (
@@ -41,101 +48,188 @@ function Field({
         )}
         {children}
       </span>
+      {error && (
+        <span role="alert" className="mt-1 block text-xs text-coral-glow">
+          {error}
+        </span>
+      )}
     </label>
   )
 }
 
-export default function PassengerFormCard({
-  passenger,
-  seatCodes,
-  seatCount,
+/** Text input that reports a problem only after the traveler has left the field once. */
+function TextField({
+  label,
+  hint,
+  icon,
+  value,
+  error,
   onChange,
+  type = 'text',
+  autoComplete,
+  required,
+}: {
+  label: string
+  hint?: string
+  icon?: string
+  value: string
+  error?: string
+  onChange: (value: string) => void
+  type?: string
+  autoComplete?: string
+  required?: boolean
+}) {
+  const [touched, setTouched] = useState(false)
+  return (
+    <Field label={label} hint={hint} icon={icon} error={touched ? error : undefined}>
+      <input
+        className={`${FIELD} ${icon ? 'pl-10' : 'px-3'}`}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => setTouched(true)}
+        autoComplete={autoComplete}
+        required={required}
+        aria-invalid={touched && error ? true : undefined}
+      />
+    </Field>
+  )
+}
+
+function SectionTitle({ icon, title, subtitle }: { icon: string; title: string; subtitle: string }) {
+  return (
+    <div className="mb-space-md flex items-center gap-space-sm">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sand-light text-teal-flow">
+        <Icon name={icon} className="text-[22px]" />
+      </div>
+      <div>
+        <h2 className="font-headline-md text-headline-sm text-deep-river">{title}</h2>
+        <p className="text-xs text-on-surface-variant">{subtitle}</p>
+      </div>
+    </div>
+  )
+}
+
+export default function PassengerFormCard({
+  purchaser,
+  seats,
+  passengers,
+  onPurchaser,
+  onPassenger,
 }: PassengerFormCardProps) {
+  const buyerErrors = purchaserErrors(purchaser)
+
   return (
     <div className="space-y-space-md">
-      <BookingCard className="p-space-lg md:p-space-xl">
-        <div className="mb-space-lg flex flex-wrap items-center justify-between gap-space-md">
-          <div className="flex items-center gap-space-sm">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-sand-light text-teal-flow">
-              <Icon name="person" className="text-[24px]" />
+      {seats.map((seat, index) => {
+        const passenger = passengers[seat.id]
+        const errors = seatPassengerErrors(passenger)
+        const tags = seatTags(seat)
+        return (
+          <BookingCard key={seat.id} className="p-space-lg md:p-space-xl">
+            <div className="mb-space-md flex flex-wrap items-center justify-between gap-space-md">
+              <SectionTitle
+                icon="person"
+                title={t('Passenger {number}', { number: index + 1 })}
+                subtitle={t('Who will travel on this seat')}
+              />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container">
+                <Icon name="airline_seat_recline_extra" className="text-[15px]" />
+                {t('Seat {id}', { id: seat.code })}
+                {tags && ` • ${tags}`}
+              </span>
             </div>
-            <div>
-              <h2 className="font-headline-md text-headline-sm text-deep-river">
-                {t('Passenger 1 (Primary Traveler)')}
-              </h2>
-              <p className="text-xs text-on-surface-variant">{t('Primary traveler')}</p>
+            <div className="grid grid-cols-1 gap-space-md md:grid-cols-2">
+              <TextField
+                label={t('Full Name')}
+                icon="badge"
+                value={passenger?.fullName ?? ''}
+                error={errors.fullName}
+                onChange={(fullName) => onPassenger(seat.id, { fullName })}
+                autoComplete="off"
+                required
+              />
+              <TextField
+                label={t('Email Address')}
+                hint={t('Optional')}
+                icon="mail"
+                type="email"
+                value={passenger?.email ?? ''}
+                error={errors.email}
+                onChange={(email) => onPassenger(seat.id, { email })}
+              />
+              <TextField
+                label={t('Phone Number')}
+                hint={t('Optional')}
+                value={passenger?.phone ?? ''}
+                onChange={(phone) => onPassenger(seat.id, { phone })}
+                autoComplete="off"
+              />
             </div>
-          </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container">
-            <Icon name="airline_seat_recline_extra" className="text-[15px]" />
-            {t(seatCount === 1 ? 'Seat {seatCodes}' : 'Seats {seatCodes}', { seatCodes })}
-          </span>
-        </div>
-        {seatCount > 1 && (
-          <p className="mb-space-md rounded-lg bg-sand-light/70 px-3 py-2 text-xs text-on-surface-variant">
-            {t('One booking, one contact: all {count} tickets are issued in this name.', { count: seatCount })}
-          </p>
-        )}
+            <button
+              type="button"
+              onClick={() =>
+                onPassenger(seat.id, {
+                  fullName: purchaser.fullName,
+                  email: purchaser.email,
+                  phone: purchaser.phone,
+                })
+              }
+              className="mt-space-sm text-xs font-semibold text-teal-flow hover:underline"
+            >
+              {t('Same as the buyer')}
+            </button>
+          </BookingCard>
+        )
+      })}
 
+      <BookingCard className="p-space-lg md:p-space-xl">
+        <SectionTitle
+          icon="contact_mail"
+          title={t('Buyer & E-Ticket Recipient')}
+          subtitle={t('The buyer pays for the order and receives the e-tickets and notifications')}
+        />
         <div className="grid grid-cols-1 gap-space-md md:grid-cols-2">
-          <Field label={t('Full Name')} icon="badge">
-            <input
-              className={`${FIELD} pl-10`}
-              value={passenger.fullName}
-              onChange={(e) => onChange({ fullName: e.target.value })}
-              autoComplete="name"
-            />
-          </Field>
-          <Field label={t('Phone Number')}>
+          <TextField
+            label={t('Full Name')}
+            icon="badge"
+            value={purchaser.fullName}
+            error={buyerErrors.fullName}
+            onChange={(fullName) => onPurchaser({ fullName })}
+            autoComplete="name"
+            required
+          />
+          <TextField
+            label={t('Email Address')}
+            icon="mail"
+            type="email"
+            value={purchaser.email}
+            error={buyerErrors.email}
+            onChange={(email) => onPurchaser({ email })}
+            autoComplete="email"
+            required
+          />
+          <Field label={t('Phone Number')} hint={t('Optional')} error={undefined}>
             <span className="flex gap-2">
               <span className="flex items-center rounded-xl bg-mist px-3 text-sm text-deep-river">
                 <span className="mr-1 text-xs text-on-surface-variant">{t('VN')}</span>
-                {passenger.phoneCode}
+                {purchaser.phoneCode}
               </span>
               <input
                 className={`${FIELD} px-3`}
-                value={passenger.phone}
-                onChange={(e) => onChange({ phone: e.target.value })}
+                value={purchaser.phone}
+                onChange={(e) => onPurchaser({ phone: e.target.value })}
                 autoComplete="tel-national"
+                aria-invalid={buyerErrors.phone ? true : undefined}
               />
             </span>
           </Field>
-          <Field label={t('Email Address')} icon="mail">
-            <input
-              className={`${FIELD} pl-10`}
-              type="email"
-              value={passenger.email}
-              onChange={(e) => onChange({ email: e.target.value })}
-              autoComplete="email"
-            />
-          </Field>
         </div>
-
-        <div className="mt-space-lg border-t border-surface-container pt-space-lg">
-          <div className="mb-space-sm flex items-center gap-space-sm">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sand-light text-teal-flow">
-              <Icon name="contact_mail" className="text-[20px]" />
-            </div>
-            <div>
-              <h3 className="font-headline-sm text-lg font-semibold text-deep-river">
-                {t('Booking Contact & E-Ticket Recipient')}
-              </h3>
-              <p className="text-xs text-on-surface-variant">
-                {t('All travel documents and vessel dispatch notifications will be routed here')}
-              </p>
-            </div>
-          </div>
-          <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-mist px-space-md py-space-md text-sm text-deep-river">
-            <input
-              type="checkbox"
-              checked={passenger.useAsContact}
-              onChange={(e) => onChange({ useAsContact: e.target.checked })}
-              className="h-5 w-5 rounded border-outline-variant text-teal-flow accent-teal-flow focus:ring-teal-flow"
-            />
-            {t('Use passenger details as booking contact')}
-          </label>
-        </div>
-
+        {buyerErrors.phone && (
+          <p role="alert" className="mt-1 text-xs text-coral-glow">
+            {buyerErrors.phone}
+          </p>
+        )}
       </BookingCard>
 
       <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-space-lg py-space-md text-xs text-on-surface-variant shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
