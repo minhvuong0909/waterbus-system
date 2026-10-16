@@ -1,17 +1,30 @@
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import BookingProgress from '../../features/booking/components/BookingProgress'
 import CrossingSummary from '../../features/booking/components/CrossingSummary'
+import HoldCountdown from '../../features/booking/components/HoldCountdown'
 import PassengerFormCard from '../../features/booking/components/PassengerFormCard'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import type { BookingStep } from '../../features/booking/types'
-import { seatCodes } from '../../features/booking/utils'
+import { isBookingComplete, seatCodes } from '../../features/booking/utils'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 
 export default function PassengerDetailsPage() {
   useDocumentTitle('Passenger Details')
-  const { loading, error, retry, trip, seats, passenger, totals, editPassenger } = useBooking()
+  const {
+    loading,
+    error,
+    retry,
+    trip,
+    seats,
+    seatIds,
+    purchaser,
+    passengers,
+    totals,
+    editPurchaser,
+    editSeatPassenger,
+  } = useBooking()
 
   if (error) return <ErrorState onRetry={retry} />
 
@@ -47,23 +60,28 @@ export default function PassengerDetailsPage() {
             {t('Please enter traveler information for this crossing.')}
           </p>
         </div>
-        <span className="inline-flex items-center gap-2 self-start rounded-full bg-secondary-container/60 px-3 py-1 text-xs font-semibold text-on-secondary-container md:self-auto">
-          <span className="h-2 w-2 rounded-full bg-teal-flow" />
-          {t('River Crossing {vesselCode}', { vesselCode: trip.vesselCode })}
-        </span>
+        <div className="self-start md:self-auto">
+          <HoldCountdown />
+        </div>
       </div>
 
       <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="lg:col-span-7">
           <PassengerFormCard
-            passenger={passenger}
-            seatCodes={seatCodes(seats)}
-            seatCount={seats.length}
-            onChange={editPassenger}
+            purchaser={purchaser}
+            seats={seats}
+            passengers={passengers}
+            onPurchaser={editPurchaser}
+            onPassenger={editSeatPassenger}
           />
         </div>
         <div className="lg:col-span-5">
-          <CrossingSummary trip={trip} seats={seats} totals={totals} />
+          <CrossingSummary
+            trip={trip}
+            seats={seats}
+            totals={totals}
+            canContinue={isBookingComplete(purchaser, seatIds, passengers)}
+          />
         </div>
       </div>
     </div>

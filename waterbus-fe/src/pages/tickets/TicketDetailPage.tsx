@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import vesselImage from '../../assets/images/vessel.jpg'
 import { Breadcrumb, CopyButton, ErrorState, PageLoader } from '../../components/ui'
 import {
   BoardingGuidance,
@@ -63,26 +62,7 @@ export default function TicketDetailPage() {
         </div>
         <div className="space-y-space-md print:hidden lg:col-span-5">
           <TicketCorridorCard ticket={ticket} />
-          <div className="relative h-44 overflow-hidden rounded-2xl bg-deep-river">
-            <img
-              alt={t('Smart Waterbus catamaran cruising the Saigon River')}
-              src={vesselImage}
-              className="h-full w-full object-cover opacity-70"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-deep-river via-deep-river/30 to-transparent" />
-            <div className="absolute inset-x-space-md bottom-space-md text-white">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-sky-aqua">
-                {t('Scenic Corridor Experience')}
-              </div>
-              <div className="font-headline-sm text-base font-bold">
-                {t('Smart Waterbus • Central River Corridor')}
-              </div>
-              <div className="text-xs text-sand-light/90">
-                {t('Calm skyline and river panorama celebrating the Saigon River crossing.')}
-              </div>
-            </div>
-          </div>
-          <TicketActions onShowQr={() => setQrOpen(true)} />
+          <TicketActions />
         </div>
       </div>
 

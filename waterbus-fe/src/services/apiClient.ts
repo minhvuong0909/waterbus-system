@@ -20,6 +20,8 @@ type QueryValue = string | number | boolean | null | undefined
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  /** Extra headers, e.g. the guest token of an order. */
+  headers?: Record<string, string>
   query?: Record<string, QueryValue>
   body?: unknown
   signal?: AbortSignal
@@ -63,12 +65,13 @@ async function toApiError(response: Response): Promise<ApiError> {
 
 /** JSON request to the backend. Adds the bearer token and `Accept-Language`, and throws `ApiError`. */
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', query, body, signal } = options
+  const { method = 'GET', query, body, signal, headers: extraHeaders } = options
   const token = getToken()
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
     'Accept-Language': getLocale(),
+    ...extraHeaders,
   }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`

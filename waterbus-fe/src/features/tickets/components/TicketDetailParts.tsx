@@ -209,20 +209,12 @@ export function TicketCorridorCard({ ticket }: { ticket: Ticket }) {
   )
 }
 
-export function TicketActions({ onShowQr }: { onShowQr: () => void }) {
+export function TicketActions() {
   return (
     <div className="space-y-space-sm rounded-2xl bg-surface-container-lowest p-space-lg shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
-      <button
-        type="button"
-        onClick={onShowQr}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 text-sm font-semibold text-on-primary transition-colors hover:bg-secondary"
-      >
-        <Icon name="qr_code" className="text-[18px]" />
-        {t('Show QR Ticket')}
-      </button>
       <Link
         to={ROUTES.liveTracking}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-surface-container py-3 text-sm font-semibold text-deep-river transition-colors hover:bg-surface-container-high"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 text-sm font-semibold text-on-primary transition-colors hover:bg-secondary"
       >
         <Icon name="near_me" className="text-[18px]" />
         {t('Track This Trip')}

@@ -13,18 +13,10 @@ export default function StoriesSection({ stories }: StoriesSectionProps) {
   return (
     <section className="w-full bg-surface-container-lowest py-space-3xl">
       <div className="mx-auto max-w-7xl space-y-space-2xl px-margin">
-        <div className="max-w-2xl space-y-space-xs">
-          <span className="block text-body-sm font-bold uppercase tracking-wider text-coral-glow">
-            {t('River Stories & Destinations')}
-          </span>
+        <div data-reveal className="max-w-2xl space-y-space-xs">
           <h2 className="font-headline-lg text-headline-lg font-bold tracking-tight text-deep-river">
             {t('A Different Perspective on Saigon’s Skyline & Heritage')}
           </h2>
-          <p className="text-body-md text-on-surface-variant">
-            {t(
-              'Immerse yourself in centuries of river commerce, shimmering night architecture, and peaceful winding canals away from crowded streets.',
-            )}
-          </p>
         </div>
 
         <div className="grid grid-cols-1 gap-space-xl md:grid-cols-3">
@@ -65,7 +57,6 @@ export default function StoriesSection({ stories }: StoriesSectionProps) {
                   <h3 className="font-headline-sm text-headline-sm font-bold text-deep-river transition-colors group-hover:text-teal-flow">
                     {story.title}
                   </h3>
-                  <p className="text-body-md text-on-surface-variant">{story.description}</p>
                 </div>
                 <div className="flex items-center justify-between border-t border-surface-container pt-3 text-body-md font-semibold text-teal-flow">
                   <span className="inline-flex items-center gap-1 transition-transform group-hover:translate-x-1">

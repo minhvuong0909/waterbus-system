@@ -1,6 +1,6 @@
 import { t } from '../../i18n'
 import { bookingReference, seatPosition, seatZone } from '../booking/utils'
-import type { PassengerForm, Seat } from '../booking/types'
+import type { Seat } from '../booking/types'
 import type { TripDetail } from '../trips/types'
 import { toIsoDate } from '../../utils/time'
 import type { BookedSnapshot, Ticket } from './types'
@@ -35,14 +35,15 @@ interface BuildTicketsInput {
   trip: TripDetail
   seats: Seat[]
   fares: number[]
-  passenger: PassengerForm
+  /** Name of the passenger on each seat, in the order of `seats`. */
+  passengerNames: string[]
 }
 
 /**
  * Turns the finished booking into wallet tickets, one per seat, all under the same booking
  * reference (mock: the backend will issue the real ones).
  */
-export function buildBookedTickets({ trip, seats, fares, passenger }: BuildTicketsInput): Ticket[] {
+export function buildBookedTickets({ trip, seats, fares, passengerNames }: BuildTicketsInput): Ticket[] {
   const bookingRef = bookingReference(seats)
   return seats.map((seat, index) => ({
     id: bookedTicketId(trip.id, seat.id),
@@ -65,7 +66,7 @@ export function buildBookedTickets({ trip, seats, fares, passenger }: BuildTicke
     dateLabel: trip.dateFull,
     dateId: trip.dateId,
     dateShort: trip.dateShort,
-    passenger: passenger.fullName,
+    passenger: passengerNames[index] ?? '',
     seat: t('Seat {id}', { id: seat.code }),
     seatNote: `${seatPosition(seat)} • ${seatZone(seat)}`,
     windowSeat: seat.window,

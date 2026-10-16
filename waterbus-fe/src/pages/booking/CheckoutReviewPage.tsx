@@ -1,16 +1,16 @@
-import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
+import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
+import HoldCountdown from '../../features/booking/components/HoldCountdown'
 import BookingProgress from '../../features/booking/components/BookingProgress'
 import {
-  ETicketContactCard,
   JourneyDetailsCard,
   OrderSummary,
   PassengerInfoCard,
   TermsConfirm,
-  VoucherCard,
 } from '../../features/booking/components/CheckoutParts'
 import { useBooking } from '../../features/booking/hooks/useBooking'
-import { useCreateBooking } from '../../features/booking/hooks/useCreateBooking'
+import { useSubmitCheckout } from '../../features/booking/hooks/useCheckout'
 import type { BookingStep } from '../../features/booking/types'
+import { isBookingComplete } from '../../features/booking/utils'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -23,14 +23,14 @@ export default function CheckoutReviewPage() {
     retry,
     trip,
     seats,
-    passenger,
-    voucher,
+    seatIds,
+    purchaser,
+    passengers,
     totals,
     termsAccepted,
-    setVoucher,
     setTerms,
   } = useBooking()
-  const { submit, busy, failure } = useCreateBooking()
+  const { submit, busy, failure } = useSubmitCheckout()
 
   if (error) return <ErrorState onRetry={retry} />
 
@@ -39,14 +39,14 @@ export default function CheckoutReviewPage() {
   const steps: BookingStep[] = [
     { label: 'Trip', detail: trip.lineLabel },
     { label: 'Seat', detail: t('{count} Seats Selected', { count: seats.length }) },
-    { label: 'Details', detail: passenger.fullName },
+    { label: 'Details', detail: purchaser.fullName },
     { label: 'Checkout', detail: 'Review Order' },
     { label: 'Payment', detail: 'Instant QR / Card' },
   ]
 
   return (
     <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
-      <div className="flex flex-wrap items-center justify-between gap-space-sm">
+      <div>
         <Breadcrumb
           items={[
             { label: 'Home', to: ROUTES.home },
@@ -54,10 +54,6 @@ export default function CheckoutReviewPage() {
             { label: 'Checkout' },
           ]}
         />
-        <span className="inline-flex items-center gap-2 rounded-full bg-secondary-container/60 px-3 py-1 text-xs font-semibold text-on-secondary-container">
-          <span className="h-2 w-2 rounded-full bg-teal-flow" />
-          {t('River Crossing {vesselCode} • Review Stage', { vesselCode: trip.vesselCode })}
-        </span>
       </div>
 
       <div className="mt-space-md">
@@ -73,28 +69,25 @@ export default function CheckoutReviewPage() {
             {t('Confirm your trip, passenger, seat, and fare before proceeding to payment.')}
           </p>
         </div>
-        <span className="inline-flex items-center gap-2 self-start rounded-full bg-sand-light px-space-md py-2 text-xs text-teal-flow md:self-auto">
-          <Icon name="verified_user" className="text-[16px]" />
-          {t('Your selected seat remains reserved while you complete checkout.')}
-        </span>
+        <div className="self-start md:self-auto">
+          <HoldCountdown />
+        </div>
       </div>
 
       <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="space-y-space-md lg:col-span-8">
           <JourneyDetailsCard trip={trip} seats={seats} />
-          <PassengerInfoCard passenger={passenger} />
-          <ETicketContactCard passenger={passenger} />
-          <VoucherCard voucher={voucher} onApply={setVoucher} />
+          <PassengerInfoCard purchaser={purchaser} seats={seats} passengers={passengers} />
           <TermsConfirm checked={termsAccepted} onChange={setTerms} />
         </div>
         <div className="lg:col-span-4">
           <OrderSummary
             trip={trip}
             totals={totals}
-            canContinue={termsAccepted}
+            canContinue={termsAccepted && isBookingComplete(purchaser, seatIds, passengers)}
             busy={busy}
             failure={failure}
-            onContinue={() => submit(trip.id, totals.totalVnd)}
+            onContinue={submit}
           />
         </div>
       </div>

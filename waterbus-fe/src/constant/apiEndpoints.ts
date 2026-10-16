@@ -5,12 +5,26 @@ export const API_ENDPOINTS = {
   },
   stations: '/api/v1/stations',
   boats: '/api/v1/boats',
-  bookings: '/api/v1/bookings',
+  checkouts: {
+    /** Holds seats first (Draft); the buyer is submitted later. */
+    holds: '/api/v1/checkouts/holds',
+    byId: (orderId: string) => `/api/v1/checkouts/${orderId}`,
+    submit: (orderId: string) => `/api/v1/checkouts/${orderId}/submit`,
+    qr: (orderId: string, bookingId: string) =>
+      `/api/v1/checkouts/${orderId}/bookings/${bookingId}/qr`,
+  },
   payments: {
+    createVnPayUrl: '/api/v1/payments/create-vnpay-url',
     vnPayReturn: '/api/v1/payments/vnpay-return',
+    reconcile: (orderId: string, paymentId: string) =>
+      `/api/v1/payments/${orderId}/attempts/${paymentId}/reconcile`,
   },
   trips: {
     search: '/api/v1/trips/search',
+    /** Public detail of a trip with its real stops (`TripStopCall`s). */
+    detail: (tripId: string) => `/api/v1/trips/${tripId}`,
+    /** Seat map and fares for one journey segment; creates no hold. */
+    seats: (tripId: string) => `/api/v1/trips/${tripId}/seats`,
   },
   tracking: {
     /** Latest position of every active boat (Admin). */

@@ -1,14 +1,10 @@
-import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import {
-  AssistantChat,
   BookingSummaryCard,
-  ManageOptions,
   OperatingBanner,
-  OptionPanel,
+  RefundPolicyCard,
 } from '../../features/tickets/components/ManageParts'
-import type { ManageOption } from '../../features/tickets/components/ManageParts'
 import { useManageBooking } from '../../features/tickets/hooks/useTickets'
 import { useDocumentTitle } from '../../hooks'
 import { ApiError } from '../../services/apiClient'
@@ -19,7 +15,6 @@ export default function ManageBookingPage() {
   useDocumentTitle('Manage Booking')
   const { token } = useParams()
   const { manage, loading, error, retry } = useManageBooking(token)
-  const [option, setOption] = useState<ManageOption>('change')
 
   if (error instanceof ApiError && error.status === 404) {
     return (
@@ -52,7 +47,7 @@ export default function ManageBookingPage() {
             {t('Manage Your Booking')}
           </h1>
           <p className="mt-1 text-body-md text-on-surface-variant">
-            {t('Review your trip details and choose the support action you need.')}
+            {t('Your trip details, ticket status and refund information.')}
           </p>
         </div>
         <div className="flex items-center gap-space-sm self-start">
@@ -72,17 +67,8 @@ export default function ManageBookingPage() {
         <OperatingBanner vessel={manage.ticket.tripCode} />
       </div>
 
-      <div className="mt-space-xl">
-        <ManageOptions active={option} onSelect={setOption} />
-      </div>
-
-      <div className="mt-space-lg grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
-        <div className="lg:col-span-7">
-          <OptionPanel option={option} manage={manage} />
-        </div>
-        <div className="lg:col-span-5">
-          <AssistantChat />
-        </div>
+      <div className="mt-space-md">
+        <RefundPolicyCard />
       </div>
     </div>
   )

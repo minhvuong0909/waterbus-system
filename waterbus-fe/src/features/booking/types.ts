@@ -21,11 +21,25 @@ export interface Seat {
   priceMultiplier: number
   status: SeatStatus
   window: boolean
+  /** Fare of this seat for the chosen journey, from the backend (flat per trip type and seat class). */
+  priceVnd?: number
+}
+
+/** The stops a booking boards and leaves at: real `TripStopCall`s of the trip (BR-ROUTE). */
+export interface Journey {
+  boardingCallId: string
+  disembarkingCallId: string
+  boardingVisitOrder: number
+  disembarkingVisitOrder: number
 }
 
 export interface SeatMap {
   vesselName: string
   seats: Seat[]
+  /** Set for a backend seat map; absent for the mock one. */
+  journey?: Journey
+  /** False when sales are closed for the trip (backend `salesState` is not `open`). */
+  canBook?: boolean
 }
 
 /** Seat changes pushed in real time (seat-sync hub `seatHeld` / `seatReleased` / `seatSold`). */
@@ -33,33 +47,24 @@ export interface SeatEvent {
   type: 'SeatLocked' | 'SeatUnlocked' | 'SeatSold'
   tripId: string
   seatId: string
+  /** The journey segment the change applies to; absent for mock events (whole trip). */
+  boardingVisitOrder?: number
+  disembarkingVisitOrder?: number
 }
 
-export type PassengerCategory = 'adult' | 'senior' | 'child'
-
-export interface PassengerForm {
-  category: PassengerCategory
+/** Who pays and receives the e-tickets (BR-COM-07): name and email required, phone optional. */
+export interface PurchaserForm {
   fullName: string
-  /** DD / MM / YYYY */
-  dateOfBirth: string
   phoneCode: string
   phone: string
   email: string
-  useAsContact: boolean
-  assistance: string[]
 }
 
-export interface AssistanceOption {
-  id: string
-  icon: string
-  title: string
-  description: string
-}
-
-export interface Voucher {
-  code: string
-  /** Discount as a percentage of the fare, applied to whichever trip is currently selected. */
-  percentOff: number
+/** Who sits on one seat (BR-COM-06): name required, email and phone optional. */
+export interface SeatPassengerForm {
+  fullName: string
+  email: string
+  phone: string
 }
 
 export interface BookingStep {
@@ -67,33 +72,177 @@ export interface BookingStep {
   detail: string
 }
 
-// ---- Booking (backend `POST /api/v1/bookings`) -------------------------------
+// ---- Backend seat map (GET /trips/{tripId}/seats) ------------------------------------
 
-/** Body of the create booking request (CreateBookingCommand). */
-export interface CreateBookingRequest {
-  tripId: string
-  seatIds: string[]
-  customerName: string
-  customerEmail: string
-  /** 10-11 digits, as the backend validates. */
-  customerPhone: string
+export interface TripSeatDto {
+  seatId: string
+  seatCode: string
+  rowNumber: number
+  columnNumber: number
+  seatClassId: string
+  seatClassName: string | null
+  price: number | null
+  currency: string
+  /** available | held | sold | unavailable */
+  status: string
+  unavailableReason: string | null
+  holdExpiresAt: string | null
 }
 
-/** Response of the create booking request (BookingResponseDto). */
+export interface TripSeatMapDto {
+  tripId: string
+  boatId: string
+  boardingCallId: string
+  disembarkingCallId: string
+  boardingVisitOrder: number
+  disembarkingVisitOrder: number
+  canBook: boolean
+  salesState: string
+  availableSeatsCount: number
+  asOf: string
+  seats: TripSeatDto[]
+}
+
+export interface TripStopDto {
+  callId: string
+  stationId: string
+  stationName: string
+  visitOrder: number
+  canBoard: boolean
+  canAlight: boolean
+  status: string
+}
+
+/** `GET /trips/{tripId}` (TripDetailDto), the parts used to pick the journey. */
+export interface TripDetailDto {
+  tripId: string
+  canBook: boolean
+  salesState: string
+  boat: { boatId: string; code: string; name: string } | null
+  stops: TripStopDto[]
+}
+
+// ---- Checkout (backend `/api/v1/checkouts`, CheckoutsController) -------------------
+
+/** One passenger of a leg, in the order of `seatIds` (BE `PassengerInput`). */
+export interface PassengerInput {
+  name: string
+  email?: string
+  phone?: string
+}
+
+/** One trip of a checkout (BE `CheckoutLeg`). */
+export interface CheckoutLeg {
+  tripId: string
+  seatIds: string[]
+  boardingStationId: string
+  disembarkingStationId: string
+  boardingCallId?: string
+  disembarkingCallId?: string
+  passengers?: PassengerInput[]
+}
+
+/** Body of `POST /checkouts/holds` (BE `CreateCheckoutHoldCommand`): seats first, buyer later. */
+export interface CreateHoldRequest {
+  legs: CheckoutLeg[]
+}
+
+/** One passenger in the submit body, tied to the held seat (BE `CheckoutPassenger`). */
+export interface SubmitPassenger {
+  bookingId: string
+  seatId: string
+  name: string
+  email?: string
+  phone?: string
+}
+
+/** Body of `POST /checkouts/{orderId}/submit` (BE `SubmitCheckoutCommand`): buyer and passengers. */
+export interface SubmitCheckoutRequest {
+  customerName: string
+  customerEmail: string
+  /** 10-11 digits; left out when the purchaser gave none. */
+  customerPhone?: string
+  passengers: SubmitPassenger[]
+}
+
+/** A booking inside the create response (BE `BookingResponseDto`). */
 export interface BookingResponse {
   bookingId: string
   bookingCode: string
   totalAmount: number
   status: string
-  /** How long the seats are held for payment, 600 seconds. */
+  /** Seconds left on the hold when the response was made. */
   holdDurationSeconds: number
+  orderId: string
+  orderStatus: string
 }
 
-/** The booking whose seats are being held while the traveler pays. */
-export interface BookingHold {
+/** Response of `POST /checkouts/holds` (BE `CheckoutResponseDto`). */
+export interface CheckoutResponse {
+  orderId: string
+  quotedTotal: number
+  currency: string
+  /** BE `OrderStatus`: PendingPayment right after creation. */
+  status: string
+  /** When the hold ends (ISO 8601). */
+  expiresAt: string | null
+  /** Guest token of the order; only returned here, so it is kept (header `X-Guest-Token`). */
+  accessToken: string | null
+  bookings: BookingResponse[]
+}
+
+/** BE `OrderStatus`. Only `Confirmed` means the payment was verified and the tickets issued. */
+export type OrderStatus = 'Draft' | 'PendingPayment' | 'Confirmed' | 'Cancelled' | 'Expired'
+
+export interface CheckoutTicket {
+  ticketId: string
+  ticketCode: string
+  passengerName: string
+  seatCode: string
+  status: string
+  boardingStatus: string
+  paidFare: number
+}
+
+export interface CheckoutBooking {
   bookingId: string
   bookingCode: string
+  publicBookingId: string
+  tripId: string
+  status: string
+  quotedTotal: number
+  tickets: CheckoutTicket[]
+}
+
+/** Response of `GET /checkouts/{orderId}` (BE `CheckoutDetailDto`): the truth after paying. */
+export interface CheckoutDetail {
+  orderId: string
+  status: OrderStatus
+  quotedTotal: number
+  expiresAt: string | null
+  bookings: CheckoutBooking[]
+  payments: {
+    transactionId: string
+    type: string
+    status: string
+    amount: number
+    requiresReconciliation: boolean
+  }[]
+}
+
+/** The order whose seats are being held while the traveler pays. */
+export interface BookingHold {
+  orderId: string
+  /** The booking of the single leg; the submit body names passengers per booking and seat. */
+  bookingId: string
+  /** Seats the hold covers, to tell when the choice changed and a new hold is needed. */
+  seatIds: string[]
+  /** True once buyer and passengers were submitted; the order is then awaiting payment. */
+  submitted: boolean
+  /** Guest token of the order; null for a mock order. */
+  accessToken: string | null
+  bookingCodes: string[]
   totalAmount: number
-  /** When the hold ends, in ms since epoch. */
+  /** When the hold ends, in ms since epoch (the backend `expiresAt`). */
   expiresAt: number
 }

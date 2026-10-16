@@ -42,7 +42,7 @@ export const FAQ: FaqItem[] = [
   {
     question: 'Can I book several seats at once?',
     answer:
-      'Yes, up to 10 seats in one booking. You enter one contact, and every ticket of the booking is issued in that name.',
+      'Yes, up to 10 seats in one booking. You enter the name of the passenger for each seat (email and phone are optional), plus the buyer’s name and email. Each ticket is issued in its passenger’s name, and the e-tickets go to the buyer.',
   },
   {
     question: 'Which payment methods are accepted?',
@@ -51,7 +51,7 @@ export const FAQ: FaqItem[] = [
   {
     question: 'Can I get a refund?',
     answer:
-      'Refunds are available up to 30 minutes before departure. Open My Tickets, choose the ticket and select Request Refund.',
+      'Refunds happen when a trip is cancelled, or ends early before you reach your stop. The amount you paid for the affected tickets is refunded to your original payment method, and its status shows on your booking page. Tickets of passengers who miss check-in are not refunded.',
   },
   {
     question: 'When does boarding open?',

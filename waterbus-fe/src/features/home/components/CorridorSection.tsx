@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link } from 'react-router-dom'
-import RiverMap from '../../../components/map/RiverMap'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { useAppDispatch } from '../../../store/hooks'
-import { selectTrip } from '../../booking/bookingSlice'
+import { selectTrip, setQuery } from '../../booking/bookingSlice'
 import DepartureCard from '../../trips/components/DepartureCard'
 import type { CorridorMap, Departure } from '../../trips/types'
 import type { RouteFilter } from '../types'
 import { t } from '../../../i18n'
+
+// The map pulls in Leaflet and its styles, so it loads after the rest of the page.
+const PierMap = lazy(() => import('../../../components/map/PierMap'))
 
 interface CorridorSectionProps {
   filters: RouteFilter[]
@@ -27,18 +29,9 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
       <div className="mx-auto max-w-7xl space-y-space-xl px-margin">
         <div className="flex flex-col justify-between gap-space-md md:flex-row md:items-end">
           <div>
-            <span className="block text-body-sm font-bold uppercase tracking-wider text-teal-flow">
-              {t('Connected Waterway Grid')}
-            </span>
             <h2 className="font-headline-lg text-headline-lg font-bold tracking-tight text-deep-river">
               {t('Explore the River Corridor')}
             </h2>
-            <p className="pt-1 text-body-md text-on-surface-variant">
-              {t(
-                'Real-time monitoring across {count} river stations connecting District 1, Binh Thanh, and Thu Duc.',
-                { count: map.piers.length },
-              )}
-            </p>
           </div>
           <div
             className="inline-flex flex-wrap rounded-full bg-surface-container p-1 shadow-inner"
@@ -72,11 +65,27 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
                   {t('Live Waterway Vector')}
                 </span>
               </div>
-              <span className="rounded-full bg-sand-light px-space-sm py-1 text-body-sm font-medium text-on-surface-variant">
-                {t('GPS Radar Live • 10s cycle')}
-              </span>
             </div>
-            <RiverMap map={map} />
+            <Suspense
+              fallback={
+                <div className="flex h-[470px] items-center justify-center rounded-2xl bg-surface-container text-sm text-on-surface-variant">
+                  {t('Loading map…')}
+                </div>
+              }
+            >
+              <PierMap
+                map={map}
+                pierActions={(pier) => (
+                  <Link
+                    to={ROUTES.search}
+                    onClick={() => dispatch(setQuery({ originId: pier.id }))}
+                    className="rounded-full bg-teal-flow px-3 py-1.5 text-xs font-semibold text-on-primary hover:bg-secondary"
+                  >
+                    {t('Plan a trip from here')}
+                  </Link>
+                )}
+              />
+            </Suspense>
           </div>
 
           <div className="space-y-space-md lg:col-span-5">
@@ -89,9 +98,6 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
                   {t('Live from {pier}', { pier: map.piers[0]?.name ?? '' })}
                 </span>
               </div>
-              <span className="rounded-full bg-sand-light px-2.5 py-1 text-xs font-semibold text-teal-flow">
-                {t('Updated Live')}
-              </span>
             </div>
 
             <div className="space-y-space-sm">
@@ -110,21 +116,13 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
               )}
             </div>
 
-            <div className="flex items-center justify-between rounded-xl border border-teal-flow/20 bg-sand-light/80 p-3.5">
-              <div className="flex items-center gap-2 text-deep-river">
-                <Icon name="schedule" className="text-[20px] text-teal-flow" />
-                <span className="text-xs font-medium">
-                  {t('Departure times follow the daily timetable.')}
-                </span>
-              </div>
-              <Link
-                to={ROUTES.searchResults}
-                className="flex items-center gap-0.5 text-xs font-bold text-teal-flow hover:underline"
-              >
-                <span>{t('Timetable')}</span>
-                <Icon name="chevron_right" className="text-[14px]" />
-              </Link>
-            </div>
+            <Link
+              to={ROUTES.searchResults}
+              className="flex items-center justify-end gap-0.5 text-sm font-bold text-teal-flow hover:underline"
+            >
+              <span>{t('Timetable')}</span>
+              <Icon name="chevron_right" className="text-[16px]" />
+            </Link>
           </div>
         </div>
       </div>

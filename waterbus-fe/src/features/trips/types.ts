@@ -24,11 +24,13 @@ export interface Departure {
 export interface Pier {
   id: string
   name: string
+  /** District, shown under the name. */
   subtitle: string
-  /** Position on the corridor map, in percent of the map canvas. */
-  x: number
-  y: number
-  kind: 'hub' | 'stop' | 'terminus'
+  /** Station code, e.g. "ST01"; names the photo file of the pier. */
+  code: string
+  address: string
+  latitude: number
+  longitude: number
 }
 
 export interface Vessel {
@@ -36,9 +38,8 @@ export interface Vessel {
   status: string
   speedKmh: number
   nextPier: string
-  /** Position on the corridor map, in percent of the map canvas. */
-  x: number
-  y: number
+  latitude: number
+  longitude: number
 }
 
 export interface CorridorMap {

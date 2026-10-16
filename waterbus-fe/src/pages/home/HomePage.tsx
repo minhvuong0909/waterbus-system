@@ -5,6 +5,7 @@ import HowItWorksSection from '../../features/home/components/HowItWorksSection'
 import StoriesSection from '../../features/home/components/StoriesSection'
 import { useHomeData } from '../../features/home/hooks/useHomeData'
 import { useDocumentTitle } from '../../hooks'
+import { Reveal } from '../../components/motion'
 import { ErrorState, PageLoader } from '../../components/ui'
 
 export default function HomePage() {
@@ -18,12 +19,12 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex w-full flex-col">
-      <HeroSection cues={home.heroCues} />
+    <Reveal className="flex w-full flex-col">
+      <HeroSection />
       <CorridorSection filters={home.routeFilters} map={corridor} departures={departures} />
       <HowItWorksSection steps={home.steps} />
       <StoriesSection stories={home.stories} />
       <CtaBanner />
-    </div>
+    </Reveal>
   )
 }

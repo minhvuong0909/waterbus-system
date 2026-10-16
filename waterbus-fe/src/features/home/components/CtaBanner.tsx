@@ -28,11 +28,6 @@ export default function CtaBanner() {
             <h2 className="font-headline-lg text-3xl font-bold leading-tight tracking-tight text-on-primary sm:text-headline-lg md:text-headline-xl">
               {t('Ready to Experience Saigon from the Water?')}
             </h2>
-            <p className="max-w-xl text-body-lg text-sand-light/90">
-              {t(
-                'Effortless urban mobility, breezy commutes and breathtaking twilight river journeys.',
-              )}
-            </p>
             <div className="flex flex-wrap items-center gap-space-md pt-space-xs">
               <Link
                 to={ROUTES.search}
@@ -40,13 +35,6 @@ export default function CtaBanner() {
               >
                 <span>{t('Plan Your Journey Now')}</span>
                 <Icon name="arrow_forward" className="text-[20px]" />
-              </Link>
-              <Link
-                to={ROUTES.searchResults}
-                className="inline-flex items-center justify-center gap-space-xs rounded-xl border border-white/20 bg-surface/10 px-space-xl py-4 font-headline-sm text-body-lg font-semibold text-on-primary backdrop-blur-md transition-all hover:bg-surface/20"
-              >
-                <Icon name="calendar_month" className="text-[20px]" />
-                <span>{t('View Live Timetable')}</span>
               </Link>
             </div>
           </div>

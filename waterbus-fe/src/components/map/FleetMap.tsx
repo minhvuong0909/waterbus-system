@@ -1,5 +1,6 @@
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { MAP_TILE_ATTRIBUTION, MAP_TILE_URL } from '../../constant/env'
 import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, Tooltip } from 'react-leaflet'
 
 export interface MapStation {
@@ -47,10 +48,7 @@ export default function FleetMap({ stations, boats, className = '' }: FleetMapPr
       scrollWheelZoom
       className={`z-0 h-full min-h-[24rem] w-full rounded-xl ${className}`.trim()}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <TileLayer attribution={MAP_TILE_ATTRIBUTION} url={MAP_TILE_URL} />
       <Polyline positions={line} pathOptions={{ color: '#147A7E', weight: 4, opacity: 0.8 }} />
       {stations.map((s) => (
         <CircleMarker

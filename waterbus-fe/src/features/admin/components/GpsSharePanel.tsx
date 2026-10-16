@@ -32,11 +32,6 @@ export default function GpsSharePanel({ userId }: { userId: string }) {
 
   useEffect(() => {
     if (!sharing || !boat) return
-    if (!('geolocation' in navigator)) {
-      setError(t('This device cannot share its location.'))
-      setSharing(false)
-      return
-    }
 
     let lastSentAt = 0
     const stopHub = connectHub(HUBS.boatTracking, {
@@ -98,6 +93,10 @@ export default function GpsSharePanel({ userId }: { userId: string }) {
             <button
               type="button"
               onClick={() => {
+                if (!sharing && !('geolocation' in navigator)) {
+                  setError(t('This device cannot share its location.'))
+                  return
+                }
                 setError(null)
                 setSharing((s) => !s)
               }}

@@ -14,7 +14,6 @@ import { t } from '../../../i18n'
 const CHIPS = [
   { label: 'Next departures', question: 'Show the next departures' },
   { label: 'Refund Help', question: 'Refund Help' },
-  { label: 'Explain Voucher', question: 'Explain Voucher' },
   { label: 'Trip Status', question: 'Trip Status' },
 ]
 
@@ -29,7 +28,7 @@ export default function AssistantWidget() {
     {
       id: 1,
       from: 'assistant',
-      text: t('Hi! I can help with departures, refunds and vouchers. What would you like to know?'),
+      text: t('Hi! I can help with departures and refunds. What would you like to know?'),
     },
   ])
   const inputRef = useRef<HTMLInputElement>(null)

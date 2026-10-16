@@ -66,7 +66,7 @@ export default function Header() {
                 </Button>
               )}
               <Button
-                variant="dark"
+                variant="secondary"
                 onClick={signOut}
                 className="hidden whitespace-nowrap sm:inline-flex"
               >
@@ -76,7 +76,7 @@ export default function Header() {
           ) : (
             <Button
               to={ROUTES.signIn}
-              variant="dark"
+              variant="secondary"
               className="hidden whitespace-nowrap sm:inline-flex"
             >
               {t('Sign in')}
@@ -120,7 +120,7 @@ export default function Header() {
             <li className="flex gap-space-sm pt-space-sm">
               {user ? (
                 <Button
-                  variant="dark"
+                  variant="secondary"
                   onClick={() => {
                     signOut()
                     setOpen(false)
@@ -129,7 +129,7 @@ export default function Header() {
                   {t('Sign out')}
                 </Button>
               ) : (
-                <Button to={ROUTES.signIn} variant="dark" onClick={() => setOpen(false)}>
+                <Button to={ROUTES.signIn} variant="secondary" onClick={() => setOpen(false)}>
                   {t('Sign in')}
                 </Button>
               )}

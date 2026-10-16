@@ -3,16 +3,16 @@ import { useFetch } from '../../../hooks'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
 import { useTripDetail } from '../../trips/hooks/useTripSearch'
 import {
-  applyVoucher,
   toggleSeat,
   setPaymentMethod,
   setTermsAccepted,
-  updatePassenger,
+  updatePurchaser,
+  updateSeatPassenger,
 } from '../bookingSlice'
 import { getSeatMap } from '../services/bookingService'
 import { useLiveSeatMap } from './useLiveSeatMap'
 import type { PaymentMethodId } from '../../payment/types'
-import type { PassengerForm, Voucher } from '../types'
+import type { PurchaserForm, SeatPassengerForm } from '../types'
 import { MAX_SEATS_PER_BOOKING, computeTotals } from '../utils'
 
 interface UseBookingOptions {
@@ -20,13 +20,16 @@ interface UseBookingOptions {
   live?: boolean
 }
 
-/** Everything a booking page needs: trip, seat, passenger, voucher and totals. */
+/** Everything a booking page needs: trip, seat, passenger and totals. */
 export function useBooking({ live = false }: UseBookingOptions = {}) {
   const dispatch = useAppDispatch()
   const booking = useAppSelector((s) => s.booking)
   const { detail, loading: tripLoading, error: tripError, retry: retryTrip } = useTripDetail()
-  const loadedSeatMap = useFetch(getSeatMap)
-  const seatMap = useLiveSeatMap(loadedSeatMap.data, detail?.id ?? null, live)
+  const loadedSeatMap = useFetch(
+    () => getSeatMap(booking.selectedTripId, booking.query.originId, booking.query.destinationId),
+    [booking.selectedTripId, booking.query.originId, booking.query.destinationId],
+  )
+  const seatMap = useLiveSeatMap(loadedSeatMap.data, detail?.id ?? null, live, loadedSeatMap.retry)
 
   // The chosen seats as they are on the map now; an id the map does not know is left out.
   const seats = useMemo(
@@ -38,8 +41,8 @@ export function useBooking({ live = false }: UseBookingOptions = {}) {
     [seatMap, booking.seatIds],
   )
   const totals = useMemo(
-    () => (detail && seatMap ? computeTotals(detail, seats, booking.voucher) : undefined),
-    [detail, seatMap, seats, booking.voucher],
+    () => (detail && seatMap ? computeTotals(detail, seats) : undefined),
+    [detail, seatMap, seats],
   )
 
   return {
@@ -55,8 +58,9 @@ export function useBooking({ live = false }: UseBookingOptions = {}) {
     seatIds: booking.seatIds,
     /** True when no more seats can be added to this booking. */
     seatLimitReached: booking.seatIds.length >= MAX_SEATS_PER_BOOKING,
-    passenger: booking.passenger,
-    voucher: booking.voucher,
+    purchaser: booking.purchaser,
+    /** The passenger of each chosen seat, by seat id. */
+    passengers: booking.passengers,
     termsAccepted: booking.termsAccepted,
     paymentMethod: booking.paymentMethod,
     totals,
@@ -70,8 +74,9 @@ export function useBooking({ live = false }: UseBookingOptions = {}) {
         dispatch(toggleSeat(id))
       }
     },
-    editPassenger: (patch: Partial<PassengerForm>) => dispatch(updatePassenger(patch)),
-    setVoucher: (v: Voucher | null) => dispatch(applyVoucher(v)),
+    editPurchaser: (patch: Partial<PurchaserForm>) => dispatch(updatePurchaser(patch)),
+    editSeatPassenger: (seatId: string, patch: Partial<SeatPassengerForm>) =>
+      dispatch(updateSeatPassenger({ seatId, patch })),
     setTerms: (v: boolean) => dispatch(setTermsAccepted(v)),
     setMethod: (m: PaymentMethodId) => dispatch(setPaymentMethod(m)),
   }

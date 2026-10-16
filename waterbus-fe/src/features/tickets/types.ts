@@ -1,4 +1,4 @@
-import type { PassengerForm, Seat } from '../booking/types'
+import type { Seat } from '../booking/types'
 import type { SearchQuery, Trip } from '../trips/types'
 
 export interface Ticket {
@@ -54,7 +54,8 @@ export interface BookedSnapshot {
   seats: Seat[]
   /** What each ticket cost, in the order of `seats`. */
   fares: number[]
-  passenger: PassengerForm
+  /** Name of the passenger on each seat, in the order of `seats`. */
+  passengerNames: string[]
 }
 
 export interface TicketWallet {
@@ -63,14 +64,7 @@ export interface TicketWallet {
   past: Ticket[]
 }
 
-export interface VoucherCredit {
-  code: string
-  description: string
-  valueVnd: number
-}
-
 export interface ManageBooking {
   bookingCode: string
   ticket: Ticket
-  voucherCredit: VoucherCredit[]
 }

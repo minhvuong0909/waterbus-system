@@ -1,13 +1,10 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
-import { CATEGORY_LABEL } from '../../../mocks/booking'
 import { ROUTES } from '../../../routes/routes'
-import { formatNumber, formatVnd, formatVndSuffix } from '../../../utils/format'
+import { formatNumber, formatVnd } from '../../../utils/format'
 import type { TripDetail } from '../../trips/types'
-import { validateVoucher } from '../services/bookingService'
-import type { PassengerForm, Seat, Voucher } from '../types'
-import type { BookingFailure } from '../hooks/useCreateBooking'
+import type { PurchaserForm, Seat, SeatPassengerForm } from '../types'
+import type { BookingFailure } from '../hooks/useCheckout'
 import type { BookingTotals } from '../utils'
 import { seatTags } from '../utils'
 import { BookingCard, CardHeading, SeatFeeRow, SummaryRow } from './SummaryParts'
@@ -119,125 +116,66 @@ export function JourneyDetailsCard({ trip, seats }: { trip: TripDetail; seats: S
   )
 }
 
-export function PassengerInfoCard({ passenger }: { passenger: PassengerForm }) {
-  const dob = passenger.dateOfBirth.replace(/\s/g, '')
+export function PassengerInfoCard({
+  purchaser,
+  seats,
+  passengers,
+}: {
+  purchaser: PurchaserForm
+  seats: Seat[]
+  passengers: Record<string, SeatPassengerForm>
+}) {
   return (
     <BookingCard>
       <CardHeading
         icon="badge"
         title={t('Passenger Information')}
-        subtitle={t('Passenger 1 (Primary Traveler)')}
+        subtitle={t('One ticket per passenger, issued in each passenger’s name')}
         aside={<EditLink to={ROUTES.passengerDetails}>{t('Edit Passenger Details')}</EditLink>}
       />
-      <div className="grid grid-cols-1 gap-space-md rounded-xl bg-mist/70 p-space-md md:grid-cols-2">
+      <ul className="space-y-space-sm">
+        {seats.map((seat, index) => {
+          const passenger = passengers[seat.id]
+          const contact = [passenger?.email, passenger?.phone].filter(Boolean).join(' • ')
+          return (
+            <li
+              key={seat.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-mist/70 p-space-md"
+            >
+              <div>
+                <div className="text-xs text-on-surface-variant">
+                  {t('Passenger {number}', { number: index + 1 })}
+                </div>
+                <div className="text-sm font-semibold text-deep-river">
+                  {passenger?.fullName ?? ''}
+                </div>
+                {contact && <div className="text-xs text-on-surface-variant">{contact}</div>}
+              </div>
+              <span className="rounded bg-surface-container px-2 py-0.5 text-xs font-semibold text-deep-river">
+                {t('Seat {id}', { id: seat.code })}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+      <div className="mt-space-md grid grid-cols-1 gap-space-md rounded-xl bg-mist/70 p-space-md md:grid-cols-2">
         <div>
-          <div className="text-xs text-on-surface-variant">{t('Full Legal Name')}</div>
-          <div className="text-sm font-semibold text-deep-river">{passenger.fullName}</div>
-        </div>
-        <div>
-          <div className="text-xs text-on-surface-variant">{t('Passenger Category')}</div>
-          <div className="text-sm font-semibold text-deep-river">
-            {t('{category} • Born {dob}', { category: t(CATEGORY_LABEL[passenger.category]), dob })}
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-on-surface-variant">{t('Contact Mobile')}</div>
-          <div className="text-sm font-semibold text-deep-river">
-            {passenger.phoneCode} {passenger.phone}
-          </div>
+          <div className="text-xs text-on-surface-variant">{t('Buyer')}</div>
+          <div className="text-sm font-semibold text-deep-river">{purchaser.fullName}</div>
         </div>
         <div>
           <div className="text-xs text-on-surface-variant">{t('Notification Email')}</div>
-          <div className="text-sm font-semibold text-deep-river">{passenger.email}</div>
+          <div className="text-sm font-semibold text-deep-river">{purchaser.email}</div>
         </div>
+        {purchaser.phone.trim() && (
+          <div>
+            <div className="text-xs text-on-surface-variant">{t('Contact Mobile')}</div>
+            <div className="text-sm font-semibold text-deep-river">
+              {purchaser.phoneCode} {purchaser.phone}
+            </div>
+          </div>
+        )}
       </div>
-    </BookingCard>
-  )
-}
-
-export function ETicketContactCard({ passenger }: { passenger: PassengerForm }) {
-  return (
-    <BookingCard>
-      <CardHeading
-        icon="qr_code_2"
-        title={t('E-Ticket & Booking Contact')}
-        subtitle={t('Your QR ticket will be available after successful payment.')}
-      />
-      <p className="text-xs text-on-surface-variant">
-        {t('Sent to')} <span className="text-deep-river">{passenger.email}</span> {t('and')}{' '}
-        <span className="text-deep-river">
-          {passenger.phoneCode} {passenger.phone}
-        </span>
-        .
-      </p>
-    </BookingCard>
-  )
-}
-
-export function VoucherCard({
-  voucher,
-  onApply,
-}: {
-  voucher: Voucher | null
-  onApply: (v: Voucher | null) => void
-}) {
-  const [code, setCode] = useState(voucher?.code ?? '')
-  const [message, setMessage] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [failed, setFailed] = useState(false)
-
-  const apply = async () => {
-    setBusy(true)
-    try {
-      const result = await validateVoucher(code)
-      onApply(result)
-      setMessage(
-        result
-          ? t('Voucher applied: {percent}% off your fare.', { percent: result.percentOff })
-          : t('This code is not valid.'),
-      )
-      setFailed(false)
-    } catch {
-      setMessage(t('We couldn’t check this code. Please try again.'))
-      setFailed(true)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <BookingCard className="py-space-md">
-      <div className="flex flex-col items-start gap-space-md md:flex-row md:items-center">
-        <span className="flex items-center gap-2 text-sm font-semibold text-deep-river">
-          <Icon name="confirmation_number" className="text-[20px] text-teal-flow" />
-          {t('Voucher / Corporate Discount')}
-        </span>
-        <input
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder={t('Enter voucher or promo code')}
-          aria-label={t('Voucher or promo code')}
-          className="flex-1 rounded-xl border-0 bg-mist px-space-md py-2.5 text-sm text-deep-river placeholder:text-outline focus:ring-2 focus:ring-teal-flow/30"
-        />
-        <button
-          type="button"
-          disabled={busy}
-          onClick={apply}
-          className="rounded-xl bg-surface-container px-space-lg py-2.5 text-sm font-semibold text-deep-river transition-colors hover:bg-surface-container-high disabled:opacity-60"
-        >
-          {t('Apply')}
-        </button>
-      </div>
-      {message && (
-        <p
-          role={failed ? 'alert' : 'status'}
-          className={`mt-2 text-xs ${
-            failed ? 'text-coral-glow' : voucher ? 'text-teal-flow' : 'text-on-surface-variant'
-          }`}
-        >
-          {message}
-        </p>
-      )}
     </BookingCard>
   )
 }
@@ -314,11 +252,6 @@ export function OrderSummary({
           seatFeeVnd={totals.seatFeeVnd}
           includedText={t('Included')}
         />
-        <SummaryRow
-          label={t('Discount')}
-          value={`${totals.discountVnd > 0 ? '−' : ''}${formatVndSuffix(totals.discountVnd)}`}
-          accent={totals.discountVnd > 0}
-        />
       </div>
 
       <div className="mt-space-md flex items-center justify-between rounded-xl bg-mist/70 px-space-md py-space-md">
@@ -339,7 +272,7 @@ export function OrderSummary({
             disabled={busy}
             className="group mt-space-md flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-headline-sm text-base font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary disabled:opacity-70"
           >
-            {busy ? t('Holding your seat…') : t('Continue to Payment')}
+            {busy ? t('Preparing your order…') : t('Continue to Payment')}
             <Icon
               name="arrow_forward"
               className="text-[18px] transition-transform group-hover:translate-x-1"
@@ -348,7 +281,7 @@ export function OrderSummary({
           {failure && (
             <p role="alert" className="mt-2 text-center text-xs text-coral-glow">
               {failure.message ||
-                t('We couldn’t hold your seat just now. Please check your connection and try again.')}{' '}
+                t('We couldn’t prepare your order just now. Please check your connection and try again.')}{' '}
               {failure.seatTaken && (
                 <Link to={ROUTES.seatSelection} className="font-semibold underline">
                   {t('Choose another seat')}

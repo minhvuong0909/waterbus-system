@@ -142,29 +142,6 @@ export default function MyTicketsPage() {
         ))}
       </div>
 
-      <div className="mt-space-2xl flex flex-col items-start justify-between gap-space-md rounded-2xl border border-teal-flow/20 bg-sand-light/60 p-space-md sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-flow text-on-primary">
-            <Icon name="lightbulb" className="text-[22px]" />
-          </span>
-          <div>
-            <div className="text-sm font-semibold text-deep-river">
-              {t('Smart Waterbus Travel Tip')}
-            </div>
-            <p className="text-xs text-on-surface-variant">
-              {t(
-                'Your QR ticket is always accessible online right up to boarding. Simply present your screen at the pier turnstile scanners.',
-              )}
-            </p>
-          </div>
-        </div>
-        <Link
-          to={ROUTES.explore}
-          className="flex items-center gap-1 whitespace-nowrap text-xs font-semibold text-teal-flow hover:underline"
-        >
-          {t('Pier Terminal Guide')} <Icon name="arrow_forward" className="text-[16px]" />
-        </Link>
-      </div>
     </div>
   )
 }

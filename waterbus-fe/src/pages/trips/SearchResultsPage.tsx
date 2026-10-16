@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ErrorState, FeatureStrip, PageLoader, StatusPill } from '../../components/ui'
+import { ErrorState, PageLoader } from '../../components/ui'
 import CorridorSidebar from '../../features/trips/components/CorridorSidebar'
 import DateStrip from '../../features/trips/components/DateStrip'
 import ResultFilters from '../../features/trips/components/ResultFilters'
@@ -10,24 +10,6 @@ import { formatDateLabel } from '../../features/trips/utils'
 import { useSearchResults } from '../../features/trips/hooks/useTripSearch'
 import { useDocumentTitle } from '../../hooks'
 import { t } from '../../i18n'
-
-const CUES = [
-  {
-    icon: 'qr_code_2',
-    title: 'QR E-Ticket Boarding',
-    description: 'Instant digital ticket pass with tap-and-go access at turnstiles.',
-  },
-  {
-    icon: 'radar',
-    title: 'Real-Time Vessel Tracking',
-    description: 'Live GPS positioning and accurate pier arrival predictions.',
-  },
-  {
-    icon: 'airline_seat_recline_extra',
-    title: 'Seat Selection Next',
-    description: 'Choose panoramic windows or open deck seats in the immediate next step.',
-  },
-]
 
 export default function SearchResultsPage() {
   useDocumentTitle('Available Departures')
@@ -64,19 +46,12 @@ export default function SearchResultsPage() {
         <section className="flex w-full flex-col gap-space-md">
           <div className="flex flex-col justify-between gap-space-md pt-2 md:flex-row md:items-end">
             <div>
-              <div className="mb-2 inline-flex items-center gap-space-xs rounded-full border border-teal-flow/20 bg-sand-light px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-deep-river">
-                <span className="h-2 w-2 rounded-full bg-teal-flow" />
-                {t('Saigon River Corridor #1')}
-              </div>
               <h1 className="font-headline-lg text-2xl font-bold leading-tight tracking-tight text-deep-river md:text-3xl lg:text-[34px]">
                 {t('Available Departures')}
               </h1>
               <p className="mt-1 text-sm text-on-surface-variant">
                 {t('Select your river crossing across the Saigon River transit corridor.')}
               </p>
-            </div>
-            <div className="self-start md:self-end">
-              <StatusPill variant="soft">{t('All River Terminals Operational')}</StatusPill>
             </div>
           </div>
 
@@ -110,10 +85,6 @@ export default function SearchResultsPage() {
                 </span>
                 <span className="text-on-surface-variant">{t('scheduled for today')}</span>
               </div>
-              <div className="flex items-center gap-space-xs text-xs text-on-surface-variant">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-teal-flow" />
-                {t('Real-time boarding gate & turnstile sync')}
-              </div>
             </div>
 
             {visible.length > 0 ? (
@@ -135,7 +106,6 @@ export default function SearchResultsPage() {
           <CorridorSidebar />
         </div>
 
-        <FeatureStrip items={CUES} variant="panel" />
       </div>
     </div>
   )

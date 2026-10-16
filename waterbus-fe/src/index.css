@@ -12,6 +12,22 @@
     @apply bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-secondary-container selection:text-on-secondary-container;
     overscroll-behavior: none;
   }
+  /* Keyboard users get a clear ring; mouse clicks do not. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-teal-flow;
+  }
+}
+
+/* Honour the OS "reduce motion" setting: no decorative animation or smooth scrolling. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @layer components {
@@ -50,4 +66,45 @@
 }
 .fleet-boat .material-symbols-outlined {
   font-size: 18px;
+}
+
+/* Pier pin on the street map: a disc with an anchor, dark when selected. */
+.pier-pin__disc {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #147a7e;
+  color: #fff;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(13, 37, 56, 0.35);
+  transition: transform 0.15s ease;
+}
+.pier-pin__disc:hover {
+  transform: scale(1.1);
+}
+.pier-pin__disc--active {
+  background: #0d2538;
+}
+.pier-pin .material-symbols-outlined {
+  font-size: 18px;
+}
+
+/* The vessel on the street map: an amber disc with a boat. */
+.vessel-pin__disc {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #e8b63e;
+  color: #0d2538;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(13, 37, 56, 0.35);
+}
+.vessel-pin .material-symbols-outlined {
+  font-size: 20px;
 }

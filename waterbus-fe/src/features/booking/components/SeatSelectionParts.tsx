@@ -4,6 +4,7 @@ import { ROUTES } from '../../../routes/routes'
 import { formatVnd, formatVndSuffix } from '../../../utils/format'
 import type { TripDetail } from '../../trips/types'
 import type { Seat } from '../types'
+import type { BookingFailure } from '../hooks/useCheckout'
 import type { BookingTotals } from '../utils'
 import { MAX_SEATS_PER_BOOKING } from '../utils'
 import { cabinsLabel, hasSurcharge, passengersLabel, seatFeeFor, seatPosition, seatZone } from '../utils'
@@ -68,47 +69,35 @@ export function TripStrip({ trip, seats, totalVnd }: { trip: TripDetail; seats: 
   )
 }
 
-export function SeatRecommendation() {
-  return (
-    <div className="flex items-start gap-space-md rounded-2xl border border-teal-flow/20 bg-gradient-to-r from-sand-light/70 to-white p-space-md">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-teal-flow shadow-sm">
-        <Icon name="lightbulb" className="text-[22px]" />
-      </div>
-      <div className="text-xs text-on-surface-variant">
-        <div className="font-headline-sm text-sm font-bold text-deep-river">
-          {t('Seat Recommendation')}
-        </div>
-        <ul className="mt-1 list-disc space-y-0.5 pl-4">
-          <li>
-            <strong className="text-deep-river">{t('Best River View:')}</strong>{' '}
-            {t('Window seats (columns A and D) look straight out over the river.')}
-          </li>
-          <li>
-            <strong className="text-deep-river">{t('Front Cabin:')}</strong>{' '}
-            {t('The front cabin is a quieter air-conditioned space, for a small surcharge.')}
-          </li>
-          <li>
-            <strong className="text-deep-river">{t('Outdoor Deck:')}</strong>{' '}
-            {t('The outdoor deck is open to the breeze and the skyline, for a small surcharge.')}
-          </li>
-        </ul>
-      </div>
-    </div>
-  )
-}
-
 interface BookingSummaryProps {
   trip: TripDetail
   seats: Seat[]
   totals: BookingTotals
   /** True when no more seats can be added. */
   limitReached: boolean
+  /** False when sales are closed for the trip. */
+  canBook: boolean
+  /** Holds the seats and moves on to the passenger details. */
+  onContinue: () => void
+  /** True while the hold is being made. */
+  busy: boolean
+  failure: BookingFailure | null
 }
 
-export function BookingSummary({ trip, seats, totals, limitReached }: BookingSummaryProps) {
+export function BookingSummary({
+  trip,
+  seats,
+  totals,
+  limitReached,
+  canBook,
+  onContinue,
+  busy,
+  failure,
+}: BookingSummaryProps) {
   const surcharge = seats.some(hasSurcharge)
   // An empty selection, or one with a seat somebody else took, must not reach checkout.
-  const canContinue = seats.length > 0 && seats.every((seat) => seat.status === 'available')
+  const canContinue =
+    canBook && seats.length > 0 && seats.every((seat) => seat.status === 'available')
   return (
     <div className="space-y-space-md lg:sticky lg:top-24">
       <BookingCard className="p-space-lg">
@@ -154,7 +143,8 @@ export function BookingSummary({ trip, seats, totals, limitReached }: BookingSum
           ) : (
             <ul className="mt-1 divide-y divide-outline-variant/30">
               {seats.map((seat) => {
-                const fee = seatFeeFor(seat, trip.fareVnd)
+                const priced = seat.priceVnd !== undefined
+                const fee = priced ? (seat.priceVnd ?? 0) : seatFeeFor(seat, trip.fareVnd)
                 return (
                   <li key={seat.id} className="flex items-center justify-between gap-2 py-1.5">
                     <span className="font-headline-sm text-xl font-bold text-deep-river">
@@ -164,7 +154,11 @@ export function BookingSummary({ trip, seats, totals, limitReached }: BookingSum
                       {seatPosition(seat)} • {seatZone(seat)}
                     </span>
                     <span className={`w-20 text-right text-xs ${fee > 0 ? 'font-semibold text-deep-river' : 'text-on-surface-variant'}`}>
-                      {fee > 0 ? `+${formatVndSuffix(fee)}` : t('Included')}
+                      {priced
+                        ? formatVndSuffix(fee)
+                        : fee > 0
+                          ? `+${formatVndSuffix(fee)}`
+                          : t('Included')}
                     </span>
                   </li>
                 )
@@ -203,16 +197,26 @@ export function BookingSummary({ trip, seats, totals, limitReached }: BookingSum
         </div>
 
         {canContinue ? (
-          <Link
-            to={ROUTES.passengerDetails}
-            className="group mt-space-sm flex w-full items-center justify-between rounded-xl bg-teal-flow px-space-lg py-space-md font-headline-sm text-lg font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary"
-          >
-            <span>{t('Continue to Passenger Details')}</span>
-            <Icon
-              name="arrow_forward"
-              className="text-[20px] transition-transform group-hover:translate-x-1"
-            />
-          </Link>
+          <>
+            <button
+              type="button"
+              onClick={onContinue}
+              disabled={busy}
+              className="group mt-space-sm flex w-full items-center justify-between rounded-xl bg-teal-flow px-space-lg py-space-md font-headline-sm text-lg font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary disabled:opacity-70"
+            >
+              <span>{busy ? t('Holding your seat…') : t('Continue to Passenger Details')}</span>
+              <Icon
+                name="arrow_forward"
+                className="text-[20px] transition-transform group-hover:translate-x-1"
+              />
+            </button>
+            {failure && (
+              <p role="alert" className="mt-2 text-center text-xs text-coral-glow">
+                {failure.message ||
+                  t('We couldn’t hold your seat just now. Please check your connection and try again.')}
+              </p>
+            )}
+          </>
         ) : (
           <>
             <button
@@ -224,7 +228,9 @@ export function BookingSummary({ trip, seats, totals, limitReached }: BookingSum
               <Icon name="arrow_forward" className="text-[20px]" />
             </button>
             <p role="status" className="mt-2 text-center text-xs text-on-surface-variant">
-              {t('Please choose an available seat to continue.')}
+              {canBook
+                ? t('Please choose an available seat to continue.')
+                : t('Ticket sales are closed for this trip.')}
             </p>
           </>
         )}

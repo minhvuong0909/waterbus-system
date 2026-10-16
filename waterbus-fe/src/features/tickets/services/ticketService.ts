@@ -31,18 +31,12 @@ export function getManageBooking(token?: string): Promise<ManageBooking> {
 }
 
 /** Pretends to submit a refund request. Always accepted so the flow never gets stuck. */
-export function requestRefund(
-  bookingCode: string,
-): Promise<{ bookingCode: string; status: 'submitted' }> {
-  return withDelay({ bookingCode, status: 'submitted' as const }, 500)
-}
-
 /** Rebuilds the wallet tickets (one per seat) for this session's bookings in the active language. */
 export async function getBookedTickets(bookings: BookedSnapshot[]): Promise<Ticket[]> {
   const perBooking = await Promise.all(
     bookings.map(async (b) => {
       const trip = await getTripDetail(b.selectedTrip, b.tripId, b.query)
-      return buildBookedTickets({ trip, seats: b.seats, fares: b.fares, passenger: b.passenger })
+      return buildBookedTickets({ trip, seats: b.seats, fares: b.fares, passengerNames: b.passengerNames })
     }),
   )
   return perBooking.flat()

@@ -1,6 +1,19 @@
 import { t } from '../../i18n'
 import type { TripDetail } from '../trips/types'
-import type { PassengerForm, Seat, SeatCategory, Voucher } from './types'
+import type {
+  CreateHoldRequest,
+  Journey,
+  SeatMap,
+  SubmitCheckoutRequest,
+  TripDetailDto,
+  TripSeatDto,
+  TripSeatMapDto,
+  TripStopDto,
+  PurchaserForm,
+  Seat,
+  SeatCategory,
+  SeatPassengerForm,
+} from './types'
 
 /** Cabin names, in the order they appear on the boat. */
 export const CABIN_ORDER = ['front', 'standard', 'outdoor'] as const
@@ -45,45 +58,29 @@ export interface BookingTotals {
   fareVnd: number
   /** Cabin surcharges of all seats, 0 when every seat is standard. */
   seatFeeVnd: number
-  discountVnd: number
   totalVnd: number
 }
 
-/**
- * What each ticket costs: the trip fare plus that seat's cabin surcharge, minus an equal share of
- * the voucher discount (the voucher takes a percentage off the trip fare, never off a surcharge).
- * The amounts add up exactly to the booking total.
- */
-export function ticketFares(fareVnd: number, seats: Seat[], voucher: Voucher | null): number[] {
-  if (seats.length === 0) return []
-  const discountVnd = voucher ? Math.round((fareVnd * seats.length * voucher.percentOff) / 100) : 0
-  const share = Math.floor(discountVnd / seats.length)
-  return seats.map((seat, index) => {
-    // The first seat takes the rounding remainder, so no dong is lost.
-    const discount = share + (index === 0 ? discountVnd - share * seats.length : 0)
-    return Math.max(fareVnd + seatFeeFor(seat, fareVnd) - discount, 0)
-  })
+/** What each ticket costs: the trip fare plus that seat's cabin surcharge. */
+export function ticketFares(fareVnd: number, seats: Seat[]): number[] {
+  return seats.map((seat) => seat.priceVnd ?? fareVnd + seatFeeFor(seat, fareVnd))
 }
 
-export function computeTotals(
-  trip: TripDetail,
-  seats: Seat[],
-  voucher: Voucher | null,
-): BookingTotals {
+export function computeTotals(trip: TripDetail, seats: Seat[]): BookingTotals {
+  // Seats from the backend carry their own fare (flat per seat class, BR-FARE), so there is no
+  // separate surcharge; the mock map prices a seat as the trip fare times its multiplier.
+  if (seats.length > 0 && seats.every((seat) => seat.priceVnd !== undefined)) {
+    const fareVnd = seats.reduce((sum, seat) => sum + (seat.priceVnd ?? 0), 0)
+    return { seatCount: seats.length, fareVnd, seatFeeVnd: 0, totalVnd: fareVnd }
+  }
   const fareVnd = trip.fareVnd * seats.length
   const seatFeeVnd = seats.reduce((sum, seat) => sum + seatFeeFor(seat, trip.fareVnd), 0)
-  const discountVnd = voucher ? Math.round((fareVnd * voucher.percentOff) / 100) : 0
-  return {
-    seatCount: seats.length,
-    fareVnd,
-    seatFeeVnd,
-    discountVnd,
-    totalVnd: Math.max(fareVnd - discountVnd, 0) + seatFeeVnd,
-  }
+  return { seatCount: seats.length, fareVnd, seatFeeVnd, totalVnd: fareVnd + seatFeeVnd }
 }
 
 /** True for a seat that costs more than the base fare. */
-export const hasSurcharge = (seat: Seat | undefined): boolean => (seat?.priceMultiplier ?? 1) > 1
+export const hasSurcharge = (seat: Seat | undefined): boolean =>
+  seat?.priceVnd === undefined && (seat?.priceMultiplier ?? 1) > 1
 
 /** "Front Cabin • Window", "Window", "Outdoor Deck" or "" (a standard aisle seat). */
 export function seatTags(seat: Seat | undefined): string {
@@ -125,8 +122,171 @@ export function bookingReference(seats: Seat[]): string {
   return `WB${new Date().toISOString().replace(/\D/g, '').slice(0, 8)}0000${digits}`
 }
 
-/** Phone number as the backend expects it: digits only, with a leading 0 instead of "+84". */
-export function toCustomerPhone(passenger: Pick<PassengerForm, 'phone'>): string {
-  const digits = passenger.phone.replace(/\D/g, '')
+/** Purchaser phone as the backend expects it: digits only with a leading 0, or undefined when none. */
+export function toCustomerPhone(purchaser: Pick<PurchaserForm, 'phone'>): string | undefined {
+  const digits = purchaser.phone.replace(/\D/g, '')
+  if (!digits) return undefined
   return digits.startsWith('0') ? digits : `0${digits}`
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const isEmail = (value: string) => EMAIL.test(value.trim())
+
+/** BR-COM-07: the purchaser needs a name and an email; the phone is optional but must be valid. */
+export function purchaserErrors(purchaser: PurchaserForm): Partial<Record<keyof PurchaserForm, string>> {
+  const errors: Partial<Record<keyof PurchaserForm, string>> = {}
+  if (!purchaser.fullName.trim()) errors.fullName = t('Please enter the buyer’s full name.')
+  if (!isEmail(purchaser.email)) errors.email = t('Please enter a valid email address.')
+  const phone = toCustomerPhone(purchaser)
+  if (phone && !/^[0-9]{10,11}$/.test(phone)) errors.phone = t('Phone number must have 10 to 11 digits.')
+  return errors
+}
+
+/** BR-COM-06: every seat needs a passenger name; email and phone are optional. */
+export function seatPassengerErrors(
+  passenger: SeatPassengerForm | undefined,
+): Partial<Record<keyof SeatPassengerForm, string>> {
+  const errors: Partial<Record<keyof SeatPassengerForm, string>> = {}
+  if (!passenger?.fullName.trim()) errors.fullName = t('Please enter the passenger’s full name.')
+  if (passenger?.email.trim() && !isEmail(passenger.email)) {
+    errors.email = t('Please enter a valid email address.')
+  }
+  return errors
+}
+
+/** True when the purchaser and the passenger of every chosen seat are filled in correctly. */
+export function isBookingComplete(
+  purchaser: PurchaserForm,
+  seatIds: string[],
+  passengers: Record<string, SeatPassengerForm>,
+): boolean {
+  return (
+    seatIds.length > 0 &&
+    Object.keys(purchaserErrors(purchaser)).length === 0 &&
+    seatIds.every((id) => Object.keys(seatPassengerErrors(passengers[id])).length === 0)
+  )
+}
+
+const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+export const isGuid = (value: string): boolean => GUID.test(value)
+
+interface HoldInput {
+  tripId: string
+  originId: string
+  destinationId: string
+  seatIds: string[]
+  /** Real stops of the trip, when the seat map came from the backend. */
+  journey?: Journey
+}
+
+/** The `POST /checkouts/holds` body: one leg, naming the real stops when they are known. */
+export function buildHoldRequest(input: HoldInput): CreateHoldRequest {
+  const { tripId, originId, destinationId, seatIds, journey } = input
+  return {
+    legs: [
+      {
+        tripId,
+        seatIds,
+        boardingStationId: originId,
+        disembarkingStationId: destinationId,
+        boardingCallId: journey?.boardingCallId,
+        disembarkingCallId: journey?.disembarkingCallId,
+      },
+    ],
+  }
+}
+
+interface SubmitInput {
+  bookingId: string
+  seatIds: string[]
+  purchaser: PurchaserForm
+  passengers: Record<string, SeatPassengerForm>
+}
+
+/** The submit body: the buyer, and the passenger of every held seat (BR-COM-06/07). */
+export function buildSubmitRequest(input: SubmitInput): SubmitCheckoutRequest {
+  const { bookingId, seatIds, purchaser, passengers } = input
+  return {
+    customerName: purchaser.fullName.trim(),
+    customerEmail: purchaser.email.trim(),
+    customerPhone: toCustomerPhone(purchaser),
+    passengers: seatIds.map((seatId) => ({
+      bookingId,
+      seatId,
+      name: passengers[seatId]?.fullName.trim() ?? '',
+      email: passengers[seatId]?.email.trim() || undefined,
+      phone: passengers[seatId]?.phone.trim() || undefined,
+    })),
+  }
+}
+
+/**
+ * The boarding and alighting stops for the chosen piers: the first stop at the origin pier that
+ * allows boarding, followed later in the trip by a stop at the destination that allows alighting.
+ * Uses the trip's real stops, never the pier order (a loop trip can call at one pier twice).
+ */
+export function pickJourney(
+  stops: TripStopDto[],
+  originId: string,
+  destinationId: string,
+): { boarding: TripStopDto; disembarking: TripStopDto } | null {
+  const usable = stops.filter((stop) => stop.status !== 'Skipped')
+  const sameStation = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+  const boardings = usable
+    .filter((stop) => stop.canBoard && sameStation(stop.stationId, originId))
+    .sort((a, b) => a.visitOrder - b.visitOrder)
+  for (const boarding of boardings) {
+    const disembarking = usable
+      .filter(
+        (stop) =>
+          stop.canAlight &&
+          sameStation(stop.stationId, destinationId) &&
+          stop.visitOrder > boarding.visitOrder,
+      )
+      .sort((a, b) => a.visitOrder - b.visitOrder)[0]
+    if (disembarking) return { boarding, disembarking }
+  }
+  return null
+}
+
+const COLUMN_LETTERS = ['A', 'B', 'C', 'D'] as const
+
+function seatCategoryOf(className: string | null): SeatCategory {
+  const name = (className ?? '').toLowerCase()
+  if (name.includes('front')) return 'front'
+  if (name.includes('outdoor') || name.includes('deck')) return 'outdoor'
+  return 'standard'
+}
+
+function toSeat(dto: TripSeatDto): Seat {
+  const column = COLUMN_LETTERS[Math.min(Math.max(dto.columnNumber, 1), 4) - 1]
+  const status: Seat['status'] =
+    dto.status === 'available' ? 'available' : dto.status === 'held' ? 'held' : 'sold'
+  return {
+    id: dto.seatId,
+    code: dto.seatCode,
+    category: seatCategoryOf(dto.seatClassName),
+    row: dto.rowNumber,
+    column,
+    priceMultiplier: 1,
+    // A seat without a fare (or otherwise unavailable) cannot be chosen, so it is shown as taken.
+    status: dto.price === null ? 'sold' : status,
+    window: column === 'A' || column === 'D',
+    priceVnd: dto.price ?? undefined,
+  }
+}
+
+/** Maps the backend seat map of one journey segment to the seat map the pages use. */
+export function toSeatMap(dto: TripSeatMapDto, detail: Pick<TripDetailDto, 'boat'>): SeatMap {
+  return {
+    vesselName: detail.boat?.name ?? '',
+    seats: dto.seats.map(toSeat),
+    canBook: dto.canBook,
+    journey: {
+      boardingCallId: dto.boardingCallId,
+      disembarkingCallId: dto.disembarkingCallId,
+      boardingVisitOrder: dto.boardingVisitOrder,
+      disembarkingVisitOrder: dto.disembarkingVisitOrder,
+    },
+  }
 }

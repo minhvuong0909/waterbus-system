@@ -7,12 +7,14 @@ import PaymentMethodPanel from '../../features/payment/components/PaymentMethodP
 import HoldCountdown from '../../features/booking/components/HoldCountdown'
 import PaymentOrderSummary from '../../features/payment/components/PaymentOrderSummary'
 import { useDocumentTitle } from '../../hooks'
+import { useAppSelector } from '../../store/hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 
 export default function PaymentPage() {
   useDocumentTitle('Complete Your Payment')
-  const { loading, error, retry, trip, seats, passenger, totals, paymentMethod, setMethod } =
+  const hold = useAppSelector((s) => s.booking.hold)
+  const { loading, error, retry, trip, seats, purchaser, totals } =
     useBooking()
 
   if (error) return <ErrorState onRetry={retry} />
@@ -25,14 +27,14 @@ export default function PaymentPage() {
       label: 'Seat',
       detail: seatCodes(seats),
     },
-    { label: 'Details', detail: passenger.fullName },
+    { label: 'Details', detail: purchaser.fullName },
     { label: 'Checkout', detail: 'Order Confirmed' },
     { label: 'Payment', detail: 'Instant QR / Card' },
   ]
 
   return (
     <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
-      <div className="flex flex-wrap items-center justify-between gap-space-sm">
+      <div>
         <Breadcrumb
           items={[
             { label: 'Home', to: ROUTES.home },
@@ -40,10 +42,6 @@ export default function PaymentPage() {
             { label: 'Payment' },
           ]}
         />
-        <span className="inline-flex items-center gap-2 rounded-full bg-secondary-container/60 px-3 py-1 text-xs font-semibold text-on-secondary-container">
-          <span className="h-2 w-2 rounded-full bg-teal-flow" />
-          {t('River Crossing {vesselCode} • Final Step', { vesselCode: trip.vesselCode })}
-        </span>
       </div>
 
       <div className="mt-space-md">
@@ -77,17 +75,15 @@ export default function PaymentPage() {
         <div className="lg:col-span-8">
           <PaymentMethodPanel
             tripCode={trip.vesselCode}
-            method={paymentMethod}
-            onMethod={setMethod}
             amountVnd={totals.totalVnd}
-            reference={bookingReference(seats)}
+            reference={hold?.bookingCodes[0] ?? bookingReference(seats)}
           />
         </div>
         <div className="lg:col-span-4">
           <PaymentOrderSummary
             trip={trip}
             seats={seats}
-            passenger={passenger}
+            purchaser={purchaser}
             totals={totals}
           />
         </div>

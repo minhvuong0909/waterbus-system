@@ -4,7 +4,7 @@ export const vi: Record<string, string> = {
   'What is the difference between the cabins?': 'Các khoang trên tàu khác nhau thế nào?',
   'The boat has a front cabin, a standard cabin and an outdoor deck. Front cabin and outdoor deck seats cost a little more, as shown on the seat map. Standard seats have no extra fee.': 'Tàu có khoang trước, khoang tiêu chuẩn và boong ngoài trời. Ghế khoang trước và boong ngoài trời có phụ thu nhỏ, hiển thị trên sơ đồ ghế. Ghế tiêu chuẩn không phụ thu.',
   'Can I book several seats at once?': 'Tôi có thể đặt nhiều ghế cùng lúc không?',
-  'Yes, up to 10 seats in one booking. You enter one contact, and every ticket of the booking is issued in that name.': 'Được, tối đa 10 ghế trong một đơn. Bạn nhập một người liên hệ, mọi vé trong đơn được phát hành theo tên đó.',
+  'Yes, up to 10 seats in one booking. You enter the name of the passenger for each seat (email and phone are optional), plus the buyer’s name and email. Each ticket is issued in its passenger’s name, and the e-tickets go to the buyer.': 'Được, tối đa 10 ghế trong một đơn. Bạn nhập tên hành khách cho từng ghế (email và số điện thoại không bắt buộc), cùng họ tên và email người mua. Mỗi vé được phát hành theo tên hành khách của ghế đó, vé điện tử gửi cho người mua.',
   'Payment is made online through VNPay (QR code, bank card or e-wallet).': 'Thanh toán trực tuyến qua VNPay (mã QR, thẻ ngân hàng hoặc ví điện tử).',
   '{count} Passengers': '{count} hành khách',
   'Seats {ids}': 'Ghế {ids}',
@@ -19,6 +19,7 @@ export const vi: Record<string, string> = {
   'Standard River Fare × {count}': 'Giá vé sông tiêu chuẩn × {count}',
   'Seat Reservation ({seats})': 'Giữ chỗ ({seats})',
   'Tap available seats to add or remove them, up to {max} per booking. Seats are held for 10:00 during checkout.': 'Chạm vào ghế trống để chọn hoặc bỏ chọn, tối đa {max} ghế mỗi đơn. Ghế được giữ 10:00 trong lúc thanh toán.',
+  'Tap an available seat to select it. Up to {max} seats per booking.': 'Chạm vào ghế trống để chọn. Tối đa {max} ghế mỗi đơn.',
   'One booking, one contact: all {count} tickets are issued in this name.': 'Một đơn, một người liên hệ: cả {count} vé được phát hành theo tên này.',
   '{count} Seats Selected': 'Đã chọn {count} ghế',
   'This trip is no longer available. Please search again.': 'Chuyến này không còn khả dụng. Vui lòng tìm lại.',
@@ -692,6 +693,8 @@ export const vi: Record<string, string> = {
   'Explore Journey': 'Xem hành trình',
   'Explore river journeys': 'Khám phá hành trình trên sông',
   'Explore River Journeys': 'Khám phá hành trình trên sông',
+  'Skip to main content': 'Bỏ qua tới nội dung chính',
+  'Before you book': 'Trước khi đặt vé',
   'Explore Routes': 'Xem các tuyến',
   'Explore scenic waterfront promenades, river parks, and cultural viewpoints along your route.':
     'Khám phá lối đi dạo ven sông, công viên và điểm ngắm văn hóa dọc tuyến của bạn.',
@@ -1212,7 +1215,7 @@ export const vi: Record<string, string> = {
   Status: 'Trạng thái',
   'Step {n}': 'Bước {n}',
   'Step 1 of 3: Trip Selected': 'Bước 1/3: Đã chọn chuyến',
-  'Step 2 of 4: Seat Selection': 'Bước 2/4: Chọn ghế',
+  'Step 2 of 5: Seat Selection': 'Bước 2/5: Chọn ghế',
   'Step Aboard': 'Lên tàu',
   'Step off at Thu Thiem Pier and continue on foot along the sculpture plaza and river gardens.':
     'Xuống tại Bến Thủ Thiêm và đi bộ tiếp dọc quảng trường điêu khắc và vườn ven sông.',
@@ -1484,10 +1487,94 @@ export const vi: Record<string, string> = {
     'Thanh toán QR, thẻ ngân hàng và các ví điện tử MoMo, VNPay, ZaloPay.',
   'Can I get a refund?': 'Tôi có được hoàn tiền không?',
   'Refunds are available up to 30 minutes before departure. Open My Tickets, choose the ticket and select Request Refund.':
-    'Có thể hoàn tiền đến 30 phút trước giờ khởi hành. Mở Vé của tôi, chọn vé rồi bấm Yêu cầu hoàn tiền.',
+    'Hoàn tiền áp dụng khi chuyến bị hủy hoặc kết thúc sớm trước khi bạn tới bến xuống. Số tiền bạn đã trả cho các vé bị ảnh hưởng được hoàn về phương thức thanh toán ban đầu, và trạng thái hiển thị trên trang đặt chỗ. Vé của hành khách không check-in đúng hạn thì không được hoàn tiền.',
   'When does boarding open?': 'Khi nào bắt đầu lên tàu?',
   'Boarding opens 10 minutes before departure. Arrive at the pier with your QR ticket and scan it at the turnstile.':
     'Lên tàu mở 10 phút trước giờ khởi hành. Hãy tới bến cùng vé QR và quét tại cổng soát vé.',
+  'Hi! I can help with departures and refunds. What would you like to know?':
+    'Xin chào! Mình có thể giúp về chuyến khởi hành và hoàn tiền. Bạn muốn hỏi gì?',
+  'Refunds':
+    'Hoàn tiền',
+  'If this trip is cancelled or ends early before you reach your stop, the amount you paid for the affected tickets is refunded to your original payment method. Any refund appears here with its status.':
+    'Nếu chuyến bị hủy hoặc kết thúc sớm trước khi bạn tới bến xuống, số tiền bạn đã trả cho các vé bị ảnh hưởng sẽ được hoàn về phương thức thanh toán ban đầu. Mọi khoản hoàn tiền sẽ hiển thị tại đây cùng trạng thái.',
+  'Tickets of passengers who miss check-in are not refunded.':
+    'Vé của hành khách không check-in đúng hạn không được hoàn tiền.',
+  'Your trip details, ticket status and refund information.':
+    'Thông tin chuyến, trạng thái vé và hoàn tiền của bạn.',
+  'We emailed the confirmation and a secure link to manage this booking to {email}.':
+    'Chúng tôi đã gửi email xác nhận cùng liên kết bảo mật để quản lý đặt chỗ này tới {email}.',
+  'If a trip is cancelled or ends early, the amount you paid for the affected tickets is refunded to your original payment method. Passengers who miss check-in are not refunded.':
+    'Nếu chuyến bị hủy hoặc kết thúc sớm, số tiền bạn đã trả cho các vé bị ảnh hưởng sẽ được hoàn về phương thức thanh toán ban đầu. Hành khách không check-in đúng hạn không được hoàn tiền.',
+  'Please enter the buyer’s full name.': 'Vui lòng nhập họ tên người mua.',
+  'Please enter a valid email address.': 'Vui lòng nhập địa chỉ email hợp lệ.',
+  'Phone number must have 10 to 11 digits.': 'Số điện thoại phải có 10 đến 11 chữ số.',
+  'Please enter the passenger’s full name.': 'Vui lòng nhập họ tên hành khách.',
+  'Enter a name for every passenger and the buyer’s name and email to continue.': 'Nhập tên cho từng hành khách cùng họ tên và email người mua để tiếp tục.',
+  'Passenger {number}': 'Hành khách {number}',
+  'Who will travel on this seat': 'Người sẽ ngồi ở ghế này',
+  'Optional': 'Không bắt buộc',
+  'Same as the buyer': 'Giống người mua',
+  'Buyer & E-Ticket Recipient': 'Người mua và nơi nhận vé điện tử',
+  'The buyer pays for the order and receives the e-tickets and notifications': 'Người mua thanh toán đơn hàng và nhận vé điện tử cùng thông báo',
+  'One ticket per passenger, issued in each passenger’s name': 'Mỗi hành khách một vé, phát hành theo tên từng hành khách',
+  'Buyer': 'Người mua',
+  'Opening the payment page…': 'Đang mở trang thanh toán…',
+  'Pay with VNPay': 'Thanh toán qua VNPay',
+  'We couldn’t open the payment page. Nothing was charged, please try again.': 'Không mở được trang thanh toán. Bạn chưa bị trừ tiền, vui lòng thử lại.',
+  'You will be redirected to VNPay. Your tickets are issued once the payment is confirmed.': 'Bạn sẽ được chuyển sang VNPay. Vé được phát hành sau khi thanh toán được xác nhận.',
+  'We could not find your order': 'Không tìm thấy đơn hàng của bạn',
+  'Open your booking from the confirmation email, or start a new booking.': 'Hãy mở đặt chỗ từ email xác nhận, hoặc đặt vé mới.',
+  'Confirming your payment…': 'Đang xác nhận thanh toán…',
+  'The bank has sent you back. We are waiting for the payment to be confirmed, please do not close this page.': 'Ngân hàng đã chuyển bạn về. Chúng tôi đang chờ xác nhận thanh toán, vui lòng không đóng trang này.',
+  'Your payment is not confirmed yet': 'Thanh toán của bạn chưa được xác nhận',
+  'If money was taken from your account, the tickets will appear once the bank confirms it. You can check again or ask us to verify with the bank.': 'Nếu tiền đã bị trừ, vé sẽ xuất hiện khi ngân hàng xác nhận. Bạn có thể kiểm tra lại hoặc nhờ chúng tôi đối soát với ngân hàng.',
+  'Check again': 'Kiểm tra lại',
+  'Verify with the bank': 'Đối soát với ngân hàng',
+  'This order has expired or was cancelled, so its seats were released.': 'Đơn hàng đã hết hạn hoặc bị hủy nên ghế đã được nhả.',
+  'Your booking is not confirmed': 'Đặt chỗ của bạn chưa được xác nhận',
+  'We have not received a confirmed payment for this order.': 'Chúng tôi chưa nhận được thanh toán đã xác nhận cho đơn này.',
+  'Back to payment': 'Quay lại thanh toán',
+  'Stories on board':
+    'Thuyết minh trên tàu',
+  'On sightseeing journeys, stories about the places you pass play over the boat’s speakers.':
+    'Trên các chuyến tham quan, câu chuyện về những nơi tàu đi qua được phát qua loa trên tàu.',
+  'Playing over the boat’s speakers':
+    'Đang phát qua loa trên tàu',
+  'Browse the river network':
+    'Xem mạng lưới đường sông',
+  'Check-in:':
+    'Check-in:',
+  'Show your booking QR to the pier staff at your boarding pier before check-in closes.':
+    'Đưa mã QR của đặt chỗ cho nhân viên tại bến lên tàu trước khi hết giờ check-in.',
+  'Photo coming soon':
+    'Ảnh sẽ sớm được cập nhật',
+  'Open in Google Maps':
+    'Mở trong Google Maps',
+  'Plan a trip from here':
+    'Đặt chuyến từ bến này',
+  'Depart from here':
+    'Đi từ bến này',
+  'Arrive here':
+    'Đến bến này',
+  'Click a pier to see its photo and address, or pick a popular connection.':
+    'Bấm vào một bến để xem ảnh và địa chỉ, hoặc chọn một tuyến phổ biến.',
+  'Photos coming soon':
+    'Ảnh sẽ sớm được cập nhật',
+  '{name}, photo {current} of {total}':
+    '{name}, ảnh {current}/{total}',
+  'Previous photo':
+    'Ảnh trước',
+  'Next photo':
+    'Ảnh tiếp theo',
+  'Photo {number}':
+    'Ảnh {number}',
+  'This trip does not stop at both of the chosen piers.': 'Chuyến này không dừng ở cả hai bến đã chọn.',
+  'Preparing your order…': 'Đang chuẩn bị đơn hàng…',
+  'We couldn’t prepare your order just now. Please check your connection and try again.': 'Chưa chuẩn bị được đơn hàng. Vui lòng kiểm tra kết nối và thử lại.',
+  'Ticket sales are closed for this trip.': 'Chuyến này đã đóng bán vé.',
+  'Pay by QR code, bank card or e-wallet on the secure VNPay page.': 'Thanh toán bằng mã QR, thẻ ngân hàng hoặc ví điện tử trên trang VNPay an toàn.',
+  'Loading map…':
+    'Đang tải bản đồ…',
   // Live operations (tracking, weather alerts, captain GPS)
   'Level {level} weather warning': 'Cảnh báo thời tiết mức {level}',
   'Boats on the Saigon River, updated as their GPS reports arrive.': 'Tàu trên sông Sài Gòn, cập nhật ngay khi nhận được vị trí GPS.',
