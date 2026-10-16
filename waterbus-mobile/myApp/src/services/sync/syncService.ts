@@ -7,6 +7,8 @@
 
 import { SqliteRepository } from '../sqlite/sqliteRepository';
 import { DEFAULT_KEY_INFO } from '../crypto/qrVerifier';
+
+declare const require: any;
 import {
   PreloadManifest,
   CheckInEvent,
