@@ -1,7 +1,5 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
-import { ASSISTANCE_OPTIONS, PASSENGER_CATEGORIES } from '../../../mocks/booking'
 import { ROUTES } from '../../../routes/routes'
 import type { PassengerForm } from '../types'
 import { BookingCard } from './SummaryParts'
@@ -53,15 +51,6 @@ export default function PassengerFormCard({
   seatCount,
   onChange,
 }: PassengerFormCardProps) {
-  const [assistOpen, setAssistOpen] = useState(true)
-
-  const toggleAssist = (id: string) =>
-    onChange({
-      assistance: passenger.assistance.includes(id)
-        ? passenger.assistance.filter((a) => a !== id)
-        : [...passenger.assistance, id],
-    })
-
   return (
     <div className="space-y-space-md">
       <BookingCard className="p-space-lg md:p-space-xl">
@@ -88,33 +77,6 @@ export default function PassengerFormCard({
           </p>
         )}
 
-        <div className="mb-space-lg">
-          <div className="mb-1.5 text-xs font-semibold text-on-surface">
-            {t('Traveler Category')}
-          </div>
-          <div
-            className="grid grid-cols-3 gap-1 rounded-xl bg-surface-container p-1"
-            role="tablist"
-          >
-            {PASSENGER_CATEGORIES.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                role="tab"
-                aria-selected={passenger.category === c.id}
-                onClick={() => onChange({ category: c.id })}
-                className={`rounded-lg py-2.5 text-sm transition-all ${
-                  passenger.category === c.id
-                    ? 'bg-white font-semibold text-deep-river shadow-sm'
-                    : 'text-on-surface-variant hover:text-deep-river'
-                }`}
-              >
-                {t(c.label)} <span className="text-xs text-on-surface-variant">{c.range}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 gap-space-md md:grid-cols-2">
           <Field label={t('Full Name')} icon="badge">
             <input
@@ -122,13 +84,6 @@ export default function PassengerFormCard({
               value={passenger.fullName}
               onChange={(e) => onChange({ fullName: e.target.value })}
               autoComplete="name"
-            />
-          </Field>
-          <Field label={t('Date of Birth')} hint="DD / MM / YYYY" icon="calendar_today">
-            <input
-              className={`${FIELD} pl-10`}
-              value={passenger.dateOfBirth}
-              onChange={(e) => onChange({ dateOfBirth: e.target.value })}
             />
           </Field>
           <Field label={t('Phone Number')}>
@@ -181,48 +136,6 @@ export default function PassengerFormCard({
           </label>
         </div>
 
-        <div className="mt-space-lg border-t border-surface-container pt-space-lg">
-          <button
-            type="button"
-            aria-expanded={assistOpen}
-            onClick={() => setAssistOpen((v) => !v)}
-            className="mb-space-sm flex w-full items-center justify-between text-left"
-          >
-            <span className="flex items-center gap-space-sm">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sand-light text-teal-flow">
-                <Icon name="accessible_forward" className="text-[20px]" />
-              </span>
-              <span>
-                <span className="block font-headline-sm text-lg font-semibold text-deep-river">
-                  {t('Need boarding assistance?')}
-                </span>
-                <span className="block text-xs text-on-surface-variant">
-                  {t('Optional assistance services at the pier')}
-                </span>
-              </span>
-            </span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container text-deep-river">
-              <Icon name={assistOpen ? 'expand_less' : 'expand_more'} className="text-[20px]" />
-            </span>
-          </button>
-          {assistOpen && (
-            <div className="grid grid-cols-1 gap-space-sm md:grid-cols-3">
-              {ASSISTANCE_OPTIONS.map((o) => (
-                <label key={o.id} className="relative cursor-pointer rounded-xl bg-mist p-space-md">
-                  <input
-                    type="checkbox"
-                    checked={passenger.assistance.includes(o.id)}
-                    onChange={() => toggleAssist(o.id)}
-                    className="absolute right-3 top-3 h-4 w-4 rounded border-outline-variant text-teal-flow accent-teal-flow focus:ring-teal-flow"
-                  />
-                  <Icon name={o.icon} className="text-[20px] text-teal-flow" />
-                  <div className="mt-1 text-sm font-semibold text-deep-river">{t(o.title)}</div>
-                  <div className="text-xs text-on-surface-variant">{t(o.description)}</div>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
       </BookingCard>
 
       <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-space-lg py-space-md text-xs text-on-surface-variant shadow-[0_2px_16px_rgba(13,37,56,0.05)]">

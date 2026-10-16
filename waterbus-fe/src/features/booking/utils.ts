@@ -1,6 +1,6 @@
 import { t } from '../../i18n'
 import type { TripDetail } from '../trips/types'
-import type { PassengerForm, Seat, SeatCategory, Voucher } from './types'
+import type { PassengerForm, Seat, SeatCategory } from './types'
 
 /** Cabin names, in the order they appear on the boat. */
 export const CABIN_ORDER = ['front', 'standard', 'outdoor'] as const
@@ -45,41 +45,18 @@ export interface BookingTotals {
   fareVnd: number
   /** Cabin surcharges of all seats, 0 when every seat is standard. */
   seatFeeVnd: number
-  discountVnd: number
   totalVnd: number
 }
 
-/**
- * What each ticket costs: the trip fare plus that seat's cabin surcharge, minus an equal share of
- * the voucher discount (the voucher takes a percentage off the trip fare, never off a surcharge).
- * The amounts add up exactly to the booking total.
- */
-export function ticketFares(fareVnd: number, seats: Seat[], voucher: Voucher | null): number[] {
-  if (seats.length === 0) return []
-  const discountVnd = voucher ? Math.round((fareVnd * seats.length * voucher.percentOff) / 100) : 0
-  const share = Math.floor(discountVnd / seats.length)
-  return seats.map((seat, index) => {
-    // The first seat takes the rounding remainder, so no dong is lost.
-    const discount = share + (index === 0 ? discountVnd - share * seats.length : 0)
-    return Math.max(fareVnd + seatFeeFor(seat, fareVnd) - discount, 0)
-  })
+/** What each ticket costs: the trip fare plus that seat's cabin surcharge. */
+export function ticketFares(fareVnd: number, seats: Seat[]): number[] {
+  return seats.map((seat) => fareVnd + seatFeeFor(seat, fareVnd))
 }
 
-export function computeTotals(
-  trip: TripDetail,
-  seats: Seat[],
-  voucher: Voucher | null,
-): BookingTotals {
+export function computeTotals(trip: TripDetail, seats: Seat[]): BookingTotals {
   const fareVnd = trip.fareVnd * seats.length
   const seatFeeVnd = seats.reduce((sum, seat) => sum + seatFeeFor(seat, trip.fareVnd), 0)
-  const discountVnd = voucher ? Math.round((fareVnd * voucher.percentOff) / 100) : 0
-  return {
-    seatCount: seats.length,
-    fareVnd,
-    seatFeeVnd,
-    discountVnd,
-    totalVnd: Math.max(fareVnd - discountVnd, 0) + seatFeeVnd,
-  }
+  return { seatCount: seats.length, fareVnd, seatFeeVnd, totalVnd: fareVnd + seatFeeVnd }
 }
 
 /** True for a seat that costs more than the base fare. */

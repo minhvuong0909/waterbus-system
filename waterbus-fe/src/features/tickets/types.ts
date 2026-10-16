@@ -63,14 +63,7 @@ export interface TicketWallet {
   past: Ticket[]
 }
 
-export interface VoucherCredit {
-  code: string
-  description: string
-  valueVnd: number
-}
-
 export interface ManageBooking {
   bookingCode: string
   ticket: Ticket
-  voucherCredit: VoucherCredit[]
 }

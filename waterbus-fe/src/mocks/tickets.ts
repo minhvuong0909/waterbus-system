@@ -92,20 +92,13 @@ export function buildManageBooking(): ManageBooking {
   return {
     bookingCode: next.bookingRef,
     ticket: next,
-    voucherCredit: [
-      { code: 'WELCOME-RIVER', description: 'Welcome credit for first-time riders', valueVnd: 10000 },
-    ],
   }
 }
 
 // Canned assistant replies. Keys match the quick-action chips.
 export const ASSISTANT_REPLIES: Record<string, string> = {
-  'Change Trip':
-    'I can help you review available options. Try "View Available Trips" to pick another departure today.',
   'Refund Help':
-    'You can request a refund from this page with "Request Refund". The pier team confirms every request.',
-  'Explain Voucher':
-    'Vouchers and credits are applied at checkout. You currently have one welcome credit on this booking.',
+    'If a trip is cancelled or ends early, the amount you paid for the affected tickets is refunded to your original payment method. Passengers who miss check-in are not refunded.',
   'Trip Status':
     'Vessel SWB-01 is operating on schedule.',
 }

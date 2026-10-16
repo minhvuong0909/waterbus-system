@@ -1,4 +1,4 @@
-import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
+import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import TripAside from '../../features/trips/components/TripAside'
 import {
   BoardingSteps,
@@ -21,7 +21,7 @@ export default function TripDetailPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
-      <section className="flex flex-col justify-between gap-space-md pb-space-lg md:flex-row md:items-center">
+      <section className="pb-space-lg">
         <div className="space-y-space-xs">
           <Breadcrumb
             items={[
@@ -34,29 +34,12 @@ export default function TripDetailPage() {
             <h1 className="font-headline-lg text-headline-lg tracking-tight text-deep-river">
               {t('Review Your Journey')}
             </h1>
-            <span className="hidden items-center gap-1.5 rounded-full bg-secondary-container px-space-sm py-0.5 text-body-sm font-semibold text-on-secondary-container sm:inline-flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-teal-flow" />
-              {detail.lineLabel}
-            </span>
           </div>
           <p className="text-body-md text-on-surface-variant">
             {t(
               'Verify your departure details, pier boarding gate, and vessel amenities before choosing your seat.',
             )}
           </p>
-        </div>
-        <div className="flex items-center gap-space-md self-start rounded-xl bg-mist px-space-md py-space-sm shadow-sm md:self-auto">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary-container text-teal-flow">
-            <Icon name="water" className="text-[20px]" />
-          </div>
-          <div className="text-left">
-            <div className="font-headline-sm text-[15px] leading-tight text-deep-river">
-              {t('Calm River Flow')}
-            </div>
-            <div className="flex items-center gap-1 text-body-sm font-medium text-teal-flow">
-              <span className="h-1.5 w-1.5 rounded-full bg-teal-flow" /> {t('On-Time Departure')}
-            </div>
-          </div>
         </div>
       </section>
 

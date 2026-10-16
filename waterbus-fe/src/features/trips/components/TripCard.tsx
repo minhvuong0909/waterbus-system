@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import vesselImage from '../../../assets/images/vessel.jpg'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import type { PierOption, Trip } from '../types'
@@ -44,12 +43,6 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
               {trip.highlight.label}
             </span>
           )}
-          <span className="inline-flex items-center rounded-full bg-sand-light px-2.5 py-1 text-xs font-semibold text-deep-river">
-            {trip.lineLabel}
-          </span>
-          {trip.tagline && (
-            <span className="text-xs font-medium text-on-surface-variant">{trip.tagline}</span>
-          )}
         </div>
         <div
           className={`flex items-center gap-1.5 text-xs font-bold ${
@@ -65,13 +58,6 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
 
       <div className="grid grid-cols-1 items-center gap-space-md md:grid-cols-12">
         <div className="flex items-center gap-space-sm md:col-span-3 md:flex-col md:items-start">
-          <div className="h-14 w-16 shrink-0 overflow-hidden rounded-lg border border-deep-river/10 bg-mist md:w-20">
-            <img
-              alt={`${trip.vesselCode} ${trip.vesselName}`}
-              className="h-full w-full object-cover"
-              src={vesselImage}
-            />
-          </div>
           <div>
             <span className="block font-headline-sm text-base font-bold text-deep-river">
               {trip.vesselCode}
@@ -124,9 +110,6 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
                 }`}
               />
             </div>
-            <span className="mt-1 text-center text-[11px] text-on-surface-variant">
-              {trip.crossingCaption}
-            </span>
           </div>
           <div className="text-right">
             <div className="font-headline-md text-xl font-bold text-deep-river md:text-2xl">
@@ -166,16 +149,6 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
         </div>
       </div>
 
-      {trip.amenities.length > 0 && (
-        <div className="mt-space-md flex flex-wrap items-center gap-space-md border-t border-deep-river/5 pt-space-sm text-xs text-on-surface-variant">
-          {trip.amenities.map((a) => (
-            <span key={a.label} className="inline-flex items-center gap-1">
-              <Icon name={a.icon} className={`text-[15px] ${accent}`} />
-              {a.label}
-            </span>
-          ))}
-        </div>
-      )}
     </article>
   )
 }

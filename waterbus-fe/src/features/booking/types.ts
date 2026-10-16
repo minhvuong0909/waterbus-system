@@ -35,31 +35,12 @@ export interface SeatEvent {
   seatId: string
 }
 
-export type PassengerCategory = 'adult' | 'senior' | 'child'
-
 export interface PassengerForm {
-  category: PassengerCategory
   fullName: string
-  /** DD / MM / YYYY */
-  dateOfBirth: string
   phoneCode: string
   phone: string
   email: string
   useAsContact: boolean
-  assistance: string[]
-}
-
-export interface AssistanceOption {
-  id: string
-  icon: string
-  title: string
-  description: string
-}
-
-export interface Voucher {
-  code: string
-  /** Discount as a percentage of the fare, applied to whichever trip is currently selected. */
-  percentOff: number
 }
 
 export interface BookingStep {

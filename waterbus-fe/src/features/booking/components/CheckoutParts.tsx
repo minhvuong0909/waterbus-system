@@ -1,12 +1,9 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
-import { CATEGORY_LABEL } from '../../../mocks/booking'
 import { ROUTES } from '../../../routes/routes'
-import { formatNumber, formatVnd, formatVndSuffix } from '../../../utils/format'
+import { formatNumber, formatVnd } from '../../../utils/format'
 import type { TripDetail } from '../../trips/types'
-import { validateVoucher } from '../services/bookingService'
-import type { PassengerForm, Seat, Voucher } from '../types'
+import type { PassengerForm, Seat } from '../types'
 import type { BookingFailure } from '../hooks/useCreateBooking'
 import type { BookingTotals } from '../utils'
 import { seatTags } from '../utils'
@@ -120,7 +117,6 @@ export function JourneyDetailsCard({ trip, seats }: { trip: TripDetail; seats: S
 }
 
 export function PassengerInfoCard({ passenger }: { passenger: PassengerForm }) {
-  const dob = passenger.dateOfBirth.replace(/\s/g, '')
   return (
     <BookingCard>
       <CardHeading
@@ -135,12 +131,6 @@ export function PassengerInfoCard({ passenger }: { passenger: PassengerForm }) {
           <div className="text-sm font-semibold text-deep-river">{passenger.fullName}</div>
         </div>
         <div>
-          <div className="text-xs text-on-surface-variant">{t('Passenger Category')}</div>
-          <div className="text-sm font-semibold text-deep-river">
-            {t('{category} • Born {dob}', { category: t(CATEGORY_LABEL[passenger.category]), dob })}
-          </div>
-        </div>
-        <div>
           <div className="text-xs text-on-surface-variant">{t('Contact Mobile')}</div>
           <div className="text-sm font-semibold text-deep-river">
             {passenger.phoneCode} {passenger.phone}
@@ -151,93 +141,6 @@ export function PassengerInfoCard({ passenger }: { passenger: PassengerForm }) {
           <div className="text-sm font-semibold text-deep-river">{passenger.email}</div>
         </div>
       </div>
-    </BookingCard>
-  )
-}
-
-export function ETicketContactCard({ passenger }: { passenger: PassengerForm }) {
-  return (
-    <BookingCard>
-      <CardHeading
-        icon="qr_code_2"
-        title={t('E-Ticket & Booking Contact')}
-        subtitle={t('Your QR ticket will be available after successful payment.')}
-      />
-      <p className="text-xs text-on-surface-variant">
-        {t('Sent to')} <span className="text-deep-river">{passenger.email}</span> {t('and')}{' '}
-        <span className="text-deep-river">
-          {passenger.phoneCode} {passenger.phone}
-        </span>
-        .
-      </p>
-    </BookingCard>
-  )
-}
-
-export function VoucherCard({
-  voucher,
-  onApply,
-}: {
-  voucher: Voucher | null
-  onApply: (v: Voucher | null) => void
-}) {
-  const [code, setCode] = useState(voucher?.code ?? '')
-  const [message, setMessage] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [failed, setFailed] = useState(false)
-
-  const apply = async () => {
-    setBusy(true)
-    try {
-      const result = await validateVoucher(code)
-      onApply(result)
-      setMessage(
-        result
-          ? t('Voucher applied: {percent}% off your fare.', { percent: result.percentOff })
-          : t('This code is not valid.'),
-      )
-      setFailed(false)
-    } catch {
-      setMessage(t('We couldn’t check this code. Please try again.'))
-      setFailed(true)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <BookingCard className="py-space-md">
-      <div className="flex flex-col items-start gap-space-md md:flex-row md:items-center">
-        <span className="flex items-center gap-2 text-sm font-semibold text-deep-river">
-          <Icon name="confirmation_number" className="text-[20px] text-teal-flow" />
-          {t('Voucher / Corporate Discount')}
-        </span>
-        <input
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder={t('Enter voucher or promo code')}
-          aria-label={t('Voucher or promo code')}
-          className="flex-1 rounded-xl border-0 bg-mist px-space-md py-2.5 text-sm text-deep-river placeholder:text-outline focus:ring-2 focus:ring-teal-flow/30"
-        />
-        <button
-          type="button"
-          disabled={busy}
-          onClick={apply}
-          className="rounded-xl bg-surface-container px-space-lg py-2.5 text-sm font-semibold text-deep-river transition-colors hover:bg-surface-container-high disabled:opacity-60"
-        >
-          {t('Apply')}
-        </button>
-      </div>
-      {message && (
-        <p
-          role={failed ? 'alert' : 'status'}
-          className={`mt-2 text-xs ${
-            failed ? 'text-coral-glow' : voucher ? 'text-teal-flow' : 'text-on-surface-variant'
-          }`}
-        >
-          {message}
-        </p>
-      )}
     </BookingCard>
   )
 }
@@ -313,11 +216,6 @@ export function OrderSummary({
           label={t('Seat Fee')}
           seatFeeVnd={totals.seatFeeVnd}
           includedText={t('Included')}
-        />
-        <SummaryRow
-          label={t('Discount')}
-          value={`${totals.discountVnd > 0 ? '−' : ''}${formatVndSuffix(totals.discountVnd)}`}
-          accent={totals.discountVnd > 0}
         />
       </div>
 

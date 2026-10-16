@@ -32,7 +32,7 @@ export default function PaymentPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
-      <div className="flex flex-wrap items-center justify-between gap-space-sm">
+      <div>
         <Breadcrumb
           items={[
             { label: 'Home', to: ROUTES.home },
@@ -40,10 +40,6 @@ export default function PaymentPage() {
             { label: 'Payment' },
           ]}
         />
-        <span className="inline-flex items-center gap-2 rounded-full bg-secondary-container/60 px-3 py-1 text-xs font-semibold text-on-secondary-container">
-          <span className="h-2 w-2 rounded-full bg-teal-flow" />
-          {t('River Crossing {vesselCode} • Final Step', { vesselCode: trip.vesselCode })}
-        </span>
       </div>
 
       <div className="mt-space-md">

@@ -5,7 +5,7 @@ import { DEFAULT_SEARCH_QUERY } from '../../mocks/tripSearch'
 import type { SearchQuery, Trip } from '../trips/types'
 import type { PaymentMethodId } from '../payment/types'
 import { MAX_SEATS_PER_BOOKING } from './utils'
-import type { BookingHold, PassengerForm, Voucher } from './types'
+import type { BookingHold, PassengerForm } from './types'
 
 // Client-side booking state shared by the booking pages. Every field has a default,
 // so any page still renders when opened directly by URL.
@@ -17,7 +17,6 @@ export interface BookingState {
   /** Chosen seats, in the order they were picked (up to MAX_SEATS_PER_BOOKING). */
   seatIds: string[]
   passenger: PassengerForm
-  voucher: Voucher | null
   termsAccepted: boolean
   paymentMethod: PaymentMethodId
   /** Set once the booking is created; the seats stay held until it ends or is paid. */
@@ -30,7 +29,6 @@ const initialState: BookingState = {
   selectedTrip: null,
   seatIds: DEFAULT_SEAT_IDS,
   passenger: DEFAULT_PASSENGER,
-  voucher: null,
   termsAccepted: true,
   paymentMethod: 'qr',
   hold: null,
@@ -66,10 +64,6 @@ const bookingSlice = createSlice({
       state.passenger = { ...state.passenger, ...action.payload }
       state.hold = null
     },
-    applyVoucher(state, action: PayloadAction<Voucher | null>) {
-      state.voucher = action.payload
-      state.hold = null
-    },
     holdStarted(state, action: PayloadAction<BookingHold>) {
       state.hold = action.payload
     },
@@ -90,7 +84,6 @@ export const {
   selectTrip,
   toggleSeat,
   updatePassenger,
-  applyVoucher,
   setTermsAccepted,
   setPaymentMethod,
   holdStarted,

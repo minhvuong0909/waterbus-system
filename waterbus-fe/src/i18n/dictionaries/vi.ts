@@ -694,6 +694,7 @@ export const vi: Record<string, string> = {
   'Explore river journeys': 'Khám phá hành trình trên sông',
   'Explore River Journeys': 'Khám phá hành trình trên sông',
   'Skip to main content': 'Bỏ qua tới nội dung chính',
+  'Before you book': 'Trước khi đặt vé',
   'Explore Routes': 'Xem các tuyến',
   'Explore scenic waterfront promenades, river parks, and cultural viewpoints along your route.':
     'Khám phá lối đi dạo ven sông, công viên và điểm ngắm văn hóa dọc tuyến của bạn.',
@@ -1214,7 +1215,7 @@ export const vi: Record<string, string> = {
   Status: 'Trạng thái',
   'Step {n}': 'Bước {n}',
   'Step 1 of 3: Trip Selected': 'Bước 1/3: Đã chọn chuyến',
-  'Step 2 of 4: Seat Selection': 'Bước 2/4: Chọn ghế',
+  'Step 2 of 5: Seat Selection': 'Bước 2/5: Chọn ghế',
   'Step Aboard': 'Lên tàu',
   'Step off at Thu Thiem Pier and continue on foot along the sculpture plaza and river gardens.':
     'Xuống tại Bến Thủ Thiêm và đi bộ tiếp dọc quảng trường điêu khắc và vườn ven sông.',
@@ -1486,8 +1487,22 @@ export const vi: Record<string, string> = {
     'Thanh toán QR, thẻ ngân hàng và các ví điện tử MoMo, VNPay, ZaloPay.',
   'Can I get a refund?': 'Tôi có được hoàn tiền không?',
   'Refunds are available up to 30 minutes before departure. Open My Tickets, choose the ticket and select Request Refund.':
-    'Có thể hoàn tiền đến 30 phút trước giờ khởi hành. Mở Vé của tôi, chọn vé rồi bấm Yêu cầu hoàn tiền.',
+    'Hoàn tiền áp dụng khi chuyến bị hủy hoặc kết thúc sớm trước khi bạn tới bến xuống. Số tiền bạn đã trả cho các vé bị ảnh hưởng được hoàn về phương thức thanh toán ban đầu, và trạng thái hiển thị trên trang đặt chỗ. Vé của hành khách không check-in đúng hạn thì không được hoàn tiền.',
   'When does boarding open?': 'Khi nào bắt đầu lên tàu?',
   'Boarding opens 10 minutes before departure. Arrive at the pier with your QR ticket and scan it at the turnstile.':
     'Lên tàu mở 10 phút trước giờ khởi hành. Hãy tới bến cùng vé QR và quét tại cổng soát vé.',
+  'Hi! I can help with departures and refunds. What would you like to know?':
+    'Xin chào! Mình có thể giúp về chuyến khởi hành và hoàn tiền. Bạn muốn hỏi gì?',
+  'Refunds':
+    'Hoàn tiền',
+  'If this trip is cancelled or ends early before you reach your stop, the amount you paid for the affected tickets is refunded to your original payment method. Any refund appears here with its status.':
+    'Nếu chuyến bị hủy hoặc kết thúc sớm trước khi bạn tới bến xuống, số tiền bạn đã trả cho các vé bị ảnh hưởng sẽ được hoàn về phương thức thanh toán ban đầu. Mọi khoản hoàn tiền sẽ hiển thị tại đây cùng trạng thái.',
+  'Tickets of passengers who miss check-in are not refunded.':
+    'Vé của hành khách không check-in đúng hạn không được hoàn tiền.',
+  'Your trip details, ticket status and refund information.':
+    'Thông tin chuyến, trạng thái vé và hoàn tiền của bạn.',
+  'We emailed the confirmation and a secure link to manage this booking to {email}.':
+    'Chúng tôi đã gửi email xác nhận cùng liên kết bảo mật để quản lý đặt chỗ này tới {email}.',
+  'If a trip is cancelled or ends early, the amount you paid for the affected tickets is refunded to your original payment method. Passengers who miss check-in are not refunded.':
+    'Nếu chuyến bị hủy hoặc kết thúc sớm, số tiền bạn đã trả cho các vé bị ảnh hưởng sẽ được hoàn về phương thức thanh toán ban đầu. Hành khách không check-in đúng hạn không được hoàn tiền.',
 }

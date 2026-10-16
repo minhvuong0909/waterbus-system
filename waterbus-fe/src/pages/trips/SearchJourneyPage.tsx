@@ -1,4 +1,4 @@
-import { ErrorState, PageLoader, StatusPill } from '../../components/ui'
+import { ErrorState, PageLoader } from '../../components/ui'
 import NetworkSection from '../../features/trips/components/NetworkSection'
 import SearchForm from '../../features/trips/components/SearchForm'
 import { useSearchForm } from '../../features/trips/hooks/useTripSearch'
@@ -27,7 +27,6 @@ export default function SearchJourneyPage() {
               )}
             </p>
           </div>
-          <StatusPill>{t('All 5 River Terminals Operational')}</StatusPill>
         </div>
       </section>
 

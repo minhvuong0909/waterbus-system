@@ -4,9 +4,7 @@ import { bookingReference, cabinsLabel, passengersLabel, seatCodes } from '../..
 import {
   ConfirmationHero,
   ConfirmationSteps,
-  CorridorCard,
   QuickActions,
-  WaterwayBanner,
   WhatsNext,
 } from '../../features/payment/components/ConfirmationParts'
 import { getNextSteps } from '../../features/payment/services/paymentService'
@@ -57,7 +55,7 @@ export default function BookingSuccessPage() {
       </div>
 
       <div className="mx-auto max-w-7xl px-margin pb-space-2xl pt-space-lg">
-        <ConfirmationHero reference={reference} trip={trip} />
+        <ConfirmationHero reference={reference} email={passenger.email} />
 
         <div className="mt-space-2xl grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
           <div className="lg:col-span-7">
@@ -88,8 +86,7 @@ export default function BookingSuccessPage() {
               }}
             />
           </div>
-          <div className="space-y-space-md lg:col-span-5">
-            <CorridorCard trip={trip} />
+          <div className="lg:col-span-5">
             <QuickActions />
           </div>
         </div>
@@ -97,9 +94,6 @@ export default function BookingSuccessPage() {
 
       <WhatsNext steps={nextSteps} />
 
-      <div className="mx-auto max-w-7xl px-margin py-space-2xl">
-        <WaterwayBanner />
-      </div>
     </div>
   )
 }

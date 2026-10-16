@@ -38,7 +38,7 @@ export default function PassengerDetailsPage() {
         <BookingProgress steps={steps} current={2} variant="circles" />
       </div>
 
-      <div className="mt-space-lg flex flex-col justify-between gap-space-md md:flex-row md:items-end">
+      <div className="mt-space-lg">
         <div>
           <h1 className="font-headline-xl text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-lg">
             {t('Passenger Details')}
@@ -47,10 +47,6 @@ export default function PassengerDetailsPage() {
             {t('Please enter traveler information for this crossing.')}
           </p>
         </div>
-        <span className="inline-flex items-center gap-2 self-start rounded-full bg-secondary-container/60 px-3 py-1 text-xs font-semibold text-on-secondary-container md:self-auto">
-          <span className="h-2 w-2 rounded-full bg-teal-flow" />
-          {t('River Crossing {vesselCode}', { vesselCode: trip.vesselCode })}
-        </span>
       </div>
 
       <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">

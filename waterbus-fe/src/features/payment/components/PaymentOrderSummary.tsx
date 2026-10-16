@@ -18,7 +18,7 @@ import { useHoldCountdown } from '../../booking/hooks/useHoldCountdown'
 import { addBooking } from '../../tickets/ticketsSlice'
 import { bookingSnapshotId } from '../../tickets/utils'
 import { useAppSelector } from '../../../store/hooks'
-import { formatVnd, formatVndSuffix } from '../../../utils/format'
+import { formatVnd } from '../../../utils/format'
 import { confirmPayment } from '../services/paymentService'
 import { t } from '../../../i18n'
 
@@ -39,7 +39,6 @@ export default function PaymentOrderSummary({
   const dispatch = useAppDispatch()
   const query = useAppSelector((s) => s.booking.query)
   const selectedTrip = useAppSelector((s) => s.booking.selectedTrip)
-  const voucher = useAppSelector((s) => s.booking.voucher)
   const { expired } = useHoldCountdown()
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -57,7 +56,7 @@ export default function PaymentOrderSummary({
           selectedTrip,
           query,
           seats,
-          fares: ticketFares(trip.fareVnd, seats, voucher),
+          fares: ticketFares(trip.fareVnd, seats),
           passenger,
         }),
       )
@@ -124,11 +123,6 @@ export default function PaymentOrderSummary({
           seatFeeVnd={totals.seatFeeVnd}
           includedText={t('Included')}
         />
-        <SummaryRow
-          label={t('Discount')}
-          value={`${totals.discountVnd > 0 ? '−' : ''}${formatVndSuffix(totals.discountVnd)}`}
-          accent={totals.discountVnd > 0}
-        />
       </div>
       <div className="mt-space-sm border-t border-surface-container pt-space-sm">
         <TotalRow
@@ -162,10 +156,6 @@ export default function PaymentOrderSummary({
         >
           {t('← Back to Checkout')}
         </Link>
-      </div>
-      <div className="mt-space-md flex items-start gap-2 border-t border-surface-container pt-space-md text-xs text-on-surface-variant">
-        <Icon name="lock" className="text-[16px] text-teal-flow" />
-        {t('Your selected seat remains reserved while you complete checkout.')}
       </div>
     </BookingCard>
   )

@@ -1,9 +1,9 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { USE_MOCK } from '../../../constant/env'
-import { SEAT_MAP, VALID_VOUCHER } from '../../../mocks/booking'
-import { withDelay, withDelayExact } from '../../../mocks/delay'
+import { SEAT_MAP } from '../../../mocks/booking'
+import { withDelayExact } from '../../../mocks/delay'
 import { apiRequest } from '../../../services/apiClient'
-import type { BookingResponse, CreateBookingRequest, SeatMap, Voucher } from '../types'
+import type { BookingResponse, CreateBookingRequest, SeatMap } from '../types'
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const HOLD_SECONDS = 600
@@ -13,13 +13,6 @@ const HOLD_SECONDS = 600
 export function getSeatMap(): Promise<SeatMap> {
   // Exact: seat statuses such as "sold" are values the UI compares, not text to translate.
   return withDelayExact(SEAT_MAP)
-}
-
-/** Resolves with the voucher when valid, or null. The result never blocks the flow. */
-export function validateVoucher(code: string): Promise<Voucher | null> {
-  const normalized = code.trim().toUpperCase()
-  if (normalized !== VALID_VOUCHER.code) return withDelay(null, 200)
-  return withDelay({ code: normalized, percentOff: VALID_VOUCHER.percentOff }, 200)
 }
 
 /**

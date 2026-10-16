@@ -105,8 +105,8 @@ export function CardHeading({
   aside?: ReactNode
 }) {
   return (
-    <div className="mb-space-md flex items-start justify-between gap-3">
-      <div className="flex items-center gap-space-sm">
+    <div className="mb-space-md flex flex-wrap items-start justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-space-sm">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary-container text-teal-flow">
           <span aria-hidden="true" className="material-symbols-outlined text-[22px]">
             {icon}

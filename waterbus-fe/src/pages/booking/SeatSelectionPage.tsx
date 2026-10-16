@@ -33,7 +33,7 @@ export default function SeatSelectionPage() {
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-flow/20 bg-secondary-container/60 px-2.5 py-0.5 text-xs font-semibold text-teal-flow">
             <Icon name="airline_seat_recline_extra" className="text-[14px]" />
-            {t('Step 2 of 4: Seat Selection')}
+            {t('Step 2 of 5: Seat Selection')}
           </span>
           <h1 className="mt-1 font-headline-lg text-headline-lg tracking-tight text-deep-river">
             {t('Choose Your Seat')}

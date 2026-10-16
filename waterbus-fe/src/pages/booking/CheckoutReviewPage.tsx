@@ -1,12 +1,10 @@
-import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
+import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import BookingProgress from '../../features/booking/components/BookingProgress'
 import {
-  ETicketContactCard,
   JourneyDetailsCard,
   OrderSummary,
   PassengerInfoCard,
   TermsConfirm,
-  VoucherCard,
 } from '../../features/booking/components/CheckoutParts'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import { useCreateBooking } from '../../features/booking/hooks/useCreateBooking'
@@ -24,10 +22,8 @@ export default function CheckoutReviewPage() {
     trip,
     seats,
     passenger,
-    voucher,
     totals,
     termsAccepted,
-    setVoucher,
     setTerms,
   } = useBooking()
   const { submit, busy, failure } = useCreateBooking()
@@ -46,7 +42,7 @@ export default function CheckoutReviewPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
-      <div className="flex flex-wrap items-center justify-between gap-space-sm">
+      <div>
         <Breadcrumb
           items={[
             { label: 'Home', to: ROUTES.home },
@@ -54,17 +50,13 @@ export default function CheckoutReviewPage() {
             { label: 'Checkout' },
           ]}
         />
-        <span className="inline-flex items-center gap-2 rounded-full bg-secondary-container/60 px-3 py-1 text-xs font-semibold text-on-secondary-container">
-          <span className="h-2 w-2 rounded-full bg-teal-flow" />
-          {t('River Crossing {vesselCode} • Review Stage', { vesselCode: trip.vesselCode })}
-        </span>
       </div>
 
       <div className="mt-space-md">
         <BookingProgress steps={steps} current={3} variant="bars" />
       </div>
 
-      <div className="mt-space-xl flex flex-col justify-between gap-space-md md:flex-row md:items-end">
+      <div className="mt-space-xl">
         <div>
           <h1 className="font-headline-xl text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-xl">
             {t('Review Your Booking')}
@@ -73,18 +65,12 @@ export default function CheckoutReviewPage() {
             {t('Confirm your trip, passenger, seat, and fare before proceeding to payment.')}
           </p>
         </div>
-        <span className="inline-flex items-center gap-2 self-start rounded-full bg-sand-light px-space-md py-2 text-xs text-teal-flow md:self-auto">
-          <Icon name="verified_user" className="text-[16px]" />
-          {t('Your selected seat remains reserved while you complete checkout.')}
-        </span>
       </div>
 
       <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="space-y-space-md lg:col-span-8">
           <JourneyDetailsCard trip={trip} seats={seats} />
           <PassengerInfoCard passenger={passenger} />
-          <ETicketContactCard passenger={passenger} />
-          <VoucherCard voucher={voucher} onApply={setVoucher} />
           <TermsConfirm checked={termsAccepted} onChange={setTerms} />
         </div>
         <div className="lg:col-span-4">
