@@ -19,6 +19,7 @@ export const vi: Record<string, string> = {
   'Standard River Fare × {count}': 'Giá vé sông tiêu chuẩn × {count}',
   'Seat Reservation ({seats})': 'Giữ chỗ ({seats})',
   'Tap available seats to add or remove them, up to {max} per booking. Seats are held for 10:00 during checkout.': 'Chạm vào ghế trống để chọn hoặc bỏ chọn, tối đa {max} ghế mỗi đơn. Ghế được giữ 10:00 trong lúc thanh toán.',
+  'Tap an available seat to select it. Up to {max} seats per booking.': 'Chạm vào ghế trống để chọn. Tối đa {max} ghế mỗi đơn.',
   'One booking, one contact: all {count} tickets are issued in this name.': 'Một đơn, một người liên hệ: cả {count} vé được phát hành theo tên này.',
   '{count} Seats Selected': 'Đã chọn {count} ghế',
   'This trip is no longer available. Please search again.': 'Chuyến này không còn khả dụng. Vui lòng tìm lại.',
