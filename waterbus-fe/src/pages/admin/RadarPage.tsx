@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import FleetMap from '../../components/map/FleetMap'
 import { ErrorState, Icon, PageLoader } from '../../components/ui'
 import { PageHeader, Panel, StatusBadge } from '../../features/admin/components/AdminUi'
-import { useReload, useTicker } from '../../features/admin/hooks/useAdmin'
+import { useNow, useReload, useTicker } from '../../features/admin/hooks/useAdmin'
 import { useLiveFleet } from '../../features/admin/hooks/useFleetHub'
 import {
   getBoats,
@@ -67,7 +67,7 @@ function LiveRadar() {
   const boats = useFetch(getFleetBoats)
   const alerts = useFetch(getWeatherAlerts, [alertVersion])
   const fleet = useLiveFleet(reloadAlerts)
-  const now = useTicker(15_000) // re-evaluate "stale" labels
+  const now = useNow(15_000) // re-evaluate "stale" labels
   const state = combineFetches(stations, routes, boats, alerts)
 
   const onRiver = useMemo(
@@ -75,10 +75,8 @@ function LiveRadar() {
       fleet.positions.map((p) => ({
         ...p,
         code: boats.data?.find((b) => b.id === p.boatId)?.code ?? p.boatId.slice(0, 8),
-        stale: Date.now() - Date.parse(p.observedAt) > STALE_AFTER_MS,
+        stale: now - Date.parse(p.observedAt) > STALE_AFTER_MS,
       })),
-    // `now` only forces the stale check to run again.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [fleet.positions, boats.data, now],
   )
 

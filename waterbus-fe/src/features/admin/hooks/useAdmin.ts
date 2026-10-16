@@ -39,6 +39,16 @@ export function useSubmit() {
   return { run, busy, error, clearError: () => setError(null) }
 }
 
+/** The current time in ms, refreshed every `ms`, so a component can compare against "now" purely. */
+export function useNow(ms: number): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), ms)
+    return () => window.clearInterval(timer)
+  }, [ms])
+  return now
+}
+
 /** A counter that goes up every `ms` milliseconds, to pass as a `useFetch` dependency for polling. */
 export function useTicker(ms: number): number {
   const [tick, setTick] = useState(0)

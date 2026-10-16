@@ -23,7 +23,9 @@ interface FleetHubHandlers {
 export function useFleetHub(handlers: FleetHubHandlers, enabled = true): RealtimeStatus {
   const [status, setStatus] = useState<RealtimeStatus>('connecting')
   const ref = useRef(handlers)
-  ref.current = handlers
+  useEffect(() => {
+    ref.current = handlers
+  })
 
   useEffect(() => {
     if (!enabled) return
