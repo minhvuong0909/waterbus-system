@@ -1,4 +1,3 @@
-import { useRef } from 'react'
 import {
   ExploreHero,
   JourneysSection,
@@ -14,7 +13,6 @@ import { ErrorState, PageLoader } from '../../components/ui'
 export default function ExplorePage() {
   useDocumentTitle('Explore River Journeys')
   const { data, loading, error, retry } = useFetch(getExploreData)
-  const storiesRef = useRef<HTMLElement>(null)
 
   if (error) return <ErrorState onRetry={retry} />
 
@@ -22,10 +20,10 @@ export default function ExplorePage() {
 
   return (
     <Reveal>
-      <ExploreHero onStories={() => storiesRef.current?.scrollIntoView({ behavior: 'smooth' })} />
+      <ExploreHero />
       <JourneysSection journeys={data.journeys} />
       <LandmarksSection categories={data.categories} landmarks={data.landmarks} />
-      <StoriesSection data={data} sectionRef={storiesRef} />
+      <StoriesSection />
       <StepAboardBanner />
     </Reveal>
   )

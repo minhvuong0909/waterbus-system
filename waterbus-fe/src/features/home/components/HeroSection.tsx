@@ -10,7 +10,7 @@ export default function HeroSection() {
   // With reduced motion the poster stays still instead of a looping video.
   const reducedMotion = usePrefersReducedMotion()
   return (
-    <section className="relative flex min-h-[720px] w-full flex-col justify-between overflow-hidden bg-gradient-to-b from-mist via-[#EDF4F5] to-surface lg:h-[86vh] lg:max-h-[920px] lg:min-h-[780px]">
+    <section className="relative flex min-h-[720px] w-full flex-col justify-center overflow-hidden bg-gradient-to-b from-mist via-[#EDF4F5] to-surface lg:h-[86vh] lg:max-h-[920px] lg:min-h-[780px]">
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
         <video
           aria-label={t(
@@ -31,13 +31,7 @@ export default function HeroSection() {
 
       <div className="relative z-10 mx-auto w-full max-w-7xl px-margin pt-10 sm:pt-14 lg:pt-20">
         <div className="max-w-2xl space-y-space-md">
-          <span className="inline-flex items-center gap-2 font-headline-sm text-sm font-semibold uppercase tracking-widest text-sky-aqua">
-            {t('City Moves Differently from the River')}
-          </span>
           <div className="relative space-y-1">
-            <div className="inline-block -rotate-3 translate-y-1 select-none font-script text-3xl font-semibold text-sky-aqua drop-shadow-sm sm:text-4xl">
-              {t('More than a ride ~')}
-            </div>
             <h1 className="font-headline-xl text-4xl font-extrabold leading-[1.08] tracking-tight text-white drop-shadow-[0_2px_16px_rgba(13,37,56,0.45)] sm:text-5xl lg:text-headline-xl">
               {t('A Smarter Journey,')}
               <br />

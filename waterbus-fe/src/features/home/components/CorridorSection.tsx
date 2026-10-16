@@ -27,18 +27,9 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
       <div className="mx-auto max-w-7xl space-y-space-xl px-margin">
         <div className="flex flex-col justify-between gap-space-md md:flex-row md:items-end">
           <div>
-            <span className="block text-body-sm font-bold uppercase tracking-wider text-teal-flow">
-              {t('Connected Waterway Grid')}
-            </span>
             <h2 className="font-headline-lg text-headline-lg font-bold tracking-tight text-deep-river">
               {t('Explore the River Corridor')}
             </h2>
-            <p className="pt-1 text-body-md text-on-surface-variant">
-              {t(
-                'Real-time monitoring across {count} river stations connecting District 1, Binh Thanh, and Thu Duc.',
-                { count: map.piers.length },
-              )}
-            </p>
           </div>
           <div
             className="inline-flex flex-wrap rounded-full bg-surface-container p-1 shadow-inner"
@@ -72,9 +63,6 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
                   {t('Live Waterway Vector')}
                 </span>
               </div>
-              <span className="rounded-full bg-sand-light px-space-sm py-1 text-body-sm font-medium text-on-surface-variant">
-                {t('GPS Radar Live • 10s cycle')}
-              </span>
             </div>
             <RiverMap map={map} />
           </div>
@@ -89,9 +77,6 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
                   {t('Live from {pier}', { pier: map.piers[0]?.name ?? '' })}
                 </span>
               </div>
-              <span className="rounded-full bg-sand-light px-2.5 py-1 text-xs font-semibold text-teal-flow">
-                {t('Updated Live')}
-              </span>
             </div>
 
             <div className="space-y-space-sm">
@@ -110,21 +95,13 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
               )}
             </div>
 
-            <div className="flex items-center justify-between rounded-xl border border-teal-flow/20 bg-sand-light/80 p-3.5">
-              <div className="flex items-center gap-2 text-deep-river">
-                <Icon name="schedule" className="text-[20px] text-teal-flow" />
-                <span className="text-xs font-medium">
-                  {t('Departure times follow the daily timetable.')}
-                </span>
-              </div>
-              <Link
-                to={ROUTES.searchResults}
-                className="flex items-center gap-0.5 text-xs font-bold text-teal-flow hover:underline"
-              >
-                <span>{t('Timetable')}</span>
-                <Icon name="chevron_right" className="text-[14px]" />
-              </Link>
-            </div>
+            <Link
+              to={ROUTES.searchResults}
+              className="flex items-center justify-end gap-0.5 text-sm font-bold text-teal-flow hover:underline"
+            >
+              <span>{t('Timetable')}</span>
+              <Icon name="chevron_right" className="text-[16px]" />
+            </Link>
           </div>
         </div>
       </div>
