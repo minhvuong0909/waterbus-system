@@ -108,6 +108,9 @@ services:
     build:
       context: ./waterbus-fe
       dockerfile: Dockerfile
+      args:
+        # Để trống: FE gọi /api cùng origin qua nginx. Chỉ đặt khi API nằm ở domain khác.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
     container_name: waterbus_web
     depends_on:
       api:
