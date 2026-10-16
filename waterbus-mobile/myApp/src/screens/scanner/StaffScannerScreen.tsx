@@ -181,7 +181,7 @@ export default function StaffScannerScreen() {
       {/* Real Camera Viewfinder */}
       {Platform.OS !== 'web' ? (
         <CameraView
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           facing={facing}
           enableTorch={torch}
           barcodeScannerSettings={{
@@ -190,7 +190,7 @@ export default function StaffScannerScreen() {
           onBarcodeScanned={isScannedLocked ? undefined : handleBarcodeScanned}
         />
       ) : (
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0F172A' }]} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0F172A' }]} />
       )}
 
       {/* Top Header Controls Overlay */}

@@ -11,6 +11,8 @@ import { QrVerifier, DEFAULT_KEY_INFO } from '../src/services/crypto/qrVerifier'
 import { SqliteRepository } from '../src/services/sqlite/sqliteRepository';
 import { syncService } from '../src/services/sync/syncService';
 
+declare const process: any;
+
 async function runVerification() {
   console.log('================================================================');
   console.log('🚢 SMART WATERBUS — STAFF SCANNER AUTOMATED VERIFICATION SUITE');
