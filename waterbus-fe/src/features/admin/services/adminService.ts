@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { USE_MOCK } from '../../../constant/env'
+import { riverPathOf } from '../../../constant/riverPaths'
 import { withDelayExact } from '../../../mocks/delay'
 import { STATION_SEEDS } from '../../../mocks/tripSearch'
 import { ApiError, apiRequest } from '../../../services/apiClient'
@@ -395,7 +396,9 @@ export async function getFleetPositions(): Promise<FleetPosition[]> {
     .flatMap((trip) => {
       const route = data.routes.find((r) => r.id === trip.routeId)
       if (!route) return []
-      const points = routeStations(route, data.stations).map((s) => [s.latitude, s.longitude] as [number, number])
+      const points =
+        riverPathOf(route.code) ??
+        routeStations(route, data.stations).map((s) => [s.latitude, s.longitude] as [number, number])
       const progress = tripProgress(trip, now)
       const [latitude, longitude] = positionAlong(points, progress)
       const hours = route.estimatedDurationMinutes / 60

@@ -82,6 +82,7 @@ public class BoatSimulatorService : BackgroundService
                 t.Id,
                 BoatId = t.BoatId!.Value,
                 t.Status,
+                RouteCode = t.Route!.Code,
                 Start = t.ActualDepartureTime ?? t.DepartureTime,
                 t.ArrivalTime,
                 Stops = t.TripStopCalls
@@ -95,9 +96,9 @@ public class BoatSimulatorService : BackgroundService
         // Mỗi tàu chỉ giả lập 1 chuyến (chuyến khởi hành gần nhất)
         foreach (var trip in trips.GroupBy(t => t.BoatId).Select(g => g.OrderBy(t => t.Start).First()))
         {
-            var path = trip.Stops
-                .Select(s => new RoutePathInterpolator.GeoPoint(s.Latitude, s.Longitude))
-                .ToList();
+            // Đường đi dọc sông của tuyến nếu có (nối thẳng các bến sẽ cắt qua đất ở khúc cua), không thì nối các bến
+            IReadOnlyList<RoutePathInterpolator.GeoPoint> path = DemoRoutePaths.For(trip.RouteCode)
+                ?? trip.Stops.Select(s => new RoutePathInterpolator.GeoPoint(s.Latitude, s.Longitude)).ToList();
             if (path.Count < 2) continue;
 
             decimal lat, lng;

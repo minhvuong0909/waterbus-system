@@ -16,6 +16,7 @@ import { getFleetBoats, knotsToKmh } from '../../features/admin/services/operati
 import type { WeatherAlert } from '../../features/admin/types'
 import { formatClockTime, formatClockTimeWithSeconds, routeStations, weatherAlertTitle } from '../../features/admin/utils'
 import { USE_MOCK } from '../../constant/env'
+import { riverPathOf } from '../../constant/riverPaths'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
 import type { RealtimeStatus } from '../../services/realtime'
@@ -95,6 +96,7 @@ function LiveRadar() {
         <div className="h-[70vh] min-h-[24rem] lg:col-span-2">
           <FleetMap
             stations={corridor}
+            path={riverPathOf(routes.data[0]?.code)}
             boats={onRiver.map((b) => ({ tripId: b.boatId, code: b.code, latitude: b.latitude, longitude: b.longitude }))}
           />
         </div>
@@ -173,6 +175,7 @@ function MockRadar() {
         <div className="h-[70vh] min-h-[24rem] lg:col-span-2">
           <FleetMap
             stations={corridor}
+            path={riverPathOf(routes.data[0]?.code)}
             boats={onRiver.map((b) => ({
               tripId: b.tripId,
               code: b.code,
