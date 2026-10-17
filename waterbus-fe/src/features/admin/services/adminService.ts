@@ -35,7 +35,7 @@ import {
   totalSeatsOf,
   tripProgress,
 } from '../utils'
-import { getOpenWeatherAlerts } from './operationsService'
+import { getLiveOperationLogs, getLiveOperationTrips, getOpenIncidents, operateLiveTrip } from './operationsService'
 
 // The backend has no admin endpoints yet (roadmap P1-BE-01..04, P3, P4). Everything below works on
 // an in-memory copy of the data, so changes last until the page is reloaded. Only the station list
@@ -75,7 +75,7 @@ function seedTrips(routeId: string, boatId: string, durationMinutes: number, now
   const status = (departure: number): AdminTripStatus => {
     const arrival = departure + durationMinutes * MINUTE
     if (arrival <= now) return 'Completed'
-    if (departure <= now) return 'InTransit'
+    if (departure <= now) return 'EnRoute'
     return departure - now <= 15 * MINUTE ? 'Boarding' : 'Scheduled'
   }
   // One trip departs 20 minutes ago, so it is on the river now; the others are an hour apart.
@@ -234,7 +234,7 @@ export async function createBoat(input: NewBoat): Promise<AdminBoat> {
 /** Soft delete. A boat with trips still to run cannot be removed. */
 export async function deleteBoat(id: string): Promise<void> {
   const data = await db()
-  if (data.trips.some((trip) => trip.boatId === id && !['Completed', 'Cancelled'].includes(trip.status))) {
+  if (data.trips.some((trip) => trip.boatId === id && !['Completed', 'Cancelled', 'Terminated'].includes(trip.status))) {
     throw conflict(t('This boat still has trips to run.'))
   }
   const boat = data.boats.find((b) => b.id === id)
@@ -342,7 +342,7 @@ export async function assignBoat(tripId: string, boatId: string): Promise<AdminT
   const trip = data.trips.find((x) => x.id === tripId)
   const boat = data.boats.find((b) => b.id === boatId && b.isActive)
   if (!trip || !boat) throw notFound()
-  if (!['Scheduled', 'Boarding', 'Delayed'].includes(trip.status)) {
+  if (!['Scheduled', 'Boarding', 'Suspended'].includes(trip.status)) {
     throw conflict(t('The boat of a trip that has started or ended cannot be changed.'))
   }
   if (data.trips.some((other) => other.id !== tripId && other.boatId === boatId && other.status !== 'Cancelled' && overlaps(trip, other))) {
@@ -354,11 +354,19 @@ export async function assignBoat(tripId: string, boatId: string): Promise<AdminT
 
 // ---- Operations -----------------------------------------------------------------
 
-/** Open weather alerts: real incidents from the weather guard, or the mock list with `VITE_USE_MOCK`. */
+/** Open alerts: real incidents (weather guard, captain SOS), or the mock list with `VITE_USE_MOCK`. */
 export const getWeatherAlerts = (): Promise<WeatherAlert[]> =>
-  USE_MOCK ? query((d) => d.alerts) : getOpenWeatherAlerts()
+  USE_MOCK ? query((d) => d.alerts) : getOpenIncidents()
 
-export const getOperationLogs = () => query((d) => [...d.logs].sort((a, b) => b.at.localeCompare(a.at)))
+/** Open alerts with the trips each one affects and the admin's decision per trip. */
+export const getAlertsWithTrips = (): Promise<WeatherAlert[]> =>
+  USE_MOCK ? query((d) => d.alerts) : getOpenIncidents(true)
+
+/** Trips to operate (Incidents, Captain Portal, Overview): from the backend, or the mock list. */
+export const getOperationTrips = (): Promise<AdminTrip[]> => (USE_MOCK ? getTrips() : getLiveOperationTrips())
+
+export const getOperationLogs = (): Promise<OperationLog[]> =>
+  USE_MOCK ? query((d) => [...d.logs].sort((a, b) => b.at.localeCompare(a.at))) : getLiveOperationLogs()
 
 /**
  * Applies a dispatcher or captain operation to a trip and records it. Rejects with ApiError(409)
@@ -369,17 +377,20 @@ export async function operateTrip(
   type: OperationType,
   reason: string,
   by: string,
-): Promise<AdminTrip> {
+  incidentId?: string,
+): Promise<{ status: AdminTripStatus | null }> {
+  if (!USE_MOCK) return operateLiveTrip(tripId, type, reason, incidentId)
+
   const data = await db()
   const trip = data.trips.find((x) => x.id === tripId)
   if (!trip) throw notFound()
-  if (type !== 'SOS' && !allowedOperations(trip.status).includes(type)) {
+  if (type !== 'SOS' && type !== 'NoAction' && !allowedOperations(trip.status).includes(type)) {
     throw conflict(t('This trip cannot be changed from its current status.'))
   }
   const result = OPERATION_RESULT[type]
   if (result) trip.status = result
   data.logs.push({ id: newId(), type, tripId, reason, by, at: new Date().toISOString() })
-  return withDelayExact(trip)
+  return withDelayExact({ status: trip.status })
 }
 
 // ---- Radar --------------------------------------------------------------------
@@ -392,7 +403,7 @@ export async function getFleetPositions(): Promise<FleetPosition[]> {
   const data = await db()
   const now = Date.now()
   const positions = data.trips
-    .filter((trip) => trip.status === 'InTransit')
+    .filter((trip) => trip.status === 'EnRoute')
     .flatMap((trip) => {
       const route = data.routes.find((r) => r.id === trip.routeId)
       if (!route) return []

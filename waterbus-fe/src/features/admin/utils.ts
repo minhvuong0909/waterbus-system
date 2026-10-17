@@ -23,38 +23,59 @@ export const WEEKDAYS = [
   { day: 7, label: 'Sun' },
 ] as const
 
-/** Status a trip moves to for each operation. */
+/** Status a trip moves to for each operation (mock mode; the backend decides in `TripLifecycle`). */
 export const OPERATION_RESULT: Record<OperationType, AdminTripStatus | null> = {
-  Suspend: 'Delayed',
+  OpenBoarding: 'Boarding',
+  Start: 'EnRoute',
+  Arrive: 'Arrived',
+  Complete: 'Completed',
+  Suspend: 'Suspended',
   Resume: 'Scheduled',
   Cancel: 'Cancelled',
-  // The backend has no "terminated" status, so ending a running trip early is recorded as cancelled.
-  Terminate: 'Cancelled',
-  Start: 'InTransit',
-  Arrive: 'Completed',
-  // An SOS is a report, it does not change the trip by itself.
+  Terminate: 'Terminated',
+  // Recording a decision or a report does not change the trip by itself.
+  NoAction: null,
   SOS: null,
 }
 
 const ALLOWED: Record<AdminTripStatus, OperationType[]> = {
-  Scheduled: ['Suspend', 'Cancel', 'Start'],
-  Boarding: ['Suspend', 'Cancel', 'Start'],
-  InTransit: ['Suspend', 'Terminate', 'Arrive'],
-  Delayed: ['Resume', 'Cancel'],
+  Scheduled: ['OpenBoarding', 'Start', 'Suspend', 'Cancel'],
+  Boarding: ['Start', 'Suspend', 'Cancel'],
+  EnRoute: ['Arrive', 'Suspend', 'Terminate'],
+  Suspended: ['Resume', 'Cancel'],
+  Arrived: ['Complete'],
   Completed: [],
   Cancelled: [],
+  Terminated: [],
 }
 
-/** Operations that make sense for a trip in this status. */
+/** Operations that make sense for a trip in this status (mock rules). */
 export function allowedOperations(status: AdminTripStatus): OperationType[] {
   return ALLOWED[status]
 }
 
-/** Dispatcher operations (the captain's Start / Arrive / SOS have their own buttons). */
-export const DISPATCH_OPERATIONS: OperationType[] = ['Suspend', 'Resume', 'Cancel', 'Terminate']
+/** Operations allowed for a trip: what the backend reports, or the mock rules. */
+export function allowedOperationsOf(trip: Pick<AdminTrip, 'status' | 'allowedOperations'>): OperationType[] {
+  return trip.allowedOperations ?? ALLOWED[trip.status]
+}
 
+/** Dispatcher operations (the captain's Start / Arrive / SOS have their own buttons). */
+export const DISPATCH_OPERATIONS: OperationType[] = ['Suspend', 'Resume', 'Cancel', 'Terminate', 'Complete']
+
+/** The trip is over for good: nothing more can be done with it. */
 export const isFinished = (status: AdminTripStatus): boolean =>
-  status === 'Completed' || status === 'Cancelled'
+  status === 'Completed' || status === 'Cancelled' || status === 'Terminated'
+
+/** The trip still has to run or is running: the captain has something to do with it. */
+export const isUpcomingOrRunning = (status: AdminTripStatus): boolean =>
+  status === 'Scheduled' || status === 'Boarding' || status === 'EnRoute' || status === 'Suspended'
+
+/** Trip names: from the backend's operations list when present, else by looking the id up. */
+export const tripRouteName = (trip: AdminTrip, lookup: (id: string) => string): string =>
+  trip.routeName ?? lookup(trip.routeId)
+
+export const tripBoatCode = (trip: AdminTrip, lookup: (id: string) => string): string =>
+  trip.boatCode ?? lookup(trip.boatId)
 
 /** Stations of a route in river order, from its departure station to its arrival station. */
 export function routeStations(route: AdminRoute, stations: AdminStation[]): AdminStation[] {
@@ -135,8 +156,9 @@ export function formatClockTimeWithSeconds(iso: string): string {
   return new Date(iso).toLocaleTimeString(numberLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
-/** Heading of a weather alert: mock alerts know the wind speed, real ones carry it in the message. */
+/** Heading of an alert: mock alerts know the wind speed, real weather ones carry it in the message. */
 export function weatherAlertTitle(alert: WeatherAlert): string {
+  if (alert.kind && alert.kind !== 'Weather') return t('Captain emergency report')
   return alert.windSpeedKmh != null
     ? t('Level {level} • wind {speed} km/h', { level: alert.level, speed: alert.windSpeedKmh })
     : t('Level {level} weather warning', { level: alert.level })

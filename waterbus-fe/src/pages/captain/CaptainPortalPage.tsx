@@ -4,9 +4,15 @@ import { ActionButton, Modal, Notice, StatusBadge } from '../../features/admin/c
 import GpsSharePanel from '../../features/admin/components/GpsSharePanel'
 import { USE_MOCK } from '../../constant/env'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
-import { getBoats, getRoutes, getTrips, operateTrip } from '../../features/admin/services/adminService'
+import { useFleetHub } from '../../features/admin/hooks/useFleetHub'
+import { getBoats, getOperationTrips, getRoutes, operateTrip } from '../../features/admin/services/adminService'
 import type { AdminTrip, OperationType } from '../../features/admin/types'
-import { allowedOperations, formatClockTime, isFinished } from '../../features/admin/utils'
+import {
+  allowedOperationsOf,
+  formatClockTime,
+  isUpcomingOrRunning,
+  tripRouteName,
+} from '../../features/admin/utils'
 import { useAuth } from '../../features/authentication/hook/authenticationHook'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
@@ -47,7 +53,7 @@ export default function CaptainPortalPage() {
   useDocumentTitle('Captain Portal')
   const { user } = useAuth()
   const [version, reload] = useReload()
-  const trips = useFetch(getTrips, [version])
+  const trips = useFetch(getOperationTrips, [version])
   const routes = useFetch(getRoutes)
   const boats = useFetch(getBoats)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -57,15 +63,18 @@ export default function CaptainPortalPage() {
   // `null` = follow the trip type: sightseeing trips narrate by default, regular trips do not.
   const [audioOverride, setAudioOverride] = useState<boolean | null>(null)
   const action = useSubmit()
+  // The captain follows their own boat: a status change by the dispatcher shows up at once.
+  const boatIds = [...new Set((trips.data ?? []).map((x) => x.boatId).filter(Boolean))]
+  useFleetHub({ onTripStatus: reload, onReconnected: reload }, !USE_MOCK && boatIds.length > 0, boatIds)
   const state = combineFetches(trips, routes, boats)
 
   if (state.error) return <ErrorState onRetry={state.retry} />
   if (state.loading || !trips.data || !routes.data || !boats.data) return <PageLoader />
 
-  const open = trips.data.filter((x) => !isFinished(x.status))
+  const open = trips.data.filter((x) => isUpcomingOrRunning(x.status))
   // Default to the trip on the river, otherwise the next one.
   const trip: AdminTrip | undefined =
-    open.find((x) => x.id === selectedId) ?? open.find((x) => x.status === 'InTransit') ?? open[0]
+    open.find((x) => x.id === selectedId) ?? open.find((x) => x.status === 'EnRoute') ?? open[0]
 
   const routeName = (id: string) => routes.data?.find((r) => r.id === id)?.name ?? '—'
   const boatName = (id: string) => boats.data?.find((b) => b.id === id)?.name ?? '—'
@@ -79,7 +88,7 @@ export default function CaptainPortalPage() {
     )
   }
 
-  const can = (op: OperationType) => allowedOperations(trip.status).includes(op)
+  const can = (op: OperationType) => allowedOperationsOf(trip).includes(op)
   const perform = async (type: OperationType, reason: string) => {
     const done = await action.run(() => operateTrip(trip.id, type, reason, by))
     if (done) reload()
@@ -105,7 +114,7 @@ export default function CaptainPortalPage() {
         >
           {open.map((x) => (
             <option key={x.id} value={x.id}>
-              {formatClockTime(x.departureTime)} • {routeName(x.routeId)}
+              {formatClockTime(x.departureTime)} • {tripRouteName(x, routeName)}
             </option>
           ))}
         </select>
@@ -115,7 +124,7 @@ export default function CaptainPortalPage() {
               {formatClockTime(trip.departureTime)} → {formatClockTime(trip.arrivalTime)}
             </div>
             <div className="text-sm text-on-surface-variant">
-              {routeName(trip.routeId)} • {boatName(trip.boatId)} • {t(trip.tripType === 'Commuter' ? 'Regular' : 'Sightseeing')}
+              {tripRouteName(trip, routeName)} • {trip.boatCode ?? boatName(trip.boatId)} • {t(trip.tripType === 'Commuter' ? 'Regular' : 'Sightseeing')}
             </div>
           </div>
           <StatusBadge status={trip.status} />
@@ -144,6 +153,9 @@ export default function CaptainPortalPage() {
         </p>
       )}
 
+      {trip.status === 'Suspended' && (
+        <Notice tone="error">{t('This trip is on hold. Wait for the dispatcher to resume it.')}</Notice>
+      )}
       {action.error && <Notice tone="error">{action.error}</Notice>}
       {sosSent && <Notice tone="success">{t('SOS sent. The dispatcher has been alerted.')}</Notice>}
 

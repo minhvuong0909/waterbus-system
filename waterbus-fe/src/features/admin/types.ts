@@ -37,14 +37,16 @@ export interface AdminBoat extends SeatLayout {
 /** BE `TripType`. */
 export type AdminTripType = 'Commuter' | 'Sightseeing'
 
-/** BE `TripStatus`. */
+/** BE `TripStatus` (BR-OPS-01). */
 export type AdminTripStatus =
   | 'Scheduled'
   | 'Boarding'
-  | 'InTransit'
+  | 'EnRoute'
+  | 'Suspended'
+  | 'Arrived'
   | 'Completed'
   | 'Cancelled'
-  | 'Delayed'
+  | 'Terminated'
 
 /** Fixed weekly timetable entry (BE `Schedule`). Days follow the backend: 1 = Monday ... 7 = Sunday. */
 export interface AdminSchedule {
@@ -69,6 +71,12 @@ export interface AdminTrip {
   tripType: AdminTripType
   status: AdminTripStatus
   basePrice: number
+  /** Filled when the trip comes from the backend's operations list. */
+  routeCode?: string
+  routeName?: string
+  boatCode?: string
+  /** What the backend allows right now for this trip (BE `TripLifecycle`); mock trips use `ALLOWED`. */
+  allowedOperations?: OperationType[]
 }
 
 /** The backend has no pricing table: a trip's base price is set when it is generated. */
@@ -78,6 +86,7 @@ export interface FareSettings {
   cabinMultiplier: { front: number; standard: number; outdoor: number }
 }
 
+/** An open incident shown as a warning: weather alerts from the weather guard, or a captain's SOS. */
 export interface WeatherAlert {
   id: string
   /** 1 = warning, 2 = stop operations (BE severity Medium = 1, High = 2). */
@@ -87,12 +96,26 @@ export interface WeatherAlert {
   message: string
   /** ISO 8601 */
   issuedAt: string
+  /** BE `IncidentType`; mock alerts are weather. */
+  kind?: 'Weather' | 'Safety' | 'Technical' | 'Other'
   /** Trips linked to the alert (BE `IncidentTrip`), when known. */
   affectedTripCount?: number
+  /** The linked trips and what the admin decided for each (null = not decided yet). Only on request. */
+  trips?: { tripId: string; decision: string | null }[]
 }
 
 /** What a dispatcher or captain did, kept as an audit trail. */
-export type OperationType = 'Suspend' | 'Cancel' | 'Terminate' | 'Resume' | 'Start' | 'Arrive' | 'SOS'
+export type OperationType =
+  | 'OpenBoarding'
+  | 'Start'
+  | 'Arrive'
+  | 'Complete'
+  | 'Suspend'
+  | 'Resume'
+  | 'Cancel'
+  | 'Terminate'
+  | 'NoAction'
+  | 'SOS'
 
 export interface OperationLog {
   id: string
