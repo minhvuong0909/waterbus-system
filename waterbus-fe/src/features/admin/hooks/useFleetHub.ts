@@ -6,39 +6,60 @@ import {
   fromPositionEvent,
   getLatestBoatPositions,
 } from '../services/operationsService'
-import type { BoatPositionEvent, WeatherAlertEvent } from '../services/operationsService'
+import type {
+  BoatPositionEvent,
+  IncidentRaisedEvent,
+  TripStatusEvent,
+  WeatherAlertEvent,
+} from '../services/operationsService'
 import type { LiveBoatPosition } from '../types'
 
 interface FleetHubHandlers {
   onPosition?: (position: LiveBoatPosition) => void
   onAlert?: (alert: WeatherAlertEvent) => void
+  /** A trip's status changed (an admin or the captain did something). */
+  onTripStatus?: (event: TripStatusEvent) => void
+  /** A captain reported an emergency. */
+  onIncident?: (event: IncidentRaisedEvent) => void
   /** After a reconnect: reload what may have been missed while offline. */
   onReconnected?: () => void
 }
 
 /**
- * Admin connection to the boat-tracking hub (group `fleet`): boat positions and weather alerts as
- * they happen. Handlers can change between renders without reconnecting.
+ * Connection to the boat-tracking hub: boat positions, weather alerts, emergencies and trip status changes
+ * as they happen. An admin follows the whole fleet (group `fleet`); pass `boatIds` for a captain, who can
+ * only follow their own boat (group `boat:{id}`). Handlers can change between renders without reconnecting.
  */
-export function useFleetHub(handlers: FleetHubHandlers, enabled = true): RealtimeStatus {
+export function useFleetHub(handlers: FleetHubHandlers, enabled = true, boatIds?: string[]): RealtimeStatus {
   const [status, setStatus] = useState<RealtimeStatus>('connecting')
   const ref = useRef(handlers)
   useEffect(() => {
     ref.current = handlers
   })
+  // A stable key: the effect must not reconnect just because the array was re-created.
+  const boatKey = boatIds?.join(',')
 
   useEffect(() => {
     if (!enabled) return
+    const boats = boatKey ? boatKey.split(',') : undefined
     return connectHub(HUBS.boatTracking, {
       handlers: {
         [HUB_EVENTS.boatPosition]: (event: BoatPositionEvent) => ref.current.onPosition?.(fromPositionEvent(event)),
         [HUB_EVENTS.weatherAlert]: (event: WeatherAlertEvent) => ref.current.onAlert?.(event),
+        [HUB_EVENTS.tripStatusChanged]: (event: TripStatusEvent) => ref.current.onTripStatus?.(event),
+        [HUB_EVENTS.incidentRaised]: (event: IncidentRaisedEvent) => ref.current.onIncident?.(event),
       },
-      onConnected: (connection) => connection.invoke('JoinFleet'),
+      onConnected: async (connection) => {
+        if (boats) {
+          for (const id of boats) await connection.invoke('JoinBoat', id)
+        } else {
+          await connection.invoke('JoinFleet')
+        }
+      },
       onReconnected: () => ref.current.onReconnected?.(),
       onStatus: setStatus,
     })
-  }, [enabled])
+  }, [enabled, boatKey])
 
   return status
 }

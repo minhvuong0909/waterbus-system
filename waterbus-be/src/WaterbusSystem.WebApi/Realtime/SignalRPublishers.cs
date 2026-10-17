@@ -50,19 +50,39 @@ public class SignalRSeatEventPublisher : ISeatEventPublisher
 }
 
 /// <summary>
-/// Cài đặt IOperationsAlertPublisher bằng SignalR: cảnh báo tới group fleet (Admin) trên BoatTrackingHub.
+/// Cài đặt IOperationsAlertPublisher bằng SignalR. Cảnh báo và sự cố tới group fleet (Admin) trên BoatTrackingHub;
+/// trạng thái chuyến tới Admin, thuyền trưởng của tàu (group boat) và khách đang xem sơ đồ ghế của chuyến (group trip).
 /// </summary>
 public class SignalROperationsAlertPublisher : IOperationsAlertPublisher
 {
-    private readonly IHubContext<BoatTrackingHub> _hubContext;
+    private readonly IHubContext<BoatTrackingHub> _trackingHub;
+    private readonly IHubContext<SeatSyncHub> _seatHub;
 
-    public SignalROperationsAlertPublisher(IHubContext<BoatTrackingHub> hubContext)
+    public SignalROperationsAlertPublisher(IHubContext<BoatTrackingHub> trackingHub, IHubContext<SeatSyncHub> seatHub)
     {
-        _hubContext = hubContext;
+        _trackingHub = trackingHub;
+        _seatHub = seatHub;
     }
 
     public Task PublishWeatherAlertAsync(WeatherAlertMessage message, CancellationToken cancellationToken = default) =>
-        _hubContext.Clients
+        _trackingHub.Clients
             .Group(RealtimeContract.Groups.Fleet)
             .SendAsync(RealtimeContract.Events.WeatherAlert, message, cancellationToken);
+
+    public Task PublishIncidentRaisedAsync(IncidentRaisedMessage message, CancellationToken cancellationToken = default) =>
+        _trackingHub.Clients
+            .Group(RealtimeContract.Groups.Fleet)
+            .SendAsync(RealtimeContract.Events.IncidentRaised, message, cancellationToken);
+
+    public async Task PublishTripStatusChangedAsync(TripStatusChangedMessage message, CancellationToken cancellationToken = default)
+    {
+        var trackingGroups = message.BoatId is { } boatId
+            ? new[] { RealtimeContract.Groups.Fleet, RealtimeContract.Groups.Boat(boatId) }
+            : new[] { RealtimeContract.Groups.Fleet };
+
+        await _trackingHub.Clients.Groups(trackingGroups)
+            .SendAsync(RealtimeContract.Events.TripStatusChanged, message, cancellationToken);
+        await _seatHub.Clients.Group(RealtimeContract.Groups.Trip(message.TripId))
+            .SendAsync(RealtimeContract.Events.TripStatusChanged, message, cancellationToken);
+    }
 }

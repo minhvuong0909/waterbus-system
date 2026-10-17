@@ -26,6 +26,12 @@ public interface ISeatEventPublisher
 public interface IOperationsAlertPublisher
 {
     Task PublishWeatherAlertAsync(WeatherAlertMessage message, CancellationToken cancellationToken = default);
+
+    /// <summary>Trạng thái chuyến vừa đổi: tới Admin (radar), thuyền trưởng của tàu và khách đang xem chuyến.</summary>
+    Task PublishTripStatusChangedAsync(TripStatusChangedMessage message, CancellationToken cancellationToken = default);
+
+    /// <summary>Sự cố mới do người dùng báo (vd SOS của thuyền trưởng): tới Admin đang theo dõi radar.</summary>
+    Task PublishIncidentRaisedAsync(IncidentRaisedMessage message, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -65,6 +71,34 @@ public sealed record WeatherAlertMessage(
     Guid IncidentId,
     string? Severity,
     Guid? RouteId,
+    string Message,
+    DateTimeOffset OccurredAt)
+{
+    public int Version => 1;
+}
+
+/// <summary>
+/// Payload event <c>tripStatusChanged</c>. Trạng thái là tên TripStatus (Scheduled, Boarding, EnRoute, Suspended,
+/// Arrived, Completed, Cancelled, Terminated); Operation là tên TripOperation đã thực hiện.
+/// </summary>
+public sealed record TripStatusChangedMessage(
+    Guid TripId,
+    Guid? BoatId,
+    string Status,
+    string PreviousStatus,
+    string Operation,
+    DateTimeOffset ChangedAt)
+{
+    public int Version => 1;
+}
+
+/// <summary>Payload event <c>incidentRaised</c> (sự cố do thuyền trưởng/nhân viên báo, không phải thời tiết tự động).</summary>
+public sealed record IncidentRaisedMessage(
+    Guid IncidentId,
+    string IncidentType,
+    string? Severity,
+    Guid? TripId,
+    Guid? BoatId,
     string Message,
     DateTimeOffset OccurredAt)
 {

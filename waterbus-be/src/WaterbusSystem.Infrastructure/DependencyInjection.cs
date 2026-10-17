@@ -117,6 +117,7 @@ public static class DependencyInjection
         services.AddTransient<IDateTimeService, DateTimeService>();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IUserDirectory, UserDirectory>();
         services.AddScoped<ISeatAvailabilityService, SeatAvailabilityService>();
         services.AddScoped<ICommercialTransactionRunner, SqlCommercialTransactionRunner>();
         services.AddScoped<BookingCreationService>();

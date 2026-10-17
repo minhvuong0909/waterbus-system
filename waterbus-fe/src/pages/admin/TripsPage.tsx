@@ -18,8 +18,17 @@ import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { formatNumber } from '../../utils/format'
 import { t } from '../../i18n'
 
-const CAN_REASSIGN: AdminTripStatus[] = ['Scheduled', 'Boarding', 'Delayed']
-const STATUSES: AdminTripStatus[] = ['Scheduled', 'Boarding', 'InTransit', 'Delayed', 'Completed', 'Cancelled']
+const CAN_REASSIGN: AdminTripStatus[] = ['Scheduled', 'Boarding', 'Suspended']
+const STATUSES: AdminTripStatus[] = [
+  'Scheduled',
+  'Boarding',
+  'EnRoute',
+  'Suspended',
+  'Arrived',
+  'Completed',
+  'Cancelled',
+  'Terminated',
+]
 
 function AssignBoatForm({ trip, boats, onCancel, onDone }: { trip: AdminTrip; boats: AdminBoat[]; onCancel: () => void; onDone: () => void }) {
   const [boatId, setBoatId] = useState(trip.boatId)
@@ -110,7 +119,7 @@ export default function TripsPage() {
               <option value="all">{t('All')}</option>
               {STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {t(s === 'InTransit' ? 'In transit' : s)}
+                  {t(s === 'EnRoute' ? 'In transit' : s)}
                 </option>
               ))}
             </select>

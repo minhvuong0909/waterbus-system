@@ -257,19 +257,23 @@ export function ActionButton({
 const STATUS_STYLE: Record<AdminTripStatus, string> = {
   Scheduled: 'bg-surface-container text-deep-river',
   Boarding: 'bg-signal-amber/20 text-deep-river',
-  InTransit: 'bg-teal-flow/15 text-teal-flow',
+  EnRoute: 'bg-teal-flow/15 text-teal-flow',
+  Suspended: 'bg-signal-amber/30 text-deep-river',
+  Arrived: 'bg-teal-flow/10 text-deep-river',
   Completed: 'bg-sand-light text-on-surface-variant',
   Cancelled: 'bg-coral-glow/15 text-coral-glow',
-  Delayed: 'bg-signal-amber/30 text-deep-river',
+  Terminated: 'bg-coral-glow/25 text-coral-glow',
 }
 
 const STATUS_LABEL: Record<AdminTripStatus, string> = {
   Scheduled: 'Scheduled',
   Boarding: 'Boarding',
-  InTransit: 'In transit',
+  EnRoute: 'In transit',
+  Suspended: 'Suspended',
+  Arrived: 'Arrived',
   Completed: 'Completed',
   Cancelled: 'Cancelled',
-  Delayed: 'Delayed',
+  Terminated: 'Terminated',
 }
 
 export function StatusBadge({ status }: { status: AdminTripStatus }) {

@@ -75,6 +75,13 @@ public class GlobalExceptionHandlingMiddleware
                 problemDetails.Detail = forbiddenException.Message;
                 break;
 
+            case ConflictException conflictException:
+                context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+                problemDetails.Status = (int)HttpStatusCode.Conflict;
+                problemDetails.Title = "Thao tác không hợp lệ ở trạng thái hiện tại.";
+                problemDetails.Detail = conflictException.Message;
+                break;
+
             case NotFoundException notFoundException:
                 context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                 problemDetails.Status = (int)HttpStatusCode.NotFound;

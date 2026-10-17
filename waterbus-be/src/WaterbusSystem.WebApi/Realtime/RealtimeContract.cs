@@ -26,5 +26,7 @@ public static class RealtimeContract
         public const string SeatReleased = "seatReleased";
         public const string SeatSold = "seatSold";
         public const string WeatherAlert = "weatherAlert";
+        public const string TripStatusChanged = "tripStatusChanged";
+        public const string IncidentRaised = "incidentRaised";
     }
 }

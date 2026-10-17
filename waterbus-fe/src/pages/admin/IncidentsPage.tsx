@@ -12,15 +12,23 @@ import {
 import type { Column } from '../../features/admin/components/AdminUi'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import {
+  getAlertsWithTrips,
   getBoats,
   getOperationLogs,
+  getOperationTrips,
   getRoutes,
-  getTrips,
-  getWeatherAlerts,
   operateTrip,
 } from '../../features/admin/services/adminService'
 import type { AdminTrip, OperationType } from '../../features/admin/types'
-import { DISPATCH_OPERATIONS, allowedOperations, formatDateTime, isFinished, weatherAlertTitle } from '../../features/admin/utils'
+import {
+  DISPATCH_OPERATIONS,
+  allowedOperationsOf,
+  formatDateTime,
+  isFinished,
+  tripBoatCode,
+  tripRouteName,
+  weatherAlertTitle,
+} from '../../features/admin/utils'
 import { useFleetHub } from '../../features/admin/hooks/useFleetHub'
 import { runWeatherCheck } from '../../features/admin/services/operationsService'
 import type { WeatherCheckResult } from '../../features/admin/types'
@@ -30,6 +38,9 @@ import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
 
 const OPERATION_LABEL: Record<OperationType, string> = {
+  OpenBoarding: 'Open boarding',
+  Complete: 'Close trip',
+  NoAction: 'No action needed',
   Suspend: 'Suspend',
   Resume: 'Resume',
   Cancel: 'Cancel trip',
@@ -40,22 +51,27 @@ const OPERATION_LABEL: Record<OperationType, string> = {
 }
 
 const OPERATION_HELP: Partial<Record<OperationType, string>> = {
-  Suspend: 'The trip is put on hold (delayed) until you resume it.',
-  Resume: 'The trip goes back to its schedule.',
-  Cancel: 'The trip will not run. Passengers see it as cancelled.',
-  Terminate: 'Ends a trip that is already sailing, for an emergency. It is recorded as cancelled.',
+  Suspend: 'The trip is put on hold until you resume it. Tickets stay valid and nothing is refunded.',
+  Resume: 'The trip goes back to where it was.',
+  Cancel: 'The trip will not run. Passengers see it as cancelled and may ask for a refund.',
+  Terminate: 'Ends a trip that is already sailing, for an emergency. Passengers are refunded for the part not served.',
+  Complete: 'Closes the trip after it has arrived.',
+  NoAction: 'You looked at this alert and the trip needs nothing. The decision is kept in the log.',
 }
 
 function OperationForm({
   trip,
   type,
   by,
+  incidentId,
   onCancel,
   onDone,
 }: {
   trip: AdminTrip
   type: OperationType
   by: string
+  /** The open alert this decision answers; the backend records it against that trip. */
+  incidentId?: string
   onCancel: () => void
   onDone: () => void
 }) {
@@ -73,7 +89,7 @@ function OperationForm({
           setShowError(true)
           return
         }
-        const done = await run(() => operateTrip(trip.id, type, reason.trim(), by))
+        const done = await run(() => operateTrip(trip.id, type, reason.trim(), by, incidentId))
         if (done) onDone()
       }}
     >
@@ -115,17 +131,24 @@ export default function IncidentsPage() {
   useDocumentTitle('Incidents')
   const { user } = useAuth()
   const [version, reload] = useReload()
-  const trips = useFetch(getTrips, [version])
+  const trips = useFetch(getOperationTrips, [version])
   const logs = useFetch(getOperationLogs, [version])
   const [alertVersion, reloadAlerts] = useReload()
-  const alerts = useFetch(getWeatherAlerts, [alertVersion])
+  const alerts = useFetch(getAlertsWithTrips, [alertVersion])
   const routes = useFetch(getRoutes)
   const boats = useFetch(getBoats)
-  const [pending, setPending] = useState<{ trip: AdminTrip; type: OperationType } | null>(null)
+  const [pending, setPending] = useState<{ trip: AdminTrip; type: OperationType; incidentId?: string } | null>(null)
   const weatherCheck = useSubmit()
   const [checkResult, setCheckResult] = useState<WeatherCheckResult | null>(null)
-  // New weather incidents appear as soon as the weather guard records them.
-  useFleetHub({ onAlert: reloadAlerts, onReconnected: reloadAlerts }, !USE_MOCK)
+  // New alerts, emergencies and every status change (by any admin or a captain) show up without reloading.
+  const refresh = () => {
+    reload()
+    reloadAlerts()
+  }
+  useFleetHub(
+    { onAlert: reloadAlerts, onIncident: reloadAlerts, onTripStatus: refresh, onReconnected: refresh },
+    !USE_MOCK,
+  )
   const state = combineFetches(trips, logs, alerts, routes, boats)
 
   if (state.error) return <ErrorState onRetry={state.retry} />
@@ -135,31 +158,62 @@ export default function IncidentsPage() {
   const boatCode = (id: string) => boats.data?.find((b) => b.id === id)?.code ?? '—'
   const tripLabel = (id: string | null) => {
     const trip = trips.data?.find((x) => x.id === id)
-    return trip ? `${boatCode(trip.boatId)} • ${formatDateTime(trip.departureTime)}` : '—'
+    return trip ? `${tripBoatCode(trip, boatCode)} • ${formatDateTime(trip.departureTime)}` : '—'
   }
   const active = trips.data.filter((x) => !isFinished(x.status))
 
+  // Trips an open alert affects and the admin has not decided about yet: tripId -> alert id.
+  const awaitingDecision = new Map<string, string>()
+  alerts.data.forEach((alert) =>
+    alert.trips?.forEach((link) => {
+      if (link.decision === null && !awaitingDecision.has(link.tripId)) awaitingDecision.set(link.tripId, alert.id)
+    }),
+  )
+  // Only these answer an alert; Resume and Close trip are routine operations of the trip itself.
+  const ANSWERS_ALERT: OperationType[] = ['Suspend', 'Cancel', 'Terminate', 'NoAction']
+
   const columns: Column<AdminTrip>[] = [
     { header: 'Departure', render: (x) => formatDateTime(x.departureTime) },
-    { header: 'Route', render: (x) => routeName(x.routeId) },
-    { header: 'Boat', render: (x) => <span className="font-mono font-semibold">{boatCode(x.boatId)}</span> },
-    { header: 'Status', render: (x) => <StatusBadge status={x.status} /> },
+    { header: 'Route', render: (x) => tripRouteName(x, routeName) },
+    { header: 'Boat', render: (x) => <span className="font-mono font-semibold">{tripBoatCode(x, boatCode)}</span> },
+    {
+      header: 'Status',
+      render: (x) => (
+        <span className="inline-flex flex-wrap items-center gap-2">
+          <StatusBadge status={x.status} />
+          {awaitingDecision.has(x.id) && (
+            <span className="rounded-full bg-signal-amber/25 px-2 py-0.5 text-[11px] font-semibold text-deep-river">
+              {t('Needs your decision')}
+            </span>
+          )}
+        </span>
+      ),
+    },
     {
       header: 'Actions',
       className: 'text-right',
-      render: (x) => (
-        <span className="inline-flex flex-wrap justify-end gap-1">
-          {DISPATCH_OPERATIONS.filter((op) => allowedOperations(x.status).includes(op)).map((op) => (
-            <ActionButton
-              key={op}
-              tone={op === 'Cancel' || op === 'Terminate' ? 'danger' : 'secondary'}
-              onClick={() => setPending({ trip: x, type: op })}
-            >
-              {t(OPERATION_LABEL[op])}
-            </ActionButton>
-          ))}
-        </span>
-      ),
+      render: (x) => {
+        const incidentId = awaitingDecision.get(x.id)
+        const operations: OperationType[] = [
+          ...DISPATCH_OPERATIONS.filter((op) => allowedOperationsOf(x).includes(op)),
+          ...(incidentId ? (['NoAction'] as OperationType[]) : []),
+        ]
+        return (
+          <span className="inline-flex flex-wrap justify-end gap-1">
+            {operations.map((op) => (
+              <ActionButton
+                key={op}
+                tone={op === 'Cancel' || op === 'Terminate' ? 'danger' : 'secondary'}
+                onClick={() =>
+                  setPending({ trip: x, type: op, incidentId: ANSWERS_ALERT.includes(op) ? incidentId : undefined })
+                }
+              >
+                {t(OPERATION_LABEL[op])}
+              </ActionButton>
+            ))}
+          </span>
+        )
+      },
     },
   ]
 
@@ -244,6 +298,7 @@ export default function IncidentsPage() {
             trip={pending.trip}
             type={pending.type}
             by={user?.fullName ?? ''}
+            incidentId={pending.incidentId}
             onCancel={() => setPending(null)}
             onDone={() => {
               setPending(null)

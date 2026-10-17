@@ -25,6 +25,12 @@ export const API_ENDPOINTS = {
     detail: (tripId: string) => `/api/v1/trips/${tripId}`,
     /** Seat map and fares for one journey segment; creates no hold. */
     seats: (tripId: string) => `/api/v1/trips/${tripId}/seats`,
+    /** Trips for operations: all boats for Admin, the captain's own boat for a Captain. */
+    operations: '/api/v1/trips/operations',
+    /** Audit log of status changes (Admin). */
+    operationEvents: '/api/v1/trips/operations/events',
+    status: (tripId: string) => `/api/v1/trips/${tripId}/status`,
+    sos: (tripId: string) => `/api/v1/trips/${tripId}/sos`,
   },
   tracking: {
     /** Latest position of every active boat (Admin). */
@@ -32,6 +38,7 @@ export const API_ENDPOINTS = {
   },
   incidents: {
     list: '/api/v1/incidents',
+    detail: (id: string) => `/api/v1/incidents/${id}`,
     /** Runs the weather guard now instead of waiting for its schedule (Admin). */
     weatherCheck: '/api/v1/incidents/weather-check',
   },
@@ -47,6 +54,8 @@ export const HUBS = {
 export const HUB_EVENTS = {
   boatPosition: 'boatPosition',
   weatherAlert: 'weatherAlert',
+  tripStatusChanged: 'tripStatusChanged',
+  incidentRaised: 'incidentRaised',
   seatHeld: 'seatHeld',
   seatReleased: 'seatReleased',
   seatSold: 'seatSold',

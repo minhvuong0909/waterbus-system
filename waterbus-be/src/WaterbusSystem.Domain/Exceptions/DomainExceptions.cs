@@ -36,3 +36,12 @@ public class SeatAlreadyBookedException : ConcurrencyException
     public SeatAlreadyBookedException(string seatCode) 
         : base($"Ghế '{seatCode}' đã được đặt hoặc đang được giữ bởi người khác.") { }
 }
+
+/// <summary>
+/// Thao tác không hợp lệ ở trạng thái hiện tại của tài nguyên (vd Huỷ chuyến đã chạy).
+/// Ánh xạ sang HTTP 409 Conflict tại WebApi, khác ConcurrencyException (xung đột giữ chỗ/đặt ghế).
+/// </summary>
+public class ConflictException : DomainException
+{
+    public ConflictException(string message) : base(message) { }
+}

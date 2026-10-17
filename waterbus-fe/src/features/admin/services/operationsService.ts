@@ -1,6 +1,16 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
-import type { FleetBoat, LiveBoatPosition, WeatherAlert, WeatherCheckResult } from '../types'
+import type {
+  AdminTrip,
+  AdminTripStatus,
+  AdminTripType,
+  FleetBoat,
+  LiveBoatPosition,
+  OperationLog,
+  OperationType,
+  WeatherAlert,
+  WeatherCheckResult,
+} from '../types'
 
 // Live operations backed by the real API: boats, boat tracking and weather incidents.
 // Realtime updates for the same data come from the boat-tracking hub (see useFleetHub).
@@ -46,6 +56,27 @@ export interface WeatherAlertEvent {
   occurredAt: string
 }
 
+/** Payload of the `tripStatusChanged` hub event. */
+export interface TripStatusEvent {
+  tripId: string
+  boatId: string | null
+  status: AdminTripStatus
+  previousStatus: AdminTripStatus
+  operation: OperationType
+  changedAt: string
+}
+
+/** Payload of the `incidentRaised` hub event (a captain's SOS). */
+export interface IncidentRaisedEvent {
+  incidentId: string
+  incidentType: string
+  severity: string | null
+  tripId: string | null
+  boatId: string | null
+  message: string
+  occurredAt: string
+}
+
 export async function getFleetBoats(): Promise<FleetBoat[]> {
   const page = await apiRequest<Paged<FleetBoat>>(API_ENDPOINTS.boats, { query: { pageSize: 100 } })
   return page.items.filter((b) => b.isActive)
@@ -66,18 +97,43 @@ export function fromPositionEvent(event: BoatPositionEvent): LiveBoatPosition {
 
 const levelOf = (severity: string | null): 1 | 2 => (severity === 'High' ? 2 : 1)
 
-/** Open weather incidents created by the weather guard, newest first. */
-export async function getOpenWeatherAlerts(): Promise<WeatherAlert[]> {
-  const page = await apiRequest<Paged<IncidentSummaryDto>>(API_ENDPOINTS.incidents.list, {
-    query: { status: 'Open', incidentType: 'Weather', pageSize: 20 },
+interface IncidentSummaryFull extends IncidentSummaryDto {
+  incidentType: string
+}
+
+interface IncidentDetailDto {
+  affectedTrips: { tripId: string; operationDecision: string | null }[]
+}
+
+const KINDS = ['Weather', 'Safety', 'Technical', 'Other'] as const
+
+/**
+ * Open incidents, newest first: weather alerts from the weather guard and captains' SOS reports.
+ * `withTrips` also loads the trips each incident affects and what the admin decided for them.
+ */
+export async function getOpenIncidents(withTrips = false): Promise<WeatherAlert[]> {
+  const page = await apiRequest<Paged<IncidentSummaryFull>>(API_ENDPOINTS.incidents.list, {
+    query: { status: 'Open', pageSize: 20 },
   })
-  return page.items.map((i) => ({
-    id: i.id,
-    level: levelOf(i.severity),
-    message: i.description ?? '',
-    issuedAt: i.occurredAt ?? new Date().toISOString(),
-    affectedTripCount: i.affectedTripCount,
-  }))
+  return Promise.all(
+    page.items.map(async (i): Promise<WeatherAlert> => {
+      const trips = withTrips
+        ? (await apiRequest<IncidentDetailDto>(API_ENDPOINTS.incidents.detail(i.id))).affectedTrips.map((t) => ({
+            tripId: t.tripId,
+            decision: t.operationDecision,
+          }))
+        : undefined
+      return {
+        id: i.id,
+        level: levelOf(i.severity),
+        message: i.description ?? '',
+        issuedAt: i.occurredAt ?? new Date().toISOString(),
+        kind: KINDS.find((k) => k === i.incidentType) ?? 'Other',
+        affectedTripCount: i.affectedTripCount,
+        trips,
+      }
+    }),
+  )
 }
 
 export const runWeatherCheck = () =>
@@ -85,3 +141,83 @@ export const runWeatherCheck = () =>
 
 /** Knots (BE) to km/h (UI). */
 export const knotsToKmh = (knots: number | null) => (knots == null ? null : Math.round(knots * 1.852 * 10) / 10)
+
+// ---- Trips for operations ---------------------------------------------------
+
+interface TripOperationItemDto {
+  id: string
+  scheduleId: string | null
+  routeId: string
+  routeCode: string
+  routeName: string
+  boatId: string | null
+  boatCode: string | null
+  tripType: AdminTripType
+  status: AdminTripStatus
+  departureTime: string
+  arrivalTime: string
+  allowedOperations: OperationType[]
+}
+
+/** Trips from 12 hours ago to 7 days ahead, with the operations the backend allows on each right now. */
+export async function getLiveOperationTrips(): Promise<AdminTrip[]> {
+  const items = await apiRequest<TripOperationItemDto[]>(API_ENDPOINTS.trips.operations)
+  return items.map((t) => ({
+    id: t.id,
+    scheduleId: t.scheduleId,
+    routeId: t.routeId,
+    boatId: t.boatId ?? '',
+    departureTime: t.departureTime,
+    arrivalTime: t.arrivalTime,
+    tripType: t.tripType,
+    status: t.status,
+    basePrice: 0,
+    routeCode: t.routeCode,
+    routeName: t.routeName,
+    boatCode: t.boatCode ?? undefined,
+    allowedOperations: t.allowedOperations,
+  }))
+}
+
+interface TripOperationEventDto {
+  id: string
+  tripId: string
+  action: string
+  note: string | null
+  occurredAt: string
+  actedBy: string | null
+}
+
+export async function getLiveOperationLogs(): Promise<OperationLog[]> {
+  const events = await apiRequest<TripOperationEventDto[]>(API_ENDPOINTS.trips.operationEvents, { query: { take: 50 } })
+  return events.map((e) => ({
+    id: e.id,
+    type: e.action as OperationType,
+    tripId: e.tripId,
+    reason: e.note ?? '',
+    by: e.actedBy ?? '—',
+    at: e.occurredAt,
+  }))
+}
+
+/**
+ * Changes a trip's status in the backend. The backend checks who may do what: a captain can open boarding,
+ * start and arrive on their own boat; an admin decides everything else. Pass `incidentId` to record the
+ * decision against an incident. A captain's SOS creates an incident and leaves the trip as it is.
+ */
+export async function operateLiveTrip(
+  tripId: string,
+  type: OperationType,
+  reason: string,
+  incidentId?: string,
+): Promise<{ status: AdminTripStatus | null }> {
+  if (type === 'SOS') {
+    await apiRequest(API_ENDPOINTS.trips.sos(tripId), { method: 'POST', body: { note: reason } })
+    return { status: null }
+  }
+  const result = await apiRequest<{ status: AdminTripStatus }>(API_ENDPOINTS.trips.status(tripId), {
+    method: 'POST',
+    body: { operation: type, reason: reason || null, incidentId: incidentId ?? null },
+  })
+  return { status: result.status }
+}
