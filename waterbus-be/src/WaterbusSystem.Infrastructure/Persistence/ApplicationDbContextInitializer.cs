@@ -76,15 +76,16 @@ public class ApplicationDbContextInitializer
         await SeedUserAsync("staff@waterbus.vn", "Nhân Viên Soát Vé Bến", "Staff@123456!", "Staff");
 
         // 3. Seed 5 Bến Tàu Chính Dọc Sông Sài Gòn
+        // Toạ độ lấy từ OpenStreetMap (tuyến Saigon Waterbus số 1); CSDL cũ được sửa ở CorrectDemoStationCoordinatesAsync.
         if (!await _context.Stations.AnyAsync())
         {
             var stations = new List<Station>
             {
-                new() { Code = "ST01", Name = "Bến Bạch Đằng", Address = "Số 10B Tôn Đức Thắng, Phường Bến Nghé, Quận 1", Latitude = 10.7725, Longitude = 106.7067, OrderIndex = 1 },
-                new() { Code = "ST02", Name = "Bến Bình An", Address = "Đường số 21, Phường Bình An, TP. Thủ Đức", Latitude = 10.7850, Longitude = 106.7210, OrderIndex = 2 },
-                new() { Code = "ST03", Name = "Bến Thanh Đa", Address = "Phường 27, Quận Bình Thạnh", Latitude = 10.8256, Longitude = 106.7289, OrderIndex = 3 },
-                new() { Code = "ST04", Name = "Bến Hiệp Bình Chánh", Address = "Đường số 10, Hiệp Bình Chánh, TP. Thủ Đức", Latitude = 10.8412, Longitude = 106.7321, OrderIndex = 4 },
-                new() { Code = "ST05", Name = "Bến Linh Đông", Address = "Đường Kha Vạn Cân, Phường Linh Đông, TP. Thủ Đức", Latitude = 10.8521, Longitude = 106.7554, OrderIndex = 5 }
+                new() { Code = "ST01", Name = "Bến Bạch Đằng", Address = "Số 10B Tôn Đức Thắng, Phường Bến Nghé, Quận 1", Latitude = 10.7752301, Longitude = 106.7072821, OrderIndex = 1 },
+                new() { Code = "ST02", Name = "Bến Bình An", Address = "Đường số 21, Phường Bình An, TP. Thủ Đức", Latitude = 10.79736, Longitude = 106.7283885, OrderIndex = 2 },
+                new() { Code = "ST03", Name = "Bến Thanh Đa", Address = "Phường 27, Quận Bình Thạnh", Latitude = 10.8196062, Longitude = 106.7166367, OrderIndex = 3 },
+                new() { Code = "ST04", Name = "Bến Hiệp Bình Chánh", Address = "Đường số 10, Hiệp Bình Chánh, TP. Thủ Đức", Latitude = 10.8270491, Longitude = 106.7316735, OrderIndex = 4 },
+                new() { Code = "ST05", Name = "Bến Linh Đông", Address = "Đường Kha Vạn Cân, Phường Linh Đông, TP. Thủ Đức", Latitude = 10.8349605, Longitude = 106.7464066, OrderIndex = 5 }
             };
 
             await _context.Stations.AddRangeAsync(stations);
@@ -284,6 +285,8 @@ public class ApplicationDbContextInitializer
             await _context.SaveChangesAsync();
         }
 
+        await CorrectDemoStationCoordinatesAsync();
+
         // Seed only RT01 demo Trips from their actual ScheduleStop definitions.
         // Operational Trip generation and check-in window configuration belong to their own modules.
         var demoTrips = await _context.Trips
@@ -313,6 +316,50 @@ public class ApplicationDbContextInitializer
             }
         }
         await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Toạ độ cũ (gần đúng) của 5 bến demo và toạ độ thật từ OpenStreetMap (tuyến Saigon Waterbus số 1).
+    /// </summary>
+    internal static readonly (string Code, double OldLat, double OldLng, double NewLat, double NewLng)[] DemoStationCoordinates =
+    [
+        ("ST01", 10.7725, 106.7067, 10.7752301, 106.7072821),
+        ("ST02", 10.7850, 106.7210, 10.79736, 106.7283885),
+        ("ST03", 10.8256, 106.7289, 10.8196062, 106.7166367),
+        ("ST04", 10.8412, 106.7321, 10.8270491, 106.7316735),
+        ("ST05", 10.8521, 106.7554, 10.8349605, 106.7464066)
+    ];
+
+    /// <summary>
+    /// CSDL tạo từ seed cũ vẫn giữ toạ độ gần đúng (bến nằm lệch khỏi bờ sông). Sửa sang toạ độ thật,
+    /// nhưng CHỈ khi bến còn đúng toạ độ seed cũ, để không ghi đè toạ độ Admin đã tự chỉnh. Chạy lại không đổi gì thêm.
+    /// </summary>
+    private async Task CorrectDemoStationCoordinatesAsync()
+    {
+        const double tolerance = 0.0001; // ~11 m: đủ để bỏ qua sai số lưu số thực
+        var codes = DemoStationCoordinates.Select(c => c.Code).ToList();
+        var stations = await _context.Stations.Where(s => !s.IsDeleted && codes.Contains(s.Code)).ToListAsync();
+
+        var changed = false;
+        foreach (var (code, oldLat, oldLng, newLat, newLng) in DemoStationCoordinates)
+        {
+            var station = stations.FirstOrDefault(s => s.Code == code);
+            if (station is null
+                || Math.Abs(station.Latitude - oldLat) > tolerance
+                || Math.Abs(station.Longitude - oldLng) > tolerance)
+            {
+                continue;
+            }
+
+            station.Latitude = newLat;
+            station.Longitude = newLng;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await _context.SaveChangesAsync();
+        }
     }
 
     private async Task SeedUserAsync(string email, string fullName, string password, string role)
