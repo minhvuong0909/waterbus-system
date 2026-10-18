@@ -2,8 +2,10 @@
  * SQLite Local Database Service
  * Provides offline-first persistence for preloaded trips, bookings, tickets, public keys,
  * and offline check-in event queues.
- * Supports Expo SQLite (SDK 54) with cross-platform fallback for Web/Unit Tests.
+ * Supports Expo SQLite with cross-platform fallback for Web/Unit Tests.
  */
+
+declare const require: any;
 
 function isNativeApp(): boolean {
   try {
