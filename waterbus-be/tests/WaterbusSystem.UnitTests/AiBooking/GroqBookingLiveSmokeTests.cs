@@ -12,29 +12,29 @@ using Xunit;
 namespace WaterbusSystem.UnitTests.AiBooking;
 
 /// <summary>
-/// Opt-in: gọi OpenAI thật qua Semantic Kernel nhưng chỉ dùng trip fixture trong test.
+/// Opt-in: gọi Groq thật qua Semantic Kernel nhưng chỉ dùng trip fixture trong test.
 /// Không chứng minh Trip Search/Booking link/Web production đã tích hợp.
 /// </summary>
-public sealed class OpenAiBookingLiveSmokeTests
+public sealed class GroqBookingLiveSmokeTests
 {
     [Fact]
-    public async Task OpenAiCallsSearchPluginAndReturnsStructuredCard_WhenExplicitlyEnabled()
+    public async Task GroqCallsSearchPluginAndReturnsStructuredCard_WhenExplicitlyEnabled()
     {
-        if (Environment.GetEnvironmentVariable("WATERBUS_OPENAI_BOOKING_SMOKE") != "1")
+        if (Environment.GetEnvironmentVariable("WATERBUS_GROQ_BOOKING_SMOKE") != "1")
             return;
 
         var configuration = new ConfigurationBuilder()
             .AddUserSecrets(typeof(BaseApiController).Assembly, optional: true)
             .AddEnvironmentVariables()
             .Build();
-        var apiKey = configuration["AiBookingAssistant:OpenAI:ApiKey"];
+        var apiKey = configuration["AiBookingAssistant:Groq:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey))
-            throw new InvalidOperationException("Thiếu AiBookingAssistant:OpenAI:ApiKey trong WebApi User Secrets hoặc biến môi trường.");
+            throw new InvalidOperationException("Thiếu AiBookingAssistant:Groq:ApiKey trong WebApi User Secrets hoặc biến môi trường.");
 
-        var options = new OpenAiAssistantOptions
+        var options = new GroqAssistantOptions
         {
             ApiKey = apiKey,
-            ModelId = configuration["AiBookingAssistant:OpenAI:ModelId"] ?? "gpt-4.1-mini",
+            ModelId = configuration["AiBookingAssistant:Groq:ModelId"] ?? "openai/gpt-oss-20b",
             IsEnabled = true,
             TimeoutSeconds = 60
         };
@@ -53,7 +53,7 @@ public sealed class OpenAiBookingLiveSmokeTests
         });
 
         response.IsFallback.Should().BeFalse(
-            "OpenAI/tool diagnostic: exception={0}; httpStatus={1}; tools={2}; cards={3}",
+            "Groq/tool diagnostic: exception={0}; httpStatus={1}; tools={2}; cards={3}",
             diagnostics.ExceptionTypes,
             diagnostics.HttpStatuses,
             string.Join(",", response.ExecutedTools.Select(t => $"{t.ToolName}:{t.Success}")),

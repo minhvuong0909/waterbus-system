@@ -6,7 +6,7 @@ Nguồn phân công: Google Doc “Bản sao của Waterbus Management”, tab `
 
 | Câu trong phân công | Kết quả Thịnh phải bàn giao | Điều kiện chứng minh hoàn thành |
 |---|---|---|
-| “Tích hợp Semantic Kernel kết nối với OpenAI/Gemini” | AI Booking Assistant chạy qua Semantic Kernel và **OpenAI do Thịnh chọn** | Gọi provider thật từ backend bằng key cấu hình ngoài Git; lỗi/quota/timeout có xử lý và test. |
+| “Tích hợp Semantic Kernel kết nối với OpenAI/Gemini” | AI Booking Assistant chạy qua Semantic Kernel; Thịnh hiện chọn **Groq**, khác hai provider được giao, cần nhóm chấp nhận thay đổi | Gọi provider thật từ backend bằng key cấu hình ngoài Git; lỗi/quota/timeout có xử lý và test. Nếu nhóm không chấp nhận Groq, cần quay về provider được giao. |
 | “Khai báo các Plugins/Functions để AI tự hiểu ý định khách hàng” | Tool/function có schema rõ, validate tham số tìm chuyến | Các câu hỏi về ngày, bến, loại dịch vụ được phân tích đúng; thiếu dữ liệu thì hỏi lại, không đoán. |
 | “Gọi API tìm chuyến” | Tool gọi API/query tìm chuyến đã được owner xác nhận, qua quyền hợp lệ | Kết quả chat dùng chuyến/giờ từ API thật; không bịa giá, ghế hoặc bến. |
 | “Hiển thị UI Card” | Backend trả **dữ liệu Trip Card có cấu trúc** cho Viễn; Viễn render UI | Chat trên Customer Web hiển thị card đúng chuyến và link đặt vé hợp lệ. Thịnh không tự làm chat widget/UI. |
@@ -35,7 +35,7 @@ Kết quả A là code/test có thể review, **chưa hoàn thành phân công**
 1. Owner POI/kịch bản cung cấp nguồn script, POI active, RoutePoi radius, AudioGuide publish/approval và nơi lưu MP3.
 2. Kiệt/owner tracking cung cấp position event của Boat/Trip; owner Onboard Player cung cấp lệnh phát, ACK và safety override.
 3. Owner Trip Search/Booking cung cấp search result chính xác và cách tạo booking link; Viễn chốt Trip Card JSON và hiển thị chat.
-4. Thịnh đã chọn OpenAI và Azure Blob; nhóm xác nhận quyền dùng hạ tầng/credential, Azure voice/region, môi trường demo/chạy thật theo [AI_DECISIONS.md](AI_DECISIONS.md).
+4. Thịnh đã chọn Groq và Azure Blob; nhóm xác nhận đổi provider AI so với Drive và quyền dùng hạ tầng/credential, Azure voice/region, môi trường demo/chạy thật theo [AI_DECISIONS.md](AI_DECISIONS.md).
 
 Các câu hỏi và contract cần ghi vào [INTEGRATION_LATER.md](INTEGRATION_LATER.md). Không tự thêm schema, hub hoặc UI để lấp chỗ chưa có.
 
@@ -56,4 +56,4 @@ Các câu hỏi và contract cần ghi vào [INTEGRATION_LATER.md](INTEGRATION_L
 
 ## 5. Quyết định còn cần chốt để chạy thật
 
-**Đã rõ ba điểm:** Thịnh chọn OpenAI `gpt-4.1-mini`, MP3 trên Azure Blob; BR FINAL đã chốt Onboard Player phát ra loa. Xem [AI_DECISIONS.md](AI_DECISIONS.md). **Vẫn cần team cung cấp:** nguồn/version kịch bản, Azure/OpenAI credentials và quyền dùng Blob; contract gửi trigger/ACK với player và tracking; Trip Card/booking link cùng API Trip Search đã sửa. Thiếu các contract đó chặn phần tương ứng của giai đoạn C, **không chặn giai đoạn A**. CRUD POI và ETA vẫn ngoài scope Thịnh trong mọi trường hợp.
+**Đã rõ ba điểm:** Thịnh chọn Groq `openai/gpt-oss-20b` (cần nhóm xác nhận vì Drive nêu OpenAI/Gemini), MP3 trên Azure Blob; BR FINAL đã chốt Onboard Player phát ra loa. Xem [AI_DECISIONS.md](AI_DECISIONS.md). **Vẫn cần team cung cấp:** nguồn/version kịch bản, Azure/Groq credentials và quyền dùng Blob; contract gửi trigger/ACK với player và tracking; Trip Card/booking link cùng API Trip Search đã sửa. Thiếu các contract đó chặn phần tương ứng của giai đoạn C, **không chặn giai đoạn A**. CRUD POI và ETA vẫn ngoài scope Thịnh trong mọi trường hợp.

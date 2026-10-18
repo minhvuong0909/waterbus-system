@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Moq;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.AiBooking.Models;
@@ -24,22 +25,70 @@ namespace WaterbusSystem.UnitTests.AiBooking.SemanticKernel;
 /// </summary>
 public class SemanticKernelAiBookingAssistantServiceTests
 {
+    [Fact]
+    public void GroqConfiguration_UsesOfficialEndpointAndToolCapableDefaultModel()
+    {
+        GroqAssistantOptions.SectionName.Should().Be("AiBookingAssistant:Groq");
+        GroqAssistantOptions.Endpoint.Should().Be("https://api.groq.com/openai/v1");
+        new GroqAssistantOptions().ModelId.Should().Be("openai/gpt-oss-20b");
+        new GroqAssistantOptions().IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GroqConnector_SendsChatToGroqChatCompletionsPath()
+    {
+        var handler = new RequestPathCaptureHandler();
+        using var httpClient = new HttpClient(handler);
+        var builder = Kernel.CreateBuilder();
+        builder.AddOpenAIChatCompletion(
+            "openai/gpt-oss-20b",
+            new Uri(GroqAssistantOptions.Endpoint),
+            "test-key",
+            httpClient: httpClient);
+        var kernel = builder.Build();
+        var chatService = kernel.GetRequiredService<IChatCompletionService>();
+
+        try
+        {
+            await chatService.GetChatMessageContentsAsync(
+                new ChatHistory("Xin chào"), new OpenAIPromptExecutionSettings(), kernel);
+        }
+        catch (Exception)
+        {
+            // Handler trả lỗi giả lập; test chỉ cần kiểm tra URL được SDK xây dựng.
+        }
+
+        handler.RequestUri.Should().NotBeNull();
+        handler.RequestUri!.AbsoluteUri.Should().Be("https://api.groq.com/openai/v1/chat/completions");
+    }
+
+    private sealed class RequestPathCaptureHandler : HttpMessageHandler
+    {
+        public Uri? RequestUri { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestUri = request.RequestUri;
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized));
+        }
+    }
+
     private readonly Mock<ITripSearchTool> _tripSearchToolMock = new();
     private readonly Mock<IBookingLinkTool> _bookingLinkToolMock = new();
     private readonly Mock<ILogger<SemanticKernelAiBookingAssistantService>> _loggerMock = new();
     private readonly Mock<IChatCompletionService> _chatCompletionServiceMock = new();
     private readonly AiBookingChatRequestValidator _validator = new();
 
-    private readonly OpenAiAssistantOptions _defaultOptions = new()
+    private readonly GroqAssistantOptions _defaultOptions = new()
     {
-        ApiKey = "mock-openai-key-test",
-        ModelId = "gpt-4.1-mini",
+        ApiKey = "mock-groq-key-test",
+        ModelId = "openai/gpt-oss-20b",
         TimeoutSeconds = 5,
         IsEnabled = true
     };
 
     private SemanticKernelAiBookingAssistantService CreateService(
-        OpenAiAssistantOptions? options = null,
+        GroqAssistantOptions? options = null,
         IChatCompletionService? customChatService = null)
     {
         var opt = Options.Create(options ?? _defaultOptions);
@@ -103,7 +152,7 @@ public class SemanticKernelAiBookingAssistantServiceTests
     public async Task ProcessChatAsync_ProductionDisabled_ThrowsInvalidOperationException()
     {
         // Khi không truyền testChatCompletionService (chạy nhánh production thật)
-        var disabledOptions = new OpenAiAssistantOptions
+        var disabledOptions = new GroqAssistantOptions
         {
             ApiKey = "key",
             IsEnabled = false // Chưa kích hoạt
@@ -120,13 +169,13 @@ public class SemanticKernelAiBookingAssistantServiceTests
         var act = () => productionService.ProcessChatAsync(new AiBookingChatRequest { Message = "Tìm chuyến lúc 9h" });
 
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*chưa được kích hoạt hoặc thiếu OpenAI API key*");
+            .WithMessage("*chưa được kích hoạt hoặc thiếu Groq API key*");
     }
 
     [Fact]
     public async Task ProcessChatAsync_ProductionMissingApiKey_ThrowsInvalidOperationException()
     {
-        var missingKeyOptions = new OpenAiAssistantOptions
+        var missingKeyOptions = new GroqAssistantOptions
         {
             ApiKey = null,
             IsEnabled = true
@@ -143,13 +192,13 @@ public class SemanticKernelAiBookingAssistantServiceTests
         var act = () => productionService.ProcessChatAsync(new AiBookingChatRequest { Message = "Tìm chuyến đi" });
 
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*chưa được kích hoạt hoặc thiếu OpenAI API key*");
+            .WithMessage("*chưa được kích hoạt hoặc thiếu Groq API key*");
     }
 
     [Fact]
     public async Task ProcessChatAsync_InjectedChatService_CannotBypassDisabledFlag()
     {
-        var service = CreateService(new OpenAiAssistantOptions
+        var service = CreateService(new GroqAssistantOptions
         {
             ApiKey = "mock-key",
             IsEnabled = false
@@ -268,7 +317,7 @@ public class SemanticKernelAiBookingAssistantServiceTests
     [Fact]
     public async Task ProcessChatAsync_TimeoutOccurs_ReturnsFallbackResponseWithFlag()
     {
-        var shortTimeoutOptions = new OpenAiAssistantOptions
+        var shortTimeoutOptions = new GroqAssistantOptions
         {
             ApiKey = "key",
             TimeoutSeconds = 1,
@@ -307,7 +356,7 @@ public class SemanticKernelAiBookingAssistantServiceTests
                 It.IsAny<PromptExecutionSettings>(),
                 It.IsAny<Kernel>(),
                 It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new HttpRequestException("Lỗi kết nối OpenAI 503"));
+            .ThrowsAsync(new HttpRequestException("Lỗi kết nối Groq 503"));
 
         var service = CreateService();
 

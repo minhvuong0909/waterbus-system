@@ -12,7 +12,7 @@ using WaterbusSystem.Infrastructure.Services.AiBooking.Plugins;
 namespace WaterbusSystem.Infrastructure.Services.AiBooking;
 
 /// <summary>
-/// Adapter của IAiBookingAssistantService sử dụng Microsoft Semantic Kernel và OpenAI (gpt-4.1-mini).
+/// Adapter của IAiBookingAssistantService sử dụng Microsoft Semantic Kernel và Groq.
 /// Tuân thủ nghiêm ngặt BR-AI-01:
 /// - Chỉ tương tác qua tools (WaterbusBookingPlugin) được ủy quyền cho ITripSearchTool và IBookingLinkTool.
 /// - Không cho phép thao tác CSDL, thanh toán hay quản trị.
@@ -22,7 +22,7 @@ namespace WaterbusSystem.Infrastructure.Services.AiBooking;
 /// </summary>
 public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantService
 {
-    private readonly IOptions<OpenAiAssistantOptions> _options;
+    private readonly IOptions<GroqAssistantOptions> _options;
     private readonly ITripSearchTool _tripSearchTool;
     private readonly IBookingLinkTool _bookingLinkTool;
     private readonly IValidator<AiBookingChatRequest> _validator;
@@ -40,7 +40,7 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
         "6. Trả lời bằng tiếng Việt lịch sự, súc tích, văn phong thân thiện.";
 
     public SemanticKernelAiBookingAssistantService(
-        IOptions<OpenAiAssistantOptions> options,
+        IOptions<GroqAssistantOptions> options,
         ITripSearchTool tripSearchTool,
         IBookingLinkTool bookingLinkTool,
         IValidator<AiBookingChatRequest> validator,
@@ -98,7 +98,9 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
         else
         {
             var builder = Kernel.CreateBuilder();
-            builder.AddOpenAIChatCompletion(config.ModelId, config.ApiKey!);
+            // Groq cung cấp Chat Completions tương thích OpenAI; vẫn giữ Semantic Kernel
+            // để thực thi WaterbusBookingPlugin, chỉ đổi endpoint và credential.
+            builder.AddOpenAIChatCompletion(config.ModelId, new Uri(GroqAssistantOptions.Endpoint), config.ApiKey!);
 
             builder.Plugins.AddFromObject(plugin, "WaterbusBookingPlugin");
             kernel = builder.Build();
@@ -118,7 +120,9 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
 
         var executionSettings = new OpenAIPromptExecutionSettings
         {
-            FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
+            // GPT-OSS trên Groq hỗ trợ tool calling nhưng không hỗ trợ parallel tool calls.
+            FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(
+                options: new FunctionChoiceBehaviorOptions { AllowParallelCalls = false })
         };
 
         var timeout = TimeSpan.FromSeconds(config.TimeoutSeconds);
@@ -168,7 +172,7 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
         catch (Exception ex)
         {
             // SDK exception có thể chứa prompt/credential; chỉ ghi loại lỗi và HTTP status an toàn.
-            _logger.LogError("Dịch vụ OpenAI qua Semantic Kernel lỗi ({ExceptionType}, HTTP {StatusCode}).",
+            _logger.LogError("Dịch vụ Groq qua Semantic Kernel lỗi ({ExceptionType}, HTTP {StatusCode}).",
                 ex.GetType().Name, SafeHttpStatusCode(ex));
             return new AiBookingChatResponse(
                 TextAnswer: "Xin lỗi quý khách, hiện tại dịch vụ trợ lý ảo đang gặp sự cố kết nối. Quý khách vui lòng thử lại sau.",
@@ -185,7 +189,7 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
             if (current is HttpRequestException httpException && httpException.StatusCode.HasValue)
                 return (int)httpException.StatusCode.Value;
 
-            // Semantic Kernel/OpenAI SDK có thể bọc HTTP error trong kiểu exception riêng.
+            // Semantic Kernel/OpenAI-compatible SDK có thể bọc HTTP error trong kiểu exception riêng.
             var value = current.GetType().GetProperty("StatusCode")?.GetValue(current);
             if (value is System.Net.HttpStatusCode status)
                 return (int)status;

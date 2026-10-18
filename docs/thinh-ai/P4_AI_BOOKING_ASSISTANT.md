@@ -6,7 +6,7 @@ Drive **đã giao Thịnh AI Booking Assistant** (Semantic Kernel, OpenAI/Gemini
 
 ## Các bước phải hoàn thành
 
-1. Dùng **OpenAI API qua Semantic Kernel**, model khởi đầu `gpt-4.1-mini` theo [AI_DECISIONS.md](AI_DECISIONS.md). Credential/config ngoài Git; kiểm tra package/version .NET thực tế trước khi code adapter. Không tự đổi provider.
+1. Dùng **Groq API qua Semantic Kernel**, model khởi đầu `openai/gpt-oss-20b` theo [AI_DECISIONS.md](AI_DECISIONS.md). Đây là lựa chọn mới của Thịnh, khác hai provider được Drive nêu (OpenAI/Gemini); cần nhóm xác nhận trước khi coi là đáp ứng phân công. Credential/config ngoài Git.
 2. Định nghĩa input chat và response tách phần văn bản với `TripCard[]` có schema ổn định. Không dùng văn bản model để frontend tự bóc tách chuyến.
 3. Định nghĩa plugin/function tìm chuyến: validate ngày, bến, loại dịch vụ và tham số được API hỗ trợ; gọi search API/query đã được owner xác nhận đúng. Thiếu dữ liệu thì hỏi thêm, kết quả rỗng thì báo rỗng.
 4. Function tạo link đặt vé chỉ dùng service/route đã được owner Booking/Web cung cấp; không tự nối chuỗi URL từ phỏng đoán và không tạo Booking/Payment.
@@ -22,7 +22,7 @@ Backend đã chuẩn bị `MediatRTripSearchTool` (gọi cùng query mà API Tri
 Trước khi tích hợp, thống nhất với nhóm:
 
 - thời điểm làm widget optional trong roadmap và owner frontend;
-- OpenAI API key/quota và ngân sách; provider/model đã được Thịnh chọn, không phải quyết định có sẵn trong repo;
+- Groq API key/quota và ngân sách; provider/model đã được Thịnh chọn, không phải quyết định có sẵn trong repo/Drive và cần báo nhóm;
 - ngân sách/rate limit;
 - API Trip Search đã ổn định;
 - payload Trip Card frontend;
@@ -32,7 +32,7 @@ Theo DoD hiện có, AI phải trả lời giờ tàu từ dữ liệu thật v�
 
 ## Nguyên tắc kiến trúc
 
-- Dùng Semantic Kernel/OpenAI adapter ở Infrastructure theo Clean Architecture; lựa chọn provider của Thịnh ghi tại `AI_DECISIONS.md`.
+- Dùng Semantic Kernel với Groq OpenAI-compatible endpoint ở Infrastructure theo Clean Architecture; lựa chọn provider của Thịnh ghi tại `AI_DECISIONS.md`.
 - Application định nghĩa interface/use case độc lập provider.
 - Tool/function phải gọi Application query/API hợp lệ, không query DB tùy ý.
 - Không truyền connection string, secret, log nội bộ hoặc dữ liệu thanh toán vào prompt.

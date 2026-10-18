@@ -54,7 +54,7 @@ Test end-to-end phần Thịnh: Boat trên Sightseeing Trip đi từ ngoài vào
 Cần chốt trước khi nối:
 
 1. `P4-WEB-03` optional trong roadmap được làm ở phase/kỳ nào, Thịnh phụ trách backend tool-calling tới đâu và Viễn phụ trách UI tới đâu?
-2. Thịnh đã chọn OpenAI `gpt-4.1-mini`; ai cấp key, giới hạn rate/quota và chi phí?
+2. Thịnh đã đổi sang Groq `openai/gpt-oss-20b`; nhóm có chấp nhận khác lựa chọn OpenAI/Gemini trên Drive không, ai cấp key, giới hạn rate/quota và chi phí?
 3. SearchTrips contract sau khi sửa các hạn chế hiện tại: giờ, bến thực sự phục vụ, loại chuyến, giá, số ghế có tin cậy không?
 4. Trip Card JSON schema và link đặt vé hợp lệ được tạo bởi service nào? AI không tự dựng URL từ phỏng đoán.
 5. Nếu khách hỏi hoàng hôn, có nguồn giờ hoàng hôn và vị trí đáng tin không? Nếu chưa có, assistant chỉ tư vấn theo lịch chuyến và nêu giới hạn dữ liệu.

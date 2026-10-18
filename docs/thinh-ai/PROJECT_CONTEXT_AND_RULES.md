@@ -31,7 +31,7 @@ Tab `module` trên Google Drive **giao rõ Thịnh làm AI Developer** với hai
 
 ### Optional theo roadmap
 
-- AI Booking Assistant **đã được Drive giao cho Thịnh**. `P4-WEB-03` là widget **optional trong roadmap repo**, phụ thuộc Trip Search + Booking ổn định. Đây là khác biệt về ưu tiên/thời điểm giữa hai tài liệu, không phủ nhận phân công AI. Repo chưa chốt provider/model; Thịnh đã chọn OpenAI `gpt-4.1-mini` trong [AI_DECISIONS.md](AI_DECISIONS.md).
+- AI Booking Assistant **đã được Drive giao cho Thịnh**. `P4-WEB-03` là widget **optional trong roadmap repo**, phụ thuộc Trip Search + Booking ổn định. Đây là khác biệt về ưu tiên/thời điểm giữa hai tài liệu, không phủ nhận phân công AI. Repo gốc chưa chốt provider/model; Thịnh đã đổi sang Groq `openai/gpt-oss-20b` trong [AI_DECISIONS.md](AI_DECISIONS.md), cần báo nhóm vì Drive nêu OpenAI/Gemini.
 
 ### Không thuộc phạm vi này
 
@@ -121,7 +121,7 @@ Các câu hỏi này không chặn geofence core và TTS adapter độc lập, n
 2. Thịnh đã chọn Azure Blob cho MP3. Team có đồng ý dùng account/container Azure Blob và ai cấp credential/quyền truy cập?
 3. Nội dung/kịch bản TTS lưu ở đâu? Entity hiện chưa có `ScriptText`, trong khi `P3-WEB-02` yêu cầu UI quản lý kịch bản. Quyết định này ảnh hưởng schema và API, cần chốt trước TTS CRUD.
 4. BR FINAL đã chốt Onboard Player phát ra loa; backend gửi trigger bằng giao thức/event nào, player ACK ra sao và ai là owner implementation?
-5. AI Booking Assistant đã giao Thịnh trên Drive và Thịnh chọn OpenAI; roadmap để widget optional: nhóm muốn làm trong phase/kỳ nào, ai sở hữu frontend widget và ai cấp API key/quota?
+5. AI Booking Assistant đã giao Thịnh trên Drive và Thịnh chọn Groq (khác OpenAI/Gemini của Drive); nhóm có chấp nhận không, roadmap để widget optional ở phase/kỳ nào, ai sở hữu frontend widget và ai cấp API key/quota?
 6. Khi các phần CRUD POI, ETA, `BoatTrackingHub` và UI Web hoàn thành, owner cung cấp contract nào để Thịnh tích hợp? Thịnh không nhận implement CRUD POI hoặc ETA.
 
 Không tự đoán câu trả lời bằng cách sửa schema hoặc khóa chặt provider.
