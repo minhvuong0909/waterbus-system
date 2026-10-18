@@ -4,7 +4,7 @@
  * and backend server URL settings.
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -15,20 +15,62 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useScannerStore } from '../../store/useScannerStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { syncService } from '../../services/sync/syncService';
+import { getMyScannerAssignments } from '../../services/checkin/scannerAssignmentService';
+import { MyScannerAssignment } from '../../types/checkin';
+import { ApiError } from '../../services/api/apiClient';
 
 export default function ScannerSettingsScreen() {
-  const { deviceInfo, setForceOfflineMode, syncPendingBatch } = useScannerStore();
+  const { deviceInfo, setForceOfflineMode } = useScannerStore();
+  const { user, logout } = useAuthStore();
 
   const [backendUrl, setBackendUrl] = useState('http://localhost:5000');
   const [deviceCode, setDeviceCode] = useState(deviceInfo.deviceCode);
 
+  const [assignments, setAssignments] = useState<MyScannerAssignment[]>([]);
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
+  const [assignmentsError, setAssignmentsError] = useState<string | null>(null);
+
+  const loadAssignments = useCallback(async () => {
+    setIsLoadingAssignments(true);
+    setAssignmentsError(null);
+    try {
+      const result = await getMyScannerAssignments();
+      setAssignments(result);
+    } catch (err) {
+      setAssignmentsError(err instanceof ApiError ? err.message : 'Không tải được phân công. Kiểm tra kết nối mạng.');
+    } finally {
+      setIsLoadingAssignments(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAssignments();
+  }, [loadAssignments]);
+
   const handleSaveConfig = () => {
     syncService.setDeviceInfo({ deviceCode });
     Alert.alert('Đã lưu cấu hình', 'Thông tin thiết bị và máy chủ đã được cập nhật.');
+  };
+
+  const handleLogout = () => {
+    Alert.alert('Đăng xuất', 'Bạn có chắc muốn đăng xuất khỏi tài khoản này?', [
+      { text: 'Huỷ', style: 'cancel' },
+      {
+        text: 'Đăng xuất',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          router.replace('/login');
+        },
+      },
+    ]);
   };
 
   return (
@@ -40,31 +82,66 @@ export default function ScannerSettingsScreen() {
           <Text style={styles.subtitle}>Thiết lập thiết bị soát vé cầm tay (Staff Scanner)</Text>
         </View>
 
-        {/* Staff Profile Card */}
+        {/* Staff Profile Card - tài khoản đăng nhập thật qua POST /api/v1/auth/login */}
         <View style={styles.card}>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>NV</Text>
+              <Text style={styles.avatarText}>
+                {(user?.fullName || '?').trim().charAt(0).toUpperCase()}
+              </Text>
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.staffName}>{deviceInfo.staffName}</Text>
-              <Text style={styles.staffRole}>Nhân Viên Soát Vé (Thành viên 4)</Text>
-              <Text style={styles.staffCode}>Mã NV: {deviceInfo.staffId}</Text>
+              <Text style={styles.staffName}>{user?.fullName || 'Chưa đăng nhập'}</Text>
+              <Text style={styles.staffRole}>Nhân Viên Soát Vé (Staff)</Text>
+              <Text style={styles.staffCode}>{user?.email}</Text>
             </View>
           </View>
 
           <View style={styles.divider} />
 
-          <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>Bến phân công hiện tại:</Text>
-            <Text style={styles.metaValue}>{deviceInfo.stationName}</Text>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={18} color="#DC2626" style={{ marginRight: 6 }} />
+            <Text style={styles.logoutBtnText}>Đăng Xuất</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Phân công soát vé của tôi - GET /api/v1/checkins/assignments/mine (dữ liệu thật) */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardTitle}>Phân Công Soát Vé Của Tôi</Text>
+            <TouchableOpacity onPress={loadAssignments} disabled={isLoadingAssignments}>
+              <Ionicons name="refresh" size={18} color="#0284C7" />
+            </TouchableOpacity>
           </View>
-          <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>Quyền ghi ngoại tuyến:</Text>
-            <View style={styles.badgePrimary}>
-              <Text style={styles.badgePrimaryText}>Primary Offline Scanner</Text>
-            </View>
-          </View>
+
+          {isLoadingAssignments ? (
+            <ActivityIndicator color="#0284C7" style={{ marginVertical: 12 }} />
+          ) : assignmentsError ? (
+            <Text style={styles.assignmentError}>{assignmentsError}</Text>
+          ) : assignments.length === 0 ? (
+            <Text style={styles.assignmentEmpty}>Hiện chưa được phân công điểm dừng nào.</Text>
+          ) : (
+            assignments.map((a) => (
+              <View key={a.assignmentId} style={styles.assignmentItem}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.assignmentStation}>{a.stationName}</Text>
+                  <Text style={styles.assignmentRoute}>
+                    {a.routeName} • Bến thứ {a.visitOrder} • {a.tripStatus}
+                  </Text>
+                  {a.checkInOpenAt && a.checkInCloseAt ? (
+                    <Text style={styles.assignmentWindow}>
+                      Check-in: {new Date(a.checkInOpenAt).toLocaleTimeString()} - {new Date(a.checkInCloseAt).toLocaleTimeString()}
+                    </Text>
+                  ) : null}
+                </View>
+                {a.isPrimaryOffline ? (
+                  <View style={styles.badgePrimary}>
+                    <Text style={styles.badgePrimaryText}>Primary Offline</Text>
+                  </View>
+                ) : null}
+              </View>
+            ))
+          )}
         </View>
 
         {/* Operating Mode (Offline vs Online) */}
@@ -333,6 +410,57 @@ const styles = StyleSheet.create({
   specText: {
     fontSize: 13,
     color: '#334155',
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+  },
+  logoutBtnText: {
+    color: '#DC2626',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  assignmentError: {
+    color: '#DC2626',
+    fontSize: 13,
+    marginVertical: 8,
+  },
+  assignmentEmpty: {
+    color: '#94A3B8',
+    fontSize: 13,
+    marginVertical: 8,
+  },
+  assignmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  assignmentStation: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  assignmentRoute: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  assignmentWindow: {
+    fontSize: 11,
+    color: '#0284C7',
+    marginTop: 2,
   },
 });
 

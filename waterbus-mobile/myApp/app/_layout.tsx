@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { View, ActivityIndicator } from "react-native";
 import {
   DarkTheme,
   DefaultTheme,
@@ -13,16 +14,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { getDatabase } from "@/src/services/sqlite/database";
 import { syncService } from "@/src/services/sync/syncService";
 import { useScannerStore } from "@/src/store/useScannerStore";
+import { useAuthStore } from "@/src/store/useAuthStore";
 
 const queryClient = new QueryClient();
-
-export const unstable_settings = {
-  anchor: "(tabs)",
-};
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const refreshStats = useScannerStore((s) => s.refreshStats);
+  const { user, isRestoring, restoreSession } = useAuthStore();
 
   useEffect(() => {
     // 1. Initialize SQLite schema on boot
@@ -36,20 +35,37 @@ export default function RootLayout() {
     // 2. Start idempotent batch sync background worker
     syncService.startBackgroundWorker(15000);
 
+    // 3. Khôi phục phiên đăng nhập Staff đã lưu (nếu có) trước khi quyết định route đầu tiên
+    restoreSession();
+
     return () => {
       syncService.stopBackgroundWorker();
     };
   }, []);
 
+  if (isRestoring) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F8FAFC" }}>
+        <ActivityIndicator size="large" color="#0284C7" />
+      </View>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="modal"
-            options={{ presentation: "modal", title: "Modal" }}
-          />
+          {user ? (
+            <>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="modal"
+                options={{ presentation: "modal", title: "Modal" }}
+              />
+            </>
+          ) : (
+            <Stack.Screen name="login" options={{ headerShown: false }} />
+          )}
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
