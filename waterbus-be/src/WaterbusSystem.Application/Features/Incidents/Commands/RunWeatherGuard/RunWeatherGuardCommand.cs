@@ -8,13 +8,14 @@ using WaterbusSystem.Domain.Enums;
 
 namespace WaterbusSystem.Application.Features.Incidents.Commands.RunWeatherGuard;
 
-public record WeatherGuardResult(int RoutesChecked, int IncidentsCreated, int IncidentsUpdated, int ObservationFailures);
+public record WeatherGuardResult(int RoutesChecked, int IncidentsCreated, int IncidentsUpdated, int ObservationFailures, int IncidentsResolved = 0);
 
 /// <summary>
 /// Quét thời tiết tại các bến của những Route có Trip sắp/đang chạy và ghi nhận Incident thời tiết.
 /// - BR-INC-01/02: một Incident phạm vi Route, liên kết các Trip bị ảnh hưởng qua IncidentTrip.
 /// - BR-INC-03/04: KHÔNG đổi TripStatus; OperationDecision để trống cho Admin quyết định.
 /// - Idempotent: Incident Open cùng Route trong AlertWindowHours được cập nhật, không tạo trùng.
+/// - Tự đóng (Resolved) Incident thời tiết khi thời tiết đã dưới ngưỡng, tuyến không còn chuyến cần theo dõi, hoặc đã có Incident mới thay thế.
 /// </summary>
 public record RunWeatherGuardCommand : IRequest<WeatherGuardResult>;
 
@@ -63,7 +64,9 @@ public class RunWeatherGuardCommandHandler : IRequestHandler<RunWeatherGuardComm
         var tripsByRoute = trips.GroupBy(t => t.RouteId).ToDictionary(g => g.Key, g => g.Select(t => t.Id).ToList());
         if (tripsByRoute.Count == 0)
         {
-            return new WeatherGuardResult(0, 0, 0, 0);
+            // Không còn chuyến nào cần theo dõi: các cảnh báo thời tiết đang mở không còn ý nghĩa
+            var closed = await ResolveOpenIncidentsAsync(i => true, now, cancellationToken);
+            return new WeatherGuardResult(0, 0, 0, 0, closed);
         }
 
         var routes = await _context.Routes.AsNoTracking()
@@ -81,6 +84,7 @@ public class RunWeatherGuardCommandHandler : IRequestHandler<RunWeatherGuardComm
         // Nhiều tuyến dùng chung bến: mỗi toạ độ (làm tròn ~1 km) chỉ gọi API 1 lần trong 1 lượt quét
         var observationCache = new Dictionary<(double, double), WeatherObservation?>();
         int created = 0, updated = 0, failures = 0;
+        var safeRouteIds = new List<Guid>();
 
         foreach (var route in routes)
         {
@@ -90,6 +94,7 @@ public class RunWeatherGuardCommandHandler : IRequestHandler<RunWeatherGuardComm
 
             WeatherObservation? worst = null;
             string? worstSeverity = null;
+            var observedAll = true;
 
             foreach (var (lat, lng) in points.Select(p => (Math.Round(p.Item1, 2), Math.Round(p.Item2, 2))).Distinct())
             {
@@ -100,7 +105,11 @@ public class RunWeatherGuardCommandHandler : IRequestHandler<RunWeatherGuardComm
                     observationCache[(lat, lng)] = observation;
                 }
 
-                if (observation is null) continue;
+                if (observation is null)
+                {
+                    observedAll = false;
+                    continue;
+                }
 
                 var severity = WeatherAssessment.Severity(observation, _options);
                 if (IncidentConstants.Severities.Rank(severity) > IncidentConstants.Severities.Rank(worstSeverity))
@@ -110,17 +119,53 @@ public class RunWeatherGuardCommandHandler : IRequestHandler<RunWeatherGuardComm
                 }
             }
 
-            if (worst is null || worstSeverity is null) continue;
+            if (worst is null || worstSeverity is null)
+            {
+                // Chỉ coi là "an toàn" khi lấy được thời tiết ở mọi bến; thiếu dữ liệu thì giữ nguyên cảnh báo
+                if (observedAll) safeRouteIds.Add(route.Id);
+                continue;
+            }
 
             var isNew = await RecordIncidentAsync(route.Id, route.Code, worst, worstSeverity, tripsByRoute[route.Id], now, cancellationToken);
             if (isNew) created++; else updated++;
         }
 
-        _logger.LogInformation(
-            "[WEATHER GUARD] Đã kiểm tra {Routes} tuyến: tạo {Created}, cập nhật {Updated} Incident, {Failures} lần lấy thời tiết thất bại.",
-            routes.Count, created, updated, failures);
+        // Tuyến an toàn, hoặc tuyến không còn chuyến cần theo dõi -> đóng cảnh báo cũ
+        var monitoredRouteIds = routes.Select(r => r.Id).ToHashSet();
+        var resolved = await ResolveOpenIncidentsAsync(
+            i => i.RouteId != null && (safeRouteIds.Contains(i.RouteId.Value) || !monitoredRouteIds.Contains(i.RouteId.Value)),
+            now, cancellationToken);
 
-        return new WeatherGuardResult(routes.Count, created, updated, failures);
+        _logger.LogInformation(
+            "[WEATHER GUARD] Đã kiểm tra {Routes} tuyến: tạo {Created}, cập nhật {Updated}, đóng {Resolved} Incident, {Failures} lần lấy thời tiết thất bại.",
+            routes.Count, created, updated, resolved, failures);
+
+        return new WeatherGuardResult(routes.Count, created, updated, failures, resolved);
+    }
+
+    /// <summary>Đóng các Incident thời tiết do Weather Guard tạo đang mở và thoả điều kiện.</summary>
+    private async Task<int> ResolveOpenIncidentsAsync(
+        System.Linq.Expressions.Expression<Func<Incident, bool>> filter, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var open = await _context.Incidents
+            .Where(i => !i.IsDeleted
+                        && i.Source == IncidentConstants.Sources.WeatherService
+                        && i.IncidentType == IncidentConstants.Types.Weather
+                        && i.Status == IncidentConstants.Statuses.Open)
+            .Where(filter)
+            .ToListAsync(cancellationToken);
+        if (open.Count == 0) return 0;
+
+        foreach (var incident in open) CloseIncident(incident, now);
+        await _context.SaveChangesAsync(cancellationToken);
+        return open.Count;
+    }
+
+    private static void CloseIncident(Incident incident, DateTimeOffset now)
+    {
+        incident.Status = IncidentConstants.Statuses.Resolved;
+        incident.ResolvedAt = now;
+        incident.UpdatedAt = now;
     }
 
     private async Task<WeatherObservation?> TryObserveAsync(double lat, double lng, CancellationToken cancellationToken)
@@ -173,6 +218,16 @@ public class RunWeatherGuardCommandHandler : IRequestHandler<RunWeatherGuardComm
                 OccurredAt = now
             };
             _context.Incidents.Add(incident);
+
+            // Cảnh báo cũ của tuyến (đã quá khung AlertWindowHours) được thay bằng cảnh báo mới này
+            var stale = await _context.Incidents
+                .Where(i => !i.IsDeleted
+                            && i.RouteId == routeId
+                            && i.Source == IncidentConstants.Sources.WeatherService
+                            && i.IncidentType == IncidentConstants.Types.Weather
+                            && i.Status == IncidentConstants.Statuses.Open)
+                .ToListAsync(cancellationToken);
+            foreach (var old in stale) CloseIncident(old, now);
         }
         else
         {

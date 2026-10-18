@@ -41,6 +41,8 @@ export const API_ENDPOINTS = {
     detail: (id: string) => `/api/v1/incidents/${id}`,
     /** Runs the weather guard now instead of waiting for its schedule (Admin). */
     weatherCheck: '/api/v1/incidents/weather-check',
+    /** Closes an open incident without changing any trip (Admin). */
+    resolve: (id: string) => `/api/v1/incidents/${id}/resolve`,
   },
 } as const
 

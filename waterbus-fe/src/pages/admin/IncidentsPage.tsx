@@ -12,6 +12,7 @@ import {
 import type { Column } from '../../features/admin/components/AdminUi'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import {
+  closeAlert,
   getAlertsWithTrips,
   getBoats,
   getOperationLogs,
@@ -139,6 +140,7 @@ export default function IncidentsPage() {
   const boats = useFetch(getBoats)
   const [pending, setPending] = useState<{ trip: AdminTrip; type: OperationType; incidentId?: string } | null>(null)
   const weatherCheck = useSubmit()
+  const closing = useSubmit()
   const [checkResult, setCheckResult] = useState<WeatherCheckResult | null>(null)
   // New alerts, emergencies and every status change (by any admin or a captain) show up without reloading.
   const refresh = () => {
@@ -253,11 +255,17 @@ export default function IncidentsPage() {
           </ActionButton>
           {checkResult && (
             <span className="text-sm text-on-surface-variant">
-              {t('Checked {routes} routes: {created} new, {updated} updated alerts.', {
-                routes: checkResult.routesChecked,
-                created: checkResult.incidentsCreated,
-                updated: checkResult.incidentsUpdated,
-              })}
+              {t(
+                checkResult.incidentsResolved
+                  ? 'Checked {routes} routes: {created} new, {updated} updated, {resolved} closed alerts.'
+                  : 'Checked {routes} routes: {created} new, {updated} updated alerts.',
+                {
+                  routes: checkResult.routesChecked,
+                  created: checkResult.incidentsCreated,
+                  updated: checkResult.incidentsUpdated,
+                  resolved: checkResult.incidentsResolved ?? 0,
+                },
+              )}
             </span>
           )}
           {weatherCheck.error && <Notice tone="error">{weatherCheck.error}</Notice>}
@@ -267,12 +275,13 @@ export default function IncidentsPage() {
       {alerts.data.length === 0 && (
         <p className="mb-6 text-sm text-on-surface-variant">{t('No weather warning right now.')}</p>
       )}
+      {closing.error && <Notice tone="error">{closing.error}</Notice>}
       <div className="mb-6 grid gap-3 md:grid-cols-2">
         {alerts.data.map((alert) => (
           <Panel key={alert.id} className="border-signal-amber/50 bg-signal-amber/10">
             <div className="flex items-start gap-3">
               <Icon name="air" className="text-[24px] text-signal-amber" />
-              <div className="text-sm">
+              <div className="flex-1 text-sm">
                 <div className="font-bold text-deep-river">{weatherAlertTitle(alert)}</div>
                 <div className="text-on-surface-variant">{t(alert.message)}</div>
                 <div className="mt-1 text-xs text-on-surface-variant">
@@ -281,6 +290,16 @@ export default function IncidentsPage() {
                     ` • ${t('{count} trips affected', { count: alert.affectedTripCount })}`}
                 </div>
               </div>
+              <ActionButton
+                tone="secondary"
+                disabled={closing.busy}
+                onClick={async () => {
+                  await closing.run(() => closeAlert(alert.id))
+                  reloadAlerts()
+                }}
+              >
+                {t('Close alert')}
+              </ActionButton>
             </div>
           </Panel>
         ))}

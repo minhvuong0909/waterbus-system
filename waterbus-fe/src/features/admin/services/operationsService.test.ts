@@ -4,6 +4,7 @@ import {
   getLiveOperationTrips,
   getOpenIncidents,
   operateLiveTrip,
+  resolveIncident,
 } from './operationsService'
 
 const json = (body: unknown, status = 200) =>
@@ -136,5 +137,13 @@ describe('getOpenIncidents', () => {
   it('treats an unknown incident type as other', async () => {
     fetchMock.mockResolvedValue(json({ items: [summary({ incidentType: 'Strike' })], totalCount: 1 }))
     expect((await getOpenIncidents())[0].kind).toBe('Other')
+  })
+})
+
+describe('resolveIncident', () => {
+  it('posts to the resolve endpoint of that incident', async () => {
+    fetchMock.mockResolvedValue(json({ incidentId: 'inc-1', status: 'Resolved' }))
+    await resolveIncident('inc-1')
+    expect(lastCall()).toMatchObject({ url: expect.stringMatching(/\/api\/v1\/incidents\/inc-1\/resolve$/), method: 'POST' })
   })
 })
