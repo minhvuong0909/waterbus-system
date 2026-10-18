@@ -40,6 +40,13 @@ async function runVerification() {
   const sampleBookingId = 'pub_wb_98a76b5c';
   const sampleTripId = 'TRIP-BD-BA-01';
 
+  // 1.0 Mô phỏng bước "Tải trước Cache": lưu Public Key thật (ở đây là key demo) vào SQLite
+  // trước khi soát vé - verify phải fail-closed nếu thiếu bước này (không còn fallback ngầm).
+  await SqliteRepository.saveManifest({
+    stationId: 'TEST', stationName: 'Test', generatedAt: new Date().toISOString(),
+    publicKey: DEFAULT_KEY_INFO, trips: [], bookings: [],
+  });
+
   // 1.1 Generate valid signed QR
   const signed = QrVerifier.generateTestSignedQr(sampleBookingId, sampleTripId, DEFAULT_KEY_INFO);
   console.log(`   Sample Compact QR: ${signed.compactQr.substring(0, 48)}...`);
