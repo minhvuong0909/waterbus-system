@@ -30,7 +30,6 @@ export default function ScannerSettingsScreen() {
   const { deviceInfo, setForceOfflineMode } = useScannerStore();
   const { user, logout } = useAuthStore();
 
-  const [backendUrl, setBackendUrl] = useState('http://localhost:5000');
   const [deviceCode, setDeviceCode] = useState(deviceInfo.deviceCode);
 
   const [assignments, setAssignments] = useState<MyScannerAssignment[]>([]);
@@ -188,15 +187,6 @@ export default function ScannerSettingsScreen() {
             value={deviceCode}
             onChangeText={setDeviceCode}
             autoCapitalize="characters"
-          />
-
-          <Text style={styles.inputLabel}>Địa chỉ Máy Chủ Backend (API Gateway):</Text>
-          <TextInput
-            style={styles.input}
-            value={backendUrl}
-            onChangeText={setBackendUrl}
-            autoCapitalize="none"
-            placeholder="http://localhost:5000"
           />
 
           <TouchableOpacity style={styles.saveBtn} onPress={handleSaveConfig}>
