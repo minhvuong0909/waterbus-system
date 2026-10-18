@@ -35,7 +35,13 @@ import {
   totalSeatsOf,
   tripProgress,
 } from '../utils'
-import { getLiveOperationLogs, getLiveOperationTrips, getOpenIncidents, operateLiveTrip } from './operationsService'
+import {
+  getLiveOperationLogs,
+  getLiveOperationTrips,
+  getOpenIncidents,
+  operateLiveTrip,
+  resolveIncident,
+} from './operationsService'
 
 // The backend has no admin endpoints yet (roadmap P1-BE-01..04, P3, P4). Everything below works on
 // an in-memory copy of the data, so changes last until the page is reloaded. Only the station list
@@ -361,6 +367,16 @@ export const getWeatherAlerts = (): Promise<WeatherAlert[]> =>
 /** Open alerts with the trips each one affects and the admin's decision per trip. */
 export const getAlertsWithTrips = (): Promise<WeatherAlert[]> =>
   USE_MOCK ? query((d) => d.alerts) : getOpenIncidents(true)
+
+/** Closes an open alert. Mock alerts are simply dropped from the list. */
+export async function closeAlert(incidentId: string): Promise<void> {
+  if (!USE_MOCK) {
+    await resolveIncident(incidentId)
+    return
+  }
+  const data = await db()
+  data.alerts = data.alerts.filter((a) => a.id !== incidentId)
+}
 
 /** Trips to operate (Incidents, Captain Portal, Overview): from the backend, or the mock list. */
 export const getOperationTrips = (): Promise<AdminTrip[]> => (USE_MOCK ? getTrips() : getLiveOperationTrips())

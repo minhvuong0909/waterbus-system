@@ -1588,6 +1588,8 @@ export const vi: Record<string, string> = {
   'Updated {time}': 'Cập nhật {time}',
   'Check the weather now': 'Kiểm tra thời tiết ngay',
   'Checked {routes} routes: {created} new, {updated} updated alerts.': 'Đã kiểm tra {routes} tuyến: {created} cảnh báo mới, {updated} cảnh báo cập nhật.',
+  'Checked {routes} routes: {created} new, {updated} updated, {resolved} closed alerts.': 'Đã kiểm tra {routes} tuyến: {created} cảnh báo mới, {updated} cập nhật, {resolved} đã đóng.',
+  'Close alert': 'Đóng cảnh báo',
   'No weather warning right now.': 'Hiện không có cảnh báo thời tiết.',
   '{count} trips affected': '{count} chuyến bị ảnh hưởng',
   'Boat GPS': 'GPS của tàu',

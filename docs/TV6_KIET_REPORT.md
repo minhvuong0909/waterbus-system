@@ -56,7 +56,7 @@
 - Phát `weatherAlert` khi tạo mới hoặc tăng mức.
 - Provider OpenWeatherMap (timeout, retry chỉ cho lỗi tạm thời) và Fake (demo).
 - Dashboard `/hangfire` có Basic Auth.
-- API Admin: `GET /api/v1/incidents`, `GET /api/v1/incidents/{id}`, `POST /api/v1/incidents/weather-check`.
+- API Admin: `GET /api/v1/incidents`, `GET /api/v1/incidents/{id}`, `POST /api/v1/incidents/weather-check`, `POST /api/v1/incidents/{id}/resolve` (Admin đóng sự cố; Weather Guard cũng tự đóng cảnh báo khi thời tiết trở lại bình thường).
 
 ### G5 — Seat sync (#9)
 - Mỗi kết nối theo dõi tối đa 4 chuyến; `tripId` rỗng bị từ chối.
