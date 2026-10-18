@@ -42,7 +42,8 @@ interface ScannerState {
   setCurrentBooking: (booking: Booking | null, verification?: QrVerificationResult | null) => void;
   closeBookingModal: () => void;
   performCheckIn: (ticketIds: string[], notes?: string) => Promise<{ success: boolean; count: number; error?: string }>;
-  preloadCache: (stationId?: string) => Promise<boolean>;
+  /** tripStopCallId thật (Guid) lấy từ GetMyScannerAssignments - không còn là stationId demo. */
+  preloadCache: (tripStopCallId: string) => Promise<boolean>;
   syncPendingBatch: () => Promise<number>;
   setForceOfflineMode: (enabled: boolean) => void;
   clearCache: () => Promise<void>;
@@ -118,7 +119,8 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
         ticketIds,
         bookingId: currentBooking.id,
         tripId: currentBooking.tripId,
-        tripStopCallId: `TSC-${currentBooking.tripId}-${deviceInfo.stationId}`,
+        // deviceInfo.stationId giờ giữ TripStopCallId thật của lần preload gần nhất (xem preloadCache).
+        tripStopCallId: deviceInfo.stationId,
         staffAccountId: deviceInfo.staffId,
         staffName: deviceInfo.staffName,
         scannerDeviceId: deviceInfo.deviceId,
@@ -159,13 +161,15 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     }
   },
 
-  preloadCache: async (stationId?: string) => {
+  preloadCache: async (tripStopCallId: string) => {
     set({ isPreloading: true, syncMessage: 'Đang tải dữ liệu chuyến và Public Key...' });
     try {
-      const targetStation = stationId || get().deviceInfo.stationId;
-      const res = await syncService.preloadManifest(targetStation);
+      const res = await syncService.preloadManifest(tripStopCallId);
+      // Ghi lại điểm dừng vừa preload (tái dùng field stationId) để performCheckIn gửi đúng
+      // TripStopCallId khi tạo CheckInEvent offline.
+      syncService.setDeviceInfo({ stationId: tripStopCallId, stationName: res.manifest.stationName });
       await get().refreshStats();
-      set({ isPreloading: false, syncMessage: res.message });
+      set({ isPreloading: false, syncMessage: res.message, deviceInfo: syncService.getDeviceInfo() });
       return true;
     } catch (e: any) {
       set({ isPreloading: false, syncMessage: `Lỗi tải trước: ${e.message}` });

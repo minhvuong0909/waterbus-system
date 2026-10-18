@@ -20,6 +20,7 @@ import {
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useScannerStore } from '../../store/useScannerStore';
 import { QrVerifier } from '../../services/crypto/qrVerifier';
 import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
@@ -144,7 +145,18 @@ export default function StaffScannerScreen() {
         `Đã giải mã: "${publicBookingId}".\nTuy nhiên dữ liệu đơn này chưa có trong bộ nhớ SQLite của máy.\n\nNhân viên vui lòng bấm "Tải trước Cache" trước giờ mở cổng bến.`,
         [
           { text: 'Huỷ', style: 'cancel' },
-          { text: 'Tải trước ngay', onPress: () => preloadCache() },
+          {
+            text: 'Tải trước ngay',
+            onPress: () => {
+              // deviceInfo.stationId giữ TripStopCallId của lần preload gần nhất (nếu có).
+              // Không có thì chuyển sang màn Preload để Staff chọn phân công thật.
+              if (deviceInfo.stationId) {
+                preloadCache(deviceInfo.stationId);
+              } else {
+                router.push('/(tabs)/manifest');
+              }
+            },
+          },
         ]
       );
     }

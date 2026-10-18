@@ -4,7 +4,7 @@
  * Displays cache metrics, batch sync status, and QR test simulator.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -19,14 +19,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useScannerStore } from '../../store/useScannerStore';
 import { QrVerifier } from '../../services/crypto/qrVerifier';
-
-const STATIONS = [
-  { id: 'ST-BACH-DANG', name: 'Bến Bạch Đằng (Quận 1)' },
-  { id: 'ST-BINH-AN', name: 'Bến Bình An (TP. Thủ Đức)' },
-  { id: 'ST-THU-THIEM', name: 'Bến Thủ Thiêm (TP. Thủ Đức)' },
-  { id: 'ST-THANH-DA', name: 'Bến Thanh Đa (Bình Thạnh)' },
-  { id: 'ST-LINH-DONG', name: 'Bến Linh Đông (TP. Thủ Đức)' },
-];
+import { getMyScannerAssignments } from '../../services/checkin/scannerAssignmentService';
+import { MyScannerAssignment } from '../../types/checkin';
+import { ApiError } from '../../services/api/apiClient';
 
 export default function PreloadManifestScreen() {
   const {
@@ -41,16 +36,42 @@ export default function PreloadManifestScreen() {
     clearCache,
   } = useScannerStore();
 
-  const [selectedStationId, setSelectedStationId] = useState<string>(deviceInfo.stationId);
+  const [assignments, setAssignments] = useState<MyScannerAssignment[]>([]);
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
+  const [assignmentsError, setAssignmentsError] = useState<string | null>(null);
+  // deviceInfo.stationId giữ TripStopCallId thật của lần preload gần nhất (xem useScannerStore).
+  const [selectedTripStopCallId, setSelectedTripStopCallId] = useState<string>(deviceInfo.stationId);
   const [testQrInfo, setTestQrInfo] = useState<{ compact: string; signature: string } | null>(null);
+
+  const loadAssignments = useCallback(async () => {
+    setIsLoadingAssignments(true);
+    setAssignmentsError(null);
+    try {
+      const result = await getMyScannerAssignments();
+      setAssignments(result);
+      if (!selectedTripStopCallId && result.length > 0) {
+        setSelectedTripStopCallId(result[0].tripStopCallId);
+      }
+    } catch (err) {
+      setAssignmentsError(err instanceof ApiError ? err.message : 'Không tải được phân công. Kiểm tra kết nối mạng.');
+    } finally {
+      setIsLoadingAssignments(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     refreshStats();
-  }, []);
+    loadAssignments();
+  }, [loadAssignments, refreshStats]);
 
   const handlePreload = async () => {
+    if (!selectedTripStopCallId) {
+      Alert.alert('Chưa chọn điểm dừng', 'Vui lòng chọn một phân công ở trên trước khi tải trước.');
+      return;
+    }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const success = await preloadCache(selectedStationId);
+    const success = await preloadCache(selectedTripStopCallId);
     if (success) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
@@ -58,6 +79,8 @@ export default function PreloadManifestScreen() {
         `Toàn bộ danh sách chuyến, vé hợp lệ và Public Key đã được lưu an toàn vào cơ sở dữ liệu SQLite.\nThiết bị đã sẵn sàng tác nghiệp soát vé ngoại tuyến 100%!`,
         [{ text: 'OK' }]
       );
+    } else {
+      Alert.alert('Lỗi tải trước', syncMessage || 'Không tải được dữ liệu từ máy chủ.');
     }
   };
 
@@ -68,7 +91,7 @@ export default function PreloadManifestScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Đồng Bộ Thành Công', `Đã đẩy lô ${count} sự kiện check-in lên máy chủ.`);
     } else {
-      Alert.alert('Thông báo', 'Không có vé nào tồn đọng cần đồng bộ.');
+      Alert.alert('Thông báo', syncMessage || 'Không có vé nào tồn đọng cần đồng bộ.');
     }
   };
 
@@ -106,36 +129,60 @@ export default function PreloadManifestScreen() {
           </Text>
         </View>
 
-        {/* Station Selector */}
+        {/* Assignment Selector - danh sách phân công thật từ GET /checkins/assignments/mine */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Chọn Bến Mở Cổng Tác Nghiệp</Text>
-          <View style={styles.stationList}>
-            {STATIONS.map((st) => {
-              const isSelected = selectedStationId === st.id;
-              return (
-                <TouchableOpacity
-                  key={st.id}
-                  style={[styles.stationChip, isSelected && styles.stationChipSelected]}
-                  onPress={() => setSelectedStationId(st.id)}
-                >
-                  <Ionicons
-                    name={isSelected ? 'radio-button-on' : 'radio-button-off'}
-                    size={16}
-                    color={isSelected ? '#0284C7' : '#64748B'}
-                  />
-                  <Text style={[styles.stationChipText, isSelected && styles.stationChipTextSelected]}>
-                    {st.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardTitle}>Chọn Điểm Dừng Được Phân Công</Text>
+            <TouchableOpacity onPress={loadAssignments} disabled={isLoadingAssignments}>
+              <Ionicons name="refresh" size={18} color="#0284C7" />
+            </TouchableOpacity>
           </View>
+
+          {isLoadingAssignments ? (
+            <ActivityIndicator color="#0284C7" style={{ marginVertical: 12 }} />
+          ) : assignmentsError ? (
+            <Text style={styles.assignmentError}>{assignmentsError}</Text>
+          ) : assignments.length === 0 ? (
+            <Text style={styles.assignmentEmpty}>Hiện chưa được phân công điểm dừng nào.</Text>
+          ) : (
+            <View style={styles.stationList}>
+              {assignments.map((a) => {
+                const isSelected = selectedTripStopCallId === a.tripStopCallId;
+                return (
+                  <TouchableOpacity
+                    key={a.assignmentId}
+                    style={[styles.stationChip, isSelected && styles.stationChipSelected]}
+                    onPress={() => setSelectedTripStopCallId(a.tripStopCallId)}
+                  >
+                    <Ionicons
+                      name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                      size={16}
+                      color={isSelected ? '#0284C7' : '#64748B'}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.stationChipText, isSelected && styles.stationChipTextSelected]}>
+                        {a.stationName}
+                      </Text>
+                      <Text style={styles.stationChipSub}>
+                        {a.routeName} • Bến thứ {a.visitOrder} • {a.tripStatus}
+                      </Text>
+                    </View>
+                    {a.isPrimaryOffline && (
+                      <View style={styles.badgePrimary}>
+                        <Text style={styles.badgePrimaryText}>Primary</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
           {/* Action Button: Preload Cache */}
           <TouchableOpacity
-            style={[styles.preloadButton, isPreloading && styles.buttonDisabled]}
+            style={[styles.preloadButton, (isPreloading || !selectedTripStopCallId) && styles.buttonDisabled]}
             onPress={handlePreload}
-            disabled={isPreloading}
+            disabled={isPreloading || !selectedTripStopCallId}
           >
             {isPreloading ? (
               <ActivityIndicator color="#FFFFFF" style={{ marginRight: 8 }} />
@@ -222,9 +269,10 @@ export default function PreloadManifestScreen() {
 
         {/* Test QR Generator Card */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Tạo Mã QR Mẫu Kèm Chữ Ký Số</Text>
+          <Text style={styles.cardTitle}>Tạo Mã QR Mẫu Kèm Chữ Ký Số (Demo)</Text>
           <Text style={styles.cardDesc}>
-            Sinh chuỗi QR mẫu ký theo chuẩn RFC 6238 / Waterbus HMAC-SHA256 để kiểm thử quét:
+            Sinh chuỗi QR mẫu ký RSA-SHA256 thật bằng khoá demo cục bộ để kiểm thử quét (không phải
+            dữ liệu/khoá production):
           </Text>
 
           <TouchableOpacity style={styles.testGenButton} onPress={handleGenerateTestQr}>
@@ -313,6 +361,16 @@ const styles = StyleSheet.create({
   refreshIconBtn: {
     padding: 4,
   },
+  assignmentError: {
+    color: '#DC2626',
+    fontSize: 13,
+    marginVertical: 8,
+  },
+  assignmentEmpty: {
+    color: '#94A3B8',
+    fontSize: 13,
+    marginVertical: 8,
+  },
   stationList: {
     gap: 8,
     marginBottom: 16,
@@ -338,6 +396,22 @@ const styles = StyleSheet.create({
   stationChipTextSelected: {
     color: '#0284C7',
     fontWeight: '600',
+  },
+  stationChipSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  badgePrimary: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  badgePrimaryText: {
+    color: '#15803D',
+    fontSize: 10,
+    fontWeight: '700',
   },
   preloadButton: {
     backgroundColor: '#0284C7',
@@ -485,4 +559,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

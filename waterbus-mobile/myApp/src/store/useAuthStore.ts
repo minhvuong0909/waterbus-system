@@ -3,7 +3,16 @@
  */
 import { create } from 'zustand';
 import { authService } from '../services/auth/authService';
+import { syncService } from '../services/sync/syncService';
 import { AuthUser } from '../types/auth';
+
+/** Đồng bộ danh tính Staff thật vào deviceInfo (trước đây luôn là tên demo hard-code). */
+function applyStaffIdentity(user: AuthUser | null) {
+  syncService.setDeviceInfo({
+    staffId: user?.userId ?? '',
+    staffName: user?.fullName ?? '',
+  });
+}
 
 interface AuthState {
   user: AuthUser | null;
@@ -26,6 +35,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   restoreSession: async () => {
     try {
       const user = await authService.restoreSession();
+      applyStaffIdentity(user);
       set({ user, isRestoring: false });
     } catch {
       set({ user: null, isRestoring: false });
@@ -36,6 +46,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoggingIn: true, error: null });
     try {
       const user = await authService.login(email.trim(), password);
+      applyStaffIdentity(user);
       set({ user, isLoggingIn: false, error: null });
       return true;
     } catch (err: any) {
@@ -46,6 +57,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     await authService.logout();
+    // Xoá luôn TripStopCallId đang preload (tái dùng field stationId) - Staff kế tiếp đăng nhập
+    // trên máy này không được kế thừa phân công của người trước.
+    syncService.setDeviceInfo({ staffId: '', staffName: '', stationId: '', stationName: '' });
     set({ user: null, error: null });
   },
 }));
