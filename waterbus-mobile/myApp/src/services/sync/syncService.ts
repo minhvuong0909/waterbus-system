@@ -1,18 +1,27 @@
 /**
- * Preload Cache & Idempotent Batch Sync Service
- * Implements:
- * 1. Preload cache of trips, bookings, tickets, and public keys before gate opening (BR-OFF-01)
- * 2. Background task for automatic batch syncing offline check-in events when network is available (BR-OFF-03)
+ * Preload Cache & Idempotent Batch Sync Worker
+ * 1. Preload manifest thật (BR-OFF-01) từ GET /checkins/manifest/{tripStopCallId} +
+ *    GET /checkouts/qr-public-key, lưu vào SQLite qua SqliteRepository.
+ * 2. Đồng bộ theo lô các sự kiện check-in offline (BR-OFF-03) qua POST /checkins/sync.
+ *
+ * KHÔNG còn fallback ngầm sang dữ liệu demo khi gọi API thật thất bại - lỗi mạng phải báo rõ
+ * cho Staff, không được âm thầm nạp dữ liệu giả vào máy lúc tác nghiệp thật (đã từng là lỗi:
+ * Staff không biết mình đang thấy danh sách khách giả). Dữ liệu demo chỉ dùng khi Staff bấm nút
+ * demo rõ ràng (preloadDemoManifest) hoặc trong scripts/verify-staff-scanner.ts.
  */
 
 import { SqliteRepository } from '../sqlite/sqliteRepository';
 import { DEFAULT_KEY_INFO } from '../crypto/qrVerifier';
+import { fetchScannerManifest } from '../checkin/manifestService';
+import { fetchQrPublicKey } from '../checkin/qrPublicKeyService';
+import { mapScannerManifestToPreloadManifest } from '../checkin/manifestMapper';
+import { syncCheckInEvents } from '../checkin/syncCheckInService';
+import { ApiError } from '../api/apiClient';
 import {
   PreloadManifest,
-  CheckInEvent,
-  SyncBatchResponse,
   ScannerDeviceInfo,
 } from '../../types/scanner';
+import { CheckInEventSyncInput } from '../../types/checkin';
 
 export type SyncListener = (status: {
   isSyncing: boolean;
@@ -29,13 +38,16 @@ class SyncService {
   private lastSyncAt: string | null = null;
   private lastMessage: string | null = null;
 
+  // staffId/staffName được điền từ tài khoản đăng nhập thật (xem useAuthStore); stationId/stationName
+  // được điền bằng TripStopCallId/StationName thật sau khi preloadManifest thành công (xem
+  // useScannerStore.preloadCache). Trống nghĩa là "chưa đăng nhập" / "chưa chọn điểm dừng".
   private currentDevice: ScannerDeviceInfo = {
-    deviceId: 'DEV-STAFF-TUAN-01',
+    deviceId: 'DEV-BD-01',
     deviceCode: 'DEV-BD-01',
-    staffId: 'STAFF-TUAN-004',
-    staffName: 'Nguyễn Văn Tuấn',
-    stationId: 'ST-BACH-DANG',
-    stationName: 'Bến Bạch Đằng (Quận 1)',
+    staffId: '',
+    staffName: '',
+    stationId: '',
+    stationName: '',
     isPrimaryOffline: true,
     forceOfflineMode: false,
   };
@@ -122,59 +134,39 @@ class SyncService {
   }
 
   /**
-   * Preload Cache Mechanism (BR-OFF-01)
-   * Downloads trips, bookings, tickets, and Public Key into local SQLite before gate opening
+   * Preload Cache thật (BR-OFF-01): tải Public Key RSA + manifest Booking/Ticket của đúng điểm
+   * dừng (TripStopCallId) Staff được phân công, lưu vào SQLite. KHÔNG fallback sang dữ liệu demo
+   * khi lỗi - ném lỗi để màn hình báo rõ cho Staff (tránh tác nghiệp nhầm trên dữ liệu giả).
    */
-  public async preloadManifest(
-    stationId = 'ST-BACH-DANG',
-    apiBaseUrl = 'http://localhost:5000'
-  ): Promise<{ manifest: PreloadManifest; message: string }> {
-    console.log(`[SyncService] Preloading manifest for station: ${stationId}...`);
+  public async preloadManifest(tripStopCallId: string): Promise<{ manifest: PreloadManifest; message: string }> {
+    console.log(`[SyncService] Preloading REAL manifest for TripStopCallId: ${tripStopCallId}...`);
 
-    let manifest: PreloadManifest;
+    const [manifestResponse, publicKeyResponse] = await Promise.all([
+      fetchScannerManifest(tripStopCallId),
+      fetchQrPublicKey(),
+    ]);
 
-    try {
-      // Attempt API call to backend if reachable
-      const response = await fetch(`${apiBaseUrl}/api/v1/scanner/manifest?stationId=${stationId}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
+    const manifest = mapScannerManifestToPreloadManifest(manifestResponse, publicKeyResponse);
 
-      if (response.ok) {
-        manifest = await response.json();
-      } else {
-        throw new Error(`Server returned ${response.status}`);
-      }
-    } catch (networkError) {
-      console.log(
-        '[SyncService] Backend API not reached, generating standard production-ready demo manifest for gate:',
-        networkError
-      );
-      // Generate rich local manifest with real Saigon Waterbus station data
-      manifest = this.generateDemoManifest(stationId);
-    }
-
-    // Save transactional manifest into SQLite
     await SqliteRepository.saveManifest(manifest);
 
     this.lastMessage = `Đã tải trước thành công ${manifest.bookings.length} đơn đặt, ${
       manifest.bookings.flatMap((b) => b.tickets).length
-    } vé vào SQLite`;
+    } vé vào SQLite (${manifest.stationName})`;
     await this.notifyStatus();
 
-    return {
-      manifest,
-      message: this.lastMessage,
-    };
+    return { manifest, message: this.lastMessage };
   }
 
   /**
-   * Idempotent Batch Sync Worker (BR-OFF-03)
-   * Fetches pending events from SQLite and pushes batch to server
+   * Idempotent Batch Sync Worker thật (BR-OFF-03): gửi các event Pending lên
+   * POST /checkins/sync. Chỉ đánh "Synced" các event server đã THỰC SỰ xử lý (outcome khác
+   * "Error"); event "Error" (vé không tồn tại, concurrency...) vẫn giữ Pending để báo lỗi/retry,
+   * KHÔNG được giả lập thành công khi gọi server thất bại hoàn toàn (mất mạng/server down) -
+   * trước đây có lỗi nghiêm trọng ở đây: catch mất mạng vẫn đánh dấu Synced hết, khiến check-in
+   * thật không bao giờ tới được backend mà Staff không biết.
    */
-  public async triggerBatchSync(
-    apiBaseUrl = 'http://localhost:5000'
-  ): Promise<{ syncedCount: number; message: string }> {
+  public async triggerBatchSync(): Promise<{ syncedCount: number; message: string }> {
     if (this.isSyncing) {
       return { syncedCount: 0, message: 'Tiến trình đồng bộ đang chạy' };
     }
@@ -199,83 +191,74 @@ class SyncService {
 
       console.log(`[SyncService] Pushing batch of ${pendingEvents.length} offline check-in events...`);
 
-      const batchTimestamp = new Date().toISOString();
-      const idempotencyKey = `BATCH-${this.currentDevice.deviceCode}-${batchTimestamp}`;
+      const payload: CheckInEventSyncInput[] = pendingEvents.map((e) => ({
+        ticketId: e.ticketId,
+        tripStopCallId: e.tripStopCallId,
+        clientEventId: e.clientEventId,
+        occurredAtDevice: e.occurredAtDevice,
+        note: e.notes,
+      }));
 
-      const requestPayload = {
-        scannerDeviceId: this.currentDevice.deviceId,
-        staffAccountId: this.currentDevice.staffId,
-        batchTimestamp,
-        events: pendingEvents.map((e) => ({
-          clientEventId: e.clientEventId,
-          ticketId: e.ticketId,
-          ticketNumber: e.ticketNumber,
-          passengerName: e.passengerName,
-          seatCode: e.seatCode,
-          bookingId: e.bookingId,
-          tripId: e.tripId,
-          tripStopCallId: e.tripStopCallId,
-          occurredAtDevice: e.occurredAtDevice,
-          outcome: e.outcome,
-          notes: e.notes,
-        })),
-      };
+      const response = await syncCheckInEvents(payload);
 
-      let successUpdates: { clientEventId: string; receivedAtServer: string }[] = [];
+      const resolved = response.results.filter((r) => r.outcome !== 'Error');
+      const failed = response.results.filter((r) => r.outcome === 'Error');
 
-      try {
-        const response = await fetch(`${apiBaseUrl}/api/v1/tickets/sync-offline`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Idempotency-Key': idempotencyKey,
-          },
-          body: JSON.stringify(requestPayload),
-        });
-
-        if (response.ok) {
-          const resData: SyncBatchResponse = await response.json();
-          successUpdates = (resData.processedEvents || []).map((pe) => ({
-            clientEventId: pe.clientEventId,
-            receivedAtServer: new Date().toISOString(),
-          }));
-        } else {
-          throw new Error(`Server returned HTTP ${response.status}`);
-        }
-      } catch (err) {
-        // If server is not responding (e.g. offline dev environment),
-        // we simulate successful reconciliation in dev mode or increment retry count
-        console.log('[SyncService] Server push encountered network error or endpoint absent. Handling gracefully:', err);
-
-        // In standalone offline mode: mark them synced after simulated background buffer
-        successUpdates = pendingEvents.map((e) => ({
-          clientEventId: e.clientEventId,
-          receivedAtServer: new Date().toISOString(),
-        }));
+      await SqliteRepository.markEventsSynced(
+        resolved.map((r) => ({ clientEventId: r.clientEventId, receivedAtServer: new Date().toISOString() }))
+      );
+      for (const f of failed) {
+        await SqliteRepository.recordSyncFailure([f.clientEventId], f.error || 'Lỗi không xác định từ máy chủ.');
       }
 
-      // Mark events as Synced in SQLite
-      await SqliteRepository.markEventsSynced(successUpdates);
-
       this.lastSyncAt = new Date().toLocaleTimeString();
-      this.lastMessage = `Đã đồng bộ thành công lô ${successUpdates.length} vé lên hệ thống lúc ${this.lastSyncAt}`;
+      this.lastMessage =
+        failed.length === 0
+          ? `Đã đồng bộ thành công lô ${resolved.length} vé lên hệ thống lúc ${this.lastSyncAt}`
+          : `Đồng bộ ${resolved.length} vé thành công, ${failed.length} vé lỗi (xem chi tiết để đồng bộ lại).`;
       console.log(`[SyncService] ${this.lastMessage}`);
 
       const remainingStats = await SqliteRepository.getManifestStats();
       this.isSyncing = false;
       await this.notifyStatus(remainingStats.pendingSyncCount);
 
-      return {
-        syncedCount: successUpdates.length,
-        message: this.lastMessage,
-      };
+      return { syncedCount: resolved.length, message: this.lastMessage };
     } catch (error: any) {
+      // Mất mạng hoàn toàn / server không phản hồi: KHÔNG đánh dấu Synced, chỉ ghi nhận lỗi để
+      // lần quét định kỳ sau thử lại - việc giữ Pending ở đây chính là điểm "an toàn khi lỗi".
+      const message = error instanceof ApiError ? error.message : error?.message || 'Không kết nối được máy chủ.';
+      try {
+        const pendingEvents = await SqliteRepository.getPendingEvents(50);
+        await SqliteRepository.recordSyncFailure(pendingEvents.map((e) => e.clientEventId), message);
+      } catch {
+        // Bỏ qua lỗi phụ khi đang xử lý lỗi chính.
+      }
+
       console.error('[SyncService] Batch sync failure:', error);
-      this.lastMessage = `Lỗi đồng bộ: ${error?.message || 'Không xác định'}`;
+      this.lastMessage = `Lỗi đồng bộ: ${message}`;
       this.isSyncing = false;
       await this.notifyStatus();
       return { syncedCount: 0, message: this.lastMessage };
     }
+  }
+
+  /**
+   * Preload DEMO rõ ràng (không phải đường tắt ngầm của preloadManifest thật) - chỉ dùng cho nút
+   * demo hoặc scripts/verify-staff-scanner.ts khi chưa có backend thật để gọi.
+   */
+  public async preloadDemoManifest(
+    stationId = 'ST-BACH-DANG'
+  ): Promise<{ manifest: PreloadManifest; message: string }> {
+    console.log(`[SyncService] Preloading DEMO manifest for station: ${stationId}...`);
+    const manifest = this.generateDemoManifest(stationId);
+    await SqliteRepository.saveManifest(manifest);
+
+    this.lastMessage = `[DEMO] Đã tải ${manifest.bookings.length} đơn đặt, ${
+      manifest.bookings.flatMap((b) => b.tickets).length
+    } vé mẫu vào SQLite`;
+    await this.notifyStatus();
+
+    return { manifest, message: this.lastMessage };
   }
 
   /**

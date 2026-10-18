@@ -20,9 +20,11 @@ import {
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useScannerStore } from '../../store/useScannerStore';
 import { QrVerifier } from '../../services/crypto/qrVerifier';
 import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
+import { QrVerificationResult } from '../../types/scanner';
 import BookingDetailModal from '../booking/BookingDetailModal';
 
 const { width, height } = Dimensions.get('window');
@@ -81,7 +83,7 @@ export default function StaffScannerScreen() {
 
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      await processQrData(rawData);
+      await processScannedQr(rawData);
     } catch (err: any) {
       console.error('[Scanner] Scan handling error:', err);
       Alert.alert('Lỗi quét mã', err.message);
@@ -93,25 +95,42 @@ export default function StaffScannerScreen() {
     }
   };
 
-  const processQrData = async (qrString: string) => {
-    // 1. Verify digital signature offline using cached Public Key
+  /**
+   * Luồng quét QR qua camera (hoặc giả lập): PHẢI xác thực chữ ký số thành công (BR-QR-02)
+   * trước khi cho xem/soát vé. Khác với tìm tay theo mã (processManualLookup) - không mang
+   * chữ ký nào để xác thực nên không đi qua hàm này.
+   */
+  const processScannedQr = async (qrString: string) => {
     const verification = await QrVerifier.verifyQrCode(qrString);
 
-    if (!verification.isValid && !verification.publicBookingId) {
+    if (!verification.isValid) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(
         'QR Không Hợp Lệ',
-        verification.error || 'Mã QR không đúng định dạng của Smart Waterbus.'
+        verification.error || 'Mã QR không đúng định dạng hoặc chữ ký số không hợp lệ.'
       );
       return;
     }
 
-    const publicBookingId = verification.publicBookingId || qrString.trim();
+    await lookupAndOpenBooking(verification.publicBookingId!, verification);
+  };
 
-    // 2. Query SQLite local cache for booking & tickets
+  /**
+   * Tìm tay theo mã Booking/Ticket khi không quét được QR - KHÔNG có chữ ký số để xác thực,
+   * nên tra cứu trực tiếp theo mã, không gọi QrVerifier (tránh hiểu nhầm "đã xác thực chữ ký").
+   */
+  const processManualLookup = async (code: string) => {
+    await lookupAndOpenBooking(code, {
+      isValid: false,
+      publicBookingId: code,
+      verifiedOffline: false,
+      error: 'Nhập tay theo mã - chưa xác thực chữ ký số, cần đối chiếu thủ công.',
+    });
+  };
+
+  const lookupAndOpenBooking = async (publicBookingId: string, verification: QrVerificationResult) => {
     let booking = await SqliteRepository.getBookingByPublicId(publicBookingId);
 
-    // If not found by publicId, fallback search by code
     if (!booking) {
       booking = await SqliteRepository.searchBookingOrTicket(publicBookingId);
     }
@@ -123,10 +142,21 @@ export default function StaffScannerScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert(
         'Chưa có dữ liệu chuyến trong máy',
-        `Đã giải mã QR: "${publicBookingId}".\nTuy nhiên dữ liệu đơn này chưa có trong bộ nhớ SQLite của máy.\n\nNhân viên vui lòng bấm "Tải trước Cache" trước giờ mở cổng bến.`,
+        `Đã giải mã: "${publicBookingId}".\nTuy nhiên dữ liệu đơn này chưa có trong bộ nhớ SQLite của máy.\n\nNhân viên vui lòng bấm "Tải trước Cache" trước giờ mở cổng bến.`,
         [
           { text: 'Huỷ', style: 'cancel' },
-          { text: 'Tải trước ngay', onPress: () => preloadCache() },
+          {
+            text: 'Tải trước ngay',
+            onPress: () => {
+              // deviceInfo.stationId giữ TripStopCallId của lần preload gần nhất (nếu có).
+              // Không có thì chuyển sang màn Preload để Staff chọn phân công thật.
+              if (deviceInfo.stationId) {
+                preloadCache(deviceInfo.stationId);
+              } else {
+                router.push('/(tabs)/manifest');
+              }
+            },
+          },
         ]
       );
     }
@@ -135,14 +165,14 @@ export default function StaffScannerScreen() {
   const handleManualSearch = async () => {
     if (!manualCode.trim()) return;
     setManualModalOpen(false);
-    await processQrData(manualCode.trim());
+    await processManualLookup(manualCode.trim());
     setManualCode('');
   };
 
   const triggerTestQrScan = (publicBookingId: string) => {
     setTestModalOpen(false);
     const test = QrVerifier.generateTestSignedQr(publicBookingId);
-    processQrData(test.compactQr);
+    processScannedQr(test.compactQr);
   };
 
   // Render Camera Permission fallback

@@ -40,6 +40,13 @@ async function runVerification() {
   const sampleBookingId = 'pub_wb_98a76b5c';
   const sampleTripId = 'TRIP-BD-BA-01';
 
+  // 1.0 Mô phỏng bước "Tải trước Cache": lưu Public Key thật (ở đây là key demo) vào SQLite
+  // trước khi soát vé - verify phải fail-closed nếu thiếu bước này (không còn fallback ngầm).
+  await SqliteRepository.saveManifest({
+    stationId: 'TEST', stationName: 'Test', generatedAt: new Date().toISOString(),
+    publicKey: DEFAULT_KEY_INFO, trips: [], bookings: [],
+  });
+
   // 1.1 Generate valid signed QR
   const signed = QrVerifier.generateTestSignedQr(sampleBookingId, sampleTripId, DEFAULT_KEY_INFO);
   console.log(`   Sample Compact QR: ${signed.compactQr.substring(0, 48)}...`);
@@ -90,8 +97,9 @@ async function runVerification() {
   // -------------------------------------------------------------
   console.log('\n📦 TEST GROUP 2: SQLite Local Database & Preload Cache (BR-OFF-01)');
 
-  // 2.1 Preload demo manifest
-  const preloadRes = await syncService.preloadManifest('ST-BACH-DANG');
+  // 2.1 Preload demo manifest (không có backend thật trong môi trường chạy script này -
+  // dùng rõ ràng preloadDemoManifest, KHÔNG còn preloadManifest tự fallback ngầm sang demo).
+  const preloadRes = await syncService.preloadDemoManifest('ST-BACH-DANG');
   assert(
     preloadRes.manifest.bookings.length > 0 && preloadRes.manifest.trips.length > 0,
     '2.1 Preload manifest before gate opening into SQLite',
@@ -164,9 +172,13 @@ async function runVerification() {
   }
 
   // -------------------------------------------------------------
-  // TEST GROUP 4: IDEMPOTENT BATCH SYNC WORKER
+  // TEST GROUP 4: BATCH SYNC WORKER FAILS SAFE WHEN BACKEND IS UNREACHABLE
   // -------------------------------------------------------------
-  console.log('\n📦 TEST GROUP 4: Idempotent Batch Sync Worker (BR-OFF-03)');
+  // Môi trường chạy script này KHÔNG có backend thật đang lắng nghe, nên đây đúng là kịch bản
+  // "mất mạng/server down" - triggerBatchSync() phải thất bại AN TOÀN: không đánh dấu Synced
+  // bất kỳ event nào (bug cũ: catch lỗi mạng vẫn fake "Synced" toàn bộ -> check-in thật không
+  // bao giờ tới được backend mà Staff không biết).
+  console.log('\n📦 TEST GROUP 4: Batch Sync Fails Safe When Backend Unreachable (BR-OFF-03)');
 
   const pendingEventsBefore = await SqliteRepository.getPendingEvents();
   assert(
@@ -175,19 +187,25 @@ async function runVerification() {
     `Found ${pendingEventsBefore.length} events pending sync`
   );
 
-  // Trigger batch sync
+  // Trigger batch sync - không có backend thật nên phải thất bại, không được fake thành công.
   const syncResult = await syncService.triggerBatchSync();
   assert(
-    syncResult.syncedCount >= 2,
-    '4.2 Batch sync worker processes pending queue and marks events as "Synced"',
-    `Synced ${syncResult.syncedCount} events successfully`
+    syncResult.syncedCount === 0,
+    '4.2 Batch sync worker does NOT fake success when the server is unreachable',
+    `Message: ${syncResult.message}`
   );
 
   const pendingEventsAfter = await SqliteRepository.getPendingEvents();
   assert(
-    pendingEventsAfter.length === 0,
-    '4.3 Pending queue cleared in SQLite after successful server acknowledgment',
-    `Remaining pending events: ${pendingEventsAfter.length}`
+    pendingEventsAfter.length === pendingEventsBefore.length,
+    '4.3 Events stay Pending (not silently marked Synced) after a failed sync attempt',
+    `Still pending: ${pendingEventsAfter.length} / ${pendingEventsBefore.length}`
+  );
+
+  assert(
+    pendingEventsAfter.every((e) => e.retryCount > 0 && !!e.errorMessage),
+    '4.4 Failed events record a retry attempt and error message for diagnostics',
+    `Sample errorMessage: ${pendingEventsAfter[0]?.errorMessage}`
   );
 
   // -------------------------------------------------------------

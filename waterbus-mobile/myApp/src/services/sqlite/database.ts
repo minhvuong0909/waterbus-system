@@ -40,7 +40,7 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
 
   async runAsync(sql: string, params: any[] = []): Promise<{ lastInsertRowId: number; changes: number }> {
     const trimmed = sql.trim().toUpperCase();
-    if (trimmed.startsWith('INSERT INTO PUBLIC_KEYS')) {
+    if (trimmed.startsWith('INSERT INTO PUBLIC_KEYS') || trimmed.startsWith('INSERT OR REPLACE INTO PUBLIC_KEYS')) {
       const [kid, algo, pem, from, to, active] = params;
       const filtered = this.tables.public_keys.filter(k => k.kid !== kid);
       filtered.push({ kid, algorithm: algo, public_key_pem: pem, valid_from: from, valid_to: to, is_active: active });
@@ -121,6 +121,20 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       }
       return { lastInsertRowId: 0, changes: 0 };
     }
+    if (normalized.includes("UPDATE OFFLINE_CHECKIN_EVENTS SET SYNC_STATUS = 'CONFLICT'")) {
+      // markEventConflict - phải tách khỏi nhánh markEventsSynced bên dưới, nếu không sẽ bị
+      // nhánh đó bắt nhầm trước (cùng bắt đầu bằng "SET SYNC_STATUS") và đánh sai thành Synced.
+      const [lAtt, errMsg, cEventId] = params;
+      const event = this.tables.offline_checkin_events.find(e => e.client_event_id === cEventId);
+      if (event) {
+        event.sync_status = 'Conflict';
+        event.outcome = 'Conflict';
+        event.last_sync_attempt_at = lAtt;
+        event.error_message = errMsg;
+        return { lastInsertRowId: 0, changes: 1 };
+      }
+      return { lastInsertRowId: 0, changes: 0 };
+    }
     if (normalized.includes('UPDATE OFFLINE_CHECKIN_EVENTS SET SYNC_STATUS')) {
       const [recAt, lAtt, cEventId] = params;
       const targetId = cEventId || params[params.length - 1];
@@ -129,6 +143,19 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
         event.sync_status = 'Synced';
         event.received_at_server = recAt;
         event.last_sync_attempt_at = lAtt;
+        return { lastInsertRowId: 0, changes: 1 };
+      }
+      return { lastInsertRowId: 0, changes: 0 };
+    }
+    if (normalized.includes('UPDATE OFFLINE_CHECKIN_EVENTS SET RETRY_COUNT')) {
+      // recordSyncFailure - trước đây KHÔNG được xử lý ở fallback in-memory: lỗi sync không bao
+      // giờ thực sự được ghi lại (retry_count/error_message) khi chạy ngoài native (web/script test).
+      const [lAtt, errMsg, cEventId] = params;
+      const event = this.tables.offline_checkin_events.find(e => e.client_event_id === cEventId);
+      if (event) {
+        event.retry_count = (event.retry_count || 0) + 1;
+        event.last_sync_attempt_at = lAtt;
+        event.error_message = errMsg;
         return { lastInsertRowId: 0, changes: 1 };
       }
       return { lastInsertRowId: 0, changes: 0 };
