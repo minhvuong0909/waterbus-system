@@ -507,6 +507,74 @@ export class SqliteRepository {
   }
 
   /**
+   * Get all trips with local ticket counts for Staff UI
+   */
+  static async getAllTrips(): Promise<(Trip & { totalTickets: number; checkedInTickets: number })[]> {
+    const db = await getDatabase();
+    const tripRows = await db.getAllAsync<any>(`SELECT * FROM manifest_trips ORDER BY departure_time ASC`);
+    const allBookings = await db.getAllAsync<any>(`SELECT id, trip_id FROM manifest_bookings`);
+    const allTickets = await db.getAllAsync<any>(`SELECT booking_id, boarding_status FROM manifest_tickets`);
+
+    return tripRows.map((t: any) => {
+      const tripBookingIds = new Set(allBookings.filter((b: any) => b.trip_id === t.id).map((b: any) => b.id));
+      const tripTickets = allTickets.filter((tk: any) => tripBookingIds.has(tk.booking_id));
+      const checkedInTickets = tripTickets.filter((tk: any) => tk.boarding_status === 'CheckedIn').length;
+
+      return {
+        id: t.id,
+        tripCode: t.trip_code,
+        routeName: t.route_name,
+        tripType: t.trip_type,
+        boatName: t.boat_name,
+        departureStationId: t.departure_station_id,
+        departureStationName: t.departure_station_name,
+        arrivalStationId: t.arrival_station_id,
+        arrivalStationName: t.arrival_station_name,
+        departureTime: t.departure_time,
+        arrivalTime: t.arrival_time,
+        salesCloseAt: t.sales_close_at,
+        status: t.status,
+        totalTickets: tripTickets.length,
+        checkedInTickets,
+      };
+    });
+  }
+
+  /**
+   * Get all check-in events (both Synced and Pending) for history view
+   */
+  static async getAllCheckInEvents(limit = 100): Promise<CheckInEvent[]> {
+    const db = await getDatabase();
+    const rows = await db.getAllAsync<any>(
+      `SELECT * FROM offline_checkin_events ORDER BY occurred_at_device DESC LIMIT ?`,
+      [limit]
+    );
+
+    return rows.map((r: any) => ({
+      id: r.id,
+      clientEventId: r.client_event_id,
+      ticketId: r.ticket_id,
+      ticketNumber: r.ticket_number,
+      passengerName: r.passenger_name,
+      seatCode: r.seat_code,
+      bookingId: r.booking_id,
+      tripId: r.trip_id,
+      tripStopCallId: r.trip_stop_call_id,
+      staffAccountId: r.staff_account_id,
+      staffName: r.staff_name,
+      scannerDeviceId: r.scanner_device_id,
+      occurredAtDevice: r.occurred_at_device,
+      receivedAtServer: r.received_at_server,
+      outcome: r.outcome,
+      syncStatus: r.sync_status,
+      retryCount: r.retry_count,
+      lastSyncAttemptAt: r.last_sync_attempt_at,
+      errorMessage: r.error_message,
+      notes: r.notes,
+    }));
+  }
+
+  /**
    * Clear all local tables (Reset Cache)
    */
   static async clearCache(): Promise<void> {

@@ -1,10 +1,10 @@
 /**
  * Preload Manifest & Offline Cache Management Screen
  * Allows staff to preload trips, bookings, tickets, and public keys before gate opening (BR-OFF-01).
- * Displays cache metrics, batch sync status, and QR test simulator.
+ * Displays cache metrics, batch sync status, loaded trip list, and QR test simulator.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -17,8 +17,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useScannerStore } from '../../store/useScannerStore';
 import { QrVerifier } from '../../services/crypto/qrVerifier';
+import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
+import { Trip } from '../../types/scanner';
 
 const STATIONS = [
   { id: 'ST-BACH-DANG', name: 'Bến Bạch Đằng (Quận 1)' },
@@ -27,6 +30,8 @@ const STATIONS = [
   { id: 'ST-THANH-DA', name: 'Bến Thanh Đa (Bình Thạnh)' },
   { id: 'ST-LINH-DONG', name: 'Bến Linh Đông (TP. Thủ Đức)' },
 ];
+
+type TripWithStats = Trip & { totalTickets: number; checkedInTickets: number };
 
 export default function PreloadManifestScreen() {
   const {
@@ -43,15 +48,27 @@ export default function PreloadManifestScreen() {
 
   const [selectedStationId, setSelectedStationId] = useState<string>(deviceInfo.stationId);
   const [testQrInfo, setTestQrInfo] = useState<{ compact: string; signature: string } | null>(null);
+  const [trips, setTrips] = useState<TripWithStats[]>([]);
+
+  const loadTrips = useCallback(async () => {
+    try {
+      const list = await SqliteRepository.getAllTrips();
+      setTrips(list);
+    } catch (err) {
+      console.warn('[Manifest] Failed to load trips:', err);
+    }
+  }, []);
 
   useEffect(() => {
     refreshStats();
-  }, []);
+    loadTrips();
+  }, [refreshStats, loadTrips]);
 
   const handlePreload = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const success = await preloadCache(selectedStationId);
     if (success) {
+      await loadTrips();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
         'Đã Tải Trước Thành Công',
@@ -64,6 +81,7 @@ export default function PreloadManifestScreen() {
   const handleSyncBatch = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const count = await syncPendingBatch();
+    await loadTrips();
     if (count > 0) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Đồng Bộ Thành Công', `Đã đẩy lô ${count} sự kiện check-in lên máy chủ.`);
@@ -88,6 +106,7 @@ export default function PreloadManifestScreen() {
           style: 'destructive',
           onPress: async () => {
             await clearCache();
+            await loadTrips();
             Alert.alert('Đã xoá', 'Bộ nhớ đệm SQLite đã được làm sạch.');
           },
         },
@@ -100,9 +119,9 @@ export default function PreloadManifestScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Screen Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Quản Lý Bộ Nhớ Đệm & Preload</Text>
+          <Text style={styles.title}>Quản Lý Bến & Tải Vé (Preload)</Text>
           <Text style={styles.subtitle}>
-            Tải dữ liệu vé và Public Key vào máy trước giờ mở cổng bến (BR-OFF-01)
+            Tải trước manifest chuyến, vé hợp lệ và Public Key vào bộ nhớ SQLite trước giờ mở cổng bến (BR-OFF-01)
           </Text>
         </View>
 
@@ -151,8 +170,8 @@ export default function PreloadManifestScreen() {
         {/* SQLite Database Statistics Card */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Trạng Thái Bộ Nhớ Cục Bộ (SQLite)</Text>
-            <TouchableOpacity onPress={refreshStats} style={styles.refreshIconBtn}>
+            <Text style={styles.cardTitle}>Bộ Nhớ Cục Bộ (SQLite)</Text>
+            <TouchableOpacity onPress={() => { refreshStats(); loadTrips(); }} style={styles.refreshIconBtn}>
               <Ionicons name="refresh" size={18} color="#0284C7" />
             </TouchableOpacity>
           </View>
@@ -187,12 +206,12 @@ export default function PreloadManifestScreen() {
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Lần tải trước gần nhất:</Text>
             <Text style={styles.infoValue}>
-              {stats.lastPreloadAt ? new Date(stats.lastPreloadAt).toLocaleString() : 'Chưa tải'}
+              {stats.lastPreloadAt ? new Date(stats.lastPreloadAt).toLocaleString('vi-VN') : 'Chưa tải'}
             </Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Dung lượng SQLite:</Text>
-            <Text style={styles.infoValue}>~{stats.databaseSizeKb} KB</Text>
+            <Text style={styles.infoValue}>~{stats.databaseSizeKb} KB (Chế độ WAL)</Text>
           </View>
 
           {/* Sync Button */}
@@ -220,11 +239,85 @@ export default function PreloadManifestScreen() {
           </View>
         )}
 
+        {/* Loaded Trips Section */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardTitle}>Danh Sách Chuyến Đã Nạp ({trips.length})</Text>
+            <Text style={styles.cardSubtitle}>Ca trực hôm nay</Text>
+          </View>
+
+          {trips.length === 0 ? (
+            <View style={styles.emptyTripsBox}>
+              <Ionicons name="boat-outline" size={36} color="#CBD5E1" />
+              <Text style={styles.emptyTripsText}>
+                Chưa có chuyến nào được tải vào máy. Bấm nút "Tải Trước Dữ Liệu" ở trên để nạp chuyến và vé.
+              </Text>
+            </View>
+          ) : (
+            trips.map((trip) => {
+              const progressPercent = trip.totalTickets > 0 ? (trip.checkedInTickets / trip.totalTickets) * 100 : 0;
+              const depFormatted = new Date(trip.departureTime).toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+
+              return (
+                <View key={trip.id} style={styles.tripItemCard}>
+                  <View style={styles.tripItemTop}>
+                    <View style={styles.tripCodeBadge}>
+                      <Text style={styles.tripCodeBadgeText}>{trip.tripCode}</Text>
+                    </View>
+                    <View style={styles.tripTypeBadge}>
+                      <Text style={styles.tripTypeBadgeText}>{trip.tripType}</Text>
+                    </View>
+                    <View style={{ flex: 1 }} />
+                    <View style={styles.tripStatusBadge}>
+                      <Ionicons name="radio-button-on" size={12} color="#059669" />
+                      <Text style={styles.tripStatusText}>{trip.status}</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.tripRouteName}>{trip.routeName}</Text>
+
+                  <View style={styles.tripDetailRow}>
+                    <Ionicons name="boat" size={14} color="#64748B" />
+                    <Text style={styles.tripDetailText}>{trip.boatName}</Text>
+                    <Text style={styles.tripDetailDot}>•</Text>
+                    <Ionicons name="time" size={14} color="#64748B" />
+                    <Text style={styles.tripDetailText}>Xuất bến: {depFormatted}</Text>
+                  </View>
+
+                  {/* Boarding progress bar */}
+                  <View style={styles.progressContainer}>
+                    <View style={styles.progressRow}>
+                      <Text style={styles.progressLabel}>Tiến độ soát vé:</Text>
+                      <Text style={styles.progressValue}>
+                        {trip.checkedInTickets} / {trip.totalTickets} khách
+                      </Text>
+                    </View>
+                    <View style={styles.progressBarBg}>
+                      <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.scanTripButton}
+                    onPress={() => router.push('/(tabs)')}
+                  >
+                    <Ionicons name="qr-code" size={16} color="#0284C7" />
+                    <Text style={styles.scanTripButtonText}>Mở Camera Soát Chuyến Này</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })
+          )}
+        </View>
+
         {/* Test QR Generator Card */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Tạo Mã QR Mẫu Kèm Chữ Ký Số</Text>
+          <Text style={styles.cardTitle}>Tạo Mã QR Mẫu Kèm Chữ Ký Số (Demo)</Text>
           <Text style={styles.cardDesc}>
-            Sinh chuỗi QR mẫu ký theo chuẩn RFC 6238 / Waterbus HMAC-SHA256 để kiểm thử quét:
+            Sinh chuỗi QR mẫu ký theo chuẩn HMAC-SHA256 để kiểm thử quét và giải mã ngoại tuyến:
           </Text>
 
           <TouchableOpacity style={styles.testGenButton} onPress={handleGenerateTestQr}>
@@ -303,7 +396,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#0F172A',
-    marginBottom: 10,
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
   },
   cardDesc: {
     fontSize: 13,
@@ -320,12 +416,12 @@ const styles = StyleSheet.create({
   stationChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#F8FAFC',
-    gap: 8,
   },
   stationChipSelected: {
     borderColor: '#0284C7',
@@ -334,35 +430,47 @@ const styles = StyleSheet.create({
   stationChipText: {
     fontSize: 14,
     color: '#334155',
+    marginLeft: 10,
+    fontWeight: '500',
   },
   stationChipTextSelected: {
     color: '#0284C7',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   preloadButton: {
     backgroundColor: '#0284C7',
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 13,
+    justifyContent: 'center',
+    paddingVertical: 14,
     borderRadius: 10,
+    marginTop: 6,
   },
   preloadButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
   },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
   statsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginVertical: 6,
+    gap: 8,
+    marginBottom: 14,
   },
   statBox: {
-    alignItems: 'center',
     flex: 1,
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   statNumber: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800',
     color: '#0F172A',
   },
@@ -375,12 +483,12 @@ const styles = StyleSheet.create({
   statsDivider: {
     height: 1,
     backgroundColor: '#F1F5F9',
-    marginVertical: 12,
+    marginBottom: 12,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginVertical: 4,
+    paddingVertical: 4,
   },
   infoLabel: {
     fontSize: 13,
@@ -388,21 +496,20 @@ const styles = StyleSheet.create({
   },
   infoValue: {
     fontSize: 13,
-    color: '#1E293B',
-    fontWeight: '500',
+    color: '#0F172A',
   },
   infoValueBold: {
     fontSize: 13,
-    color: '#0F172A',
     fontWeight: '700',
+    color: '#0F172A',
   },
   syncButton: {
-    backgroundColor: '#059669',
+    backgroundColor: '#0F172A',
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 11,
-    borderRadius: 8,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
     marginTop: 14,
   },
   syncButtonText: {
@@ -410,45 +517,165 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  buttonDisabled: {
-    backgroundColor: '#94A3B8',
-  },
   messageBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#F0F9FF',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
-    borderRadius: 8,
-    padding: 10,
+    borderColor: '#BAE6FD',
+    borderRadius: 10,
+    padding: 12,
     marginBottom: 16,
     gap: 8,
   },
   messageBannerText: {
-    color: '#1D4ED8',
-    fontSize: 12,
+    fontSize: 13,
+    color: '#0369A1',
     flex: 1,
+  },
+  emptyTripsBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    gap: 8,
+  },
+  emptyTripsText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 16,
+  },
+  tripItemCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  tripItemTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  tripCodeBadge: {
+    backgroundColor: '#0284C7',
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+    borderRadius: 4,
+  },
+  tripCodeBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  tripTypeBadge: {
+    backgroundColor: '#E2E8F0',
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+    borderRadius: 4,
+  },
+  tripTypeBadgeText: {
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  tripStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  tripStatusText: {
+    fontSize: 12,
+    color: '#059669',
+    fontWeight: '600',
+  },
+  tripRouteName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  tripDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 10,
+  },
+  tripDetailText: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  tripDetailDot: {
+    color: '#CBD5E1',
+    marginHorizontal: 4,
+  },
+  progressContainer: {
+    marginBottom: 10,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  progressLabel: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  progressValue: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0284C7',
+  },
+  progressBarBg: {
+    height: 6,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#0284C7',
+    borderRadius: 3,
+  },
+  scanTripButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#E0F2FE',
+    gap: 6,
+  },
+  scanTripButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0284C7',
   },
   testGenButton: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 9,
+    justifyContent: 'center',
+    paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#0284C7',
     backgroundColor: '#F0F9FF',
   },
   testGenButtonText: {
-    color: '#0284C7',
-    fontWeight: '600',
     fontSize: 13,
+    fontWeight: '600',
+    color: '#0284C7',
   },
   qrCodeBox: {
     marginTop: 12,
-    backgroundColor: '#F1F5F9',
-    padding: 10,
+    backgroundColor: '#F8FAFC',
     borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   qrCodeLabel: {
     fontSize: 11,
@@ -456,33 +683,32 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   qrCodeText: {
-    fontSize: 12,
-    fontFamily: 'monospace',
-    color: '#0F172A',
-    backgroundColor: '#FFFFFF',
-    padding: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#0284C7',
   },
   signatureText: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#94A3B8',
     marginTop: 4,
   },
   dangerCard: {
-    marginTop: 8,
-    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 20,
   },
   clearCacheBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2',
   },
   clearCacheBtnText: {
-    color: '#DC2626',
     fontSize: 13,
     fontWeight: '600',
+    color: '#DC2626',
   },
 });
-
