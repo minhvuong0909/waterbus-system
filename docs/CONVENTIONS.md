@@ -33,9 +33,9 @@ Ví dụ: `feat(realtime): add SeatSyncHub with per-trip groups`.
 
 ### Pull Request
 - Một PR = một mục đích. Mô tả: làm gì, vì sao, cách kiểm tra.
-- Điều kiện merge: `dotnet build` và `dotnet test` (BE) hoặc `npm run build` (FE) **không lỗi**, ít nhất 1 người review.
+- Điều kiện merge: `dotnet build` và `dotnet test` (BE) hoặc `pnpm lint` + `pnpm test` + `pnpm build` (FE) **không lỗi**, ít nhất 1 người review.
 - Không commit: secrets, `bin/`, `obj/`, `node_modules/`, file `.env`.
-- Hiện có **4 test CreateBooking đang fail** (xem `docs/DOMAIN_BR_ALIGNMENT.md`). Không được làm thêm test fail ngoài 4 test đó.
+- Toàn bộ test hiện **đều pass**; CI chạy cả bộ, không còn bộ lọc bỏ qua test lỗi. Không được làm hỏng hay bỏ qua test nào.
 
 ## 3. Backend (.NET 8)
 
@@ -151,7 +151,7 @@ Cần mã mới (vd 403, 422) thì thêm `case` vào middleware, không xử lý
 - Realtime: một service bọc kết nối SignalR (tự reconnect, join lại group, gọi REST đồng bộ lại sau reconnect).
 - Tiền hiển thị theo `vi-VN`, thời gian lấy UTC từ API và format theo múi giờ Việt Nam.
 - Component: `PascalCase.tsx`; hook: `useXxx`; không dùng `any` nếu tránh được.
-- `npm run build` phải qua (gồm `tsc`) trước khi mở PR.
+- `pnpm lint`, `pnpm test` và `pnpm build` (gồm `tsc`) phải qua trước khi mở PR. FE dùng pnpm, không dùng npm.
 
 ## 5. Mobile (Staff Scanner)
 

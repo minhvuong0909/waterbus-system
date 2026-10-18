@@ -13,10 +13,10 @@ Nếu `SETUP.md` / `docs/TASK_BREAKDOWN_ROADMAP.md` mâu thuẫn với BR v2.0 h
 ## Lệnh
 ```bash
 cd waterbus-be && dotnet build WaterbusSystem.sln && dotnet test WaterbusSystem.sln   # BE
-cd waterbus-fe && npm ci && npm run build                                              # FE (gồm tsc)
+cd waterbus-fe && pnpm install --frozen-lockfile && pnpm lint && pnpm test && pnpm build   # FE (build gồm tsc)
 docker compose up -d --build                                                           # cả hệ thống, Web ở :8080
 ```
-Hiện có **4 test `CreateBookingCommandHandlerTests` đang fail** (đã biết). Không được làm thêm test nào fail.
+Toàn bộ test hiện **đều pass** (CI chạy cả bộ, không còn bộ lọc test lỗi). Không được làm hỏng hay bỏ qua test nào.
 Test cần SQL thật: đặt `WATERBUS_TEST_SQLSERVER` (tự tạo/xoá DB `WaterbusDomainTests_*`).
 Luôn chạy build + test liên quan trước khi báo hoàn thành; báo trung thực nếu có fail.
 
@@ -59,7 +59,7 @@ Luôn chạy build + test liên quan trước khi báo hoàn thành; báo trung 
 ## Frontend
 - Giữ cấu trúc `pages/ features/ components/ layouts/ routes/ store/ hooks/ constant/`. Mọi API đi qua `constant/apiEndpoints.ts` + service trong `features/<x>/services`; không `fetch` rải rác. Biến môi trường có tiền tố `VITE_` và có `.env.example`.
 - Gửi `Accept-Language`. Dùng đường dẫn tương đối `/api/...` và `/hubs/...` (nginx proxy cùng origin). Guest dùng link bảo mật, không bắt đăng nhập. SignalR bọc trong 1 service (auto reconnect, join lại group).
-- Tiền định dạng `vi-VN`; thời gian nhận UTC, hiển thị giờ Việt Nam. Component `PascalCase.tsx`, hook `useXxx`, tránh `any`. `npm run build` phải qua.
+- Tiền định dạng `vi-VN`; thời gian nhận UTC, hiển thị giờ Việt Nam. Component `PascalCase.tsx`, hook `useXxx`, tránh `any`. `pnpm lint`, `pnpm test` và `pnpm build` phải qua (FE dùng pnpm, không dùng npm).
 
 ## Mobile (Staff Scanner)
 - Verify QR **offline** bằng Public Key, không gọi API mỗi lần quét. Mỗi check-in có `clientEventId` duy nhất, đồng bộ theo lô (server khử trùng bằng `CheckInEvent.ClientEventId`). Chỉ check-in trong `CheckInOpenAt–CheckInCloseAt` của đúng `TripStopCall` được phân công.
