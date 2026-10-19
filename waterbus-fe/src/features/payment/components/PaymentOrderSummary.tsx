@@ -75,10 +75,8 @@ export default function PaymentOrderSummary({
           </span>
         </div>
         <div className="my-2 h-px bg-outline-variant/60" />
-        <div className="flex items-center justify-between text-[11px] text-on-surface-variant">
-          <span>{t('Direct Line')}</span>
-          <span>{t('{durationMins} min crossing', { durationMins: trip.durationMins })}</span>
-          <span>{t('Non-stop')}</span>
+        <div className="text-center text-[11px] text-on-surface-variant">
+          {t('{durationMins} min crossing', { durationMins: trip.durationMins })}
         </div>
       </div>
 

@@ -75,7 +75,6 @@ export function NextDepartureCard({
                 <span className="h-px flex-1 bg-outline-variant" />
                 <span className="h-2 w-2 rounded-full bg-teal-flow" />
               </div>
-              <span className="text-[11px] text-on-surface-variant">{t('Direct Waterway')}</span>
             </div>
             <div className="md:col-span-4 md:text-right">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">

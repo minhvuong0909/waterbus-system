@@ -80,7 +80,6 @@ export function JourneyDetailsCard({ trip, seats }: { trip: TripDetail; seats: S
             <Icon name="arrow_forward" className="text-[16px] text-teal-flow" />
             <span className="h-px flex-1 bg-outline-variant" />
           </div>
-          <span className="text-xs text-on-surface-variant">{t('Non-stop express run')}</span>
         </div>
         <div className="flex items-start justify-end gap-3 text-right md:col-span-4">
           <div>

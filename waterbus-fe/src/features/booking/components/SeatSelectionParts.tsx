@@ -19,9 +19,6 @@ export function TripStrip({ trip, seats, totalVnd }: { trip: TripDetail; seats: 
         <div className="flex items-center gap-2 rounded-xl bg-deep-river px-space-md py-2 text-on-primary">
           <Icon name="directions_boat" className="text-[20px]" />
           <span className="font-headline-sm text-lg font-bold">{trip.vesselCode}</span>
-          <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold">
-            {t('Express')}
-          </span>
         </div>
         <div className="flex items-center gap-space-md">
           <div>
