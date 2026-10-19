@@ -1678,4 +1678,11 @@ export const vi: Record<string, string> = {
   '{name}, photo gallery': '{name}, thư viện ảnh',
   'photo {current} of {total}': 'ảnh {current}/{total}',
   Tomorrow: 'Ngày mai',
+  'Departed': 'Đã khởi hành',
+  'No trips': 'Hết chuyến',
+  'River bus': 'Tàu buýt sông',
+  'Sightseeing tour': 'Tour ngắm cảnh',
+  'No trips left to book on this day. Choose another day above.': 'Ngày này không còn chuyến để đặt. Hãy chọn ngày khác ở trên.',
+  'No more trips today. The nearest trips are on {date}.': 'Hôm nay không còn chuyến. Các chuyến gần nhất vào {date}.',
+  '{length} trips with seats left': '{length} chuyến còn chỗ',
 }

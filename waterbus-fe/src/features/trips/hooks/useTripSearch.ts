@@ -4,6 +4,7 @@ import { combineFetches, useFetch } from '../../../hooks'
 import { selectTrip, setQuery } from '../../booking/bookingSlice'
 import {
   getDateOptions,
+  getDayTripCounts,
   getNetworkRoutes,
   getPierOptions,
   getTripDetail,
@@ -73,11 +74,20 @@ export function useSearchResults() {
     () => (ready ? getTrips(query) : new Promise<Trip[]>(() => undefined)),
     [ready, query.originId, query.destinationId, query.dateId],
   )
+  // Số chuyến còn bán của từng ngày; chỉ để hiện trên thanh chọn ngày nên lỗi không chặn trang.
+  const counts = useFetch(
+    () =>
+      ready && dates.data
+        ? getDayTripCounts(query, dates.data)
+        : new Promise<Record<string, number>>(() => undefined),
+    [ready, query.originId, query.destinationId, dates.data?.length],
+  )
   return {
     query,
     updateQuery,
     piers: piers.data,
     dates: dates.data,
+    counts: counts.data,
     trips: trips.data,
     searching: trips.fetching,
     ...combineFetches(piers, dates, trips),

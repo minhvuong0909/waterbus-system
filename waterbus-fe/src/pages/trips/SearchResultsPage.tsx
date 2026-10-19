@@ -1,23 +1,48 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorState, PageLoader } from '../../components/ui'
 import CorridorSidebar from '../../features/trips/components/CorridorSidebar'
 import DateStrip from '../../features/trips/components/DateStrip'
 import ResultFilters from '../../features/trips/components/ResultFilters'
 import type { KindFilter, SortKey, TimeFilter } from '../../features/trips/components/ResultFilters'
-import SearchSummaryBar from '../../features/trips/components/SearchSummaryBar'
+import SearchForm from '../../features/trips/components/SearchForm'
 import TripCard from '../../features/trips/components/TripCard'
-import { formatDateLabel } from '../../features/trips/utils'
+import { formatDateLabel, isDeparted } from '../../features/trips/utils'
 import { useSearchResults } from '../../features/trips/hooks/useTripSearch'
 import { useDocumentTitle } from '../../hooks'
 import { t } from '../../i18n'
 
 export default function SearchResultsPage() {
   useDocumentTitle('Available Departures')
-  const { query, updateQuery, piers, dates, trips, searching, loading, error, retry, chooseTrip } =
+  const { query, updateQuery, piers, dates, counts, trips, searching, loading, error, retry, chooseTrip } =
     useSearchResults()
   const [time, setTime] = useState<TimeFilter>('all')
   const [kind, setKind] = useState<KindFilter>('all')
   const [sort, setSort] = useState<SortKey>('time')
+
+  // Vào trang khi hôm nay đã hết chuyến thì chuyển sang ngày gần nhất còn chuyến (một lần).
+  const triedAutoMove = useRef(false)
+  useEffect(() => {
+    if (triedAutoMove.current || !counts || !dates) return
+    triedAutoMove.current = true
+    const today = dates.find((d) => d.isToday)
+    if (!today || query.dateId !== today.id || counts[today.id] !== 0) return
+    const next = dates.find((d) => (counts[d.id] ?? 0) > 0)
+    if (!next) return
+    updateQuery({ dateId: next.id })
+    // `updateQuery` được tạo lại mỗi lần render; chỉ cần chạy khi số chuyến vừa tải xong.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [counts, dates])
+
+  // Hôm nay hết chuyến và đang xem đúng ngày gần nhất còn chuyến: giải thích vì sao không phải hôm nay.
+  const todayOption = dates?.find((d) => d.isToday)
+  const nearestOption = counts && dates ? dates.find((d) => (counts[d.id] ?? 0) > 0) : undefined
+  const nearestDay =
+    todayOption && counts && counts[todayOption.id] === 0 && nearestOption?.id === query.dateId
+      ? nearestOption
+      : undefined
+
+  // Giá chuyến thường như nhau nên chỉ cho sắp xếp theo giá khi các chuyến đang xem có giá khác nhau.
+  const priceVaries = useMemo(() => new Set((trips ?? []).map((trip) => trip.fareVnd)).size > 1, [trips])
 
   const visible = useMemo(() => {
     if (!trips) return []
@@ -29,8 +54,13 @@ export default function SearchResultsPage() {
       speed: (a, b) => a.durationMins - b.durationMins,
       price: (a, b) => a.fareVnd - b.fareVnd,
     }
-    return [...list].sort(by[sort])
-  }, [trips, time, kind, sort])
+    const sorted = [...list].sort(by[priceVaries || sort !== 'price' ? sort : 'time'])
+    // Chuyến đã khởi hành xuống cuối danh sách, chuyến còn đặt được ở trên.
+    return [
+      ...sorted.filter((trip) => !isDeparted(trip, query.dateId)),
+      ...sorted.filter((trip) => isDeparted(trip, query.dateId)),
+    ]
+  }, [trips, time, kind, sort, priceVaries, query.dateId])
 
   if (error) return <ErrorState onRetry={retry} />
 
@@ -38,7 +68,11 @@ export default function SearchResultsPage() {
 
   const pier = (id: string) => piers.find((p) => p.id === id) ?? piers[0]
   const selectedDate = dates.find((d) => d.id === query.dateId) ?? dates[0]
-  const dateLabel = formatDateLabel(selectedDate)
+  // Chuyến đặt được: chưa khởi hành và còn chỗ. `dayBookable` đếm cả ngày (khớp số trên thanh chọn
+  // ngày), `bookableCount` chỉ đếm các chuyến đang hiện sau khi lọc.
+  const isBookable = (trip: (typeof visible)[number]) => !isDeparted(trip, query.dateId) && trip.seatsCount > 0
+  const dayBookable = (trips ?? []).filter(isBookable).length
+  const bookableCount = visible.filter(isBookable).length
 
   return (
     <div className="bg-mist pb-16 pt-4">
@@ -55,11 +89,20 @@ export default function SearchResultsPage() {
             </div>
           </div>
 
-          <SearchSummaryBar query={query} piers={piers} dateLabel={dateLabel} />
+          <SearchForm piers={piers} dates={dates} variant="bar" />
+          {nearestDay && (
+            <p
+              role="status"
+              className="rounded-2xl border border-signal-amber/40 bg-signal-amber/10 px-space-md py-3 text-sm text-deep-river"
+            >
+              {t('No more trips today. The nearest trips are on {date}.', { date: formatDateLabel(nearestDay) })}
+            </p>
+          )}
           <DateStrip
             dates={dates}
             selectedId={selectedDate.id}
-            tripCount={trips.length}
+            tripCount={dayBookable}
+            counts={counts}
             onSelect={(id) => updateQuery({ dateId: id })}
           />
           <ResultFilters
@@ -69,6 +112,7 @@ export default function SearchResultsPage() {
             onTime={setTime}
             onKind={setKind}
             onSort={setSort}
+            showPriceSort={priceVaries}
           />
         </section>
 
@@ -81,12 +125,19 @@ export default function SearchResultsPage() {
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-space-xs text-sm text-deep-river">
                 <span className="font-bold text-teal-flow">
-                  {t('{length} Departures', { length: visible.length })}
+                  {t('{length} trips with seats left', { length: bookableCount })}
                 </span>
-                <span className="text-on-surface-variant">{t('on {date}', { date: dateLabel })}</span>
               </div>
             </div>
 
+            {visible.length > 0 && dayBookable === 0 && (
+              <p
+                role="status"
+                className="rounded-2xl border border-signal-amber/40 bg-signal-amber/10 px-space-md py-3 text-sm text-deep-river"
+              >
+                {t('No trips left to book on this day. Choose another day above.')}
+              </p>
+            )}
             {visible.length > 0 ? (
               visible.map((trip) => (
                 <TripCard
@@ -95,6 +146,7 @@ export default function SearchResultsPage() {
                   origin={pier(query.originId)}
                   destination={pier(query.destinationId)}
                   onSelect={chooseTrip}
+                  departed={isDeparted(trip, query.dateId)}
                 />
               ))
             ) : (

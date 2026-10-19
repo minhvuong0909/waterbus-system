@@ -29,6 +29,7 @@ import {
   pickPiers,
   toPierOption,
   toTrip,
+  isDeparted,
 } from '../utils'
 import type { TripDetailDto, TripSeatMapDto } from '../../booking/types'
 import { pickJourney } from '../../booking/utils'
@@ -69,6 +70,28 @@ export async function getTrips(query: SearchQuery): Promise<Trip[]> {
     },
   })
   return dtos.map(toTrip)
+}
+
+/**
+ * Số chuyến còn bán (còn ghế, chưa khởi hành) của từng ngày cho cặp bến đang chọn, để thanh chọn
+ * ngày cho thấy ngày nào có chuyến. Một ngày lỗi thì bỏ qua (không có số), không làm hỏng trang.
+ */
+export async function getDayTripCounts(
+  query: SearchQuery,
+  dates: DateOption[],
+): Promise<Record<string, number>> {
+  const entries = await Promise.all(
+    dates.map(async (date) => {
+      try {
+        const trips = await getTrips({ ...query, dateId: date.id })
+        const bookable = trips.filter((trip) => trip.seatsCount > 0 && !isDeparted(trip, date.id))
+        return [date.id, bookable.length] as const
+      } catch {
+        return [date.id, -1] as const
+      }
+    }),
+  )
+  return Object.fromEntries(entries.filter(([, count]) => count >= 0))
 }
 
 /** Minutes since midnight of an "HH:mm" time. */

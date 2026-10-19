@@ -11,6 +11,8 @@ interface TripCardProps {
   origin: PierOption
   destination: PierOption
   onSelect: (trip: Trip) => void
+  /** Chuyến đã rời bến: không chọn được nữa. */
+  departed?: boolean
 }
 
 const CARD: Record<Trip['variant'], string> = {
@@ -19,16 +21,17 @@ const CARD: Record<Trip['variant'], string> = {
   sunset: 'border-2 border-coral-glow/40 shadow-[0_4px_20px_rgba(240,138,107,0.10)]',
 }
 
-export default function TripCard({ trip, origin, destination, onSelect }: TripCardProps) {
+export default function TripCard({ trip, origin, destination, onSelect, departed = false }: TripCardProps) {
   const sunset = trip.variant === 'sunset'
   const accent = sunset ? 'text-coral-glow' : 'text-teal-flow'
   const soldOut = trip.seatsCount <= 0
+  const closed = soldOut || departed
 
   return (
     <article
       className={`rounded-2xl bg-white p-space-lg transition-all duration-200 hover:shadow-md ${
         CARD[trip.variant]
-      }`}
+      } ${departed ? 'opacity-60' : ''}`}
     >
       <div className="mb-space-md flex flex-wrap items-center justify-between gap-space-sm">
         <div className="flex flex-wrap items-center gap-space-xs">
@@ -47,15 +50,15 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
         </div>
         <div
           className={`flex items-center gap-1.5 text-xs font-bold ${
-            soldOut ? 'text-on-surface-variant' : trip.seatsLow ? 'text-coral-glow' : 'text-teal-flow'
+            closed ? 'text-on-surface-variant' : trip.seatsLow ? 'text-coral-glow' : 'text-teal-flow'
           }`}
         >
           <span
             className={`h-2 w-2 rounded-full ${
-              soldOut ? 'bg-outline' : trip.seatsLow ? 'bg-coral-glow' : 'bg-teal-flow'
+              closed ? 'bg-outline' : trip.seatsLow ? 'bg-coral-glow' : 'bg-teal-flow'
             }`}
           />
-          {seatsLabel(trip)}
+          {departed ? t('Departed') : seatsLabel(trip)}
         </div>
       </div>
 
@@ -63,7 +66,7 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
         <div className="flex items-center gap-space-sm md:col-span-3 md:flex-col md:items-start">
           <div>
             <span className="block font-headline-sm text-base font-bold text-deep-river">
-              {trip.vesselCode}
+              {trip.kind === 'sightseeing' ? t('Sightseeing tour') : t('River bus')}
             </span>
             <span className="text-xs font-medium text-on-surface-variant">{trip.vesselName}</span>
           </div>
@@ -135,12 +138,12 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
               <span className="text-xs font-medium text-on-surface-variant">{t('VND')}</span>
             </div>
           </div>
-          {soldOut ? (
+          {closed ? (
             <span
               aria-disabled="true"
               className="inline-flex cursor-not-allowed items-center justify-center rounded-full bg-surface-container px-space-lg py-2 text-sm font-semibold text-on-surface-variant"
             >
-              {t('Sold out')}
+              {departed ? t('Departed') : t('Sold out')}
             </span>
           ) : (
           <Link

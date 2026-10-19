@@ -136,3 +136,14 @@ export function toTrip(dto: TripDto): Trip {
     fareLabel: kind === 'sightseeing' ? t('Experience Fare') : t('Standard Fare'),
   }
 }
+
+/**
+ * Chuyến đã rời bến: ngày đã qua, hoặc hôm nay mà giờ khởi hành không còn ở phía trước. Chuyến loại
+ * này không còn bán được (BR-SRCH-02, BR-TIME-01).
+ */
+export function isDeparted(trip: Pick<Trip, 'departTime'>, dateId: string, now = new Date()): boolean {
+  const today = toIsoDate(now)
+  if (dateId !== today) return dateId < today
+  const [hours, minutes] = trip.departTime.split(':').map(Number)
+  return hours * 60 + minutes <= now.getHours() * 60 + now.getMinutes()
+}
