@@ -468,7 +468,7 @@ export const vi: Record<string, string> = {
   'Boarding QR for {code}': 'Mã QR lên tàu cho {code}',
   'Boats arrive every 15 mins during peak hours (06:30–09:00 & 16:30–19:30)':
     'Tàu đến mỗi 15 phút vào giờ cao điểm (06:30–09:00 và 16:30–19:30)',
-  'Book a Trip': 'Đặt chuyến',
+  'Book a Trip': 'Đặt vé',
   'Book New Trip': 'Đặt chuyến mới',
   Booking: 'Đặt chỗ',
   'Booking Code:': 'Mã đặt chỗ:',
@@ -1619,4 +1619,28 @@ export const vi: Record<string, string> = {
   'Closes the trip after it has arrived.': 'Đóng chuyến sau khi đã cập bến.',
   'You looked at this alert and the trip needs nothing. The decision is kept in the log.': 'Bạn đã xem cảnh báo này và chuyến không cần xử lý. Quyết định được lưu vào nhật ký.',
   'This trip is on hold. Wait for the dispatcher to resume it.': 'Chuyến đang tạm ngưng. Hãy chờ điều phối cho chạy lại.',
+  'You have no tickets yet': 'Bạn chưa có vé nào',
+  'Your tickets appear here as soon as your payment is confirmed.':
+    'Vé của bạn sẽ xuất hiện ở đây ngay khi thanh toán được xác nhận.',
+  'Find a trip': 'Tìm chuyến',
+  'on {date}': '{date}',
+  'No departures on this day.': 'Không có chuyến nào trong ngày này.',
+  'Try another day in the date strip above, or change the piers.':
+    'Hãy chọn ngày khác ở thanh ngày phía trên, hoặc đổi bến đi/bến đến.',
+  'Try “All Times” and “All Types” to see every departure.':
+    'Hãy chọn “Mọi giờ” và “Tất cả loại” để xem mọi chuyến.',
+  'Sold out': 'Hết chỗ',
+  'Checked in at pier': 'Đã check-in tại bến',
+  'No-show': 'Vắng mặt (NoShow)',
+  'Trip cancelled': 'Chuyến đã huỷ',
+  'Trip ended early': 'Chuyến kết thúc sớm',
+  'Booking {ref}': 'Đặt chỗ {ref}',
+  '{count} passengers, checked in individually': '{count} hành khách, check-in riêng từng người',
+  'Seat / Passenger': 'Ghế / Hành khách',
+  'Refunded {amount} to your original payment method.': 'Đã hoàn {amount} về phương thức thanh toán ban đầu.',
+  'Refund of {amount} is being processed.': 'Khoản hoàn {amount} đang được xử lý.',
+  'Refund information will appear here.': 'Thông tin hoàn tiền sẽ hiện ở đây.',
+  'You did not check in on time, so this ticket is not refundable.': 'Bạn không check-in đúng hạn nên vé này không được hoàn tiền.',
+  'Thunderstorm with gusts above 62 km/h expected on route RT01.': 'Dự báo dông kèm gió giật trên 62 km/h trên tuyến RT01.',
+  'Captain reported an engine fault on SWB-01 and requests a stop at the next pier.': 'Thuyền trưởng báo hỏng động cơ trên SWB-01 và đề nghị dừng ở bến kế tiếp.',
 }
