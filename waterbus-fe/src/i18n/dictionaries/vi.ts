@@ -1379,8 +1379,8 @@ export const vi: Record<string, string> = {
     'Voucher và tín dụng được áp dụng khi thanh toán. Hiện bạn có một tín dụng chào mừng cho đặt chỗ này.',
   W: 'CS',
   'Walking tour suggestions ready': 'Đã có gợi ý đi bộ tham quan',
-  'Watch the sunset cast copper light across Saigon’s highest skyscrapers, accompanied by bilingual ambient audio commentary.':
-    'Ngắm hoàng hôn phủ ánh đồng lên những tòa nhà chọc trời cao nhất Sài Gòn, kèm thuyết minh âm thanh song ngữ.',
+  'Watch the sunset cast copper light across Saigon’s highest skyscrapers, with Vietnamese commentary played over the boat’s speakers.':
+    'Ngắm hoàng hôn phủ ánh đồng lên những tòa nhà chọc trời cao nhất Sài Gòn, kèm thuyết minh tiếng Việt phát qua loa trên tàu.',
   'Waterbus {tripCode}': 'Waterbus {tripCode}',
   'Waterbus {vesselCode}': 'Waterbus {vesselCode}',
   'Waterfront Landmarks': 'Địa danh ven sông',

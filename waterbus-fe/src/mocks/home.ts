@@ -47,7 +47,7 @@ export const HOME_DATA: HomeData = {
       location: 'Bạch Đằng Pier',
       title: 'Twilight Sunset on the Saigon River',
       description:
-        'Watch the sunset cast copper light across Saigon’s highest skyscrapers, accompanied by bilingual ambient audio commentary.',
+        'Watch the sunset cast copper light across Saigon’s highest skyscrapers, with Vietnamese commentary played over the boat’s speakers.',
       trailingIcon: 'headphones',
       trailingIconClass: 'text-coral-glow',
     },
