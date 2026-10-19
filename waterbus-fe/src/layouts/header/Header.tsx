@@ -48,7 +48,7 @@ export default function Header() {
           <Link to={ROUTES.home} aria-label={t('Smart Waterbus home')} className="shrink-0">
             <Logo className="h-8 w-auto sm:h-9" />
           </Link>
-          <nav className="hidden items-center gap-4 xl:flex" aria-label={t('Main')}>
+          <nav className="hidden items-center gap-4 lg:flex" aria-label={t('Main')}>
             {NAV_ITEMS.map((item) => (
               <NavLink key={item.label} to={item.to} className={linkClass}>
                 {t(item.label)}
@@ -58,13 +58,6 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link
-            to={ROUTES.search}
-            aria-label={t('Search routes and piers')}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-all hover:bg-surface-container hover:text-deep-river"
-          >
-            <Icon name="search" className="text-[20px]" />
-          </Link>
           <LanguageSwitcher />
           {user ? (
             <>
@@ -100,7 +93,7 @@ export default function Header() {
               {t('Sign in')}
             </Button>
           )}
-          <Button to={ROUTES.search} className="hidden whitespace-nowrap md:inline-flex">
+          <Button to={ROUTES.search} className="whitespace-nowrap !px-4 sm:!px-6">
             {t('Book a Trip')}
           </Button>
           <button
@@ -110,7 +103,7 @@ export default function Header() {
             aria-expanded={open}
             aria-controls="mobile-navigation"
             onClick={() => setOpenPath(open ? null : pathname)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-deep-river transition-colors hover:bg-surface-container xl:hidden"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-deep-river transition-colors hover:bg-surface-container lg:hidden"
           >
             <Icon name={open ? 'close' : 'menu'} />
           </button>
@@ -120,7 +113,7 @@ export default function Header() {
       {open && (
         <nav
           id="mobile-navigation"
-          className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-surface-container/60 bg-mist px-4 py-space-md shadow-lg sm:max-h-[calc(100dvh-5rem)] sm:px-6 xl:hidden"
+          className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-surface-container/60 bg-mist px-4 py-space-md shadow-lg sm:max-h-[calc(100dvh-5rem)] sm:px-6 lg:hidden"
           aria-label={t('Mobile')}
         >
           <ul className="flex flex-col gap-space-sm">

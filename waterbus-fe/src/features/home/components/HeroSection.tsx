@@ -74,7 +74,7 @@ export default function HeroSection() {
               to={ROUTES.search}
               className="group inline-flex items-center justify-center gap-2.5 rounded-xl bg-teal-flow px-7 py-3.5 font-headline-sm text-base font-semibold text-on-primary shadow-[0_12px_24px_-8px_rgba(20,122,126,0.42)] transition-all hover:-translate-y-0.5 hover:bg-secondary hover:shadow-[0_16px_32px_-6px_rgba(20,122,126,0.55)]"
             >
-              <span>{t('Explore Routes')}</span>
+              <span>{t('Book a Trip')}</span>
               <Icon
                 name="arrow_forward"
                 className="text-[20px] transition-transform group-hover:translate-x-1"
