@@ -23,14 +23,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const items = ADMIN_NAV.filter((item) => hasAnyRole(user, item.roles))
   const { pathname } = useLocation()
   const current = items.find((item) => item.to === pathname)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuPath, setMenuPath] = useState<string | null>(null)
+  const menuOpen = menuPath === pathname
   const menuButton = useRef<HTMLButtonElement>(null)
-  useEffect(() => setMenuOpen(false), [pathname])
   useEffect(() => {
     if (!menuOpen) return
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setMenuOpen(false)
+        setMenuPath(null)
         menuButton.current?.focus()
       }
     }
@@ -61,7 +61,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             aria-label={t('Toggle menu')}
             aria-expanded={menuOpen}
             aria-controls="admin-navigation"
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={() => setMenuPath(menuOpen ? null : pathname)}
             className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/20 text-white transition-colors hover:bg-white/10 lg:hidden"
           >
             <Icon name={menuOpen ? 'close' : 'menu'} />
@@ -80,6 +80,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               to={item.to}
               end={item.to === ROUTES.admin}
               title={t(item.label)}
+              onClick={() => setMenuPath(null)}
               className={linkClass}
             >
               <Icon name={item.icon} className="shrink-0 text-[20px]" />

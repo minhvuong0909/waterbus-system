@@ -23,15 +23,15 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
     : 'whitespace-nowrap text-body-md font-semibold text-on-surface-variant border-b-2 border-transparent py-2 hover:text-deep-river transition-colors'
 
 export default function Header() {
-  const [open, setOpen] = useState(false)
+  const [openPath, setOpenPath] = useState<string | null>(null)
   const menuButton = useRef<HTMLButtonElement>(null)
   const { pathname } = useLocation()
-  useEffect(() => setOpen(false), [pathname])
+  const open = openPath === pathname
   useEffect(() => {
     if (!open) return
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setOpen(false)
+        setOpenPath(null)
         menuButton.current?.focus()
       }
     }
@@ -109,7 +109,7 @@ export default function Header() {
             aria-label={t('Toggle menu')}
             aria-expanded={open}
             aria-controls="mobile-navigation"
-            onClick={() => setOpen((v) => !v)}
+            onClick={() => setOpenPath(open ? null : pathname)}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-deep-river transition-colors hover:bg-surface-container xl:hidden"
           >
             <Icon name={open ? 'close' : 'menu'} />
@@ -128,7 +128,7 @@ export default function Header() {
               <li key={item.label}>
                 <NavLink
                   to={item.to}
-                  onClick={() => setOpen(false)}
+                  onClick={() => setOpenPath(null)}
                   className="block rounded-lg px-space-md py-space-sm text-body-lg font-medium text-deep-river hover:bg-surface-container"
                 >
                   {t(item.label)}
@@ -140,7 +140,7 @@ export default function Header() {
             </li>
             <li className="grid grid-cols-2 gap-space-sm pt-space-sm">
               {staffArea && (
-                <Button to={staffArea} variant="secondary" onClick={() => setOpen(false)}>
+                <Button to={staffArea} variant="secondary" onClick={() => setOpenPath(null)}>
                   {t('Operations')}
                 </Button>
               )}
@@ -149,20 +149,20 @@ export default function Header() {
                   variant="secondary"
                   onClick={() => {
                     signOut()
-                    setOpen(false)
+                    setOpenPath(null)
                   }}
                 >
                   {t('Sign out')}
                 </Button>
               ) : (
-                <Button to={ROUTES.signIn} variant="secondary" onClick={() => setOpen(false)}>
+                <Button to={ROUTES.signIn} variant="secondary" onClick={() => setOpenPath(null)}>
                   {t('Sign in')}
                 </Button>
               )}
               <Button
                 to={ROUTES.search}
                 className={staffArea ? 'col-span-2' : ''}
-                onClick={() => setOpen(false)}
+                onClick={() => setOpenPath(null)}
               >
                 {t('Book a Trip')}
               </Button>
