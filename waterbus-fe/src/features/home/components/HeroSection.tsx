@@ -37,7 +37,7 @@ export default function HeroSection() {
     }
   }, [reducedMotion, paused])
   return (
-    <section className="relative flex min-h-[520px] w-full flex-col justify-center bg-deep-river sm:min-h-[600px] lg:h-[calc(100svh-5rem)] lg:max-h-[820px] lg:min-h-[600px]">
+    <section className="relative flex min-h-[520px] w-full flex-col justify-center bg-deep-river sm:min-h-[600px] lg:min-h-[600px]">
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
         <video
           ref={videoRef}

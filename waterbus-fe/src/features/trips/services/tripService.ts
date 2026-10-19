@@ -85,15 +85,26 @@ export async function getUpcomingTrips(limit: number): Promise<{
   trips: Trip[]
   piers: PierOption[]
   search: Pick<SearchQuery, 'originId' | 'destinationId' | 'dateId'>
+  /** True when today has no departure left and the trips are tomorrow's. */
+  tomorrow: boolean
 }> {
   const piers = await getPierOptions()
   const search = { ...pickPiers(piers, DEFAULT_SEARCH_QUERY), dateId: toIsoDate(new Date()) }
   const all = await getTrips({ ...DEFAULT_SEARCH_QUERY, ...search })
   const now = new Date()
-  const trips = all
+  const bookable = (trip: Trip) => trip.seatsCount > 0
+  const today = all
     .filter((trip) => minutesOf(trip.departTime) >= now.getHours() * 60 + now.getMinutes())
+    .filter(bookable)
     .slice(0, limit)
-  return { trips, piers, search }
+  if (today.length > 0) return { trips: today, piers, search, tomorrow: false }
+
+  // Hôm nay không còn chuyến: cho khách thấy lịch ngày mai thay vì một khung trống.
+  const nextDay = { ...search, dateId: toIsoDate(new Date(now.getTime() + 24 * 60 * 60 * 1000)) }
+  const next = (await getTrips({ ...DEFAULT_SEARCH_QUERY, ...nextDay })).filter(bookable).slice(0, limit)
+  return next.length > 0
+    ? { trips: next, piers, search: nextDay, tomorrow: true }
+    : { trips: [], piers, search, tomorrow: false }
 }
 
 /**

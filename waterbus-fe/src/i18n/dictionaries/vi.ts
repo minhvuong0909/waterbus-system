@@ -1647,4 +1647,11 @@ export const vi: Record<string, string> = {
   'Ticket type': 'Loại vé',
   'Look up a booking without signing in': 'Tra cứu vé không cần đăng nhập',
   'Book the return trip': 'Đặt chuyến về',
+  'Upcoming departures': 'Chuyến sắp khởi hành',
+  'No more departures today. Here is tomorrow’s timetable from {pier}.': 'Hôm nay không còn chuyến nào. Đây là lịch ngày mai từ {pier}.',
+  'No departures of this type are scheduled yet.': 'Chưa có chuyến nào thuộc loại này.',
+  'View the full timetable': 'Xem toàn bộ lịch chạy',
+  'River corridor map': 'Bản đồ hành lang sông',
+  'Support Hotline': 'Hotline hỗ trợ',
+  'Refunds: if a trip is cancelled or ends early, the part you paid for that was not served is refunded in full. A ticket missed at check-in is not refunded.': 'Hoàn tiền: nếu chuyến bị huỷ hoặc kết thúc sớm, phần bạn đã trả mà chưa được phục vụ được hoàn 100%. Vé bỏ lỡ check-in không được hoàn tiền.',
 }

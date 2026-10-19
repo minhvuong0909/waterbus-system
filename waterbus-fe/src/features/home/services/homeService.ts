@@ -13,13 +13,19 @@ export function getHomeData(): Promise<HomeData> {
   return withDelay(HOME_DATA)
 }
 
-/** The next departures of today, from the trip search. */
-export async function getNextDepartures(): Promise<Departure[]> {
-  const { trips, piers, search } = await getUpcomingTrips(MAX_DEPARTURES)
+export interface NextDepartures {
+  items: Departure[]
+  /** True when today has no departure left and these are tomorrow's. */
+  tomorrow: boolean
+}
+
+/** The next departures of today (or tomorrow's when today is over), from the trip search. */
+export async function getNextDepartures(): Promise<NextDepartures> {
+  const { trips, piers, search, tomorrow } = await getUpcomingTrips(MAX_DEPARTURES)
   const origin = piers.find((p) => p.id === search.originId)
   const destination = piers.find((p) => p.id === search.destinationId)
-  if (!origin || !destination) return []
-  return trips.map((trip) => toDeparture(trip, origin, destination))
+  if (!origin || !destination) return { items: [], tomorrow: false }
+  return { items: trips.map((trip) => toDeparture(trip, origin, destination, new Date(), !tomorrow)), tomorrow }
 }
 
 /** The stations of the corridor. The vessel on it is a mock until the tracking API exists. */

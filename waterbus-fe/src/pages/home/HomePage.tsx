@@ -1,5 +1,5 @@
 import CorridorSection from '../../features/home/components/CorridorSection'
-import CtaBanner from '../../features/home/components/CtaBanner'
+import DeparturesSection from '../../features/home/components/DeparturesSection'
 import HeroSection from '../../features/home/components/HeroSection'
 import HowItWorksSection from '../../features/home/components/HowItWorksSection'
 import StoriesSection from '../../features/home/components/StoriesSection'
@@ -21,10 +21,14 @@ export default function HomePage() {
   return (
     <Reveal className="flex w-full flex-col">
       <HeroSection />
-      <CorridorSection filters={home.routeFilters} map={corridor} departures={departures} />
+      <DeparturesSection
+        filters={home.routeFilters}
+        departures={departures}
+        pierName={corridor.piers[0]?.name ?? ''}
+      />
       <HowItWorksSection steps={home.steps} />
       <StoriesSection stories={home.stories} />
-      <CtaBanner />
+      <CorridorSection map={corridor} />
     </Reveal>
   )
 }
