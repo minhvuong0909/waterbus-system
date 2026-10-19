@@ -25,6 +25,7 @@ export function formatDateLabel(date: DateOption): string {
 
 /** "28 Seats Left", or "54 Seats Available" when plenty remain. */
 export function seatsLabel(trip: Pick<Trip, 'seatsCount' | 'seatsLow'>): string {
+  if (trip.seatsCount <= 0) return t('Sold out')
   if (trip.seatsLow) return t('Limited: Only {count} Seats Left', { count: trip.seatsCount })
   return trip.seatsCount >= 50
     ? t('{count} Seats Available', { count: trip.seatsCount })

@@ -83,7 +83,7 @@ export default function SearchResultsPage() {
                 <span className="font-bold text-teal-flow">
                   {t('{length} Departures', { length: visible.length })}
                 </span>
-                <span className="text-on-surface-variant">{t('scheduled for today')}</span>
+                <span className="text-on-surface-variant">{t('on {date}', { date: dateLabel })}</span>
               </div>
             </div>
 
@@ -98,9 +98,18 @@ export default function SearchResultsPage() {
                 />
               ))
             ) : (
-              <p className="rounded-2xl border border-dashed border-outline-variant bg-white p-space-xl text-center text-on-surface-variant">
-                {t('No departures match these filters.')}
-              </p>
+              <div className="rounded-2xl border border-dashed border-outline-variant bg-white p-space-xl text-center">
+                <p className="font-semibold text-deep-river">
+                  {trips.length === 0
+                    ? t('No departures on this day.')
+                    : t('No departures match these filters.')}
+                </p>
+                <p className="mt-1 text-sm text-on-surface-variant">
+                  {trips.length === 0
+                    ? t('Try another day in the date strip above, or change the piers.')
+                    : t('Try “All Times” and “All Types” to see every departure.')}
+                </p>
+              </div>
             )}
           </div>
           <CorridorSidebar />

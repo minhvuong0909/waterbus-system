@@ -22,6 +22,7 @@ const CARD: Record<Trip['variant'], string> = {
 export default function TripCard({ trip, origin, destination, onSelect }: TripCardProps) {
   const sunset = trip.variant === 'sunset'
   const accent = sunset ? 'text-coral-glow' : 'text-teal-flow'
+  const soldOut = trip.seatsCount <= 0
 
   return (
     <article
@@ -46,11 +47,13 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
         </div>
         <div
           className={`flex items-center gap-1.5 text-xs font-bold ${
-            trip.seatsLow ? 'text-coral-glow' : 'text-teal-flow'
+            soldOut ? 'text-on-surface-variant' : trip.seatsLow ? 'text-coral-glow' : 'text-teal-flow'
           }`}
         >
           <span
-            className={`h-2 w-2 rounded-full ${trip.seatsLow ? 'bg-coral-glow' : 'bg-teal-flow'}`}
+            className={`h-2 w-2 rounded-full ${
+              soldOut ? 'bg-outline' : trip.seatsLow ? 'bg-coral-glow' : 'bg-teal-flow'
+            }`}
           />
           {seatsLabel(trip)}
         </div>
@@ -132,6 +135,14 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
               <span className="text-xs font-medium text-on-surface-variant">{t('VND')}</span>
             </div>
           </div>
+          {soldOut ? (
+            <span
+              aria-disabled="true"
+              className="inline-flex cursor-not-allowed items-center justify-center rounded-full bg-surface-container px-space-lg py-2 text-sm font-semibold text-on-surface-variant"
+            >
+              {t('Sold out')}
+            </span>
+          ) : (
           <Link
             to={ROUTES.tripDetail}
             onClick={() => onSelect(trip)}
@@ -146,6 +157,7 @@ export default function TripCard({ trip, origin, destination, onSelect }: TripCa
             {t('Select Trip')}
             <Icon name="arrow_forward" className="text-[16px]" />
           </Link>
+          )}
         </div>
       </div>
 
