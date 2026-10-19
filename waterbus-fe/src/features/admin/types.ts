@@ -188,5 +188,7 @@ export interface WeatherCheckResult {
   routesChecked: number
   incidentsCreated: number
   incidentsUpdated: number
+  /** Alerts the guard closed because the weather is calm again. */
+  incidentsResolved?: number
   observationFailures: number
 }

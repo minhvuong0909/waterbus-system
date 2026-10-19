@@ -143,6 +143,9 @@ export async function getOpenIncidents(withTrips = false): Promise<WeatherAlert[
 export const runWeatherCheck = () =>
   apiRequest<WeatherCheckResult>(API_ENDPOINTS.incidents.weatherCheck, { method: 'POST' })
 
+export const resolveIncident = (incidentId: string) =>
+  apiRequest<{ incidentId: string; status: string }>(API_ENDPOINTS.incidents.resolve(incidentId), { method: 'POST' })
+
 /** Knots (BE) to km/h (UI). */
 export const knotsToKmh = (knots: number | null) => (knots == null ? null : Math.round(knots * 1.852 * 10) / 10)
 

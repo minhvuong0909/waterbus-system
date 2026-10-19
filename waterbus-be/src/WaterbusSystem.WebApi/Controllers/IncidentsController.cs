@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WaterbusSystem.Application.Common.Models;
+using WaterbusSystem.Application.Features.Incidents.Commands.ResolveIncident;
 using WaterbusSystem.Application.Features.Incidents.Commands.RunWeatherGuard;
 using WaterbusSystem.Application.Features.Incidents.Queries.GetIncidentById;
 using WaterbusSystem.Application.Features.Incidents.Queries.GetIncidents;
@@ -45,6 +46,19 @@ public class IncidentsController : BaseApiController
     public async Task<ActionResult<WeatherGuardResult>> RunWeatherCheck()
     {
         var result = await Mediator.Send(new RunWeatherGuardCommand());
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Đóng sự cố đang mở. Không đổi trạng thái chuyến; 409 nếu sự cố đã đóng.
+    /// </summary>
+    [HttpPost("{id:guid}/resolve")]
+    [ProducesResponseType(typeof(ResolvedIncidentDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<ResolvedIncidentDto>> ResolveIncident(Guid id)
+    {
+        var result = await Mediator.Send(new ResolveIncidentCommand(id));
         return Ok(result);
     }
 }
