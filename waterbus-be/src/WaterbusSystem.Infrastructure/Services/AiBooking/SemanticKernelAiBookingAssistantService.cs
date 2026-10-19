@@ -112,6 +112,12 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
         var chatHistory = new ChatHistory();
         chatHistory.AddSystemMessage(SystemPrompt);
 
+        foreach (var turn in request.History)
+        {
+            if (turn.Role == "user") chatHistory.AddUserMessage(turn.Content);
+            else chatHistory.AddAssistantMessage(turn.Content);
+        }
+
         var userPrompt = message;
         if (!string.IsNullOrWhiteSpace(request.PreferredServiceType))
         {
@@ -133,7 +139,7 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
         // 6. Thực thi hội thoại với model
         try
         {
-            await chatService.GetChatMessageContentsAsync(
+            var completions = await chatService.GetChatMessageContentsAsync(
                 chatHistory,
                 executionSettings,
                 kernel,
@@ -148,7 +154,8 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
                         ? "Hệ thống tìm chuyến đang gặp lỗi. Vui lòng thử lại sau."
                         : plugin.SearchAttempted
                             ? "Không tìm thấy chuyến phù hợp với yêu cầu của quý khách."
-                            : "Tôi có thể giúp tra cứu chuyến tàu. Quý khách muốn đi từ bến nào đến bến nào, vào ngày nào?";
+                            : SafeClarification(completions.LastOrDefault()?.Content)
+                              ?? "Tôi có thể giúp tra cứu chuyến tàu. Quý khách muốn đi từ bến nào đến bến nào, vào ngày nào?";
 
             return new AiBookingChatResponse(
                 TextAnswer: answerText,
@@ -175,12 +182,43 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
             // SDK exception có thể chứa prompt/credential; chỉ ghi loại lỗi và HTTP status an toàn.
             _logger.LogError("Dịch vụ Groq qua Semantic Kernel lỗi ({ExceptionType}, HTTP {StatusCode}, mã {ProviderCode}).",
                 ex.GetType().Name, SafeHttpStatusCode(ex), SafeProviderErrorCode(ex));
+            // Groq đôi khi từ chối lượt suy luận tiếp sau tool (tool_use_failed).
+            // Nếu SearchTrips đã chạy, kết quả đã qua ranh giới tool vẫn dùng được;
+            // không dùng câu chữ model và không biến lỗi provider thành chuyến bịa.
+            if (SafeHttpStatusCode(ex) == 400 && SafeProviderErrorCode(ex) == "tool_use_failed"
+                && plugin.SearchAttempted)
+            {
+                return new AiBookingChatResponse(
+                    plugin.SearchNeedsClarification
+                        ? "Vui lòng cho biết bến khởi hành, bến đến và ngày đi để tôi tra cứu chính xác."
+                        : plugin.SearchFailed
+                        ? "Hệ thống tìm chuyến đang gặp lỗi. Vui lòng thử lại sau."
+                        : plugin.InterceptedCards.Count > 0
+                        ? $"Tìm thấy {plugin.InterceptedCards.Count} chuyến phù hợp. Vui lòng xem thông tin chuyến bên dưới."
+                        : "Không tìm thấy chuyến phù hợp với yêu cầu của quý khách.",
+                    plugin.InterceptedCards, plugin.ExecutedTools, plugin.SearchFailed);
+            }
             return new AiBookingChatResponse(
                 TextAnswer: "Xin lỗi quý khách, hiện tại dịch vụ trợ lý ảo đang gặp sự cố kết nối. Quý khách vui lòng thử lại sau.",
                 Cards: Array.Empty<AiTripCardDto>(),
                 ExecutedTools: plugin.ExecutedTools,
                 IsFallback: true);
         }
+    }
+
+    private static string? SafeClarification(string? content)
+    {
+        var answer = content?.Trim();
+        // Chỉ dùng lời AI để hỏi thêm, không dùng nó làm nguồn lịch/giá/link hay khẳng định nghiệp vụ.
+        if (string.IsNullOrWhiteSpace(answer) || answer.Length > 400 || !answer.Contains('?')
+            || (!answer.Contains("bến", StringComparison.OrdinalIgnoreCase)
+                && !answer.Contains("ngày", StringComparison.OrdinalIgnoreCase))
+            || answer.Any(char.IsDigit) || answer.Contains("http", StringComparison.OrdinalIgnoreCase)
+            || answer.Contains("giá", StringComparison.OrdinalIgnoreCase)
+            || answer.Contains("thanh toán", StringComparison.OrdinalIgnoreCase)
+            || answer.Contains("đã", StringComparison.OrdinalIgnoreCase))
+            return null;
+        return answer;
     }
 
     private static int? SafeHttpStatusCode(Exception exception)

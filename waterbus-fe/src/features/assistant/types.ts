@@ -18,6 +18,11 @@ export interface ChatMessage {
   search?: AssistantReply['search']
 }
 
+export interface AssistantChatTurn {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export interface AssistantApiCard {
   tripId: string
   boardingStationId?: string | null

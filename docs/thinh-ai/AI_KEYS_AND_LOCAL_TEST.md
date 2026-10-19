@@ -64,6 +64,8 @@ Chạy trong `waterbus-be/` sau khi lưu key bằng User Secrets như trên. Log
 
 Nếu test trả `IsFallback=true`, dòng assert hiện **loại exception, HTTP status và `providerCode` an toàn**, không in key hoặc nội dung phản hồi. HTTP 429 có thể là hết quota hoặc chạm rate limit; kiểm tra limits của đúng Groq project, không retry liên tục. Nếu `tools=` rỗng, request đã lỗi trước khi function `SearchTrips` chạy. Nếu `SearchTrips:True` nhưng HTTP 400, lượt model tiếp theo đã lỗi; không được coi là end-to-end pass chỉ vì tool đã chạy. Xóa cờ PowerShell bằng `Remove-Item Env:WATERBUS_GROQ_BOOKING_SMOKE` (không có dấu `?`).
 
+Chat Web gửi tối đa 8 lượt gần nhất trong `history`, nên câu bổ sung như “ngày 2026-10-20” có thể dựa trên bến khách nói trước đó; reload trang sẽ mất ngữ cảnh vì backend không lưu hội thoại. Khi Groq trả `400 tool_use_failed` **sau** khi SearchTrips đã chạy, assistant giữ card đã kiểm tra từ tool (nếu có) và dùng câu an toàn; `tool_use_failed` trước tool vẫn là lỗi. Muốn thử code mới trên Web phải khởi động lại WebApi sau khi build, rồi refresh FE.
+
 ## 4. Docker Compose và kiểm thử thật
 
 Ở gốc repo, tạo `.env` từ `.env.example`, chỉ điền vào file local này các biến `AZURE_SPEECH_*`, `AZURE_BLOB_*`, `GROQ_API_KEY`. Docker Compose chuyển chúng vào WebApi theo `docker-compose.yml`; `.env` nằm trong Git ignore. Để `AI_BOOKING_ENABLED=false` cho đến khi backend AI nối an toàn. Không dán `.env` hoặc `dotnet user-secrets list` vào báo cáo.

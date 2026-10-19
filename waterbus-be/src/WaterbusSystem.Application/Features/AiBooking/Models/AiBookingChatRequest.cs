@@ -10,6 +10,9 @@ public record AiBookingChatRequest
     /// </summary>
     public string Message { get; init; } = string.Empty;
 
+    /// <summary>Các lượt gần nhất trước tin hiện tại; client gửi lại, server không lưu hội thoại.</summary>
+    public IReadOnlyList<AiBookingChatTurn> History { get; init; } = Array.Empty<AiBookingChatTurn>();
+
     /// <summary>
     /// Mã phiên hội thoại (tùy chọn) để hỗ trợ ngữ cảnh nhiều lượt (nếu có).
     /// </summary>
@@ -20,3 +23,5 @@ public record AiBookingChatRequest
     /// </summary>
     public string? PreferredServiceType { get; init; }
 }
+
+public record AiBookingChatTurn(string Role, string Content);

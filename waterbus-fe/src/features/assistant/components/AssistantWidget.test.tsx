@@ -57,4 +57,33 @@ describe('AssistantWidget live card navigation', () => {
     expect(store.getState().booking.query.destinationId).toBe('33333333-3333-3333-3333-333333333333')
     expect(store.getState().booking.query.dateId).toBe('2026-10-20')
   })
+
+  it('sends recent chat turns with the next question', async () => {
+    vi.mocked(askAssistant).mockResolvedValue({ text: 'Quý khách muốn đi ngày nào?' })
+
+    render(
+      <Provider store={store}>
+        <MemoryRouter><AssistantWidget /></MemoryRouter>
+      </Provider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open assistant' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ask the assistant' }), {
+      target: { value: 'Từ Bến Bạch Đằng đến Bến Linh Đông' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await screen.findByText('Quý khách muốn đi ngày nào?')
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ask the assistant' }), {
+      target: { value: 'Ngày 2026-10-20' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => expect(askAssistant).toHaveBeenLastCalledWith('Ngày 2026-10-20', {
+      history: [
+        { role: 'user', content: 'Từ Bến Bạch Đằng đến Bến Linh Đông' },
+        { role: 'assistant', content: 'Quý khách muốn đi ngày nào?' },
+      ],
+    }))
+  })
 })

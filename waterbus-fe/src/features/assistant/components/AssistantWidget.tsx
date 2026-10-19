@@ -53,12 +53,14 @@ export default function AssistantWidget() {
   const send = async (text: string, question = text) => {
     const clean = text.trim()
     if (!clean || busy) return
+    // Chỉ gửi các lượt thực sự trao đổi, tối đa 8 để không phình prompt hoặc lưu trên server.
+    const history = messages.slice(1).slice(-8).map((m) => ({ role: m.from, content: m.text }))
     setMessages((m) => [...m, { id: m.length + 1, from: 'user', text: clean }])
     setDraft('')
     setBusy(true)
     let reply: ChatMessage
     try {
-      const answer = await askAssistant(question)
+      const answer = await askAssistant(question, { history })
       reply = { id: 0, from: 'assistant', ...answer }
     } catch {
       reply = {
