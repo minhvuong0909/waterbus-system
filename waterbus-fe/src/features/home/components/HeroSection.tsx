@@ -37,62 +37,59 @@ export default function HeroSection() {
     }
   }, [reducedMotion, paused])
   return (
-    <section className="relative flex min-h-[520px] w-full flex-col justify-center bg-deep-river sm:min-h-[600px] lg:min-h-[600px]">
-      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        <video
-          ref={videoRef}
-          aria-label={t(
-            'Smart Waterbus electric catamaran gliding across the Saigon River with the city skyline',
-          )}
-          className="h-full w-full object-cover object-[62%_center] saturate-[1.08] lg:object-[68%_center]"
-          src={heroVideo}
-          poster={heroPoster}
-          muted
-          loop={!reducedMotion}
-          playsInline
-          preload="metadata"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-deep-river/85 via-deep-river/55 to-transparent lg:w-[72%]" />
-        <div className="absolute inset-0 bg-gradient-to-t from-deep-river/85 via-transparent to-deep-river/25" />
-      </div>
+    <div className="relative bg-mist xl:pb-11">
+      <section className="relative flex min-h-[480px] w-full flex-col justify-end bg-deep-river sm:min-h-[560px] lg:h-[calc(100svh-5rem-4.5rem)] lg:max-h-[780px] lg:min-h-[540px]">
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+          <video
+            ref={videoRef}
+            aria-label={t(
+              'Smart Waterbus electric catamaran gliding across the Saigon River with the city skyline',
+            )}
+            className="h-full w-full object-cover object-[62%_center] saturate-[1.08] lg:object-[68%_center]"
+            src={heroVideo}
+            poster={heroPoster}
+            muted
+            loop={!reducedMotion}
+            playsInline
+            preload="metadata"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-deep-river/55 via-deep-river/15 to-transparent lg:w-[60%]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-deep-river/60 via-transparent to-transparent" />
+        </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-7xl px-5 py-16 sm:px-8 lg:py-20">
-        <div className="max-w-3xl space-y-space-md">
-          <div className="relative space-y-1">
-            <h1 className="max-w-[780px] font-headline-xl text-[32px] font-extrabold leading-[1.16] tracking-tight text-white drop-shadow-[0_2px_16px_rgba(13,37,56,0.45)] sm:text-5xl lg:text-[60px]">
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-5 pb-10 sm:px-8 xl:pb-20">
+          <div className="flex flex-wrap items-end justify-between gap-space-md">
+            <h1 className="max-w-[640px] font-headline-xl text-[30px] font-extrabold leading-[1.15] tracking-tight text-white drop-shadow-[0_2px_16px_rgba(13,37,56,0.55)] sm:text-4xl lg:text-[46px]">
               {t('A Smarter Journey,')}
               <br />
               <span className="text-sky-aqua">{t('A Brighter Saigon')}</span>
             </h1>
+            <Link
+              to={ROUTES.liveTracking}
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-white/40 bg-deep-river/40 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-deep-river/70"
+            >
+              <Icon name="near_me" className="text-[18px]" />
+              {t('Live Tracking')}
+            </Link>
           </div>
-          <p className="max-w-xl pt-1 text-base leading-relaxed text-white/90 drop-shadow-[0_1px_8px_rgba(13,37,56,0.5)] sm:text-body-lg">
-            {t(
-              'Explore the city by water with real-time updates, seamless booking and unforgettable experiences.',
-            )}
-          </p>
         </div>
-        <div className="mt-space-lg">
-          <HeroSearch />
-          <Link
-            to={ROUTES.liveTracking}
-            className="mt-space-sm inline-flex min-h-[44px] items-center gap-2 text-sm font-semibold text-white/90 underline-offset-4 hover:text-white hover:underline"
+
+        {!reducedMotion && (
+          <button
+            type="button"
+            aria-label={t(paused ? 'Play background video' : 'Pause background video')}
+            aria-pressed={paused}
+            onClick={() => setPaused(!paused)}
+            className="absolute right-5 top-5 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-deep-river/60 text-white transition-colors hover:bg-deep-river sm:right-8"
           >
-            <Icon name="near_me" className="text-[18px]" />
-            {t('Live Tracking')}
-          </Link>
-        </div>
+            <Icon name={paused ? 'play_arrow' : 'pause'} className="text-[22px]" />
+          </button>
+        )}
+      </section>
+
+      <div className="relative z-20 mx-auto -mt-6 w-full max-w-6xl px-5 pb-6 sm:px-8 xl:absolute xl:inset-x-0 xl:bottom-11 xl:mt-0 xl:pb-0 xl:translate-y-1/2">
+        <HeroSearch />
       </div>
-      {!reducedMotion && (
-        <button
-          type="button"
-          aria-label={t(paused ? 'Play background video' : 'Pause background video')}
-          aria-pressed={paused}
-          onClick={() => setPaused(!paused)}
-          className="absolute bottom-5 right-24 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-deep-river/70 text-white transition-colors hover:bg-deep-river sm:right-28"
-        >
-          <Icon name={paused ? 'play_arrow' : 'pause'} className="text-[22px]" />
-        </button>
-      )}
-    </section>
+    </div>
   )
 }

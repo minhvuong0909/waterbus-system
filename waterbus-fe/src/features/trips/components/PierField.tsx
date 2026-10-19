@@ -12,6 +12,8 @@ interface PierFieldProps {
   options: PierOption[]
   onChange: (id: string) => void
   className?: string
+  /** Gọn một dòng cho thanh tìm chuyến: bỏ địa chỉ phụ, thấp hơn. */
+  compact?: boolean
 }
 
 /** Search-form card that shows a pier and opens a small list to pick another one. */
@@ -22,6 +24,7 @@ export default function PierField({
   options,
   onChange,
   className = '',
+  compact = false,
 }: PierFieldProps) {
   const [open, setOpen] = useState(false)
   // Danh sách mở phía dưới nếu đủ chỗ, không thì phía trên nếu đủ chỗ. Nếu cả hai đều chật, mở
@@ -75,7 +78,9 @@ export default function PierField({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={toggle}
-        className="group flex h-full min-h-[112px] w-full min-w-0 flex-col justify-between gap-3 rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] p-3.5 text-left transition-colors hover:border-teal-flow/40 hover:bg-[#EBF2F0]/80"
+        className={`group flex h-full w-full min-w-0 flex-col justify-between rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] text-left transition-colors hover:border-teal-flow/40 hover:bg-[#EBF2F0]/80 ${
+          compact ? 'min-h-[64px] gap-1 px-3.5 py-2.5' : 'min-h-[112px] gap-3 p-3.5'
+        }`}
       >
         <span className="mb-1 flex w-full items-center justify-between">
           <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
@@ -91,9 +96,11 @@ export default function PierField({
           <span className="block truncate font-headline-sm text-base font-bold text-deep-river">
             {value.name}
           </span>
-          <span className="mt-0.5 block truncate text-[11px] text-on-surface-variant">
-            {value.subtitle}
-          </span>
+          {!compact && (
+            <span className="mt-0.5 block truncate text-[11px] text-on-surface-variant">
+              {value.subtitle}
+            </span>
+          )}
         </span>
       </button>
 

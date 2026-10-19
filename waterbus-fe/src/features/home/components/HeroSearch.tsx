@@ -8,7 +8,7 @@ import { useSearchForm } from '../../trips/hooks/useTripSearch'
 export default function HeroSearch() {
   const { piers, dates, loading, error } = useSearchForm()
   if (error || loading || !piers || !dates || piers.length === 0 || dates.length === 0) {
-    return <div aria-hidden className="min-h-[190px] rounded-2xl bg-white/10" />
+    return <div aria-hidden className="min-h-[84px] rounded-2xl bg-white/70" />
   }
-  return <SearchForm piers={piers} dates={dates} />
+  return <SearchForm piers={piers} dates={dates} variant="bar" />
 }
