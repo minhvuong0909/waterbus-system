@@ -2,9 +2,7 @@ import { Link } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { formatVnd } from '../../../utils/format'
-import { usePrefersReducedMotion } from '../../../hooks'
 import type { Story } from '../types'
-import TourShowcase from './TourShowcase'
 import { t } from '../../../i18n'
 
 interface StoriesSectionProps {
@@ -12,20 +10,9 @@ interface StoriesSectionProps {
 }
 
 export default function StoriesSection({ stories }: StoriesSectionProps) {
-  // Khung ảnh cuộn chỉ cho màn rộng và khi không bật giảm chuyển động; còn lại giữ lưới thẻ.
-  const reducedMotion = usePrefersReducedMotion()
   return (
-    <section id="tours" className="w-full scroll-mt-20 bg-surface-container-lowest">
-      {!reducedMotion && (
-        <div className="hidden lg:block">
-          <TourShowcase stories={stories} />
-        </div>
-      )}
-      <div
-        className={`mx-auto max-w-7xl space-y-8 px-5 py-10 sm:px-8 sm:py-14 ${
-          reducedMotion ? '' : 'lg:hidden'
-        }`}
-      >
+    <section id="tours" className="w-full scroll-mt-20 bg-surface-container-lowest py-10 sm:py-14">
+      <div className="mx-auto max-w-7xl space-y-8 px-5 sm:px-8">
         <div data-reveal className="max-w-2xl space-y-space-xs">
           <h2 className="font-headline-lg text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-[36px]">
             {t('A Different Perspective on Saigon’s Skyline & Heritage')}

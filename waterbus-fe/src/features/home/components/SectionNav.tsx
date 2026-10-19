@@ -7,6 +7,7 @@ const SECTIONS = [
   { id: 'departures', label: 'Upcoming departures' },
   { id: 'how-it-works', label: 'How It Works' },
   { id: 'tours', label: 'Sightseeing' },
+  { id: 'piers', label: 'Pier network' },
   { id: 'map', label: 'River corridor map' },
 ]
 

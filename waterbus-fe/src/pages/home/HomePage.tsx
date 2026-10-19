@@ -2,6 +2,7 @@ import CorridorSection from '../../features/home/components/CorridorSection'
 import DeparturesSection from '../../features/home/components/DeparturesSection'
 import HeroSection from '../../features/home/components/HeroSection'
 import HowItWorksSection from '../../features/home/components/HowItWorksSection'
+import PiersSection from '../../features/home/components/PiersSection'
 import SectionNav from '../../features/home/components/SectionNav'
 import StoriesSection from '../../features/home/components/StoriesSection'
 import { useHomeData } from '../../features/home/hooks/useHomeData'
@@ -29,6 +30,7 @@ export default function HomePage() {
       />
       <HowItWorksSection steps={home.steps} />
       <StoriesSection stories={home.stories} />
+      <PiersSection piers={corridor.piers} />
       <CorridorSection map={corridor} />
       <SectionNav />
     </Reveal>
