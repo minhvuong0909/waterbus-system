@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { USE_MOCK } from '../../constant/env'
 import type { FormEvent } from 'react'
 import { ErrorState, PageLoader } from '../../components/ui'
 import {
@@ -179,6 +180,7 @@ export default function SchedulesPage() {
   const toggle = useSubmit()
   const state = combineFetches(schedules, routes, boats)
 
+  if (!USE_MOCK) return <div className="p-6"><PageHeader title="Schedules" description="Backend chưa có API quản lý lịch chạy hoặc sinh chuyến. Các chuyến có sẵn được xem tại Trips." /></div>
   if (state.error) return <ErrorState onRetry={state.retry} />
   if (state.loading || !schedules.data || !routes.data || !boats.data) return <PageLoader />
 

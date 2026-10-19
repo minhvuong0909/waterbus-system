@@ -1,3 +1,4 @@
+import { USE_MOCK } from '../../../constant/env'
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import QrCode from '../../../components/ticket/QrCode'
@@ -105,7 +106,7 @@ export function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassProps) {
         </dl>
 
         <div className="mx-auto mt-space-lg w-fit rounded-2xl bg-white p-space-md text-center shadow-sm">
-          <QrCode value={ticket.ticketCode} size={200} className="mx-auto" />
+          {(ticket.qrPayload || USE_MOCK) && <QrCode value={ticket.qrPayload ?? ticket.ticketCode} size={200} className="mx-auto" />}
           <div className="mt-2 font-mono text-lg font-bold tracking-wider text-deep-river">
             {ticket.ticketCode}
           </div>
@@ -306,7 +307,7 @@ export function QrModal({ ticket, onClose }: { ticket: Ticket; onClose: () => vo
           {ticket.departPier} → {ticket.arrivePier} ({ticket.seat})
         </p>
         <div className="mx-auto mt-space-md w-fit rounded-2xl border border-outline-variant/40 p-3">
-          <QrCode value={ticket.ticketCode} size={260} />
+          {(ticket.qrPayload || USE_MOCK) && <QrCode value={ticket.qrPayload ?? ticket.ticketCode} size={260} />}
         </div>
         <div className="mt-space-md font-mono text-lg font-bold tracking-wider text-deep-river">
           {ticket.ticketCode}

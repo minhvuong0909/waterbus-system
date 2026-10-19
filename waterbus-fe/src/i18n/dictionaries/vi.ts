@@ -1,6 +1,8 @@
 // Vietnamese translations. The key is the exact English source string.
 // Placeholders such as {count} must be kept as they are.
 export const vi: Record<string, string> = {
+  'Pause background video': 'Dừng video nền',
+  'Play background video': 'Phát video nền',
   'What is the difference between the cabins?': 'Các khoang trên tàu khác nhau thế nào?',
   'The boat has a front cabin, a standard cabin and an outdoor deck. Front cabin and outdoor deck seats cost a little more, as shown on the seat map. Standard seats have no extra fee.': 'Tàu có khoang trước, khoang tiêu chuẩn và boong ngoài trời. Ghế khoang trước và boong ngoài trời có phụ thu nhỏ, hiển thị trên sơ đồ ghế. Ghế tiêu chuẩn không phụ thu.',
   'Can I book several seats at once?': 'Tôi có thể đặt nhiều ghế cùng lúc không?',
@@ -1588,6 +1590,8 @@ export const vi: Record<string, string> = {
   'Updated {time}': 'Cập nhật {time}',
   'Check the weather now': 'Kiểm tra thời tiết ngay',
   'Checked {routes} routes: {created} new, {updated} updated alerts.': 'Đã kiểm tra {routes} tuyến: {created} cảnh báo mới, {updated} cảnh báo cập nhật.',
+  'Checked {routes} routes: {created} new, {updated} updated, {resolved} closed alerts.': 'Đã kiểm tra {routes} tuyến: {created} cảnh báo mới, {updated} cập nhật, {resolved} đã đóng.',
+  'Close alert': 'Đóng cảnh báo',
   'No weather warning right now.': 'Hiện không có cảnh báo thời tiết.',
   '{count} trips affected': '{count} chuyến bị ảnh hưởng',
   'Boat GPS': 'GPS của tàu',

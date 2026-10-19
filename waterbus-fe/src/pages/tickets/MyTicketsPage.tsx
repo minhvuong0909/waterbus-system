@@ -23,7 +23,15 @@ export default function MyTicketsPage() {
 
   if (loading || !wallet) return <PageLoader />
 
-  const upcomingCount = 1 + wallet.later.length
+  if (!wallet.next && wallet.past.length === 0) return (
+    <div className="mx-auto max-w-3xl p-8">
+      <h1 className="text-2xl font-bold">Chưa có vé đã phát trong phiên này</h1>
+      <p className="my-4">Vé chỉ xuất hiện sau khi backend xác nhận thanh toán. API lịch sử vé toàn bộ tài khoản hiện chưa có.</p>
+      <Link to={ROUTES.search} className="text-teal-flow underline">Tìm chuyến</Link>
+    </div>
+  )
+
+  const upcomingCount = (wallet.next ? 1 : 0) + wallet.later.length
   const tabClass = (active: boolean) =>
     `flex items-center gap-2 rounded-full px-5 py-2 text-sm transition-all ${
       active
@@ -84,7 +92,7 @@ export default function MyTicketsPage() {
         </button>
       </div>
 
-      {tab === 'upcoming' ? (
+      {tab === 'upcoming' && wallet.next ? (
         <>
           <div className="mt-space-lg flex items-center justify-between text-[11px] font-bold uppercase tracking-wider">
             <span className="flex items-center gap-2 text-teal-flow">

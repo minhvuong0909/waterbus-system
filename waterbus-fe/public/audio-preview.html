@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="vi">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Waterbus · Nghe thử audio</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #edf5f4; color: #123c42; font: 16px/1.6 system-ui, sans-serif; padding: 24px; }
+    main { max-width: 650px; margin: 8vh auto; background: white; padding: clamp(24px, 5vw, 48px); border-radius: 24px; box-shadow: 0 12px 48px #123c4212; }
+    small { color: #147d75; font-weight: 700; letter-spacing: .08em; }
+    h1 { line-height: 1.2; font-size: clamp(28px, 5vw, 40px); }
+    audio { width: 100%; margin: 16px 0; }
+    p { color: #52696c; }
+    blockquote { margin: 24px 0; padding-left: 20px; border-left: 3px solid #147d75; }
+    a { color: #147d75; }
+  </style>
+  <main>
+    <small>SMART WATERBUS · NGHE THỬ</small>
+    <h1>Khám phá Sài Gòn từ dòng sông</h1>
+    <p>Bấm phát để nghe đoạn thuyết minh tiếng Việt về bến Bạch Đằng. Bạn có thể tạm dừng, tua và điều chỉnh âm lượng.</p>
+    <audio controls preload="metadata" aria-label="Thuyết minh mẫu bến Bạch Đằng">
+      <source src="/waterbus-audio-demo.wav" type="audio/wav">
+      Trình duyệt của bạn không hỗ trợ phát audio.
+    </audio>
+    <p id="status" role="status">Đang tải audio…</p>
+    <blockquote>Chào mừng quý khách đến với Smart Waterbus. Hành trình khám phá Sài Gòn từ sông nước xin được bắt đầu…</blockquote>
+    <p>Đây là bản nghe thử bằng giọng tổng hợp, chưa kết nối API audio hoặc hệ thống loa trên tàu.</p>
+    <a href="/">← Về trang chủ</a>
+  </main>
+  <script>
+    const player = document.querySelector('audio');
+    const status = document.getElementById('status');
+    player.addEventListener('loadedmetadata', () => { status.textContent = `Sẵn sàng phát · ${Math.ceil(player.duration)} giây`; });
+    player.addEventListener('playing', () => { status.textContent = 'Đang phát thuyết minh'; });
+    player.addEventListener('pause', () => { status.textContent = player.ended ? 'Đã phát xong' : 'Đã tạm dừng'; });
+    player.addEventListener('ended', () => { status.textContent = 'Đã phát xong · Bấm phát để nghe lại'; });
+    player.addEventListener('error', () => { status.textContent = 'Không tải được audio. Vui lòng tải lại trang.'; });
+  </script>
+</html>

@@ -35,12 +35,16 @@ import {
   totalSeatsOf,
   tripProgress,
 } from '../utils'
-import { getLiveOperationLogs, getLiveOperationTrips, getOpenIncidents, operateLiveTrip } from './operationsService'
+import {
+  getLiveOperationLogs,
+  getLiveOperationTrips,
+  getOpenIncidents,
+  operateLiveTrip,
+  resolveIncident,
+} from './operationsService'
 
-// The backend has no admin endpoints yet (roadmap P1-BE-01..04, P3, P4). Everything below works on
-// an in-memory copy of the data, so changes last until the page is reloaded. Only the station list
-// comes from the backend (`GET /stations`), and the copy starts from it. Each function follows the
-// contract of the planned endpoint, so it can later be swapped for an `apiRequest` call.
+// Chế độ thật: bến/tàu và vận hành gọi API. Các lệnh chưa có endpoint báo chưa hỗ trợ.
+// Chỉ VITE_USE_MOCK=true mới dùng dữ liệu trong bộ nhớ bên dưới.
 
 const MAX_GENERATE_DAYS = 60
 const MINUTE = 60_000
@@ -178,7 +182,13 @@ async function query<T>(read: (data: AdminDb) => T): Promise<T> {
 
 // ---- Stations -----------------------------------------------------------------
 
-export const getStations = () => query((d) => [...d.stations].sort((a, b) => a.orderIndex - b.orderIndex))
+export const getStations = () => USE_MOCK
+  ? query((d) => [...d.stations].sort((a, b) => a.orderIndex - b.orderIndex))
+  : loadStations()
+
+function unavailable(feature: string): never {
+  throw new ApiError(501, `Backend chưa có API ${feature}. Thao tác chưa được lưu.`)
+}
 
 function checkStation(data: AdminDb, input: NewStation, ignoreId?: string) {
   if (data.stations.some((s) => s.id !== ignoreId && s.code.toLowerCase() === input.code.toLowerCase())) {
@@ -187,6 +197,10 @@ function checkStation(data: AdminDb, input: NewStation, ignoreId?: string) {
 }
 
 export async function createStation(input: NewStation): Promise<AdminStation> {
+  if (!USE_MOCK) {
+    const id = await apiRequest<string>(API_ENDPOINTS.stations, { method: 'POST', body: input })
+    return apiRequest<AdminStation>(API_ENDPOINTS.station(id))
+  }
   const data = await db()
   checkStation(data, input)
   const station: AdminStation = { ...input, id: newId(), isActive: true }
@@ -195,6 +209,11 @@ export async function createStation(input: NewStation): Promise<AdminStation> {
 }
 
 export async function updateStation(id: string, input: NewStation): Promise<AdminStation> {
+  if (!USE_MOCK) {
+    const current = await apiRequest<AdminStation>(API_ENDPOINTS.station(id))
+    await apiRequest(API_ENDPOINTS.station(id), { method: 'PUT', body: { ...input, id, isActive: current.isActive } })
+    return apiRequest<AdminStation>(API_ENDPOINTS.station(id))
+  }
   const data = await db()
   const station = data.stations.find((s) => s.id === id)
   if (!station) throw notFound()
@@ -205,6 +224,11 @@ export async function updateStation(id: string, input: NewStation): Promise<Admi
 
 /** Soft delete. A station that an active route still uses cannot be removed. */
 export async function deleteStation(id: string): Promise<void> {
+  if (!USE_MOCK) {
+    const station = await apiRequest<AdminStation>(API_ENDPOINTS.station(id))
+    await apiRequest(API_ENDPOINTS.station(id), { method: 'PUT', body: { ...station, isActive: false } })
+    return
+  }
   const data = await db()
   if (data.routes.some((r) => r.isActive && (r.departureStationId === id || r.arrivalStationId === id))) {
     throw conflict(t('This station is used by an active route.'))
@@ -215,13 +239,34 @@ export async function deleteStation(id: string): Promise<void> {
 
 // ---- Routes -------------------------------------------------------------------
 
-export const getRoutes = () => query((d) => d.routes)
+export const getRoutes = () => USE_MOCK ? query((d) => d.routes) : Promise.resolve([] as AdminRoute[])
 
 // ---- Boats --------------------------------------------------------------------
 
-export const getBoats = () => query((d) => d.boats.filter((b) => b.isActive))
+interface BoatApiDto extends Omit<AdminBoat, 'frontCabinSeats' | 'standardSeats' | 'outdoorSeats'> {
+  captainUserId: string | null
+}
+
+export async function getBoats(): Promise<AdminBoat[]> {
+  if (USE_MOCK) return query((d) => d.boats.filter((b) => b.isActive))
+  const boats: AdminBoat[] = []
+  for (let pageNumber = 1; ; pageNumber++) {
+    const page = await apiRequest<{ items: BoatApiDto[]; totalCount: number }>(API_ENDPOINTS.boats, {
+      query: { pageNumber, pageSize: 100, isActiveOnly: true },
+    })
+    boats.push(...page.items.map((boat) => ({ ...boat, frontCabinSeats: 0, standardSeats: boat.totalSeats, outdoorSeats: 0 })))
+    if (!page.items.length || boats.length >= page.totalCount) return boats
+  }
+}
 
 export async function createBoat(input: NewBoat): Promise<AdminBoat> {
+  if (!USE_MOCK) {
+    const id = await apiRequest<string>(API_ENDPOINTS.boats, {
+      method: 'POST', body: { ...input, totalSeats: totalSeatsOf(input), captainUserId: null },
+    })
+    const boat = await apiRequest<BoatApiDto>(API_ENDPOINTS.boat(id))
+    return { ...boat, frontCabinSeats: 0, standardSeats: boat.totalSeats, outdoorSeats: 0 }
+  }
   const data = await db()
   if (data.boats.some((b) => b.code.toLowerCase() === input.code.toLowerCase())) {
     throw conflict(t('A boat with this code already exists.'))
@@ -233,6 +278,11 @@ export async function createBoat(input: NewBoat): Promise<AdminBoat> {
 
 /** Soft delete. A boat with trips still to run cannot be removed. */
 export async function deleteBoat(id: string): Promise<void> {
+  if (!USE_MOCK) {
+    const boat = await apiRequest<BoatApiDto>(API_ENDPOINTS.boat(id))
+    await apiRequest(API_ENDPOINTS.boat(id), { method: 'PUT', body: { ...boat, isActive: false } })
+    return
+  }
   const data = await db()
   if (data.trips.some((trip) => trip.boatId === id && !['Completed', 'Cancelled', 'Terminated'].includes(trip.status))) {
     throw conflict(t('This boat still has trips to run.'))
@@ -244,9 +294,10 @@ export async function deleteBoat(id: string): Promise<void> {
 
 // ---- Fares --------------------------------------------------------------------
 
-export const getFares = () => query((d) => d.fares)
+export const getFares = () => USE_MOCK ? query((d) => d.fares) : Promise.reject(new ApiError(501, 'Backend chưa có API quản lý bảng giá.'))
 
 export async function saveFares(fares: FareSettings): Promise<FareSettings> {
+  if (!USE_MOCK) unavailable('lưu bảng giá')
   const data = await db()
   data.fares = fares
   return withDelayExact(fares)
@@ -254,9 +305,10 @@ export async function saveFares(fares: FareSettings): Promise<FareSettings> {
 
 // ---- Schedules and trips ------------------------------------------------------
 
-export const getSchedules = () => query((d) => d.schedules)
+export const getSchedules = () => USE_MOCK ? query((d) => d.schedules) : Promise.resolve([] as AdminSchedule[])
 
 export async function createSchedule(input: NewSchedule): Promise<AdminSchedule> {
+  if (!USE_MOCK) unavailable('tạo lịch chạy')
   const data = await db()
   if (!data.routes.some((r) => r.id === input.routeId)) throw notFound()
   const schedule: AdminSchedule = { ...input, id: newId(), isActive: true }
@@ -265,6 +317,7 @@ export async function createSchedule(input: NewSchedule): Promise<AdminSchedule>
 }
 
 export async function setScheduleActive(id: string, isActive: boolean): Promise<void> {
+  if (!USE_MOCK) unavailable('cập nhật lịch chạy')
   const data = await db()
   const schedule = data.schedules.find((s) => s.id === id)
   if (!schedule) throw notFound()
@@ -280,6 +333,7 @@ export async function setScheduleActive(id: string, isActive: boolean): Promise<
 export async function generateTrips(
   input: GenerateTripsInput,
 ): Promise<{ created: number; skipped: number }> {
+  if (!USE_MOCK) unavailable('sinh chuyến từ lịch')
   const data = await db()
   const schedule = data.schedules.find((s) => s.id === input.scheduleId)
   const route = data.routes.find((r) => r.id === schedule?.routeId)
@@ -334,10 +388,11 @@ export async function generateTrips(
 }
 
 export const getTrips = () =>
-  query((d) => [...d.trips].sort((a, b) => a.departureTime.localeCompare(b.departureTime)))
+  USE_MOCK ? query((d) => [...d.trips].sort((a, b) => a.departureTime.localeCompare(b.departureTime))) : getLiveOperationTrips()
 
 /** Puts a different boat on a trip that has not started. The boat must be free at that time. */
 export async function assignBoat(tripId: string, boatId: string): Promise<AdminTrip> {
+  if (!USE_MOCK) unavailable('đổi tàu cho chuyến')
   const data = await db()
   const trip = data.trips.find((x) => x.id === tripId)
   const boat = data.boats.find((b) => b.id === boatId && b.isActive)
@@ -361,6 +416,16 @@ export const getWeatherAlerts = (): Promise<WeatherAlert[]> =>
 /** Open alerts with the trips each one affects and the admin's decision per trip. */
 export const getAlertsWithTrips = (): Promise<WeatherAlert[]> =>
   USE_MOCK ? query((d) => d.alerts) : getOpenIncidents(true)
+
+/** Closes an open alert. Mock alerts are simply dropped from the list. */
+export async function closeAlert(incidentId: string): Promise<void> {
+  if (!USE_MOCK) {
+    await resolveIncident(incidentId)
+    return
+  }
+  const data = await db()
+  data.alerts = data.alerts.filter((a) => a.id !== incidentId)
+}
 
 /** Trips to operate (Incidents, Captain Portal, Overview): from the backend, or the mock list. */
 export const getOperationTrips = (): Promise<AdminTrip[]> => (USE_MOCK ? getTrips() : getLiveOperationTrips())
@@ -400,6 +465,7 @@ export async function operateTrip(
  * of every boat on the river is worked out from where its trip should be at this moment.
  */
 export async function getFleetPositions(): Promise<FleetPosition[]> {
+  if (!USE_MOCK) unavailable('vị trí mô phỏng; hãy dùng màn Live Operations để xem GPS thật')
   const data = await db()
   const now = Date.now()
   const positions = data.trips

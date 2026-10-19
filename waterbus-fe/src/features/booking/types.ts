@@ -111,11 +111,19 @@ export interface TripStopDto {
   canBoard: boolean
   canAlight: boolean
   status: string
+  estimatedArrivalTime?: string | null
+  estimatedDepartureTime?: string | null
 }
 
 /** `GET /trips/{tripId}` (TripDetailDto), the parts used to pick the journey. */
 export interface TripDetailDto {
   tripId: string
+  routeId: string
+  routeName: string
+  tripType: string
+  status: string
+  departureTime: string
+  arrivalTime: string
   canBook: boolean
   salesState: string
   boat: { boatId: string; code: string; name: string } | null
@@ -209,6 +217,8 @@ export interface CheckoutBooking {
   bookingCode: string
   publicBookingId: string
   tripId: string
+  boardingCallId: string
+  disembarkingCallId: string
   status: string
   quotedTotal: number
   tickets: CheckoutTicket[]

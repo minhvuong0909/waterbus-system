@@ -11,7 +11,7 @@ interface DateStripProps {
 
 export default function DateStrip({ dates, selectedId, tripCount, onSelect }: DateStripProps) {
   return (
-    <div className="flex items-center gap-space-sm overflow-x-auto pb-1">
+    <div className="scroll-strip flex items-stretch gap-2 overflow-x-auto p-1">
       {dates.map((date) => {
         const selected = date.id === selectedId
         return (
@@ -20,10 +20,10 @@ export default function DateStrip({ dates, selectedId, tripCount, onSelect }: Da
             type="button"
             aria-pressed={selected}
             onClick={() => onSelect(date.id)}
-            className={`flex shrink-0 flex-col items-center rounded-xl px-4 py-2.5 transition-all ${
+            className={`flex min-h-[88px] min-w-[108px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border px-3 py-3 transition-colors ${
               selected
-                ? 'min-w-[115px] bg-deep-river text-on-primary shadow-sm ring-2 ring-teal-flow/40'
-                : 'min-w-[100px] border border-deep-river/10 bg-white text-on-surface-variant shadow-xs hover:bg-sand-light/60'
+                ? 'border-deep-river bg-deep-river text-on-primary shadow-sm ring-2 ring-teal-flow/30'
+                : 'border-deep-river/10 bg-white text-on-surface-variant shadow-xs hover:bg-sand-light/60'
             }`}
           >
             <span

@@ -78,8 +78,12 @@ export interface IncidentRaisedEvent {
 }
 
 export async function getFleetBoats(): Promise<FleetBoat[]> {
-  const page = await apiRequest<Paged<FleetBoat>>(API_ENDPOINTS.boats, { query: { pageSize: 100 } })
-  return page.items.filter((b) => b.isActive)
+  const boats: FleetBoat[] = []
+  for (let pageNumber = 1; ; pageNumber++) {
+    const page = await apiRequest<Paged<FleetBoat>>(API_ENDPOINTS.boats, { query: { pageNumber, pageSize: 100 } })
+    boats.push(...page.items)
+    if (!page.items.length || boats.length >= page.totalCount) return boats.filter((b) => b.isActive)
+  }
 }
 
 export const getLatestBoatPositions = () => apiRequest<BoatLatestPositionDto[]>(API_ENDPOINTS.tracking.boats)
@@ -138,6 +142,9 @@ export async function getOpenIncidents(withTrips = false): Promise<WeatherAlert[
 
 export const runWeatherCheck = () =>
   apiRequest<WeatherCheckResult>(API_ENDPOINTS.incidents.weatherCheck, { method: 'POST' })
+
+export const resolveIncident = (incidentId: string) =>
+  apiRequest<{ incidentId: string; status: string }>(API_ENDPOINTS.incidents.resolve(incidentId), { method: 'POST' })
 
 /** Knots (BE) to km/h (UI). */
 export const knotsToKmh = (knots: number | null) => (knots == null ? null : Math.round(knots * 1.852 * 10) / 10)

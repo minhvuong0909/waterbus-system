@@ -63,7 +63,7 @@ export default function CaptainPortalPage() {
   // `null` = follow the trip type: sightseeing trips narrate by default, regular trips do not.
   const [audioOverride, setAudioOverride] = useState<boolean | null>(null)
   const action = useSubmit()
-  // The captain follows their own boat: a status change by the dispatcher shows up at once.
+  // The captain follows their own boat: a status change by the admin shows up at once.
   const boatIds = [...new Set((trips.data ?? []).map((x) => x.boatId).filter(Boolean))]
   useFleetHub({ onTripStatus: reload, onReconnected: reload }, !USE_MOCK && boatIds.length > 0, boatIds)
   const state = combineFetches(trips, routes, boats)
@@ -154,15 +154,15 @@ export default function CaptainPortalPage() {
       )}
 
       {trip.status === 'Suspended' && (
-        <Notice tone="error">{t('This trip is on hold. Wait for the dispatcher to resume it.')}</Notice>
+        <Notice tone="error">{t('This trip is on hold. Wait for the admin to resume it.')}</Notice>
       )}
       {action.error && <Notice tone="error">{action.error}</Notice>}
-      {sosSent && <Notice tone="success">{t('SOS sent. The dispatcher has been alerted.')}</Notice>}
+      {sosSent && <Notice tone="success">{t('SOS sent. The admin has been alerted.')}</Notice>}
 
       {sosOpen && (
         <Modal title="Send an SOS" onClose={() => setSosOpen(false)}>
           <p className="text-sm text-on-surface-variant">
-            {t('This alerts the dispatcher right away. Only use it in an emergency.')}
+            {t('This alerts the admin right away. Only use it in an emergency.')}
           </p>
           <label htmlFor="sos-note" className="mb-1 mt-3 block text-xs font-semibold text-on-surface-variant">
             {t('What is happening? (optional)')}

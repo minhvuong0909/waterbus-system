@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { authService } from '../services/auth/authService';
 import { syncService } from '../services/sync/syncService';
 import { AuthUser } from '../types/auth';
+import { useScannerStore } from './useScannerStore';
 
 /** Đồng bộ danh tính Staff thật vào deviceInfo (trước đây luôn là tên demo hard-code). */
 function applyStaffIdentity(user: AuthUser | null) {
@@ -12,6 +13,8 @@ function applyStaffIdentity(user: AuthUser | null) {
     staffId: user?.userId ?? '',
     staffName: user?.fullName ?? '',
   });
+  useScannerStore.setState({ deviceInfo: syncService.getDeviceInfo(), activeAssignment: null,
+    currentBooking: null, verificationResult: null, isModalOpen: false });
 }
 
 interface AuthState {
@@ -60,6 +63,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     // Xoá luôn TripStopCallId đang preload (tái dùng field stationId) - Staff kế tiếp đăng nhập
     // trên máy này không được kế thừa phân công của người trước.
     syncService.setDeviceInfo({ staffId: '', staffName: '', stationId: '', stationName: '' });
+    applyStaffIdentity(null);
     set({ user: null, error: null });
   },
 }));

@@ -12,6 +12,8 @@ using Microsoft.IdentityModel.Tokens;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Bookings.Services;
 using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
+using WaterbusSystem.Application.Features.CheckIns;
+using WaterbusSystem.Application.Features.CheckIns.Services;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.Incidents;
 using WaterbusSystem.Application.Features.Tracking;
@@ -129,6 +131,7 @@ public static class DependencyInjection
         services.AddScoped<WaterbusSystem.Application.Features.Payments.Services.PaymentConfirmationService>();
         services.AddScoped<CheckoutAccessService>();
         services.AddScoped<IBookingQrSigner, RsaBookingQrSigner>();
+        services.AddScoped<CheckInProcessor>();
         services.AddSingleton(new CheckoutOptions
         {
             SessionTtlMinutes = configuration.GetValue("Checkout:SessionTtlMinutes", 10),
@@ -218,6 +221,10 @@ public static class DependencyInjection
             }));
         services.AddHangfireServer(options => options.WorkerCount = 2);
         services.AddScoped<WeatherGuardJob>();
+
+        // 8.1 Hangfire: job định kỳ kết luận NoShow sau khi cửa sổ check-in đóng (BR-BOARD-05, BR-OFF-04)
+        services.AddScoped<NoShowFinalizationJob>();
+        services.Configure<NoShowFinalizationOptions>(configuration.GetSection(NoShowFinalizationOptions.SectionName));
 
         services.Configure<WeatherOptions>(configuration.GetSection(WeatherOptions.SectionName));
         var weatherProvider = configuration[$"{WeatherOptions.SectionName}:Provider"];

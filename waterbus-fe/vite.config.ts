@@ -6,6 +6,13 @@ export default defineConfig({
   // The React Fast Refresh plugin needs a browser page, so it is left out when Vitest runs.
   plugins: process.env.VITEST ? [] : [react()],
   esbuild: { jsx: 'automatic' },
+  server: {
+    proxy: {
+      '/api': { target: 'http://127.0.0.1:5000', changeOrigin: true },
+      '/swagger': { target: 'http://127.0.0.1:5000', changeOrigin: true },
+      '/hubs': { target: 'http://127.0.0.1:5000', changeOrigin: true, ws: true },
+    },
+  },
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],

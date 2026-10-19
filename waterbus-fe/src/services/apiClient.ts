@@ -7,16 +7,18 @@ export class ApiError extends Error {
   readonly status: number
   /** Per-field validation messages from a 400 response, keyed by property name. */
   readonly fieldErrors: Record<string, string[]>
+  readonly traceId?: string
 
-  constructor(status: number, message: string, fieldErrors: Record<string, string[]> = {}) {
+  constructor(status: number, message: string, fieldErrors: Record<string, string[]> = {}, traceId?: string) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.fieldErrors = fieldErrors
+    this.traceId = traceId
   }
 }
 
-type QueryValue = string | number | boolean | null | undefined
+type QueryValue = string | number | boolean | readonly (string | number | boolean)[] | null | undefined
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
@@ -37,13 +39,15 @@ export function setUnauthorizedHandler(handler: () => void) {
 function buildUrl(path: string, query?: RequestOptions['query']): string {
   const params = new URLSearchParams()
   Object.entries(query ?? {}).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') params.set(key, String(value))
+    if (Array.isArray(value)) value.forEach((item) => params.append(key, String(item)))
+    else if (value !== undefined && value !== null && value !== '') params.set(key, String(value))
   })
   const search = params.toString()
   return `${API_BASE_URL}${path}${search ? `?${search}` : ''}`
 }
 
 interface ErrorBody {
+  traceId?: string
   /** ProblemDetails (RFC 7807) from GlobalExceptionHandlingMiddleware. */
   title?: string
   detail?: string
@@ -60,7 +64,7 @@ async function toApiError(response: Response): Promise<ApiError> {
     // Not a JSON body (e.g. a proxy error page): fall back to the status text.
   }
   const message = body.message ?? body.detail ?? body.title ?? response.statusText
-  return new ApiError(response.status, message, body.errors)
+  return new ApiError(response.status, message, body.errors, body.traceId)
 }
 
 /** JSON request to the backend. Adds the bearer token and `Accept-Language`, and throws `ApiError`. */

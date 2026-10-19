@@ -11,6 +11,7 @@ export interface Ticket {
   bookingRef: string
   /** Code encoded in the boarding QR. */
   ticketCode: string
+  qrPayload?: string
   /** Display text, already in the active language. */
   status: string
   departTime: string
@@ -59,7 +60,7 @@ export interface BookedSnapshot {
 }
 
 export interface TicketWallet {
-  next: Ticket
+  next?: Ticket
   later: Ticket[]
   past: Ticket[]
 }

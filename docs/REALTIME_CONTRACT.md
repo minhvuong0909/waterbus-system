@@ -96,13 +96,14 @@ Vị trí giả lập đi qua đúng luồng của GPS thật, chỉ khác `Sour
 
 ### Cảnh báo thời tiết (Weather Guard)
 
-Job Hangfire `weather-guard` (mặc định mỗi 15 phút) lấy thời tiết tại các bến của tuyến có chuyến sắp/đang chạy. Gió trung bình ≥ ngưỡng → `Medium`; gió giật ≥ ngưỡng hoặc dông → `High`. Mỗi tuyến chỉ có **một** Incident thời tiết đang mở trong khung `AlertWindowHours`; lượt sau chỉ cập nhật và liên kết thêm chuyến mới. `weatherAlert` chỉ được phát khi **tạo mới** hoặc **tăng mức** nghiêm trọng. **Không chuyến nào bị tự đổi trạng thái** (BR-INC-03): `operationDecision` của từng chuyến để `null` chờ Admin.
+Job Hangfire `weather-guard` (mặc định mỗi 15 phút) lấy thời tiết tại các bến của tuyến có chuyến sắp/đang chạy. Gió trung bình ≥ ngưỡng → `Medium`; gió giật ≥ ngưỡng hoặc dông → `High`. Mỗi tuyến chỉ có **một** Incident thời tiết đang mở trong khung `AlertWindowHours`; lượt sau chỉ cập nhật và liên kết thêm chuyến mới. `weatherAlert` chỉ được phát khi **tạo mới** hoặc **tăng mức** nghiêm trọng. Weather Guard **tự đóng** (`Resolved`) cảnh báo thời tiết của mình khi: mọi bến của tuyến đều lấy được thời tiết và dưới ngưỡng; tuyến không còn chuyến cần theo dõi; hoặc cảnh báo cũ (quá `AlertWindowHours`) bị cảnh báo mới thay thế. Thiếu dữ liệu thời tiết (lỗi API) thì giữ nguyên cảnh báo. **Không chuyến nào bị tự đổi trạng thái** (BR-INC-03): `operationDecision` của từng chuyến để `null` chờ Admin.
 
 | API (Admin) | Mục đích |
 |---|---|
 | `GET /api/v1/incidents?status=Open&incidentType=Weather&pageNumber=&pageSize=` | Danh sách sự cố, có `affectedTripCount`, `pendingDecisionCount` |
 | `GET /api/v1/incidents/{id}` | Chi tiết + `affectedTrips[]` (giờ khởi hành, trạng thái chuyến, quyết định) |
-| `POST /api/v1/incidents/weather-check` | Chạy Weather Guard ngay (demo), trả `{ routesChecked, incidentsCreated, incidentsUpdated, observationFailures }` |
+| `POST /api/v1/incidents/weather-check` | Chạy Weather Guard ngay (demo), trả `{ routesChecked, incidentsCreated, incidentsUpdated, observationFailures, incidentsResolved }` |
+| `POST /api/v1/incidents/{id}/resolve` | Admin đóng sự cố đang mở (`Status=Resolved`, ghi `ResolvedAt`, `HandledByAdminId`); không đổi `Trip.Status`; 409 nếu đã đóng, 404 nếu không có |
 
 Demo không cần API key: `WEATHER_PROVIDER=Fake` + `WEATHER_FAKE_WIND_MS=15` (hoặc `WEATHER_FAKE_CONDITION_CODE=211`) rồi gọi `weather-check`.
 

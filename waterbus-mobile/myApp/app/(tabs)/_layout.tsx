@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 export default function TabLayout() {
   return (
     <Tabs
+      initialRouteName="scanner"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#0284C7",

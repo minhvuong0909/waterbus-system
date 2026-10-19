@@ -195,4 +195,90 @@ public class RunWeatherGuardCommandHandlerTests
 
         _weather.Verify(w => w.GetCurrentAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    private Incident AddOpenWeatherIncident(DateTimeOffset occurredAt)
+    {
+        var incident = new Incident
+        {
+            ScopeType = "Route", RouteId = _seed.Route.Id, Source = "WeatherService", IncidentType = "Weather",
+            Severity = "Medium", Status = "Open", OccurredAt = occurredAt
+        };
+        _context.Incidents.Add(incident);
+        _context.SaveChanges();
+        return incident;
+    }
+
+    [Fact]
+    public async Task WeatherBackToNormal_ShouldResolveOpenIncident()
+    {
+        var incident = AddOpenWeatherIncident(Now.AddMinutes(-30));
+        WeatherIs(wind: 3);
+
+        var result = await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+
+        result.IncidentsResolved.Should().Be(1);
+        _context.Entry(incident).Reload();
+        incident.Status.Should().Be("Resolved");
+        incident.ResolvedAt.Should().Be(Now);
+        _context.Trips.Find(_seed.Trip.Id)!.Status.Should().Be(TripStatus.Scheduled);
+    }
+
+    [Fact]
+    public async Task ProviderFailure_ShouldKeepIncidentOpen()
+    {
+        var incident = AddOpenWeatherIncident(Now.AddMinutes(-30));
+        _weather.Setup(w => w.GetCurrentAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("network down"));
+
+        var result = await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+
+        result.IncidentsResolved.Should().Be(0);
+        _context.Entry(incident).Reload();
+        incident.Status.Should().Be("Open");
+    }
+
+    [Fact]
+    public async Task NoTripToWatchAnymore_ShouldResolveOpenIncident()
+    {
+        var incident = AddOpenWeatherIncident(Now.AddMinutes(-30));
+        _seed.Trip.Status = TripStatus.Completed;
+        _context.SaveChanges();
+
+        var result = await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+
+        result.IncidentsResolved.Should().Be(1);
+        _context.Entry(incident).Reload();
+        incident.Status.Should().Be("Resolved");
+        _weather.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task StaleIncident_ShouldBeResolvedWhenReplacedByNewOne()
+    {
+        var stale = AddOpenWeatherIncident(Now.AddHours(-4));
+        WeatherIs(wind: 12);
+
+        await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+
+        _context.Entry(stale).Reload();
+        stale.Status.Should().Be("Resolved");
+        _context.Incidents.Count(i => i.Status == "Open").Should().Be(1);
+    }
+
+    [Fact]
+    public async Task IncidentOfOtherSource_ShouldNeverBeAutoResolved()
+    {
+        var sos = new Incident
+        {
+            ScopeType = "Trip", Source = "Captain", IncidentType = "Safety", Severity = "High", Status = "Open", OccurredAt = Now.AddMinutes(-5)
+        };
+        _context.Incidents.Add(sos);
+        _context.SaveChanges();
+        WeatherIs(wind: 3);
+
+        await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+
+        _context.Entry(sos).Reload();
+        sos.Status.Should().Be("Open");
+    }
 }

@@ -10,6 +10,8 @@
 import { QrVerifier, DEFAULT_KEY_INFO } from '../src/services/crypto/qrVerifier';
 import { SqliteRepository } from '../src/services/sqlite/sqliteRepository';
 import { syncService } from '../src/services/sync/syncService';
+import { useScannerStore } from '../src/store/useScannerStore';
+import { MyScannerAssignment } from '../src/types/checkin';
 
 async function runVerification() {
   console.log('================================================================');
@@ -207,6 +209,35 @@ async function runVerification() {
     '4.4 Failed events record a retry attempt and error message for diagnostics',
     `Sample errorMessage: ${pendingEventsAfter[0]?.errorMessage}`
   );
+
+  // Kiểm tra các ràng buộc tại UI trước khi ghi sự kiện offline.
+  const localBooking = await SqliteRepository.getBookingByPublicId(sampleBookingId);
+  if (!localBooking) throw new Error('Thiếu booking test.');
+  const remaining = localBooking.tickets.find((ticket) => ticket.boardingStatus === 'NotCheckedIn');
+  if (!remaining) throw new Error('Thiếu vé test chưa check-in.');
+  syncService.setDeviceInfo({ stationId: 'stop-test', staffId: 'staff-test', forceOfflineMode: true });
+  useScannerStore.setState({ currentBooking: localBooking, activeAssignment: null });
+  assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
+    '5.1 Reject check-in without a preloaded assignment');
+  const assignment: MyScannerAssignment = {
+    assignmentId: 'assignment-test', tripStopCallId: 'stop-test', tripId: localBooking.tripId,
+    routeName: 'Test', stationName: 'Test', visitOrder: 1, tripStatus: 'Boarding', estimatedArrivalTime: null,
+    deviceId: 'device-test', deviceCode: 'TEST', isPrimaryOffline: true,
+    activeFrom: new Date(Date.now() - 60000).toISOString(), activeUntil: null,
+    checkInOpenAt: new Date(Date.now() - 60000).toISOString(), checkInCloseAt: new Date(Date.now() - 1).toISOString(),
+  };
+  useScannerStore.setState({ activeAssignment: assignment });
+  assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
+    '5.2 Reject check-in after the stop window closes');
+  assignment.checkInCloseAt = new Date(Date.now() + 60000).toISOString();
+  useScannerStore.setState({ activeAssignment: { ...assignment, isPrimaryOffline: false } });
+  assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
+    '5.3 Reject offline writes on a secondary scanner');
+  useScannerStore.setState({ activeAssignment: assignment });
+  assert((await useScannerStore.getState().performCheckIn([remaining.id])).success,
+    '5.4 Accept a valid ticket at its assigned stop inside the window');
+  assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
+    '5.5 Reject a second local check-in for the same ticket');
 
   // -------------------------------------------------------------
   // FINAL SUMMARY

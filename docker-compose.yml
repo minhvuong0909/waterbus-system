@@ -68,6 +68,8 @@ services:
       JwtSettings__Secret: ${JWT_SECRET:?Cần đặt JWT_SECRET (>= 32 ký tự) trong .env}
       JwtSettings__Issuer: WaterbusSystemApi
       JwtSettings__Audience: WaterbusClients
+      Qr__KeyId: ${Qr__KeyId:-waterbus-booking-v1}
+      Qr__PrivateKeyPem: ${Qr__PrivateKeyPem:-}
       Cors__AllowedOrigins__0: ${PUBLIC_URL:-http://localhost:8080}
       VnPay__TmnCode: ${VNPAY_TMN_CODE:-}
       VnPay__HashSecret: ${VNPAY_HASH_SECRET:-}
@@ -90,6 +92,9 @@ services:
       Tracking__Simulator__IntervalSeconds: ${TRACKING_SIMULATOR_INTERVAL_SECONDS:-3}
       Tracking__Simulator__IncludeScheduledTrips: ${TRACKING_SIMULATOR_INCLUDE_SCHEDULED:-false}
       Weather__Enabled: ${WEATHER_ENABLED:-true}
+      CheckIn__NoShowFinalization__Enabled: ${NOSHOW_FINALIZATION_ENABLED:-true}
+      CheckIn__NoShowFinalization__CronExpression: ${NOSHOW_FINALIZATION_CRON:-*/5 * * * *}
+      CheckIn__NoShowFinalization__GraceMinutes: ${NOSHOW_FINALIZATION_GRACE_MINUTES:-15}
       Weather__Provider: ${WEATHER_PROVIDER:-Fake}
       Weather__ApiKey: ${OPENWEATHERMAP_API_KEY:-}
       Weather__CronExpression: ${WEATHER_CRON:-*/15 * * * *}

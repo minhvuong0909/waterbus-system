@@ -25,16 +25,19 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
   const visible = active === 'all' ? departures : departures.filter((d) => d.kind === active)
 
   return (
-    <section className="w-full bg-mist py-space-3xl">
-      <div className="mx-auto max-w-7xl space-y-space-xl px-margin">
-        <div className="flex flex-col justify-between gap-space-md md:flex-row md:items-end">
+    <section className="w-full bg-mist py-10 sm:py-14">
+      <div className="mx-auto max-w-7xl space-y-6 px-5 sm:px-8">
+        <div
+          data-reveal
+          className="flex flex-col justify-between gap-space-md md:flex-row md:items-end"
+        >
           <div>
-            <h2 className="font-headline-lg text-headline-lg font-bold tracking-tight text-deep-river">
+            <h2 className="font-headline-lg text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-[36px]">
               {t('Explore the River Corridor')}
             </h2>
           </div>
           <div
-            className="inline-flex flex-wrap rounded-full bg-surface-container p-1 shadow-inner"
+            className="grid grid-cols-3 rounded-xl bg-surface-container p-1 sm:inline-flex sm:rounded-full"
             role="tablist"
           >
             {filters.map((filter) => (
@@ -44,7 +47,7 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
                 role="tab"
                 aria-selected={active === filter.id}
                 onClick={() => setActive(filter.id)}
-                className={`rounded-full px-space-md py-2 text-body-sm transition-colors ${
+                className={`min-h-[40px] whitespace-nowrap rounded-lg px-2 py-2 text-xs transition-colors sm:rounded-full sm:px-4 ${
                   active === filter.id
                     ? 'bg-teal-flow font-semibold text-on-primary shadow-sm'
                     : 'font-medium text-on-surface-variant hover:text-deep-river'
@@ -57,10 +60,13 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
         </div>
 
         <div className="grid grid-cols-1 items-start gap-space-xl lg:grid-cols-12">
-          <div className="space-y-space-md rounded-panel border border-outline-variant/30 bg-surface p-space-lg shadow-sm lg:col-span-7">
+          <div
+            data-reveal
+            className="space-y-space-md rounded-panel border border-outline-variant/30 bg-white p-4 shadow-sm sm:p-5 lg:col-span-7"
+          >
             <div className="flex items-center justify-between pb-space-xs">
               <div className="flex items-center gap-space-sm">
-                <span className="h-3 w-3 animate-ping rounded-full bg-teal-flow" />
+                <span className="h-2 w-2 rounded-full bg-teal-flow ring-4 ring-teal-flow/10" />
                 <span className="font-headline-sm text-headline-sm font-bold text-deep-river">
                   {t('Live Waterway Vector')}
                 </span>
@@ -68,12 +74,13 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
             </div>
             <Suspense
               fallback={
-                <div className="flex h-[470px] items-center justify-center rounded-2xl bg-surface-container text-sm text-on-surface-variant">
+                <div className="flex h-[320px] items-center justify-center rounded-2xl bg-surface-container text-sm text-on-surface-variant sm:h-[380px]">
                   {t('Loading map…')}
                 </div>
               }
             >
               <PierMap
+                compact
                 map={map}
                 pierActions={(pier) => (
                   <Link
@@ -88,7 +95,10 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
             </Suspense>
           </div>
 
-          <div className="space-y-space-md lg:col-span-5">
+          <div
+            data-reveal
+            className="flex flex-col gap-4 rounded-panel border border-outline-variant/30 bg-white p-5 shadow-sm lg:col-span-5"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-headline-sm text-headline-sm font-bold text-deep-river">
@@ -110,9 +120,14 @@ export default function CorridorSection({ filters, map, departures }: CorridorSe
                   />
                 ))
               ) : (
-                <p className="rounded-2xl border border-dashed border-outline-variant bg-surface p-space-lg text-center text-body-md text-on-surface-variant">
-                  {t('No more departures of this type today.')}
-                </p>
+                <div className="flex min-h-[180px] flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-teal-flow/20 bg-mist px-5 py-8 text-center sm:min-h-[274px]">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-flow/10 text-teal-flow">
+                    <Icon name="directions_boat" className="text-[28px]" />
+                  </span>
+                  <p className="max-w-[240px] text-sm leading-relaxed text-on-surface-variant">
+                    {t('No more departures of this type today.')}
+                  </p>
+                </div>
               )}
             </div>
 

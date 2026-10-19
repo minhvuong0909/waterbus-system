@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { USE_MOCK } from '../../constant/env'
 import type { FormEvent } from 'react'
 import { ErrorState, PageLoader } from '../../components/ui'
 import {
@@ -133,6 +134,7 @@ export default function FaresPage() {
   useDocumentTitle('Fares')
   const fares = useFetch(getFares)
 
+  if (!USE_MOCK) return <div className="p-6"><PageHeader title="Fares" description="Backend chưa có API quản lý bảng giá. Giá vé thật được lấy từ API sơ đồ ghế theo đoạn chuyến." /></div>
   if (fares.error) return <ErrorState onRetry={fares.retry} />
   if (fares.loading || !fares.data) return <PageLoader />
 

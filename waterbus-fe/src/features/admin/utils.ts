@@ -139,6 +139,7 @@ export function overlaps(
 /** "Oct 12, 07:30" in the active language. */
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString(numberLocale(), {
+    timeZone: 'Asia/Ho_Chi_Minh',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -148,12 +149,12 @@ export function formatDateTime(iso: string): string {
 
 /** "07:30" */
 export function formatClockTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString(numberLocale(), { hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleTimeString(numberLocale(), { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' })
 }
 
 /** Clock time with seconds, for live data that changes every few seconds. */
 export function formatClockTimeWithSeconds(iso: string): string {
-  return new Date(iso).toLocaleTimeString(numberLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return new Date(iso).toLocaleTimeString(numberLocale(), { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
 /** Heading of an alert: mock alerts know the wind speed, real weather ones carry it in the message. */
