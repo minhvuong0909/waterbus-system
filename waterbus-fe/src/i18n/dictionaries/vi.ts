@@ -1655,4 +1655,7 @@ export const vi: Record<string, string> = {
   'Support Hotline': 'Hotline hỗ trợ',
   'Refunds: if a trip is cancelled or ends early, the part you paid for that was not served is refunded in full. A ticket missed at check-in is not refunded.': 'Hoàn tiền: nếu chuyến bị huỷ hoặc kết thúc sớm, phần bạn đã trả mà chưa được phục vụ được hoàn 100%. Vé bỏ lỡ check-in không được hoàn tiền.',
   'Saigon River Waterbus': 'Tàu buýt đường sông Sài Gòn',
+  'Scroll to see the next tour': 'Cuộn để xem tour tiếp theo',
+  'Tour list': 'Danh sách tour',
+  'Page sections': 'Các phần của trang',
 }

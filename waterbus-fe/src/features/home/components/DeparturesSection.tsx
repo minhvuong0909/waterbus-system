@@ -24,7 +24,7 @@ export default function DeparturesSection({ filters, departures, pierName }: Dep
     active === 'all' ? departures.items : departures.items.filter((d) => d.kind === active)
 
   return (
-    <section className="w-full bg-mist py-10 sm:py-14">
+    <section id="departures" className="w-full scroll-mt-20 bg-mist py-10 sm:py-14">
       <div className="mx-auto max-w-7xl space-y-6 px-5 sm:px-8">
         <div
           data-reveal

@@ -18,7 +18,7 @@ export default function CorridorSection({ map }: CorridorSectionProps) {
   const dispatch = useAppDispatch()
 
   return (
-    <section className="w-full bg-mist py-10 sm:py-14">
+    <section id="map" className="w-full scroll-mt-20 bg-mist py-10 sm:py-14">
       <div className="mx-auto max-w-7xl space-y-6 px-5 sm:px-8">
         <h2
           data-reveal

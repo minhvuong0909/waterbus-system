@@ -2,6 +2,7 @@ import CorridorSection from '../../features/home/components/CorridorSection'
 import DeparturesSection from '../../features/home/components/DeparturesSection'
 import HeroSection from '../../features/home/components/HeroSection'
 import HowItWorksSection from '../../features/home/components/HowItWorksSection'
+import SectionNav from '../../features/home/components/SectionNav'
 import StoriesSection from '../../features/home/components/StoriesSection'
 import { useHomeData } from '../../features/home/hooks/useHomeData'
 import { useDocumentTitle } from '../../hooks'
@@ -29,6 +30,7 @@ export default function HomePage() {
       <HowItWorksSection steps={home.steps} />
       <StoriesSection stories={home.stories} />
       <CorridorSection map={corridor} />
+      <SectionNav />
     </Reveal>
   )
 }
