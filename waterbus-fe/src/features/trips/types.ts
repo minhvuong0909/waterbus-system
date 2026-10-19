@@ -77,8 +77,6 @@ export interface SearchQuery {
   destinationId: string
   /** Selected date as `YYYY-MM-DD` (the id of a DateOption). */
   dateId: string
-  passengers: string
-  passengerNote: string
 }
 
 export interface DateOption {

@@ -73,8 +73,6 @@ export const DEFAULT_SEARCH_QUERY: SearchQuery = {
   originId: '',
   destinationId: '',
   dateId: toIsoDate(new Date()),
-  passengers: '1 Adult • Standard',
-  passengerNote: 'Main Panoramic Saloon',
 }
 
 /** A suggested route between two stations, by station code. */

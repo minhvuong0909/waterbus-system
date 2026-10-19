@@ -6,6 +6,7 @@ import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { t } from '../../../i18n'
 import { usePrefersReducedMotion } from '../../../hooks'
+import HeroSearch from './HeroSearch'
 
 export default function HeroSection() {
   // With reduced motion the poster stays still instead of a looping video.
@@ -69,25 +70,16 @@ export default function HeroSection() {
               'Explore the city by water with real-time updates, seamless booking and unforgettable experiences.',
             )}
           </p>
-          <div className="flex flex-wrap items-center gap-4 pt-3">
-            <Link
-              to={ROUTES.search}
-              className="group inline-flex items-center justify-center gap-2.5 rounded-xl bg-teal-flow px-7 py-3.5 font-headline-sm text-base font-semibold text-on-primary shadow-[0_12px_24px_-8px_rgba(20,122,126,0.42)] transition-all hover:-translate-y-0.5 hover:bg-secondary hover:shadow-[0_16px_32px_-6px_rgba(20,122,126,0.55)]"
-            >
-              <span>{t('Book a Trip')}</span>
-              <Icon
-                name="arrow_forward"
-                className="text-[20px] transition-transform group-hover:translate-x-1"
-              />
-            </Link>
-            <Link
-              to={ROUTES.liveTracking}
-              className="inline-flex min-h-[48px] items-center gap-2 rounded-xl border border-white/30 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/15"
-            >
-              <Icon name="near_me" className="text-[18px]" />
-              {t('Live Tracking')}
-            </Link>
-          </div>
+        </div>
+        <div className="mt-space-lg">
+          <HeroSearch />
+          <Link
+            to={ROUTES.liveTracking}
+            className="mt-space-sm inline-flex min-h-[44px] items-center gap-2 text-sm font-semibold text-white/90 underline-offset-4 hover:text-white hover:underline"
+          >
+            <Icon name="near_me" className="text-[18px]" />
+            {t('Live Tracking')}
+          </Link>
         </div>
       </div>
       {!reducedMotion && (
@@ -96,7 +88,7 @@ export default function HeroSection() {
           aria-label={t(paused ? 'Play background video' : 'Pause background video')}
           aria-pressed={paused}
           onClick={() => setPaused(!paused)}
-          className="absolute bottom-5 left-5 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-deep-river/70 text-white transition-colors hover:bg-deep-river sm:left-8"
+          className="absolute bottom-5 right-24 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-deep-river/70 text-white transition-colors hover:bg-deep-river sm:right-28"
         >
           <Icon name={paused ? 'play_arrow' : 'pause'} className="text-[22px]" />
         </button>

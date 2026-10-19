@@ -51,7 +51,7 @@ export default function SearchSummaryBar({ query, piers, dateLabel }: SearchSumm
 
   return (
     <div className="flex flex-col items-stretch justify-between gap-space-md rounded-2xl border border-deep-river/10 bg-white p-space-md shadow-[0_4px_16px_rgba(13,37,56,0.04)] xl:flex-row xl:items-center">
-      <div className="grid flex-1 grid-cols-2 items-center gap-space-md md:grid-cols-4">
+      <div className="grid flex-1 grid-cols-2 items-center gap-space-md md:grid-cols-3">
         <Item
           icon="trip_origin"
           label={t('Origin Pier')}
@@ -68,12 +68,6 @@ export default function SearchSummaryBar({ query, piers, dateLabel }: SearchSumm
           icon="calendar_today"
           label={t('Departure Date')}
           value={dateLabel}
-          iconClass="text-deep-river"
-        />
-        <Item
-          icon="group"
-          label={t('Passengers')}
-          value={t(query.passengers)}
           iconClass="text-deep-river"
         />
       </div>

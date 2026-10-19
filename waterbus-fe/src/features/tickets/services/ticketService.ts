@@ -33,7 +33,6 @@ async function liveTickets(token?: string): Promise<Ticket[]> {
     const trip = await getTripDetail(selected, raw.tripId, {
       tripType: 'one-way', originId: boarding.stationId, destinationId: alighting.stationId,
       dateId: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(raw.departureTime)),
-      passengers: String(booking.tickets.length), passengerNote: '',
     })
     const qr = booking.status === 'Confirmed' ? await getBookingQr(orderId, booking.bookingId, accessToken) : null
     return booking.tickets.map((ticket): Ticket => ({
