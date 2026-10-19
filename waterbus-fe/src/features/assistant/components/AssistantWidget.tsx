@@ -7,7 +7,7 @@ import { useAppDispatch } from '../../../store/hooks'
 import { selectTrip, setQuery } from '../../booking/bookingSlice'
 import type { Trip } from '../../trips/types'
 import { askAssistant } from '../services/assistantService'
-import type { ChatMessage } from '../types'
+import type { AssistantApiCard, ChatMessage } from '../types'
 import AssistantTripCard from './AssistantTripCard'
 import AssistantApiCards from './AssistantApiCards'
 import { t } from '../../../i18n'
@@ -78,6 +78,20 @@ export default function AssistantWidget() {
     navigate(ROUTES.tripDetail)
   }
 
+  const chooseApiCard = (card: AssistantApiCard) => {
+    if (!card.boardingStationId || !card.disembarkingStationId) return
+    const dateId = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })
+      .format(new Date(card.departureTime))
+    dispatch(setQuery({
+      originId: card.boardingStationId,
+      destinationId: card.disembarkingStationId,
+      dateId,
+    }))
+    dispatch(selectTrip(card.tripId))
+    setOpen(false)
+    navigate(ROUTES.tripDetail)
+  }
+
   const submit = (e: FormEvent) => {
     e.preventDefault()
     send(draft)
@@ -123,7 +137,7 @@ export default function AssistantWidget() {
                 >
                   {m.text}
                 </div>
-                {m.apiCards && <AssistantApiCards cards={m.apiCards} />}
+                {m.apiCards && <AssistantApiCards cards={m.apiCards} onSelect={chooseApiCard} />}
                 {m.trips && (
                   <div className="mt-2 space-y-2">
                     {m.trips.map((trip) => (

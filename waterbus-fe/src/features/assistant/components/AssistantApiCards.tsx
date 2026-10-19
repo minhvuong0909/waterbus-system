@@ -1,7 +1,13 @@
 import { Link } from 'react-router-dom'
 import type { AssistantApiCard } from '../types'
 
-export default function AssistantApiCards({ cards }: { cards: AssistantApiCard[] }) {
+export default function AssistantApiCards({
+  cards,
+  onSelect,
+}: {
+  cards: AssistantApiCard[]
+  onSelect: (card: AssistantApiCard) => void
+}) {
   return <div className="space-y-2">{cards.map((card) => {
     let localPath: string | null = null
     try {
@@ -12,9 +18,11 @@ export default function AssistantApiCards({ cards }: { cards: AssistantApiCard[]
       <strong>{card.routeName}</strong>
       <p>{card.departureStationName} → {card.arrivalStationName}</p>
       <p>{new Date(card.departureTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
-      <p>{card.availableSeatsCount} ghế còn trống · {card.isPriceVerified && card.basePrice !== null
+      <p>{card.availableSeatsCount} ghế còn trống · {(card.isPriceVerified || card.isDevelopmentPreview) && card.basePrice !== null
         ? `${card.basePrice.toLocaleString('vi-VN')} ₫` : 'Giá chưa được xác nhận'}</p>
-      {localPath && <Link className="font-semibold text-teal-flow underline" to={localPath}>Xem chuyến</Link>}
+      {card.boardingStationId && card.disembarkingStationId
+        ? <button type="button" className="font-semibold text-teal-flow underline" onClick={() => onSelect(card)}>Xem chuyến</button>
+        : localPath && <Link className="font-semibold text-teal-flow underline" to={localPath}>Xem chuyến</Link>}
     </article>
   })}</div>
 }

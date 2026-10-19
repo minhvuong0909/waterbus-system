@@ -126,11 +126,11 @@ public class WaterbusBookingPlugin
         {
             if (!_interceptedCards.Any(c => c.TripId == trip.TripId))
             {
-                // Search tool không có quyền cung cấp booking URL; giá chưa xác thực cũng không hiển thị.
+                // Search tool không có quyền cung cấp booking URL; chỉ preview Development được giữ giá chưa xác thực.
                 _interceptedCards.Add(trip with
                 {
                     BookingUrl = null,
-                    BasePrice = trip.IsPriceVerified ? trip.BasePrice : null
+                    BasePrice = trip.IsPriceVerified || trip.IsDevelopmentPreview ? trip.BasePrice : null
                 });
             }
         }

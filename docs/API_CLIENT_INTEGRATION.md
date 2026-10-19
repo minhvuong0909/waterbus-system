@@ -28,7 +28,13 @@ check-in gồm DI, DbContext/interface, Hangfire và cấu hình mẫu; không s
 | Refund request/manual-confirm/reconcile | Form Test API dành cho Admin, body dựng từ hợp đồng Swagger. Không thêm nút refund tự phục vụ cho Passenger. |
 | CheckIns submit/sync/manifest/assignments-mine | Mobile đăng nhập Staff → lấy phân công → tải manifest + RSA public key → xác thực QR offline → lưu hàng đợi → sync. Mobile mặc định ghi offline theo lô; submit đơn có trong Test API để kiểm hợp đồng, vẫn yêu cầu Staff. |
 | CheckIns window/assign/revoke | Admin Test API có form tham số và JSON. Cần DeviceId đã tồn tại; backend chưa có API tạo ScannerDevice. |
-| AiAssistant chat | Widget gọi API thật và hiển thị lời đáp + trip cards được server trả về. Không tự bịa giá hoặc booking URL. Nếu AI chưa được cấu hình, hiển thị lỗi thay vì câu trả lời mock. |
+| AiAssistant chat | Widget gọi API thật và hiển thị lời đáp + trip cards được server trả về. Card có `boardingStationId`/`disembarkingStationId` để nút **Xem chuyến** mở trang chi tiết/chọn ghế của đúng đoạn; không tự bịa URL. Nếu AI chưa được cấu hình, hiển thị lỗi thay vì câu trả lời mock. |
+
+### AI Trip Card trong Development
+
+`POST /api/v1/AiAssistant/chat` trả `cards[]` từ tool tìm chuyến, không bóc chuyến từ lời văn của model. Ngoài các trường card cũ, mỗi card có `boardingStationId`, `disembarkingStationId` (GUID bến khách hỏi) và `isDevelopmentPreview`. FE dùng `tripId` cùng hai ID bến để mở `/trip`; trang này tải lại trip detail và seat map từ API trước khi đặt vé. `bookingUrl` chỉ có nếu tool tạo link chính thức đã được cấu hình.
+
+Trip Search hiện còn trả `basePrice=0` và bến theo thứ tự cũ. Để thử luồng UI nội bộ, chỉ trong môi trường **Development** có thể bật `AiBookingAssistant:Integration:EnableUnverifiedTripCardsForDevelopment=true` (mặc định `false`). Khi đó card giữ `0 ₫`, `isPriceVerified=false`, `isDevelopmentPreview=true`; đây không phải giá vé đã xác nhận. Cờ này không có tác dụng ngoài Development và **không** thay thế việc owner Trip Search sửa/xác nhận giá, bến và availability theo đoạn. Không bật `IsTripSearchContractVerified` để vượt qua gate kiểm chứng.
 
 Test API tại `/admin/api` chỉ xuất hiện khi chạy Vite Development và chỉ mở cho Admin.
 Danh sách, tham số và JSON mẫu được đọc trực tiếp từ Swagger. Backend vẫn là nguồn quyết

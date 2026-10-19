@@ -190,4 +190,24 @@ public class WaterbusBookingPluginTests
         _plugin.InterceptedCards.Single().BookingUrl.Should().BeNull();
         _plugin.InterceptedCards.Single().BasePrice.Should().BeNull();
     }
+
+    [Fact]
+    public async Task SearchTripsAsync_DevelopmentPreview_KeepsZeroFareButNeverSearchProvidedLink()
+    {
+        var card = new AiTripCardDto(Guid.NewGuid(), "Tuyến test", "Bến A", "Bến B",
+            DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow.AddDays(1).AddMinutes(30),
+            30, "Commuter", 0m, false, 5, "https://unverified.example.test/booking",
+            Array.Empty<AiTripStopDto>(), Guid.NewGuid(), Guid.NewGuid(), true);
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(new[] { card }, true));
+
+        await _plugin.SearchTripsAsync("Bến A", "Bến B", "2099-10-15");
+
+        var displayed = _plugin.InterceptedCards.Single();
+        displayed.BasePrice.Should().Be(0m);
+        displayed.IsPriceVerified.Should().BeFalse();
+        displayed.BookingUrl.Should().BeNull();
+        displayed.BoardingStationId.Should().Be(card.BoardingStationId);
+        displayed.DisembarkingStationId.Should().Be(card.DisembarkingStationId);
+    }
 }

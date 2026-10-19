@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.AiBooking.Models;
@@ -16,11 +17,14 @@ public sealed class MediatRTripSearchTool : ITripSearchTool
 {
     private readonly ISender _sender;
     private readonly IOptions<AiBookingIntegrationOptions> _options;
+    private readonly IHostEnvironment _environment;
 
-    public MediatRTripSearchTool(ISender sender, IOptions<AiBookingIntegrationOptions> options)
+    public MediatRTripSearchTool(
+        ISender sender, IOptions<AiBookingIntegrationOptions> options, IHostEnvironment environment)
     {
         _sender = sender;
         _options = options;
+        _environment = environment;
     }
 
     public async Task<TripSearchResult> SearchTripsAsync(
@@ -32,7 +36,10 @@ public sealed class MediatRTripSearchTool : ITripSearchTool
             || (criteria.ArrivalStationId is null && string.IsNullOrWhiteSpace(criteria.ArrivalStationName)))
             return new([], true, "Cần bến đi, bến đến và ngày đi.", true);
 
-        if (!_options.Value.IsTripSearchContractVerified)
+        var developmentPreview = _environment.IsDevelopment()
+            && _options.Value.EnableUnverifiedTripCardsForDevelopment
+            && !_options.Value.IsTripSearchContractVerified;
+        if (!_options.Value.IsTripSearchContractVerified && !developmentPreview)
             return new([], false, "Hợp đồng Trip Search chưa được xác nhận.");
 
         var stations = await _sender.Send(new GetStationsQuery(), cancellationToken);
@@ -55,7 +62,7 @@ public sealed class MediatRTripSearchTool : ITripSearchTool
             criteria.DepartureDate.Value.ToDateTime(TimeOnly.MinValue), tripType), cancellationToken);
 
         // Không đưa kết quả sai/thiếu giá hoặc bến cho AI, kể cả khi cờ tích hợp bật nhầm.
-        if (trips.Any(t => t.BasePrice <= 0
+        if (trips.Any(t => t.BasePrice < 0 || (t.BasePrice == 0 && !developmentPreview)
             || t.Stops is null
             || !t.Stops.Any(s => s.StationId == departureId)
             || !t.Stops.Any(s => s.StationId == arrivalId)))
@@ -67,8 +74,9 @@ public sealed class MediatRTripSearchTool : ITripSearchTool
             .Select(t => new AiTripCardDto(
                 t.Id, t.RouteName, t.DepartureStationName, t.ArrivalStationName,
                 t.DepartureTime, t.ArrivalTime, t.DurationMinutes, t.TripType,
-                t.BasePrice, true, t.AvailableSeatsCount, null,
-                t.Stops.Select(s => new AiTripStopDto(s.StationId, s.StationName, s.OrderIndex)).ToList()))
+                t.BasePrice, !developmentPreview, t.AvailableSeatsCount, null,
+                t.Stops.Select(s => new AiTripStopDto(s.StationId, s.StationName, s.OrderIndex)).ToList(),
+                departureId, arrivalId, developmentPreview))
             .ToList();
 
         return new(cards, true);

@@ -20,6 +20,8 @@ export interface ChatMessage {
 
 export interface AssistantApiCard {
   tripId: string
+  boardingStationId?: string | null
+  disembarkingStationId?: string | null
   routeName: string
   departureStationName: string
   arrivalStationName: string
@@ -28,4 +30,5 @@ export interface AssistantApiCard {
   basePrice: number | null
   isPriceVerified: boolean
   bookingUrl: string | null
+  isDevelopmentPreview?: boolean
 }

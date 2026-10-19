@@ -2,7 +2,7 @@
 
 Roadmap repo có ID `P4-WEB-03` cho chat widget + Function Calling tạo **link đặt vé**, phụ thuộc Trip Search + Booking ổn định. Phần backend AI không có module ID riêng trong repo; ranh giới với frontend cần thống nhất với Viễn trước khi tích hợp.
 
-Drive **đã giao Thịnh AI Booking Assistant** (Semantic Kernel, OpenAI/Gemini, plugin/function tìm chuyến và dữ liệu UI Card). Từ “optional” là trạng thái **widget trong roadmap repo**, không có nghĩa Thịnh được bỏ đầu việc này khỏi kế hoạch. Viễn làm chat widget và render Trip Card; Thịnh làm phần AI/tool-calling và response có cấu trúc để Viễn dùng.
+Drive **đã giao Thịnh AI Booking Assistant** (Semantic Kernel, OpenAI/Gemini, plugin/function tìm chuyến và dữ liệu UI Card). Từ “optional” là trạng thái **widget trong roadmap repo**, không có nghĩa Thịnh được bỏ đầu việc này khỏi kế hoạch. Widget và render card ban đầu từ FE của Viễn trên `main`; phần nối card AI đến luồng xem chuyến hiện được thực hiện trong nhánh AI của Thịnh. Cần báo rõ file FE chạm vào khi tạo PR.
 
 ## Các bước phải hoàn thành
 
@@ -15,7 +15,18 @@ Drive **đã giao Thịnh AI Booking Assistant** (Semantic Kernel, OpenAI/Gemini
 
 Hiện `SearchTripsQuery` trong source có `BasePrice = 0` TODO và suy bến dừng theo `Station.OrderIndex`; không dùng giá/bến đó như sự thật cho người dùng trước khi owner sửa/xác nhận contract.
 
-Backend đã chuẩn bị `MediatRTripSearchTool` (gọi cùng query mà API Trip Search dùng), `ConfiguredBookingLinkTool` (chỉ chấp nhận template HTTPS do owner cung cấp), DI và `POST /api/v1/AiAssistant/chat`. Các cờ xác nhận contract mặc định tắt. Adapter tìm chuyến còn chặn mọi kết quả có giá `<= 0` hoặc thiếu bến; không bật cờ chỉ để “có card”. Mẫu link có `{tripId}` và tùy contract có `{boardingStationId}`, `{disembarkingStationId}`, `{passengerCount}`; không giả định `/trip` hiện tại là luồng đặt vé thật. Viễn vẫn sở hữu kết nối widget và render UI Card.
+Backend có `MediatRTripSearchTool` (gọi cùng query mà API Trip Search dùng), `ConfiguredBookingLinkTool` (chỉ chấp nhận template HTTPS do owner cung cấp), DI và `POST /api/v1/AiAssistant/chat`. FE trên `main` đã nối widget với endpoint này; Thịnh bổ sung dữ liệu bến khách hỏi vào card và nút **Xem chuyến** để mở luồng `/trip` hiện có, nơi FE tải lại trip detail/seat map. Không tự tạo Booking/Payment. Link chính thức qua `ConfiguredBookingLinkTool` vẫn cần owner xác nhận contract.
+
+Để demo nội bộ trước khi owner Trip Search sửa giá/bến, có cờ `EnableUnverifiedTripCardsForDevelopment` mặc định tắt, chỉ hoạt động khi host là Development. Card khi đó có thể hiển thị `0 ₫` như dữ liệu query hiện tại, kèm `isPriceVerified=false` và `isDevelopmentPreview=true` trong JSON. **Không coi 0 ₫ là giá bán thật** và không bật `IsTripSearchContractVerified` để lách gate. Ngoài Development, query chưa xác nhận hoặc giá 0 vẫn bị chặn. Mẫu link chính thức có `{tripId}` và tùy contract có `{boardingStationId}`, `{disembarkingStationId}`, `{passengerCount}`.
+
+### Demo local với dữ liệu Trip Search hiện tại
+
+1. Chạy WebApi trong môi trường `Development`, có DB chứa Station/Trip/TripStopCall/ghế phù hợp. Giữ Groq API key trong User Secrets (không commit). Bật `AiBookingAssistant:Groq:IsEnabled=true` và `AiBookingAssistant:Integration:EnableUnverifiedTripCardsForDevelopment=true` qua User Secrets của `WaterbusSystem.WebApi`.
+2. FE đặt `VITE_USE_MOCK=false`, chạy WebApi và Vite. Hỏi rõ bến đi, bến đến, ngày đi trong widget để model gọi `SearchTrips`; trả về card từ API có thể hiển thị `0 ₫`.
+3. Nhấn **Xem chuyến**. FE lưu `tripId` và bến khách hỏi, chuyển sang `/trip`, rồi gọi lại trip detail/seat map. Nếu trang này báo chuyến không phục vụ đoạn bến, đó là dữ liệu Trip Search chưa khớp `TripStopCall`, không được sửa bằng cách bịa card/giá.
+4. Không bật cờ preview trên môi trường chạy thật; khi owner Trip Search hoàn tất, xác minh lại giá và thứ tự bến rồi mới chốt `IsTripSearchContractVerified`.
+
+Test tự động xác minh mapping card, cờ Development và hành vi điều hướng FE. Chưa coi là end-to-end đã chạy thật khi chưa thử với DB, Groq key và chuyến cụ thể của môi trường triển khai.
 
 ## Gate trước khi triển khai
 

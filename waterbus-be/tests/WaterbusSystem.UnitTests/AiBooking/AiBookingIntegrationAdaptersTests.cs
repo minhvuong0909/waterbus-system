@@ -1,5 +1,6 @@
 using FluentAssertions;
 using MediatR;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Moq;
 using WaterbusSystem.Application.Features.AiBooking.Models;
@@ -27,7 +28,7 @@ public sealed class AiBookingIntegrationAdaptersTests
     public async Task SearchTool_ContractNotVerified_DoesNotCallTripSearch()
     {
         var sender = new Mock<ISender>();
-        var tool = new MediatRTripSearchTool(sender.Object, Options.Create(new AiBookingIntegrationOptions()));
+        var tool = new MediatRTripSearchTool(sender.Object, Options.Create(new AiBookingIntegrationOptions()), Environment("Development"));
 
         var result = await tool.SearchTripsAsync(Criteria());
 
@@ -49,6 +50,41 @@ public sealed class AiBookingIntegrationAdaptersTests
     }
 
     [Fact]
+    public async Task SearchTool_DevelopmentPreview_ExposesZeroFareAndRequestedStationIds()
+    {
+        var sender = MockSender(0m);
+        var tool = new MediatRTripSearchTool(sender.Object,
+            Options.Create(new AiBookingIntegrationOptions { EnableUnverifiedTripCardsForDevelopment = true }),
+            Environment("Development"));
+
+        var result = await tool.SearchTripsAsync(Criteria());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Trips.Should().ContainSingle();
+        var card = result.Trips[0];
+        card.BasePrice.Should().Be(0m);
+        card.IsPriceVerified.Should().BeFalse();
+        card.IsDevelopmentPreview.Should().BeTrue();
+        card.BoardingStationId.Should().Be(DepartureId);
+        card.DisembarkingStationId.Should().Be(ArrivalId);
+    }
+
+    [Fact]
+    public async Task SearchTool_Production_IgnoresDevelopmentPreviewFlag()
+    {
+        var sender = MockSender(0m);
+        var tool = new MediatRTripSearchTool(sender.Object,
+            Options.Create(new AiBookingIntegrationOptions { EnableUnverifiedTripCardsForDevelopment = true }),
+            Environment("Production"));
+
+        var result = await tool.SearchTripsAsync(Criteria());
+
+        result.IsSuccess.Should().BeFalse();
+        result.Trips.Should().BeEmpty();
+        sender.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task SearchTool_VerifiedData_MapsCardWithoutInventingBookingLink()
     {
         var sender = MockSender(20000m);
@@ -61,6 +97,8 @@ public sealed class AiBookingIntegrationAdaptersTests
         result.Trips[0].BasePrice.Should().Be(20000m);
         result.Trips[0].IsPriceVerified.Should().BeTrue();
         result.Trips[0].BookingUrl.Should().BeNull();
+        result.Trips[0].BoardingStationId.Should().Be(DepartureId);
+        result.Trips[0].DisembarkingStationId.Should().Be(ArrivalId);
     }
 
     [Fact]
@@ -131,7 +169,15 @@ public sealed class AiBookingIntegrationAdaptersTests
     }
 
     private static MediatRTripSearchTool VerifiedSearchTool(ISender sender) =>
-        new(sender, Options.Create(new AiBookingIntegrationOptions { IsTripSearchContractVerified = true }));
+        new(sender, Options.Create(new AiBookingIntegrationOptions { IsTripSearchContractVerified = true }),
+            Environment("Production"));
+
+    private static IHostEnvironment Environment(string name)
+    {
+        var environment = new Mock<IHostEnvironment>();
+        environment.SetupGet(e => e.EnvironmentName).Returns(name);
+        return environment.Object;
+    }
 
     private static Mock<ISender> MockSender(decimal price)
     {
