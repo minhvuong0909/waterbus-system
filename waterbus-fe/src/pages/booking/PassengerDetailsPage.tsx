@@ -75,7 +75,7 @@ export default function PassengerDetailsPage() {
             onPassenger={editSeatPassenger}
           />
         </div>
-        <div className="lg:col-span-5">
+        <div className="lg:col-span-5 lg:self-stretch">
           <CrossingSummary
             trip={trip}
             seats={seats}

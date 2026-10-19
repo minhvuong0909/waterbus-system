@@ -97,7 +97,7 @@ export default function SeatSelectionPage() {
             />
           </div>
         </div>
-        <div className="lg:col-span-5">
+        <div className="lg:col-span-5 lg:self-stretch">
           <BookingSummary
             trip={trip}
             seats={seats}

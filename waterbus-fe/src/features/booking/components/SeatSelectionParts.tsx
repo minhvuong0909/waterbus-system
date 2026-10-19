@@ -96,7 +96,7 @@ export function BookingSummary({
   const canContinue =
     canBook && seats.length > 0 && seats.every((seat) => seat.status === 'available')
   return (
-    <div className="space-y-space-md lg:sticky lg:top-24">
+    <div className="space-y-space-md lg:sticky lg:top-24 lg:max-h-[calc(100svh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:-m-1 lg:p-1">
       <BookingCard className="p-space-lg">
         <div className="mb-space-md flex items-center justify-between">
           <h2 className="font-headline-md text-headline-sm text-deep-river">
@@ -185,6 +185,7 @@ export function BookingSummary({
           />
           <SummaryRow label={t('Harbor Fees & VAT')} value={t('Included')} accent />
         </div>
+        <div className="bg-white pb-1 lg:sticky lg:bottom-0">
         <div className="mt-space-sm border-t border-surface-container">
           <TotalRow
             label={t('Total Fare')}
@@ -231,6 +232,7 @@ export function BookingSummary({
             </p>
           </>
         )}
+        </div>
         <div className="mt-space-sm flex items-center justify-center gap-2 text-xs text-teal-flow">
           <Link to={ROUTES.searchResults} className="hover:underline">
             {t('Change Trip')}

@@ -80,7 +80,7 @@ export default function CheckoutReviewPage() {
           <PassengerInfoCard purchaser={purchaser} seats={seats} passengers={passengers} />
           <TermsConfirm checked={termsAccepted} onChange={setTerms} />
         </div>
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 lg:self-stretch">
           <OrderSummary
             trip={trip}
             totals={totals}

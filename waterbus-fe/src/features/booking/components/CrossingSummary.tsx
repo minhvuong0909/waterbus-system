@@ -20,7 +20,7 @@ interface CrossingSummaryProps {
 /** Sticky sidebar on passenger details: timeline, vessel facts and fare lines. */
 export default function CrossingSummary({ trip, seats, totals, canContinue }: CrossingSummaryProps) {
   return (
-    <BookingCard className="p-space-lg lg:sticky lg:top-24">
+    <BookingCard className="p-space-lg lg:sticky lg:top-24 lg:max-h-[calc(100svh-7rem)] lg:overflow-y-auto lg:overscroll-contain">
       <div className="mb-space-md flex items-center justify-between">
         <h2 className="font-headline-md text-headline-sm text-deep-river">
           {t('Crossing Summary')}

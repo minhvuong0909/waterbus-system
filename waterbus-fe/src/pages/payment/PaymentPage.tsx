@@ -79,7 +79,7 @@ export default function PaymentPage() {
             reference={hold?.bookingCodes[0] ?? bookingReference(seats)}
           />
         </div>
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 lg:self-stretch">
           <PaymentOrderSummary
             trip={trip}
             seats={seats}

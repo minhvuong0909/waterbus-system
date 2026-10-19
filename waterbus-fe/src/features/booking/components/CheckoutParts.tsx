@@ -220,7 +220,7 @@ export function OrderSummary({
   onContinue: () => void
 }) {
   return (
-    <BookingCard className="p-space-lg lg:sticky lg:top-24">
+    <BookingCard className="p-space-lg lg:sticky lg:top-24 lg:max-h-[calc(100svh-7rem)] lg:overflow-y-auto lg:overscroll-contain">
       <div className="mb-space-md flex items-center justify-between">
         <h2 className="font-headline-md text-headline-sm text-deep-river">{t('Order Summary')}</h2>
         <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[11px] font-bold text-teal-flow">
