@@ -140,25 +140,58 @@ async function createDb(): Promise<AdminDb> {
     isActive: true,
   })
 
+  const trips = seedTrips(route.id, boat.id, route.estimatedDurationMinutes, now)
+
   return {
     stations,
     routes: [route],
     boats: [boat],
     schedules: [schedule('07:00', 'Commuter'), schedule('12:00', 'Commuter'), schedule('17:30', 'Sightseeing')],
-    trips: seedTrips(route.id, boat.id, route.estimatedDurationMinutes, now),
+    trips,
     // The backend has no pricing table. 15,000 is the default Trip.BasePrice; the sightseeing price
     // and the cabin multipliers follow the demo data (multipliers as seeded on Seat.PriceMultiplier).
     fares: {
       basePrice: { Commuter: 15000, Sightseeing: 45000 },
       cabinMultiplier: { front: 1.2, standard: 1.0, outdoor: 1.1 },
     },
+    // Cảnh báo mẫu đủ loại để thử giao diện xử lý sự cố. Incident không tự đổi trạng thái chuyến:
+    // mỗi chuyến bị ảnh hưởng chờ Admin quyết định (decision = null), BR-INC-03.
     alerts: [
       {
         id: newId(),
         level: 1,
+        kind: 'Weather',
         windSpeedKmh: 41,
         message: 'Wind above the 38 km/h threshold on the Saigon River corridor.',
         issuedAt: new Date(now - 10 * MINUTE).toISOString(),
+        affectedTripCount: 2,
+        trips: [
+          { tripId: trips[3].id, decision: null },
+          { tripId: trips[4].id, decision: null },
+        ],
+      },
+      {
+        id: newId(),
+        level: 2,
+        kind: 'Weather',
+        windSpeedKmh: 68,
+        message: 'Thunderstorm with gusts above 62 km/h expected on route RT01.',
+        issuedAt: new Date(now - 4 * MINUTE).toISOString(),
+        affectedTripCount: 3,
+        trips: [
+          { tripId: trips[2].id, decision: 'Suspend' },
+          { tripId: trips[3].id, decision: null },
+          { tripId: trips[4].id, decision: 'Cancel' },
+        ],
+      },
+      {
+        id: newId(),
+        level: 2,
+        kind: 'Technical',
+        message: 'Captain reported an engine fault on SWB-01 and requests a stop at the next pier.',
+        issuedAt: new Date(now - 2 * MINUTE).toISOString(),
+        affectedTripCount: 1,
+        trips: [{ tripId: trips[2].id, decision: null }],
       },
     ],
     logs: [],

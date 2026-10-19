@@ -60,7 +60,7 @@ export function getDateOptions(): Promise<DateOption[]> {
 
 /** `GET /trips/search` for the selected piers and day. */
 export async function getTrips(query: SearchQuery): Promise<Trip[]> {
-  if (USE_MOCK) return withDelay(buildTrips())
+  if (USE_MOCK) return withDelay(buildTrips(query))
   const dtos = await apiRequest<TripDto[]>(API_ENDPOINTS.trips.search, {
     query: {
       departureStationId: query.originId,
