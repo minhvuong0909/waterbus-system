@@ -13,6 +13,14 @@ BR v2.0 `BR-EXP-02..06` yêu cầu **loa trên Boat**, không phải player củ
 
 Từ `waterbus-be`:
 
+Để demo trực quan cho leader, chạy **một test dùng đúng geofence service và khoảng cách NetTopologySuite**, in bốn tình huống với khoảng cách đo được, quyết định và lý do:
+
+```powershell
+dotnet test WaterbusSystem.sln --filter FullyQualifiedName~GeofenceDemoTests --logger "console;verbosity=detailed"
+```
+
+GPS/POI, `AudioGuide` và ACK player trong bài demo là fixture; không gọi Azure/SQL/loa tàu. ACK giả chỉ chứng minh service đã gửi lệnh, **không** chứng minh audio đã phát.
+
 ```powershell
 dotnet build WaterbusSystem.sln
 dotnet test WaterbusSystem.sln --filter "FullyQualifiedName~TrackingAudioTriggerEvaluatorTests|FullyQualifiedName~RecordBoatPositionCommandHandlerTests|FullyQualifiedName~LocalAudioAdaptersTests"

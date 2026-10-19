@@ -8,6 +8,7 @@ using WaterbusSystem.Infrastructure.Services.AiBooking;
 using WaterbusSystem.UnitTests.AiBooking.Fakes;
 using WaterbusSystem.WebApi.Controllers;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace WaterbusSystem.UnitTests.AiBooking;
 
@@ -17,6 +18,10 @@ namespace WaterbusSystem.UnitTests.AiBooking;
 /// </summary>
 public sealed class GroqBookingLiveSmokeTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public GroqBookingLiveSmokeTests(ITestOutputHelper output) => _output = output;
+
     [Fact]
     public async Task GroqCallsSearchPluginAndReturnsStructuredCard_WhenExplicitlyEnabled()
     {
@@ -62,6 +67,16 @@ public sealed class GroqBookingLiveSmokeTests
         response.Cards.Should().ContainSingle();
         response.Cards[0].BasePrice.Should().BeNull("fixture chưa có giá FareRule đã xác thực");
         response.Cards[0].BookingUrl.Should().BeNull("fixture chưa có booking link production");
+
+        // Chỉ in dữ liệu fixture đã được kiểm tra, không in key/prompt hay payload provider.
+        var card = response.Cards[0];
+        _output.WriteLine("=== AI Booking Assistant — dữ liệu chuyến MẪU ===");
+        _output.WriteLine("Trả lời: {0}", response.TextAnswer);
+        _output.WriteLine("Plugin: {0}", string.Join(", ", response.ExecutedTools.Select(t => t.ToolName)));
+        _output.WriteLine("Trip Card: {0}", card.RouteName);
+        _output.WriteLine("Bến: {0} → {1}", card.DepartureStationName, card.ArrivalStationName);
+        _output.WriteLine("Khởi hành: {0:yyyy-MM-dd HH:mm} (UTC+7)", card.DepartureTime.ToOffset(TimeSpan.FromHours(7)));
+        _output.WriteLine("Giá: chưa xác thực; link đặt vé: chưa tích hợp");
     }
 
     /// <summary>Chỉ ghi tên loại exception; tuyệt đối không in message, request hoặc key.</summary>

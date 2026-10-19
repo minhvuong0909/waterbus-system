@@ -56,11 +56,11 @@ Có thể thử **Groq thật + Semantic Kernel function calling với trip fixt
 
 ```powershell
 $env:WATERBUS_GROQ_BOOKING_SMOKE = '1'
-dotnet test WaterbusSystem.sln --filter FullyQualifiedName~GroqBookingLiveSmokeTests
+dotnet test WaterbusSystem.sln --filter FullyQualifiedName~GroqBookingLiveSmokeTests --logger "console;verbosity=detailed"
 Remove-Item Env:WATERBUS_GROQ_BOOKING_SMOKE
 ```
 
-Chạy trong `waterbus-be/` sau khi lưu key bằng User Secrets như trên. Test opt-in này dùng quota Groq (và có thể phát sinh chi phí tùy tài khoản); pass chỉ chứng minh provider/plugin hoạt động với dữ liệu fixture, **không** chứng minh giá/bến/link/UI chạy thật. Không in hoặc gửi key trong chat/log.
+Chạy trong `waterbus-be/` sau khi lưu key bằng User Secrets như trên. Logger `detailed` in câu trả lời và một Trip Card **mẫu** đã được kiểm tra (không in key/prompt). Test opt-in này dùng quota Groq (và có thể phát sinh chi phí tùy tài khoản); pass chỉ chứng minh provider/plugin hoạt động với dữ liệu fixture, **không** chứng minh giá/bến/link/UI chạy thật. Không in hoặc gửi key trong chat/log.
 
 Nếu test trả `IsFallback=true`, dòng assert hiện cho biết **loại exception và HTTP status**, không in key hoặc nội dung phản hồi. HTTP 429 có thể là hết quota hoặc chạm rate limit; kiểm tra limits của đúng Groq project, không retry liên tục. Nếu `tools=` rỗng, request đã lỗi trước khi function `SearchTrips` chạy. Xóa cờ PowerShell bằng `Remove-Item Env:WATERBUS_GROQ_BOOKING_SMOKE` (không có dấu `?`).
 
@@ -78,7 +78,7 @@ Nếu test trả `IsFallback=true`, dòng assert hiện cho biết **loại exce
   ```
 
   Test chỉ được coi là đã gọi Blob thật nếu cờ bằng `1`; có thể tốn một lượng nhỏ phí giao dịch/lưu trữ. Nếu fail, kiểm tra container đã tồn tại, connection string đúng và Storage Account cho phép truy cập từ máy local. Không gửi connection string hoặc log chứa secret.
-- TTS → Blob bằng **MP3 nghe được**: `AzureAudioPipelineLiveSmokeTests` gọi Azure Speech thật qua `AudioAssetGenerationService`, upload Blob, tải lại và đối chiếu từng byte. Test xóa blob thử trên Azure sau khi chạy và giữ một bản MP3 trong `%LOCALAPPDATA%\Waterbus\smoke\` để nghe; không tạo/publish `AudioGuide`. Cần lưu cả bốn `AzureSpeech:*` và hai `AzureBlobAudioStorage:*` trong WebApi User Secrets (hoặc biến môi trường tương ứng). Từ `waterbus-be`:
+- TTS → Blob bằng **MP3 nghe được**: `AzureAudioPipelineLiveSmokeTests` gọi Azure Speech thật qua `AudioAssetGenerationService`, upload Blob, tải lại và đối chiếu từng byte. Mặc định test xóa blob thử trên Azure và giữ một bản MP3 trong `%LOCALAPPDATA%\Waterbus\smoke\` để nghe; không tạo/publish `AudioGuide`. Cần lưu cả bốn `AzureSpeech:*` và hai `AzureBlobAudioStorage:*` trong WebApi User Secrets (hoặc biến môi trường tương ứng). Từ `waterbus-be`:
 
   ```powershell
   $env:WATERBUS_AZURE_AUDIO_PIPELINE_SMOKE = "1"
@@ -87,6 +87,16 @@ Nếu test trả `IsFallback=true`, dòng assert hiện cho biết **loại exce
   Get-ChildItem "$env:LOCALAPPDATA\Waterbus\smoke\azure-audio-*.mp3" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
   ```
 
-  Mở file MP3 mới nhất để nghe. Cờ phải bằng `1` trong đúng phiên PowerShell chạy test; nếu không, test pass nhưng **không gọi Azure**. Bài này sử dụng quota Azure Speech và giao dịch Azure Blob. File local là dữ liệu thử ngoài repo; bạn có thể xóa sau khi nghe.
+  Muốn **giữ blob private sau khi test thành công**, bật thêm cờ trước khi chạy; `detailed` sẽ in URI và `Asset key` để bạn tìm blob trong Azure Portal → Storage account → Containers → `audio-guides-private` → `smoke-tests/`:
+
+  ```powershell
+  $env:WATERBUS_AZURE_AUDIO_PIPELINE_SMOKE = "1"
+  $env:WATERBUS_KEEP_AUDIO_SMOKE_BLOB = "1"
+  dotnet test WaterbusSystem.sln --filter FullyQualifiedName~AzureAudioPipelineLiveSmokeTests --logger "console;verbosity=detailed"
+  Remove-Item Env:WATERBUS_KEEP_AUDIO_SMOKE_BLOB
+  Remove-Item Env:WATERBUS_AZURE_AUDIO_PIPELINE_SMOKE
+  ```
+
+  Blob chỉ được giữ nếu mọi bước tạo/upload/tải/so sánh/lưu local đều pass; khi fail sau upload, test vẫn cố xóa blob thử. URI của container private **không phải link phát công khai**; cần quyền Storage để tải trong Portal. Cờ phải bằng `1` trong đúng phiên PowerShell chạy test; nếu không, test pass nhưng **không gọi Azure**. Bài này sử dụng quota Azure Speech, giao dịch và dung lượng Azure Blob. File local là dữ liệu thử ngoài repo; bạn có thể xóa sau khi nghe. Blob giữ lại sẽ tiếp tục tồn tại/tính phí cho đến khi bạn chủ động xóa.
 - Groq: có thể smoke test provider/plugin độc lập bằng fixture; live test **end-to-end với dữ liệu thật** chỉ sau khi owner xác nhận Trip Search và booking link, rồi Viễn nối UI.
 - GPS/Onboard Player: cần contract dispatch, ACK và safety override; unit test geofence chưa chứng minh loa tàu đã phát.
