@@ -14,7 +14,33 @@
   }
   /* Keyboard users get a clear ring; mouse clicks do not. */
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-teal-flow;
+    @apply outline outline-2 outline-offset-2 outline-teal-flow;
+  }
+  html {
+    scroll-padding-top: 6rem;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button,
+  a {
+    touch-action: manipulation;
+  }
+  img {
+    max-width: 100%;
+  }
+}
+
+/* Tránh Safari phóng to form khi chạm ô nhập trên điện thoại. */
+@media (max-width: 639px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px;
   }
 }
 
@@ -53,6 +79,35 @@
 }
 
 /* Boat marker on the fleet map: a disc that glides to each new position. */
+.hover-lift {
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out, background-color 200ms ease-out;
+}
+.scroll-strip {
+  scrollbar-width: none;
+}
+.scroll-strip::-webkit-scrollbar {
+  display: none;
+}
+.pointer-glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at 85% 20%, rgba(255, 255, 255, 0.14), transparent 65%);
+  transition: opacity 220ms ease-out;
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px -16px rgba(13, 37, 56, 0.35);
+  }
+  .pointer-glow:hover::before {
+    opacity: 1;
+  }
+}
+
 .fleet-boat {
   display: flex;
   align-items: center;

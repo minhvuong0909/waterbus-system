@@ -1,7 +1,5 @@
 /**
- * Staff Scanner Settings & Diagnostics Screen
- * Device configuration, staff profile (Tuấn), force offline simulation toggle,
- * and backend server URL settings.
+ * Cài đặt tài khoản, phân công và chế độ kết nối của máy soát vé.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -13,10 +11,10 @@ import {
   Switch,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useScannerStore } from '../../store/useScannerStore';
@@ -30,6 +28,8 @@ export default function ScannerSettingsScreen() {
   const { deviceInfo, setForceOfflineMode } = useScannerStore();
   const { user, logout } = useAuthStore();
 
+  const [showDevice, setShowDevice] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [deviceCode, setDeviceCode] = useState(deviceInfo.deviceCode);
 
   const [assignments, setAssignments] = useState<MyScannerAssignment[]>([]);
@@ -55,7 +55,7 @@ export default function ScannerSettingsScreen() {
 
   const handleSaveConfig = () => {
     syncService.setDeviceInfo({ deviceCode });
-    Alert.alert('Đã lưu cấu hình', 'Thông tin thiết bị và máy chủ đã được cập nhật.');
+    setSaved(true);
   };
 
   const handleLogout = () => {
@@ -77,8 +77,8 @@ export default function ScannerSettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Cấu Hình & Thông Tin Nhân Viên</Text>
-          <Text style={styles.subtitle}>Thiết lập thiết bị soát vé cầm tay (Staff Scanner)</Text>
+          <Text style={styles.title}>Cài đặt</Text>
+          <Text style={styles.subtitle}>Tài khoản và thiết bị soát vé</Text>
         </View>
 
         {/* Staff Profile Card - tài khoản đăng nhập thật qua POST /api/v1/auth/login */}
@@ -91,7 +91,7 @@ export default function ScannerSettingsScreen() {
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.staffName}>{user?.fullName || 'Chưa đăng nhập'}</Text>
-              <Text style={styles.staffRole}>Nhân Viên Soát Vé (Staff)</Text>
+              <Text style={styles.staffRole}>Nhân viên soát vé</Text>
               <Text style={styles.staffCode}>{user?.email}</Text>
             </View>
           </View>
@@ -100,15 +100,15 @@ export default function ScannerSettingsScreen() {
 
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={18} color="#DC2626" style={{ marginRight: 6 }} />
-            <Text style={styles.logoutBtnText}>Đăng Xuất</Text>
+            <Text style={styles.logoutBtnText}>Đăng xuất</Text>
           </TouchableOpacity>
         </View>
 
         {/* Phân công soát vé của tôi - GET /api/v1/checkins/assignments/mine (dữ liệu thật) */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Phân Công Soát Vé Của Tôi</Text>
-            <TouchableOpacity onPress={loadAssignments} disabled={isLoadingAssignments}>
+            <Text style={styles.cardTitle}>Phân công của tôi</Text>
+            <TouchableOpacity accessibilityLabel="Tải lại phân công" accessibilityRole="button" style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }} onPress={loadAssignments} disabled={isLoadingAssignments}>
               <Ionicons name="refresh" size={18} color="#0284C7" />
             </TouchableOpacity>
           </View>
@@ -129,13 +129,13 @@ export default function ScannerSettingsScreen() {
                   </Text>
                   {a.checkInOpenAt && a.checkInCloseAt ? (
                     <Text style={styles.assignmentWindow}>
-                      Check-in: {new Date(a.checkInOpenAt).toLocaleTimeString()} - {new Date(a.checkInCloseAt).toLocaleTimeString()}
+                      Giờ soát vé: {new Date(a.checkInOpenAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' })} - {new Date(a.checkInCloseAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' })}
                     </Text>
                   ) : null}
                 </View>
                 {a.isPrimaryOffline ? (
                   <View style={styles.badgePrimary}>
-                    <Text style={styles.badgePrimaryText}>Primary Offline</Text>
+                    <Text style={styles.badgePrimaryText}>Máy chính</Text>
                   </View>
                 ) : null}
               </View>
@@ -145,13 +145,13 @@ export default function ScannerSettingsScreen() {
 
         {/* Operating Mode (Offline vs Online) */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Chế Độ Vận Hành Mạng</Text>
+          <Text style={styles.cardTitle}>Kết nối & đồng bộ</Text>
 
           <View style={styles.switchRow}>
             <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={styles.switchTitle}>Mô Phỏng Ngoại Tuyến (Force Offline)</Text>
+              <Text style={styles.switchTitle}>Thử chế độ ngoại tuyến</Text>
               <Text style={styles.switchDesc}>
-                Khi bật, ứng dụng sẽ không gửi dữ liệu ra ngoài và chỉ lưu 100% vào SQLite cục bộ để kiểm thử bến mất mạng.
+                Lưu lượt soát vé trên máy, tạm dừng gửi dữ liệu.
               </Text>
             </View>
             <Switch
@@ -166,59 +166,41 @@ export default function ScannerSettingsScreen() {
 
           <View style={styles.switchRow}>
             <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={styles.switchTitle}>Tự Động Đồng Bộ (Idempotent Sync)</Text>
+              <Text style={styles.switchTitle}>Tự động đồng bộ</Text>
               <Text style={styles.switchDesc}>
-                Background Task tự động quét hàng đợi và đẩy lô mỗi 15 giây khi có kết nối 3G/WiFi.
+                Gửi lượt soát vé khi có mạng, kiểm tra mỗi 15 giây.
               </Text>
             </View>
             <View style={styles.statusActiveBadge}>
-              <Text style={styles.statusActiveText}>ĐANG CHẠY</Text>
+              <Text style={styles.statusActiveText}>{deviceInfo.forceOfflineMode ? 'TẠM DỪNG' : 'ĐÃ BẬT'}</Text>
             </View>
           </View>
         </View>
 
         {/* Device & Backend Config */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Thông Số Kỹ Thuật Thiết Bị</Text>
+          <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: showDevice }} onPress={() => setShowDevice(!showDevice)} style={styles.cardHeaderRow}>
+            <Text style={[styles.cardTitle, { marginBottom: 0 }]}>Thiết bị</Text>
+            <Ionicons name={showDevice ? 'chevron-up' : 'chevron-down'} size={20} color="#64748B" />
+          </TouchableOpacity>
+          {showDevice ? <View style={{ marginTop: 12 }}>
 
-          <Text style={styles.inputLabel}>Mã định danh máy quét (Device Code):</Text>
+          <Text style={styles.inputLabel}>Mã máy quét</Text>
           <TextInput
             style={styles.input}
             value={deviceCode}
-            onChangeText={setDeviceCode}
+            onChangeText={(value) => { setDeviceCode(value); setSaved(false); }}
             autoCapitalize="characters"
           />
 
           <TouchableOpacity style={styles.saveBtn} onPress={handleSaveConfig}>
             <Ionicons name="save-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.saveBtnText}>Lưu Thay Đổi</Text>
+            <Text style={styles.saveBtnText}>Lưu thay đổi</Text>
           </TouchableOpacity>
+          <Text style={styles.switchDesc}>{saved ? 'Đã lưu trong phiên này. ' : ''}Phân công thiết bị chính thức được lấy khi tải vé.</Text>
+          </View> : null}
         </View>
 
-        {/* Security & Specification Info */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Quy Chuẩn Kỹ Thuật (BR v2.0)</Text>
-          <View style={styles.specItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.specText}>BR-QR-01: QR tĩnh ký số per-Booking.</Text>
-          </View>
-          <View style={styles.specItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.specText}>BR-QR-02: Xác thực chữ ký số bằng Public Key offline.</Text>
-          </View>
-          <View style={styles.specItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.specText}>BR-QR-03: Nhân viên tích chọn từng khách có mặt.</Text>
-          </View>
-          <View style={styles.specItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.specText}>BR-OFF-01: SQLite Preload cache trước giờ mở cổng.</Text>
-          </View>
-          <View style={styles.specItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.specText}>BR-OFF-03: ClientEventId Unique chống trùng lặp (Idempotent).</Text>
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -231,13 +213,16 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 24,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
   },
   header: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   title: {
-    fontSize: 20,
+    fontSize: 28,
     fontWeight: '700',
     color: '#0F172A',
   },
@@ -250,7 +235,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: '#000',

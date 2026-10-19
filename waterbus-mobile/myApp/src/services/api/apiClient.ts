@@ -27,7 +27,7 @@ interface RequestOptions {
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Accept-Language': 'vi-VN' };
 
   if (!options.skipAuth) {
     const token = await getSecureItem(AUTH_TOKEN_KEY);
@@ -36,11 +36,21 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     }
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method || 'GET',
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
+    signal: controller.signal,
+    });
+  } catch {
+    throw new ApiError(0, 'Không kết nối được API. Kiểm tra địa chỉ máy chủ và Wi-Fi.');
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     let message = `Lỗi máy chủ (HTTP ${response.status})`;

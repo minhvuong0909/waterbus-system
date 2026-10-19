@@ -1,3 +1,4 @@
+import { USE_MOCK } from '../../../constant/env'
 import { Link } from 'react-router-dom'
 import QrCode from '../../../components/ticket/QrCode'
 import { Icon } from '../../../components/ui'
@@ -147,7 +148,7 @@ export function NextDepartureCard({
 
           <div className="text-center">
             <div className="mx-auto w-fit rounded-xl bg-white p-2 shadow-sm">
-              <QrCode value={ticket.ticketCode} size={120} />
+              {(ticket.qrPayload || USE_MOCK) && <QrCode value={ticket.qrPayload ?? ticket.ticketCode} size={120} />}
             </div>
             <div className="mt-2 font-mono text-[11px] font-semibold text-deep-river">
               {ticket.ticketCode}

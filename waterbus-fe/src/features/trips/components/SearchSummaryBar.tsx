@@ -24,9 +24,9 @@ function Item({
   iconClass?: string
 }) {
   return (
-    <div className="flex items-center gap-space-sm">
+    <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
       <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sand-light ${iconClass}`}
+        className={`hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sand-light sm:flex ${iconClass}`}
       >
         <Icon name={icon} className="text-[20px]" />
       </div>
@@ -35,7 +35,7 @@ function Item({
           {label}
         </span>
         <span
-          className={`block truncate text-deep-river ${
+          className={`block text-sm leading-snug text-deep-river ${
             strong ? 'font-headline-sm text-sm font-bold md:text-base' : 'text-sm font-semibold'
           }`}
         >

@@ -7,8 +7,11 @@ export default function CtaBanner() {
   return (
     <section className="w-full bg-surface py-space-3xl">
       <div className="mx-auto max-w-7xl px-margin">
-        <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-deep-river via-primary to-teal-flow p-space-2xl text-on-primary shadow-xl md:p-space-3xl">
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-15">
+        <div
+          data-reveal
+          className="pointer-glow relative overflow-hidden rounded-[24px] bg-gradient-to-r from-deep-river via-primary to-teal-flow px-6 py-9 text-on-primary shadow-lg sm:px-10 sm:py-12 lg:px-12"
+        >
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-[0.07]">
             <svg className="h-full w-full" fill="none" viewBox="0 0 1200 400">
               <path
                 d="M0 200 Q 300 100, 600 200 T 1200 200"
@@ -24,17 +27,20 @@ export default function CtaBanner() {
               />
             </svg>
           </div>
-          <div className="relative z-10 max-w-2xl space-y-space-lg">
-            <h2 className="font-headline-lg text-3xl font-bold leading-tight tracking-tight text-on-primary sm:text-headline-lg md:text-headline-xl">
+          <div className="relative z-10 flex flex-col justify-between gap-6 lg:flex-row lg:items-center lg:gap-10">
+            <h2 className="max-w-2xl font-headline-lg text-2xl font-bold leading-tight tracking-tight text-on-primary sm:text-3xl lg:text-4xl">
               {t('Ready to Experience Saigon from the Water?')}
             </h2>
-            <div className="flex flex-wrap items-center gap-space-md pt-space-xs">
+            <div className="flex shrink-0 items-center">
               <Link
                 to={ROUTES.search}
-                className="inline-flex items-center justify-center gap-space-sm rounded-xl bg-teal-flow px-space-xl py-4 font-headline-sm text-body-lg font-semibold text-on-primary shadow-lg transition-all hover:bg-secondary"
+                className="hover-lift group inline-flex items-center justify-center gap-space-sm rounded-xl bg-white px-6 py-3.5 font-headline-sm text-base font-semibold text-deep-river shadow-sm hover:bg-sand-light"
               >
                 <span>{t('Plan Your Journey Now')}</span>
-                <Icon name="arrow_forward" className="text-[20px]" />
+                <Icon
+                  name="arrow_forward"
+                  className="text-[20px] transition-transform duration-200 group-hover:translate-x-1"
+                />
               </Link>
             </div>
           </div>

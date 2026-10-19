@@ -44,7 +44,7 @@ export interface Vessel {
 
 export interface CorridorMap {
   piers: Pier[]
-  vessel: Vessel
+  vessel: Vessel | null
 }
 
 // ---- Trip search -----------------------------------------------------------

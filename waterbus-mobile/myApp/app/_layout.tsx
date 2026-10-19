@@ -33,7 +33,6 @@ export default function RootLayout() {
       .catch((err) => console.error("[Waterbus] DB Init failed:", err));
 
     // 2. Start idempotent batch sync background worker
-    syncService.startBackgroundWorker(15000);
 
     // 3. Khôi phục phiên đăng nhập Staff đã lưu (nếu có) trước khi quyết định route đầu tiên
     restoreSession();
@@ -42,6 +41,16 @@ export default function RootLayout() {
       syncService.stopBackgroundWorker();
     };
   }, []);
+
+  useEffect(() => {
+    if (user && !isRestoring) syncService.startBackgroundWorker(15000);
+    else syncService.stopBackgroundWorker();
+    const unsubscribe = syncService.subscribe((status) => {
+      useScannerStore.setState({ isSyncing: status.isSyncing, syncMessage: status.lastMessage });
+      refreshStats();
+    });
+    return () => { unsubscribe(); syncService.stopBackgroundWorker(); };
+  }, [user, isRestoring]);
 
   if (isRestoring) {
     return (
@@ -55,11 +64,13 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <Stack>
-          {user ? (
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Protected guard={!!user}>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          ) : (
+          </Stack.Protected>
+          <Stack.Protected guard={!user}>
             <Stack.Screen name="login" options={{ headerShown: false }} />
-          )}
+          </Stack.Protected>
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

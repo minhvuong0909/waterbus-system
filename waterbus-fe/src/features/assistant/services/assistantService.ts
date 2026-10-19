@@ -2,7 +2,10 @@ import { withDelay } from '../../../mocks/delay'
 import { ASSISTANT_FALLBACK, ASSISTANT_REPLIES } from '../../../mocks/tickets'
 import { t } from '../../../i18n'
 import { getUpcomingTrips } from '../../trips/services/tripService'
-import type { AssistantReply } from '../types'
+import type { AssistantReply, AssistantApiCard } from '../types'
+import { USE_MOCK } from '../../../constant/env'
+import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
+import { apiRequest } from '../../../services/apiClient'
 
 const MAX_TRIP_CARDS = 3
 const TRIP_QUESTION = /trip|departure|schedule|timetable|next|chuyến|giờ|lịch/i
@@ -27,6 +30,13 @@ export async function askAssistant(
   message: string,
   { tripCards = true }: { tripCards?: boolean } = {},
 ): Promise<AssistantReply> {
+  if (!USE_MOCK) {
+    const response = await apiRequest<{ textAnswer: string; cards: AssistantApiCard[] }>(API_ENDPOINTS.assistant, {
+      method: 'POST', body: { message },
+    })
+    // Backend quyết định nội dung và liên kết; không tự dựng giá hoặc chuyến từ lời AI.
+    return { text: response.textAnswer, apiCards: tripCards ? response.cards : undefined }
+  }
   const canned = ASSISTANT_REPLIES[message]
   if (canned) return withDelay({ text: canned }, 500)
   if (tripCards && TRIP_QUESTION.test(message)) return nextDepartures()

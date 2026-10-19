@@ -68,11 +68,9 @@ describe('getSeatMap', () => {
     await expect(getSeatMap(GUID(1), GUID(2), GUID(3))).rejects.toMatchObject({ status: 409 })
   })
 
-  it('keeps the mock layout for a mock trip', async () => {
-    const map = await getSeatMap('trip-1', 'bach-dang', 'linh-dong')
+  it('rejects demo identifiers in live mode instead of displaying a fake seat map', async () => {
+    await expect(getSeatMap('trip-1', 'bach-dang', 'linh-dong')).rejects.toMatchObject({ status: 400 })
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(map.journey).toBeUndefined()
-    expect(map.seats.length).toBeGreaterThan(0)
   })
 })
 
@@ -88,16 +86,24 @@ describe('createHold', () => {
     expect(result.accessToken).toBe('tok')
   })
 
-  it('returns a mock Draft order (no request) for a mock trip', async () => {
-    const result = await createHold(holdRequest(['S01'], 'trip-1'), 250000)
+  it('rejects demo trips in live mode instead of reporting a fake order', async () => {
+    await expect(createHold(holdRequest(['S01'], 'trip-1'), 250000)).rejects.toMatchObject({ status: 400 })
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(result.accessToken).toBeNull()
-    expect(result.status).toBe('Draft')
-    expect(Date.parse(result.expiresAt ?? '')).toBeGreaterThan(Date.now())
   })
 })
 
 describe('submitCheckout, getCheckout and getBookingQr', () => {
+  it('reads an authenticated order without a guest token from the backend', async () => {
+    fetchMock.mockResolvedValue(json({ orderId: GUID(9), status: 'PendingPayment', bookings: [], payments: [] }))
+    expect((await getCheckout(GUID(9), null)).status).toBe('PendingPayment')
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(fetchMock.mock.calls[0][1].headers['X-Guest-Token']).toBeUndefined()
+  })
+  it('fetches real signed QR credentials without a guest token', async () => {
+    fetchMock.mockResolvedValue(json({ payload: 'signed.qr.value', algorithm: 'RS256' }))
+    expect((await getBookingQr(GUID(9), GUID(8), null)).payload).toBe('signed.qr.value')
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
   it('submit posts the buyer with the guest token', async () => {
     fetchMock.mockResolvedValue(json(true))
     await submitCheckout(GUID(9), 'tok', {

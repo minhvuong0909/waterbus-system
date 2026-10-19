@@ -17,6 +17,7 @@ import { formatDateTime } from '../../features/admin/utils'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { formatNumber } from '../../utils/format'
 import { t } from '../../i18n'
+import { USE_MOCK } from '../../constant/env'
 
 const CAN_REASSIGN: AdminTripStatus[] = ['Scheduled', 'Boarding', 'Suspended']
 const STATUSES: AdminTripStatus[] = [
@@ -86,16 +87,16 @@ export default function TripsPage() {
 
   const columns: Column<AdminTrip>[] = [
     { header: 'Departure', render: (x) => formatDateTime(x.departureTime) },
-    { header: 'Route', render: (x) => routeName(x.routeId) },
+    { header: 'Route', render: (x) => x.routeName ?? routeName(x.routeId) },
     { header: 'Boat', render: (x) => <span className="font-mono font-semibold">{boatCode(x.boatId)}</span> },
     { header: 'Type', render: (x) => t(x.tripType === 'Commuter' ? 'Regular' : 'Sightseeing') },
-    { header: 'Price (VND)', render: (x) => formatNumber(x.basePrice), className: 'text-right' },
+    { header: 'Price (VND)', render: (x) => USE_MOCK ? formatNumber(x.basePrice) : '—', className: 'text-right' },
     { header: 'Status', render: (x) => <StatusBadge status={x.status} /> },
     {
       header: 'Actions',
       className: 'text-right',
       render: (x) =>
-        CAN_REASSIGN.includes(x.status) ? (
+        USE_MOCK && CAN_REASSIGN.includes(x.status) ? (
           <ActionButton tone="secondary" icon="swap_horiz" onClick={() => setAssigning(x)}>
             {t('Change boat')}
           </ActionButton>

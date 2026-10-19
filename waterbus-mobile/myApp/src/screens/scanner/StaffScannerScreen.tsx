@@ -40,6 +40,7 @@ export default function StaffScannerScreen() {
   const [testModalOpen, setTestModalOpen] = useState<boolean>(false);
 
   const {
+    isModalOpen,
     setCurrentBooking,
     stats,
     deviceInfo,
@@ -165,7 +166,9 @@ export default function StaffScannerScreen() {
   const handleManualSearch = async () => {
     if (!manualCode.trim()) return;
     setManualModalOpen(false);
-    await processManualLookup(manualCode.trim());
+    const value = manualCode.trim();
+    if (value.split('.').length === 3) await processScannedQr(value);
+    else await processManualLookup(value);
     setManualCode('');
   };
 
@@ -176,11 +179,11 @@ export default function StaffScannerScreen() {
   };
 
   // Render Camera Permission fallback
-  if (!permission) {
+  if (!permission && Platform.OS !== 'web') {
     return <View style={styles.centerContainer}><Text>Đang yêu cầu quyền camera...</Text></View>;
   }
 
-  if (!permission.granted) {
+  if (permission && !permission.granted && Platform.OS !== 'web') {
     return (
       <View style={styles.centerContainer}>
         <Ionicons name="camera-reverse-outline" size={64} color="#0284C7" />
@@ -193,9 +196,9 @@ export default function StaffScannerScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.permissionButton, { backgroundColor: '#0F172A', marginTop: 12 }]}
-          onPress={() => setTestModalOpen(true)}
+          onPress={() => router.push('/(tabs)/manifest')}
         >
-          <Text style={styles.permissionButtonText}>Dùng Trình Giả Lập Quét (Demo)</Text>
+          <Text style={styles.permissionButtonText}>Xem phân công và tải vé</Text>
         </TouchableOpacity>
       </View>
     );
@@ -211,16 +214,16 @@ export default function StaffScannerScreen() {
       {/* Real Camera Viewfinder */}
       {Platform.OS !== 'web' ? (
         <CameraView
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           facing={facing}
           enableTorch={torch}
           barcodeScannerSettings={{
             barcodeTypes: ['qr', 'code128', 'code39'],
           }}
-          onBarcodeScanned={isScannedLocked ? undefined : handleBarcodeScanned}
+          onBarcodeScanned={isScannedLocked || isModalOpen || manualModalOpen || testModalOpen ? undefined : handleBarcodeScanned}
         />
       ) : (
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#0F172A' }]} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0F172A' }]} />
       )}
 
       {/* Top Header Controls Overlay */}

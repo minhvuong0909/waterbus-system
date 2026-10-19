@@ -11,10 +11,10 @@ interface StoriesSectionProps {
 
 export default function StoriesSection({ stories }: StoriesSectionProps) {
   return (
-    <section className="w-full bg-surface-container-lowest py-space-3xl">
-      <div className="mx-auto max-w-7xl space-y-space-2xl px-margin">
+    <section className="w-full bg-surface-container-lowest py-10 sm:py-14">
+      <div className="mx-auto max-w-7xl space-y-8 px-5 sm:px-8">
         <div data-reveal className="max-w-2xl space-y-space-xs">
-          <h2 className="font-headline-lg text-headline-lg font-bold tracking-tight text-deep-river">
+          <h2 className="font-headline-lg text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-[36px]">
             {t('A Different Perspective on Saigon’s Skyline & Heritage')}
           </h2>
         </div>
@@ -22,9 +22,10 @@ export default function StoriesSection({ stories }: StoriesSectionProps) {
         <div className="grid grid-cols-1 gap-space-xl md:grid-cols-3">
           {stories.map((story) => (
             <Link
+              data-reveal
               key={story.id}
               to={ROUTES.explore}
-              className="group flex flex-col overflow-hidden rounded-panel border border-outline-variant/30 bg-surface shadow-sm transition-all duration-300 hover:shadow-xl"
+              className="hover-lift group flex flex-col overflow-hidden rounded-panel border border-outline-variant/30 bg-surface shadow-sm"
             >
               <div className="relative h-72 w-full overflow-hidden bg-deep-river/10">
                 <div

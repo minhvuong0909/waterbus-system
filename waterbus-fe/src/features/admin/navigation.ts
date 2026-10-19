@@ -9,29 +9,32 @@ export interface AdminNavItem {
   roles: readonly string[]
 }
 
-const { admin, dispatcher, captain } = ROLES
+const { admin, captain } = ROLES
 
-/** Sidebar of the operations area, in the order of the design guide (DESIGN.md, Admin / Dispatcher). */
+/** Điều hướng khu vực quản trị; công cụ kiểm thử chỉ xuất hiện ở môi trường phát triển. */
 export const ADMIN_NAV: AdminNavItem[] = [
-  { to: ROUTES.admin, label: 'Overview', icon: 'dashboard', roles: [admin, dispatcher] },
-  { to: ROUTES.adminRadar, label: 'Live Operations', icon: 'radar', roles: [admin, dispatcher] },
-  { to: ROUTES.adminTrips, label: 'Trips', icon: 'directions_boat', roles: [admin, dispatcher] },
+  { to: ROUTES.admin, label: 'Overview', icon: 'dashboard', roles: [admin] },
+  { to: ROUTES.adminRadar, label: 'Live Operations', icon: 'radar', roles: [admin] },
+  { to: ROUTES.adminTrips, label: 'Trips', icon: 'directions_boat', roles: [admin] },
   { to: ROUTES.adminSchedules, label: 'Schedules', icon: 'calendar_month', roles: [admin] },
   { to: ROUTES.adminStations, label: 'Stations', icon: 'anchor', roles: [admin] },
   { to: ROUTES.adminBoats, label: 'Boats', icon: 'sailing', roles: [admin] },
   { to: ROUTES.adminFares, label: 'Fares', icon: 'payments', roles: [admin] },
-  { to: ROUTES.adminIncidents, label: 'Incidents', icon: 'warning', roles: [admin, dispatcher] },
+  { to: ROUTES.adminIncidents, label: 'Incidents', icon: 'warning', roles: [admin] },
+  ...(import.meta.env.DEV
+    ? [{ to: ROUTES.adminApi, label: 'Test API', icon: 'api', roles: [admin] }]
+    : []),
 ]
 
 /** Roles allowed in the captain's portal. */
 export const CAPTAIN_ROLES = [captain, admin] as const
 
 /** Roles that work in the operations area at all. */
-export const STAFF_ROLES = [admin, dispatcher, captain] as const
+export const STAFF_ROLES = [admin, captain] as const
 
 /** Where a user lands after signing in. */
 export function landingRouteFor(roles: readonly string[]): string {
-  if (roles.includes(admin) || roles.includes(dispatcher)) return ROUTES.admin
+  if (roles.includes(admin)) return ROUTES.admin
   if (roles.includes(captain)) return ROUTES.captain
   return ROUTES.myTickets
 }

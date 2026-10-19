@@ -16,6 +16,7 @@ import type { AdminBoat } from '../../features/admin/types'
 import { totalSeatsOf } from '../../features/admin/utils'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
+import { USE_MOCK } from '../../constant/env'
 
 type Dialog = { kind: 'form' } | { kind: 'delete'; boat: AdminBoat } | null
 
@@ -25,9 +26,9 @@ const EMPTY = {
   registrationNumber: '',
   manufacturer: '',
   yearBuilt: String(new Date().getFullYear()),
-  frontCabinSeats: '12',
-  standardSeats: '36',
-  outdoorSeats: '12',
+  frontCabinSeats: USE_MOCK ? '12' : '0',
+  standardSeats: USE_MOCK ? '36' : '60',
+  outdoorSeats: USE_MOCK ? '12' : '0',
 }
 type FormState = typeof EMPTY
 
@@ -98,12 +99,12 @@ function BoatForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => vo
       <fieldset className="rounded-lg border border-outline-variant/50 p-3">
         <legend className="px-1 text-xs font-semibold text-on-surface-variant">{t('Seat layout')}</legend>
         <div className="grid grid-cols-3 gap-3">
-          <TextField label="Front cabin" inputMode="numeric" value={form.frontCabinSeats} onChange={set('frontCabinSeats')} error={errors.frontCabinSeats} />
-          <TextField label="Standard" inputMode="numeric" value={form.standardSeats} onChange={set('standardSeats')} error={errors.standardSeats} />
-          <TextField label="Outdoor deck" inputMode="numeric" value={form.outdoorSeats} onChange={set('outdoorSeats')} error={errors.outdoorSeats} />
+          {USE_MOCK && <TextField label="Front cabin" inputMode="numeric" value={form.frontCabinSeats} onChange={set('frontCabinSeats')} error={errors.frontCabinSeats} />}
+          <TextField label={USE_MOCK ? 'Standard' : 'Tổng số ghế'} inputMode="numeric" value={form.standardSeats} onChange={set('standardSeats')} error={errors.standardSeats} />
+          {USE_MOCK && <TextField label="Outdoor deck" inputMode="numeric" value={form.outdoorSeats} onChange={set('outdoorSeats')} error={errors.outdoorSeats} />}
         </div>
         <p className="mt-2 text-xs text-on-surface-variant">
-          {t('Total seats: {total}. Seat codes are generated as F01.., S01.. and O01..', { total })}
+          {USE_MOCK ? t('Total seats: {total}. Seat codes are generated as F01.., S01.. and O01..', { total }) : 'Chỉ lưu tổng số ghế. Chưa có API cấu hình sơ đồ ghế cho tàu mới.'}
         </p>
       </fieldset>
       {error && <Notice tone="error">{error}</Notice>}
@@ -138,7 +139,7 @@ export default function BoatsPage() {
       header: 'Seats',
       render: (b) => (
         <span title={t('Front cabin / standard / outdoor')}>
-          {b.totalSeats} <span className="text-on-surface-variant">({b.frontCabinSeats}/{b.standardSeats}/{b.outdoorSeats})</span>
+          {b.totalSeats} {USE_MOCK && <span className="text-on-surface-variant">({b.frontCabinSeats}/{b.standardSeats}/{b.outdoorSeats})</span>}
         </span>
       ),
     },
@@ -147,7 +148,7 @@ export default function BoatsPage() {
       className: 'text-right',
       render: (b) => (
         <ActionButton tone="secondary" icon="delete" onClick={() => { remove.clearError(); setDialog({ kind: 'delete', boat: b }) }}>
-          {t('Delete')}
+          {'Ngừng hoạt động'}
         </ActionButton>
       ),
     },
@@ -178,9 +179,9 @@ export default function BoatsPage() {
       )}
 
       {dialog?.kind === 'delete' && (
-        <Modal title="Delete boat" onClose={() => setDialog(null)}>
+        <Modal title="Ngừng hoạt động tàu" onClose={() => setDialog(null)}>
           <p className="text-sm text-on-surface-variant">
-            {t('Delete {name}? It can no longer be put on new trips.', { name: dialog.boat.name })}
+            {t('Ngừng hoạt động {name}? Tàu sẽ không còn trong danh sách đang hoạt động.', { name: dialog.boat.name })}
           </p>
           {remove.error && (
             <div className="mt-3">
@@ -202,7 +203,7 @@ export default function BoatsPage() {
                 if (done) closeAndReload()
               }}
             >
-              {t('Delete')}
+              {'Ngừng hoạt động'}
             </ActionButton>
           </div>
         </Modal>

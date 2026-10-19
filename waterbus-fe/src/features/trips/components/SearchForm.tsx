@@ -30,16 +30,15 @@ function StaticField({
   note: string
 }) {
   return (
-    <div className="group flex flex-col justify-between rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] p-3.5 transition-colors hover:bg-[#EBF2F0]/80">
+    <div className="flex h-full min-h-[112px] min-w-0 flex-col justify-between gap-3 rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] p-3.5">
       <div className="mb-1 flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
           <Icon name={icon} className="text-[15px] text-teal-flow" />
           {label}
         </span>
-        <Icon name="expand_more" className="text-[16px] text-outline" />
       </div>
       <div>
-        <span className="block truncate font-headline-sm text-base font-bold text-deep-river">
+        <span className="block font-headline-sm text-sm font-bold leading-snug text-deep-river">
           {value}
         </span>
         <p className="mt-0.5 truncate text-[11px] text-on-surface-variant">{note}</p>
@@ -74,7 +73,7 @@ export default function SearchForm({ piers, dates }: SearchFormProps) {
   }
 
   return (
-    <div className="rounded-2xl border border-[#E2ECEE] bg-white p-6 shadow-[0_4px_24px_rgba(13,37,56,0.06)] sm:p-7">
+    <div className="rounded-2xl border border-[#E2ECEE] bg-white p-4 shadow-[0_4px_24px_rgba(13,37,56,0.04)] sm:p-6">
       <div className="mb-5 flex items-center justify-between">
         <div
           className="inline-flex rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] p-1"
@@ -105,17 +104,17 @@ export default function SearchForm({ piers, dates }: SearchFormProps) {
 
       <form
         onSubmit={handleSubmit}
-        className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-12"
+        className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.5fr)_44px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1.25fr)_88px]"
       >
         <PierField
-          className="lg:col-span-3"
+          className="min-w-0"
           label={t('Departure Pier')}
           dotClass="bg-emerald-500 ring-4 ring-emerald-100"
           value={pier(query.originId)}
           options={piers}
           onChange={chooseOrigin}
         />
-        <div className="z-10 hidden items-center justify-center lg:col-span-1 lg:-mx-3 lg:flex">
+        <div className="z-10 hidden items-center justify-center xl:flex">
           <button
             type="button"
             aria-label={t('Swap origin and destination')}
@@ -131,14 +130,14 @@ export default function SearchForm({ piers, dates }: SearchFormProps) {
           </button>
         </div>
         <PierField
-          className="lg:col-span-3"
+          className="min-w-0"
           label={t('Arrival Pier')}
           dotClass="bg-teal-flow ring-4 ring-teal-100"
           value={pier(query.destinationId)}
           options={piers}
           onChange={chooseDestination}
         />
-        <div className="lg:col-span-2">
+        <div className="min-w-0">
           <StaticField
             icon="calendar_today"
             label={t('Date')}
@@ -146,7 +145,7 @@ export default function SearchForm({ piers, dates }: SearchFormProps) {
             note={t('Daily timetable')}
           />
         </div>
-        <div className="lg:col-span-2">
+        <div className="min-w-0">
           <StaticField
             icon="person"
             label={t('Passengers & Class')}
@@ -154,7 +153,7 @@ export default function SearchForm({ piers, dates }: SearchFormProps) {
             note={t(query.passengerNote)}
           />
         </div>
-        <div className="flex items-stretch lg:col-span-1">
+        <div className="flex items-stretch md:col-span-2 xl:col-span-1">
           <button
             type="submit"
             className="group flex min-h-[58px] w-full items-center justify-center gap-1 rounded-xl bg-teal-flow font-headline-sm text-sm font-bold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.28)] transition-all hover:bg-secondary hover:shadow-[0_4px_16px_rgba(20,122,126,0.38)]"

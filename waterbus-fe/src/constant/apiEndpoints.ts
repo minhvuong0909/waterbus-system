@@ -1,10 +1,14 @@
 /** Backend routes that the app calls (controllers use the `api/v1/[controller]` prefix). */
 export const API_ENDPOINTS = {
+  openApi: '/swagger/v1/swagger.json',
   auth: {
     login: '/api/v1/auth/login',
   },
   stations: '/api/v1/stations',
   boats: '/api/v1/boats',
+  station: (id: string) => `/api/v1/stations/${id}`,
+  boat: (id: string) => `/api/v1/boats/${id}`,
+  assistant: '/api/v1/aiassistant/chat',
   checkouts: {
     /** Holds seats first (Draft); the buyer is submitted later. */
     holds: '/api/v1/checkouts/holds',

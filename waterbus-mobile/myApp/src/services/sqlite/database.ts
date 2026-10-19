@@ -229,7 +229,7 @@ export async function getDatabase(): Promise<DatabaseAdapter> {
   }
 
   try {
-    const SQLite = await import('expo-sqlite');
+    const SQLite = await import('./sqliteDriver');
     const nativeDb = await SQLite.openDatabaseAsync(DB_NAME);
 
     // Wrapper matching DatabaseAdapter interface

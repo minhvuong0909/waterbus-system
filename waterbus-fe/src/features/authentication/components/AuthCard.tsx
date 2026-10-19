@@ -3,12 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { ErrorState, Icon } from '../../../components/ui'
 import { useFetch } from '../../../hooks'
 import { ApiError } from '../../../services/apiClient'
-import type {
-  AuthMode,
-  AuthSession,
-  RegisterPayload,
-  SignInPayload,
-} from '../authenticationTypes'
+import type { AuthMode, AuthSession, RegisterPayload, SignInPayload } from '../authenticationTypes'
 import { landingRouteFor } from '../../admin/navigation'
 import { useAuth } from '../hook/authenticationHook'
 import { getAuthShowcase, register, signIn, signInWithGoogle } from '../services/authenticationApi'
@@ -62,26 +57,26 @@ export default function AuthCard() {
     }`
 
   return (
-    <div className="grid min-h-[640px] w-full grid-cols-1 overflow-hidden rounded-panel border border-outline-variant/60 bg-white shadow-xl shadow-deep-river/5 lg:grid-cols-12">
+    <div className="grid w-full grid-cols-1 overflow-hidden rounded-[24px] border border-outline-variant/50 bg-white shadow-[0_12px_40px_-24px_rgba(13,37,56,0.25)] lg:min-h-[600px] lg:grid-cols-12">
       {showcase.data ? (
         <AuthShowcasePanel showcase={showcase.data} />
       ) : showcase.error ? (
-        <div className="flex items-center bg-deep-river p-8 lg:col-span-5">
+        <div className="hidden items-center bg-deep-river p-8 lg:col-span-5 lg:flex">
           <div className="w-full">
             <ErrorState compact onRetry={showcase.retry} />
           </div>
         </div>
       ) : (
-        <div className="bg-deep-river lg:col-span-5" />
+        <div className="hidden bg-deep-river lg:col-span-5 lg:block" />
       )}
 
-      <div className="flex flex-col justify-between bg-white p-8 sm:p-12 lg:col-span-7 lg:p-14">
+      <div className="flex min-w-0 flex-col justify-between bg-white p-5 sm:p-10 lg:col-span-7 lg:p-12">
         <div className="mx-auto w-full max-w-md">
           <div className="mb-7">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <h2 className="text-2xl font-bold tracking-tight text-deep-river">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+              <h1 className="text-2xl font-bold leading-snug tracking-tight text-deep-river">
                 {t(COPY[mode].title)}
-              </h2>
+              </h1>
               <span className="shrink-0 rounded-full bg-teal-flow/10 px-2.5 py-1 text-xs font-semibold text-teal-flow">
                 {t('Passenger Portal')}
               </span>
@@ -127,7 +122,9 @@ export default function AuthCard() {
               className="mb-4 rounded-xl border border-coral-glow/30 bg-coral-glow/10 px-4 py-3 text-sm text-deep-river"
             >
               {failure ||
-                t('We couldn’t complete that just now. Please check your connection and try again.')}
+                t(
+                  'We couldn’t complete that just now. Please check your connection and try again.',
+                )}
             </p>
           )}
 
@@ -148,7 +145,7 @@ export default function AuthCard() {
           )}
         </div>
 
-        <div className="mt-8 flex items-center justify-between border-t border-surface-container pt-5 text-xs text-outline">
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-surface-container pt-5 text-xs text-on-surface-variant">
           <div className="flex items-center gap-2">
             <Icon name="shield" className="text-[16px] text-teal-flow" />
             <span>{t('Secure Passenger Account')}</span>

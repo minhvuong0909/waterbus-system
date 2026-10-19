@@ -68,7 +68,7 @@ function ticketOf({ id, day, time, seat: seatCode, bookingSuffix }: Sample): Tic
   }
 }
 
-export function buildTicketWallet(): TicketWallet {
+export function buildTicketWallet(): TicketWallet & { next: Ticket } {
   return {
     next: ticketOf({ id: 'tkt-sample-next', day: 1, time: '09:00', seat: 'S01', bookingSuffix: '11' }),
     later: [
