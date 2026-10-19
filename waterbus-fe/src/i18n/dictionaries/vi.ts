@@ -1643,4 +1643,8 @@ export const vi: Record<string, string> = {
   'You did not check in on time, so this ticket is not refundable.': 'Bạn không check-in đúng hạn nên vé này không được hoàn tiền.',
   'Thunderstorm with gusts above 62 km/h expected on route RT01.': 'Dự báo dông kèm gió giật trên 62 km/h trên tuyến RT01.',
   'Captain reported an engine fault on SWB-01 and requests a stop at the next pier.': 'Thuyền trưởng báo hỏng động cơ trên SWB-01 và đề nghị dừng ở bến kế tiếp.',
+  'Find trips': 'Tìm chuyến',
+  'Ticket type': 'Loại vé',
+  'Look up a booking without signing in': 'Tra cứu vé không cần đăng nhập',
+  'Book the return trip': 'Đặt chuyến về',
 }

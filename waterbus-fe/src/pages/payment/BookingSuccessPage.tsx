@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
+import { Link, useNavigate } from 'react-router-dom'
+import { Breadcrumb, Button, ErrorState, PageLoader } from '../../components/ui'
+import { useSearchQuery } from '../../features/trips/hooks/useTripSearch'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import {
   bookingReference,
@@ -30,6 +31,8 @@ import { t } from '../../i18n'
 export default function BookingSuccessPage() {
   useDocumentTitle('Booking Confirmed')
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
+  const { updateQuery } = useSearchQuery()
   const { query, selectedTrip, passengers } = useAppSelector((s) => s.booking)
   const { loading, error, retry, trip, seats, purchaser, totals } = useBooking()
   const steps = useFetch(getNextSteps)
@@ -154,8 +157,18 @@ export default function BookingSuccessPage() {
               }}
             />
           </div>
-          <div className="lg:col-span-5">
+          <div className="space-y-space-md lg:col-span-5">
             <QuickActions />
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={() => {
+                updateQuery({ originId: query.destinationId, destinationId: query.originId })
+                navigate(ROUTES.searchResults)
+              }}
+            >
+              {t('Book the return trip')}
+            </Button>
           </div>
         </div>
       </div>
