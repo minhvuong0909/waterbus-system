@@ -1,5 +1,6 @@
 using Hangfire;
 using Microsoft.Extensions.Options;
+using WaterbusSystem.Application.Features.CheckIns;
 using WaterbusSystem.Application.Features.Incidents;
 using WaterbusSystem.Infrastructure.BackgroundJobs;
 
@@ -40,6 +41,20 @@ public static class BackgroundJobsApplicationBuilderExtensions
         else
         {
             recurringJobs.RemoveIfExists(WeatherGuardJob.RecurringJobId);
+        }
+
+        var noShow = app.Services.GetRequiredService<IOptions<NoShowFinalizationOptions>>().Value;
+        if (noShow.Enabled)
+        {
+            recurringJobs.AddOrUpdate<NoShowFinalizationJob>(
+                NoShowFinalizationJob.RecurringJobId,
+                job => job.RunAsync(CancellationToken.None),
+                noShow.CronExpression,
+                new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+        }
+        else
+        {
+            recurringJobs.RemoveIfExists(NoShowFinalizationJob.RecurringJobId);
         }
 
         return app;

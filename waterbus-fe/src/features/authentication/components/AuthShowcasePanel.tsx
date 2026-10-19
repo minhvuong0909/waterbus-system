@@ -10,7 +10,7 @@ export default function AuthShowcasePanel({ showcase }: AuthShowcasePanelProps) 
   const { crossing } = showcase
 
   return (
-    <div className="relative flex flex-col justify-between overflow-hidden bg-deep-river p-8 text-white sm:p-10 lg:col-span-5">
+    <div className="relative hidden flex-col justify-between overflow-hidden bg-deep-river p-8 text-white lg:col-span-5 lg:flex lg:p-10">
       <img
         alt=""
         aria-hidden="true"
@@ -41,10 +41,10 @@ export default function AuthShowcasePanel({ showcase }: AuthShowcasePanelProps) 
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-aqua" />
           {showcase.eyebrow}
         </div>
-        <h1 className="mb-3 font-headline-xl text-3xl font-extrabold leading-[1.15] tracking-tight text-white sm:text-4xl">
+        <h2 className="mb-3 font-headline-xl text-3xl font-extrabold leading-[1.2] tracking-tight text-white xl:text-[34px]">
           {showcase.headline[0]} <br />
           <span className="text-sky-aqua">{showcase.headline[1]}</span>
-        </h1>
+        </h2>
         <p className="max-w-sm text-sm leading-relaxed text-outline-variant">{showcase.intro}</p>
       </div>
 

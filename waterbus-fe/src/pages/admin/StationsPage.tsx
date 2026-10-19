@@ -147,7 +147,7 @@ export default function StationsPage() {
             {t('Edit')}
           </ActionButton>
           <ActionButton tone="secondary" icon="delete" onClick={() => { remove.clearError(); setDialog({ kind: 'delete', station: s }) }}>
-            {t('Delete')}
+            {'Ngừng hoạt động'}
           </ActionButton>
         </span>
       ),
@@ -179,9 +179,9 @@ export default function StationsPage() {
       )}
 
       {dialog?.kind === 'delete' && (
-        <Modal title="Delete station" onClose={() => setDialog(null)}>
+        <Modal title="Ngừng hoạt động bến" onClose={() => setDialog(null)}>
           <p className="text-sm text-on-surface-variant">
-            {t('Delete {name}? It will no longer be offered to passengers.', { name: dialog.station.name })}
+            {t('Ngừng hoạt động {name}? Bến sẽ không còn được hiển thị cho khách.', { name: dialog.station.name })}
           </p>
           {remove.error && (
             <div className="mt-3">
@@ -203,7 +203,7 @@ export default function StationsPage() {
                 if (done) closeAndReload()
               }}
             >
-              {t('Delete')}
+              {'Ngừng hoạt động'}
             </ActionButton>
           </div>
         </Modal>

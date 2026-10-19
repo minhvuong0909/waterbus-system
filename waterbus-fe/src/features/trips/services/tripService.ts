@@ -30,6 +30,8 @@ import {
   toPierOption,
   toTrip,
 } from '../utils'
+import type { TripDetailDto, TripSeatMapDto } from '../../booking/types'
+import { pickJourney } from '../../booking/utils'
 
 /** `GET /stations`: the active piers in river order. */
 export async function getPierOptions(): Promise<PierOption[]> {
@@ -106,7 +108,26 @@ export async function getTripDetail(
   query: SearchQuery,
 ): Promise<TripDetail> {
   const mockTrips = USE_MOCK ? buildTrips() : []
-  const trip = selectedTrip ?? mockTrips.find((item) => item.id === tripId) ?? mockTrips[0]
+  let trip = selectedTrip ?? mockTrips.find((item) => item.id === tripId) ?? mockTrips[0]
+  if (!USE_MOCK && tripId) {
+    const raw = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
+    const journey = pickJourney(raw.stops, query.originId, query.destinationId)
+    if (!journey) throw new ApiError(409, 'Chuyến không phục vụ đoạn bến đã chọn. Hãy tìm chuyến lại.')
+    const seats = await apiRequest<TripSeatMapDto>(API_ENDPOINTS.trips.seats(tripId), {
+      query: { boardingCallId: journey.boarding.callId, disembarkingCallId: journey.disembarking.callId },
+    })
+    const prices = seats.seats.flatMap((seat) => seat.price === null ? [] : [seat.price])
+    const departureTime = journey.boarding.estimatedDepartureTime ?? raw.departureTime
+    const arrivalTime = journey.disembarking.estimatedArrivalTime ?? raw.arrivalTime
+    trip = toTrip({ id: raw.tripId, routeName: raw.routeName, tripType: raw.tripType,
+      departureStationName: journey.boarding.stationName, arrivalStationName: journey.disembarking.stationName,
+      departureTime, arrivalTime,
+      durationMinutes: Math.round((Date.parse(arrivalTime) - Date.parse(departureTime)) / 60000),
+      availableSeatsCount: seats.availableSeatsCount, basePrice: prices.length ? Math.min(...prices) : 0 })
+    trip.vesselCode = raw.boat?.code ?? trip.vesselCode
+    trip.vesselName = raw.boat?.name ?? raw.routeName
+    query = { ...query, dateId: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(departureTime)) }
+  }
   // Without the backend's trip detail endpoint, a real trip can only come from the search results.
   if (!trip) throw new ApiError(404, t('This trip is no longer available. Please search again.'))
   const piers = await getPierOptions()

@@ -31,6 +31,7 @@ const SitemapPage = lazy(() => import('../pages/sitemap/SitemapPage'))
 
 // Operations area. Which roles may open each page is declared once, in ADMIN_NAV.
 const ADMIN_PAGES: Record<string, ComponentType> = {
+  [ROUTES.adminApi]: lazy(() => import('../pages/admin/ApiToolsPage')),
   [ROUTES.admin]: lazy(() => import('../pages/admin/OverviewPage')),
   [ROUTES.adminRadar]: lazy(() => import('../pages/admin/RadarPage')),
   [ROUTES.adminTrips]: lazy(() => import('../pages/admin/TripsPage')),

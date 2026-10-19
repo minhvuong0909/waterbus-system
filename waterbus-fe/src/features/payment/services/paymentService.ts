@@ -37,7 +37,7 @@ export async function createPaymentUrl(
   orderId: string,
   accessToken: string | null,
 ): Promise<string> {
-  if (!accessToken) {
+  if (USE_MOCK) {
     const query = new URLSearchParams({ vnp_ResponseCode: '00', vnp_TxnRef: 'MOCK', mock: '1' })
     return `${ROUTES.paymentCallback}?${query.toString()}`
   }
@@ -56,7 +56,7 @@ export async function createPaymentUrl(
  */
 export function verifyVnPayReturn(search: string): Promise<VnPayReturnResult> {
   const params = Object.fromEntries(new URLSearchParams(search))
-  if (USE_MOCK || params.mock === '1') {
+  if (USE_MOCK) {
     const success = params.vnp_ResponseCode === '00'
     return withDelay({
       success,

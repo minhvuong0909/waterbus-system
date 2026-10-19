@@ -9,6 +9,7 @@ import type { Trip } from '../../trips/types'
 import { askAssistant } from '../services/assistantService'
 import type { ChatMessage } from '../types'
 import AssistantTripCard from './AssistantTripCard'
+import AssistantApiCards from './AssistantApiCards'
 import { t } from '../../../i18n'
 
 const CHIPS = [
@@ -122,6 +123,7 @@ export default function AssistantWidget() {
                 >
                   {m.text}
                 </div>
+                {m.apiCards && <AssistantApiCards cards={m.apiCards} />}
                 {m.trips && (
                   <div className="mt-2 space-y-2">
                     {m.trips.map((trip) => (

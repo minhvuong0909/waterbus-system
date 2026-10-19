@@ -6,12 +6,14 @@ import { getTrackingData } from '../../features/tracking/services/trackingServic
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
+import { ApiError } from '../../services/apiClient'
 
 export default function LiveTrackingPage() {
   useDocumentTitle('Live Trip Tracking')
   const { data, loading, error, retry } = useFetch(getTrackingData)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
+  if (error instanceof ApiError && error.status === 501) return <div className="mx-auto max-w-3xl p-8"><h1 className="text-2xl font-bold">Theo dõi hành trình</h1><p className="mt-4">{error.message}</p></div>
   if (error) return <ErrorState onRetry={retry} />
 
   if (loading || !data) return <PageLoader />

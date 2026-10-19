@@ -4,6 +4,7 @@ import { getPierOptions, getUpcomingTrips } from '../../trips/services/tripServi
 import type { CorridorMap, Departure } from '../../trips/types'
 import type { HomeData } from '../types'
 import { buildCorridorMap, toDeparture } from '../utils'
+import { USE_MOCK } from '../../../constant/env'
 
 const MAX_DEPARTURES = 4
 
@@ -23,5 +24,7 @@ export async function getNextDepartures(): Promise<Departure[]> {
 
 /** The stations of the corridor. The vessel on it is a mock until the tracking API exists. */
 export async function getCorridorMap(): Promise<CorridorMap> {
-  return buildCorridorMap(await getPierOptions())
+  const map = buildCorridorMap(await getPierOptions())
+  if (!USE_MOCK) map.vessel = null
+  return map
 }

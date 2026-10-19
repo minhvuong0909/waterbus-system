@@ -13,22 +13,25 @@ const QUICK_LINKS = [
 /** Slim footer: brand, the few links people look for, and how to reach the operator. */
 export default function Footer() {
   return (
-    <footer className="w-full border-t border-outline-variant/30 bg-surface-container-low print:hidden">
-      <div className="mx-auto max-w-7xl px-margin py-space-xl">
-        <div className="grid grid-cols-1 gap-space-xl md:grid-cols-3">
+    <footer className="w-full border-t border-outline-variant/30 bg-white print:hidden">
+      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <Logo className="h-8 w-auto" />
 
-          <ul className="space-y-space-xs text-body-md text-on-surface-variant">
+          <ul className="space-y-1 text-sm text-on-surface-variant">
             {QUICK_LINKS.map((l) => (
               <li key={l.label}>
-                <Link to={l.to} className="transition-colors hover:text-deep-river">
+                <Link
+                  to={l.to}
+                  className="inline-flex min-h-[36px] items-center transition-colors hover:text-teal-flow"
+                >
                   {t(l.label)}
                 </Link>
               </li>
             ))}
           </ul>
 
-          <div className="space-y-space-xs text-body-md text-on-surface-variant">
+          <div className="space-y-3 text-sm leading-relaxed text-on-surface-variant sm:col-span-2 lg:col-span-1">
             <p>
               <span className="font-semibold text-deep-river">{t('Operational Hours')}:</span>{' '}
               {t(CONTACT.hours)}

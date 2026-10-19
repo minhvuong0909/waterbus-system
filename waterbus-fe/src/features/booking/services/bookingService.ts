@@ -38,6 +38,7 @@ export async function getSeatMap(
   destinationId: string,
 ): Promise<SeatMap> {
   if (!isLiveTrip(tripId, originId, destinationId) || tripId === null) {
+    if (!USE_MOCK) throw new ApiError(400, 'Vui lòng chọn chuyến và hai bến từ kết quả tìm kiếm.')
     // Exact: seat statuses such as "sold" are values the UI compares, not text to translate.
     return withDelayExact(SEAT_MAP)
   }
@@ -67,8 +68,11 @@ export function createHold(
   request: CreateHoldRequest,
   quotedTotalVnd: number,
 ): Promise<CheckoutResponse> {
-  const [leg] = request.legs
-  if (isLiveTrip(leg.tripId, leg.boardingStationId, leg.disembarkingStationId)) {
+  if (!USE_MOCK) {
+    const leg = request.legs[0]
+    if (!leg || !isLiveTrip(leg.tripId, leg.boardingStationId, leg.disembarkingStationId)) {
+      return Promise.reject(new ApiError(400, 'Chuyến và bến phải lấy từ API tìm chuyến.'))
+    }
     return apiRequest<CheckoutResponse>(API_ENDPOINTS.checkouts.holds, {
       method: 'POST',
       body: request,
@@ -106,7 +110,7 @@ export async function submitCheckout(
   accessToken: string | null,
   request: SubmitCheckoutRequest,
 ): Promise<void> {
-  if (!accessToken) {
+  if (USE_MOCK) {
     await withDelayExact(true)
     return
   }
@@ -123,7 +127,7 @@ export async function submitCheckout(
  * MOCK (no token, i.e. a mock order): reports `Confirmed`.
  */
 export function getCheckout(orderId: string, accessToken: string | null): Promise<CheckoutDetail> {
-  if (!accessToken) {
+  if (USE_MOCK) {
     return withDelayExact({
       orderId,
       status: 'Confirmed' as const,
@@ -156,7 +160,7 @@ export function getBookingQr(
   bookingId: string,
   accessToken: string | null,
 ): Promise<BookingQr> {
-  if (!accessToken) {
+  if (USE_MOCK) {
     return withDelayExact({
       payload: `MOCK.${bookingId}`,
       algorithm: 'none',
@@ -171,7 +175,7 @@ export function getBookingQr(
 
 /** `DELETE /checkouts/{orderId}`: releases the held seats. Best effort: a failure is ignored. */
 export async function cancelCheckout(orderId: string, accessToken: string | null): Promise<void> {
-  if (!accessToken) return
+  if (USE_MOCK) return
   try {
     await apiRequest<unknown>(API_ENDPOINTS.checkouts.byId(orderId), {
       method: 'DELETE',

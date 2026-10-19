@@ -18,6 +18,11 @@ afterEach(() => {
 })
 
 describe('apiRequest', () => {
+  it('sends array filters as repeated query parameters', async () => {
+    fetchMock.mockResolvedValue(json([]))
+    await apiRequest('/api/v1/trips/operations', { query: { statuses: ['Scheduled', 'Boarding'] } })
+    expect(fetchMock.mock.calls[0][0]).toContain('statuses=Scheduled&statuses=Boarding')
+  })
   it('builds the query string and skips empty values', async () => {
     fetchMock.mockResolvedValue(json({ ok: true }))
     await apiRequest('/api/v1/trips', { query: { page: 2, q: '', skip: undefined, vip: false } })

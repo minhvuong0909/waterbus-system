@@ -19,9 +19,9 @@ export function PageHeader({
   actions?: ReactNode
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="font-headline-md text-2xl font-bold tracking-tight text-deep-river">
+        <h1 className="font-headline-md text-2xl font-bold leading-tight tracking-tight text-deep-river sm:text-[28px]">
           {t(title)}
         </h1>
         {description && <p className="mt-1 text-sm text-on-surface-variant">{t(description)}</p>}
@@ -42,9 +42,9 @@ export function Panel({
 }) {
   return (
     <section
-      className={`rounded-xl border border-outline-variant/40 bg-white p-4 shadow-xs ${className}`.trim()}
+      className={`rounded-2xl border border-outline-variant/30 bg-white p-4 shadow-[0_2px_8px_rgba(13,37,56,0.025)] sm:p-5 ${className}`.trim()}
     >
-      {title && <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-deep-river">{t(title)}</h2>}
+      {title && <h2 className="mb-4 text-base font-semibold text-deep-river">{t(title)}</h2>}
       {children}
     </section>
   )
@@ -69,12 +69,16 @@ export function DataTable<T>({
   empty?: string
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-outline-variant/40 bg-white">
+    <div className="overflow-x-auto rounded-2xl border border-outline-variant/30 bg-white shadow-[0_2px_8px_rgba(13,37,56,0.025)]">
       <table className="w-full min-w-[40rem] text-left text-sm">
-        <thead className="border-b border-outline-variant/40 bg-surface-container-low text-xs uppercase tracking-wide text-on-surface-variant">
+        <thead className="border-b border-outline-variant/30 bg-[#F8FAFC] text-[11px] uppercase tracking-wider text-on-surface-variant">
           <tr>
             {columns.map((c) => (
-              <th key={c.header} className={`px-4 py-2.5 font-semibold ${c.className ?? ''}`.trim()}>
+              <th
+                key={c.header}
+                scope="col"
+                className={`whitespace-nowrap px-4 py-3 font-semibold ${c.className ?? ''}`.trim()}
+              >
                 {t(c.header)}
               </th>
             ))}
@@ -83,15 +87,26 @@ export function DataTable<T>({
         <tbody className="divide-y divide-outline-variant/30">
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-4 py-8 text-center text-on-surface-variant">
+              <td
+                colSpan={columns.length}
+                className="px-4 py-8 text-center text-on-surface-variant"
+              >
                 {t(empty)}
               </td>
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={rowKey(row)} className="hover:bg-mist/60">
+              <tr
+                key={rowKey(row)}
+                className="transition-colors hover:bg-teal-flow/[0.035] focus-within:bg-teal-flow/[0.035]"
+              >
                 {columns.map((c) => (
-                  <td key={c.header} className={`px-4 py-2.5 text-deep-river ${c.className ?? ''}`.trim()}>
+                  <td
+                    key={c.header}
+                    className={`px-4 py-3 text-deep-river first:whitespace-nowrap ${
+                      c.className ?? ''
+                    }`.trim()}
+                  >
                     {c.render(row)}
                   </td>
                 ))}
@@ -165,7 +180,7 @@ export function Modal({
 }
 
 const inputClass =
-  'w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm text-deep-river focus:border-teal-flow focus:ring-teal-flow disabled:bg-surface-container-low'
+  'min-h-[42px] w-full rounded-xl border border-outline-variant/70 bg-white px-3 py-2 text-sm text-deep-river transition-colors focus:border-teal-flow focus:ring-2 focus:ring-teal-flow/15 disabled:bg-surface-container-low'
 
 interface FieldShellProps {
   label: string
@@ -226,7 +241,8 @@ export function SelectField({
 type ButtonTone = 'primary' | 'secondary' | 'danger'
 const TONES: Record<ButtonTone, string> = {
   primary: 'bg-teal-flow text-on-primary hover:bg-secondary',
-  secondary: 'border border-outline-variant bg-white text-deep-river hover:bg-surface-container-low',
+  secondary:
+    'border border-outline-variant bg-white text-deep-river hover:bg-surface-container-low',
   danger: 'bg-coral-glow text-white hover:opacity-90',
 }
 
@@ -245,7 +261,7 @@ export function ActionButton({
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${TONES[tone]} ${className}`.trim()}
+      className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${TONES[tone]} ${className}`.trim()}
       {...rest}
     >
       {icon && <Icon name={icon} className="text-[18px]" />}
@@ -278,7 +294,9 @@ const STATUS_LABEL: Record<AdminTripStatus, string> = {
 
 export function StatusBadge({ status }: { status: AdminTripStatus }) {
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[status]}`}>
+    <span
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[status]}`}
+    >
       {t(STATUS_LABEL[status])}
     </span>
   )

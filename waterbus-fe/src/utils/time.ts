@@ -14,9 +14,7 @@ export function toIsoDate(date: Date): string {
   return `${date.getFullYear()}-${mm}-${dd}`
 }
 
-/** "08:30" in the user's local time zone. */
+/** Giờ hiển thị tại Việt Nam, độc lập múi giờ thiết bị. */
 export function formatClock(date: Date): string {
-  const hh = String(date.getHours()).padStart(2, '0')
-  const mm = String(date.getMinutes()).padStart(2, '0')
-  return `${hh}:${mm}`
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' }).format(date)
 }

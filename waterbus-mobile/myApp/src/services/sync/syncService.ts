@@ -201,8 +201,12 @@ class SyncService {
 
       const response = await syncCheckInEvents(payload);
 
-      const resolved = response.results.filter((r) => r.outcome !== 'Error');
+      const resolved = response.results.filter((r) => ['Success', 'AlreadyCheckedIn'].includes(r.outcome));
       const failed = response.results.filter((r) => r.outcome === 'Error');
+      const conflicts = response.results.filter((r) => !['Success', 'AlreadyCheckedIn', 'Error'].includes(r.outcome));
+      for (const conflict of conflicts) {
+        await SqliteRepository.markEventConflict(conflict.clientEventId, conflict.error || conflict.outcome);
+      }
 
       await SqliteRepository.markEventsSynced(
         resolved.map((r) => ({ clientEventId: r.clientEventId, receivedAtServer: new Date().toISOString() }))
@@ -213,9 +217,9 @@ class SyncService {
 
       this.lastSyncAt = new Date().toLocaleTimeString();
       this.lastMessage =
-        failed.length === 0
+        failed.length === 0 && conflicts.length === 0
           ? `Đã đồng bộ thành công lô ${resolved.length} vé lên hệ thống lúc ${this.lastSyncAt}`
-          : `Đồng bộ ${resolved.length} vé thành công, ${failed.length} vé lỗi (xem chi tiết để đồng bộ lại).`;
+          : `Đồng bộ ${resolved.length} vé thành công, ${failed.length} vé lỗi, ${conflicts.length} vé bị máy chủ từ chối. Hãy kiểm tra lịch sử và tải lại manifest.`;
       console.log(`[SyncService] ${this.lastMessage}`);
 
       const remainingStats = await SqliteRepository.getManifestStats();

@@ -29,7 +29,7 @@ export default function PierField({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="group flex h-full w-full flex-col justify-between rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] p-3.5 text-left transition-colors hover:bg-[#EBF2F0]/80"
+        className="group flex h-full min-h-[112px] w-full min-w-0 flex-col justify-between gap-3 rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] p-3.5 text-left transition-colors hover:border-teal-flow/40 hover:bg-[#EBF2F0]/80"
       >
         <span className="mb-1 flex w-full items-center justify-between">
           <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
@@ -41,7 +41,7 @@ export default function PierField({
             className="text-[16px] text-outline transition-colors group-hover:text-deep-river"
           />
         </span>
-        <span>
+        <span className="block w-full min-w-0">
           <span className="block truncate font-headline-sm text-base font-bold text-deep-river">
             {value.name}
           </span>

@@ -11,6 +11,7 @@ import PierPopup from './PierPopup'
 interface PierMapProps {
   map: CorridorMap
   className?: string
+  compact?: boolean
   /** Buttons shown in the card of the clicked pier. */
   pierActions?: (pier: Pier) => ReactNode
 }
@@ -54,7 +55,12 @@ function FitToPiers({ points }: { points: [number, number][] }) {
  * order (a guide to the route, not the exact course of the river) and the vessel. Clicking a pier
  * opens a panel with its photos and the actions the page offers.
  */
-export default function PierMap({ map, className = '', pierActions }: PierMapProps) {
+export default function PierMap({
+  map,
+  className = '',
+  compact = false,
+  pierActions,
+}: PierMapProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const selected = map.piers.find((p) => p.id === selectedId)
   const line = useMemo(
@@ -65,7 +71,9 @@ export default function PierMap({ map, className = '', pierActions }: PierMapPro
 
   return (
     <div
-      className={`relative h-[470px] w-full overflow-hidden rounded-2xl border border-teal-flow/15 ${className}`.trim()}
+      className={`relative ${
+        compact ? 'h-[320px] sm:h-[380px]' : 'h-[470px]'
+      } w-full overflow-hidden rounded-2xl border border-teal-flow/15 ${className}`.trim()}
     >
       <MapContainer
         center={DEFAULT_CENTER}
@@ -77,7 +85,13 @@ export default function PierMap({ map, className = '', pierActions }: PierMapPro
         <TileLayer attribution={MAP_TILE_ATTRIBUTION} url={MAP_TILE_URL} />
         <Polyline
           positions={line}
-          pathOptions={{ color: '#147A7E', weight: 5, opacity: 0.75, dashArray: '2 10', lineCap: 'round' }}
+          pathOptions={{
+            color: '#147A7E',
+            weight: 5,
+            opacity: 0.75,
+            dashArray: '2 10',
+            lineCap: 'round',
+          }}
         />
         {map.piers.map((pier) => (
           <Marker
@@ -91,14 +105,20 @@ export default function PierMap({ map, className = '', pierActions }: PierMapPro
             </Tooltip>
           </Marker>
         ))}
-        <Marker position={[vessel.latitude, vessel.longitude]} icon={vesselIcon} zIndexOffset={500}>
-          <Tooltip direction="top" offset={[0, -18]}>
-            {`${vessel.code} • ${vessel.status} • ${t('{speedKmh} km/h • Next: {nextPier}', {
-              speedKmh: vessel.speedKmh,
-              nextPier: vessel.nextPier,
-            })}`}
-          </Tooltip>
-        </Marker>
+        {vessel && (
+          <Marker
+            position={[vessel.latitude, vessel.longitude]}
+            icon={vesselIcon}
+            zIndexOffset={500}
+          >
+            <Tooltip direction="top" offset={[0, -18]}>
+              {`${vessel.code} • ${vessel.status} • ${t('{speedKmh} km/h • Next: {nextPier}', {
+                speedKmh: vessel.speedKmh,
+                nextPier: vessel.nextPier,
+              })}`}
+            </Tooltip>
+          </Marker>
+        )}
       </MapContainer>
 
       {selected && (

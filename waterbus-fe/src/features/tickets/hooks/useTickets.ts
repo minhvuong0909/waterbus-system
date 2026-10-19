@@ -30,7 +30,7 @@ export function useTicketWallet() {
       ? {
           ...fetched.data,
           next: bookedTickets[0],
-          later: [...bookedTickets.slice(1), fetched.data.next, ...fetched.data.later],
+          later: [...bookedTickets.slice(1), ...(fetched.data.next ? [fetched.data.next] : []), ...fetched.data.later],
         }
       : fetched.data
 
