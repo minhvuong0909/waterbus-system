@@ -75,3 +75,14 @@ export function buildBookedTickets({ trip, seats, fares, passengerNames }: Build
     gate: trip.originShortName,
   }))
 }
+
+/** Gom các vé cùng một đặt chỗ (cùng `bookingRef`), giữ thứ tự xuất hiện đầu tiên. */
+export function groupByBooking(tickets: Ticket[]): Ticket[][] {
+  const groups = new Map<string, Ticket[]>()
+  for (const ticket of tickets) {
+    const group = groups.get(ticket.bookingRef)
+    if (group) group.push(ticket)
+    else groups.set(ticket.bookingRef, [ticket])
+  }
+  return [...groups.values()]
+}

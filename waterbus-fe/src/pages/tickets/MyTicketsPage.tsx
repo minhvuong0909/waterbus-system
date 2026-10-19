@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
+import { Breadcrumb, Button, ErrorState, Icon, PageLoader } from '../../components/ui'
 import {
   NextDepartureCard,
   PastJourneyRow,
   UpcomingTripCard,
 } from '../../features/tickets/components/WalletParts'
 import { useTicketWallet } from '../../features/tickets/hooks/useTickets'
-import { isTicketToday } from '../../features/tickets/utils'
+import { groupByBooking, isTicketToday } from '../../features/tickets/utils'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -24,10 +24,22 @@ export default function MyTicketsPage() {
   if (loading || !wallet) return <PageLoader />
 
   if (!wallet.next && wallet.past.length === 0) return (
-    <div className="mx-auto max-w-3xl p-8">
-      <h1 className="text-2xl font-bold">Chưa có vé đã phát trong phiên này</h1>
-      <p className="my-4">Vé chỉ xuất hiện sau khi backend xác nhận thanh toán. API lịch sử vé toàn bộ tài khoản hiện chưa có.</p>
-      <Link to={ROUTES.search} className="text-teal-flow underline">Tìm chuyến</Link>
+    <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
+      <Breadcrumb items={[{ label: 'Home', to: ROUTES.home }, { label: 'My Tickets' }]} />
+      <div className="mx-auto mt-space-xl flex max-w-md flex-col items-center rounded-2xl border border-outline-variant/40 bg-white p-space-xl text-center shadow-sm">
+        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary-container text-on-secondary-container">
+          <Icon name="confirmation_number" className="text-[32px]" />
+        </span>
+        <h1 className="mt-space-md font-headline-lg text-headline-md text-deep-river">
+          {t('You have no tickets yet')}
+        </h1>
+        <p className="mt-space-xs text-body-md text-on-surface-variant">
+          {t('Your tickets appear here as soon as your payment is confirmed.')}
+        </p>
+        <Button to={ROUTES.search} className="mt-space-lg w-full sm:w-auto">
+          {t('Find a trip')}
+        </Button>
+      </div>
     </div>
   )
 
@@ -120,9 +132,29 @@ export default function MyTicketsPage() {
             </span>
           </div>
           <div className="mt-space-sm grid grid-cols-1 gap-space-md md:grid-cols-2">
-            {wallet.later.map((ticket) => (
-              <UpcomingTripCard key={ticket.id} ticket={ticket} onOpen={openTicket} />
-            ))}
+            {groupByBooking(wallet.later).map((group) =>
+              group.length === 1 ? (
+                <UpcomingTripCard key={group[0].id} ticket={group[0]} onOpen={openTicket} />
+              ) : (
+                <section
+                  key={group[0].bookingRef}
+                  aria-label={t('Booking {ref}', { ref: group[0].bookingRef })}
+                  className="rounded-2xl border border-teal-flow/30 bg-secondary-container/20 p-space-sm md:col-span-2"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-space-xs pb-space-sm text-xs font-semibold text-deep-river">
+                    <span>{t('Booking {ref}', { ref: group[0].bookingRef })}</span>
+                    <span className="text-on-surface-variant">
+                      {t('{count} passengers, checked in individually', { count: group.length })}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-space-md md:grid-cols-2">
+                    {group.map((ticket) => (
+                      <UpcomingTripCard key={ticket.id} ticket={ticket} onOpen={openTicket} />
+                    ))}
+                  </div>
+                </section>
+              ),
+            )}
           </div>
         </>
       ) : null}

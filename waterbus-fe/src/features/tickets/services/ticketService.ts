@@ -1,4 +1,4 @@
-import { withDelay } from '../../../mocks/delay'
+import { withDelayExact } from '../../../mocks/delay'
 import { ApiError } from '../../../services/apiClient'
 import { buildAllTickets, buildManageBooking, buildTicketWallet } from '../../../mocks/tickets'
 import { getTripDetail } from '../../trips/services/tripService'
@@ -59,7 +59,7 @@ export async function getTicketWallet(): Promise<TicketWallet> {
     const upcoming = tickets.filter((t) => !t.completed)
     return { next: upcoming[0], later: upcoming.slice(1), past: tickets.filter((t) => t.completed) }
   }
-  return withDelay(buildTicketWallet())
+  return withDelayExact(buildTicketWallet())
 }
 
 /** Falls back to the next departure so the detail page never errors. */
@@ -70,7 +70,7 @@ export async function getTicket(id: string | null): Promise<Ticket> {
     if (!ticket) throw new ApiError(404, 'Chưa có vé đã phát cho đơn hàng trong phiên này.')
     return ticket
   }
-  return withDelay(buildAllTickets().find((t) => t.id === id) ?? buildTicketWallet().next)
+  return withDelayExact(buildAllTickets().find((t) => t.id === id) ?? buildTicketWallet().next)
 }
 
 // A secure link token is a long random string (the shape the backend's magic links will have).
@@ -90,7 +90,7 @@ export async function getManageBooking(token?: string): Promise<ManageBooking> {
   if (token !== undefined && !LINK_TOKEN.test(token)) {
     return Promise.reject(new ApiError(404, 'This link is invalid or has expired.'))
   }
-  return withDelay(buildManageBooking())
+  return withDelayExact(buildManageBooking())
 }
 
 /** Pretends to submit a refund request. Always accepted so the flow never gets stuck. */

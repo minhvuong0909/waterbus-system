@@ -280,7 +280,10 @@ export default function IncidentsPage() {
         {alerts.data.map((alert) => (
           <Panel key={alert.id} className="border-signal-amber/50 bg-signal-amber/10">
             <div className="flex items-start gap-3">
-              <Icon name="air" className="text-[24px] text-signal-amber" />
+              <Icon
+                name={alert.kind && alert.kind !== 'Weather' ? 'build' : 'air'}
+                className="text-[24px] text-signal-amber"
+              />
               <div className="flex-1 text-sm">
                 <div className="font-bold text-deep-river">{weatherAlertTitle(alert)}</div>
                 <div className="text-on-surface-variant">{t(alert.message)}</div>
@@ -289,6 +292,24 @@ export default function IncidentsPage() {
                   {alert.affectedTripCount != null &&
                     ` • ${t('{count} trips affected', { count: alert.affectedTripCount })}`}
                 </div>
+                {alert.trips && alert.trips.length > 0 && (
+                  <ul className="mt-2 space-y-1 border-t border-signal-amber/30 pt-2">
+                    {alert.trips.map((link) => (
+                      <li key={link.tripId} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="text-deep-river">{tripLabel(link.tripId)}</span>
+                        {link.decision ? (
+                          <span className="rounded-full bg-teal-flow/15 px-2 py-0.5 font-semibold text-teal-flow">
+                            {t(OPERATION_LABEL[link.decision as OperationType] ?? link.decision)}
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-signal-amber/25 px-2 py-0.5 font-semibold text-deep-river">
+                            {t('Needs your decision')}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               <ActionButton
                 tone="secondary"
