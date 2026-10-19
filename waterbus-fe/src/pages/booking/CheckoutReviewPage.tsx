@@ -69,7 +69,7 @@ export default function CheckoutReviewPage() {
             {t('Confirm your trip, passenger, seat, and fare before proceeding to payment.')}
           </p>
         </div>
-        <div className="self-start md:self-auto">
+        <div className="self-start md:self-auto lg:hidden">
           <HoldCountdown />
         </div>
       </div>

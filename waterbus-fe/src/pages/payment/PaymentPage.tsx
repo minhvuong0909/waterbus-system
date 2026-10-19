@@ -59,7 +59,7 @@ export default function PaymentPage() {
             )}
           </p>
         </div>
-        <div className="self-start md:self-auto">
+        <div className="self-start md:self-auto lg:hidden">
           <HoldCountdown
             fallback={
               <span className="inline-flex items-center gap-2 rounded-xl bg-surface-container px-space-md py-2 text-xs text-on-surface-variant">

@@ -60,7 +60,7 @@ export default function PassengerDetailsPage() {
             {t('Please enter traveler information for this crossing.')}
           </p>
         </div>
-        <div className="self-start md:self-auto">
+        <div className="self-start md:self-auto lg:hidden">
           <HoldCountdown />
         </div>
       </div>

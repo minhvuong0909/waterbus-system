@@ -9,6 +9,7 @@ import type { BookingTotals } from '../utils'
 import { seatTags } from '../utils'
 import { BookingCard, CardHeading, SeatFeeRow, SummaryRow } from './SummaryParts'
 import { t } from '../../../i18n'
+import SummaryTimer from './SummaryTimer'
 
 function EditLink({
   to,
@@ -220,13 +221,15 @@ export function OrderSummary({
   onContinue: () => void
 }) {
   return (
-    <BookingCard className="p-space-lg lg:sticky lg:top-24 lg:max-h-[calc(100svh-7rem)] lg:overflow-y-auto lg:overscroll-contain">
+    <BookingCard className="p-space-lg lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100svh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain">
       <div className="mb-space-md flex items-center justify-between">
         <h2 className="font-headline-md text-headline-sm text-deep-river">{t('Order Summary')}</h2>
         <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[11px] font-bold text-teal-flow">
           {t('Trip {vesselCode}', { vesselCode: trip.vesselCode })}
         </span>
       </div>
+
+      <SummaryTimer />
 
       <div className="rounded-xl bg-mist/70 p-space-md">
         <div className="mb-2 flex items-center justify-between text-xs font-semibold text-deep-river">

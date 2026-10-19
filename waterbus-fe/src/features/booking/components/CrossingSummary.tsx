@@ -5,8 +5,9 @@ import { formatVnd } from '../../../utils/format'
 import type { TripDetail } from '../../trips/types'
 import type { Seat } from '../types'
 import type { BookingTotals } from '../utils'
-import { cabinsLabel, passengersLabel, seatCodes, selectedSeatsLabel } from '../utils'
+import { passengersLabel, seatCodes, selectedSeatsLabel } from '../utils'
 import { BookingCard, SeatFeeRow, SummaryRow, TotalRow } from './SummaryParts'
+import SummaryTimer from './SummaryTimer'
 import { t } from '../../../i18n'
 
 interface CrossingSummaryProps {
@@ -20,7 +21,7 @@ interface CrossingSummaryProps {
 /** Sticky sidebar on passenger details: timeline, vessel facts and fare lines. */
 export default function CrossingSummary({ trip, seats, totals, canContinue }: CrossingSummaryProps) {
   return (
-    <BookingCard className="p-space-lg lg:sticky lg:top-24 lg:max-h-[calc(100svh-7rem)] lg:overflow-y-auto lg:overscroll-contain">
+    <BookingCard className="p-space-lg lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100svh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain">
       <div className="mb-space-md flex items-center justify-between">
         <h2 className="font-headline-md text-headline-sm text-deep-river">
           {t('Crossing Summary')}
@@ -29,6 +30,8 @@ export default function CrossingSummary({ trip, seats, totals, canContinue }: Cr
           {t('Trip {vesselCode}', { vesselCode: trip.vesselCode })}
         </span>
       </div>
+
+      <SummaryTimer />
 
       <div className="rounded-xl bg-mist/70 p-space-md">
         <div className="mb-3 flex items-center justify-between text-xs">
@@ -45,15 +48,10 @@ export default function CrossingSummary({ trip, seats, totals, canContinue }: Cr
             <span className="my-1 w-0.5 flex-1 bg-teal-flow/40" />
             <span className="h-3 w-3 rounded-full bg-coral-glow" />
           </div>
-          <div className="flex-1 space-y-space-md text-sm">
+          <div className="flex-1 space-y-2.5 text-sm">
             <div className="flex justify-between">
               <div>
                 <div className="font-semibold text-deep-river">{trip.originPierLabel}</div>
-                {trip.originGate && (
-                  <div className="text-xs text-on-surface-variant">
-                    {t('{originGate} • Pontoon Terminal', { originGate: trip.originGate })}
-                  </div>
-                )}
               </div>
               <span className="font-semibold text-deep-river">{trip.departTime}</span>
             </div>
@@ -64,13 +62,6 @@ export default function CrossingSummary({ trip, seats, totals, canContinue }: Cr
             <div className="flex justify-between">
               <div>
                 <div className="font-semibold text-deep-river">{trip.destinationPierLabel}</div>
-                {trip.destinationGate && (
-                  <div className="text-xs text-on-surface-variant">
-                    {t('{destinationGate} • Park Promenade', {
-                      destinationGate: trip.destinationGate,
-                    })}
-                  </div>
-                )}
               </div>
               <span className="font-semibold text-deep-river">{trip.arriveTime}</span>
             </div>
@@ -79,15 +70,10 @@ export default function CrossingSummary({ trip, seats, totals, canContinue }: Cr
       </div>
 
       <div className="mt-space-md space-y-2 rounded-xl bg-sand-light/60 p-space-md">
-        <SummaryRow label={t('Vessel')} value={`${trip.vesselCode} ${trip.vesselName}`} />
         <SummaryRow
           label={seats.length > 1 ? t('Selected Seats') : t('Selected Seat')}
           value={selectedSeatsLabel(seats)}
           accent
-        />
-        <SummaryRow
-          label={t('Cabin Class')}
-          value={t('{cabin} • Air-Conditioned', { cabin: cabinsLabel(seats) })}
         />
         <SummaryRow label={t('Passengers')} value={passengersLabel(seats.length)} />
       </div>
@@ -106,7 +92,6 @@ export default function CrossingSummary({ trip, seats, totals, canContinue }: Cr
           seatFeeVnd={totals.seatFeeVnd}
           includedText={t('Included (0 VND)')}
         />
-        <SummaryRow label={t('Pier Dues & VAT')} value={t('Included')} accent />
       </div>
       <div className="mt-space-sm border-t border-surface-container">
         <TotalRow
@@ -150,9 +135,6 @@ export default function CrossingSummary({ trip, seats, totals, canContinue }: Cr
           {t('Change Seat')}
         </Link>
       </div>
-      <p className="mt-space-md border-t border-surface-container pt-space-md text-center text-xs text-on-surface-variant">
-        {t('Your selected seat remains reserved while you complete checkout.')}
-      </p>
     </BookingCard>
   )
 }

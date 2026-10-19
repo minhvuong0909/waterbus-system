@@ -42,7 +42,7 @@ export default function SeatSelectionPage() {
             {t('Choose Your Seat')}
           </h1>
         </div>
-        <div className="self-start md:self-auto">
+        <div className="self-start md:self-auto lg:hidden">
           <HoldCountdown
             fallback={
               <span className="inline-flex items-center gap-1 rounded-xl bg-white px-space-md py-2 text-xs font-semibold text-teal-flow shadow-sm">

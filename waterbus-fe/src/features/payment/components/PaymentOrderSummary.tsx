@@ -7,7 +7,7 @@ import {
   SummaryRow,
   TotalRow,
 } from '../../booking/components/SummaryParts'
-import { passengersLabel, selectedSeatsLabel } from '../../booking/utils'
+import { selectedSeatsLabel } from '../../booking/utils'
 import type { BookingTotals } from '../../booking/utils'
 import type { PurchaserForm, Seat } from '../../booking/types'
 import type { TripDetail } from '../../trips/types'
@@ -17,6 +17,7 @@ import { useHoldCountdown } from '../../booking/hooks/useHoldCountdown'
 import { formatVnd } from '../../../utils/format'
 import { createPaymentUrl } from '../services/paymentService'
 import { t } from '../../../i18n'
+import SummaryTimer from '../../booking/components/SummaryTimer'
 
 interface PaymentOrderSummaryProps {
   trip: TripDetail
@@ -54,13 +55,15 @@ export default function PaymentOrderSummary({
   }
 
   return (
-    <BookingCard className="p-space-lg lg:sticky lg:top-24 lg:max-h-[calc(100svh-7rem)] lg:overflow-y-auto lg:overscroll-contain">
+    <BookingCard className="p-space-lg lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100svh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain">
       <div className="mb-space-md flex items-center justify-between">
         <h2 className="font-headline-md text-headline-sm text-deep-river">{t('Order Summary')}</h2>
         <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[11px] font-bold text-teal-flow">
           {t('Trip {vesselCode}', { vesselCode: trip.vesselCode })}
         </span>
       </div>
+
+      <SummaryTimer />
 
       <div className="rounded-xl bg-mist/70 p-space-md">
         <div className="flex items-start justify-between text-xs font-semibold text-deep-river">
@@ -74,9 +77,8 @@ export default function PaymentOrderSummary({
             <span className="block font-normal text-teal-flow">{trip.arriveTime}</span>
           </span>
         </div>
-        <div className="my-2 h-px bg-outline-variant/60" />
-        <div className="text-center text-[11px] text-on-surface-variant">
-          {t('{durationMins} min crossing', { durationMins: trip.durationMins })}
+        <div className="mt-2 border-t border-outline-variant/60 pt-2 text-center text-[11px] text-on-surface-variant">
+          {trip.dateFull} • {t('{durationMins} min crossing', { durationMins: trip.durationMins })}
         </div>
       </div>
 
@@ -89,12 +91,10 @@ export default function PaymentOrderSummary({
             {selectedSeatsLabel(seats)}
           </span>
         </div>
-        <SummaryRow label={t('Passengers')} value={passengersLabel(seats.length)} />
         <SummaryRow label={t('Buyer')} value={purchaser.fullName} />
-        <SummaryRow label={t('Date')} value={trip.dateFull} />
       </div>
 
-      <div className="mt-space-md space-y-1.5 border-t border-surface-container pt-space-md">
+      <div className="mt-space-sm space-y-1.5 border-t border-surface-container pt-space-sm">
         <SummaryRow label={t('Trip Fare')} value={formatVnd(totals.fareVnd)} />
         <SeatFeeRow
           label={t('Seat Fee')}
