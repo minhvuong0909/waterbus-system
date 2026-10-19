@@ -44,14 +44,23 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
   const { query, updateQuery } = useSearchQuery()
   const [active, setActive] = useState(0)
   const tabs = useRef<(HTMLButtonElement | null)[]>([])
+  const stripRef = useRef<HTMLDivElement>(null)
   const swipeStart = useRef<number | null>(null)
   const last = piers.length - 1
 
-  // Giữ bến đang chọn nằm trong tầm nhìn của dãy bến khi dãy phải cuộn ngang (màn hình hẹp).
+  // Khi dãy bến phải cuộn ngang (màn hình hẹp), đưa bến đang chọn vào giữa dãy. Chỉ cuộn bên trong dãy
+  // (không dùng scrollIntoView vì nó cuộn cả trang) và bỏ qua lần hiện đầu để không kéo trang xuống.
+  const mounted = useRef(false)
   useEffect(() => {
-    tabs.current[active]?.scrollIntoView({
-      inline: 'center',
-      block: 'nearest',
+    if (!mounted.current) {
+      mounted.current = true
+      return
+    }
+    const strip = stripRef.current
+    const tab = tabs.current[active]
+    if (!strip || !tab || strip.scrollWidth <= strip.clientWidth) return
+    strip.scrollTo({
+      left: tab.offsetLeft - (strip.clientWidth - tab.clientWidth) / 2,
       behavior: reducedMotion ? 'auto' : 'smooth',
     })
   }, [active, reducedMotion])
@@ -71,7 +80,7 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
     event.preventDefault()
     const index = Math.min(last, Math.max(0, target))
     go(index)
-    tabs.current[index]?.focus()
+    tabs.current[index]?.focus({ preventScroll: true })
   }
 
   const onPointerDown = (event: PointerEvent) => {
@@ -109,7 +118,11 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
           </p>
         </div>
 
-        <div data-reveal className="-mx-5 overflow-x-auto px-5 pb-2 sm:mx-0 sm:px-0 [scrollbar-width:none]">
+        <div
+          ref={stripRef}
+          data-reveal
+          className="relative -mx-5 overflow-x-auto px-5 pb-2 sm:mx-0 sm:px-0 [scrollbar-width:none]"
+        >
           <div role="tablist" aria-label={t('Pier list')} className="relative flex min-w-[560px]">
             <span
               aria-hidden="true"
