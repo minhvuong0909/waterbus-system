@@ -1,3 +1,4 @@
+using System.Net;
 using FluentAssertions;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
@@ -369,6 +370,33 @@ public class SemanticKernelAiBookingAssistantServiceTests
         response.IsFallback.Should().BeTrue();
         response.TextAnswer.Should().Contain("gặp sự cố kết nối");
         response.Cards.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_GroqBadRequest_LogsOnlySafeProviderCode()
+    {
+        const string sensitiveText = "secret-prompt-and-key-must-not-be-logged";
+        var providerError = new HttpOperationException(
+            HttpStatusCode.BadRequest,
+            "{\"error\":{\"code\":\"tool_use_failed\",\"message\":\"" + sensitiveText + "\"}}",
+            sensitiveText,
+            null);
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(providerError);
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Tìm chuyến từ Bạch Đằng đến Linh Đông ngày 2099-10-15"
+        });
+
+        response.IsFallback.Should().BeTrue();
+        response.Cards.Should().BeEmpty();
+        var errorLog = _loggerMock.Invocations.Single(i => i.Method.Name == "Log");
+        var fields = (IEnumerable<KeyValuePair<string, object?>>)errorLog.Arguments[2];
+        fields.Single(f => f.Key == "ProviderCode").Value.Should().Be("tool_use_failed");
+        errorLog.Arguments[2].ToString().Should().NotContain(sensitiveText);
     }
 
     [Fact]

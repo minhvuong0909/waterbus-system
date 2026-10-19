@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -172,8 +173,8 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
         catch (Exception ex)
         {
             // SDK exception có thể chứa prompt/credential; chỉ ghi loại lỗi và HTTP status an toàn.
-            _logger.LogError("Dịch vụ Groq qua Semantic Kernel lỗi ({ExceptionType}, HTTP {StatusCode}).",
-                ex.GetType().Name, SafeHttpStatusCode(ex));
+            _logger.LogError("Dịch vụ Groq qua Semantic Kernel lỗi ({ExceptionType}, HTTP {StatusCode}, mã {ProviderCode}).",
+                ex.GetType().Name, SafeHttpStatusCode(ex), SafeProviderErrorCode(ex));
             return new AiBookingChatResponse(
                 TextAnswer: "Xin lỗi quý khách, hiện tại dịch vụ trợ lý ảo đang gặp sự cố kết nối. Quý khách vui lòng thử lại sau.",
                 Cards: Array.Empty<AiTripCardDto>(),
@@ -197,5 +198,44 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
                 return code;
         }
         return null;
+    }
+
+    private static string SafeProviderErrorCode(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is not HttpOperationException { ResponseContent: { Length: > 0 } content })
+                continue;
+
+            if (content.Length > 16384)
+                return "unavailable";
+
+            try
+            {
+                using var document = JsonDocument.Parse(content);
+                if (document.RootElement.ValueKind != JsonValueKind.Object
+                    || !document.RootElement.TryGetProperty("error", out var error)
+                    || error.ValueKind != JsonValueKind.Object)
+                    return "unavailable";
+
+                foreach (var name in new[] { "code", "type" })
+                {
+                    if (!error.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String)
+                        continue;
+
+                    var code = value.GetString();
+                    // Chỉ ghi một mã dạng identifier; tuyệt đối không log message/failed_generation/prompt.
+                    if (!string.IsNullOrEmpty(code) && code.Length <= 60
+                        && code.All(c => c is >= 'a' and <= 'z' or >= '0' and <= '9' or '_'))
+                        return code;
+                }
+            }
+            catch (JsonException)
+            {
+                return "unavailable";
+            }
+        }
+
+        return "unavailable";
     }
 }

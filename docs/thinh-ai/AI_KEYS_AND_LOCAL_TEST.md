@@ -62,7 +62,7 @@ Remove-Item Env:WATERBUS_GROQ_BOOKING_SMOKE
 
 Chạy trong `waterbus-be/` sau khi lưu key bằng User Secrets như trên. Logger `detailed` in câu trả lời và một Trip Card **mẫu** đã được kiểm tra (không in key/prompt). Test opt-in này dùng quota Groq (và có thể phát sinh chi phí tùy tài khoản); pass chỉ chứng minh provider/plugin hoạt động với dữ liệu fixture, **không** chứng minh giá/bến/link/UI chạy thật. Không in hoặc gửi key trong chat/log.
 
-Nếu test trả `IsFallback=true`, dòng assert hiện cho biết **loại exception và HTTP status**, không in key hoặc nội dung phản hồi. HTTP 429 có thể là hết quota hoặc chạm rate limit; kiểm tra limits của đúng Groq project, không retry liên tục. Nếu `tools=` rỗng, request đã lỗi trước khi function `SearchTrips` chạy. Xóa cờ PowerShell bằng `Remove-Item Env:WATERBUS_GROQ_BOOKING_SMOKE` (không có dấu `?`).
+Nếu test trả `IsFallback=true`, dòng assert hiện **loại exception, HTTP status và `providerCode` an toàn**, không in key hoặc nội dung phản hồi. HTTP 429 có thể là hết quota hoặc chạm rate limit; kiểm tra limits của đúng Groq project, không retry liên tục. Nếu `tools=` rỗng, request đã lỗi trước khi function `SearchTrips` chạy. Nếu `SearchTrips:True` nhưng HTTP 400, lượt model tiếp theo đã lỗi; không được coi là end-to-end pass chỉ vì tool đã chạy. Xóa cờ PowerShell bằng `Remove-Item Env:WATERBUS_GROQ_BOOKING_SMOKE` (không có dấu `?`).
 
 ## 4. Docker Compose và kiểm thử thật
 

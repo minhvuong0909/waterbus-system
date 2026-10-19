@@ -58,9 +58,10 @@ public sealed class GroqBookingLiveSmokeTests
         });
 
         response.IsFallback.Should().BeFalse(
-            "Groq/tool diagnostic: exception={0}; httpStatus={1}; tools={2}; cards={3}",
+            "Groq/tool diagnostic: exception={0}; httpStatus={1}; providerCode={2}; tools={3}; cards={4}",
             diagnostics.ExceptionTypes,
             diagnostics.HttpStatuses,
+            diagnostics.ProviderCodes,
             string.Join(",", response.ExecutedTools.Select(t => $"{t.ToolName}:{t.Success}")),
             response.Cards.Count);
         response.ExecutedTools.Should().Contain(x => x.ToolName == "SearchTrips" && x.Success);
@@ -88,6 +89,9 @@ public sealed class GroqBookingLiveSmokeTests
         public string HttpStatuses => _httpStatuses.Count == 0
             ? "none" : string.Join(",", _httpStatuses);
         private readonly List<string> _httpStatuses = new();
+        public string ProviderCodes => _providerCodes.Count == 0
+            ? "none" : string.Join(",", _providerCodes);
+        private readonly List<string> _providerCodes = new();
 
         public IDisposable BeginScope<TState>(TState state) where TState : notnull => NoopScope.Instance;
         public bool IsEnabled(LogLevel logLevel) => true;
@@ -103,6 +107,9 @@ public sealed class GroqBookingLiveSmokeTests
                 var status = fields.FirstOrDefault(x => x.Key == "StatusCode").Value?.ToString();
                 if (!string.IsNullOrWhiteSpace(status))
                     _httpStatuses.Add(status);
+                var providerCode = fields.FirstOrDefault(x => x.Key == "ProviderCode").Value?.ToString();
+                if (!string.IsNullOrWhiteSpace(providerCode))
+                    _providerCodes.Add(providerCode);
             }
             if (exception is not null)
             {
