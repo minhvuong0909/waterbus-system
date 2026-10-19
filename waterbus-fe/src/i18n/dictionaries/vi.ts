@@ -1677,4 +1677,5 @@ export const vi: Record<string, string> = {
   'Pause slideshow': 'Dừng trình chiếu',
   '{name}, photo gallery': '{name}, thư viện ảnh',
   'photo {current} of {total}': 'ảnh {current}/{total}',
+  Tomorrow: 'Ngày mai',
 }

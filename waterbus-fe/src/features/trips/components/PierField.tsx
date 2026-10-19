@@ -1,9 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
 import { Icon } from '../../../components/ui'
+import { usePopoverList } from '../hooks/usePopoverList'
 import type { PierOption } from '../types'
-
-/** Chiều cao thanh header cố định phía trên trang (h-20 trên màn hình rộng). */
-const HEADER_HEIGHT = 80
 
 interface PierFieldProps {
   label: string
@@ -26,50 +23,7 @@ export default function PierField({
   className = '',
   compact = false,
 }: PierFieldProps) {
-  const [open, setOpen] = useState(false)
-  // Danh sách mở phía dưới nếu đủ chỗ, không thì phía trên nếu đủ chỗ. Nếu cả hai đều chật, mở
-  // phía dưới và cuộn nhẹ trang để hiện đủ danh sách (không để cắt mất bến cuối, không chui dưới
-  // thanh header cố định). Màn hình quá thấp thì danh sách tự cuộn bên trong.
-  const [placement, setPlacement] = useState<{ up: boolean; maxHeight: number }>({
-    up: false,
-    maxHeight: 360,
-  })
-  const root = useRef<HTMLDivElement>(null)
-
-  const toggle = () => {
-    if (!open && root.current) {
-      const rect = root.current.getBoundingClientRect()
-      const margin = 16
-      const below = window.innerHeight - rect.bottom - margin
-      const above = rect.top - HEADER_HEIGHT - margin
-      const listHeight = options.length * 58 + 8
-      const maxHeight = Math.min(listHeight, window.innerHeight - HEADER_HEIGHT - 2 * margin)
-      if (below >= maxHeight) setPlacement({ up: false, maxHeight })
-      else if (above >= maxHeight) setPlacement({ up: true, maxHeight })
-      else {
-        setPlacement({ up: false, maxHeight })
-        window.scrollBy({ top: maxHeight - below, behavior: 'smooth' })
-      }
-    }
-    setOpen((v) => !v)
-  }
-
-  // Bấm ra ngoài hoặc nhấn Esc thì đóng danh sách.
-  useEffect(() => {
-    if (!open) return
-    const onPointerDown = (event: PointerEvent) => {
-      if (root.current && !root.current.contains(event.target as Node)) setOpen(false)
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open])
+  const { root, open, setOpen, toggle, placement } = usePopoverList(options.length * 58 + 8)
 
   return (
     <div ref={root} className={`relative ${className}`.trim()}>

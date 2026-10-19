@@ -4,7 +4,7 @@ import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { useSearchQuery } from '../hooks/useTripSearch'
 import type { DateOption, PierOption } from '../types'
-import { formatDateLabel } from '../utils'
+import DateField from './DateField'
 import PierField from './PierField'
 import { t } from '../../../i18n'
 
@@ -13,43 +13,6 @@ interface SearchFormProps {
   dates: DateOption[]
   /** `bar`: thanh một hàng đặt đè lên mép hero; `card`: khối đầy đủ ở trang tìm chuyến. */
   variant?: 'card' | 'bar'
-}
-
-/** Ô chọn ngày: danh sách các ngày đang bán, chọn ngay tại form không cần sang trang kết quả. */
-function DateField({
-  dates,
-  value,
-  onChange,
-  compact = false,
-}: {
-  dates: DateOption[]
-  value: string
-  onChange: (id: string) => void
-  compact?: boolean
-}) {
-  return (
-    <label
-      className={`flex h-full min-w-0 cursor-pointer flex-col justify-between rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] transition-colors focus-within:border-teal-flow/60 hover:border-teal-flow/40 hover:bg-[#EBF2F0]/80 ${
-        compact ? 'min-h-[64px] gap-1 px-3.5 py-2.5' : 'min-h-[112px] gap-3 p-3.5'
-      }`}
-    >
-      <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
-        <Icon name="calendar_today" className="text-[15px] text-teal-flow" />
-        {t('Date')}
-      </span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full cursor-pointer appearance-none truncate border-0 bg-transparent p-0 font-headline-sm text-base font-bold text-deep-river focus:outline-none focus:ring-0"
-      >
-        {dates.map((d) => (
-          <option key={d.id} value={d.id}>
-            {formatDateLabel(d)}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
 }
 
 export default function SearchForm({ piers, dates, variant = 'card' }: SearchFormProps) {
