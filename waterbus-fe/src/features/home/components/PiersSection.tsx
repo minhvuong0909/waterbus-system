@@ -6,54 +6,33 @@ import { usePrefersReducedMotion } from '../../../hooks'
 import { ROUTES } from '../../../routes/routes'
 import { useSearchQuery } from '../../trips/hooks/useTripSearch'
 import { pierPhotos } from '../../trips/pierImages'
+import ecoPhoto from '../../../assets/images/home/story-eco.jpg'
+import heritagePhoto from '../../../assets/images/home/story-heritage.jpg'
+import sunsetPhoto from '../../../assets/images/home/story-sunset.jpg'
+import vesselPhoto from '../../../assets/images/vessel.jpg'
+import waterwayPhoto from '../../../assets/images/waterway.jpg'
+import { PIER_INFO } from '../pierInfo'
+import PierGallery from './PierGallery'
+import type { GallerySlide } from './PierGallery'
 import type { Pier } from '../../trips/types'
-import { t } from '../../../i18n'
+import { getLocale, t } from '../../../i18n'
 
 /** Quãng kéo ngang tối thiểu (px) để tính là một cú vuốt sang bến khác. */
 const SWIPE_PX = 60
 
-function PierPhoto({ pier }: { pier: Pier }) {
-  const photos = pierPhotos(pier.code)
-  const [index, setIndex] = useState(0)
-  const current = Math.min(index, Math.max(photos.length - 1, 0))
+/** Ảnh dùng chung cho mọi bến khi bến chưa đủ ảnh riêng; chú thích ghi rõ là ảnh dọc sông. */
+const RIVER_PHOTOS = [vesselPhoto, waterwayPhoto, sunsetPhoto, heritagePhoto, ecoPhoto]
 
-  return (
-    <div className="relative h-64 overflow-hidden rounded-2xl bg-gradient-to-br from-deep-river to-teal-flow sm:h-80">
-      {photos.length > 0 ? (
-        <img
-          key={photos[current]}
-          src={photos[current]}
-          alt={t('{name}, photo {current} of {total}', {
-            name: pier.name,
-            current: current + 1,
-            total: photos.length,
-          })}
-          draggable={false}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div className="flex h-full flex-col items-center justify-center gap-1 text-white/80">
-          <Icon name="photo_camera" className="text-[36px]" />
-          <span className="text-xs">{t('Photos coming soon')}</span>
-        </div>
-      )}
-      {photos.length > 1 && (
-        <div className="absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
-          {photos.map((src, i) => (
-            <button
-              key={src}
-              type="button"
-              aria-label={t('Photo {n}', { n: i + 1 })}
-              onClick={() => setIndex(i)}
-              className={`h-2 rounded-full transition-all ${
-                i === current ? 'w-6 bg-white' : 'w-2 bg-white/60 hover:bg-white/80'
-              }`}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
+function slidesOf(pier: Pier): GallerySlide[] {
+  const own = pierPhotos(pier.code).map((src) => ({ src, caption: pier.name }))
+  const river = RIVER_PHOTOS.map((src) => ({ src, caption: t('Along the Saigon River') }))
+  return [...own, ...river]
+}
+
+function distanceLabel(distance: string): string {
+  if (distance === 'inside') return t('Inside the pier')
+  if (distance === 'opposite') return t('Opposite the pier')
+  return t('About {distance}', { distance })
 }
 
 /**
@@ -236,6 +215,32 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
                       </p>
                     </div>
 
+                    {PIER_INFO[pier.code] && (
+                      <>
+                        <p className="text-sm leading-relaxed text-on-surface sm:text-base">
+                          {PIER_INFO[pier.code].story[getLocale()]}
+                        </p>
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-on-surface-variant">
+                            {t('Nearby')}
+                          </h4>
+                          <ul className="space-y-1.5 text-sm">
+                            {PIER_INFO[pier.code].nearby.map((place) => (
+                              <li key={place.name.en} className="flex items-baseline justify-between gap-3 border-b border-surface-container pb-1.5">
+                                <span className="font-medium text-deep-river">{place.name[getLocale()]}</span>
+                                <span className="shrink-0 text-xs text-on-surface-variant">
+                                  {distanceLabel(place.distance)}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                          <p className="text-[11px] text-on-surface-variant">
+                            {t('Distances are approximate.')}
+                          </p>
+                        </div>
+                      </>
+                    )}
+
                     <div className="flex flex-wrap items-center gap-3">
                       <Link
                         to={ROUTES.search}
@@ -284,7 +289,11 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
                     </div>
                   </div>
 
-                  <PierPhoto pier={pier} />
+                  <PierGallery
+                    slides={slidesOf(pier)}
+                    label={t('{name}, photo gallery', { name: pier.name })}
+                    active={selected}
+                  />
                 </div>
               )
             })}
