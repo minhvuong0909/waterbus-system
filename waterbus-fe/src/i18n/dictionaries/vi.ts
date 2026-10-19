@@ -1654,4 +1654,5 @@ export const vi: Record<string, string> = {
   'River corridor map': 'Bản đồ hành lang sông',
   'Support Hotline': 'Hotline hỗ trợ',
   'Refunds: if a trip is cancelled or ends early, the part you paid for that was not served is refunded in full. A ticket missed at check-in is not refunded.': 'Hoàn tiền: nếu chuyến bị huỷ hoặc kết thúc sớm, phần bạn đã trả mà chưa được phục vụ được hoàn 100%. Vé bỏ lỡ check-in không được hoàn tiền.',
+  'Saigon River Waterbus': 'Tàu buýt đường sông Sài Gòn',
 }
