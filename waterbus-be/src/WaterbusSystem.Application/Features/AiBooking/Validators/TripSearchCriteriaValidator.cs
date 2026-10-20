@@ -14,6 +14,11 @@ public class TripSearchCriteriaValidator : AbstractValidator<TripSearchCriteria>
             .InclusiveBetween(1, 50).WithMessage("Số lượng hành khách phải từ 1 đến 50.")
             .When(x => x.PassengerCount.HasValue);
 
+        RuleFor(x => x.EarliestDepartureTime)
+            .LessThanOrEqualTo(x => x.LatestDepartureTime)
+            .When(x => x.EarliestDepartureTime.HasValue && x.LatestDepartureTime.HasValue)
+            .WithMessage("Giờ bắt đầu phải trước hoặc bằng giờ kết thúc.");
+
         RuleFor(x => x.DepartureDate)
             .Must(d => !d.HasValue || d.Value >= DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7)).DateTime))
             .WithMessage("Ngày khởi hành không được là ngày trong quá khứ.")

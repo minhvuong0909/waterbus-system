@@ -2,6 +2,8 @@ using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Moq;
+using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.AiBooking.Models;
 using WaterbusSystem.Application.Features.AiBooking.Validators;
 using WaterbusSystem.Infrastructure.Services.AiBooking;
@@ -78,6 +80,107 @@ public sealed class GroqBookingLiveSmokeTests
         _output.WriteLine("Bến: {0} → {1}", card.DepartureStationName, card.ArrivalStationName);
         _output.WriteLine("Khởi hành: {0:yyyy-MM-dd HH:mm} (UTC+7)", card.DepartureTime.ToOffset(TimeSpan.FromHours(7)));
         _output.WriteLine("Giá: chưa xác thực; link đặt vé: chưa tích hợp");
+    }
+
+    [Theory]
+    [InlineData("Hiện có những chuyến tàu nào sắp tới?", false)]
+    [InlineData("Linh Đông có chuyến nào?", true)]
+    public async Task GroqUnderstandsOptionalStationSearch_WhenExplicitlyEnabled(string message, bool hasStation)
+    {
+        if (Environment.GetEnvironmentVariable("WATERBUS_GROQ_BOOKING_SMOKE") != "1")
+            return;
+
+        var configuration = new ConfigurationBuilder()
+            .AddUserSecrets(typeof(BaseApiController).Assembly, optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+        var apiKey = configuration["AiBookingAssistant:Groq:ApiKey"];
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new InvalidOperationException("Thiếu AiBookingAssistant:Groq:ApiKey trong WebApi User Secrets hoặc biến môi trường.");
+
+        var tripFixture = (await new FakeTripSearchTool().SearchTripsAsync(new TripSearchCriteria
+        {
+            DepartureStationName = "Bạch Đằng",
+            ArrivalStationName = "Linh Đông",
+            DepartureDate = DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7)).DateTime).AddDays(1)
+        })).Trips;
+        var criteriaUsed = new List<TripSearchCriteria>();
+        var searchTool = new Mock<ITripSearchTool>();
+        searchTool.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .Callback<TripSearchCriteria, CancellationToken>((criteria, _) => criteriaUsed.Add(criteria))
+            .ReturnsAsync(new TripSearchResult(tripFixture, true));
+
+        var assistant = new SemanticKernelAiBookingAssistantService(
+            Options.Create(new GroqAssistantOptions
+            {
+                ApiKey = apiKey,
+                ModelId = configuration["AiBookingAssistant:Groq:ModelId"] ?? "openai/gpt-oss-20b",
+                IsEnabled = true,
+                TimeoutSeconds = 60
+            }),
+            searchTool.Object,
+            new FakeBookingLinkTool(),
+            new AiBookingChatRequestValidator(),
+            new SafeDiagnosticLogger());
+
+        var response = await assistant.ProcessChatAsync(new AiBookingChatRequest { Message = message });
+
+        response.IsFallback.Should().BeFalse();
+        response.ExecutedTools.Should().Contain(t => t.ToolName == "SearchTrips" && t.Success);
+        response.Cards.Should().ContainSingle();
+        criteriaUsed.Should().NotBeEmpty();
+        if (hasStation)
+        {
+            criteriaUsed.Should().Contain(c =>
+                (c.DepartureStationName ?? c.ArrivalStationName ?? "").Contains("Linh Đông", StringComparison.OrdinalIgnoreCase)
+                && (string.IsNullOrWhiteSpace(c.DepartureStationName) || string.IsNullOrWhiteSpace(c.ArrivalStationName)));
+        }
+        else
+        {
+            criteriaUsed.Should().Contain(c => string.IsNullOrWhiteSpace(c.DepartureStationName)
+                && string.IsNullOrWhiteSpace(c.ArrivalStationName));
+        }
+    }
+
+    [Fact]
+    public async Task GroqListsStationsFromTool_WhenExplicitlyEnabled()
+    {
+        if (Environment.GetEnvironmentVariable("WATERBUS_GROQ_BOOKING_SMOKE") != "1")
+            return;
+
+        var configuration = new ConfigurationBuilder()
+            .AddUserSecrets(typeof(BaseApiController).Assembly, optional: true)
+            .AddEnvironmentVariables()
+            .Build();
+        var apiKey = configuration["AiBookingAssistant:Groq:ApiKey"];
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new InvalidOperationException("Thiếu AiBookingAssistant:Groq:ApiKey trong WebApi User Secrets hoặc biến môi trường.");
+
+        var searchTool = new Mock<ITripSearchTool>();
+        searchTool.Setup(t => t.ListActiveStationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { "Bến Bạch Đằng", "Bến Linh Đông" });
+        var assistant = new SemanticKernelAiBookingAssistantService(
+            Options.Create(new GroqAssistantOptions
+            {
+                ApiKey = apiKey,
+                ModelId = configuration["AiBookingAssistant:Groq:ModelId"] ?? "openai/gpt-oss-20b",
+                IsEnabled = true,
+                TimeoutSeconds = 60
+            }),
+            searchTool.Object,
+            new FakeBookingLinkTool(),
+            new AiBookingChatRequestValidator(),
+            new SafeDiagnosticLogger());
+
+        var response = await assistant.ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Hiện tại có những bến nào?"
+        });
+
+        response.IsFallback.Should().BeFalse();
+        response.ExecutedTools.Should().Contain(t => t.ToolName == "ListStations" && t.Success);
+        response.TextAnswer.Should().Contain("Bến Bạch Đằng").And.Contain("Bến Linh Đông");
+        response.Cards.Should().BeEmpty();
     }
 
     /// <summary>Chỉ ghi tên loại exception; tuyệt đối không in message, request hoặc key.</summary>

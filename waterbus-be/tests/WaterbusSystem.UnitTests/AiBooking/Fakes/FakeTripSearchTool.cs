@@ -18,6 +18,15 @@ public class FakeTripSearchTool : ITripSearchTool
     private readonly bool _simulateEmptyResult;
     private readonly IValidator<TripSearchCriteria> _validator = new TripSearchCriteriaValidator();
 
+    public Task<IReadOnlyList<string>> ListActiveStationsAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        IReadOnlyList<string> names = _availableTrips
+            .SelectMany(t => new[] { t.DepartureStationName, t.ArrivalStationName })
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return Task.FromResult(names);
+    }
+
     public FakeTripSearchTool(IEnumerable<AiTripCardDto>? initialTrips = null, bool simulateEmptyResult = false)
     {
         _simulateEmptyResult = simulateEmptyResult;

@@ -27,14 +27,16 @@ describe('AssistantApiCards', () => {
     render(<MemoryRouter><AssistantApiCards cards={[card]} onSelect={onSelect} /></MemoryRouter>)
 
     expect(screen.getByText(/0 ₫/).textContent).toContain('0 ₫')
-    fireEvent.click(screen.getByRole('button', { name: 'Xem chuyến' }))
+    expect(screen.getByText(/12 ghế còn trống/)).toBeTruthy()
+    expect(screen.queryByText(/demo|API báo/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Chọn chuyến A' }))
     expect(onSelect).toHaveBeenCalledWith(card)
   })
 
   it('does not offer a booking action when neither station ids nor a link exist', () => {
     render(<MemoryRouter><AssistantApiCards cards={[{ ...card, boardingStationId: null }]} onSelect={vi.fn()} /></MemoryRouter>)
 
-    expect(screen.queryByText('Xem chuyến')).toBeNull()
+    expect(screen.queryByText('Chọn chuyến A')).toBeNull()
   })
 
   it('does not expose an unverified fare outside the explicit development preview', () => {

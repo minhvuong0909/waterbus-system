@@ -13,6 +13,9 @@ public record AiBookingChatRequest
     /// <summary>Các lượt gần nhất trước tin hiện tại; client gửi lại, server không lưu hội thoại.</summary>
     public IReadOnlyList<AiBookingChatTurn> History { get; init; } = Array.Empty<AiBookingChatTurn>();
 
+    /// <summary>Tiêu chí từ lần tìm trước do client gửi lại; chỉ dùng khi khách yêu cầu sửa tìm kiếm cũ.</summary>
+    public TripSearchCriteria? SearchContext { get; init; }
+
     /// <summary>
     /// Mã phiên hội thoại (tùy chọn) để hỗ trợ ngữ cảnh nhiều lượt (nếu có).
     /// </summary>

@@ -8,7 +8,7 @@ Drive **đã giao Thịnh AI Booking Assistant** (Semantic Kernel, OpenAI/Gemini
 
 1. Dùng **Groq API qua Semantic Kernel**, model khởi đầu `openai/gpt-oss-20b` theo [AI_DECISIONS.md](AI_DECISIONS.md). Đây là lựa chọn mới của Thịnh, khác hai provider được Drive nêu (OpenAI/Gemini); cần nhóm xác nhận trước khi coi là đáp ứng phân công. Credential/config ngoài Git.
 2. Định nghĩa input chat và response tách phần văn bản với `TripCard[]` có schema ổn định. Không dùng văn bản model để frontend tự bóc tách chuyến.
-3. Định nghĩa plugin/function tìm chuyến: validate ngày, bến, loại dịch vụ và tham số được API hỗ trợ; gọi search API/query đã được owner xác nhận đúng. Thiếu dữ liệu thì hỏi thêm, kết quả rỗng thì báo rỗng.
+3. Định nghĩa plugin/function tìm chuyến: validate ngày, bến, loại dịch vụ và tham số được API hỗ trợ; gọi search API/query đã được owner xác nhận đúng. Không nêu bến thì lấy chuyến sắp tới; nêu một bến thì tìm cả chuyến xuất phát và chuyến đến bến đó; nêu hai bến thì lọc đúng chiều. Ngày là bộ lọc tùy chọn, kết quả rỗng thì báo rỗng. Function liệt kê bến gọi `GetStationsQuery` khi khách hỏi có những bến nào. Hiện API gốc chỉ lọc bến đầu/cuối tuyến, không hỗ trợ tìm mọi chuyến ghé qua bến trung gian.
 4. Function tạo link đặt vé chỉ dùng service/route đã được owner Booking/Web cung cấp; không tự nối chuỗi URL từ phỏng đoán và không tạo Booking/Payment.
 5. Thực thi giới hạn tool, timeout/rate limit, xử lý lỗi provider/API, redaction log và test prompt injection.
 6. Kết nối với widget của Viễn, test live: hỏi giờ tàu → tool trả chuyến thật → Trip Card render đúng → link mở đúng luồng đặt vé.
@@ -19,10 +19,12 @@ Backend có `MediatRTripSearchTool` (gọi cùng query mà API Trip Search dùng
 
 Để demo nội bộ trước khi owner Trip Search sửa giá/bến, có cờ `EnableUnverifiedTripCardsForDevelopment` mặc định tắt, chỉ hoạt động khi host là Development. Card khi đó có thể hiển thị `0 ₫` như dữ liệu query hiện tại, kèm `isPriceVerified=false` và `isDevelopmentPreview=true` trong JSON. **Không coi 0 ₫ là giá bán thật** và không bật `IsTripSearchContractVerified` để lách gate. Ngoài Development, query chưa xác nhận hoặc giá 0 vẫn bị chặn. Mẫu link chính thức có `{tripId}` và tùy contract có `{boardingStationId}`, `{disembarkingStationId}`, `{passengerCount}`.
 
+Lát cắt hội thoại cho demo nội bộ: `SearchTrips` hỗ trợ tìm chuyến sắp tới không bộ lọc, một bến (hai chiều), hai bến đúng chiều, ngày, loại chuyến, số khách và giờ Việt Nam. Giờ "khoảng 16:00" dùng để xếp tối đa ba card gần giờ nhất; "sau 16:00"/"đến trước 17:00" là bộ lọc. API trả `searchContext`; FE gửi lại để câu "sớm hơn", "đổi ngày", "thêm một người" không phải nhập lại mọi điều kiện. `ListStations` trả bến từ query thật; tìm theo khu vực chỉ gợi ý theo tên/địa chỉ bến đã có, không đoán GPS. Widget cho chọn card bằng nút hoặc mã A/B/C, xác nhận rằng chưa đặt vé, rồi chuyển `tripId` và tiêu chí sang trang chi tiết chuyến/chọn ghế. Số khách chuyển qua nhãn tìm kiếm; số ghế và giá cuối cùng vẫn phải kiểm tra ở luồng booking. Không triển khai trả lời chính sách vé/lên tàu vì chưa có nguồn nội dung chính thức.
+
 ### Demo local với dữ liệu Trip Search hiện tại
 
 1. Chạy WebApi trong môi trường `Development`, có DB chứa Station/Trip/TripStopCall/ghế phù hợp. Giữ Groq API key trong User Secrets (không commit). Bật `AiBookingAssistant:Groq:IsEnabled=true` và `AiBookingAssistant:Integration:EnableUnverifiedTripCardsForDevelopment=true` qua User Secrets của `WaterbusSystem.WebApi`.
-2. FE đặt `VITE_USE_MOCK=false`, chạy WebApi và Vite. Hỏi rõ bến đi, bến đến, ngày đi trong widget để model gọi `SearchTrips`; trả về card từ API có thể hiển thị `0 ₫`.
+2. FE đặt `VITE_USE_MOCK=false`, chạy WebApi và Vite. Thử lần lượt "Hiện có chuyến nào sắp tới?", "Linh Đông có chuyến nào?", "Bạch Đằng đến Linh Đông có chuyến nào?"; `SearchTrips` tương ứng dùng không bến, một bến ở cả hai chiều, hoặc đúng cặp bến. Hỏi "Hiện có những bến nào?" để kiểm tra `ListStations`. Card từ API có thể hiển thị `0 ₫` trong Development preview.
 3. Nhấn **Xem chuyến**. FE lưu `tripId` và bến khách hỏi, chuyển sang `/trip`, rồi gọi lại trip detail/seat map. Nếu trang này báo chuyến không phục vụ đoạn bến, đó là dữ liệu Trip Search chưa khớp `TripStopCall`, không được sửa bằng cách bịa card/giá.
 4. Không bật cờ preview trên môi trường chạy thật; khi owner Trip Search hoàn tất, xác minh lại giá và thứ tự bến rồi mới chốt `IsTripSearchContractVerified`.
 

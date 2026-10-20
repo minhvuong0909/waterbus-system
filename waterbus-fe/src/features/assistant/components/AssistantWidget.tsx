@@ -5,17 +5,14 @@ import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { useAppDispatch } from '../../../store/hooks'
 import { selectTrip, setQuery } from '../../booking/bookingSlice'
-import type { Trip } from '../../trips/types'
+import { passengersLabel } from '../../booking/utils'
 import { askAssistant } from '../services/assistantService'
-import type { AssistantApiCard, ChatMessage } from '../types'
-import AssistantTripCard from './AssistantTripCard'
+import type { AssistantApiCard, AssistantSearchContext, ChatMessage } from '../types'
 import AssistantApiCards from './AssistantApiCards'
 import { t } from '../../../i18n'
 
 const CHIPS = [
-  { label: 'Next departures', question: 'Show the next departures' },
-  { label: 'Refund Help', question: 'Refund Help' },
-  { label: 'Trip Status', question: 'Trip Status' },
+  { label: 'Find a trip', question: 'Hiện có những chuyến tàu nào sắp khởi hành?' },
 ]
 
 /** Chat bubble in the corner of every page. The assistant can answer with trip cards. */
@@ -25,11 +22,13 @@ export default function AssistantWidget() {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [draft, setDraft] = useState('')
+  const [searchContext, setSearchContext] = useState<AssistantSearchContext | null>(null)
+  const [selectedCard, setSelectedCard] = useState<AssistantApiCard | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 1,
       from: 'assistant',
-      text: t('Hi! I can help with departures and refunds. What would you like to know?'),
+      text: t('Hi! I can show upcoming trips, or find trips by pier and date. What would you like to know?'),
     },
   ])
   const inputRef = useRef<HTMLInputElement>(null)
@@ -57,11 +56,29 @@ export default function AssistantWidget() {
     const history = messages.slice(1).slice(-8).map((m) => ({ role: m.from, content: m.text }))
     setMessages((m) => [...m, { id: m.length + 1, from: 'user', text: clean }])
     setDraft('')
+    const selection = clean.match(/^chọn\s+(?:chuyến\s+)?(a|b|c|d|e|f|g|h|i|j|10|[1-9]|đầu tiên|thứ hai|thứ ba|này)\s*[.!]?$/i)
+    if (selection) {
+      const latestAnswer = [...messages].reverse().find((m) => m.from === 'assistant')
+      const cards = latestAnswer?.apiCards ?? []
+      const choice = selection[1].toLowerCase()
+      const index = /^[a-j]$/.test(choice) ? choice.charCodeAt(0) - 97
+        : /^(10|[1-9])$/.test(choice) ? Number(choice) - 1
+          : choice === 'đầu tiên' ? 0 : choice === 'thứ hai' ? 1 : choice === 'thứ ba' ? 2 : cards.length === 1 ? 0 : -1
+      const card = cards[index]
+      if (card?.boardingStationId && card.disembarkingStationId) {
+        selectCard(card)
+      } else {
+        setMessages((m) => [...m, { id: m.length + 1, from: 'assistant', text: 'Vui lòng chọn một chuyến đang hiển thị bằng mã A, B, C… hoặc nút trên thẻ chuyến.' }])
+      }
+      return
+    }
     setBusy(true)
     let reply: ChatMessage
     try {
-      const answer = await askAssistant(question, { history })
+      const answer = await askAssistant(question, history, searchContext)
       reply = { id: 0, from: 'assistant', ...answer }
+      if (answer.searchContext !== undefined) setSearchContext(answer.searchContext)
+      setSelectedCard(null)
     } catch {
       reply = {
         id: 0,
@@ -73,14 +90,18 @@ export default function AssistantWidget() {
     setBusy(false)
   }
 
-  const chooseTrip = (trip: Trip, search: ChatMessage['search']) => {
-    if (search) dispatch(setQuery(search))
-    dispatch(selectTrip(trip))
-    setOpen(false)
-    navigate(ROUTES.tripDetail)
+  const selectCard = (card: AssistantApiCard) => {
+    if (!card.boardingStationId || !card.disembarkingStationId) return
+    setSelectedCard(card)
+    const localDeparture = new Date(card.departureTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+    const passengers = searchContext?.passengerCount
+    const text = `Bạn đã chọn chuyến ${card.departureStationName} → ${card.arrivalStationName}, khởi hành ${localDeparture}${passengers ? ` cho ${passengers} người` : ''}. Đây chưa phải đặt vé thành công.`
+    setMessages((m) => [...m, { id: m.length + 1, from: 'assistant', text }])
   }
 
-  const chooseApiCard = (card: AssistantApiCard) => {
+  const continueToBooking = () => {
+    const card = selectedCard
+    if (!card) return
     if (!card.boardingStationId || !card.disembarkingStationId) return
     const dateId = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })
       .format(new Date(card.departureTime))
@@ -88,6 +109,7 @@ export default function AssistantWidget() {
       originId: card.boardingStationId,
       destinationId: card.disembarkingStationId,
       dateId,
+      ...(searchContext?.passengerCount ? { passengers: passengersLabel(searchContext.passengerCount) } : {}),
     }))
     dispatch(selectTrip(card.tripId))
     setOpen(false)
@@ -115,7 +137,7 @@ export default function AssistantWidget() {
               <div className="font-headline-sm text-sm font-bold">
                 {t('Smart Waterbus Assistant')}
               </div>
-              <div className="text-[11px] text-sand-light/80">{t('Ask about trips and tickets')}</div>
+              <div className="text-[11px] text-sand-light/80">{t('Find waterbus trips')}</div>
             </div>
             <button
               type="button"
@@ -139,20 +161,15 @@ export default function AssistantWidget() {
                 >
                   {m.text}
                 </div>
-                {m.apiCards && <AssistantApiCards cards={m.apiCards} onSelect={chooseApiCard} />}
-                {m.trips && (
-                  <div className="mt-2 space-y-2">
-                    {m.trips.map((trip) => (
-                      <AssistantTripCard
-                        key={trip.id}
-                        trip={trip}
-                        onSelect={(chosen) => chooseTrip(chosen, m.search)}
-                      />
-                    ))}
-                  </div>
-                )}
+                {m.apiCards && <AssistantApiCards cards={m.apiCards} onSelect={selectCard} />}
               </div>
             ))}
+            {selectedCard && (
+              <button type="button" onClick={continueToBooking}
+                className="min-h-10 rounded-xl bg-teal-flow px-4 py-2 text-sm font-semibold text-white hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-flow">
+                Tiếp tục đặt vé
+              </button>
+            )}
             {busy && (
               <div className="text-xs text-on-surface-variant">{t('Assistant is typing…')}</div>
             )}
@@ -165,7 +182,7 @@ export default function AssistantWidget() {
                 key={chip.label}
                 type="button"
                 onClick={() => send(t(chip.label), chip.question)}
-                className="rounded-full border border-outline-variant/50 bg-white px-2.5 py-1 text-[11px] text-deep-river transition-colors hover:bg-surface-container-low"
+                className="rounded-full border border-outline-variant/50 bg-white px-3 py-2 text-xs text-deep-river transition-colors hover:bg-surface-container-low"
               >
                 {t(chip.label)}
               </button>

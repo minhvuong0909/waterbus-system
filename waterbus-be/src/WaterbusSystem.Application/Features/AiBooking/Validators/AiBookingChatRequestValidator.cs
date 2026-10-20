@@ -34,5 +34,12 @@ public class AiBookingChatRequestValidator : AbstractValidator<AiBookingChatRequ
                 .Must(type => type == "Commuter" || type == "Sightseeing")
                 .WithMessage("Loại chuyến chỉ được là 'Commuter' hoặc 'Sightseeing'.");
         });
+
+        When(x => x.SearchContext is not null, () =>
+        {
+            RuleFor(x => x.SearchContext!.DepartureStationName).MaximumLength(100);
+            RuleFor(x => x.SearchContext!.ArrivalStationName).MaximumLength(100);
+            RuleFor(x => x.SearchContext!).SetValidator(new TripSearchCriteriaValidator());
+        });
     }
 }
