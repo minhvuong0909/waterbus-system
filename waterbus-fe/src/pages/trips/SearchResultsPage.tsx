@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { ErrorState, PageLoader } from '../../components/ui'
 import { CONTACT } from '../../constant/contact'
 import CorridorSidebar from '../../features/trips/components/CorridorSidebar'
@@ -17,7 +18,11 @@ export default function SearchResultsPage() {
   const { query, updateQuery, piers, dates, counts, trips, searching, loading, error, retry, chooseTrip } =
     useSearchResults()
   const [time, setTime] = useState<TimeFilter>('all')
-  const [kind, setKind] = useState<KindFilter>('all')
+  // `?type=sightseeing` (from the Explore page) opens the list already filtered to sightseeing trips.
+  const [searchParams] = useSearchParams()
+  const [kind, setKind] = useState<KindFilter>(() =>
+    searchParams.get('type') === 'sightseeing' ? 'sightseeing' : 'all',
+  )
   const [sort, setSort] = useState<SortKey>('time')
 
   // Vào trang khi hôm nay đã hết chuyến thì chuyển sang ngày gần nhất còn chuyến (một lần).
