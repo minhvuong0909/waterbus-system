@@ -51,7 +51,7 @@ export function JourneysSection({ journeys }: { journeys: ExploreData['journeys'
           </div>
           <Link
             to={ROUTES.searchResults}
-            className="flex items-center gap-1 text-sm font-semibold text-teal-flow hover:underline"
+            className="tap-area flex items-center gap-1 text-sm font-semibold text-teal-flow hover:underline"
           >
             {t('Browse All Journeys')} <Icon name="arrow_forward" className="text-[16px]" />
           </Link>

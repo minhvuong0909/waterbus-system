@@ -40,7 +40,7 @@ export default function Footer() {
             </p>
             <p>
               <span className="font-semibold text-deep-river">{t('Support Hotline')}:</span>{' '}
-              <a href={CONTACT.hotlineHref} className="hover:text-deep-river">
+              <a href={CONTACT.hotlineHref} className="tap-area hover:text-deep-river">
                 {CONTACT.hotline}
               </a>
             </p>

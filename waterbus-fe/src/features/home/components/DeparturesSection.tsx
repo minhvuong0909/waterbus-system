@@ -84,7 +84,7 @@ export default function DeparturesSection({ filters, departures, pierName }: Dep
 
         <Link
           to={ROUTES.searchResults}
-          className="inline-flex items-center gap-0.5 text-sm font-bold text-teal-flow hover:underline"
+          className="tap-area inline-flex items-center gap-0.5 text-sm font-bold text-teal-flow hover:underline"
         >
           <span>{t('View the full timetable')}</span>
           <Icon name="chevron_right" className="text-[16px]" />

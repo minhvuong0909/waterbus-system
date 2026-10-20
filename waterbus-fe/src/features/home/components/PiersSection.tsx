@@ -282,7 +282,7 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
                           type="button"
                           tabIndex={selected ? 0 : -1}
                           onClick={() => go(i - 1)}
-                          className="inline-flex items-center gap-1 font-medium text-on-surface-variant hover:text-teal-flow"
+                          className="tap-area inline-flex items-center gap-1 font-medium text-on-surface-variant hover:text-teal-flow"
                         >
                           <Icon name="arrow_back" className="text-[16px]" />
                           {t('Previous pier')}: {previous.name.replace(/^Bến\s+/i, '')}
@@ -293,7 +293,7 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
                           type="button"
                           tabIndex={selected ? 0 : -1}
                           onClick={() => go(i + 1)}
-                          className="inline-flex items-center gap-1 font-medium text-on-surface-variant hover:text-teal-flow"
+                          className="tap-area inline-flex items-center gap-1 font-medium text-on-surface-variant hover:text-teal-flow"
                         >
                           {t('Next pier')}: {next.name.replace(/^Bến\s+/i, '')}
                           <Icon name="arrow_forward" className="text-[16px]" />

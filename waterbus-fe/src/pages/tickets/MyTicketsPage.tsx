@@ -41,7 +41,7 @@ export default function MyTicketsPage() {
         </Button>
         <Link
           to={ROUTES.manageBooking}
-          className="mt-space-sm text-sm font-semibold text-teal-flow underline-offset-4 hover:underline"
+          className="tap-area mt-space-sm text-sm font-semibold text-teal-flow underline-offset-4 hover:underline"
         >
           {t('Look up a booking without signing in')}
         </Link>

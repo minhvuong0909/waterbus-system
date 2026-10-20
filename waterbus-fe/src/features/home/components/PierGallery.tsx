@@ -148,7 +148,7 @@ export default function PierGallery({
                   aria-label={t('Photo {n}', { n: i + 1 })}
                   aria-current={i === index ? 'true' : undefined}
                   onClick={() => go(i)}
-                  className={`h-2 rounded-full transition-all ${
+                  className={`relative h-2 rounded-full transition-all before:absolute before:-inset-x-[3px] before:-inset-y-3 before:content-[''] ${
                     i === index ? 'w-6 bg-white' : 'w-2 bg-white/60 hover:bg-white/85'
                   }`}
                 />
@@ -159,7 +159,7 @@ export default function PierGallery({
                   aria-label={t(paused ? 'Play slideshow' : 'Pause slideshow')}
                   aria-pressed={paused}
                   onClick={() => setPaused((v) => !v)}
-                  className="ml-1 flex h-5 w-5 items-center justify-center rounded-full text-white hover:bg-white/20"
+                  className="relative ml-1 flex h-5 w-5 items-center justify-center rounded-full text-white before:absolute before:-inset-2 before:content-[''] hover:bg-white/20"
                 >
                   <Icon name={paused ? 'play_arrow' : 'pause'} className="text-[16px]" />
                 </button>

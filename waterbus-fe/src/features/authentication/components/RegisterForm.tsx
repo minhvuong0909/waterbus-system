@@ -129,7 +129,7 @@ export default function RegisterForm({
         <button
           type="button"
           onClick={onSwitchToSignIn}
-          className="ml-1 font-bold text-teal-flow underline hover:text-deep-river"
+          className="tap-area ml-1 font-bold text-teal-flow underline hover:text-deep-river"
         >
           {t('Sign In')}
         </button>

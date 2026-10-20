@@ -24,6 +24,10 @@ export default defineConfig({
         manualChunks: {
           react: ['react', 'react-dom', 'react-router-dom'],
           state: ['@reduxjs/toolkit', 'react-redux'],
+          // Named so the bundle report is readable; each is only loaded by the pages that use it.
+          leaflet: ['leaflet', 'react-leaflet'],
+          gsap: ['gsap', '@gsap/react'],
+          signalr: ['@microsoft/signalr'],
         },
       },
     },

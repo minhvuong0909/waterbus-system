@@ -58,7 +58,7 @@ export default function HelpPage() {
           <Card className="divide-y divide-outline-variant/30">
             {FAQ.map((item) => (
               <details key={item.question} className="group px-space-lg py-space-md">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-space-md font-headline-sm text-body-lg font-semibold text-deep-river [&::-webkit-details-marker]:hidden">
+                <summary className="-my-3 flex cursor-pointer list-none items-center justify-between gap-space-md font-headline-sm text-body-lg font-semibold text-deep-river [&::-webkit-details-marker]:hidden py-3">
                   {t(item.question)}
                   <Icon
                     name="expand_more"
@@ -83,7 +83,7 @@ export default function HelpPage() {
             </p>
             <a
               href={CONTACT.hotlineHref}
-              className="inline-flex items-center gap-2 text-body-md font-semibold text-teal-flow hover:underline"
+              className="tap-area inline-flex items-center gap-2 text-body-md font-semibold text-teal-flow hover:underline"
             >
               <Icon name="call" className="text-[18px]" />
               {CONTACT.hotline}

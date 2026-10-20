@@ -30,7 +30,7 @@ export default function DateStrip({ dates, selectedId, tripCount, counts, onSele
             }`}
           >
             <span
-              className={`text-[10px] uppercase ${
+              className={`text-[11px] uppercase ${
                 selected ? 'font-bold tracking-wide text-sky-aqua' : 'font-semibold text-outline'
               }`}
             >
@@ -44,7 +44,7 @@ export default function DateStrip({ dates, selectedId, tripCount, counts, onSele
               {date.label}
             </span>
             {selected ? (
-              <span className="mt-0.5 inline-flex items-center rounded-full bg-teal-flow px-2 py-0.5 text-[10px] font-semibold text-white">
+              <span className="mt-0.5 inline-flex items-center rounded-full bg-teal-flow px-2 py-0.5 text-[11px] font-semibold text-white">
                 {count === 0 ? t('No trips') : t('{tripCount} Trips', { tripCount: count ?? tripCount })}
               </span>
             ) : count !== undefined ? (
