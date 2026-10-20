@@ -103,6 +103,9 @@ export async function saveFares(): Promise<FareSettings> {
 
 // ---- Schedules and trips ------------------------------------------------------
 
+/** The backend has no schedule or trip-generation API yet, so the schedule screen is read-only. */
+export const schedulesSupported: boolean = false
+
 export const getSchedules = () => Promise.resolve([] as AdminSchedule[])
 
 export async function createSchedule(): Promise<AdminSchedule> {

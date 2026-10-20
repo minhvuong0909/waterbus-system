@@ -3,7 +3,7 @@ import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import type { PierOption, Trip } from '../types'
 import { formatNumber } from '../../../utils/format'
-import { seatsLabel } from '../utils'
+import { hasFare, seatsLabel } from '../utils'
 import { t } from '../../../i18n'
 
 interface TripCardProps {
@@ -133,10 +133,16 @@ export default function TripCard({ trip, origin, destination, onSelect, departed
             <span className="block text-[11px] font-semibold uppercase tracking-wider text-outline">
               {trip.fareLabel}
             </span>
-            <div className="font-headline-md text-xl font-bold text-deep-river">
-              {formatNumber(trip.fareVnd)}{' '}
-              <span className="text-xs font-medium text-on-surface-variant">{t('VND')}</span>
-            </div>
+            {hasFare(trip.fareVnd) ? (
+              <div className="font-headline-md text-xl font-bold text-deep-river">
+                {formatNumber(trip.fareVnd)}{' '}
+                <span className="text-xs font-medium text-on-surface-variant">{t('VND')}</span>
+              </div>
+            ) : (
+              <div className="max-w-[10rem] text-sm font-semibold leading-snug text-deep-river">
+                {t('Price shown when you choose a seat')}
+              </div>
+            )}
           </div>
           {closed ? (
             <span

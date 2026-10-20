@@ -17,6 +17,7 @@ export const {
   deleteBoat,
   getFares,
   saveFares,
+  schedulesSupported,
   getSchedules,
   createSchedule,
   setScheduleActive,

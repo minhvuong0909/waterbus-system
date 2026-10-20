@@ -4,6 +4,7 @@ import { formatVnd } from '../../../utils/format'
 import { ROUTES } from '../../../routes/routes'
 import type { Departure } from '../types'
 import { t } from '../../../i18n'
+import { hasFare } from '../utils'
 
 interface DepartureCardProps {
   departure: Departure
@@ -69,8 +70,8 @@ export default function DepartureCard({ departure, onSelect }: DepartureCardProp
         </div>
       </div>
       <div className="flex flex-col items-end text-right">
-        <span className="font-numeric-md text-sm font-bold text-deep-river">
-          {formatVnd(departure.priceVnd)}
+        <span className="max-w-[9rem] font-numeric-md text-sm font-bold text-deep-river">
+          {hasFare(departure.priceVnd) ? formatVnd(departure.priceVnd) : t('Price shown when you choose a seat')}
         </span>
         <Link
           to={ROUTES.tripDetail}

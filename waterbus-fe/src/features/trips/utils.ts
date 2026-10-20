@@ -77,6 +77,9 @@ export function timeBandOf(hour: number): TimeBand {
   return hour < 17 ? 'afternoon' : 'sunset'
 }
 
+/** The search endpoint sends no fare (the real fares belong to each seat class), so 0 means "not known yet". */
+export const hasFare = (amountVnd: number): boolean => amountVnd > 0
+
 /** Short reference for a trip, the first 8 characters of its id (e.g. "3F2A9C1B"). */
 export function tripReference(id: string): string {
   return id.replace(/-/g, '').slice(0, 8).toUpperCase()

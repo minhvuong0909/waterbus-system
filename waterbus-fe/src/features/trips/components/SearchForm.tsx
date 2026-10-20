@@ -64,6 +64,9 @@ export default function SearchForm({ piers, dates, variant = 'card' }: SearchFor
             : 'gap-3 xl:grid-cols-[minmax(0,1.5fr)_44px_minmax(0,1.5fr)_minmax(0,1.2fr)_minmax(0,0.9fr)]'
         }`}
       >
+        {/* Below xl the two piers sit in their own grid and the swap button floats between them;
+            from xl the wrapper disappears and the button takes its own grid column. */}
+        <div className="relative grid grid-cols-1 gap-2 md:col-span-2 md:grid-cols-2 xl:contents">
         <PierField
           className="min-w-0"
           label={t('Departure Pier')}
@@ -73,21 +76,19 @@ export default function SearchForm({ piers, dates, variant = 'card' }: SearchFor
           onChange={chooseOrigin}
           compact={bar}
         />
-        <div className="z-10 hidden items-center justify-center xl:flex">
-          <button
-            type="button"
-            aria-label={t('Swap origin and destination')}
-            onClick={() =>
-              updateQuery({ originId: query.destinationId, destinationId: query.originId })
-            }
-            className="group flex h-10 w-10 items-center justify-center rounded-full border border-[#E2ECEE] bg-white text-deep-river shadow-sm transition-all hover:bg-teal-flow hover:text-on-primary"
-          >
-            <Icon
-              name="swap_horiz"
-              className="text-[18px] transition-transform group-hover:rotate-180"
-            />
-          </button>
-        </div>
+        <button
+          type="button"
+          aria-label={t('Swap origin and destination')}
+          onClick={() =>
+            updateQuery({ originId: query.destinationId, destinationId: query.originId })
+          }
+          className="group absolute right-3 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[#E2ECEE] bg-white text-deep-river shadow-sm transition-all before:absolute before:-inset-1 before:content-[''] hover:bg-teal-flow hover:text-on-primary md:left-1/2 md:right-auto md:-translate-x-1/2 xl:static xl:h-10 xl:w-10 xl:translate-x-0 xl:translate-y-0 xl:self-center xl:justify-self-center"
+        >
+          <Icon
+            name="swap_horiz"
+            className="rotate-90 text-[18px] transition-transform group-hover:rotate-[270deg] md:rotate-0 md:group-hover:rotate-180"
+          />
+        </button>
         <PierField
           className="min-w-0"
           label={t('Arrival Pier')}
@@ -97,6 +98,7 @@ export default function SearchForm({ piers, dates, variant = 'card' }: SearchFor
           onChange={chooseDestination}
           compact={bar}
         />
+        </div>
         <div className="min-w-0 md:col-span-2 xl:col-span-1">
           <DateField
             dates={dates}

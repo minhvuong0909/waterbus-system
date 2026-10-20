@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorState, PageLoader } from '../../components/ui'
+import { CONTACT } from '../../constant/contact'
 import CorridorSidebar from '../../features/trips/components/CorridorSidebar'
 import DateStrip from '../../features/trips/components/DateStrip'
 import ResultFilters from '../../features/trips/components/ResultFilters'
@@ -40,6 +41,8 @@ export default function SearchResultsPage() {
     todayOption && counts && counts[todayOption.id] === 0 && nearestOption?.id === query.dateId
       ? nearestOption
       : undefined
+  // Every offered day is known to have nothing to book: advising "pick another day" would lead nowhere.
+  const noTripsAtAll = !!counts && !!dates && dates.length > 0 && dates.every((d) => counts[d.id] === 0)
 
   // Giá chuyến thường như nhau nên chỉ cho sắp xếp theo giá khi các chuyến đang xem có giá khác nhau.
   const priceVaries = useMemo(() => new Set((trips ?? []).map((trip) => trip.fareVnd)).size > 1, [trips])
@@ -90,6 +93,20 @@ export default function SearchResultsPage() {
           </div>
 
           <SearchForm piers={piers} dates={dates} variant="bar" />
+          {noTripsAtAll && dates && (
+            <p
+              role="status"
+              className="rounded-2xl border border-signal-amber/40 bg-signal-amber/10 px-space-md py-3 text-sm text-deep-river"
+            >
+              <span className="font-semibold">
+                {t('There are no trips in the next {days} days.', { days: dates.length })}
+              </span>{' '}
+              {t('Try another pair of piers, or call the hotline for the timetable:')}{' '}
+              <a href={CONTACT.hotlineHref} className="tap-area whitespace-nowrap font-semibold text-teal-flow hover:underline">
+                {CONTACT.hotline}
+              </a>
+            </p>
+          )}
           {nearestDay && (
             <p
               role="status"
@@ -130,7 +147,7 @@ export default function SearchResultsPage() {
               </div>
             </div>
 
-            {visible.length > 0 && dayBookable === 0 && (
+            {visible.length > 0 && dayBookable === 0 && !noTripsAtAll && (
               <p
                 role="status"
                 className="rounded-2xl border border-signal-amber/40 bg-signal-amber/10 px-space-md py-3 text-sm text-deep-river"
@@ -158,7 +175,9 @@ export default function SearchResultsPage() {
                 </p>
                 <p className="mt-1 text-sm text-on-surface-variant">
                   {trips.length === 0
-                    ? t('Try another day in the date strip above, or change the piers.')
+                    ? noTripsAtAll
+                      ? t('Try another pair of piers or call the hotline.')
+                      : t('Try another day in the date strip above, or change the piers.')
                     : t('Try “All Times” and “All Types” to see every departure.')}
                 </p>
               </div>

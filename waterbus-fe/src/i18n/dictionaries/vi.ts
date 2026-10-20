@@ -835,6 +835,14 @@ export const vi: Record<string, string> = {
   'Live Trip': 'Chuyến đang chạy',
   'Live trip tracking': 'Theo dõi chuyến trực tiếp',
   'Live Trip Tracking': 'Theo dõi chuyến trực tiếp',
+  'Waiting for backend support': 'Chờ BE hỗ trợ',
+  'The backend has no API to manage schedules or generate trips yet. Existing trips are listed under Trips.':
+    'Backend chưa có API quản lý lịch chạy hoặc sinh chuyến. Các chuyến có sẵn được xem tại mục Chuyến.',
+  'Price shown when you choose a seat': 'Giá hiển thị khi chọn ghế',
+  'There are no trips in the next {days} days.': 'Chưa có chuyến nào trong {days} ngày tới.',
+  'Try another pair of piers, or call the hotline for the timetable:':
+    'Hãy thử cặp bến khác, hoặc gọi hotline để biết lịch chạy:',
+  'Try another pair of piers or call the hotline.': 'Hãy thử cặp bến khác hoặc gọi hotline hỗ trợ.',
   'Live tracking for passengers is coming soon': 'Theo dõi tàu trực tiếp cho hành khách sắp ra mắt',
   'Boat positions are shared with the operations team only for now. Meanwhile you can check the timetable and book your seat.':
     'Hiện vị trí tàu chỉ được chia sẻ cho đội điều hành. Trong lúc chờ, bạn có thể xem lịch chạy và đặt chỗ.',

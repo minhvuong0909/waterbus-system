@@ -277,6 +277,9 @@ export async function saveFares(fares: FareSettings): Promise<FareSettings> {
 
 // ---- Schedules and trips ------------------------------------------------------
 
+/** The mock store can create schedules and generate trips. */
+export const schedulesSupported: boolean = true
+
 export const getSchedules = () => query((d) => d.schedules)
 
 export async function createSchedule(input: NewSchedule): Promise<AdminSchedule> {
