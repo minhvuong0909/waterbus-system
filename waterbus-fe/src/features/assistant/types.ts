@@ -3,6 +3,8 @@ export interface AssistantReply {
   text: string
   apiCards?: AssistantApiCard[]
   searchContext?: AssistantSearchContext | null
+  /** True when the backend could not answer normally and returned a safe default reply. */
+  isFallback?: boolean
 }
 
 /** Bộ lọc đã được backend kiểm tra ở lần tìm trước, gửi lại cho câu hỏi nối tiếp. */
@@ -23,6 +25,10 @@ export interface ChatMessage {
   from: 'user' | 'assistant'
   text: string
   apiCards?: AssistantApiCard[]
+  /** `fallback`: the backend's safe default reply. `error`: the request failed (shown locally only). */
+  tone?: 'fallback' | 'error'
+  /** For an error: the question to send again with "Try again". */
+  retryQuestion?: string
 }
 
 export interface AssistantChatTurn {

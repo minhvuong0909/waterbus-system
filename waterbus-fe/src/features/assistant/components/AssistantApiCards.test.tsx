@@ -19,30 +19,49 @@ const card: AssistantApiCard = {
   isDevelopmentPreview: true,
 }
 
+const renderCards = (cards: AssistantApiCard[], onSelect = vi.fn(), selectedId: string | null = null) =>
+  render(<MemoryRouter><AssistantApiCards cards={cards} onSelect={onSelect} selectedId={selectedId} /></MemoryRouter>)
+
 describe('AssistantApiCards', () => {
   afterEach(cleanup)
 
-  it('shows the Trip Search zero fare in internal preview and opens the selected trip', () => {
+  it('shows the departure in Vietnam time, the seats left and opens the chosen trip', () => {
     const onSelect = vi.fn()
-    render(<MemoryRouter><AssistantApiCards cards={[card]} onSelect={onSelect} /></MemoryRouter>)
+    renderCards([card], onSelect)
 
-    expect(screen.getByText(/0 ₫/).textContent).toContain('0 ₫')
-    expect(screen.getByText(/12 ghế còn trống/)).toBeTruthy()
-    expect(screen.queryByText(/demo|API báo/)).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'Chọn chuyến A' }))
+    expect(screen.getByText('08:00')).toBeTruthy() // 01:00 UTC
+    expect(screen.getByText('12 Seats Left')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Choose trip A' }))
     expect(onSelect).toHaveBeenCalledWith(card)
   })
 
-  it('does not offer a booking action when neither station ids nor a link exist', () => {
-    render(<MemoryRouter><AssistantApiCards cards={[{ ...card, boardingStationId: null }]} onSelect={vi.fn()} /></MemoryRouter>)
+  it('never shows the 0 the trip search sends as a fare', () => {
+    renderCards([card])
 
-    expect(screen.queryByText('Chọn chuyến A')).toBeNull()
+    expect(screen.queryByText(/\b0 VND|0 ₫/)).toBeNull()
+    expect(screen.getByText('Price shown when you choose a seat')).toBeTruthy()
   })
 
-  it('does not expose an unverified fare outside the explicit development preview', () => {
-    render(<MemoryRouter><AssistantApiCards cards={[{ ...card, isDevelopmentPreview: false }]} onSelect={vi.fn()} /></MemoryRouter>)
+  it('shows a fare only once it is verified or in the development preview', () => {
+    renderCards([{ ...card, basePrice: 15000, isDevelopmentPreview: false }])
+    expect(screen.queryByText(/15\.000/)).toBeNull()
+    cleanup()
 
-    expect(screen.getByText(/Giá chưa được xác nhận/)).toBeTruthy()
-    expect(screen.queryByText(/0 ₫/)).toBeNull()
+    renderCards([{ ...card, basePrice: 15000, isPriceVerified: true }])
+    expect(screen.getByText('15.000 VND')).toBeTruthy()
+  })
+
+  it('marks the selected trip and offers no choice on a sold-out one', () => {
+    renderCards([card, { ...card, tripId: 'full', availableSeatsCount: 0 }], vi.fn(), 'trip-id')
+
+    expect(screen.getByRole('button', { name: 'Choose trip A' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByText('Sold out')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Choose trip B' })).toBeNull()
+  })
+
+  it('does not offer a booking action when neither station ids nor a link exist', () => {
+    renderCards([{ ...card, boardingStationId: null }])
+
+    expect(screen.queryByRole('button', { name: 'Choose trip A' })).toBeNull()
   })
 })
