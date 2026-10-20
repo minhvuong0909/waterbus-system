@@ -34,11 +34,27 @@ import {
 import type { TripDetailDto, TripSeatMapDto } from '../../booking/types'
 import { pickJourney } from '../../booking/utils'
 
-/** `GET /stations`: the active piers in river order. */
-export async function getPierOptions(): Promise<PierOption[]> {
+/** The piers change rarely and one page asks for them several times, so they are kept this long. */
+const PIER_CACHE_MS = 60_000
+let pierCache: { piers: Promise<PierOption[]>; at: number } | undefined
+
+/** Forgets the cached piers, e.g. after an Admin changed a station. */
+export function clearPierCache() {
+  pierCache = undefined
+}
+
+/** `GET /stations`: the active piers in river order. Requests in flight and recent results are shared. */
+export function getPierOptions(): Promise<PierOption[]> {
   if (USE_MOCK) return withDelay(PIER_OPTIONS)
-  const stations = await apiRequest<StationDto[]>(API_ENDPOINTS.stations)
-  return stations.map(toPierOption)
+  if (pierCache && Date.now() - pierCache.at < PIER_CACHE_MS) return pierCache.piers
+  const piers = apiRequest<StationDto[]>(API_ENDPOINTS.stations).then((stations) => stations.map(toPierOption))
+  const entry = { piers, at: Date.now() }
+  pierCache = entry
+  // A failure is not kept: the next call asks again.
+  piers.catch(() => {
+    if (pierCache === entry) pierCache = undefined
+  })
+  return piers
 }
 
 // Mock: the backend has no route list endpoint yet. Seeds are matched to the real stations by
