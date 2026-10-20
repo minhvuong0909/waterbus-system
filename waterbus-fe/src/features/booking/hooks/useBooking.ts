@@ -32,8 +32,8 @@ export function useBooking({ live = false }: UseBookingOptions = {}) {
   const liveSeatMap = useLiveSeatMap(loadedSeatMap.data, detail?.id ?? null, live, loadedSeatMap.retry)
   // Seats of the traveler's own running hold are theirs, not "held by another traveler".
   const seatMap = useMemo(
-    () => (liveSeatMap ? withOwnHold(liveSeatMap, booking.order) : undefined),
-    [liveSeatMap, booking.order],
+    () => (liveSeatMap ? withOwnHold(liveSeatMap, booking.order, detail?.id ?? null) : undefined),
+    [liveSeatMap, booking.order, detail?.id],
   )
 
   // The chosen seats as they are on the map now; an id the map does not know is left out.

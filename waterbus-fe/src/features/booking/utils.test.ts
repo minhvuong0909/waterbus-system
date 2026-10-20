@@ -198,16 +198,20 @@ describe('withOwnHold', () => {
   const now = Date.parse('2026-10-21T07:00:00Z')
 
   it('shows the seats of my running hold as free, and keeps other holds and sold seats', () => {
-    const result = withOwnHold(map, { seatIds: ['mine'], heldUntil: now + 60_000 }, now)
+    const result = withOwnHold(map, { seatIds: ['mine'], heldUntil: now + 60_000, tripId: 't1' }, 't1', now)
     expect(result.seats.map((s) => s.status)).toEqual(['available', 'held', 'sold'])
   })
 
   it('stops once the hold has expired or the order is settled', () => {
-    expect(withOwnHold(map, { seatIds: ['mine'], heldUntil: now - 1 }, now)).toBe(map)
-    expect(withOwnHold(map, { seatIds: ['mine'], heldUntil: now + 60_000, settled: true }, now)).toBe(map)
+    expect(withOwnHold(map, { seatIds: ['mine'], heldUntil: now - 1, tripId: 't1' }, 't1', now)).toBe(map)
+    expect(withOwnHold(map, { seatIds: ['mine'], heldUntil: now + 60_000, settled: true, tripId: 't1' }, 't1', now)).toBe(map)
+  })
+
+  it('only applies on the trip of the hold (seat ids repeat on every trip of a boat)', () => {
+    expect(withOwnHold(map, { seatIds: ['mine'], heldUntil: now + 60_000, tripId: 't1' }, 't2', now)).toBe(map)
   })
 
   it('leaves the map alone without an order', () => {
-    expect(withOwnHold(map, null, now)).toBe(map)
+    expect(withOwnHold(map, null, 't1', now)).toBe(map)
   })
 })

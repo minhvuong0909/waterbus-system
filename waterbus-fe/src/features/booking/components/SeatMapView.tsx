@@ -62,7 +62,8 @@ const SeatButton = memo(function SeatButton({
       )}
       <button
         type="button"
-        disabled={unavailable}
+        // A chosen seat can always be removed, even if someone else took it meanwhile.
+        disabled={unavailable && !selected}
         aria-pressed={selected}
         aria-label={`${t('Seat {id}', { id: seat.code })}${tags ? `, ${tags}` : ''}${
           state ? `, ${state}` : ''

@@ -1,7 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import { USE_MOCK } from '../../constant/env'
-import { DEFAULT_PURCHASER, DEFAULT_SEAT_IDS } from '../../mocks/booking'
+import { DEFAULT_PURCHASER } from '../../mocks/booking'
 import { DEFAULT_SEARCH_QUERY } from '../../mocks/tripSearch'
 import type { SearchQuery, Trip } from '../trips/types'
 import type { PaymentMethodId } from '../payment/types'
@@ -21,6 +21,8 @@ export interface PlacedOrder {
    */
   seatIds?: string[]
   heldUntil?: number
+  /** The trip of the hold: the same boat seat has the same id on every trip of that boat. */
+  tripId?: string | null
 }
 
 // Client-side booking state shared by the booking pages. Every field has a default,
@@ -53,7 +55,8 @@ const initialState: BookingState = {
   query: DEFAULT_SEARCH_QUERY,
   selectedTripId: null,
   selectedTrip: null,
-  seatIds: USE_MOCK ? DEFAULT_SEAT_IDS : [],
+  // No seat is picked for the traveler, in mock mode too: they choose every seat themselves.
+  seatIds: [],
   purchaser: USE_MOCK ? DEFAULT_PURCHASER : EMPTY_PURCHASER,
   passengers: {},
   // Consent must be given on purpose, never pre-ticked.
@@ -72,12 +75,24 @@ const bookingSlice = createSlice({
       state.query = { ...state.query, ...action.payload }
     },
     /** A full trip (from search results) or just an id (home page departures). */
+    /**
+     * Picking the trip the traveler is already booking (and has not paid yet) keeps their seats,
+     * names and hold. Any other trip starts a new selection. The previous order stays recorded,
+     * unpaid, so it is cancelled on the backend before the next hold instead of keeping its seats.
+     */
     selectTrip(state, action: PayloadAction<Trip | string>) {
       const trip = typeof action.payload === 'string' ? null : action.payload
-      state.selectedTripId = trip ? trip.id : (action.payload as string)
+      const tripId = trip ? trip.id : (action.payload as string)
+      if (tripId === state.selectedTripId && !state.order?.settled) {
+        if (trip) state.selectedTrip = trip
+        return
+      }
+      state.selectedTripId = tripId
       state.selectedTrip = trip
+      state.seatIds = []
+      state.passengers = {}
       state.hold = null
-      state.order = null
+      if (state.order?.settled) state.order = null
     },
     // The hold is made for the trip and seats, so changing either makes it stale: it is dropped
     // (the order is released when the next hold is made). Names are sent later, on submit.
@@ -109,6 +124,7 @@ const bookingSlice = createSlice({
         accessToken: action.payload.accessToken,
         seatIds: action.payload.seatIds,
         heldUntil: action.payload.expiresAt,
+        tripId: state.selectedTripId,
       }
     },
     /** The previous order was cancelled to hold other seats: its seats are no longer ours. */

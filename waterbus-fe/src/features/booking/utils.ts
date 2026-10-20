@@ -283,10 +283,12 @@ function toSeat(dto: TripSeatDto): Seat {
  */
 export function withOwnHold(
   seatMap: SeatMap,
-  order: { seatIds?: string[]; heldUntil?: number; settled?: boolean } | null,
+  order: { seatIds?: string[]; heldUntil?: number; settled?: boolean; tripId?: string | null } | null,
+  tripId: string | null,
   now = Date.now(),
 ): SeatMap {
   if (!order?.seatIds?.length || order.settled || !order.heldUntil || order.heldUntil <= now) return seatMap
+  if (!tripId || order.tripId !== tripId) return seatMap
   const own = new Set(order.seatIds)
   if (!seatMap.seats.some((seat) => seat.status === 'held' && own.has(seat.id))) return seatMap
   return {
