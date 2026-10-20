@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Icon font, self-hosted and cut down to the glyphs the app uses (about 20 KB instead of ~970 KB).
+   `block` keeps the icon invisible until it loads, so its name is never shown as text.
+   A new icon name must be added to the subset (see src/assets/fonts/README.md). */
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('./assets/fonts/material-symbols-outlined.woff2') format('woff2');
+}
+
 @layer base {
   html,
   body {
