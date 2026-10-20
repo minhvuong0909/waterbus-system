@@ -129,9 +129,18 @@ describe('getOpenIncidents', () => {
   it('loads the affected trips and decisions when asked', async () => {
     fetchMock
       .mockResolvedValueOnce(json({ items: [summary({})], totalCount: 1 }))
-      .mockResolvedValueOnce(json({ affectedTrips: [{ tripId: 't1', operationDecision: null }, { tripId: 't2', operationDecision: 'Cancel' }] }))
+      .mockResolvedValueOnce(json({
+        affectedTrips: [
+          { tripId: 't1', operationDecision: null, departureTime: '2026-10-21T08:00:00+00:00', tripStatus: 1, decisionAt: null },
+          { tripId: 't2', operationDecision: 'Cancel', tripStatus: 7, decisionAt: '2026-10-20T15:20:00+00:00' },
+        ],
+      }))
     const [alert] = await getOpenIncidents(true)
-    expect(alert.trips).toEqual([{ tripId: 't1', decision: null }, { tripId: 't2', decision: 'Cancel' }])
+    // The backend sends the trip status as its enum number.
+    expect(alert.trips).toEqual([
+      { tripId: 't1', decision: null, departureTime: '2026-10-21T08:00:00+00:00', tripStatus: 'Scheduled', decisionAt: null },
+      { tripId: 't2', decision: 'Cancel', tripStatus: 'Cancelled', decisionAt: '2026-10-20T15:20:00+00:00' },
+    ])
   })
 
   it('treats an unknown incident type as other', async () => {
