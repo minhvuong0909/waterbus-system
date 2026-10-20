@@ -119,9 +119,11 @@ function tripSeed(
   departure.setHours(hours, minutes, 0, 0)
   const hops = Math.abs(from.orderIndex - to.orderIndex)
   const durationMinutes = Math.round((hops * FULL_CORRIDOR_MINUTES) / 4)
+  // Ngày + cặp bến ở nhóm cuối để chuyến đi và chuyến về (khứ hồi) không trùng id.
+  const stamp = `${day.getFullYear()}${String(day.getMonth() + 1).padStart(2, '0')}${String(day.getDate()).padStart(2, '0')}`
   return {
     // The first 8 characters of the id are the trip reference shown in the UI, so each one differs.
-    id: `7f3a000${n}-0000-4000-8000-00000000000${n}`,
+    id: `7f3a000${n}-0000-4000-8000-${stamp}${from.orderIndex}${to.orderIndex}0${n}`,
     routeName: 'Bạch Đằng - Linh Đông',
     departureStationName: from.name,
     arrivalStationName: to.name,

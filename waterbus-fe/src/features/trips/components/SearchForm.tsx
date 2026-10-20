@@ -21,6 +21,10 @@ export default function SearchForm({ piers, dates, variant = 'card' }: SearchFor
   const { query, updateQuery } = useSearchQuery()
   const pier = (id: string) => piers.find((p) => p.id === id) ?? piers[0]
   const dateId = (dates.find((d) => d.id === query.dateId) ?? dates[0]).id
+  const roundTrip = query.tripType === 'round-trip'
+  // The return day is never before the outbound day (BR-SRCH-01).
+  const returnDates = dates.filter((d) => d.id >= dateId)
+  const returnDateId = (returnDates.find((d) => d.id === query.returnDateId) ?? returnDates[0])?.id ?? dateId
 
   // A trip needs two different piers: picking the other field's pier swaps them instead.
   const chooseOrigin = (id: string) =>
@@ -56,12 +60,45 @@ export default function SearchForm({ piers, dates, variant = 'card' }: SearchFor
         </p>
       )}
 
+      <div
+        role="radiogroup"
+        aria-label={t('Ticket type')}
+        className={`inline-flex rounded-full bg-surface-container p-1 ${bar ? 'mb-2' : 'mb-3'}`}
+      >
+        {(['one-way', 'round-trip'] as const).map((type) => (
+          <button
+            key={type}
+            type="button"
+            role="radio"
+            aria-checked={query.tripType === type}
+            onClick={() =>
+              updateQuery(
+                type === 'round-trip'
+                  ? { tripType: type, returnDateId: query.returnDateId ?? dateId }
+                  : { tripType: type },
+              )
+            }
+            className={`min-h-[36px] rounded-full px-4 text-sm transition-colors ${
+              query.tripType === type
+                ? 'bg-deep-river font-semibold text-white'
+                : 'text-on-surface-variant hover:text-deep-river'
+            }`}
+          >
+            {type === 'round-trip' ? t('Round trip') : t('One way')}
+          </button>
+        ))}
+      </div>
+
       <form
         onSubmit={handleSubmit}
         className={`grid grid-cols-1 items-stretch md:grid-cols-2 ${
           bar
-            ? 'gap-2 xl:grid-cols-[minmax(0,1.5fr)_40px_minmax(0,1.5fr)_minmax(0,1.1fr)_auto]'
-            : 'gap-3 xl:grid-cols-[minmax(0,1.5fr)_44px_minmax(0,1.5fr)_minmax(0,1.2fr)_minmax(0,0.9fr)]'
+            ? roundTrip
+              ? 'gap-2 xl:grid-cols-[minmax(0,1.4fr)_40px_minmax(0,1.4fr)_minmax(0,1.9fr)_auto]'
+              : 'gap-2 xl:grid-cols-[minmax(0,1.5fr)_40px_minmax(0,1.5fr)_minmax(0,1.1fr)_auto]'
+            : roundTrip
+              ? 'gap-3 xl:grid-cols-[minmax(0,1.4fr)_44px_minmax(0,1.4fr)_minmax(0,2fr)_minmax(0,0.9fr)]'
+              : 'gap-3 xl:grid-cols-[minmax(0,1.5fr)_44px_minmax(0,1.5fr)_minmax(0,1.2fr)_minmax(0,0.9fr)]'
         }`}
       >
         {/* Below xl the two piers sit in their own grid and the swap button floats between them;
@@ -99,13 +136,23 @@ export default function SearchForm({ piers, dates, variant = 'card' }: SearchFor
           compact={bar}
         />
         </div>
-        <div className="min-w-0 md:col-span-2 xl:col-span-1">
+        <div className={`min-w-0 md:col-span-2 xl:col-span-1 ${roundTrip ? 'grid grid-cols-2 gap-2' : ''}`}>
           <DateField
             dates={dates}
             value={dateId}
             onChange={(id) => updateQuery({ dateId: id })}
             compact={bar}
+            label={roundTrip ? t('Outbound date') : undefined}
           />
+          {roundTrip && (
+            <DateField
+              dates={returnDates}
+              value={returnDateId}
+              onChange={(id) => updateQuery({ returnDateId: id })}
+              compact={bar}
+              label={t('Return date')}
+            />
+          )}
         </div>
         <div className="flex items-stretch md:col-span-2 xl:col-span-1">
           <button

@@ -13,6 +13,10 @@ interface TripCardProps {
   onSelect: (trip: Trip) => void
   /** Chuyến đã rời bến: không chọn được nữa. */
   departed?: boolean
+  /** Where "Select Trip" leads; the trip detail page by default. */
+  to?: string
+  /** Not selectable for another reason, with the text shown instead of the button. */
+  blockedReason?: string
 }
 
 const CARD: Record<Trip['variant'], string> = {
@@ -21,17 +25,25 @@ const CARD: Record<Trip['variant'], string> = {
   sunset: 'border-2 border-coral-glow/40 shadow-[0_4px_20px_rgba(240,138,107,0.10)]',
 }
 
-export default function TripCard({ trip, origin, destination, onSelect, departed = false }: TripCardProps) {
+export default function TripCard({
+  trip,
+  origin,
+  destination,
+  onSelect,
+  departed = false,
+  to = ROUTES.tripDetail,
+  blockedReason,
+}: TripCardProps) {
   const sunset = trip.variant === 'sunset'
   const accent = sunset ? 'text-coral-glow' : 'text-teal-flow'
   const soldOut = trip.seatsCount <= 0
-  const closed = soldOut || departed
+  const closed = soldOut || departed || Boolean(blockedReason)
 
   return (
     <article
       className={`rounded-2xl bg-white p-space-lg transition-all duration-200 hover:shadow-md ${
         CARD[trip.variant]
-      } ${departed ? 'opacity-60' : ''}`}
+      } ${departed || blockedReason ? 'opacity-60' : ''}`}
     >
       <div className="mb-space-md flex flex-wrap items-center justify-between gap-space-sm">
         <div className="flex flex-wrap items-center gap-space-xs">
@@ -149,11 +161,11 @@ export default function TripCard({ trip, origin, destination, onSelect, departed
               aria-disabled="true"
               className="inline-flex cursor-not-allowed items-center justify-center rounded-full bg-surface-container px-space-lg py-2 text-sm font-semibold text-on-surface-variant"
             >
-              {departed ? t('Departed') : t('Sold out')}
+              {departed ? t('Departed') : soldOut ? t('Sold out') : blockedReason}
             </span>
           ) : (
           <Link
-            to={ROUTES.tripDetail}
+            to={to}
             onClick={() => onSelect(trip)}
             className={`inline-flex items-center justify-center gap-1.5 rounded-full px-space-lg py-2 text-sm font-semibold transition-all ${
               sunset

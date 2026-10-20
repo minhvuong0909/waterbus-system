@@ -10,13 +10,15 @@ interface DateFieldProps {
   onChange: (id: string) => void
   /** Gọn một dòng cho thanh tìm chuyến. */
   compact?: boolean
+  /** Nhãn của ô, mặc định "Ngày"; chuyến khứ hồi dùng "Ngày đi" và "Ngày về". */
+  label?: string
 }
 
 /** Ngày trong tháng (1-31) lấy từ id `YYYY-MM-DD`. */
 const dayOfMonth = (id: string) => Number(id.slice(8, 10))
 
 /** Ô chọn ngày: bấm mở danh sách các ngày đang bán, mỗi ngày là một dòng có ô thứ/ngày và nhãn Hôm nay/Ngày mai. */
-export default function DateField({ dates, value, onChange, compact = false }: DateFieldProps) {
+export default function DateField({ dates, value, onChange, compact = false, label }: DateFieldProps) {
   const { root, open, setOpen, toggle, placement } = usePopoverList(dates.length * 60 + 8)
   const selected = dates.find((d) => d.id === value) ?? dates[0]
   const firstIsToday = Boolean(dates[0]?.isToday)
@@ -38,7 +40,7 @@ export default function DateField({ dates, value, onChange, compact = false }: D
         <span className="flex w-full items-center justify-between">
           <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
             <Icon name="calendar_today" className="text-[15px] text-teal-flow" />
-            {t('Date')}
+            {label ?? t('Date')}
           </span>
           <Icon
             name="expand_more"
@@ -55,7 +57,7 @@ export default function DateField({ dates, value, onChange, compact = false }: D
       {open && (
         <ul
           role="listbox"
-          aria-label={t('Departure Date')}
+          aria-label={label ?? t('Departure Date')}
           style={{ maxHeight: placement.maxHeight }}
           className={`absolute left-0 right-0 z-30 min-w-[16rem] overflow-y-auto rounded-xl border border-[#E2ECEE] bg-white py-1 shadow-lg ${
             placement.up ? 'bottom-full mb-2' : 'top-full mt-2'

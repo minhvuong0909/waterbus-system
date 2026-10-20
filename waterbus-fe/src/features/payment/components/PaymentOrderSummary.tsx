@@ -23,7 +23,33 @@ interface PaymentOrderSummaryProps {
   trip: TripDetail
   seats: Seat[]
   purchaser: PurchaserForm
+  /** Covers both legs for a round trip. */
   totals: BookingTotals
+  /** The return leg of a round trip, paid in the same order (BR-COM-02). */
+  returnLeg?: { trip: TripDetail; seats: Seat[] }
+}
+
+/** Piers, times and day of one leg. */
+function LegRoute({ trip, label }: { trip: TripDetail; label?: string }) {
+  return (
+    <div className="rounded-xl bg-mist/70 p-space-md">
+      {label && <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-teal-flow">{label}</div>}
+      <div className="flex items-start justify-between text-xs font-semibold text-deep-river">
+        <span>
+          {trip.originPierLabel}
+          <span className="block font-normal text-teal-flow">{trip.departTime}</span>
+        </span>
+        <Icon name="sailing" className="text-[18px] text-teal-flow" />
+        <span className="text-right">
+          {trip.destinationPierLabel}
+          <span className="block font-normal text-teal-flow">{trip.arriveTime}</span>
+        </span>
+      </div>
+      <div className="mt-2 border-t border-outline-variant/60 pt-2 text-center text-[11px] text-on-surface-variant">
+        {trip.dateFull} • {t('{durationMins} min crossing', { durationMins: trip.durationMins })}
+      </div>
+    </div>
+  )
 }
 
 export default function PaymentOrderSummary({
@@ -31,6 +57,7 @@ export default function PaymentOrderSummary({
   seats,
   purchaser,
   totals,
+  returnLeg,
 }: PaymentOrderSummaryProps) {
   const navigate = useNavigate()
   const order = useAppSelector((s) => s.booking.order)
@@ -65,32 +92,28 @@ export default function PaymentOrderSummary({
 
       <SummaryTimer />
 
-      <div className="rounded-xl bg-mist/70 p-space-md">
-        <div className="flex items-start justify-between text-xs font-semibold text-deep-river">
-          <span>
-            {trip.originPierLabel}
-            <span className="block font-normal text-teal-flow">{trip.departTime}</span>
-          </span>
-          <Icon name="sailing" className="text-[18px] text-teal-flow" />
-          <span className="text-right">
-            {trip.destinationPierLabel}
-            <span className="block font-normal text-teal-flow">{trip.arriveTime}</span>
-          </span>
-        </div>
-        <div className="mt-2 border-t border-outline-variant/60 pt-2 text-center text-[11px] text-on-surface-variant">
-          {trip.dateFull} • {t('{durationMins} min crossing', { durationMins: trip.durationMins })}
-        </div>
+      <div className="space-y-2">
+        <LegRoute trip={trip} label={returnLeg ? t('Outbound trip') : undefined} />
+        {returnLeg && <LegRoute trip={returnLeg.trip} label={t('Return trip')} />}
       </div>
 
       <div className="mt-space-md space-y-2">
         <div className="flex items-center justify-between text-sm">
           <span className="text-on-surface-variant">
-            {seats.length > 1 ? t('Selected Seats') : t('Selected Seat')}
+            {returnLeg ? t('Outbound seats') : seats.length > 1 ? t('Selected Seats') : t('Selected Seat')}
           </span>
           <span className="rounded bg-surface-container px-2 py-0.5 text-xs font-semibold text-deep-river">
             {selectedSeatsLabel(seats)}
           </span>
         </div>
+        {returnLeg && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-on-surface-variant">{t('Return seats')}</span>
+            <span className="rounded bg-surface-container px-2 py-0.5 text-xs font-semibold text-deep-river">
+              {selectedSeatsLabel(returnLeg.seats)}
+            </span>
+          </div>
+        )}
         <SummaryRow label={t('Buyer')} value={purchaser.fullName} />
       </div>
 

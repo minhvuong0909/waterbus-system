@@ -3,6 +3,11 @@ import { useSearchParams } from 'react-router-dom'
 import { ErrorState, PageLoader } from '../../components/ui'
 import { CONTACT } from '../../constant/contact'
 import CorridorSidebar from '../../features/trips/components/CorridorSidebar'
+import ReturnLegBar from '../../features/trips/components/ReturnLegBar'
+import { isRoundTrip, leavesAfterArrival } from '../../features/booking/legs'
+import type { Leg } from '../../features/booking/legs'
+import { ROUTES } from '../../routes/routes'
+import { useAppSelector } from '../../store/hooks'
 import DateStrip from '../../features/trips/components/DateStrip'
 import ResultFilters from '../../features/trips/components/ResultFilters'
 import type { KindFilter, SortKey, TimeFilter } from '../../features/trips/components/ResultFilters'
@@ -15,11 +20,21 @@ import { t } from '../../i18n'
 
 export default function SearchResultsPage() {
   useDocumentTitle('Available Departures')
-  const { query, updateQuery, piers, dates, counts, trips, searching, loading, error, retry, chooseTrip } =
-    useSearchResults()
+  const [searchParams] = useSearchParams()
+  const outboundQuery = useAppSelector((s) => s.booking.query)
+  const outboundTrip = useAppSelector((s) => s.booking.selectedTrip)
+  const roundTrip = isRoundTrip(outboundQuery)
+  // `?leg=return`: the return-trip step of a round trip; the same page lists the trips back.
+  const leg: Leg = roundTrip && searchParams.get('leg') === 'return' ? 'return' : 'outbound'
+  const { query, updateQuery, piers, dates: allDates, counts, trips, searching, loading, error, retry, chooseTrip } =
+    useSearchResults(leg)
+  // The way back can only be on the outbound day or later.
+  const dates = useMemo(
+    () => (leg === 'return' ? allDates?.filter((d) => d.id >= outboundQuery.dateId) : allDates),
+    [leg, allDates, outboundQuery.dateId],
+  )
   const [time, setTime] = useState<TimeFilter>('all')
   // `?type=sightseeing` (from the Explore page) opens the list already filtered to sightseeing trips.
-  const [searchParams] = useSearchParams()
   const [kind, setKind] = useState<KindFilter>(() =>
     searchParams.get('type') === 'sightseeing' ? 'sightseeing' : 'all',
   )
@@ -30,7 +45,7 @@ export default function SearchResultsPage() {
   // Khách đã tự bấm chọn một ngày: không cần giải thích vì sao trang không hiện hôm nay nữa.
   const [pickedDay, setPickedDay] = useState(false)
   useEffect(() => {
-    if (triedAutoMove.current || !counts || !dates) return
+    if (leg === 'return' || triedAutoMove.current || !counts || !dates) return
     triedAutoMove.current = true
     const today = dates.find((d) => d.isToday)
     if (!today || query.dateId !== today.id || counts[today.id] !== 0) return
@@ -51,6 +66,14 @@ export default function SearchResultsPage() {
       : undefined
   // Every offered day is known to have nothing to book: advising "pick another day" would lead nowhere.
   const noTripsAtAll = !!counts && !!dates && dates.length > 0 && dates.every((d) => counts[d.id] === 0)
+  /** A return trip leaving before the outbound one arrives cannot be taken (one person, two boats). */
+  const tooEarly = (trip: { departTime: string }) =>
+    leg === 'return' &&
+    outboundTrip !== null &&
+    !leavesAfterArrival(
+      { dateId: outboundQuery.dateId, arriveTime: outboundTrip.arriveTime },
+      { dateId: query.dateId, departTime: trip.departTime },
+    )
 
   // Giá chuyến thường như nhau nên chỉ cho sắp xếp theo giá khi các chuyến đang xem có giá khác nhau.
   const priceVaries = useMemo(() => new Set((trips ?? []).map((trip) => trip.fareVnd)).size > 1, [trips])
@@ -81,7 +104,8 @@ export default function SearchResultsPage() {
   const selectedDate = dates.find((d) => d.id === query.dateId) ?? dates[0]
   // Chuyến đặt được: chưa khởi hành và còn chỗ. `dayBookable` đếm cả ngày (khớp số trên thanh chọn
   // ngày), `bookableCount` chỉ đếm các chuyến đang hiện sau khi lọc.
-  const isBookable = (trip: (typeof visible)[number]) => !isDeparted(trip, query.dateId) && trip.seatsCount > 0
+  const isBookable = (trip: (typeof visible)[number]) =>
+    !isDeparted(trip, query.dateId) && trip.seatsCount > 0 && !tooEarly(trip)
   const dayBookable = (trips ?? []).filter(isBookable).length
   const bookableCount = visible.filter(isBookable).length
 
@@ -91,16 +115,23 @@ export default function SearchResultsPage() {
         <section className="flex w-full flex-col gap-space-md">
           <div className="flex flex-col justify-between gap-space-md pt-2 md:flex-row md:items-end">
             <div>
+              {roundTrip && (
+                <span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container">
+                  {leg === 'return' ? t('Return trip · step 2 of 2') : t('Outbound trip · step 1 of 2')}
+                </span>
+              )}
               <h1 className="font-headline-lg text-2xl font-bold leading-tight tracking-tight text-deep-river md:text-3xl lg:text-[34px]">
-                {t('Available Departures')}
+                {leg === 'return' ? t('Choose your return trip') : t('Available Departures')}
               </h1>
               <p className="mt-1 text-sm text-on-surface-variant">
-                {t('Select your river crossing across the Saigon River transit corridor.')}
+                {leg === 'return'
+                  ? t('Pick the trip back. It can start at another pier and on another day.')
+                  : t('Select your river crossing across the Saigon River transit corridor.')}
               </p>
             </div>
           </div>
 
-          <SearchForm piers={piers} dates={dates} variant="bar" />
+          {leg === 'return' ? <ReturnLegBar piers={piers} /> : <SearchForm piers={piers} dates={dates} variant="bar" />}
           {noTripsAtAll && dates && (
             <p
               role="status"
@@ -178,6 +209,8 @@ export default function SearchResultsPage() {
                   destination={pier(query.destinationId)}
                   onSelect={chooseTrip}
                   departed={isDeparted(trip, query.dateId)}
+                  to={leg === 'return' ? `${ROUTES.seatSelection}?leg=return` : undefined}
+                  blockedReason={tooEarly(trip) ? t('Leaves before your outbound trip arrives') : undefined}
                 />
               ))
             ) : (

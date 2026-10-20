@@ -2,7 +2,8 @@ import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
 import BookingProgress from '../../features/booking/components/BookingProgress'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import type { BookingStep } from '../../features/booking/types'
-import { bookingReference, seatCodes } from '../../features/booking/utils'
+import { addTotals, bookingReference, seatCodes } from '../../features/booking/utils'
+import { isRoundTrip } from '../../features/booking/legs'
 import PaymentMethodPanel from '../../features/payment/components/PaymentMethodPanel'
 import HoldCountdown from '../../features/booking/components/HoldCountdown'
 import PaymentOrderSummary from '../../features/payment/components/PaymentOrderSummary'
@@ -14,18 +15,35 @@ import { t } from '../../i18n'
 export default function PaymentPage() {
   useDocumentTitle('Complete Your Payment')
   const hold = useAppSelector((s) => s.booking.hold)
-  const { loading, error, retry, trip, seats, purchaser, totals } =
-    useBooking()
+  const roundTrip = isRoundTrip(useAppSelector((s) => s.booking.query))
+  const outbound = useBooking()
+  const back = useBooking({ leg: 'return', enabled: roundTrip })
+  const { trip, seats, purchaser } = outbound
 
-  if (error) return <ErrorState onRetry={retry} />
+  const error = outbound.error ?? back.error
+  if (error) {
+    return (
+      <ErrorState
+        onRetry={() => {
+          outbound.retry()
+          back.retry()
+        }}
+      />
+    )
+  }
 
-  if (loading || !trip || !totals) return <PageLoader />
+  const returnReady = !roundTrip || (back.trip && back.totals)
+  if (outbound.loading || back.loading || !trip || !outbound.totals || !returnReady) return <PageLoader />
+
+  // One payment for the whole order: both legs of a round trip (BR-COM-02, BR-PAY-04).
+  const totals = addTotals(outbound.totals, roundTrip ? back.totals : undefined)
+  const returnLeg = roundTrip && back.trip ? { trip: back.trip, seats: back.seats } : undefined
 
   const steps: BookingStep[] = [
     { label: 'Trip', detail: trip.lineLabel },
     {
       label: 'Seat',
-      detail: seatCodes(seats),
+      detail: returnLeg ? `${seatCodes(seats)} · ${seatCodes(returnLeg.seats)}` : seatCodes(seats),
     },
     { label: 'Details', detail: purchaser.fullName },
     { label: 'Checkout', detail: 'Order Confirmed' },
@@ -76,7 +94,7 @@ export default function PaymentPage() {
           <PaymentMethodPanel
             tripCode={trip.vesselCode}
             amountVnd={totals.totalVnd}
-            reference={hold?.bookingCodes[0] ?? bookingReference(seats)}
+            reference={hold?.bookingCodes.join(', ') || bookingReference(seats)}
           />
         </div>
         <div className="lg:col-span-4 lg:self-stretch">
@@ -85,6 +103,7 @@ export default function PaymentPage() {
             seats={seats}
             purchaser={purchaser}
             totals={totals}
+            returnLeg={returnLeg}
           />
         </div>
       </div>

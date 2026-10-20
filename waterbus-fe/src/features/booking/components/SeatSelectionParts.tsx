@@ -80,6 +80,10 @@ interface BookingSummaryProps {
   /** True while the hold is being made. */
   busy: boolean
   failure: BookingFailure | null
+  /** Text of the main button; "Continue to Passenger Details" by default. */
+  continueLabel?: string
+  /** Where "Change Trip" leads: the results of this leg. */
+  changeTripTo?: string
 }
 
 export function BookingSummary({
@@ -91,7 +95,10 @@ export function BookingSummary({
   onContinue,
   busy,
   failure,
+  continueLabel,
+  changeTripTo = ROUTES.searchResults,
 }: BookingSummaryProps) {
+  const label = continueLabel ?? t('Continue to Passenger Details')
   const surcharge = seats.some(hasSurcharge)
   // An empty selection, or one with a seat somebody else took, must not reach checkout.
   const canContinue =
@@ -199,7 +206,7 @@ export function BookingSummary({
             disabled={busy}
             className="group mt-space-sm flex w-full items-center justify-between rounded-xl bg-teal-flow px-space-lg py-space-md font-headline-sm text-lg font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary disabled:opacity-70"
           >
-            <span>{busy ? t('Holding your seat…') : t('Continue to Passenger Details')}</span>
+            <span>{busy ? t('Holding your seat…') : label}</span>
             <Icon
               name="arrow_forward"
               className="text-[20px] transition-transform group-hover:translate-x-1"
@@ -219,7 +226,7 @@ export function BookingSummary({
             disabled
             className="mt-space-sm flex w-full cursor-not-allowed items-center justify-between rounded-xl bg-teal-flow px-space-lg py-space-md font-headline-sm text-lg font-semibold text-on-primary opacity-50"
           >
-            <span>{t('Continue to Passenger Details')}</span>
+            <span>{label}</span>
             <Icon name="arrow_forward" className="text-[20px]" />
           </button>
           <p role="status" className="mt-2 text-center text-xs text-on-surface-variant">
@@ -230,7 +237,7 @@ export function BookingSummary({
         </>
       )}
       <div className="mt-space-sm text-center text-xs">
-        <Link to={ROUTES.searchResults} className="font-semibold text-teal-flow hover:underline">
+        <Link to={changeTripTo} className="font-semibold text-teal-flow hover:underline">
           {t('Change Trip')}
         </Link>
       </div>

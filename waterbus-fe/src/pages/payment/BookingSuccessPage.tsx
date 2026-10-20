@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Breadcrumb, Button, ErrorState, PageLoader } from '../../components/ui'
 import { useSearchQuery } from '../../features/trips/hooks/useTripSearch'
 import { useBooking } from '../../features/booking/hooks/useBooking'
+import { isRoundTrip } from '../../features/booking/legs'
 import {
   bookingReference,
   cabinsLabel,
@@ -33,12 +34,15 @@ export default function BookingSuccessPage() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { updateQuery } = useSearchQuery()
-  const { query, selectedTrip, passengers } = useAppSelector((s) => s.booking)
+  const { query, selectedTrip, passengers, returnLeg: returnState } = useAppSelector((s) => s.booking)
+  const roundTrip = isRoundTrip(query)
   const { loading, error, retry, trip, seats, purchaser, totals } = useBooking()
+  const back = useBooking({ leg: 'return', enabled: roundTrip })
   const steps = useFetch(getNextSteps)
   const { phase, detail } = useOrderConfirmation()
   const confirmed = phase === 'confirmed'
   const bookingId = detail?.bookings[0]?.bookingId
+  const returnBookingId = roundTrip ? detail?.bookings[1]?.bookingId : undefined
   const order = useAppSelector((s) => s.booking.order)
   // The boarding QR is issued only for a paid booking (BR-COM-08); the scanner verifies it offline.
   const qr = useFetch(
@@ -48,7 +52,15 @@ export default function BookingSuccessPage() {
         : Promise.resolve(null),
     [confirmed, bookingId],
   )
-  const failure = error ?? steps.error ?? qr.error
+  // A round trip has two bookings, so two boarding QR codes (BR-QR-01).
+  const returnQr = useFetch(
+    () =>
+      confirmed && order && returnBookingId
+        ? getBookingQr(order.orderId, returnBookingId, order.accessToken)
+        : Promise.resolve(null),
+    [confirmed, returnBookingId],
+  )
+  const failure = error ?? back.error ?? steps.error ?? qr.error ?? returnQr.error
 
   // The tickets of the confirmed order go into the wallet (names by seat, as the traveler typed them).
   useEffect(() => {
@@ -64,15 +76,35 @@ export default function BookingSuccessPage() {
         passengerNames: seats.map((seat) => passengers[seat.id]?.fullName ?? ''),
       }),
     )
-  }, [confirmed, trip, seats, selectedTrip, query, passengers, dispatch])
+    if (roundTrip && back.trip && back.seats.length > 0) {
+      dispatch(
+        addBooking({
+          id: bookingSnapshotId(back.trip.id, back.seats),
+          tripId: back.trip.id,
+          selectedTrip: returnState.trip,
+          query: {
+            tripType: 'one-way',
+            originId: returnState.originId,
+            destinationId: returnState.destinationId,
+            dateId: returnState.dateId,
+          },
+          seats: back.seats,
+          fares: ticketFares(back.trip.fareVnd, back.seats),
+          passengerNames: back.seats.map((seat) => returnState.passengers[seat.id]?.fullName ?? ''),
+        }),
+      )
+    }
+  }, [confirmed, trip, seats, selectedTrip, query, passengers, dispatch, roundTrip, back.trip, back.seats, returnState])
 
   if (failure) {
     return (
       <ErrorState
         onRetry={() => {
           if (error) retry()
+          if (back.error) back.retry()
           if (steps.error) steps.retry()
           if (qr.error) qr.retry()
+          if (returnQr.error) returnQr.retry()
         }}
       />
     )
@@ -97,9 +129,14 @@ export default function BookingSuccessPage() {
     )
   }
 
-  if (loading || !trip || !totals || !steps.data || !confirmed || qr.loading) return <PageLoader />
+  const returnReady = !roundTrip || (back.trip && back.totals && !returnQr.loading)
+  if (loading || back.loading || !trip || !totals || !steps.data || !confirmed || qr.loading || !returnReady) {
+    return <PageLoader />
+  }
 
-  const orderedSeats = detail?.bookings.flatMap((b) => b.tickets) ?? []
+  const orderedSeats = (roundTrip ? detail?.bookings.slice(0, 1) : detail?.bookings)?.flatMap((b) => b.tickets) ?? []
+  const returnTickets = roundTrip ? (detail?.bookings[1]?.tickets ?? []) : []
+  const returnReference = roundTrip ? detail?.bookings[1]?.bookingCode : undefined
   const reference = detail?.bookings[0]?.bookingCode ?? bookingReference(seats)
   const pier = trip.originPierName
   const nextSteps = steps.data.map((s) => ({
@@ -113,6 +150,10 @@ export default function BookingSuccessPage() {
     orderedSeats.length > 0
       ? orderedSeats.map((ticket) => ticket.passengerName)
       : seats.map((seat) => passengers[seat.id]?.fullName ?? '')
+  const returnNames =
+    returnTickets.length > 0
+      ? returnTickets.map((ticket) => ticket.passengerName)
+      : back.seats.map((seat) => returnState.passengers[seat.id]?.fullName ?? '')
 
   return (
     <div>
@@ -128,10 +169,16 @@ export default function BookingSuccessPage() {
       </div>
 
       <div className="mx-auto max-w-7xl px-margin pb-space-2xl pt-space-lg">
-        <ConfirmationHero reference={reference} email={purchaser.email} />
+        <ConfirmationHero
+          reference={returnReference ? `${reference}, ${returnReference}` : reference}
+          email={purchaser.email}
+        />
 
         <div className="mt-space-2xl grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
-          <div className="lg:col-span-7">
+          <div className="space-y-space-lg lg:col-span-7">
+            {roundTrip && (
+              <h2 className="font-headline-sm text-lg font-bold text-deep-river">{t('Outbound trip')}</h2>
+            )}
             <BoardingPassCard
               pass={{
                 tripCode: trip.vesselCode,
@@ -156,19 +203,50 @@ export default function BookingSuccessPage() {
                 }),
               }}
             />
+            {roundTrip && back.trip && back.totals && (
+              <>
+                <h2 className="font-headline-sm text-lg font-bold text-deep-river">{t('Return trip')}</h2>
+                <BoardingPassCard
+                  pass={{
+                    tripCode: back.trip.vesselCode,
+                    lineName: t('Central Waterway Line'),
+                    departTime: back.trip.departTime,
+                    departPier: back.trip.originPierName,
+                    arriveTime: back.trip.arriveTime,
+                    arrivePier: back.trip.destinationPierName,
+                    durationMins: back.trip.durationMins,
+                    seat:
+                      back.seats.length === 1
+                        ? t('Seat {id}', { id: back.seats[0].code })
+                        : t('Seats {ids}', { ids: seatCodes(back.seats) }),
+                    passenger: `${passengersLabel(back.seats.length)}: ${returnNames.join(', ')}`,
+                    status: t('Confirmed'),
+                    totalVnd: back.totals.totalVnd,
+                    reference: returnReference ?? reference,
+                    qrValue: returnQr.data?.payload,
+                    seatNote: t('Trip {code} • {kind}', {
+                      code: back.trip.vesselCode,
+                      kind: cabinsLabel(back.seats),
+                    }),
+                  }}
+                />
+              </>
+            )}
           </div>
           <div className="space-y-space-md lg:col-span-5">
             <QuickActions />
-            <Button
-              variant="secondary"
-              className="w-full"
-              onClick={() => {
-                updateQuery({ originId: query.destinationId, destinationId: query.originId })
-                navigate(ROUTES.searchResults)
-              }}
-            >
-              {t('Book the return trip')}
-            </Button>
+            {!roundTrip && (
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={() => {
+                  updateQuery({ originId: query.destinationId, destinationId: query.originId })
+                  navigate(ROUTES.searchResults)
+                }}
+              >
+                {t('Book the return trip')}
+              </Button>
+            )}
           </div>
         </div>
       </div>

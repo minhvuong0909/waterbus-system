@@ -5,7 +5,11 @@ import {
   BookingSummary,
   TripStrip,
 } from '../../features/booking/components/SeatSelectionParts'
-import { useSeatHold } from '../../features/booking/hooks/useCheckout'
+import { RETURN_RESULTS, useSeatHold } from '../../features/booking/hooks/useCheckout'
+import { isRoundTrip } from '../../features/booking/legs'
+import type { Leg } from '../../features/booking/legs'
+import { useSearchParams } from 'react-router-dom'
+import { useAppSelector } from '../../store/hooks'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import { MAX_SEATS_PER_BOOKING, seatCodes } from '../../features/booking/utils'
 import { useDocumentTitle } from '../../hooks'
@@ -14,8 +18,14 @@ import { t } from '../../i18n'
 
 export default function SeatSelectionPage() {
   useDocumentTitle('Choose Your Seat')
+  const [searchParams] = useSearchParams()
+  const query = useAppSelector((s) => s.booking.query)
+  const outboundSeatCount = useAppSelector((s) => s.booking.seatIds.length)
+  const roundTrip = isRoundTrip(query)
+  // `?leg=return`: the seats of the return trip of a round trip.
+  const leg: Leg = roundTrip && searchParams.get('leg') === 'return' ? 'return' : 'outbound'
   const { loading, error, retry, trip, seatMap, seats, seatIds, seatLimitReached, totals, toggleSeat } =
-    useBooking({ live: true })
+    useBooking({ live: true, leg })
   const hold = useSeatHold()
 
   if (error) return <ErrorState onRetry={retry} />
@@ -27,8 +37,8 @@ export default function SeatSelectionPage() {
       <Breadcrumb
         items={[
           { label: 'Home', to: ROUTES.home },
-          { label: 'Search Results', to: ROUTES.searchResults },
-          { label: t('Trip {code}', { code: trip.vesselCode }), to: ROUTES.tripDetail },
+          { label: 'Search Results', to: leg === 'return' ? RETURN_RESULTS : ROUTES.searchResults },
+          ...(leg === 'return' ? [] : [{ label: t('Trip {code}', { code: trip.vesselCode }), to: ROUTES.tripDetail }]),
           { label: 'Choose Your Seat' },
         ]}
       />
@@ -36,11 +46,20 @@ export default function SeatSelectionPage() {
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-flow/20 bg-secondary-container/60 px-2.5 py-0.5 text-xs font-semibold text-teal-flow">
             <Icon name="airline_seat_recline_extra" className="text-[14px]" />
-            {t('Step 2 of 5: Seat Selection')}
+            {roundTrip
+              ? leg === 'return'
+                ? t('Return trip · seats')
+                : t('Outbound trip · seats')
+              : t('Step 2 of 5: Seat Selection')}
           </span>
           <h1 className="mt-1 font-headline-lg text-headline-lg tracking-tight text-deep-river">
-            {t('Choose Your Seat')}
+            {leg === 'return' ? t('Choose your return seats') : t('Choose Your Seat')}
           </h1>
+          {leg === 'return' && outboundSeatCount > 0 && (
+            <p className="mt-1 text-sm text-on-surface-variant">
+              {t('You picked {count} seats for the outbound trip.', { count: outboundSeatCount })}
+            </p>
+          )}
         </div>
         <div className="self-start md:self-auto lg:hidden">
           <HoldCountdown
@@ -104,7 +123,9 @@ export default function SeatSelectionPage() {
             totals={totals}
             limitReached={seatLimitReached}
             canBook={seatMap.canBook !== false}
-            onContinue={() => hold.submit(trip.id, totals.totalVnd, seatMap.journey)}
+            onContinue={() => hold.submit(leg, trip.id, totals.totalVnd, seatMap.journey)}
+            continueLabel={roundTrip && leg === 'outbound' ? t('Continue to the return trip') : undefined}
+            changeTripTo={leg === 'return' ? RETURN_RESULTS : undefined}
             busy={hold.busy}
             failure={hold.failure}
           />

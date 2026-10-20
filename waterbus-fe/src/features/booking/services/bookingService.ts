@@ -69,8 +69,9 @@ export function createHold(
   quotedTotalVnd: number,
 ): Promise<CheckoutResponse> {
   if (!USE_MOCK) {
-    const leg = request.legs[0]
-    if (!leg || !isLiveTrip(leg.tripId, leg.boardingStationId, leg.disembarkingStationId)) {
+    const live = request.legs.length > 0 &&
+      request.legs.every((leg) => isLiveTrip(leg.tripId, leg.boardingStationId, leg.disembarkingStationId))
+    if (!live) {
       return Promise.reject(new ApiError(400, 'Chuyến và bến phải lấy từ API tìm chuyến.'))
     }
     return apiRequest<CheckoutResponse>(API_ENDPOINTS.checkouts.holds, {
@@ -87,17 +88,16 @@ export function createHold(
     status: 'Draft',
     expiresAt: new Date(Date.now() + HOLD_SECONDS * 1000).toISOString(),
     accessToken: null,
-    bookings: [
-      {
-        bookingId: crypto.randomUUID(),
-        bookingCode: `WB${stamp}${Math.floor(100 + Math.random() * 900)}`,
-        totalAmount: quotedTotalVnd,
-        status: 'Draft',
-        holdDurationSeconds: HOLD_SECONDS,
-        orderId,
-        orderStatus: 'Draft',
-      },
-    ],
+    // One booking per leg, like the backend (two for a round trip, BR-COM-02).
+    bookings: request.legs.map(() => ({
+      bookingId: crypto.randomUUID(),
+      bookingCode: `WB${stamp}${Math.floor(100 + Math.random() * 900)}`,
+      totalAmount: quotedTotalVnd / Math.max(request.legs.length, 1),
+      status: 'Draft',
+      holdDurationSeconds: HOLD_SECONDS,
+      orderId,
+      orderStatus: 'Draft',
+    })),
   })
 }
 

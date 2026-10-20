@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
@@ -15,6 +16,10 @@ interface PassengerFormCardProps {
   passengers: Record<string, SeatPassengerForm>
   onPurchaser: (patch: Partial<PurchaserForm>) => void
   onPassenger: (seatId: string, patch: Partial<SeatPassengerForm>) => void
+  /** False hides the buyer card and the footer, e.g. for the first leg of a round trip. */
+  showBuyer?: boolean
+  /** Shown above the passengers, e.g. which leg of a round trip they travel on. */
+  heading?: ReactNode
 }
 
 const FIELD =
@@ -116,11 +121,14 @@ export default function PassengerFormCard({
   passengers,
   onPurchaser,
   onPassenger,
+  showBuyer = true,
+  heading,
 }: PassengerFormCardProps) {
   const buyerErrors = purchaserErrors(purchaser)
 
   return (
     <div className="space-y-space-md">
+      {heading}
       {seats.map((seat, index) => {
         const passenger = passengers[seat.id]
         const errors = seatPassengerErrors(passenger)
@@ -183,67 +191,71 @@ export default function PassengerFormCard({
         )
       })}
 
-      <BookingCard className="p-space-lg md:p-space-xl">
-        <SectionTitle
-          icon="contact_mail"
-          title={t('Buyer & E-Ticket Recipient')}
-          subtitle={t('The buyer pays for the order and receives the e-tickets and notifications')}
-        />
-        <div className="grid grid-cols-1 gap-space-md md:grid-cols-2">
-          <TextField
-            label={t('Full Name')}
-            icon="badge"
-            value={purchaser.fullName}
-            error={buyerErrors.fullName}
-            onChange={(fullName) => onPurchaser({ fullName })}
-            autoComplete="name"
-            required
-          />
-          <TextField
-            label={t('Email Address')}
-            icon="mail"
-            type="email"
-            value={purchaser.email}
-            error={buyerErrors.email}
-            onChange={(email) => onPurchaser({ email })}
-            autoComplete="email"
-            required
-          />
-          <Field label={t('Phone Number')} hint={t('Optional')} error={undefined}>
-            <span className="flex gap-2">
-              <span className="flex items-center rounded-xl bg-mist px-3 text-sm text-deep-river">
-                <span className="mr-1 text-xs text-on-surface-variant">{t('VN')}</span>
-                {purchaser.phoneCode}
-              </span>
-              <input
-                className={`${FIELD} px-3`}
-                value={purchaser.phone}
-                onChange={(e) => onPurchaser({ phone: e.target.value })}
-                autoComplete="tel-national"
-                aria-invalid={buyerErrors.phone ? true : undefined}
+      {showBuyer && (
+        <>
+          <BookingCard className="p-space-lg md:p-space-xl">
+            <SectionTitle
+              icon="contact_mail"
+              title={t('Buyer & E-Ticket Recipient')}
+              subtitle={t('The buyer pays for the order and receives the e-tickets and notifications')}
+            />
+            <div className="grid grid-cols-1 gap-space-md md:grid-cols-2">
+              <TextField
+                label={t('Full Name')}
+                icon="badge"
+                value={purchaser.fullName}
+                error={buyerErrors.fullName}
+                onChange={(fullName) => onPurchaser({ fullName })}
+                autoComplete="name"
+                required
               />
-            </span>
-          </Field>
-        </div>
-        {buyerErrors.phone && (
-          <p role="alert" className="mt-1 text-xs text-coral-glow">
-            {buyerErrors.phone}
-          </p>
-        )}
-      </BookingCard>
+              <TextField
+                label={t('Email Address')}
+                icon="mail"
+                type="email"
+                value={purchaser.email}
+                error={buyerErrors.email}
+                onChange={(email) => onPurchaser({ email })}
+                autoComplete="email"
+                required
+              />
+              <Field label={t('Phone Number')} hint={t('Optional')} error={undefined}>
+                <span className="flex gap-2">
+                  <span className="flex items-center rounded-xl bg-mist px-3 text-sm text-deep-river">
+                    <span className="mr-1 text-xs text-on-surface-variant">{t('VN')}</span>
+                    {purchaser.phoneCode}
+                  </span>
+                  <input
+                    className={`${FIELD} px-3`}
+                    value={purchaser.phone}
+                    onChange={(e) => onPurchaser({ phone: e.target.value })}
+                    autoComplete="tel-national"
+                    aria-invalid={buyerErrors.phone ? true : undefined}
+                  />
+                </span>
+              </Field>
+            </div>
+            {buyerErrors.phone && (
+              <p role="alert" className="mt-1 text-xs text-coral-glow">
+                {buyerErrors.phone}
+              </p>
+            )}
+          </BookingCard>
 
-      <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-space-lg py-space-md text-xs text-on-surface-variant shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
-        <span className="flex items-center gap-2">
-          <Icon name="lock" className="text-[18px] text-teal-flow" />
-          {t('Your passenger information is protected by 256-bit waterway security encryption.')}
-        </span>
-        <Link
-          to={ROUTES.seatSelection}
-          className="whitespace-nowrap font-semibold text-teal-flow hover:underline"
-        >
-          {t('Return to seat map')}
-        </Link>
-      </div>
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-space-lg py-space-md text-xs text-on-surface-variant shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
+            <span className="flex items-center gap-2">
+              <Icon name="lock" className="text-[18px] text-teal-flow" />
+              {t('Your passenger information is protected by 256-bit waterway security encryption.')}
+            </span>
+            <Link
+              to={ROUTES.seatSelection}
+              className="whitespace-nowrap font-semibold text-teal-flow hover:underline"
+            >
+              {t('Return to seat map')}
+            </Link>
+          </div>
+        </>
+      )}
     </div>
   )
 }
