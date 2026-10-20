@@ -15,6 +15,12 @@ export interface PlacedOrder {
   accessToken: string | null
   /** True once the backend reported the order as paid, expired or cancelled. */
   settled?: boolean
+  /**
+   * Seats this order holds and until when (ms since epoch). The backend shows them as held like
+   * anyone else's, so the seat map needs them to tell "held by me" from "held by another traveler".
+   */
+  seatIds?: string[]
+  heldUntil?: number
 }
 
 // Client-side booking state shared by the booking pages. Every field has a default,
@@ -98,7 +104,16 @@ const bookingSlice = createSlice({
     },
     holdStarted(state, action: PayloadAction<BookingHold>) {
       state.hold = action.payload
-      state.order = { orderId: action.payload.orderId, accessToken: action.payload.accessToken }
+      state.order = {
+        orderId: action.payload.orderId,
+        accessToken: action.payload.accessToken,
+        seatIds: action.payload.seatIds,
+        heldUntil: action.payload.expiresAt,
+      }
+    },
+    /** The previous order was cancelled to hold other seats: its seats are no longer ours. */
+    orderReleased(state) {
+      if (state.order && !state.order.settled) state.order = null
     },
     /** Buyer and passengers were submitted: the order now waits for payment. */
     holdSubmitted(state) {
@@ -132,6 +147,7 @@ export const {
   holdStarted,
   holdSubmitted,
   holdCleared,
+  orderReleased,
   orderSettled,
 } = bookingSlice.actions
 export default bookingSlice.reducer

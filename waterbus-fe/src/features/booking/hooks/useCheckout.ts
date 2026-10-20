@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ROUTES } from '../../../routes/routes'
 import { ApiError } from '../../../services/apiClient'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
-import { holdStarted, holdSubmitted } from '../bookingSlice'
+import { holdStarted, holdSubmitted, orderReleased } from '../bookingSlice'
 import { cancelCheckout, createHold, submitCheckout } from '../services/bookingService'
 import type { Journey } from '../types'
 import { buildHoldRequest, buildSubmitRequest } from '../utils'
@@ -42,7 +42,10 @@ export function useSeatHold() {
     }
     setBusy(true)
     setFailure(null)
-    if (order && !order.settled) await cancelCheckout(order.orderId, order.accessToken)
+    if (order && !order.settled) {
+      await cancelCheckout(order.orderId, order.accessToken)
+      dispatch(orderReleased())
+    }
     try {
       const checkout = await createHold(
         buildHoldRequest({

@@ -13,7 +13,7 @@ import { getSeatMap } from '../services/bookingService'
 import { useLiveSeatMap } from './useLiveSeatMap'
 import type { PaymentMethodId } from '../../payment/types'
 import type { PurchaserForm, SeatPassengerForm } from '../types'
-import { MAX_SEATS_PER_BOOKING, computeTotals } from '../utils'
+import { MAX_SEATS_PER_BOOKING, computeTotals, withOwnHold } from '../utils'
 
 interface UseBookingOptions {
   /** Apply seat holds from other travelers as they happen (only the seat page needs this). */
@@ -29,7 +29,12 @@ export function useBooking({ live = false }: UseBookingOptions = {}) {
     () => getSeatMap(booking.selectedTripId, booking.query.originId, booking.query.destinationId),
     [booking.selectedTripId, booking.query.originId, booking.query.destinationId],
   )
-  const seatMap = useLiveSeatMap(loadedSeatMap.data, detail?.id ?? null, live, loadedSeatMap.retry)
+  const liveSeatMap = useLiveSeatMap(loadedSeatMap.data, detail?.id ?? null, live, loadedSeatMap.retry)
+  // Seats of the traveler's own running hold are theirs, not "held by another traveler".
+  const seatMap = useMemo(
+    () => (liveSeatMap ? withOwnHold(liveSeatMap, booking.order) : undefined),
+    [liveSeatMap, booking.order],
+  )
 
   // The chosen seats as they are on the map now; an id the map does not know is left out.
   const seats = useMemo(

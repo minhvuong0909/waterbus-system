@@ -276,6 +276,27 @@ function toSeat(dto: TripSeatDto): Seat {
   }
 }
 
+/**
+ * The backend reports the seats of the traveler's own hold as `held`, like anyone else's. While
+ * that hold runs, those seats are the traveler's: shown as free so they stay selectable (and can be
+ * removed) when the traveler comes back to the seat page. Other travelers' holds are unchanged.
+ */
+export function withOwnHold(
+  seatMap: SeatMap,
+  order: { seatIds?: string[]; heldUntil?: number; settled?: boolean } | null,
+  now = Date.now(),
+): SeatMap {
+  if (!order?.seatIds?.length || order.settled || !order.heldUntil || order.heldUntil <= now) return seatMap
+  const own = new Set(order.seatIds)
+  if (!seatMap.seats.some((seat) => seat.status === 'held' && own.has(seat.id))) return seatMap
+  return {
+    ...seatMap,
+    seats: seatMap.seats.map((seat) =>
+      seat.status === 'held' && own.has(seat.id) ? { ...seat, status: 'available' } : seat,
+    ),
+  }
+}
+
 /** Maps the backend seat map of one journey segment to the seat map the pages use. */
 export function toSeatMap(dto: TripSeatMapDto, detail: Pick<TripDetailDto, 'boat'>): SeatMap {
   return {
