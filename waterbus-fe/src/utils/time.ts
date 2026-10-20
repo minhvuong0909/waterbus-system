@@ -14,6 +14,11 @@ export function toIsoDate(date: Date): string {
   return `${date.getFullYear()}-${mm}-${dd}`
 }
 
+/** Calendar date in Vietnam as `YYYY-MM-DD` for an instant, whatever the device time zone. */
+export function toVietnamDate(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(date)
+}
+
 /** Giờ hiển thị tại Việt Nam, độc lập múi giờ thiết bị. */
 export function formatClock(date: Date): string {
   return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' }).format(date)

@@ -1,5 +1,5 @@
 import { numberLocale, t } from '../../i18n'
-import { formatClock, toIsoDate } from '../../utils/time'
+import { formatClock, toVietnamDate } from '../../utils/time'
 import type {
   DateOption,
   PierOption,
@@ -83,26 +83,27 @@ export function tripReference(id: string): string {
 }
 
 /** Date option for a `YYYY-MM-DD` id, formatted for the active language. */
-export function describeDate(id: string, today = toIsoDate(new Date())): DateOption {
+export function describeDate(id: string, today = toVietnamDate(new Date())): DateOption {
   const [year, month, day] = id.split('-').map(Number)
-  const date = new Date(year, month - 1, day)
+  // Noon UTC keeps the same calendar day in Vietnam (UTC+7) whatever the browser's time zone.
+  const date = new Date(Date.UTC(year, month - 1, day, 12))
   const locale = numberLocale()
+  const zone = 'Asia/Ho_Chi_Minh'
   return {
     id,
-    weekday: date.toLocaleDateString(locale, { weekday: 'short' }),
-    label: date.toLocaleDateString(locale, { month: 'short', day: 'numeric' }),
-    fullLabel: date.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' }),
+    weekday: date.toLocaleDateString(locale, { weekday: 'short', timeZone: zone }),
+    label: date.toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone: zone }),
+    fullLabel: date.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric', timeZone: zone }),
     isToday: id === today,
   }
 }
 
 /** The next `days` days starting today. */
 export function buildDateOptions(days = SEARCH_WINDOW_DAYS): DateOption[] {
-  const today = new Date()
-  return Array.from({ length: days }, (_, offset) => {
-    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset)
-    return describeDate(toIsoDate(date))
-  })
+  const [year, month, day] = toVietnamDate(new Date()).split('-').map(Number)
+  return Array.from({ length: days }, (_, offset) =>
+    describeDate(toVietnamDate(new Date(Date.UTC(year, month - 1, day + offset, 12)))),
+  )
 }
 
 /**
@@ -142,7 +143,7 @@ export function toTrip(dto: TripDto): Trip {
  * này không còn bán được (BR-SRCH-02, BR-TIME-01).
  */
 export function isDeparted(trip: Pick<Trip, 'departTime'>, dateId: string, now = new Date()): boolean {
-  const today = toIsoDate(now)
+  const today = toVietnamDate(now)
   if (dateId !== today) return dateId < today
   const [hours, minutes] = trip.departTime.split(':').map(Number)
   return hours * 60 + minutes <= now.getHours() * 60 + now.getMinutes()

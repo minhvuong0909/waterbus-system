@@ -539,6 +539,7 @@ export const vi: Record<string, string> = {
     'Kiểm tra chuyến đi, hành khách, ghế và giá vé trước khi thanh toán.',
   Confirmation: 'Xác nhận',
   Confirmed: 'Đã xác nhận',
+  Expired: 'Hết hạn',
   'Confirmed Booking': 'Đặt chỗ đã xác nhận',
   'Confirming…': 'Đang xác nhận…',
   'Connected to places along the sightseeing route.':

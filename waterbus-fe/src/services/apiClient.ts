@@ -18,6 +18,9 @@ export class ApiError extends Error {
   }
 }
 
+/** A request that has not answered after this long is given up, so the UI never waits forever. */
+const REQUEST_TIMEOUT_MS = 30_000
+
 type QueryValue = string | number | boolean | readonly (string | number | boolean)[] | null | undefined
 
 interface RequestOptions {
@@ -80,17 +83,26 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
 
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  const forward = () => controller.abort()
+  if (signal?.aborted) controller.abort()
+  else signal?.addEventListener('abort', forward, { once: true })
   let response: Response
   try {
     response = await fetch(buildUrl(path, query), {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal,
+      signal: controller.signal,
     })
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    // Aborted by the caller (e.g. an unmounted page): not an error to show.
+    if (signal?.aborted) throw error
     throw new ApiError(0, 'Unable to reach the server.')
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', forward)
   }
 
   if (!response.ok) {

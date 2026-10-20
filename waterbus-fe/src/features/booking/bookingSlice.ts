@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
+import { USE_MOCK } from '../../constant/env'
 import { DEFAULT_PURCHASER, DEFAULT_SEAT_IDS } from '../../mocks/booking'
 import { DEFAULT_SEARCH_QUERY } from '../../mocks/tripSearch'
 import type { SearchQuery, Trip } from '../trips/types'
@@ -37,16 +38,20 @@ export interface BookingState {
   order: PlacedOrder | null
 }
 
+/** Blank buyer: real bookings start empty, only mock mode is pre-filled with a sample traveler. */
+const EMPTY_PURCHASER: PurchaserForm = { fullName: '', phoneCode: '+84', phone: '', email: '' }
+
 export const EMPTY_SEAT_PASSENGER: SeatPassengerForm = { fullName: '', email: '', phone: '' }
 
 const initialState: BookingState = {
   query: DEFAULT_SEARCH_QUERY,
   selectedTripId: null,
   selectedTrip: null,
-  seatIds: DEFAULT_SEAT_IDS,
-  purchaser: DEFAULT_PURCHASER,
+  seatIds: USE_MOCK ? DEFAULT_SEAT_IDS : [],
+  purchaser: USE_MOCK ? DEFAULT_PURCHASER : EMPTY_PURCHASER,
   passengers: {},
-  termsAccepted: true,
+  // Consent must be given on purpose, never pre-ticked.
+  termsAccepted: false,
   paymentMethod: 'qr',
   hold: null,
   order: null,

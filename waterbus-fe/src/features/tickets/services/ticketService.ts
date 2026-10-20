@@ -2,7 +2,7 @@ import { withDelayExact } from '../../../mocks/delay'
 import { ApiError } from '../../../services/apiClient'
 import { buildAllTickets, buildManageBooking, buildTicketWallet } from '../../../mocks/tickets'
 import { getTripDetail } from '../../trips/services/tripService'
-import { buildBookedTickets } from '../utils'
+import { buildBookedTickets, ticketStatusLabel } from '../utils'
 import type { BookedSnapshot, ManageBooking, Ticket, TicketWallet } from '../types'
 import { USE_MOCK } from '../../../constant/env'
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
@@ -11,6 +11,7 @@ import { loadBooking } from '../../booking/bookingStorage'
 import { getCheckout, getBookingQr } from '../../booking/services/bookingService'
 import type { TripDetailDto } from '../../booking/types'
 import { toTrip } from '../../trips/utils'
+import { toVietnamDate } from '../../../utils/time'
 
 /** Chỉ hiện Ticket đã được backend phát; chưa có API lịch sử toàn bộ tài khoản. */
 async function liveTickets(token?: string): Promise<Ticket[]> {
@@ -19,26 +20,37 @@ async function liveTickets(token?: string): Promise<Ticket[]> {
   if (!orderId) return []
   const accessToken = token ?? saved.order?.accessToken ?? null
   const order = await getCheckout(orderId, accessToken)
-  const tickets = await Promise.all(order.bookings.map(async (booking) => {
-    if (!booking.tickets.length) return []
-    const raw = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(booking.tripId))
+  const paid = order.bookings.filter((booking) => booking.tickets.length > 0)
+
+  // One trip is read once, even when several bookings of the order ride it.
+  const details = new Map<string, Promise<TripDetailDto>>()
+  const detailOf = (tripId: string) => {
+    if (!details.has(tripId)) details.set(tripId, apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId)))
+    return details.get(tripId) as Promise<TripDetailDto>
+  }
+
+  const tickets = await Promise.all(paid.map(async (booking) => {
+    const raw = await detailOf(booking.tripId)
     const boarding = raw.stops.find((s) => s.callId === booking.boardingCallId)
     const alighting = raw.stops.find((s) => s.callId === booking.disembarkingCallId)
     if (!boarding || !alighting) throw new ApiError(409, 'Không tìm thấy điểm dừng của vé.')
-    const selected = toTrip({ id: raw.tripId, routeName: raw.routeName,
-      departureStationName: boarding.stationName, arrivalStationName: alighting.stationName,
-      departureTime: raw.departureTime, arrivalTime: raw.arrivalTime,
-      durationMinutes: Math.round((Date.parse(raw.arrivalTime) - Date.parse(raw.departureTime)) / 60000),
-      tripType: raw.tripType, basePrice: 0, availableSeatsCount: 0 })
-    const trip = await getTripDetail(selected, raw.tripId, {
-      tripType: 'one-way', originId: boarding.stationId, destinationId: alighting.stationId,
-      dateId: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(raw.departureTime)),
-    })
-    const qr = booking.status === 'Confirmed' ? await getBookingQr(orderId, booking.bookingId, accessToken) : null
+    const [trip, qr] = await Promise.all([
+      getTripDetail(
+        toTrip({ id: raw.tripId, routeName: raw.routeName,
+          departureStationName: boarding.stationName, arrivalStationName: alighting.stationName,
+          departureTime: raw.departureTime, arrivalTime: raw.arrivalTime,
+          durationMinutes: Math.round((Date.parse(raw.arrivalTime) - Date.parse(raw.departureTime)) / 60000),
+          tripType: raw.tripType, basePrice: 0, availableSeatsCount: 0 }),
+        raw.tripId,
+        { tripType: 'one-way', originId: boarding.stationId, destinationId: alighting.stationId,
+          dateId: toVietnamDate(new Date(raw.departureTime)) },
+      ),
+      booking.status === 'Confirmed' ? getBookingQr(orderId, booking.bookingId, accessToken) : null,
+    ])
     return booking.tickets.map((ticket): Ticket => ({
       id: ticket.ticketId, ticketCode: ticket.ticketCode, qrPayload: ticket.status === 'Valid' ? qr?.payload : undefined,
       tripCode: raw.boat?.code ?? raw.tripId, lineName: raw.routeName, routeTag: raw.tripType,
-      bookingRef: booking.bookingCode, status: `${ticket.status} · ${ticket.boardingStatus}`,
+      bookingRef: booking.bookingCode, status: ticketStatusLabel(ticket.status, ticket.boardingStatus),
       departTime: trip.departTime, arriveTime: trip.arriveTime, durationMins: trip.durationMins,
       departPier: boarding.stationName, departShort: boarding.stationName, departDistrict: '',
       arrivePier: alighting.stationName, arriveShort: alighting.stationName, arriveDistrict: '',
@@ -92,7 +104,6 @@ export async function getManageBooking(token?: string): Promise<ManageBooking> {
   return withDelayExact(buildManageBooking())
 }
 
-/** Pretends to submit a refund request. Always accepted so the flow never gets stuck. */
 /** Rebuilds the wallet tickets (one per seat) for this session's bookings in the active language. */
 export async function getBookedTickets(bookings: BookedSnapshot[]): Promise<Ticket[]> {
   if (!USE_MOCK) return []
