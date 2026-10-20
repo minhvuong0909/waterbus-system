@@ -851,6 +851,8 @@ export const vi: Record<string, string> = {
   'Waiting for backend support': 'Chờ BE hỗ trợ',
   'The backend has no API to manage schedules or generate trips yet. Existing trips are listed under Trips.':
     'Backend chưa có API quản lý lịch chạy hoặc sinh chuyến. Các chuyến có sẵn được xem tại mục Chuyến.',
+  'No more trips today ({today}), so the nearest trips are shown: {date}.':
+    'Hôm nay ({today}) đã hết chuyến, nên đang hiện các chuyến gần nhất: {date}.',
   'Price shown when you choose a seat': 'Giá hiển thị khi chọn ghế',
   'There are no trips in the next {days} days.': 'Chưa có chuyến nào trong {days} ngày tới.',
   'Try another pair of piers, or call the hotline for the timetable:':

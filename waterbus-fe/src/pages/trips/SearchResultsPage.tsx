@@ -22,6 +22,8 @@ export default function SearchResultsPage() {
 
   // Vào trang khi hôm nay đã hết chuyến thì chuyển sang ngày gần nhất còn chuyến (một lần).
   const triedAutoMove = useRef(false)
+  // Khách đã tự bấm chọn một ngày: không cần giải thích vì sao trang không hiện hôm nay nữa.
+  const [pickedDay, setPickedDay] = useState(false)
   useEffect(() => {
     if (triedAutoMove.current || !counts || !dates) return
     triedAutoMove.current = true
@@ -34,11 +36,12 @@ export default function SearchResultsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [counts, dates])
 
-  // Hôm nay hết chuyến và đang xem đúng ngày gần nhất còn chuyến: giải thích vì sao không phải hôm nay.
+  // Trang vừa tự chuyển khỏi hôm nay (đã hết chuyến) và khách chưa chọn ngày khác: nói rõ hôm nay là
+  // ngày nào. Khách tự chọn ngày thì không cần câu này.
   const todayOption = dates?.find((d) => d.isToday)
   const nearestOption = counts && dates ? dates.find((d) => (counts[d.id] ?? 0) > 0) : undefined
   const nearestDay =
-    todayOption && counts && counts[todayOption.id] === 0 && nearestOption?.id === query.dateId
+    !pickedDay && todayOption && counts && counts[todayOption.id] === 0 && nearestOption?.id === query.dateId
       ? nearestOption
       : undefined
   // Every offered day is known to have nothing to book: advising "pick another day" would lead nowhere.
@@ -112,7 +115,10 @@ export default function SearchResultsPage() {
               role="status"
               className="rounded-2xl border border-signal-amber/40 bg-signal-amber/10 px-space-md py-3 text-sm text-deep-river"
             >
-              {t('No more trips today. The nearest trips are on {date}.', { date: formatDateLabel(nearestDay) })}
+              {t('No more trips today ({today}), so the nearest trips are shown: {date}.', {
+                today: todayOption ? t('{weekday}, {label}', { weekday: todayOption.weekday, label: todayOption.label }) : '',
+                date: formatDateLabel(nearestDay),
+              })}
             </p>
           )}
           <DateStrip
@@ -120,7 +126,10 @@ export default function SearchResultsPage() {
             selectedId={selectedDate.id}
             tripCount={dayBookable}
             counts={counts}
-            onSelect={(id) => updateQuery({ dateId: id })}
+            onSelect={(id) => {
+              setPickedDay(true)
+              updateQuery({ dateId: id })
+            }}
           />
           <ResultFilters
             time={time}
