@@ -6,7 +6,7 @@ namespace WaterbusSystem.Application.Features.AiBooking.Interfaces;
 /// Dịch vụ AI Booking Assistant xử lý hội thoại người dùng,
 /// điều phối tool calling (tìm chuyến, tạo link đặt vé) và trả lời có cấu trúc.
 /// Application chỉ phụ thuộc interface này; Infrastructure cung cấp adapter
-/// (OpenAI qua Semantic Kernel hoặc Fake cho test/offline).
+/// (Groq qua Semantic Kernel hoặc Fake cho test/offline).
 /// </summary>
 public interface IAiBookingAssistantService
 {

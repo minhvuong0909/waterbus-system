@@ -243,14 +243,13 @@ export const vi: Record<string, string> = {
   '{boat} is already on another trip at that time.': '{boat} đang chạy chuyến khác vào giờ đó.',
   '{percent}% of the route': '{percent}% hành trình',
   '{speed} km/h': '{speed} km/h',
-  'There are no more departures today. Try another date on the timetable.': 'Hôm nay không còn chuyến nào. Hãy thử chọn ngày khác trên lịch chạy.',
-  'Here are the next departures today:': 'Các chuyến khởi hành sắp tới hôm nay:',
-  'Hi! I can help with departures, refunds and vouchers. What would you like to know?': 'Xin chào! Mình có thể giúp về chuyến đi, hoàn vé và voucher. Bạn muốn hỏi gì?',
   'Smart Waterbus Assistant': 'Trợ lý Smart Waterbus',
-  'Ask about trips and tickets': 'Hỏi về chuyến đi và vé',
+  'Find waterbus trips': 'Tìm chuyến tàu buýt đường sông',
+  'Find a trip': 'Tìm chuyến',
+  'Hi! I can show upcoming trips, or find trips by pier and date. What would you like to know?':
+    'Xin chào! Mình có thể xem các chuyến sắp tới hoặc tìm theo bến và ngày. Bạn muốn biết gì?',
   'Close assistant': 'Đóng trợ lý',
   'Open assistant': 'Mở trợ lý',
-  'Next departures': 'Chuyến sắp khởi hành',
   'Type your question...': 'Nhập câu hỏi của bạn...',
   'This link is invalid or has expired': 'Liên kết không hợp lệ hoặc đã hết hạn',
   'Open the latest email or message we sent you, or look up your booking with your booking code.': 'Hãy mở email hoặc tin nhắn mới nhất chúng tôi đã gửi, hoặc tra cứu đơn đặt vé bằng mã đặt chỗ.',
@@ -1035,7 +1034,6 @@ export const vi: Record<string, string> = {
   'Ref: {bookingRef}': 'Mã: {bookingRef}',
   'Refund {amount} for booking {bookingCode} ({seat}). Refunds are available up to 30 minutes before departure. Requests need your confirmation.':
     'Hoàn {amount} cho đặt chỗ {bookingCode} ({seat}). Có thể hoàn tiền đến 30 phút trước giờ khởi hành. Yêu cầu cần bạn xác nhận.',
-  'Refund Help': 'Trợ giúp hoàn tiền',
   'Refund Request': 'Yêu cầu hoàn tiền',
   'Refund request submitted. We will email you an update.':
     'Đã gửi yêu cầu hoàn tiền. Chúng tôi sẽ gửi email cập nhật cho bạn.',
@@ -1327,7 +1325,6 @@ export const vi: Record<string, string> = {
   'Trip Fare': 'Giá vé chuyến',
   'Trip Operating Normally.': 'Chuyến chạy bình thường.',
   'Trip Receipt': 'Biên nhận chuyến',
-  'Trip Status': 'Trạng thái chuyến',
   'Try again': 'Thử lại',
   Tue: 'T3',
   'Turnstiles open 10 min prior to departure. Boarding gate closes 3 min before cast-off.':
@@ -1505,8 +1502,6 @@ export const vi: Record<string, string> = {
   'When does boarding open?': 'Khi nào bắt đầu lên tàu?',
   'Boarding opens 10 minutes before departure. Arrive at the pier with your QR ticket and scan it at the turnstile.':
     'Lên tàu mở 10 phút trước giờ khởi hành. Hãy tới bến cùng vé QR và quét tại cổng soát vé.',
-  'Hi! I can help with departures and refunds. What would you like to know?':
-    'Xin chào! Mình có thể giúp về chuyến khởi hành và hoàn tiền. Bạn muốn hỏi gì?',
   'Refunds':
     'Hoàn tiền',
   'If this trip is cancelled or ends early before you reach your stop, the amount you paid for the affected tickets is refunded to your original payment method. Any refund appears here with its status.':

@@ -83,6 +83,36 @@ public class AiBookingValidatorsTests
         result.IsValid.Should().BeFalse("Domain TripType chỉ có Commuter và Sightseeing");
     }
 
+    [Fact]
+    public void ChatRequestValidator_ValidSearchContext_ShouldPass()
+    {
+        var result = _chatRequestValidator.Validate(new AiBookingChatRequest
+        {
+            Message = "Sớm hơn một chút",
+            SearchContext = new TripSearchCriteria
+            {
+                DepartureStationName = "Bạch Đằng",
+                PassengerCount = 2,
+                PreferredDepartureTime = new TimeOnly(16, 0)
+            }
+        });
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ChatRequestValidator_OversizedClientContext_ShouldFail()
+    {
+        var result = _chatRequestValidator.Validate(new AiBookingChatRequest
+        {
+            Message = "Sớm hơn một chút",
+            SearchContext = new TripSearchCriteria { DepartureStationName = new string('a', 101) }
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName.Contains("DepartureStationName"));
+    }
+
     // ── TripSearchCriteriaValidator ─────────────────────────────────────────
 
     [Theory]

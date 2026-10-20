@@ -75,7 +75,7 @@ Không tuyên bố đã hoàn tất P3-BE-03.
 
 Thịnh đã được Drive giao AI Booking Assistant, nhưng repo xếp widget `P4-WEB-03` là optional và phụ thuộc Trip Search + Booking ổn định. Hiện `SearchTripsQuery` có `BasePrice = 0` (`TODO`) và suy bến dừng bằng `Station.OrderIndex` thay vì stop calls thực tế. Vì vậy chưa được dùng kết quả hiện tại để khẳng định giá/bến hợp lệ trong câu trả lời AI.
 
-**Giao được trên branch riêng, sau khi lát cắt 1/2 hoặc song song khi không đụng file nhau:** định nghĩa request/response typed cho AI chat và Trip Card; interface cho search tool và booking-link tool; validation tham số; fake adapters và tests. Thịnh đã chọn OpenAI tại [AI_DECISIONS.md](AI_DECISIONS.md), nhưng lát cắt này chưa cần nối LLM hoặc API hiện tại như dữ liệu production. Đây là phần đầu của trách nhiệm AI Booking Assistant, không phải toàn bộ chatbot.
+**Giao được trên branch riêng, sau khi lát cắt 1/2 hoặc song song khi không đụng file nhau:** định nghĩa request/response typed cho AI chat và Trip Card; interface cho search tool và booking-link tool; validation tham số; fake adapters và tests. Thịnh hiện chọn Groq tại [AI_DECISIONS.md](AI_DECISIONS.md), nhưng lát cắt này chưa cần nối LLM hoặc API hiện tại như dữ liệu production. Đây là phần đầu của trách nhiệm AI Booking Assistant, không phải toàn bộ chatbot.
 
 ### Prompt giao Antigravity cho lát cắt 3
 
@@ -88,10 +88,10 @@ INTEGRATION_LATER.md và DELIVERY_WORKFLOW.md; đọc BR-AI-01.
 Chỉ thiết kế/triển khai contract typed và boundary cho AI Booking Assistant:
 request chat, TripCard response, search tool và booking-link tool qua interface,
 validation và test với fake. Không thêm UI, sửa SearchTripsQuery/Booking,
-không tự tạo URL/giá, không thêm provider LLM trong lát cắt contract này; lựa chọn OpenAI đã ghi tại AI_DECISIONS.md.
+không tự tạo URL/giá, không thêm provider LLM trong lát cắt contract này; lựa chọn Groq hiện tại đã ghi tại AI_DECISIONS.md.
 Trước khi sửa, báo file scope và các field dữ liệu cần owner Trip Search/Web chốt.
 Sau khi sửa, chạy build/test, tự xem diff và báo phần còn chờ tích hợp.
 Không tuyên bố đã hoàn tất AI Booking Assistant.
 ```
 
-Để hoàn thành AI Assistant sau đó phải làm đủ Semantic Kernel + OpenAI thật + function calling API tìm chuyến + Trip Card trên UI theo [FULL_SCOPE_EXECUTION_PLAN.md](FULL_SCOPE_EXECUTION_PLAN.md). Lát cắt 1, 2 hoặc 3 không cần credential; live adapter/test cần key/quota hợp lệ.
+Để hoàn thành AI Assistant sau đó phải làm đủ Semantic Kernel + provider thật (hiện chọn Groq, cần nhóm xác nhận) + function calling API tìm chuyến + Trip Card trên UI theo [FULL_SCOPE_EXECUTION_PLAN.md](FULL_SCOPE_EXECUTION_PLAN.md). Lát cắt 1, 2 hoặc 3 không cần credential; live adapter/test cần key/quota hợp lệ.

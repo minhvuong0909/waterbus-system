@@ -2,27 +2,40 @@
 
 Roadmap repo có ID `P4-WEB-03` cho chat widget + Function Calling tạo **link đặt vé**, phụ thuộc Trip Search + Booking ổn định. Phần backend AI không có module ID riêng trong repo; ranh giới với frontend cần thống nhất với Viễn trước khi tích hợp.
 
-Drive **đã giao Thịnh AI Booking Assistant** (Semantic Kernel, OpenAI/Gemini, plugin/function tìm chuyến và dữ liệu UI Card). Từ “optional” là trạng thái **widget trong roadmap repo**, không có nghĩa Thịnh được bỏ đầu việc này khỏi kế hoạch. Viễn làm chat widget và render Trip Card; Thịnh làm phần AI/tool-calling và response có cấu trúc để Viễn dùng.
+Drive **đã giao Thịnh AI Booking Assistant** (Semantic Kernel, OpenAI/Gemini, plugin/function tìm chuyến và dữ liệu UI Card). Từ “optional” là trạng thái **widget trong roadmap repo**, không có nghĩa Thịnh được bỏ đầu việc này khỏi kế hoạch. Widget và render card ban đầu từ FE của Viễn trên `main`; phần nối card AI đến luồng xem chuyến hiện được thực hiện trong nhánh AI của Thịnh. Cần báo rõ file FE chạm vào khi tạo PR.
 
 ## Các bước phải hoàn thành
 
-1. Dùng **OpenAI API qua Semantic Kernel**, model khởi đầu `gpt-4.1-mini` theo [AI_DECISIONS.md](AI_DECISIONS.md). Credential/config ngoài Git; kiểm tra package/version .NET thực tế trước khi code adapter. Không tự đổi provider.
+1. Dùng **Groq API qua Semantic Kernel**, model khởi đầu `openai/gpt-oss-20b` theo [AI_DECISIONS.md](AI_DECISIONS.md). Đây là lựa chọn mới của Thịnh, khác hai provider được Drive nêu (OpenAI/Gemini); cần nhóm xác nhận trước khi coi là đáp ứng phân công. Credential/config ngoài Git.
 2. Định nghĩa input chat và response tách phần văn bản với `TripCard[]` có schema ổn định. Không dùng văn bản model để frontend tự bóc tách chuyến.
-3. Định nghĩa plugin/function tìm chuyến: validate ngày, bến, loại dịch vụ và tham số được API hỗ trợ; gọi search API/query đã được owner xác nhận đúng. Thiếu dữ liệu thì hỏi thêm, kết quả rỗng thì báo rỗng.
+3. Định nghĩa plugin/function tìm chuyến: validate ngày, bến, loại dịch vụ và tham số được API hỗ trợ; gọi search API/query đã được owner xác nhận đúng. Không nêu bến thì lấy chuyến sắp tới; nêu một bến thì tìm cả chuyến xuất phát và chuyến đến bến đó; nêu hai bến thì lọc đúng chiều. Ngày là bộ lọc tùy chọn, kết quả rỗng thì báo rỗng. Function liệt kê bến gọi `GetStationsQuery` khi khách hỏi có những bến nào. Hiện API gốc chỉ lọc bến đầu/cuối tuyến, không hỗ trợ tìm mọi chuyến ghé qua bến trung gian.
 4. Function tạo link đặt vé chỉ dùng service/route đã được owner Booking/Web cung cấp; không tự nối chuỗi URL từ phỏng đoán và không tạo Booking/Payment.
 5. Thực thi giới hạn tool, timeout/rate limit, xử lý lỗi provider/API, redaction log và test prompt injection.
 6. Kết nối với widget của Viễn, test live: hỏi giờ tàu → tool trả chuyến thật → Trip Card render đúng → link mở đúng luồng đặt vé.
 
 Hiện `SearchTripsQuery` trong source có `BasePrice = 0` TODO và suy bến dừng theo `Station.OrderIndex`; không dùng giá/bến đó như sự thật cho người dùng trước khi owner sửa/xác nhận contract.
 
-Backend đã chuẩn bị `MediatRTripSearchTool` (gọi cùng query mà API Trip Search dùng), `ConfiguredBookingLinkTool` (chỉ chấp nhận template HTTPS do owner cung cấp), DI và `POST /api/v1/AiAssistant/chat`. Các cờ xác nhận contract mặc định tắt. Adapter tìm chuyến còn chặn mọi kết quả có giá `<= 0` hoặc thiếu bến; không bật cờ chỉ để “có card”. Mẫu link có `{tripId}` và tùy contract có `{boardingStationId}`, `{disembarkingStationId}`, `{passengerCount}`; không giả định `/trip` hiện tại là luồng đặt vé thật. Viễn vẫn sở hữu kết nối widget và render UI Card.
+Backend có `MediatRTripSearchTool` (gọi cùng query mà API Trip Search dùng), `ConfiguredBookingLinkTool` (chỉ chấp nhận template HTTPS do owner cung cấp), DI và `POST /api/v1/AiAssistant/chat`. FE trên `main` đã nối widget với endpoint này; Thịnh bổ sung dữ liệu bến khách hỏi vào card và nút **Xem chuyến** để mở luồng `/trip` hiện có, nơi FE tải lại trip detail/seat map. Không tự tạo Booking/Payment. Link chính thức qua `ConfiguredBookingLinkTool` vẫn cần owner xác nhận contract.
+
+Để demo nội bộ trước khi owner Trip Search sửa giá/bến, có cờ `EnableUnverifiedTripCardsForDevelopment` mặc định tắt, chỉ hoạt động khi host là Development. Card khi đó có thể hiển thị `0 ₫` như dữ liệu query hiện tại, kèm `isPriceVerified=false` và `isDevelopmentPreview=true` trong JSON. **Không coi 0 ₫ là giá bán thật** và không bật `IsTripSearchContractVerified` để lách gate. Ngoài Development, query chưa xác nhận hoặc giá 0 vẫn bị chặn. Mẫu link chính thức có `{tripId}` và tùy contract có `{boardingStationId}`, `{disembarkingStationId}`, `{passengerCount}`.
+
+Lát cắt hội thoại cho demo nội bộ: `SearchTrips` hỗ trợ tìm chuyến sắp tới không bộ lọc, một bến (hai chiều), hai bến đúng chiều, ngày, loại chuyến, số khách và giờ Việt Nam. Giờ "khoảng 16:00" dùng để xếp tối đa ba card gần giờ nhất; "sau 16:00"/"đến trước 17:00" là bộ lọc. API trả `searchContext`; FE gửi lại để câu "sớm hơn", "đổi ngày", "thêm một người" không phải nhập lại mọi điều kiện. `ListStations` trả bến từ query thật; tìm theo khu vực chỉ gợi ý theo tên/địa chỉ bến đã có, không đoán GPS. Widget cho chọn card bằng nút hoặc mã A/B/C, xác nhận rằng chưa đặt vé, rồi chuyển `tripId` và tiêu chí sang trang chi tiết chuyến/chọn ghế. Số khách chuyển qua nhãn tìm kiếm; số ghế và giá cuối cùng vẫn phải kiểm tra ở luồng booking. Không triển khai trả lời chính sách vé/lên tàu vì chưa có nguồn nội dung chính thức.
+
+### Demo local với dữ liệu Trip Search hiện tại
+
+1. Chạy WebApi trong môi trường `Development`, có DB chứa Station/Trip/TripStopCall/ghế phù hợp. Giữ Groq API key trong User Secrets (không commit). Bật `AiBookingAssistant:Groq:IsEnabled=true` và `AiBookingAssistant:Integration:EnableUnverifiedTripCardsForDevelopment=true` qua User Secrets của `WaterbusSystem.WebApi`.
+2. FE đặt `VITE_USE_MOCK=false`, chạy WebApi và Vite. Thử lần lượt "Hiện có chuyến nào sắp tới?", "Linh Đông có chuyến nào?", "Bạch Đằng đến Linh Đông có chuyến nào?"; `SearchTrips` tương ứng dùng không bến, một bến ở cả hai chiều, hoặc đúng cặp bến. Hỏi "Hiện có những bến nào?" để kiểm tra `ListStations`. Card từ API có thể hiển thị `0 ₫` trong Development preview.
+3. Nhấn **Xem chuyến**. FE lưu `tripId` và bến khách hỏi, chuyển sang `/trip`, rồi gọi lại trip detail/seat map. Nếu trang này báo chuyến không phục vụ đoạn bến, đó là dữ liệu Trip Search chưa khớp `TripStopCall`, không được sửa bằng cách bịa card/giá.
+4. Không bật cờ preview trên môi trường chạy thật; khi owner Trip Search hoàn tất, xác minh lại giá và thứ tự bến rồi mới chốt `IsTripSearchContractVerified`.
+
+Test tự động xác minh mapping card, cờ Development và hành vi điều hướng FE. Chưa coi là end-to-end đã chạy thật khi chưa thử với DB, Groq key và chuyến cụ thể của môi trường triển khai.
 
 ## Gate trước khi triển khai
 
 Trước khi tích hợp, thống nhất với nhóm:
 
 - thời điểm làm widget optional trong roadmap và owner frontend;
-- OpenAI API key/quota và ngân sách; provider/model đã được Thịnh chọn, không phải quyết định có sẵn trong repo;
+- Groq API key/quota và ngân sách; provider/model đã được Thịnh chọn, không phải quyết định có sẵn trong repo/Drive và cần báo nhóm;
 - ngân sách/rate limit;
 - API Trip Search đã ổn định;
 - payload Trip Card frontend;
@@ -32,7 +45,7 @@ Theo DoD hiện có, AI phải trả lời giờ tàu từ dữ liệu thật v�
 
 ## Nguyên tắc kiến trúc
 
-- Dùng Semantic Kernel/OpenAI adapter ở Infrastructure theo Clean Architecture; lựa chọn provider của Thịnh ghi tại `AI_DECISIONS.md`.
+- Dùng Semantic Kernel với Groq OpenAI-compatible endpoint ở Infrastructure theo Clean Architecture; lựa chọn provider của Thịnh ghi tại `AI_DECISIONS.md`.
 - Application định nghĩa interface/use case độc lập provider.
 - Tool/function phải gọi Application query/API hợp lệ, không query DB tùy ý.
 - Không truyền connection string, secret, log nội bộ hoặc dữ liệu thanh toán vào prompt.

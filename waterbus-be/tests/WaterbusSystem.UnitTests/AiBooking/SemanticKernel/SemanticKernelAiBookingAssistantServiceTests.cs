@@ -1,9 +1,11 @@
+using System.Net;
 using FluentAssertions;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Moq;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.AiBooking.Models;
@@ -24,22 +26,70 @@ namespace WaterbusSystem.UnitTests.AiBooking.SemanticKernel;
 /// </summary>
 public class SemanticKernelAiBookingAssistantServiceTests
 {
+    [Fact]
+    public void GroqConfiguration_UsesOfficialEndpointAndToolCapableDefaultModel()
+    {
+        GroqAssistantOptions.SectionName.Should().Be("AiBookingAssistant:Groq");
+        GroqAssistantOptions.Endpoint.Should().Be("https://api.groq.com/openai/v1");
+        new GroqAssistantOptions().ModelId.Should().Be("openai/gpt-oss-20b");
+        new GroqAssistantOptions().IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GroqConnector_SendsChatToGroqChatCompletionsPath()
+    {
+        var handler = new RequestPathCaptureHandler();
+        using var httpClient = new HttpClient(handler);
+        var builder = Kernel.CreateBuilder();
+        builder.AddOpenAIChatCompletion(
+            "openai/gpt-oss-20b",
+            new Uri(GroqAssistantOptions.Endpoint),
+            "test-key",
+            httpClient: httpClient);
+        var kernel = builder.Build();
+        var chatService = kernel.GetRequiredService<IChatCompletionService>();
+
+        try
+        {
+            await chatService.GetChatMessageContentsAsync(
+                new ChatHistory("Xin chào"), new OpenAIPromptExecutionSettings(), kernel);
+        }
+        catch (Exception)
+        {
+            // Handler trả lỗi giả lập; test chỉ cần kiểm tra URL được SDK xây dựng.
+        }
+
+        handler.RequestUri.Should().NotBeNull();
+        handler.RequestUri!.AbsoluteUri.Should().Be("https://api.groq.com/openai/v1/chat/completions");
+    }
+
+    private sealed class RequestPathCaptureHandler : HttpMessageHandler
+    {
+        public Uri? RequestUri { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestUri = request.RequestUri;
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized));
+        }
+    }
+
     private readonly Mock<ITripSearchTool> _tripSearchToolMock = new();
     private readonly Mock<IBookingLinkTool> _bookingLinkToolMock = new();
     private readonly Mock<ILogger<SemanticKernelAiBookingAssistantService>> _loggerMock = new();
     private readonly Mock<IChatCompletionService> _chatCompletionServiceMock = new();
     private readonly AiBookingChatRequestValidator _validator = new();
 
-    private readonly OpenAiAssistantOptions _defaultOptions = new()
+    private readonly GroqAssistantOptions _defaultOptions = new()
     {
-        ApiKey = "mock-openai-key-test",
-        ModelId = "gpt-4.1-mini",
+        ApiKey = "mock-groq-key-test",
+        ModelId = "openai/gpt-oss-20b",
         TimeoutSeconds = 5,
         IsEnabled = true
     };
 
     private SemanticKernelAiBookingAssistantService CreateService(
-        OpenAiAssistantOptions? options = null,
+        GroqAssistantOptions? options = null,
         IChatCompletionService? customChatService = null)
     {
         var opt = Options.Create(options ?? _defaultOptions);
@@ -103,7 +153,7 @@ public class SemanticKernelAiBookingAssistantServiceTests
     public async Task ProcessChatAsync_ProductionDisabled_ThrowsInvalidOperationException()
     {
         // Khi không truyền testChatCompletionService (chạy nhánh production thật)
-        var disabledOptions = new OpenAiAssistantOptions
+        var disabledOptions = new GroqAssistantOptions
         {
             ApiKey = "key",
             IsEnabled = false // Chưa kích hoạt
@@ -120,13 +170,13 @@ public class SemanticKernelAiBookingAssistantServiceTests
         var act = () => productionService.ProcessChatAsync(new AiBookingChatRequest { Message = "Tìm chuyến lúc 9h" });
 
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*chưa được kích hoạt hoặc thiếu OpenAI API key*");
+            .WithMessage("*chưa được kích hoạt hoặc thiếu Groq API key*");
     }
 
     [Fact]
     public async Task ProcessChatAsync_ProductionMissingApiKey_ThrowsInvalidOperationException()
     {
-        var missingKeyOptions = new OpenAiAssistantOptions
+        var missingKeyOptions = new GroqAssistantOptions
         {
             ApiKey = null,
             IsEnabled = true
@@ -143,13 +193,13 @@ public class SemanticKernelAiBookingAssistantServiceTests
         var act = () => productionService.ProcessChatAsync(new AiBookingChatRequest { Message = "Tìm chuyến đi" });
 
         await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*chưa được kích hoạt hoặc thiếu OpenAI API key*");
+            .WithMessage("*chưa được kích hoạt hoặc thiếu Groq API key*");
     }
 
     [Fact]
     public async Task ProcessChatAsync_InjectedChatService_CannotBypassDisabledFlag()
     {
-        var service = CreateService(new OpenAiAssistantOptions
+        var service = CreateService(new GroqAssistantOptions
         {
             ApiKey = "mock-key",
             IsEnabled = false
@@ -225,6 +275,89 @@ public class SemanticKernelAiBookingAssistantServiceTests
     }
 
     [Fact]
+    public async Task ProcessChatAsync_OnlyDeparture_InvokesOpenSearchAndReturnsToolCard()
+    {
+        var card = new AiTripCardDto(
+            Guid.NewGuid(), "Bạch Đằng - Bình An", "Bạch Đằng", "Bình An",
+            DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow.AddDays(1).AddMinutes(25),
+            25, "Commuter", null, false, 12, null, new List<AiTripStopDto>());
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(new[] { card }, true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["departureStation"] = "Bạch Đằng" }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Đã tìm thấy chuyến.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Bạch Đằng có chuyến nào?"
+        });
+
+        response.IsFallback.Should().BeFalse();
+        response.Cards.Should().ContainSingle().Which.TripId.Should().Be(card.TripId);
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(
+            It.Is<TripSearchCriteria>(c => c.DepartureStationName == "Bạch Đằng"
+                && c.ArrivalStationName == null && c.DepartureDate == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_NoStation_InvokesUpcomingSearch()
+    {
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments(), ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Không có chuyến.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Hiện tại có những chuyến nào?"
+        });
+
+        response.TextAnswer.Should().Contain("Không tìm thấy chuyến phù hợp");
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(
+            It.Is<TripSearchCriteria>(c => c.DepartureStationName == null && c.ArrivalStationName == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_ListStations_UsesStationToolNames()
+    {
+        _tripSearchToolMock.Setup(t => t.ListActiveStationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { "Bến Bạch Đằng", "Bến Linh Đông" });
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["ListStations"],
+                    new KernelArguments(), ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Các bến khác do model bịa.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Hiện có những bến nào?"
+        });
+
+        response.TextAnswer.Should().Contain("Bến Bạch Đằng").And.Contain("Bến Linh Đông");
+        response.TextAnswer.Should().NotContain("bịa");
+        response.Cards.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task ProcessChatAsync_NoTripsFound_ReturnsZeroCardsWithoutHallucinating()
     {
         _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
@@ -263,12 +396,116 @@ public class SemanticKernelAiBookingAssistantServiceTests
         response.TextAnswer.Should().Contain("Không tìm thấy chuyến phù hợp");
     }
 
+    [Fact]
+    public async Task ProcessChatAsync_SendsBoundedHistoryAndUsesOnlySafeClarification()
+    {
+        ChatHistory? captured = null;
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>((history, _, _, _) =>
+            {
+                captured = history;
+                return Task.FromResult<IReadOnlyList<ChatMessageContent>>(
+                    new List<ChatMessageContent> { new(AuthorRole.Assistant, "Quý khách muốn đi ngày nào?") });
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Từ Bến Bạch Đằng đến Bến Linh Đông",
+            History = new[]
+            {
+                new AiBookingChatTurn("user", "Tôi cần tìm chuyến"),
+                new AiBookingChatTurn("assistant", "Quý khách muốn đi từ bến nào đến bến nào?")
+            }
+        });
+
+        response.TextAnswer.Should().Be("Quý khách muốn đi ngày nào?");
+        captured.Should().NotBeNull();
+        captured!.Select(x => x.Content).Should().ContainInOrder(
+            "Tôi cần tìm chuyến", "Quý khách muốn đi từ bến nào đến bến nào?",
+            "Từ Bến Bạch Đằng đến Bến Linh Đông");
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_ToolUseFailedAfterSearch_PreservesVerifiedToolCards()
+    {
+        var card = new AiTripCardDto(
+            Guid.NewGuid(), "Bạch Đằng - Linh Đông", "Bến Bạch Đằng", "Bến Linh Đông",
+            DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow.AddDays(1).AddMinutes(45),
+            45, "Commuter", null, false, 20, null, new List<AiTripStopDto>());
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(new List<AiTripCardDto> { card }, true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"], new KernelArguments
+                {
+                    ["departureStation"] = "Bến Bạch Đằng",
+                    ["arrivalStation"] = "Bến Linh Đông",
+                    ["departureDate"] = "2099-10-15"
+                }, ct);
+                throw new HttpOperationException(HttpStatusCode.BadRequest,
+                    "{\"error\":{\"code\":\"tool_use_failed\"}}", "unsafe provider message", null);
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest { Message = "Tìm chuyến" });
+
+        response.IsFallback.Should().BeFalse();
+        response.Cards.Should().ContainSingle().Which.TripId.Should().Be(card.TripId);
+        response.ExecutedTools.Should().Contain(x => x.ToolName == "SearchTrips" && x.Success);
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_RateLimitedAfterSearch_PreservesVerifiedToolCards()
+    {
+        var card = new AiTripCardDto(
+            Guid.NewGuid(), "Linh Đông - Bình An", "Bến Linh Đông", "Bến Bình An",
+            DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow.AddDays(1).AddMinutes(35),
+            35, "Commuter", null, false, 20, null, new List<AiTripStopDto>());
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(new List<AiTripCardDto> { card }, true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"], new KernelArguments
+                {
+                    ["departureStation"] = "Bến Bình An"
+                }, ct);
+                throw new HttpOperationException(HttpStatusCode.TooManyRequests,
+                    "{\"error\":{\"code\":\"rate_limit_exceeded\"}}", "unsafe provider message", null);
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest { Message = "Bình An có chuyến nào?" });
+
+        response.IsFallback.Should().BeFalse();
+        response.Cards.Should().ContainSingle().Which.TripId.Should().Be(card.TripId);
+        response.ExecutedTools.Should().Contain(x => x.ToolName == "SearchTrips" && x.Success);
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_TooManyHistoryTurns_RejectsRequest()
+    {
+        var request = new AiBookingChatRequest
+        {
+            Message = "Tìm chuyến",
+            History = Enumerable.Range(0, 9).Select(_ => new AiBookingChatTurn("user", "Xin chào")).ToArray()
+        };
+
+        await FluentActions.Invoking(() => CreateService().ProcessChatAsync(request))
+            .Should().ThrowAsync<ValidationException>();
+    }
+
     // ── 5. Timeout & Provider Errors ────────────────────────────────────────
 
     [Fact]
     public async Task ProcessChatAsync_TimeoutOccurs_ReturnsFallbackResponseWithFlag()
     {
-        var shortTimeoutOptions = new OpenAiAssistantOptions
+        var shortTimeoutOptions = new GroqAssistantOptions
         {
             ApiKey = "key",
             TimeoutSeconds = 1,
@@ -307,7 +544,7 @@ public class SemanticKernelAiBookingAssistantServiceTests
                 It.IsAny<PromptExecutionSettings>(),
                 It.IsAny<Kernel>(),
                 It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new HttpRequestException("Lỗi kết nối OpenAI 503"));
+            .ThrowsAsync(new HttpRequestException("Lỗi kết nối Groq 503"));
 
         var service = CreateService();
 
@@ -320,6 +557,33 @@ public class SemanticKernelAiBookingAssistantServiceTests
         response.IsFallback.Should().BeTrue();
         response.TextAnswer.Should().Contain("gặp sự cố kết nối");
         response.Cards.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_GroqBadRequest_LogsOnlySafeProviderCode()
+    {
+        const string sensitiveText = "secret-prompt-and-key-must-not-be-logged";
+        var providerError = new HttpOperationException(
+            HttpStatusCode.BadRequest,
+            "{\"error\":{\"code\":\"tool_use_failed\",\"message\":\"" + sensitiveText + "\"}}",
+            sensitiveText,
+            null);
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(providerError);
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Tìm chuyến từ Bạch Đằng đến Linh Đông ngày 2099-10-15"
+        });
+
+        response.IsFallback.Should().BeTrue();
+        response.Cards.Should().BeEmpty();
+        var errorLog = _loggerMock.Invocations.Single(i => i.Method.Name == "Log");
+        var fields = (IEnumerable<KeyValuePair<string, object?>>)errorLog.Arguments[2];
+        fields.Single(f => f.Key == "ProviderCode").Value.Should().Be("tool_use_failed");
+        errorLog.Arguments[2].ToString().Should().NotContain(sensitiveText);
     }
 
     [Fact]

@@ -12,20 +12,23 @@ using WaterbusSystem.Infrastructure.Services.AudioStorage;
 using WaterbusSystem.Infrastructure.Services.Tts;
 using WaterbusSystem.WebApi.Controllers;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace WaterbusSystem.UnitTests.SightseeingAudio;
 
 /// <summary>
 /// Chỉ khi bật cờ mới gọi Azure Speech và Blob thật. File MP3 tải lại được giữ
-/// ngoài repo để người chạy nghe; blob có khóa ngẫu nhiên do test tạo được xóa.
+/// ngoài repo để người chạy nghe; blob thử chỉ được giữ khi bật cờ riêng.
 /// </summary>
-public sealed class AzureAudioPipelineLiveSmokeTests
+public sealed class AzureAudioPipelineLiveSmokeTests(ITestOutputHelper output)
 {
     [Fact]
     public async Task GenerateUploadAndDownloadRealVietnameseMp3_WhenExplicitlyEnabled()
     {
         if (Environment.GetEnvironmentVariable("WATERBUS_AZURE_AUDIO_PIPELINE_SMOKE") != "1")
             return;
+
+        var keepBlob = Environment.GetEnvironmentVariable("WATERBUS_KEEP_AUDIO_SMOKE_BLOB") == "1";
 
         var configuration = new ConfigurationBuilder()
             .AddUserSecrets(typeof(BaseApiController).Assembly, optional: true)
@@ -58,6 +61,7 @@ public sealed class AzureAudioPipelineLiveSmokeTests
         var assetKey = $"smoke-tests/{poiId:N}/vi/v1.mp3";
         var blob = container.GetBlobClient(assetKey);
         var uploaded = false;
+        var verified = false;
 
         try
         {
@@ -86,11 +90,19 @@ public sealed class AzureAudioPipelineLiveSmokeTests
             var outputPath = Path.Combine(outputDirectory, $"azure-audio-{poiId:N}.mp3");
             await File.WriteAllBytesAsync(outputPath, downloadedBytes);
             File.Exists(outputPath).Should().BeTrue();
+            verified = true;
+
+            output.WriteLine($"MP3 local: {outputPath}");
+            if (keepBlob)
+            {
+                output.WriteLine($"Đã giữ blob private: {blob.Uri.AbsoluteUri}");
+                output.WriteLine($"Asset key: {assetKey}");
+            }
         }
         finally
         {
-            // Chỉ xóa blob có khóa GUID do chính test này tạo.
-            if (uploaded)
+            // Chỉ giữ blob sau khi toàn bộ kiểm chứng thành công và người chạy chủ động bật cờ.
+            if (uploaded && !(keepBlob && verified))
                 await blob.DeleteIfExistsAsync();
         }
     }

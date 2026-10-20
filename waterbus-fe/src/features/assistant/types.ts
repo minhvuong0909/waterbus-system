@@ -1,12 +1,21 @@
-import type { SearchQuery, Trip } from '../trips/types'
-
-/** Answer of the assistant. `trips` are shown as trip cards under the text. */
+/** Phản hồi từ AI API; Trip Card chỉ lấy từ backend. */
 export interface AssistantReply {
   text: string
   apiCards?: AssistantApiCard[]
-  trips?: Trip[]
-  /** Piers and day the trips were found for, so a chosen card opens the right trip. */
-  search?: Pick<SearchQuery, 'originId' | 'destinationId' | 'dateId'>
+  searchContext?: AssistantSearchContext | null
+}
+
+/** Bộ lọc đã được backend kiểm tra ở lần tìm trước, gửi lại cho câu hỏi nối tiếp. */
+export interface AssistantSearchContext {
+  departureStationName?: string | null
+  arrivalStationName?: string | null
+  departureDate?: string | null
+  earliestDepartureTime?: string | null
+  latestDepartureTime?: string | null
+  preferredDepartureTime?: string | null
+  latestArrivalTime?: string | null
+  tripType?: string | null
+  passengerCount?: number | null
 }
 
 export interface ChatMessage {
@@ -14,12 +23,17 @@ export interface ChatMessage {
   from: 'user' | 'assistant'
   text: string
   apiCards?: AssistantApiCard[]
-  trips?: Trip[]
-  search?: AssistantReply['search']
+}
+
+export interface AssistantChatTurn {
+  role: 'user' | 'assistant'
+  content: string
 }
 
 export interface AssistantApiCard {
   tripId: string
+  boardingStationId?: string | null
+  disembarkingStationId?: string | null
   routeName: string
   departureStationName: string
   arrivalStationName: string
@@ -28,4 +42,5 @@ export interface AssistantApiCard {
   basePrice: number | null
   isPriceVerified: boolean
   bookingUrl: string | null
+  isDevelopmentPreview?: boolean
 }

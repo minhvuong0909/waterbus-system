@@ -25,17 +25,82 @@ public class WaterbusBookingPluginTests
         _plugin = new WaterbusBookingPlugin(_tripSearchToolMock.Object, _bookingLinkToolMock.Object);
     }
 
-    [Theory]
-    [InlineData("", "Linh Đông")]
-    [InlineData("Bạch Đằng", "")]
-    [InlineData("   ", "Linh Đông")]
-    public async Task SearchTripsAsync_MissingStations_ReturnsClarificationMessage(string dep, string arr)
+    [Fact]
+    public async Task SearchTripsAsync_NoStations_SearchesUpcomingTrips()
     {
-        var result = await _plugin.SearchTripsAsync(dep, arr, "2099-10-15");
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        var result = await _plugin.SearchTripsAsync();
 
-        result.Should().Contain("Thiếu thông tin bến khởi hành hoặc bến đến");
+        result.Should().Contain("Không tìm thấy chuyến tàu nào");
         _plugin.InterceptedCards.Should().BeEmpty();
-        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()), Times.Never);
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(
+            It.Is<TripSearchCriteria>(c => c.DepartureStationName == null
+                && c.ArrivalStationName == null && c.DepartureDate == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ListStationsAsync_ReturnsOnlyNamesFromStationTool()
+    {
+        _tripSearchToolMock.Setup(t => t.ListActiveStationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { "Bến Bạch Đằng", "Bến Linh Đông" });
+
+        var result = await _plugin.ListStationsAsync();
+
+        result.Should().Contain("Bến Bạch Đằng").And.Contain("Bến Linh Đông");
+        _plugin.ListedStations.Should().HaveCount(2);
+        _plugin.ExecutedTools.Should().Contain(e => e.ToolName == "ListStations" && e.Success);
+    }
+
+    [Fact]
+    public async Task SearchTripsAsync_OnlyDeparture_PassesOptionalFiltersToTool()
+    {
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+
+        await _plugin.SearchTripsAsync(departureStation: "Bạch Đằng");
+
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(
+            It.Is<TripSearchCriteria>(c => c.DepartureStationName == "Bạch Đằng"
+                && c.ArrivalStationName == null && c.DepartureDate == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SearchTripsAsync_ContextUpdate_PreservesRouteAndChangesOnlyRequestedCriteria()
+    {
+        var previous = new TripSearchCriteria
+        {
+            DepartureStationName = "Bạch Đằng",
+            ArrivalStationName = "Linh Đông",
+            DepartureDate = new DateOnly(2099, 10, 15),
+            PassengerCount = 2,
+            PreferredDepartureTime = new TimeOnly(16, 0)
+        };
+        var plugin = new WaterbusBookingPlugin(_tripSearchToolMock.Object, _bookingLinkToolMock.Object,
+            previousSearch: previous);
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+
+        await plugin.SearchTripsAsync(passengerCount: 3, preferredDepartureTime: "15:30", usePreviousSearch: true);
+
+        plugin.LatestCriteria.Should().NotBeNull();
+        plugin.LatestCriteria!.DepartureStationName.Should().Be("Bạch Đằng");
+        plugin.LatestCriteria.ArrivalStationName.Should().Be("Linh Đông");
+        plugin.LatestCriteria.DepartureDate.Should().Be(new DateOnly(2099, 10, 15));
+        plugin.LatestCriteria.PassengerCount.Should().Be(3);
+        plugin.LatestCriteria.PreferredDepartureTime.Should().Be(new TimeOnly(15, 30));
+    }
+
+    [Fact]
+    public async Task SearchTripsAsync_InvalidTime_DoesNotCallSearchTool()
+    {
+        var result = await _plugin.SearchTripsAsync(preferredDepartureTime: "4pm");
+
+        result.Should().Contain("Giờ không hợp lệ");
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -101,7 +166,7 @@ public class WaterbusBookingPluginTests
 
         var result = await _plugin.SearchTripsAsync("Bạch Đằng", "Linh Đông", "2099-10-15", "Commuter", 2);
 
-        result.Should().Contain("Tìm thấy 1 chuyến tàu chính thức");
+        result.Should().Contain("Tìm thấy 1 chuyến tàu theo dữ liệu Trip Search");
         _plugin.InterceptedCards.Should().HaveCount(1);
         _plugin.InterceptedCards.First().TripId.Should().Be(tripId);
         _plugin.ExecutedTools.Should().Contain(e => e.ToolName == "SearchTrips" && e.Success);
@@ -189,5 +254,25 @@ public class WaterbusBookingPluginTests
 
         _plugin.InterceptedCards.Single().BookingUrl.Should().BeNull();
         _plugin.InterceptedCards.Single().BasePrice.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SearchTripsAsync_DevelopmentPreview_KeepsZeroFareButNeverSearchProvidedLink()
+    {
+        var card = new AiTripCardDto(Guid.NewGuid(), "Tuyến test", "Bến A", "Bến B",
+            DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow.AddDays(1).AddMinutes(30),
+            30, "Commuter", 0m, false, 5, "https://unverified.example.test/booking",
+            Array.Empty<AiTripStopDto>(), Guid.NewGuid(), Guid.NewGuid(), true);
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(new[] { card }, true));
+
+        await _plugin.SearchTripsAsync("Bến A", "Bến B", "2099-10-15");
+
+        var displayed = _plugin.InterceptedCards.Single();
+        displayed.BasePrice.Should().Be(0m);
+        displayed.IsPriceVerified.Should().BeFalse();
+        displayed.BookingUrl.Should().BeNull();
+        displayed.BoardingStationId.Should().Be(card.BoardingStationId);
+        displayed.DisembarkingStationId.Should().Be(card.DisembarkingStationId);
     }
 }

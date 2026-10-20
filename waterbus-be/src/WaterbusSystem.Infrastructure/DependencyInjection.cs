@@ -17,6 +17,9 @@ using WaterbusSystem.Application.Features.CheckIns.Services;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.Incidents;
 using WaterbusSystem.Application.Features.Tracking;
+using WaterbusSystem.Application.Features.SightseeingAudio;
+using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
+using WaterbusSystem.Application.Features.SightseeingAudio.Services;
 using WaterbusSystem.Infrastructure.BackgroundJobs;
 using WaterbusSystem.Infrastructure.Identity;
 using WaterbusSystem.Infrastructure.Locking;
@@ -29,6 +32,7 @@ using WaterbusSystem.Infrastructure.Services.AiBooking;
 using WaterbusSystem.Infrastructure.Services.AudioStorage;
 using WaterbusSystem.Infrastructure.Services.Tts;
 using WaterbusSystem.Infrastructure.Services.Tracking;
+using WaterbusSystem.Infrastructure.Services.SightseeingAudio;
 using WaterbusSystem.Infrastructure.Services.Weather;
 
 namespace WaterbusSystem.Infrastructure;
@@ -155,13 +159,13 @@ public static class DependencyInjection
                 sp.GetRequiredService<CheckoutOptions>().PaymentDuration);
         });
 
-        // 6. AI Booking Assistant (OpenAI gpt-4.1-mini qua Semantic Kernel)
+        // 6. AI Booking Assistant (Groq qua Semantic Kernel)
         // Mặc định ở trạng thái chưa kích hoạt (IsEnabled = false, ApiKey chưa cấu hình).
         // Phụ thuộc còn thiếu trước khi kích hoạt production:
         // - Owner Trip Search hoàn thiện FareRule pricing (hiện BasePrice = 0 TODO) và danh sách stops thực tế.
         // - Owner Web/Booking chốt hợp đồng URL đặt vé.
-        // - Cấu hình OpenAI API Key qua User Secrets / biến môi trường.
-        services.Configure<OpenAiAssistantOptions>(configuration.GetSection(OpenAiAssistantOptions.SectionName));
+        // - Cấu hình Groq API Key qua User Secrets / biến môi trường.
+        services.Configure<GroqAssistantOptions>(configuration.GetSection(GroqAssistantOptions.SectionName));
         // Adapter đã có để thử local; cả LLM và hai contract tích hợp đều tắt mặc định.
         services.Configure<AiBookingIntegrationOptions>(configuration.GetSection(AiBookingIntegrationOptions.SectionName));
         services.AddScoped<ITripSearchTool, MediatRTripSearchTool>();
@@ -170,6 +174,11 @@ public static class DependencyInjection
 
         // 7. Tính khoảng cách địa lý cho geofence POI (NetTopologySuite, stateless)
         services.AddSingleton<IGeoDistanceCalculator, NtsGeoDistanceCalculator>();
+        services.Configure<SightseeingAudioOptions>(configuration.GetSection(SightseeingAudioOptions.SectionName));
+        services.AddSingleton<IPoiTriggerDeduplicationService, InMemoryPoiTriggerDeduplicationService>();
+        services.AddScoped<IOnboardAudioTriggerDispatcher, LogOnlyAudioTriggerDispatcher>();
+        services.AddScoped<IPoiAudioTriggerDecisionService, PoiAudioTriggerDecisionService>();
+        services.AddScoped<ITrackingAudioTriggerEvaluator, TrackingAudioTriggerEvaluator>();
 
         // 8. Azure AI Speech Text-to-Speech (Neural Voice MP3 tiếng Việt)
         services.Configure<AzureSpeechOptions>(configuration.GetSection(AzureSpeechOptions.SectionName));

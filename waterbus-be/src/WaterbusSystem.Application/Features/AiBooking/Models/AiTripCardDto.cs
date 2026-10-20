@@ -25,6 +25,9 @@ namespace WaterbusSystem.Application.Features.AiBooking.Models;
 /// Tuyệt đối không để AI tự bịa URL.
 /// </param>
 /// <param name="Stops">Danh sách các bến dừng hợp lệ của chuyến.</param>
+/// <param name="BoardingStationId">Bến đi khách đã yêu cầu, để Web mở đúng đoạn đặt vé.</param>
+/// <param name="DisembarkingStationId">Bến đến khách đã yêu cầu.</param>
+/// <param name="IsDevelopmentPreview">Thẻ xem thử từ Trip Search chưa xác nhận, chỉ trong Development.</param>
 public record AiTripCardDto(
     Guid TripId,
     string RouteName,
@@ -38,4 +41,7 @@ public record AiTripCardDto(
     bool IsPriceVerified,
     int AvailableSeatsCount,
     string? BookingUrl,
-    IReadOnlyList<AiTripStopDto> Stops);
+    IReadOnlyList<AiTripStopDto> Stops,
+    Guid? BoardingStationId = null,
+    Guid? DisembarkingStationId = null,
+    bool IsDevelopmentPreview = false);
