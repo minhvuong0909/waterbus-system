@@ -82,9 +82,11 @@ services:
       AzureSpeech__OutputFormat: ${AZURE_SPEECH_OUTPUT_FORMAT:-Audio16Khz32KBitRateMonoMp3}
       AzureBlobAudioStorage__ConnectionString: ${AZURE_BLOB_CONNECTION_STRING:-}
       AzureBlobAudioStorage__ContainerName: ${AZURE_BLOB_AUDIO_CONTAINER:-audio-guides-private}
-      AiBookingAssistant__OpenAI__ApiKey: ${OPENAI_API_KEY:-}
-      AiBookingAssistant__OpenAI__IsEnabled: ${AI_BOOKING_ENABLED:-false}
+      SightseeingAudio__EnableGpsTriggerEvaluation: ${SIGHTSEEING_AUDIO_ENABLE_GPS_TRIGGER_EVALUATION:-false}
+      AiBookingAssistant__Groq__ApiKey: ${GROQ_API_KEY:-}
+      AiBookingAssistant__Groq__IsEnabled: ${AI_BOOKING_ENABLED:-false}
       AiBookingAssistant__Integration__IsTripSearchContractVerified: ${AI_TRIP_SEARCH_CONTRACT_VERIFIED:-false}
+      AiBookingAssistant__Integration__EnableUnverifiedTripCardsForDevelopment: ${AI_UNVERIFIED_TRIP_CARDS_DEV:-false}
       AiBookingAssistant__Integration__IsBookingLinkContractVerified: ${AI_BOOKING_LINK_CONTRACT_VERIFIED:-false}
       AiBookingAssistant__Integration__BookingUrlTemplate: ${AI_BOOKING_URL_TEMPLATE:-}
       Tracking__Simulator__Enabled: ${TRACKING_SIMULATOR_ENABLED:-false}

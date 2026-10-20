@@ -8,4 +8,5 @@ public record AiBookingChatResponse(
     string TextAnswer,
     IReadOnlyList<AiTripCardDto> Cards,
     IReadOnlyList<AiToolExecutionDto> ExecutedTools,
-    bool IsFallback = false);
+    bool IsFallback = false,
+    TripSearchCriteria? SearchContext = null);

@@ -1,9 +1,13 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Application.Features.SightseeingAudio;
+using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
+using WaterbusSystem.Application.Features.SightseeingAudio.Models;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
@@ -72,17 +76,26 @@ public class RecordBoatPositionCommandHandler : IRequestHandler<RecordBoatPositi
     private readonly IBoatPositionCache _cache;
     private readonly IBoatTrackingPublisher _publisher;
     private readonly TrackingOptions _options;
+    private readonly SightseeingAudioOptions _audioOptions;
+    private readonly ITrackingAudioTriggerEvaluator _audioEvaluator;
+    private readonly ILogger<RecordBoatPositionCommandHandler> _logger;
 
     public RecordBoatPositionCommandHandler(
         IApplicationDbContext context,
         IBoatPositionCache cache,
         IBoatTrackingPublisher publisher,
-        IOptions<TrackingOptions> options)
+        IOptions<TrackingOptions> options,
+        IOptions<SightseeingAudioOptions> audioOptions,
+        ITrackingAudioTriggerEvaluator audioEvaluator,
+        ILogger<RecordBoatPositionCommandHandler> logger)
     {
         _context = context;
         _cache = cache;
         _publisher = publisher;
         _options = options.Value;
+        _audioOptions = audioOptions.Value;
+        _audioEvaluator = audioEvaluator;
+        _logger = logger;
     }
 
     public async Task<RecordBoatPositionResult> Handle(RecordBoatPositionCommand request, CancellationToken cancellationToken)
@@ -119,6 +132,31 @@ public class RecordBoatPositionCommandHandler : IRequestHandler<RecordBoatPositi
 
         await _cache.SetAsync(message, cancellationToken);
         await _publisher.PublishPositionAsync(message, cancellationToken);
+
+        if (_audioOptions.EnableGpsTriggerEvaluation && tripId.HasValue)
+        {
+            try
+            {
+                var outcome = await _audioEvaluator.EvaluateAsync(new BoatPositionSnapshot
+                {
+                    BoatId = request.BoatId, TripId = tripId, Latitude = request.Latitude,
+                    Longitude = request.Longitude, SpeedKnots = request.SpeedKnots,
+                    ObservedAt = request.ObservedAt, Source = request.Source
+                }, cancellationToken);
+                if (outcome is not null)
+                    _logger.LogInformation("Audio geofence Trip={TripId}: {Reason}; dispatched={Dispatched}",
+                        tripId, outcome.Reason, outcome.DispatchResult?.IsDispatched ?? false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Audio tùy chọn không được làm mất GPS/radar đang hoạt động.
+                _logger.LogWarning(ex, "Không đánh giá được audio geofence cho Trip {TripId}.", tripId);
+            }
+        }
 
         return new RecordBoatPositionResult(true, persisted, tripId);
     }

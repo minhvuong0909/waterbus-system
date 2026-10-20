@@ -1,10 +1,14 @@
 using FluentAssertions;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Tracking;
 using WaterbusSystem.Application.Features.Tracking.Commands.RecordBoatPosition;
+using WaterbusSystem.Application.Features.SightseeingAudio;
+using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
+using WaterbusSystem.Application.Features.SightseeingAudio.Models;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.Infrastructure.Persistence;
@@ -22,6 +26,7 @@ public class RecordBoatPositionCommandHandlerTests
     private readonly TestDbContextFactory.TripSeedData _seed;
     private readonly InMemoryBoatPositionCache _cache = new();
     private readonly Mock<IBoatTrackingPublisher> _publisher = new();
+    private readonly Mock<ITrackingAudioTriggerEvaluator> _audioEvaluator = new();
     private readonly Guid _captainId = Guid.NewGuid();
 
     public RecordBoatPositionCommandHandlerTests()
@@ -31,9 +36,11 @@ public class RecordBoatPositionCommandHandlerTests
         _context.SaveChanges();
     }
 
-    private RecordBoatPositionCommandHandler CreateHandler(int persistIntervalSeconds = 15) =>
+    private RecordBoatPositionCommandHandler CreateHandler(int persistIntervalSeconds = 15, bool audioEnabled = false) =>
         new(_context, _cache, _publisher.Object,
-            Options.Create(new TrackingOptions { PersistIntervalSeconds = persistIntervalSeconds }));
+            Options.Create(new TrackingOptions { PersistIntervalSeconds = persistIntervalSeconds }),
+            Options.Create(new SightseeingAudioOptions { EnableGpsTriggerEvaluation = audioEnabled }),
+            _audioEvaluator.Object, NullLogger<RecordBoatPositionCommandHandler>.Instance);
 
     private RecordBoatPositionCommand Gps(DateTimeOffset observedAt, Guid? captainId = null, Guid? boatId = null) =>
         new(boatId ?? _seed.Boat.Id, 10.7769m, 106.7009m, 8m, observedAt, BoatPositionSources.Gps, captainId ?? _captainId);
@@ -120,6 +127,29 @@ public class RecordBoatPositionCommandHandlerTests
         stale.Persisted.Should().BeFalse();
         (await _cache.GetAsync(_seed.Boat.Id))!.ObservedAt.Should().Be(Now);
         _publisher.Verify(p => p.PublishPositionAsync(It.IsAny<BoatPositionMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_AudioEnabled_ShouldEvaluateAcceptedGpsOnly()
+    {
+        _seed.Trip.Status = TripStatus.EnRoute;
+        _context.SaveChanges();
+        var handler = CreateHandler(audioEnabled: true);
+
+        await handler.Handle(Gps(Now), CancellationToken.None);
+        await handler.Handle(Gps(Now.AddSeconds(-1)), CancellationToken.None);
+
+        _audioEvaluator.Verify(e => e.EvaluateAsync(
+            It.Is<BoatPositionSnapshot>(p => p.TripId == _seed.Trip.Id && p.BoatId == _seed.Boat.Id),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_AudioDisabled_ShouldNotEvaluate()
+    {
+        await CreateHandler().Handle(Gps(Now), CancellationToken.None);
+
+        _audioEvaluator.VerifyNoOtherCalls();
     }
 
     [Theory]

@@ -25,7 +25,7 @@ Rà soát ngày 09/10/2026 trên repo hiện tại. Bảng này phân biệt **q
 2. **Kịch bản audio:** `P3-WEB-02` yêu cầu UI quản lý kịch bản nhưng entity hiện không có field lưu script. Cần thống nhất schema và API trước khi thêm migration.
 3. **Audio storage/TTS:** BR FINAL chốt Onboard Player phát; Thịnh chọn Azure Blob cho MP3 trong `AI_DECISIONS.md`. Voice/format/region, tài khoản/quyền Blob và giao thức player vẫn cần chốt với owner.
 4. **Geofence POI:** input tracking, thuật toán chống phát lặp và `TriggerRadiusM` nullable chưa có contract cụ thể. ETA không nằm trong task Thịnh.
-5. **AI Assistant:** `P4-WEB-03` optional; Thịnh chọn OpenAI `gpt-4.1-mini`, còn key/quota, payload Trip Card và thời điểm/owner frontend cần xác nhận.
+5. **AI Assistant:** `P4-WEB-03` optional; Thịnh đã đổi từ OpenAI sang Groq `openai/gpt-oss-20b` ngày 18/10/2026. Đây là quyết định cá nhân khác OpenAI/Gemini trên Drive, cần nhóm chấp nhận; key/quota, payload Trip Card và thời điểm/owner frontend cũng cần xác nhận.
 
 ## Lưu ý về độ mới của tài liệu repo
 

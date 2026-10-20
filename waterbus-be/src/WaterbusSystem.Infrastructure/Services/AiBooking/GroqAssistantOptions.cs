@@ -1,23 +1,24 @@
 namespace WaterbusSystem.Infrastructure.Services.AiBooking;
 
 /// <summary>
-/// Cấu hình cho AI Booking Assistant sử dụng OpenAI API qua Semantic Kernel.
+/// Cấu hình cho AI Booking Assistant sử dụng Groq API qua Semantic Kernel.
 /// Bí mật (ApiKey) được cấu hình ngoài Git qua User Secrets hoặc biến môi trường.
 /// </summary>
-public class OpenAiAssistantOptions
+public class GroqAssistantOptions
 {
-    public const string SectionName = "AiBookingAssistant:OpenAI";
+    public const string SectionName = "AiBookingAssistant:Groq";
+    public const string Endpoint = "https://api.groq.com/openai/v1";
 
     /// <summary>
-    /// API key của OpenAI (bắt buộc cho môi trường chạy thật).
+    /// API key của Groq (bắt buộc cho môi trường chạy thật).
     /// Tuyệt đối không hard-code hoặc commit vào Git.
     /// </summary>
     public string? ApiKey { get; set; }
 
     /// <summary>
-    /// Tên model khởi đầu theo quyết định tại AI_DECISIONS.md (mặc định "gpt-4.1-mini").
+    /// Model hỗ trợ tool calling trên Groq; có thể đổi qua cấu hình.
     /// </summary>
-    public string ModelId { get; set; } = "gpt-4.1-mini";
+    public string ModelId { get; set; } = "openai/gpt-oss-20b";
 
     /// <summary>
     /// Giới hạn số lượt gọi tool tối đa trong một turn hội thoại nhằm ngăn ngừa vòng lặp vô hạn.

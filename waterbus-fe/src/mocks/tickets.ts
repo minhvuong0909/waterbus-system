@@ -94,14 +94,3 @@ export function buildManageBooking(): ManageBooking {
     ticket: next,
   }
 }
-
-// Canned assistant replies. Keys match the quick-action chips.
-export const ASSISTANT_REPLIES: Record<string, string> = {
-  'Refund Help':
-    'If a trip is cancelled or ends early, the amount you paid for the affected tickets is refunded to your original payment method. Passengers who miss check-in are not refunded.',
-  'Trip Status':
-    'Vessel SWB-01 is operating on schedule.',
-}
-
-export const ASSISTANT_FALLBACK =
-  'Thanks for your question. A Pier Concierge can confirm the details; actions always need your confirmation.'

@@ -10,6 +10,10 @@ public record TripSearchCriteria
     public Guid? DepartureStationId { get; init; }
     public Guid? ArrivalStationId { get; init; }
     public DateOnly? DepartureDate { get; init; }
+    public TimeOnly? EarliestDepartureTime { get; init; }
+    public TimeOnly? LatestDepartureTime { get; init; }
+    public TimeOnly? PreferredDepartureTime { get; init; }
+    public TimeOnly? LatestArrivalTime { get; init; }
     public string? TripType { get; init; }
     public int? PassengerCount { get; init; }
 }
