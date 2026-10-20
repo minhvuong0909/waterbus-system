@@ -60,7 +60,7 @@ export default function LiveTripMap({
           fill="none"
           viewBox="0 0 920 660"
           preserveAspectRatio="xMidYMid slice"
-          role="img"
+          role="group"
           aria-label={t('Live map of the river crossing')}
         >
           <CorridorBackdrop />

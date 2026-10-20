@@ -2,6 +2,7 @@ import { useState } from 'react'
 import LiveTripMap from '../../components/map/LiveTripMap'
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import { Itinerary, SidePanel } from '../../features/tracking/components/TrackingParts'
+import TrackingUnavailable from '../../features/tracking/components/TrackingUnavailable'
 import { getTrackingData } from '../../features/tracking/services/trackingService'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
@@ -13,7 +14,7 @@ export default function LiveTrackingPage() {
   const { data, loading, error, retry } = useFetch(getTrackingData)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  if (error instanceof ApiError && error.status === 501) return <div className="mx-auto max-w-3xl p-8"><h1 className="text-2xl font-bold">Theo dõi hành trình</h1><p className="mt-4">{error.message}</p></div>
+  if (error instanceof ApiError && error.status === 501) return <TrackingUnavailable />
   if (error) return <ErrorState onRetry={retry} />
 
   if (loading || !data) return <PageLoader />

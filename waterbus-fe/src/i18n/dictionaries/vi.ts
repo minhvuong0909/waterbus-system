@@ -835,6 +835,9 @@ export const vi: Record<string, string> = {
   'Live Trip': 'Chuyến đang chạy',
   'Live trip tracking': 'Theo dõi chuyến trực tiếp',
   'Live Trip Tracking': 'Theo dõi chuyến trực tiếp',
+  'Live tracking for passengers is coming soon': 'Theo dõi tàu trực tiếp cho hành khách sắp ra mắt',
+  'Boat positions are shared with the operations team only for now. Meanwhile you can check the timetable and book your seat.':
+    'Hiện vị trí tàu chỉ được chia sẻ cho đội điều hành. Trong lúc chờ, bạn có thể xem lịch chạy và đặt chỗ.',
   'Live vessel tracking and arrival updates': 'Theo dõi tàu trực tiếp và cập nhật giờ đến',
   'Live Vessel WB-01': 'Tàu trực tiếp WB-01',
   'Live Waterway Vector': 'Tuyến đường thủy trực tiếp',

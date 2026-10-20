@@ -25,6 +25,12 @@ import type { RealtimeStatus } from '../../services/realtime'
 const REFRESH_MS = 3000
 /** A real position older than this is shown as stale (the boat stopped reporting). */
 const STALE_AFTER_MS = 2 * 60_000
+/**
+ * The backend has no route list endpoint yet and seeds a single route, RT01 (the one its GPS
+ * simulator also follows). Until the API returns routes, the real radar draws this route along the
+ * river; without it the line would join the piers in a straight line across the land.
+ */
+const DEFAULT_ROUTE_CODE = 'RT01'
 
 function WeatherBanners({ alerts }: { alerts: WeatherAlert[] }) {
   return (
@@ -96,7 +102,7 @@ function LiveRadar() {
         <div className="h-[70vh] min-h-[24rem] lg:col-span-2">
           <FleetMap
             stations={corridor}
-            path={riverPathOf(routes.data[0]?.code)}
+            path={riverPathOf(routes.data[0]?.code ?? DEFAULT_ROUTE_CODE)}
             boats={onRiver.map((b) => ({ tripId: b.boatId, code: b.code, latitude: b.latitude, longitude: b.longitude }))}
           />
         </div>
