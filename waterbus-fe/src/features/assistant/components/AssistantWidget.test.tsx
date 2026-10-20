@@ -59,7 +59,6 @@ describe('AssistantWidget live card navigation', () => {
     expect(store.getState().booking.query.originId).toBe('22222222-2222-2222-2222-222222222222')
     expect(store.getState().booking.query.destinationId).toBe('33333333-3333-3333-3333-333333333333')
     expect(store.getState().booking.query.dateId).toBe('2026-10-20')
-    expect(store.getState().booking.query.passengers).toMatch(/^2 (Passengers|hành khách)$/)
   })
 
   it('keeps search context for a follow-up and accepts a typed card choice', async () => {

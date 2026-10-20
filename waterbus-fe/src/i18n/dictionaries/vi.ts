@@ -1629,7 +1629,6 @@ export const vi: Record<string, string> = {
   'You have no tickets yet': 'Bạn chưa có vé nào',
   'Your tickets appear here as soon as your payment is confirmed.':
     'Vé của bạn sẽ xuất hiện ở đây ngay khi thanh toán được xác nhận.',
-  'Find a trip': 'Tìm chuyến',
   'on {date}': '{date}',
   'No departures on this day.': 'Không có chuyến nào trong ngày này.',
   'Try another day in the date strip above, or change the piers.':

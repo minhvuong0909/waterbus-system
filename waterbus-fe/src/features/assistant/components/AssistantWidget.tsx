@@ -5,7 +5,6 @@ import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { useAppDispatch } from '../../../store/hooks'
 import { selectTrip, setQuery } from '../../booking/bookingSlice'
-import { passengersLabel } from '../../booking/utils'
 import { askAssistant } from '../services/assistantService'
 import type { AssistantApiCard, AssistantSearchContext, ChatMessage } from '../types'
 import AssistantApiCards from './AssistantApiCards'
@@ -109,7 +108,6 @@ export default function AssistantWidget() {
       originId: card.boardingStationId,
       destinationId: card.disembarkingStationId,
       dateId,
-      ...(searchContext?.passengerCount ? { passengers: passengersLabel(searchContext.passengerCount) } : {}),
     }))
     dispatch(selectTrip(card.tripId))
     setOpen(false)
