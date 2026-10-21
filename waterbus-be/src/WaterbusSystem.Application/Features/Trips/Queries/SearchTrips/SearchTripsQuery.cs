@@ -37,11 +37,15 @@ public record SearchTripsQuery(
 
 public class SearchTripsQueryHandler : IRequestHandler<SearchTripsQuery, List<TripDto>>
 {
-    private readonly IApplicationDbContext _context;
+    private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
 
-    public SearchTripsQueryHandler(IApplicationDbContext context)
+    private readonly IApplicationDbContext _context;
+    private readonly IDateTimeService _dateTime;
+
+    public SearchTripsQueryHandler(IApplicationDbContext context, IDateTimeService dateTime)
     {
         _context = context;
+        _dateTime = dateTime;
     }
 
     public async Task<List<TripDto>> Handle(SearchTripsQuery request, CancellationToken cancellationToken)
@@ -68,8 +72,11 @@ public class SearchTripsQueryHandler : IRequestHandler<SearchTripsQuery, List<Tr
 
         if (request.DepartureDate.HasValue)
         {
+            // Ngày khách chọn là ngày giờ Việt Nam (UTC+7); DepartureTime lưu UTC nên so theo khoảng [00:00, 24:00) giờ VN
             var date = request.DepartureDate.Value.Date;
-            query = query.Where(t => t.DepartureTime.Date == date);
+            var dayStart = new DateTimeOffset(date, VietnamOffset);
+            var dayEnd = dayStart.AddDays(1);
+            query = query.Where(t => t.DepartureTime >= dayStart && t.DepartureTime < dayEnd);
         }
 
         if (request.TripType.HasValue)
@@ -87,6 +94,17 @@ public class SearchTripsQueryHandler : IRequestHandler<SearchTripsQuery, List<Tr
             .Where(s => !s.IsDeleted && s.IsActive)
             .Select(s => new TripStopDto(s.Id, s.Name, s.OrderIndex))
             .ToListAsync(cancellationToken);
+
+        // BR-FARE-01/02: giá chỉ phụ thuộc TripType và SeatClass. Thẻ chuyến hiển thị giá thấp nhất ("từ ...")
+        // trong các bảng giá đang hiệu lực; giá từng hạng ghế nằm ở sơ đồ ghế.
+        var now = _dateTime.Now;
+        var fromPriceByType = (await _context.FareRules
+                .AsNoTracking()
+                .Where(f => f.IsActive && f.EffectiveFrom <= now && (f.EffectiveTo == null || f.EffectiveTo > now))
+                .Select(f => new { f.TripType, f.Price })
+                .ToListAsync(cancellationToken))
+            .GroupBy(f => f.TripType)
+            .ToDictionary(g => g.Key, g => g.Min(f => f.Price));
 
         return trips.Select(t =>
         {
@@ -117,7 +135,7 @@ public class SearchTripsQueryHandler : IRequestHandler<SearchTripsQuery, List<Tr
                 t.ArrivalTime,
                 t.Route?.EstimatedDurationMinutes ?? 45,
                 t.TripType.ToString(),
-                0m /* TODO: implement FareRule pricing */,
+                fromPriceByType.GetValueOrDefault(t.TripType.ToString(), 0m),
                 availableSeats,
                 stops);
         }).ToList();
