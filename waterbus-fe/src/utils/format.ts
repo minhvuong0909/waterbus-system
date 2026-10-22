@@ -1,16 +1,17 @@
-import { getLocale, numberLocale } from '../i18n'
+/** Money is always written the Vietnamese way (AGENTS.md), whatever the interface language. */
+const MONEY_LOCALE = 'vi-VN'
 
-/** 15000 -> "15,000" (English) or "15.000" (Vietnamese). */
+/** 15000 -> "15.000" */
 export function formatNumber(amount: number): string {
-  return amount.toLocaleString(numberLocale())
+  return amount.toLocaleString(MONEY_LOCALE)
 }
 
-/** 15000 -> "15,000 VND" (both languages). */
+/** 15000 -> "15.000 VND" */
 export function formatVndSuffix(amount: number): string {
   return `${formatNumber(amount)} VND`
 }
 
-/** 15000 -> "VND 15,000" in English, "15.000 VND" in Vietnamese. */
+/** 15000 -> "15.000 VND" in both languages. */
 export function formatVnd(amount: number): string {
-  return getLocale() === 'vi' ? formatVndSuffix(amount) : `VND ${formatNumber(amount)}`
+  return formatVndSuffix(amount)
 }

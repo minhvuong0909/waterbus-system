@@ -5,8 +5,9 @@ import { formatVnd } from '../../../utils/format'
 import type { TripDetail } from '../../trips/types'
 import type { Seat } from '../types'
 import type { BookingTotals } from '../utils'
-import { cabinsLabel, passengersLabel, seatCodes, selectedSeatsLabel } from '../utils'
+import { passengersLabel, seatCodes, selectedSeatsLabel } from '../utils'
 import { BookingCard, SeatFeeRow, SummaryRow, TotalRow } from './SummaryParts'
+import SummaryTimer from './SummaryTimer'
 import { t } from '../../../i18n'
 
 interface CrossingSummaryProps {
@@ -15,12 +16,47 @@ interface CrossingSummaryProps {
   totals: BookingTotals
   /** False until the buyer and every seat's passenger are filled in correctly. */
   canContinue: boolean
+  /** The return leg of a round trip; `totals` then covers both legs. */
+  returnLeg?: { trip: TripDetail; seats: Seat[] }
+}
+
+/** Departure and arrival of one leg, with the river run between them. */
+function LegTimeline({ trip, label }: { trip: TripDetail; label?: string }) {
+  return (
+    <div className="rounded-xl bg-mist/70 p-space-md">
+      <div className="mb-3 flex items-center justify-between text-xs">
+        <span className="font-bold uppercase tracking-wider text-teal-flow">{label ?? trip.lineLabel}</span>
+        <span className="text-on-surface-variant">{trip.dateFull}</span>
+      </div>
+      <div className="flex gap-3">
+        <div className="flex flex-col items-center">
+          <span className="h-3 w-3 rounded-full bg-teal-flow" />
+          <span className="my-1 w-0.5 flex-1 bg-teal-flow/40" />
+          <span className="h-3 w-3 rounded-full bg-coral-glow" />
+        </div>
+        <div className="flex-1 space-y-2.5 text-sm">
+          <div className="flex justify-between">
+            <div className="font-semibold text-deep-river">{trip.originPierLabel}</div>
+            <span className="font-semibold text-deep-river">{trip.departTime}</span>
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs text-teal-flow shadow-sm">
+            <Icon name="directions_boat" className="text-[14px]" />
+            {t('{durationMins} min river run', { durationMins: trip.durationMins })}
+          </span>
+          <div className="flex justify-between">
+            <div className="font-semibold text-deep-river">{trip.destinationPierLabel}</div>
+            <span className="font-semibold text-deep-river">{trip.arriveTime}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 /** Sticky sidebar on passenger details: timeline, vessel facts and fare lines. */
-export default function CrossingSummary({ trip, seats, totals, canContinue }: CrossingSummaryProps) {
+export default function CrossingSummary({ trip, seats, totals, canContinue, returnLeg }: CrossingSummaryProps) {
   return (
-    <BookingCard className="p-space-lg lg:sticky lg:top-24">
+    <BookingCard className="p-space-lg lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100svh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain">
       <div className="mb-space-md flex items-center justify-between">
         <h2 className="font-headline-md text-headline-sm text-deep-river">
           {t('Crossing Summary')}
@@ -30,65 +66,24 @@ export default function CrossingSummary({ trip, seats, totals, canContinue }: Cr
         </span>
       </div>
 
-      <div className="rounded-xl bg-mist/70 p-space-md">
-        <div className="mb-3 flex items-center justify-between text-xs">
-          <span className="font-bold uppercase tracking-wider text-teal-flow">
-            {trip.lineLabel}
-          </span>
-          <span className="text-on-surface-variant">
-            {trip.dateFull}
-          </span>
-        </div>
-        <div className="flex gap-3">
-          <div className="flex flex-col items-center">
-            <span className="h-3 w-3 rounded-full bg-teal-flow" />
-            <span className="my-1 w-0.5 flex-1 bg-teal-flow/40" />
-            <span className="h-3 w-3 rounded-full bg-coral-glow" />
-          </div>
-          <div className="flex-1 space-y-space-md text-sm">
-            <div className="flex justify-between">
-              <div>
-                <div className="font-semibold text-deep-river">{trip.originPierLabel}</div>
-                {trip.originGate && (
-                  <div className="text-xs text-on-surface-variant">
-                    {t('{originGate} • Pontoon Terminal', { originGate: trip.originGate })}
-                  </div>
-                )}
-              </div>
-              <span className="font-semibold text-deep-river">{trip.departTime}</span>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs text-teal-flow shadow-sm">
-              <Icon name="directions_boat" className="text-[14px]" />
-              {t('{durationMins} min river run', { durationMins: trip.durationMins })}
-            </span>
-            <div className="flex justify-between">
-              <div>
-                <div className="font-semibold text-deep-river">{trip.destinationPierLabel}</div>
-                {trip.destinationGate && (
-                  <div className="text-xs text-on-surface-variant">
-                    {t('{destinationGate} • Park Promenade', {
-                      destinationGate: trip.destinationGate,
-                    })}
-                  </div>
-                )}
-              </div>
-              <span className="font-semibold text-deep-river">{trip.arriveTime}</span>
-            </div>
-          </div>
-        </div>
+      <SummaryTimer />
+
+      <div className="space-y-2">
+        <LegTimeline trip={trip} label={returnLeg ? t('Outbound trip') : undefined} />
+        {returnLeg && <LegTimeline trip={returnLeg.trip} label={t('Return trip')} />}
       </div>
 
       <div className="mt-space-md space-y-2 rounded-xl bg-sand-light/60 p-space-md">
-        <SummaryRow label={t('Vessel')} value={`${trip.vesselCode} ${trip.vesselName}`} />
         <SummaryRow
-          label={seats.length > 1 ? t('Selected Seats') : t('Selected Seat')}
+          label={
+            returnLeg ? t('Outbound seats') : seats.length > 1 ? t('Selected Seats') : t('Selected Seat')
+          }
           value={selectedSeatsLabel(seats)}
           accent
         />
-        <SummaryRow
-          label={t('Cabin Class')}
-          value={t('{cabin} • Air-Conditioned', { cabin: cabinsLabel(seats) })}
-        />
+        {returnLeg && (
+          <SummaryRow label={t('Return seats')} value={selectedSeatsLabel(returnLeg.seats)} accent />
+        )}
         <SummaryRow label={t('Passengers')} value={passengersLabel(seats.length)} />
       </div>
 
@@ -102,11 +97,12 @@ export default function CrossingSummary({ trip, seats, totals, canContinue }: Cr
           value={formatVnd(totals.fareVnd)}
         />
         <SeatFeeRow
-          label={t('Seat Reservation ({seats})', { seats: seatCodes(seats) })}
+          label={t('Seat Reservation ({seats})', {
+            seats: returnLeg ? `${seatCodes(seats)} · ${seatCodes(returnLeg.seats)}` : seatCodes(seats),
+          })}
           seatFeeVnd={totals.seatFeeVnd}
           includedText={t('Included (0 VND)')}
         />
-        <SummaryRow label={t('Pier Dues & VAT')} value={t('Included')} accent />
       </div>
       <div className="mt-space-sm border-t border-surface-container">
         <TotalRow
@@ -147,12 +143,17 @@ export default function CrossingSummary({ trip, seats, totals, canContinue }: Cr
           to={ROUTES.seatSelection}
           className="text-sm font-semibold text-teal-flow hover:underline"
         >
-          {t('Change Seat')}
+          {returnLeg ? t('Change outbound seats') : t('Change Seat')}
         </Link>
+        {returnLeg && (
+          <Link
+            to={`${ROUTES.seatSelection}?leg=return`}
+            className="ml-space-md text-sm font-semibold text-teal-flow hover:underline"
+          >
+            {t('Change return seats')}
+          </Link>
+        )}
       </div>
-      <p className="mt-space-md border-t border-surface-container pt-space-md text-center text-xs text-on-surface-variant">
-        {t('Your selected seat remains reserved while you complete checkout.')}
-      </p>
     </BookingCard>
   )
 }

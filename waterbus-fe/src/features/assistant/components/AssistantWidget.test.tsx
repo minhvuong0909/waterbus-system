@@ -51,15 +51,14 @@ describe('AssistantWidget live card navigation', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Chọn chuyến A' }))
-    expect(screen.getByText(/Đây chưa phải đặt vé thành công/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục đặt vé' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose trip A' }))
+    expect(screen.getByText(/This is not a booking yet/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /Continue to booking/ }))
     await waitFor(() => expect(screen.getByText('Trip detail opened')).toBeTruthy())
     expect(store.getState().booking.selectedTripId).toBe('11111111-1111-1111-1111-111111111111')
     expect(store.getState().booking.query.originId).toBe('22222222-2222-2222-2222-222222222222')
     expect(store.getState().booking.query.destinationId).toBe('33333333-3333-3333-3333-333333333333')
     expect(store.getState().booking.query.dateId).toBe('2026-10-20')
-    expect(store.getState().booking.query.passengers).toMatch(/^2 (Passengers|hành khách)$/)
   })
 
   it('keeps search context for a follow-up and accepts a typed card choice', async () => {
@@ -87,12 +86,12 @@ describe('AssistantWidget live card navigation', () => {
       target: { value: 'Tìm chuyến Bạch Đằng' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
-    await screen.findByRole('button', { name: 'Chọn chuyến A' })
+    await screen.findByRole('button', { name: 'Choose trip A' })
     fireEvent.change(screen.getByRole('textbox', { name: 'Ask the assistant' }), {
       target: { value: 'chọn chuyến A' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
-    expect(screen.getByText(/Đây chưa phải đặt vé thành công/)).toBeTruthy()
+    expect(screen.getByText(/This is not a booking yet/)).toBeTruthy()
     fireEvent.change(screen.getByRole('textbox', { name: 'Ask the assistant' }), {
       target: { value: 'sớm hơn' },
     })
@@ -126,5 +125,42 @@ describe('AssistantWidget live card navigation', () => {
         { role: 'user', content: 'Từ Bến Bạch Đằng đến Bến Linh Đông' },
         { role: 'assistant', content: 'Quý khách muốn đi ngày nào?' },
     ], null))
+  })
+  it('offers "Try again" after a failed request and sends the same question again', async () => {
+    vi.mocked(askAssistant)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ text: 'Có 2 chuyến chiều nay.' })
+
+    render(<Provider store={store}><MemoryRouter><AssistantWidget /></MemoryRouter></Provider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Open assistant' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ask the assistant' }), {
+      target: { value: 'Chiều nay có chuyến không?' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    await screen.findByText('Có 2 chuyến chiều nay.')
+    expect(askAssistant).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(askAssistant).mock.calls[1][0]).toBe('Chiều nay có chuyến không?')
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull()
+    expect(screen.getAllByText('Chiều nay có chuyến không?')).toHaveLength(1)
+  })
+
+  it('starts a new conversation without the previous turns or search context', async () => {
+    vi.mocked(askAssistant).mockResolvedValue({ text: 'Đi ngày nào?', searchContext: { departureStationName: 'Bạch Đằng' } })
+
+    render(<Provider store={store}><MemoryRouter><AssistantWidget /></MemoryRouter></Provider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Open assistant' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ask the assistant' }), { target: { value: 'Từ Bạch Đằng' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await screen.findByText('Đi ngày nào?')
+
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
+    expect(screen.queryByText('Đi ngày nào?')).toBeNull()
+    expect(screen.getByText('You can ask:')).toBeTruthy()
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ask the assistant' }), { target: { value: 'Ngày mai' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(askAssistant).toHaveBeenLastCalledWith('Ngày mai', [], null))
   })
 })

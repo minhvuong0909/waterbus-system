@@ -35,6 +35,9 @@ interface IncidentSummaryDto {
   description: string | null
   occurredAt: string | null
   affectedTripCount: number
+  pendingDecisionCount?: number
+  routeCode?: string | null
+  source?: string
 }
 
 /** Payload of the `boatPosition` hub event (note `lat` / `lng`, unlike the REST snapshot). */
@@ -106,7 +109,24 @@ interface IncidentSummaryFull extends IncidentSummaryDto {
 }
 
 interface IncidentDetailDto {
-  affectedTrips: { tripId: string; operationDecision: string | null }[]
+  affectedTrips: {
+    tripId: string
+    operationDecision: string | null
+    departureTime?: string
+    /** The backend sends the enum number here (1 = Scheduled … 8 = Terminated). */
+    tripStatus?: number | string
+    decisionAt?: string | null
+  }[]
+}
+
+const TRIP_STATUS_BY_NUMBER: AdminTripStatus[] = [
+  'Scheduled', 'Boarding', 'EnRoute', 'Suspended', 'Arrived', 'Completed', 'Cancelled', 'Terminated',
+]
+
+/** A trip status sent as the enum number or its name. */
+function tripStatusOf(value: number | string | undefined): AdminTripStatus | undefined {
+  if (typeof value === 'number') return TRIP_STATUS_BY_NUMBER[value - 1]
+  return TRIP_STATUS_BY_NUMBER.find((status) => status === value)
 }
 
 const KINDS = ['Weather', 'Safety', 'Technical', 'Other'] as const
@@ -125,6 +145,9 @@ export async function getOpenIncidents(withTrips = false): Promise<WeatherAlert[
         ? (await apiRequest<IncidentDetailDto>(API_ENDPOINTS.incidents.detail(i.id))).affectedTrips.map((t) => ({
             tripId: t.tripId,
             decision: t.operationDecision,
+            departureTime: t.departureTime,
+            tripStatus: tripStatusOf(t.tripStatus),
+            decisionAt: t.decisionAt ?? null,
           }))
         : undefined
       return {
@@ -134,6 +157,9 @@ export async function getOpenIncidents(withTrips = false): Promise<WeatherAlert[
         issuedAt: i.occurredAt ?? new Date().toISOString(),
         kind: KINDS.find((k) => k === i.incidentType) ?? 'Other',
         affectedTripCount: i.affectedTripCount,
+        pendingDecisionCount: i.pendingDecisionCount,
+        routeCode: i.routeCode ?? null,
+        source: i.source,
         trips,
       }
     }),

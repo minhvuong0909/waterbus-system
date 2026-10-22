@@ -255,4 +255,9 @@ export interface BookingHold {
   totalAmount: number
   /** When the hold ends, in ms since epoch (the backend `expiresAt`). */
   expiresAt: number
+  /**
+   * Every booking of the order, in leg order: one for one-way, two for a round trip (BR-COM-02).
+   * `bookingId` and `seatIds` above are the first (outbound) one.
+   */
+  bookings?: { bookingId: string; tripId: string | null; seatIds: string[] }[]
 }

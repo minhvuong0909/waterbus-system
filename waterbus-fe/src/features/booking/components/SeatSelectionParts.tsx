@@ -9,6 +9,7 @@ import type { BookingTotals } from '../utils'
 import { MAX_SEATS_PER_BOOKING } from '../utils'
 import { cabinsLabel, hasSurcharge, passengersLabel, seatFeeFor, seatPosition, seatZone } from '../utils'
 import { BookingCard, SeatFeeRow, SummaryRow, TotalRow } from './SummaryParts'
+import SummaryTimer from './SummaryTimer'
 import { t } from '../../../i18n'
 
 /** White strip under the page title: vessel, times, duration, fare and "Change Trip". */
@@ -19,9 +20,6 @@ export function TripStrip({ trip, seats, totalVnd }: { trip: TripDetail; seats: 
         <div className="flex items-center gap-2 rounded-xl bg-deep-river px-space-md py-2 text-on-primary">
           <Icon name="directions_boat" className="text-[20px]" />
           <span className="font-headline-sm text-lg font-bold">{trip.vesselCode}</span>
-          <span className="rounded bg-white/15 px-1.5 py-0.5 text-[10px] font-semibold">
-            {t('Express')}
-          </span>
         </div>
         <div className="flex items-center gap-space-md">
           <div>
@@ -82,6 +80,10 @@ interface BookingSummaryProps {
   /** True while the hold is being made. */
   busy: boolean
   failure: BookingFailure | null
+  /** Text of the main button; "Continue to Passenger Details" by default. */
+  continueLabel?: string
+  /** Where "Change Trip" leads: the results of this leg. */
+  changeTripTo?: string
 }
 
 export function BookingSummary({
@@ -93,180 +95,152 @@ export function BookingSummary({
   onContinue,
   busy,
   failure,
+  continueLabel,
+  changeTripTo = ROUTES.searchResults,
 }: BookingSummaryProps) {
+  const label = continueLabel ?? t('Continue to Passenger Details')
   const surcharge = seats.some(hasSurcharge)
   // An empty selection, or one with a seat somebody else took, must not reach checkout.
   const canContinue =
     canBook && seats.length > 0 && seats.every((seat) => seat.status === 'available')
   return (
-    <div className="space-y-space-md lg:sticky lg:top-24">
-      <BookingCard className="p-space-lg">
-        <div className="mb-space-md flex items-center justify-between">
-          <h2 className="font-headline-md text-headline-sm text-deep-river">
-            {t('Booking Summary')}
-          </h2>
-          <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[11px] font-bold text-teal-flow">
-            {t('Trip {vesselCode}', { vesselCode: trip.vesselCode })}
+    <BookingCard
+      className="p-space-lg lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100svh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain"
+    >
+      <SummaryTimer
+        fallback={
+          <span className="inline-flex items-center gap-1 rounded-xl bg-surface-container px-space-md py-2 text-xs font-semibold text-teal-flow">
+            <Icon name="timer" className="text-[15px]" /> {t('Cart holds for 10:00')}
           </span>
-        </div>
-
-        <div className="space-y-2 rounded-xl border border-outline-variant/40 bg-mist/60 p-space-md">
-          <SummaryRow label={t('Route & Vessel')} value={trip.vesselName} />
-          <SummaryRow
-            label={t('Date & Time')}
-            value={t('{date}, {time} Departure', { date: trip.dateLabel, time: trip.departTime })}
-          />
-          <div className="flex items-center justify-between gap-2 pt-1 text-xs text-deep-river">
-            <span className="flex items-center gap-1.5 font-medium">
-              <Icon name="directions_boat" className="text-[16px] text-teal-flow" />
-              {trip.originPierName} ➔ {trip.destinationPierName}
-            </span>
-            <span className="rounded border border-outline-variant/40 bg-white px-2 py-1 text-[11px] text-teal-flow">
-              {t('{vesselCode} {crossingKind} ({durationMins} min)', {
-                vesselCode: trip.vesselCode,
-                crossingKind: trip.crossingKind,
-                durationMins: trip.durationMins,
-              })}
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-space-md rounded-xl border border-teal-flow/25 bg-sand-light/60 p-space-md">
-          <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-teal-flow">
-            {t('Reserved Seat Choice')}
-            <Icon name="airline_seat_recline_extra" className="text-[16px]" />
-          </div>
-          {seats.length === 0 ? (
-            <p className="mt-2 text-xs text-on-surface-variant">
-              {t('No seat chosen yet. Tap a seat on the map.')}
-            </p>
-          ) : (
-            <ul className="mt-1 divide-y divide-outline-variant/30">
-              {seats.map((seat) => {
-                const priced = seat.priceVnd !== undefined
-                const fee = priced ? (seat.priceVnd ?? 0) : seatFeeFor(seat, trip.fareVnd)
-                return (
-                  <li key={seat.id} className="flex items-center justify-between gap-2 py-1.5">
-                    <span className="font-headline-sm text-xl font-bold text-deep-river">
-                      {seat.code}
-                    </span>
-                    <span className="flex-1 text-right text-xs text-on-surface-variant">
-                      {seatPosition(seat)} • {seatZone(seat)}
-                    </span>
-                    <span className={`w-20 text-right text-xs ${fee > 0 ? 'font-semibold text-deep-river' : 'text-on-surface-variant'}`}>
-                      {priced
-                        ? formatVndSuffix(fee)
-                        : fee > 0
-                          ? `+${formatVndSuffix(fee)}`
-                          : t('Included')}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-          {limitReached && (
-            <p role="status" className="mt-2 text-xs text-coral-glow">
-              {t('You can book up to {max} seats at a time.', { max: MAX_SEATS_PER_BOOKING })}
-            </p>
-          )}
-        </div>
-
-        <div className="mt-space-md space-y-1.5">
-          <SummaryRow
-            label={
-              totals.seatCount > 1
-                ? t('Standard Transit Fare × {count}', { count: totals.seatCount })
-                : t('Standard Transit Fare')
-            }
-            value={formatVnd(totals.fareVnd)}
-          />
-          <SeatFeeRow
-            label={surcharge ? t('Cabin Surcharge') : t('Seat Reservation Fee')}
-            seatFeeVnd={totals.seatFeeVnd}
-            includedText={t('Included (0 VND)')}
-          />
-          <SummaryRow label={t('Harbor Fees & VAT')} value={t('Included')} accent />
-        </div>
-        <div className="mt-space-sm border-t border-surface-container">
-          <TotalRow
-            label={t('Total Fare')}
-            caption={t('All fees & taxes included')}
-            amountVnd={totals.totalVnd}
-          />
-        </div>
-
-        {canContinue ? (
-          <>
-            <button
-              type="button"
-              onClick={onContinue}
-              disabled={busy}
-              className="group mt-space-sm flex w-full items-center justify-between rounded-xl bg-teal-flow px-space-lg py-space-md font-headline-sm text-lg font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary disabled:opacity-70"
-            >
-              <span>{busy ? t('Holding your seat…') : t('Continue to Passenger Details')}</span>
-              <Icon
-                name="arrow_forward"
-                className="text-[20px] transition-transform group-hover:translate-x-1"
-              />
-            </button>
-            {failure && (
-              <p role="alert" className="mt-2 text-center text-xs text-coral-glow">
-                {failure.message ||
-                  t('We couldn’t hold your seat just now. Please check your connection and try again.')}
-              </p>
-            )}
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              disabled
-              className="mt-space-sm flex w-full cursor-not-allowed items-center justify-between rounded-xl bg-teal-flow px-space-lg py-space-md font-headline-sm text-lg font-semibold text-on-primary opacity-50"
-            >
-              <span>{t('Continue to Passenger Details')}</span>
-              <Icon name="arrow_forward" className="text-[20px]" />
-            </button>
-            <p role="status" className="mt-2 text-center text-xs text-on-surface-variant">
-              {canBook
-                ? t('Please choose an available seat to continue.')
-                : t('Ticket sales are closed for this trip.')}
-            </p>
-          </>
-        )}
-        <div className="mt-space-sm flex items-center justify-center gap-2 text-xs text-teal-flow">
-          <Link to={ROUTES.searchResults} className="hover:underline">
-            {t('Change Trip')}
-          </Link>
-          <span className="text-outline">•</span>
-          <button type="button" className="hover:underline">
-            {t('Fare Policies')}
-          </button>
-        </div>
-        <div className="mt-space-md flex items-start gap-2 rounded-lg bg-mist px-space-sm py-space-sm text-xs text-on-surface-variant">
-          <Icon name="timer" className="text-[16px] text-teal-flow" />
-          {t(
-            'Seats held for 10:00 during checkout. Instant digital QR boarding pass delivered immediately.',
-          )}
-        </div>
-      </BookingCard>
-
-      <div className="flex items-center gap-space-md rounded-2xl bg-white p-space-md shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sand-light text-teal-flow">
-          <Icon name="support_agent" className="text-[22px]" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-deep-river">
-            {t('{originPierName} Concierge', { originPierName: trip.originPierName })}
-          </div>
-          <div className="text-xs text-on-surface-variant">
-            {t('Daily 06:00 - 22:00 Live Assistance')}
-          </div>
-        </div>
-        <button type="button" className="text-sm font-semibold text-teal-flow hover:underline">
-          {t('Contact')}
-        </button>
+        }
+      />
+      <div className="mb-space-md flex items-center justify-between">
+        <h2 className="font-headline-md text-headline-sm text-deep-river">
+          {t('Booking Summary')}
+        </h2>
+        <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[11px] font-bold text-teal-flow">
+          {t('Trip {vesselCode}', { vesselCode: trip.vesselCode })}
+        </span>
       </div>
-    </div>
+
+      <div className="space-y-1 rounded-xl border border-outline-variant/40 bg-mist/60 p-space-md">
+        <div className="flex items-center justify-between gap-2 text-sm font-semibold text-deep-river">
+          <span>{trip.originPierName}</span>
+          <Icon name="arrow_forward" className="text-[16px] text-teal-flow" />
+          <span>{trip.destinationPierName}</span>
+        </div>
+        <p className="text-xs text-on-surface-variant">
+          {t('{date}, {time} Departure', { date: trip.dateLabel, time: trip.departTime })}
+          {' • '}
+          {t('{durationMins} min', { durationMins: trip.durationMins })}
+        </p>
+      </div>
+
+      <div className="mt-space-md">
+        <div className="mb-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-teal-flow">
+          {t('Reserved Seat Choice')}
+          <Icon name="airline_seat_recline_extra" className="text-[16px]" />
+        </div>
+        {seats.length === 0 ? (
+          <p className="text-xs text-on-surface-variant">
+            {t('No seat chosen yet. Tap a seat on the map.')}
+          </p>
+        ) : (
+          <ul className="flex flex-wrap gap-1.5">
+            {seats.map((seat) => {
+              const priced = seat.priceVnd !== undefined
+              const fee = priced ? (seat.priceVnd ?? 0) : seatFeeFor(seat, trip.fareVnd)
+              return (
+                <li
+                  key={seat.id}
+                  title={`${seatPosition(seat)} • ${seatZone(seat)}`}
+                  className="inline-flex items-baseline gap-1.5 rounded-lg bg-sand-light px-2.5 py-1 text-sm font-bold text-deep-river"
+                >
+                  {seat.code}
+                  {fee > 0 && (
+                    <span className="text-[10px] font-medium text-teal-flow">
+                      {priced ? formatVndSuffix(fee) : `+${formatVndSuffix(fee)}`}
+                    </span>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        {limitReached && (
+          <p role="status" className="mt-2 text-xs text-coral-glow">
+            {t('You can book up to {max} seats at a time.', { max: MAX_SEATS_PER_BOOKING })}
+          </p>
+        )}
+      </div>
+
+      <div className="mt-space-md space-y-1.5">
+        <SummaryRow
+          label={
+            totals.seatCount > 1
+              ? t('Standard Transit Fare × {count}', { count: totals.seatCount })
+              : t('Standard Transit Fare')
+          }
+          value={formatVnd(totals.fareVnd)}
+        />
+        <SeatFeeRow
+          label={surcharge ? t('Cabin Surcharge') : t('Seat Reservation Fee')}
+          seatFeeVnd={totals.seatFeeVnd}
+          includedText={t('Included (0 VND)')}
+        />
+        <SummaryRow label={t('Harbor Fees & VAT')} value={t('Included')} accent />
+      </div>
+      <div className="mt-space-sm border-t border-surface-container">
+        <TotalRow
+          label={t('Total Fare')}
+          caption={t('All fees & taxes included')}
+          amountVnd={totals.totalVnd}
+        />
+      </div>
+
+      {canContinue ? (
+        <>
+          <button
+            type="button"
+            onClick={onContinue}
+            disabled={busy}
+            className="group mt-space-sm flex w-full items-center justify-between rounded-xl bg-teal-flow px-space-lg py-space-md font-headline-sm text-lg font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary disabled:opacity-70"
+          >
+            <span>{busy ? t('Holding your seat…') : label}</span>
+            <Icon
+              name="arrow_forward"
+              className="text-[20px] transition-transform group-hover:translate-x-1"
+            />
+          </button>
+          {failure && (
+            <p role="alert" className="mt-2 text-center text-xs text-coral-glow">
+              {failure.message ||
+                t('We couldn’t hold your seat just now. Please check your connection and try again.')}
+            </p>
+          )}
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            disabled
+            className="mt-space-sm flex w-full cursor-not-allowed items-center justify-between rounded-xl bg-teal-flow px-space-lg py-space-md font-headline-sm text-lg font-semibold text-on-primary opacity-50"
+          >
+            <span>{label}</span>
+            <Icon name="arrow_forward" className="text-[20px]" />
+          </button>
+          <p role="status" className="mt-2 text-center text-xs text-on-surface-variant">
+            {canBook
+              ? t('Please choose an available seat to continue.')
+              : t('Ticket sales are closed for this trip.')}
+          </p>
+        </>
+      )}
+      <div className="mt-space-sm text-center text-xs">
+        <Link to={changeTripTo} className="font-semibold text-teal-flow hover:underline">
+          {t('Change Trip')}
+        </Link>
+      </div>
+    </BookingCard>
   )
 }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createStation, deleteStation, getBoats, createSchedule } from './adminService'
+import { createStation, deleteStation, getBoats, createSchedule, schedulesSupported } from './adminService'
 
 const fetchMock = vi.fn()
 const json = (body: unknown) => new Response(JSON.stringify(body))
@@ -27,6 +27,9 @@ describe('live admin actions', () => {
       .mockResolvedValueOnce(json({ items: [{ id: 'two', totalSeats: 12 }], totalCount: 2 }))
     expect((await getBoats()).map((boat) => boat.id)).toEqual(['one', 'two'])
     expect(fetchMock.mock.calls[1][0]).toContain('pageNumber=2')
+  })
+  it('tells the screens that schedules cannot be written yet', () => {
+    expect(schedulesSupported).toBe(false)
   })
   it('rejects unsupported schedule writes without pretending they were saved', async () => {
     await expect(createSchedule({ routeId: 'id', departureTime: '08:00', daysOfWeek: [1], tripType: 'Commuter' })).rejects.toMatchObject({ status: 501 })

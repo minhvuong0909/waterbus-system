@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { USE_MOCK } from '../../constant/env'
 import type { FormEvent } from 'react'
 import { ErrorState, PageLoader } from '../../components/ui'
 import {
@@ -19,6 +18,7 @@ import {
   getBoats,
   getRoutes,
   getSchedules,
+  schedulesSupported,
   setScheduleActive,
 } from '../../features/admin/services/adminService'
 import type { AdminBoat, AdminRoute, AdminSchedule, AdminTripType } from '../../features/admin/types'
@@ -179,8 +179,8 @@ export default function SchedulesPage() {
   const [dialog, setDialog] = useState<Dialog>(null)
   const toggle = useSubmit()
   const state = combineFetches(schedules, routes, boats)
+  const supported = schedulesSupported
 
-  if (!USE_MOCK) return <div className="p-6"><PageHeader title="Schedules" description="Backend chưa có API quản lý lịch chạy hoặc sinh chuyến. Các chuyến có sẵn được xem tại Trips." /></div>
   if (state.error) return <ErrorState onRetry={state.retry} />
   if (state.loading || !schedules.data || !routes.data || !boats.data) return <PageLoader />
 
@@ -206,12 +206,12 @@ export default function SchedulesPage() {
       className: 'text-right',
       render: (s) => (
         <span className="inline-flex gap-1">
-          <ActionButton tone="secondary" icon="auto_mode" disabled={!s.isActive} onClick={() => setDialog({ kind: 'generate', schedule: s })}>
+          <ActionButton tone="secondary" icon="auto_mode" disabled={!supported || !s.isActive} onClick={() => setDialog({ kind: 'generate', schedule: s })}>
             {t('Generate trips')}
           </ActionButton>
           <ActionButton
             tone="secondary"
-            disabled={toggle.busy}
+            disabled={!supported || toggle.busy}
             onClick={async () => {
               await toggle.run(() => setScheduleActive(s.id, !s.isActive))
               reload()
@@ -230,11 +230,25 @@ export default function SchedulesPage() {
         title="Schedules"
         description="The fixed weekly timetable. Generate it into real trips for a range of days."
         actions={
-          <ActionButton icon="add" onClick={() => setDialog({ kind: 'create' })}>
+          <ActionButton
+            icon="add"
+            disabled={!supported}
+            title={supported ? undefined : t('Waiting for backend support')}
+            onClick={() => setDialog({ kind: 'create' })}
+          >
             {t('Add schedule')}
           </ActionButton>
         }
       />
+      {!supported && (
+        <p
+          role="note"
+          className="mb-3 rounded-xl border border-signal-amber/40 bg-signal-amber/10 px-4 py-3 text-sm text-deep-river"
+        >
+          <span className="font-semibold">{t('Waiting for backend support')}</span>{' '}
+          {t('The backend has no API to manage schedules or generate trips yet. Existing trips are listed under Trips.')}
+        </p>
+      )}
       {toggle.error && <div className="mb-3"><Notice tone="error">{toggle.error}</Notice></div>}
       <DataTable columns={columns} rows={schedules.data} rowKey={(s) => s.id} />
 

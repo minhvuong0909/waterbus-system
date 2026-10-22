@@ -1,9 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
 import { combineFetches, useFetch } from '../../../hooks'
-import { selectTrip, setQuery } from '../../booking/bookingSlice'
+import { selectReturnTrip, selectTrip, setQuery, setReturnQuery } from '../../booking/bookingSlice'
+import { legView } from '../../booking/legs'
+import type { Leg } from '../../booking/legs'
 import {
   getDateOptions,
+  getDayTripCounts,
   getNetworkRoutes,
   getPierOptions,
   getTripDetail,
@@ -12,15 +15,35 @@ import {
 import type { DateOption, PierOption, SearchQuery, Trip } from '../types'
 import { pickPiers } from '../utils'
 
-export function useSearchQuery() {
+/**
+ * The search of one leg and how to change it. The outbound leg is the main search; the return
+ * leg of a round trip has its own piers and day (BR-COM-03).
+ */
+export function useSearchQuery(leg: Leg = 'outbound') {
   const dispatch = useAppDispatch()
-  const query = useAppSelector((s) => s.booking.query)
-  return { query, updateQuery: (patch: Partial<SearchQuery>) => dispatch(setQuery(patch)) }
+  // Select the stored pieces (stable references) and build the leg's query from them.
+  const booking = useAppSelector((s) => s.booking)
+  const query = useMemo(() => legView(booking, leg).query, [booking, leg])
+  const updateQuery = (patch: Partial<SearchQuery>) => {
+    if (leg === 'outbound') {
+      dispatch(setQuery(patch))
+      return
+    }
+    const { originId, destinationId, dateId } = patch
+    dispatch(
+      setReturnQuery({
+        ...(originId !== undefined ? { originId } : {}),
+        ...(destinationId !== undefined ? { destinationId } : {}),
+        ...(dateId !== undefined ? { dateId } : {}),
+      }),
+    )
+  }
+  return { query, updateQuery }
 }
 
 /** Fills in the departure and arrival pier once the piers are known, if none is chosen yet. */
-function useDefaultPiers(piers: PierOption[] | undefined) {
-  const { query, updateQuery } = useSearchQuery()
+function useDefaultPiers(piers: PierOption[] | undefined, leg: Leg) {
+  const { query, updateQuery } = useSearchQuery(leg)
   useEffect(() => {
     if (!piers || piers.length === 0) return
     const picked = pickPiers(piers, query)
@@ -33,8 +56,8 @@ function useDefaultPiers(piers: PierOption[] | undefined) {
 }
 
 /** Moves the chosen day to the first offered day when it is not offered (e.g. it is already past). */
-function useValidDate(dates: DateOption[] | undefined) {
-  const { query, updateQuery } = useSearchQuery()
+function useValidDate(dates: DateOption[] | undefined, leg: Leg) {
+  const { query, updateQuery } = useSearchQuery(leg)
   useEffect(() => {
     if (dates && dates.length > 0 && !dates.some((d) => d.id === query.dateId)) {
       updateQuery({ dateId: dates[0].id })
@@ -48,8 +71,8 @@ export function useSearchForm() {
   const piers = useFetch(getPierOptions)
   const routes = useFetch(getNetworkRoutes)
   const dates = useFetch(getDateOptions)
-  useDefaultPiers(piers.data)
-  useValidDate(dates.data)
+  useDefaultPiers(piers.data, 'outbound')
+  useValidDate(dates.data, 'outbound')
   return {
     piers: piers.data,
     routes: routes.data,
@@ -58,37 +81,46 @@ export function useSearchForm() {
   }
 }
 
-export function useSearchResults() {
-  const { query, updateQuery } = useSearchQuery()
+export function useSearchResults(leg: Leg = 'outbound') {
+  const { query, updateQuery } = useSearchQuery(leg)
   const dispatch = useAppDispatch()
   const piers = useFetch(getPierOptions)
   const dates = useFetch(getDateOptions)
-  useDefaultPiers(piers.data)
-  useValidDate(dates.data)
+  useDefaultPiers(piers.data, leg)
+  useValidDate(dates.data, leg)
 
   // Search again whenever the piers or the day change. Until a pier pair is chosen the request
   // simply stays pending, so the page keeps showing its loader instead of an empty list.
-  const ready = query.originId !== '' && query.destinationId !== ''
+  const ready = query.originId !== '' && query.destinationId !== '' && query.dateId !== ''
   const trips = useFetch(
     () => (ready ? getTrips(query) : new Promise<Trip[]>(() => undefined)),
     [ready, query.originId, query.destinationId, query.dateId],
+  )
+  // Số chuyến còn bán của từng ngày; chỉ để hiện trên thanh chọn ngày nên lỗi không chặn trang.
+  const counts = useFetch(
+    () =>
+      ready && dates.data
+        ? getDayTripCounts(query, dates.data)
+        : new Promise<Record<string, number>>(() => undefined),
+    [ready, query.originId, query.destinationId, dates.data?.length],
   )
   return {
     query,
     updateQuery,
     piers: piers.data,
     dates: dates.data,
+    counts: counts.data,
     trips: trips.data,
     searching: trips.fetching,
     ...combineFetches(piers, dates, trips),
-    chooseTrip: (trip: Trip) => dispatch(selectTrip(trip)),
+    chooseTrip: (trip: Trip) => dispatch(leg === 'outbound' ? selectTrip(trip) : selectReturnTrip(trip)),
   }
 }
 
-export function useTripDetail() {
-  const query = useAppSelector((s) => s.booking.query)
-  const selectedTripId = useAppSelector((s) => s.booking.selectedTripId)
-  const selectedTrip = useAppSelector((s) => s.booking.selectedTrip)
-  const detail = useFetch(() => getTripDetail(selectedTrip, selectedTripId, query))
+/** The chosen trip of a leg, with its real stops and fares for that leg's piers. */
+export function useTripDetail(leg: Leg = 'outbound') {
+  const booking = useAppSelector((s) => s.booking)
+  const view = useMemo(() => legView(booking, leg), [booking, leg])
+  const detail = useFetch(() => getTripDetail(view.trip, view.tripId, view.query), [leg, view.tripId])
   return { detail: detail.data, loading: detail.loading, error: detail.error, retry: detail.retry }
 }

@@ -7,7 +7,7 @@ interface HowItWorksSectionProps {
 
 export default function HowItWorksSection({ steps }: HowItWorksSectionProps) {
   return (
-    <section className="w-full border-y border-outline-variant/30 bg-sand-light/40 py-10 sm:py-14">
+    <section id="how-it-works" className="w-full scroll-mt-20 border-y border-outline-variant/30 bg-sand-light/40 py-10 sm:py-14">
       <div className="mx-auto max-w-7xl space-y-8 px-5 sm:px-8">
         <div data-reveal className="mx-auto max-w-xl space-y-space-xs text-center">
           <h2 className="font-headline-lg text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-[36px]">

@@ -61,6 +61,17 @@ export interface BookingTotals {
   totalVnd: number
 }
 
+/** The totals of both legs of a round trip, or the first ones alone. */
+export function addTotals(a: BookingTotals, b?: BookingTotals): BookingTotals {
+  if (!b) return a
+  return {
+    seatCount: a.seatCount + b.seatCount,
+    fareVnd: a.fareVnd + b.fareVnd,
+    seatFeeVnd: a.seatFeeVnd + b.seatFeeVnd,
+    totalVnd: a.totalVnd + b.totalVnd,
+  }
+}
+
 /** What each ticket costs: the trip fare plus that seat's cabin surcharge. */
 export function ticketFares(fareVnd: number, seats: Seat[]): number[] {
   return seats.map((seat) => seat.priceVnd ?? fareVnd + seatFeeFor(seat, fareVnd))
@@ -159,18 +170,22 @@ export function isBookingComplete(
   purchaser: PurchaserForm,
   seatIds: string[],
   passengers: Record<string, SeatPassengerForm>,
+  /** The return leg of a round trip, whose seats need passengers too. */
+  returnLeg?: { seatIds: string[]; passengers: Record<string, SeatPassengerForm> },
 ): boolean {
+  const named = (ids: string[], people: Record<string, SeatPassengerForm>) =>
+    ids.length > 0 && ids.every((id) => Object.keys(seatPassengerErrors(people[id])).length === 0)
   return (
-    seatIds.length > 0 &&
     Object.keys(purchaserErrors(purchaser)).length === 0 &&
-    seatIds.every((id) => Object.keys(seatPassengerErrors(passengers[id])).length === 0)
+    named(seatIds, passengers) &&
+    (!returnLeg || named(returnLeg.seatIds, returnLeg.passengers))
   )
 }
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export const isGuid = (value: string): boolean => GUID.test(value)
 
-interface HoldInput {
+export interface HoldInput {
   tripId: string
   originId: string
   destinationId: string
@@ -179,44 +194,55 @@ interface HoldInput {
   journey?: Journey
 }
 
-/** The `POST /checkouts/holds` body: one leg, naming the real stops when they are known. */
-export function buildHoldRequest(input: HoldInput): CreateHoldRequest {
-  const { tripId, originId, destinationId, seatIds, journey } = input
+/**
+ * The `POST /checkouts/holds` body, naming the real stops when they are known: one leg for a
+ * one-way booking, two (outbound, then return) for a round trip, held together (BR-HOLD-02).
+ */
+export function buildHoldRequest(input: HoldInput | HoldInput[]): CreateHoldRequest {
+  const legs = Array.isArray(input) ? input : [input]
   return {
-    legs: [
-      {
-        tripId,
-        seatIds,
-        boardingStationId: originId,
-        disembarkingStationId: destinationId,
-        boardingCallId: journey?.boardingCallId,
-        disembarkingCallId: journey?.disembarkingCallId,
-      },
-    ],
+    legs: legs.map(({ tripId, originId, destinationId, seatIds, journey }) => ({
+      tripId,
+      seatIds,
+      boardingStationId: originId,
+      disembarkingStationId: destinationId,
+      boardingCallId: journey?.boardingCallId,
+      disembarkingCallId: journey?.disembarkingCallId,
+    })),
   }
 }
 
-interface SubmitInput {
+/** One booking of the order and the passengers of its seats. */
+export interface SubmitBooking {
   bookingId: string
   seatIds: string[]
-  purchaser: PurchaserForm
   passengers: Record<string, SeatPassengerForm>
 }
 
-/** The submit body: the buyer, and the passenger of every held seat (BR-COM-06/07). */
+type SubmitInput =
+  | (SubmitBooking & { purchaser: PurchaserForm })
+  | { purchaser: PurchaserForm; bookings: SubmitBooking[] }
+
+/**
+ * The submit body: the buyer, and the passenger of every held seat of every booking
+ * (BR-COM-06/07). A round trip names the seats of both bookings, each under its own booking.
+ */
 export function buildSubmitRequest(input: SubmitInput): SubmitCheckoutRequest {
-  const { bookingId, seatIds, purchaser, passengers } = input
+  const { purchaser } = input
+  const bookings = 'bookings' in input ? input.bookings : [input]
   return {
     customerName: purchaser.fullName.trim(),
     customerEmail: purchaser.email.trim(),
     customerPhone: toCustomerPhone(purchaser),
-    passengers: seatIds.map((seatId) => ({
-      bookingId,
-      seatId,
-      name: passengers[seatId]?.fullName.trim() ?? '',
-      email: passengers[seatId]?.email.trim() || undefined,
-      phone: passengers[seatId]?.phone.trim() || undefined,
-    })),
+    passengers: bookings.flatMap(({ bookingId, seatIds, passengers }) =>
+      seatIds.map((seatId) => ({
+        bookingId,
+        seatId,
+        name: passengers[seatId]?.fullName.trim() ?? '',
+        email: passengers[seatId]?.email.trim() || undefined,
+        phone: passengers[seatId]?.phone.trim() || undefined,
+      })),
+    ),
   }
 }
 
@@ -251,10 +277,20 @@ export function pickJourney(
 
 const COLUMN_LETTERS = ['A', 'B', 'C', 'D'] as const
 
+/**
+ * Cabin of a seat from its class name. The seeded classes are Vietnamese ("Khoang trước VIP",
+ * "Boong ngoài trời", "Tiêu chuẩn"); English names are kept for older data. Accents are dropped
+ * so "truoc" and "trước" match alike.
+ */
 function seatCategoryOf(className: string | null): SeatCategory {
-  const name = (className ?? '').toLowerCase()
-  if (name.includes('front')) return 'front'
-  if (name.includes('outdoor') || name.includes('deck')) return 'outdoor'
+  const name = (className ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd')
+    .toLowerCase()
+  if (name.includes('front') || name.includes('khoang truoc') || name.includes('vip')) return 'front'
+  if (name.includes('outdoor') || name.includes('deck') || name.includes('boong') || name.includes('ngoai troi'))
+    return 'outdoor'
   return 'standard'
 }
 
@@ -273,6 +309,38 @@ function toSeat(dto: TripSeatDto): Seat {
     status: dto.price === null ? 'sold' : status,
     window: column === 'A' || column === 'D',
     priceVnd: dto.price ?? undefined,
+  }
+}
+
+/**
+ * The backend reports the seats of the traveler's own hold as `held`, like anyone else's. While
+ * that hold runs, those seats are the traveler's: shown as free so they stay selectable (and can be
+ * removed) when the traveler comes back to the seat page. Other travelers' holds are unchanged.
+ */
+export function withOwnHold(
+  seatMap: SeatMap,
+  order: {
+    seatIds?: string[]
+    heldUntil?: number
+    settled?: boolean
+    tripId?: string | null
+    /** Seats held per trip (two legs for a round trip). */
+    legs?: { tripId: string | null; seatIds: string[] }[]
+  } | null,
+  tripId: string | null,
+  now = Date.now(),
+): SeatMap {
+  if (!order || order.settled || !order.heldUntil || order.heldUntil <= now || !tripId) return seatMap
+  const legs = order.legs ?? [{ tripId: order.tripId ?? null, seatIds: order.seatIds ?? [] }]
+  // Only the seats held on this trip: the same boat seat has the same id on each of its trips.
+  const own = new Set(legs.filter((l) => l.tripId === tripId).flatMap((l) => l.seatIds))
+  if (own.size === 0) return seatMap
+  if (!seatMap.seats.some((seat) => seat.status === 'held' && own.has(seat.id))) return seatMap
+  return {
+    ...seatMap,
+    seats: seatMap.seats.map((seat) =>
+      seat.status === 'held' && own.has(seat.id) ? { ...seat, status: 'available' } : seat,
+    ),
   }
 }
 

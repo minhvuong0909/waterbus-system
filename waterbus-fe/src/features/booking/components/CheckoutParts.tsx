@@ -9,6 +9,7 @@ import type { BookingTotals } from '../utils'
 import { seatTags } from '../utils'
 import { BookingCard, CardHeading, SeatFeeRow, SummaryRow } from './SummaryParts'
 import { t } from '../../../i18n'
+import SummaryTimer from './SummaryTimer'
 
 function EditLink({
   to,
@@ -41,17 +42,29 @@ function Fact({ label, value, accent }: { label: string; value: string; accent?:
   )
 }
 
-export function JourneyDetailsCard({ trip, seats }: { trip: TripDetail; seats: Seat[] }) {
+export function JourneyDetailsCard({
+  trip,
+  seats,
+  title,
+  editTo = ROUTES.seatSelection,
+}: {
+  trip: TripDetail
+  seats: Seat[]
+  /** Heading, e.g. "Outbound trip" for a round trip; "Journey Details" by default. */
+  title?: string
+  /** Where "Change Trip / Seat" leads: the seat page of this leg. */
+  editTo?: string
+}) {
   return (
     <BookingCard>
       <CardHeading
         icon="directions_boat"
-        title={t('Journey Details')}
+        title={title ?? t('Journey Details')}
         subtitle={t('Saigon River {line} • {code}', {
           line: trip.lineLabel,
           code: trip.vesselCode,
         })}
-        aside={<EditLink to={ROUTES.seatSelection}>{t('Change Trip / Seat')}</EditLink>}
+        aside={<EditLink to={editTo}>{t('Change Trip / Seat')}</EditLink>}
       />
       <div className="grid grid-cols-1 items-center gap-space-md rounded-xl bg-mist/70 p-space-md md:grid-cols-12">
         <div className="flex items-start gap-3 md:col-span-4">
@@ -80,7 +93,6 @@ export function JourneyDetailsCard({ trip, seats }: { trip: TripDetail; seats: S
             <Icon name="arrow_forward" className="text-[16px] text-teal-flow" />
             <span className="h-px flex-1 bg-outline-variant" />
           </div>
-          <span className="text-xs text-on-surface-variant">{t('Non-stop express run')}</span>
         </div>
         <div className="flex items-start justify-end gap-3 text-right md:col-span-4">
           <div>
@@ -120,16 +132,22 @@ export function PassengerInfoCard({
   purchaser,
   seats,
   passengers,
+  title,
+  showBuyer = true,
 }: {
   purchaser: PurchaserForm
   seats: Seat[]
   passengers: Record<string, SeatPassengerForm>
+  /** Heading, e.g. "Passengers · return trip"; "Passenger Information" by default. */
+  title?: string
+  /** False hides the buyer block (shown once for a round trip). */
+  showBuyer?: boolean
 }) {
   return (
     <BookingCard>
       <CardHeading
         icon="badge"
-        title={t('Passenger Information')}
+        title={title ?? t('Passenger Information')}
         subtitle={t('One ticket per passenger, issued in each passenger’s name')}
         aside={<EditLink to={ROUTES.passengerDetails}>{t('Edit Passenger Details')}</EditLink>}
       />
@@ -158,24 +176,26 @@ export function PassengerInfoCard({
           )
         })}
       </ul>
-      <div className="mt-space-md grid grid-cols-1 gap-space-md rounded-xl bg-mist/70 p-space-md md:grid-cols-2">
-        <div>
-          <div className="text-xs text-on-surface-variant">{t('Buyer')}</div>
-          <div className="text-sm font-semibold text-deep-river">{purchaser.fullName}</div>
-        </div>
-        <div>
-          <div className="text-xs text-on-surface-variant">{t('Notification Email')}</div>
-          <div className="text-sm font-semibold text-deep-river">{purchaser.email}</div>
-        </div>
-        {purchaser.phone.trim() && (
+      {showBuyer && (
+        <div className="mt-space-md grid grid-cols-1 gap-space-md rounded-xl bg-mist/70 p-space-md md:grid-cols-2">
           <div>
-            <div className="text-xs text-on-surface-variant">{t('Contact Mobile')}</div>
-            <div className="text-sm font-semibold text-deep-river">
-              {purchaser.phoneCode} {purchaser.phone}
-            </div>
+            <div className="text-xs text-on-surface-variant">{t('Buyer')}</div>
+            <div className="text-sm font-semibold text-deep-river">{purchaser.fullName}</div>
           </div>
-        )}
-      </div>
+          <div>
+            <div className="text-xs text-on-surface-variant">{t('Notification Email')}</div>
+            <div className="text-sm font-semibold text-deep-river">{purchaser.email}</div>
+          </div>
+          {purchaser.phone.trim() && (
+            <div>
+              <div className="text-xs text-on-surface-variant">{t('Contact Mobile')}</div>
+              <div className="text-sm font-semibold text-deep-river">
+                {purchaser.phoneCode} {purchaser.phone}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </BookingCard>
   )
 }
@@ -210,8 +230,11 @@ export function OrderSummary({
   busy,
   failure,
   onContinue,
+  returnTrip,
 }: {
   trip: TripDetail
+  /** The return trip of a round trip; `totals` then covers both legs. */
+  returnTrip?: TripDetail
   totals: BookingTotals
   /** False until the passenger accepts the carriage rules. */
   canContinue: boolean
@@ -221,13 +244,15 @@ export function OrderSummary({
   onContinue: () => void
 }) {
   return (
-    <BookingCard className="p-space-lg lg:sticky lg:top-24">
+    <BookingCard className="p-space-lg lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100svh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain">
       <div className="mb-space-md flex items-center justify-between">
         <h2 className="font-headline-md text-headline-sm text-deep-river">{t('Order Summary')}</h2>
         <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[11px] font-bold text-teal-flow">
           {t('Trip {vesselCode}', { vesselCode: trip.vesselCode })}
         </span>
       </div>
+
+      <SummaryTimer />
 
       <div className="rounded-xl bg-mist/70 p-space-md">
         <div className="mb-2 flex items-center justify-between text-xs font-semibold text-deep-river">
@@ -244,6 +269,21 @@ export function OrderSummary({
           <span>{t('Arrive {arriveTime}', { arriveTime: trip.arriveTime })}</span>
         </div>
       </div>
+      {returnTrip && (
+        <div className="mt-2 rounded-xl bg-mist/70 p-space-md">
+          <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-teal-flow">{t('Return trip')}</div>
+          <div className="flex items-center justify-between text-xs font-semibold text-deep-river">
+            <span>{returnTrip.originPierLabel}</span>
+            <Icon name="sailing" className="text-[16px] text-teal-flow" />
+            <span>{returnTrip.destinationPierLabel}</span>
+          </div>
+          <div className="mt-1 flex items-center justify-between text-[11px] text-on-surface-variant">
+            <span>{t('Depart {departTime}', { departTime: returnTrip.departTime })}</span>
+            <span>{returnTrip.dateShort}</span>
+            <span>{t('Arrive {arriveTime}', { arriveTime: returnTrip.arriveTime })}</span>
+          </div>
+        </div>
+      )}
 
       <div className="mt-space-md space-y-1.5">
         <SummaryRow label={t('Trip Fare')} value={formatVnd(totals.fareVnd)} />

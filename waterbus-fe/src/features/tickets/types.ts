@@ -36,6 +36,12 @@ export interface Ticket {
   windowSeat: boolean
   /** True once the journey has been made. */
   completed: boolean
+  /** Vòng đời vé (BR v2.0 mục 13). Chưa có thì xem như `Valid`. */
+  lifecycle?: 'Valid' | 'Cancelled' | 'Terminated' | 'Completed'
+  /** Kết quả check-in hiện hành tại bến lên (BR-OFF-05). Chưa có thì xem như `NotCheckedIn`. */
+  boardingStatus?: 'NotCheckedIn' | 'CheckedIn' | 'NoShow'
+  /** Tiền hoàn của vé này (BR-RF), kèm trạng thái xử lý. Chỉ có khi chuyến bị huỷ/kết thúc sớm. */
+  refund?: { amountVnd: number; state: 'Requested' | 'Processing' | 'Succeeded' | 'Failed' }
   fareVnd: number
   vesselNote: string
   gate: string

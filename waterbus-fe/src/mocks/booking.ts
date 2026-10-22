@@ -41,9 +41,6 @@ export const SEAT_MAP: SeatMap = {
   seats,
 }
 
-/** A standard window seat, so the default booking never carries a surcharge. */
-export const DEFAULT_SEAT_IDS = ['S01']
-
 export const DEFAULT_PURCHASER: PurchaserForm = {
   fullName: 'Nguyen Van An',
   phoneCode: '+84',

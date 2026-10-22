@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { usePrefersReducedMotion } from '../../hooks'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { Logo } from '../../components/brand'
 import { Button, Icon } from '../../components/ui'
@@ -26,6 +27,7 @@ export default function Header() {
   const [openPath, setOpenPath] = useState<string | null>(null)
   const menuButton = useRef<HTMLButtonElement>(null)
   const { pathname } = useLocation()
+  const reducedMotion = usePrefersReducedMotion()
   const open = openPath === pathname
   useEffect(() => {
     if (!open) return
@@ -45,7 +47,18 @@ export default function Header() {
     <header className="fixed inset-x-0 top-0 z-50 print:hidden border-b border-surface-container/60 bg-mist/90 shadow-[0_2px_12px_rgba(13,37,56,0.03)] backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-20 sm:px-6">
         <div className="flex min-w-0 items-center gap-6">
-          <Link to={ROUTES.home} aria-label={t('Smart Waterbus home')} className="shrink-0">
+          <Link
+            to={ROUTES.home}
+            aria-label={t('Smart Waterbus home')}
+            className="shrink-0"
+            onClick={(event) => {
+              // Đã ở trang chủ: không tải lại, chỉ cuộn mượt lên đầu trang.
+              if (pathname === ROUTES.home) {
+                event.preventDefault()
+                window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' })
+              }
+            }}
+          >
             <Logo className="h-8 w-auto sm:h-9" />
           </Link>
           <nav className="hidden items-center gap-4 xl:flex" aria-label={t('Main')}>
@@ -58,13 +71,6 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link
-            to={ROUTES.search}
-            aria-label={t('Search routes and piers')}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-on-surface-variant transition-all hover:bg-surface-container hover:text-deep-river"
-          >
-            <Icon name="search" className="text-[20px]" />
-          </Link>
           <LanguageSwitcher />
           {user ? (
             <>
@@ -100,7 +106,7 @@ export default function Header() {
               {t('Sign in')}
             </Button>
           )}
-          <Button to={ROUTES.search} className="hidden whitespace-nowrap md:inline-flex">
+          <Button to={ROUTES.search} className="whitespace-nowrap !px-4 sm:!px-6">
             {t('Book a Trip')}
           </Button>
           <button
