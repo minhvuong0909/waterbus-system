@@ -273,6 +273,14 @@ const bookingSlice = createSlice({
     holdCleared(state) {
       state.hold = null
     },
+    /**
+     * Opening the gateway moves the order's deadline to the payment window the backend set
+     * (`Checkout:PaymentPendingTtlMinutes`), so the countdown follows the backend, not the first hold.
+     */
+    holdExtended(state, action: PayloadAction<number>) {
+      if (state.hold) state.hold.expiresAt = action.payload
+      if (state.order && !state.order.settled) state.order.heldUntil = action.payload
+    },
     /** The backend reported the order as paid, expired or cancelled: nothing is held any more. */
     orderSettled(state) {
       state.hold = null
@@ -305,6 +313,7 @@ export const {
   holdStarted,
   holdSubmitted,
   holdCleared,
+  holdExtended,
   orderReleased,
   orderSettled,
 } = bookingSlice.actions

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import reducer, {
+  holdExtended,
   holdStarted,
   orderReleased,
   orderSettled,
@@ -31,6 +32,17 @@ describe('booking order ownership', () => {
 
   it('forgets the order once it was cancelled to hold other seats', () => {
     expect(reducer(held(), orderReleased()).order).toBeNull()
+  })
+
+  it('moves the hold deadline to the payment window the backend set', () => {
+    const state = reducer(held(), holdExtended(2_000_000))
+    expect(state.hold?.expiresAt).toBe(2_000_000)
+    expect(state.order?.heldUntil).toBe(2_000_000)
+  })
+
+  it('does not move the deadline of an order that is already settled', () => {
+    const state = reducer(reducer(held(), orderSettled()), holdExtended(2_000_000))
+    expect(state.order?.heldUntil).toBe(1_000_000)
   })
 
   it('keeps a settled order so its result can still be read', () => {

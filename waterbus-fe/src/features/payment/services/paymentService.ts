@@ -27,26 +27,34 @@ interface VnPayUrlResponse {
   expiresAt: string
 }
 
+/** Where to send the traveler to pay, and until when the order waits for the payment (epoch ms). */
+export interface PaymentRedirect {
+  url: string
+  expiresAt: number | null
+}
+
 /**
  * `POST /payments/create-vnpay-url` (BR-PAY-04: pay per order). Returns the VNPay URL to send the
- * traveler to. Paying is confirmed by the backend from VNPay's IPN, never by this response.
+ * traveler to and the payment deadline the backend set on the order. Paying is confirmed by the
+ * backend from VNPay's IPN, never by this response.
  *
  * MOCK (a mock order has no token): the "gateway" is the app's own callback page, reporting success.
  */
 export async function createPaymentUrl(
   orderId: string,
   accessToken: string | null,
-): Promise<string> {
+): Promise<PaymentRedirect> {
   if (USE_MOCK) {
     const query = new URLSearchParams({ vnp_ResponseCode: '00', vnp_TxnRef: 'MOCK', mock: '1' })
-    return `${ROUTES.paymentCallback}?${query.toString()}`
+    return { url: `${ROUTES.paymentCallback}?${query.toString()}`, expiresAt: null }
   }
   const response = await apiRequest<VnPayUrlResponse>(API_ENDPOINTS.payments.createVnPayUrl, {
     method: 'POST',
     body: { orderId },
     headers: guestHeaders(accessToken),
   })
-  return response.paymentUrl
+  const expiresAt = response.expiresAt ? Date.parse(response.expiresAt) : NaN
+  return { url: response.paymentUrl, expiresAt: Number.isNaN(expiresAt) ? null : expiresAt }
 }
 
 /**
@@ -60,6 +68,7 @@ export function verifyVnPayReturn(search: string): Promise<VnPayReturnResult> {
     const success = params.vnp_ResponseCode === '00'
     return withDelay({
       success,
+      merchantReference: params.vnp_TxnRef ?? '',
       bookingCode: params.vnp_TxnRef ?? '',
       responseCode: params.vnp_ResponseCode ?? '',
       message: success ? 'Thanh toán thành công' : 'Giao dịch không thành công hoặc bị hủy',

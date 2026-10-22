@@ -12,7 +12,8 @@ import type { BookingTotals } from '../../booking/utils'
 import type { PurchaserForm, Seat } from '../../booking/types'
 import type { TripDetail } from '../../trips/types'
 import { ROUTES } from '../../../routes/routes'
-import { useAppSelector } from '../../../store/hooks'
+import { useAppDispatch, useAppSelector } from '../../../store/hooks'
+import { holdExtended } from '../../booking/bookingSlice'
 import { useHoldCountdown } from '../../booking/hooks/useHoldCountdown'
 import { formatVnd } from '../../../utils/format'
 import { createPaymentUrl } from '../services/paymentService'
@@ -60,6 +61,7 @@ export default function PaymentOrderSummary({
   returnLeg,
 }: PaymentOrderSummaryProps) {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const order = useAppSelector((s) => s.booking.order)
   const { hold, expired } = useHoldCountdown()
   const [busy, setBusy] = useState(false)
@@ -72,7 +74,8 @@ export default function PaymentOrderSummary({
     setBusy(true)
     setFailed(false)
     try {
-      const url = await createPaymentUrl(hold.orderId, order?.accessToken ?? hold.accessToken)
+      const { url, expiresAt } = await createPaymentUrl(hold.orderId, order?.accessToken ?? hold.accessToken)
+      if (expiresAt !== null) dispatch(holdExtended(expiresAt))
       if (url.startsWith('/')) navigate(url)
       else window.location.assign(url)
     } catch {

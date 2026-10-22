@@ -110,7 +110,7 @@ export default function BookingSuccessPage() {
     )
   }
 
-  if (phase === 'none' || phase === 'failed' || phase === 'timeout') {
+  if (phase === 'none' || phase === 'failed' || phase === 'timeout' || phase === 'paidLate') {
     return (
       <div className="mx-auto max-w-lg px-margin py-space-3xl text-center">
         <h1 className="font-headline-md text-headline-md text-deep-river">
