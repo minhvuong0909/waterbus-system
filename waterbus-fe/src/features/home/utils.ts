@@ -7,11 +7,18 @@ import { seatsLabel } from '../trips/utils'
 const BOARDING_WINDOW_MINUTES = 15
 
 /** Home page row for a trip. `origin` / `destination` are the piers of the search it came from. */
-export function toDeparture(trip: Trip, origin: PierOption, destination: PierOption, now = new Date()): Departure {
+export function toDeparture(
+  trip: Trip,
+  origin: PierOption,
+  destination: PierOption,
+  now = new Date(),
+  /** False for trips of another day: they cannot be "Boarding" just because the clock time is near. */
+  isToday = true,
+): Departure {
   const [hours, minutes] = trip.departTime.split(':').map(Number)
   const minutesToGo = hours * 60 + minutes - (now.getHours() * 60 + now.getMinutes())
   const sightseeing = trip.kind === 'sightseeing'
-  const boarding = minutesToGo <= BOARDING_WINDOW_MINUTES
+  const boarding = isToday && minutesToGo <= BOARDING_WINDOW_MINUTES
   return {
     id: `dep-${trip.id}`,
     trip,

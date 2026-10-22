@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import FleetMap from '../../components/map/FleetMap'
-import { ErrorState, Icon, PageLoader } from '../../components/ui'
+import { ErrorState, PageLoader } from '../../components/ui'
 import { PageHeader, Panel, StatusBadge } from '../../features/admin/components/AdminUi'
+import { AlertBanner } from '../../features/admin/components/AlertParts'
+import { sortAlerts } from '../../features/admin/alertUtils'
 import { useNow, useReload, useTicker } from '../../features/admin/hooks/useAdmin'
 import { useLiveFleet } from '../../features/admin/hooks/useFleetHub'
 import {
@@ -14,7 +16,7 @@ import {
 } from '../../features/admin/services/adminService'
 import { getFleetBoats, knotsToKmh } from '../../features/admin/services/operationsService'
 import type { WeatherAlert } from '../../features/admin/types'
-import { formatClockTime, formatClockTimeWithSeconds, routeStations, weatherAlertTitle } from '../../features/admin/utils'
+import { formatClockTime, formatClockTimeWithSeconds, routeStations } from '../../features/admin/utils'
 import { USE_MOCK } from '../../constant/env'
 import { riverPathOf } from '../../constant/riverPaths'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
@@ -25,22 +27,21 @@ import type { RealtimeStatus } from '../../services/realtime'
 const REFRESH_MS = 3000
 /** A real position older than this is shown as stale (the boat stopped reporting). */
 const STALE_AFTER_MS = 2 * 60_000
+/**
+ * The backend has no route list endpoint yet and seeds a single route, RT01 (the one its GPS
+ * simulator also follows). Until the API returns routes, the real radar draws this route along the
+ * river; without it the line would join the piers in a straight line across the land.
+ */
+const DEFAULT_ROUTE_CODE = 'RT01'
 
 function WeatherBanners({ alerts }: { alerts: WeatherAlert[] }) {
+  if (alerts.length === 0) return null
   return (
-    <>
-      {alerts.map((alert) => (
-        <div
-          key={alert.id}
-          role="alert"
-          className="mb-4 flex items-center gap-3 rounded-xl border border-signal-amber/50 bg-signal-amber/15 px-4 py-3 text-sm text-deep-river"
-        >
-          <Icon name="air" className="text-[20px] text-signal-amber" />
-          <span className="font-semibold">{weatherAlertTitle(alert)}</span>
-          <span className="text-on-surface-variant">{t(alert.message)}</span>
-        </div>
+    <div className="mb-4 space-y-2">
+      {sortAlerts(alerts).map((alert) => (
+        <AlertBanner key={alert.id} alert={alert} />
       ))}
-    </>
+    </div>
   )
 }
 
@@ -96,7 +97,7 @@ function LiveRadar() {
         <div className="h-[70vh] min-h-[24rem] lg:col-span-2">
           <FleetMap
             stations={corridor}
-            path={riverPathOf(routes.data[0]?.code)}
+            path={riverPathOf(routes.data[0]?.code ?? DEFAULT_ROUTE_CODE)}
             boats={onRiver.map((b) => ({ tripId: b.boatId, code: b.code, latitude: b.latitude, longitude: b.longitude }))}
           />
         </div>

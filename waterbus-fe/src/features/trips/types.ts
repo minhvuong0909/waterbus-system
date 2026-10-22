@@ -77,8 +77,8 @@ export interface SearchQuery {
   destinationId: string
   /** Selected date as `YYYY-MM-DD` (the id of a DateOption). */
   dateId: string
-  passengers: string
-  passengerNote: string
+  /** Return date for a round trip (BR-SRCH-01), never before `dateId`. */
+  returnDateId?: string
 }
 
 export interface DateOption {

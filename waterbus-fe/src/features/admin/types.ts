@@ -100,8 +100,23 @@ export interface WeatherAlert {
   kind?: 'Weather' | 'Safety' | 'Technical' | 'Other'
   /** Trips linked to the alert (BE `IncidentTrip`), when known. */
   affectedTripCount?: number
+  /** Linked trips the admin has not decided about yet (BE `PendingDecisionCount`). */
+  pendingDecisionCount?: number
+  /** Route the alert is about, e.g. "RT01" (weather alerts are per route). */
+  routeCode?: string | null
+  /** Who raised it: `WeatherService` for the weather guard, otherwise a person (captain SOS). */
+  source?: string
   /** The linked trips and what the admin decided for each (null = not decided yet). Only on request. */
-  trips?: { tripId: string; decision: string | null }[]
+  trips?: AlertTrip[]
+}
+
+/** A trip an alert affects (BE `AffectedTripDto`); the departure and status are only known for real alerts. */
+export interface AlertTrip {
+  tripId: string
+  decision: string | null
+  departureTime?: string
+  tripStatus?: AdminTripStatus
+  decisionAt?: string | null
 }
 
 /** What a dispatcher or captain did, kept as an audit trail. */

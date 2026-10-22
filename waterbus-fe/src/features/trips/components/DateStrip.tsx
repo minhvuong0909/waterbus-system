@@ -6,14 +6,17 @@ interface DateStripProps {
   dates: DateOption[]
   selectedId: string
   tripCount: number
+  /** Số chuyến còn bán của từng ngày (theo id ngày); ngày chưa có số thì không hiện. */
+  counts?: Record<string, number>
   onSelect: (id: string) => void
 }
 
-export default function DateStrip({ dates, selectedId, tripCount, onSelect }: DateStripProps) {
+export default function DateStrip({ dates, selectedId, tripCount, counts, onSelect }: DateStripProps) {
   return (
     <div className="scroll-strip flex items-stretch gap-2 overflow-x-auto p-1">
       {dates.map((date) => {
         const selected = date.id === selectedId
+        const count = counts?.[date.id] ?? (selected ? tripCount : undefined)
         return (
           <button
             key={date.id}
@@ -27,7 +30,7 @@ export default function DateStrip({ dates, selectedId, tripCount, onSelect }: Da
             }`}
           >
             <span
-              className={`text-[10px] uppercase ${
+              className={`text-[11px] uppercase ${
                 selected ? 'font-bold tracking-wide text-sky-aqua' : 'font-semibold text-outline'
               }`}
             >
@@ -41,8 +44,14 @@ export default function DateStrip({ dates, selectedId, tripCount, onSelect }: Da
               {date.label}
             </span>
             {selected ? (
-              <span className="mt-0.5 inline-flex items-center rounded-full bg-teal-flow px-2 py-0.5 text-[10px] font-semibold text-white">
-                {t('{tripCount} Trips', { tripCount })}
+              <span className="mt-0.5 inline-flex items-center rounded-full bg-teal-flow px-2 py-0.5 text-[11px] font-semibold text-white">
+                {count === 0 ? t('No trips') : t('{tripCount} Trips', { tripCount: count ?? tripCount })}
+              </span>
+            ) : count !== undefined ? (
+              <span
+                className={`text-[11px] font-medium ${count === 0 ? 'text-outline' : 'text-teal-flow'}`}
+              >
+                {count === 0 ? t('No trips') : t('{tripCount} Trips', { tripCount: count })}
               </span>
             ) : (
               date.fromFareVnd !== undefined && (

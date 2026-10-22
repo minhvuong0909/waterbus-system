@@ -1,21 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { useAppDispatch } from '../../../store/hooks'
 import { selectTrip, setQuery } from '../../booking/bookingSlice'
-import { passengersLabel } from '../../booking/utils'
 import { askAssistant } from '../services/assistantService'
-import type { AssistantApiCard, AssistantSearchContext, ChatMessage } from '../types'
+import type { AssistantApiCard, AssistantChatTurn, AssistantSearchContext, ChatMessage } from '../types'
+import { MAX_HISTORY_TURNS, MAX_MESSAGE_LENGTH, cardDeparture, cardLetter, parseCardChoice } from '../utils'
 import AssistantApiCards from './AssistantApiCards'
+import { MessageBubble, Suggestions, TypingIndicator } from './AssistantParts'
 import { t } from '../../../i18n'
+import { toVietnamDate } from '../../../utils/time'
 
-const CHIPS = [
-  { label: 'Find a trip', question: 'Hiện có những chuyến tàu nào sắp khởi hành?' },
-]
+const welcome = (): ChatMessage => ({
+  id: 0,
+  from: 'assistant',
+  text: t('Hi! I can show upcoming trips, or find trips by pier and date. What would you like to know?'),
+})
 
-/** Chat bubble in the corner of every page. The assistant can answer with trip cards. */
+/**
+ * Chat bubble in the corner of every passenger page. Questions go to the AI API with the recent
+ * turns; the assistant answers with text and trip cards taken from the real trip search. Picking a
+ * card and continuing opens the normal booking flow: nothing is booked or paid from the chat.
+ */
 export default function AssistantWidget() {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
@@ -23,24 +31,24 @@ export default function AssistantWidget() {
   const [busy, setBusy] = useState(false)
   const [draft, setDraft] = useState('')
   const [searchContext, setSearchContext] = useState<AssistantSearchContext | null>(null)
-  const [selectedCard, setSelectedCard] = useState<AssistantApiCard | null>(null)
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 1,
-      from: 'assistant',
-      text: t('Hi! I can show upcoming trips, or find trips by pier and date. What would you like to know?'),
-    },
-  ])
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [selected, setSelected] = useState<{ card: AssistantApiCard; letter: string } | null>(null)
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [welcome()])
+  const nextId = useRef(1)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const launcherRef = useRef<HTMLButtonElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
+  const wasOpen = useRef(false)
 
+  // Focus the input when the panel opens, and give focus back to the launcher when it closes.
   useEffect(() => {
     if (open) inputRef.current?.focus()
+    else if (wasOpen.current) launcherRef.current?.focus()
+    wasOpen.current = open
   }, [open])
 
   useEffect(() => {
     endRef.current?.scrollIntoView?.({ block: 'end' })
-  }, [messages, busy])
+  }, [messages, busy, selected])
 
   useEffect(() => {
     if (!open) return
@@ -49,68 +57,108 @@ export default function AssistantWidget() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
-  const send = async (text: string, question = text) => {
-    const clean = text.trim()
-    if (!clean || busy) return
-    // Chỉ gửi các lượt thực sự trao đổi, tối đa 8 để không phình prompt hoặc lưu trên server.
-    const history = messages.slice(1).slice(-8).map((m) => ({ role: m.from, content: m.text }))
-    setMessages((m) => [...m, { id: m.length + 1, from: 'user', text: clean }])
-    setDraft('')
-    const selection = clean.match(/^chọn\s+(?:chuyến\s+)?(a|b|c|d|e|f|g|h|i|j|10|[1-9]|đầu tiên|thứ hai|thứ ba|này)\s*[.!]?$/i)
-    if (selection) {
-      const latestAnswer = [...messages].reverse().find((m) => m.from === 'assistant')
-      const cards = latestAnswer?.apiCards ?? []
-      const choice = selection[1].toLowerCase()
-      const index = /^[a-j]$/.test(choice) ? choice.charCodeAt(0) - 97
-        : /^(10|[1-9])$/.test(choice) ? Number(choice) - 1
-          : choice === 'đầu tiên' ? 0 : choice === 'thứ hai' ? 1 : choice === 'thứ ba' ? 2 : cards.length === 1 ? 0 : -1
-      const card = cards[index]
-      if (card?.boardingStationId && card.disembarkingStationId) {
-        selectCard(card)
-      } else {
-        setMessages((m) => [...m, { id: m.length + 1, from: 'assistant', text: 'Vui lòng chọn một chuyến đang hiển thị bằng mã A, B, C… hoặc nút trên thẻ chuyến.' }])
-      }
-      return
-    }
+  const add = (message: Omit<ChatMessage, 'id'>) =>
+    setMessages((list) => [...list, { ...message, id: nextId.current++ }])
+
+  /** The turns sent as context: the real exchange only, not the welcome or local error notes. */
+  const historyOf = (list: ChatMessage[]): AssistantChatTurn[] =>
+    list
+      .filter((m) => m.id !== 0 && m.tone !== 'error')
+      .slice(-MAX_HISTORY_TURNS)
+      .map((m) => ({ role: m.from, content: m.text }))
+
+  const ask = async (question: string, history: AssistantChatTurn[]) => {
     setBusy(true)
-    let reply: ChatMessage
     try {
       const answer = await askAssistant(question, history, searchContext)
-      reply = { id: 0, from: 'assistant', ...answer }
       if (answer.searchContext !== undefined) setSearchContext(answer.searchContext)
-      setSelectedCard(null)
+      setSelected(null)
+      add({
+        from: 'assistant',
+        text: answer.text,
+        apiCards: answer.apiCards,
+        tone: answer.isFallback ? 'fallback' : undefined,
+      })
     } catch {
-      reply = {
-        id: 0,
+      add({
         from: 'assistant',
         text: t('Sorry, I couldn’t reach the assistant. Please try again in a moment.'),
-      }
+        tone: 'error',
+        retryQuestion: question,
+      })
+    } finally {
+      setBusy(false)
     }
-    setMessages((m) => [...m, { ...reply, id: m.length + 1 }])
-    setBusy(false)
   }
 
-  const selectCard = (card: AssistantApiCard) => {
+  const selectCard = (card: AssistantApiCard, letter: string) => {
     if (!card.boardingStationId || !card.disembarkingStationId) return
-    setSelectedCard(card)
-    const localDeparture = new Date(card.departureTime).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+    setSelected({ card, letter })
+    const { time, date } = cardDeparture(card.departureTime)
     const passengers = searchContext?.passengerCount
-    const text = `Bạn đã chọn chuyến ${card.departureStationName} → ${card.arrivalStationName}, khởi hành ${localDeparture}${passengers ? ` cho ${passengers} người` : ''}. Đây chưa phải đặt vé thành công.`
-    setMessages((m) => [...m, { id: m.length + 1, from: 'assistant', text }])
+    add({
+      from: 'assistant',
+      text: [
+        t('You picked trip {letter}: {from} → {to}, {time} {date}.', {
+          letter,
+          from: card.departureStationName,
+          to: card.arrivalStationName,
+          time,
+          date,
+        }),
+        passengers ? t('For {count} passengers.', { count: passengers }) : '',
+        t('This is not a booking yet. Continue to choose your seats and pay.'),
+      ]
+        .filter(Boolean)
+        .join(' '),
+    })
+  }
+
+  /** Shows the traveler's text, then either applies a typed card choice or asks the backend. */
+  const send = (text: string, question = text) => {
+    const clean = text.trim()
+    if (!clean || busy) return
+    const history = historyOf(messages)
+    add({ from: 'user', text: clean })
+    setDraft('')
+
+    const latestCards = [...messages].reverse().find((m) => m.from === 'assistant' && m.apiCards?.length)?.apiCards ?? []
+    const choice = parseCardChoice(clean, latestCards.length)
+    if (choice !== null) {
+      const card = latestCards[choice]
+      if (card?.boardingStationId && card.disembarkingStationId) selectCard(card, cardLetter(choice))
+      else add({ from: 'assistant', text: t('Pick one of the trips shown by its letter (A, B, C…) or with the button on its card.') })
+      return
+    }
+    void ask(question.trim(), history)
+  }
+
+  /** Sends the failed question again. Only the last message can be retried, so its context is exact. */
+  const retry = (failed: ChatMessage) => {
+    if (!failed.retryQuestion || busy || messages[messages.length - 1]?.id !== failed.id) return
+    const rest = messages.slice(0, -1)
+    setMessages(rest)
+    void ask(failed.retryQuestion, historyOf(rest.slice(0, -1)))
+  }
+
+  const restart = () => {
+    setMessages([welcome()])
+    setSearchContext(null)
+    setSelected(null)
+    setDraft('')
+    inputRef.current?.focus()
   }
 
   const continueToBooking = () => {
-    const card = selectedCard
-    if (!card) return
-    if (!card.boardingStationId || !card.disembarkingStationId) return
-    const dateId = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })
-      .format(new Date(card.departureTime))
-    dispatch(setQuery({
-      originId: card.boardingStationId,
-      destinationId: card.disembarkingStationId,
-      dateId,
-      ...(searchContext?.passengerCount ? { passengers: passengersLabel(searchContext.passengerCount) } : {}),
-    }))
+    const card = selected?.card
+    if (!card?.boardingStationId || !card.disembarkingStationId) return
+    dispatch(
+      setQuery({
+        originId: card.boardingStationId,
+        destinationId: card.disembarkingStationId,
+        dateId: toVietnamDate(new Date(card.departureTime)),
+      }),
+    )
     dispatch(selectTrip(card.tripId))
     setOpen(false)
     navigate(ROUTES.tripDetail)
@@ -121,101 +169,140 @@ export default function AssistantWidget() {
     send(draft)
   }
 
+  // Enter sends, Shift+Enter starts a new line (not while an IME is composing a word).
+  const onInputKey = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      send(draft)
+    }
+  }
+
+  const fresh = messages.length === 1
+
+  // Above the site header (z-50) while open: on a phone the panel covers the whole screen.
   return (
-    <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3 print:hidden">
+    <div className={`fixed bottom-5 right-5 ${open ? 'z-[60]' : 'z-40'} flex flex-col items-end gap-3 print:hidden`}>
       {open && (
         <section
           role="dialog"
           aria-label={t('Smart Waterbus Assistant')}
-          className="flex max-h-[min(34rem,calc(100vh-7rem))] w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-outline-variant/40 bg-white shadow-[0_12px_40px_rgba(13,37,56,0.18)]"
+          className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white sm:static sm:inset-auto sm:h-[min(40rem,calc(100vh-7rem))] sm:w-[24rem] sm:rounded-2xl sm:border sm:border-outline-variant/40 sm:shadow-[0_12px_40px_rgba(13,37,56,0.18)]"
         >
           <header className="flex items-center gap-3 bg-deep-river px-space-md py-3 text-on-primary">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-sky-aqua">
               <Icon name="bolt" className="text-[20px]" />
             </span>
-            <div className="flex-1">
-              <div className="font-headline-sm text-sm font-bold">
-                {t('Smart Waterbus Assistant')}
-              </div>
-              <div className="text-[11px] text-sand-light/80">{t('Find waterbus trips')}</div>
+            <div className="min-w-0 flex-1">
+              <div className="font-headline-sm text-sm font-bold">{t('Smart Waterbus Assistant')}</div>
+              <div className="truncate text-xs text-sand-light/80">{t('Find waterbus trips')}</div>
             </div>
+            {!fresh && (
+              <button
+                type="button"
+                onClick={restart}
+                disabled={busy}
+                aria-label={t('New conversation')}
+                title={t('New conversation')}
+                className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/10 disabled:opacity-50"
+              >
+                <Icon name="refresh" className="text-[18px]" />
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setOpen(false)}
               aria-label={t('Close assistant')}
-              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/10"
+              className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/10"
             >
-              <Icon name="close" className="text-[18px]" />
+              <Icon name="close" className="text-[20px]" />
             </button>
           </header>
 
-          <div className="flex-1 space-y-2 overflow-y-auto p-space-md" aria-live="polite">
-            {messages.map((m) => (
-              <div key={m.id} className={m.from === 'user' ? 'flex justify-end' : ''}>
-                <div
-                  className={`inline-block max-w-[90%] rounded-xl px-3 py-2 text-xs ${
-                    m.from === 'user'
-                      ? 'bg-surface-container text-deep-river'
-                      : 'bg-mist text-on-surface-variant'
-                  }`}
-                >
-                  {m.text}
-                </div>
-                {m.apiCards && <AssistantApiCards cards={m.apiCards} onSelect={selectCard} />}
-              </div>
+          <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-space-md" aria-live="polite">
+            {messages.map((m, i) => (
+              <MessageBubble
+                key={m.id}
+                message={m}
+                onRetry={
+                  m.tone === 'error' && m.retryQuestion && !busy && i === messages.length - 1
+                    ? () => retry(m)
+                    : undefined
+                }
+              >
+                {m.apiCards && m.apiCards.length > 0 && (
+                  <AssistantApiCards
+                    cards={m.apiCards}
+                    selectedId={selected?.card.tripId ?? null}
+                    onSelect={(card) =>
+                      selectCard(card, cardLetter(m.apiCards?.findIndex((c) => c.tripId === card.tripId) ?? 0))
+                    }
+                  />
+                )}
+              </MessageBubble>
             ))}
-            {selectedCard && (
-              <button type="button" onClick={continueToBooking}
-                className="min-h-10 rounded-xl bg-teal-flow px-4 py-2 text-sm font-semibold text-white hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-flow">
-                Tiếp tục đặt vé
-              </button>
-            )}
-            {busy && (
-              <div className="text-xs text-on-surface-variant">{t('Assistant is typing…')}</div>
-            )}
+            {fresh && <Suggestions disabled={busy} onPick={(label, question) => send(label, question)} />}
+            {busy && <TypingIndicator />}
             <div ref={endRef} />
           </div>
 
-          <div className="flex flex-wrap gap-1.5 border-t border-surface-container px-space-md pt-space-sm">
-            {CHIPS.map((chip) => (
+          {selected && (
+            <div className="flex items-center gap-2 border-t border-teal-flow/20 bg-teal-flow/5 px-space-md py-2.5">
+              <div className="min-w-0 flex-1 text-xs text-deep-river">
+                <div className="font-semibold">
+                  {t('Trip {letter} selected', { letter: selected.letter })}
+                </div>
+                <div className="truncate text-on-surface-variant">
+                  {selected.card.departureStationName} → {selected.card.arrivalStationName} ·{' '}
+                  {cardDeparture(selected.card.departureTime).time}
+                </div>
+              </div>
               <button
-                key={chip.label}
                 type="button"
-                onClick={() => send(t(chip.label), chip.question)}
-                className="rounded-full border border-outline-variant/50 bg-white px-3 py-2 text-xs text-deep-river transition-colors hover:bg-surface-container-low"
+                onClick={continueToBooking}
+                className="inline-flex min-h-[40px] shrink-0 items-center gap-1 rounded-full bg-teal-flow px-4 text-sm font-semibold text-white hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-flow"
               >
-                {t(chip.label)}
+                {t('Continue to booking')}
+                <Icon name="arrow_forward" className="text-[16px]" />
               </button>
-            ))}
-          </div>
+            </div>
+          )}
 
-          <form onSubmit={submit} className="m-space-sm flex items-center gap-2 rounded-xl bg-mist p-1.5">
-            <input
-              ref={inputRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder={t('Type your question...')}
-              aria-label={t('Ask the assistant')}
-              className="flex-1 rounded-lg border-0 bg-transparent px-2 py-1.5 text-xs text-deep-river placeholder:text-outline focus:ring-0"
-            />
-            <button
-              type="submit"
-              disabled={busy}
-              aria-label={t('Send')}
-              className="flex h-8 w-8 items-center justify-center text-teal-flow hover:text-deep-river disabled:opacity-50"
-            >
-              <Icon name="send" className="text-[18px]" />
-            </button>
+          <form onSubmit={submit} className="border-t border-surface-container p-space-sm">
+            <div className="flex items-end gap-2 rounded-xl bg-mist p-1.5 focus-within:ring-2 focus-within:ring-teal-flow/30">
+              <textarea
+                ref={inputRef}
+                rows={1}
+                value={draft}
+                maxLength={MAX_MESSAGE_LENGTH}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={onInputKey}
+                placeholder={t('Type your question...')}
+                aria-label={t('Ask the assistant')}
+                className="max-h-28 min-h-[40px] flex-1 resize-none rounded-lg border-0 bg-transparent px-2 py-2 text-sm text-deep-river placeholder:text-outline focus:ring-0"
+              />
+              <button
+                type="submit"
+                disabled={busy || !draft.trim()}
+                aria-label={t('Send')}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-flow text-white transition-colors hover:bg-secondary disabled:bg-outline-variant/60"
+              >
+                <Icon name="send" className="text-[18px]" />
+              </button>
+            </div>
+            <p className="mt-1.5 px-1 text-[11px] leading-snug text-outline">
+              {t('Trips come from the live timetable. Check the time and price before you pay.')}
+            </p>
           </form>
         </section>
       )}
 
       <button
+        ref={launcherRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-label={open ? t('Close assistant') : t('Open assistant')}
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-flow text-on-primary shadow-[0_6px_20px_rgba(20,122,126,0.35)] transition-all hover:bg-secondary active:scale-95"
+        className={`${open ? 'hidden sm:flex' : 'flex'} h-14 w-14 items-center justify-center rounded-full bg-teal-flow text-on-primary shadow-[0_6px_20px_rgba(20,122,126,0.35)] transition-all hover:bg-secondary active:scale-95`}
       >
         <Icon name={open ? 'close' : 'chat'} className="text-[26px]" />
       </button>

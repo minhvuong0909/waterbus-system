@@ -2,6 +2,7 @@ import { Link, Navigate, useLocation } from 'react-router-dom'
 import { ErrorState, Icon, PageLoader } from '../../components/ui'
 import { useOrderConfirmation } from '../../features/payment/hooks/useOrderConfirmation'
 import { verifyVnPayReturn } from '../../features/payment/services/paymentService'
+import { vnPayFailureMessage } from '../../features/payment/utils'
 import { useFetch, useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -27,14 +28,14 @@ export default function PaymentCallbackPage() {
   if (phase === 'confirmed') return <Navigate to={ROUTES.bookingSuccess} replace />
   if (result.loading || !result.data) return <PageLoader />
 
-  const { success, bookingCode, responseCode, message } = result.data
+  const { success, merchantReference, responseCode } = result.data
 
   if (phase === 'none') {
     return (
       <Notice
         icon="receipt_long"
         title={t('We could not find your order')}
-        body={t('Open your booking from the confirmation email, or start a new booking.')}
+        body={t('Open your booking from My Tickets on the device you booked with, or start a new booking.')}
       >
         <Link to={ROUTES.home} className={ACTION}>
           {t('Back to home')}
@@ -75,13 +76,33 @@ export default function PaymentCallbackPage() {
     )
   }
 
+  // Paid, but only after the order had expired: no ticket, and the money is refunded (BR-PAY-05).
+  if (phase === 'paidLate') {
+    return (
+      <Notice
+        icon="support_agent"
+        title={t('We received your payment, but the order had already expired')}
+        body={t('No ticket was issued and your seat was released. The amount will be refunded to your original payment method; keep the payment reference below if you contact us.')}
+        details={[[t('Payment reference'), merchantReference]]}
+      >
+        <Link to={ROUTES.seatSelection} className={ACTION}>
+          {t('Choose seats again')}
+        </Link>
+      </Notice>
+    )
+  }
+
   return (
     <Notice
       icon="payments"
       title={t('Payment was not completed')}
-      body={phase === 'failed' ? t('This order has expired or was cancelled, so its seats were released.') : message}
+      body={
+        phase === 'failed'
+          ? `${t(vnPayFailureMessage(responseCode))} ${t('This order has expired or was cancelled, so its seats were released.')}`
+          : t(vnPayFailureMessage(responseCode))
+      }
       details={[
-        [t('Booking Code:'), bookingCode],
+        [t('Payment reference'), merchantReference],
         [t('Response code'), responseCode],
       ]}
     >

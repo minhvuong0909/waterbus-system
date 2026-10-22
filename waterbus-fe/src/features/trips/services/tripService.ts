@@ -11,7 +11,7 @@ import {
 } from '../../../mocks/tripSearch'
 import { localize, t } from '../../../i18n'
 import { ApiError, apiRequest } from '../../../services/apiClient'
-import { addMinutes, toIsoDate } from '../../../utils/time'
+import { addMinutes, toVietnamDate } from '../../../utils/time'
 import type {
   DateOption,
   NetworkRoute,
@@ -29,15 +29,32 @@ import {
   pickPiers,
   toPierOption,
   toTrip,
+  isDeparted,
 } from '../utils'
 import type { TripDetailDto, TripSeatMapDto } from '../../booking/types'
 import { pickJourney } from '../../booking/utils'
 
-/** `GET /stations`: the active piers in river order. */
-export async function getPierOptions(): Promise<PierOption[]> {
+/** The piers change rarely and one page asks for them several times, so they are kept this long. */
+const PIER_CACHE_MS = 60_000
+let pierCache: { piers: Promise<PierOption[]>; at: number } | undefined
+
+/** Forgets the cached piers, e.g. after an Admin changed a station. */
+export function clearPierCache() {
+  pierCache = undefined
+}
+
+/** `GET /stations`: the active piers in river order. Requests in flight and recent results are shared. */
+export function getPierOptions(): Promise<PierOption[]> {
   if (USE_MOCK) return withDelay(PIER_OPTIONS)
-  const stations = await apiRequest<StationDto[]>(API_ENDPOINTS.stations)
-  return stations.map(toPierOption)
+  if (pierCache && Date.now() - pierCache.at < PIER_CACHE_MS) return pierCache.piers
+  const piers = apiRequest<StationDto[]>(API_ENDPOINTS.stations).then((stations) => stations.map(toPierOption))
+  const entry = { piers, at: Date.now() }
+  pierCache = entry
+  // A failure is not kept: the next call asks again.
+  piers.catch(() => {
+    if (pierCache === entry) pierCache = undefined
+  })
+  return piers
 }
 
 // Mock: the backend has no route list endpoint yet. Seeds are matched to the real stations by
@@ -60,7 +77,7 @@ export function getDateOptions(): Promise<DateOption[]> {
 
 /** `GET /trips/search` for the selected piers and day. */
 export async function getTrips(query: SearchQuery): Promise<Trip[]> {
-  if (USE_MOCK) return withDelay(buildTrips())
+  if (USE_MOCK) return withDelay(buildTrips(query))
   const dtos = await apiRequest<TripDto[]>(API_ENDPOINTS.trips.search, {
     query: {
       departureStationId: query.originId,
@@ -69,6 +86,28 @@ export async function getTrips(query: SearchQuery): Promise<Trip[]> {
     },
   })
   return dtos.map(toTrip)
+}
+
+/**
+ * Số chuyến còn bán (còn ghế, chưa khởi hành) của từng ngày cho cặp bến đang chọn, để thanh chọn
+ * ngày cho thấy ngày nào có chuyến. Một ngày lỗi thì bỏ qua (không có số), không làm hỏng trang.
+ */
+export async function getDayTripCounts(
+  query: SearchQuery,
+  dates: DateOption[],
+): Promise<Record<string, number>> {
+  const entries = await Promise.all(
+    dates.map(async (date) => {
+      try {
+        const trips = await getTrips({ ...query, dateId: date.id })
+        const bookable = trips.filter((trip) => trip.seatsCount > 0 && !isDeparted(trip, date.id))
+        return [date.id, bookable.length] as const
+      } catch {
+        return [date.id, -1] as const
+      }
+    }),
+  )
+  return Object.fromEntries(entries.filter(([, count]) => count >= 0))
 }
 
 /** Minutes since midnight of an "HH:mm" time. */
@@ -85,15 +124,26 @@ export async function getUpcomingTrips(limit: number): Promise<{
   trips: Trip[]
   piers: PierOption[]
   search: Pick<SearchQuery, 'originId' | 'destinationId' | 'dateId'>
+  /** True when today has no departure left and the trips are tomorrow's. */
+  tomorrow: boolean
 }> {
   const piers = await getPierOptions()
-  const search = { ...pickPiers(piers, DEFAULT_SEARCH_QUERY), dateId: toIsoDate(new Date()) }
+  const search = { ...pickPiers(piers, DEFAULT_SEARCH_QUERY), dateId: toVietnamDate(new Date()) }
   const all = await getTrips({ ...DEFAULT_SEARCH_QUERY, ...search })
   const now = new Date()
-  const trips = all
+  const bookable = (trip: Trip) => trip.seatsCount > 0
+  const today = all
     .filter((trip) => minutesOf(trip.departTime) >= now.getHours() * 60 + now.getMinutes())
+    .filter(bookable)
     .slice(0, limit)
-  return { trips, piers, search }
+  if (today.length > 0) return { trips: today, piers, search, tomorrow: false }
+
+  // Hôm nay không còn chuyến: cho khách thấy lịch ngày mai thay vì một khung trống.
+  const nextDay = { ...search, dateId: toVietnamDate(new Date(now.getTime() + 24 * 60 * 60 * 1000)) }
+  const next = (await getTrips({ ...DEFAULT_SEARCH_QUERY, ...nextDay })).filter(bookable).slice(0, limit)
+  return next.length > 0
+    ? { trips: next, piers, search: nextDay, tomorrow: true }
+    : { trips: [], piers, search, tomorrow: false }
 }
 
 /**

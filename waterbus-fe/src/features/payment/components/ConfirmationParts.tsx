@@ -51,7 +51,8 @@ export function ConfirmationHero({ reference, email }: { reference: string; emai
           <CopyButton value={reference} />
         </div>
         <p className="text-sm text-on-surface-variant">
-          {t('We emailed the confirmation and a secure link to manage this booking to {email}.', {
+          {/* The backend sends no e-mail yet: point to where the tickets are instead of promising one. */}
+          {t('Keep this booking reference. Your tickets for {email} are saved under My Tickets on this device.', {
             email,
           })}
         </p>

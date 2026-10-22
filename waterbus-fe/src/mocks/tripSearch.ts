@@ -73,8 +73,6 @@ export const DEFAULT_SEARCH_QUERY: SearchQuery = {
   originId: '',
   destinationId: '',
   dateId: toIsoDate(new Date()),
-  passengers: '1 Adult • Standard',
-  passengerNote: 'Main Panoramic Saloon',
 }
 
 /** A suggested route between two stations, by station code. */
@@ -96,24 +94,39 @@ export const NETWORK_ROUTE_SEEDS: NetworkRouteSeed[] = [
   },
 ]
 
-/** A trip of today at `hour:minute` as the backend's TripDto describes it (boat SWB-01, route RT01). */
+/** Thời gian qua sông của cả hành lang (5 bến, 4 chặng) theo RT01. */
+const FULL_CORRIDOR_MINUTES = 45
+
+/** Ngày `dateId` (yyyy-mm-dd) theo giờ máy; mặc định là hôm nay. */
+function dayOf(dateId?: string): Date {
+  const [y, m, d] = (dateId ?? '').split('-').map(Number)
+  return y && m && d ? new Date(y, m - 1, d) : new Date()
+}
+
+/** A trip of `day` at `hour:minute` as the backend's TripDto describes it (boat SWB-01, route RT01). */
 function tripSeed(
   n: number,
+  day: Date,
   time: string,
   tripType: TripDto['tripType'],
   basePrice: number,
   availableSeatsCount: number,
+  from: StationDto,
+  to: StationDto,
 ): TripDto {
   const [hours, minutes] = time.split(':').map(Number)
-  const departure = new Date()
+  const departure = new Date(day)
   departure.setHours(hours, minutes, 0, 0)
-  const durationMinutes = 45
+  const hops = Math.abs(from.orderIndex - to.orderIndex)
+  const durationMinutes = Math.round((hops * FULL_CORRIDOR_MINUTES) / 4)
+  // Ngày + cặp bến ở nhóm cuối để chuyến đi và chuyến về (khứ hồi) không trùng id.
+  const stamp = `${day.getFullYear()}${String(day.getMonth() + 1).padStart(2, '0')}${String(day.getDate()).padStart(2, '0')}`
   return {
     // The first 8 characters of the id are the trip reference shown in the UI, so each one differs.
-    id: `7f3a000${n}-0000-4000-8000-00000000000${n}`,
+    id: `7f3a000${n}-0000-4000-8000-${stamp}${from.orderIndex}${to.orderIndex}0${n}`,
     routeName: 'Bạch Đằng - Linh Đông',
-    departureStationName: 'Bến Bạch Đằng',
-    arrivalStationName: 'Bến Linh Đông',
+    departureStationName: from.name,
+    arrivalStationName: to.name,
     departureTime: departure.toISOString(),
     arrivalTime: new Date(departure.getTime() + durationMinutes * 60_000).toISOString(),
     durationMinutes,
@@ -124,18 +137,45 @@ function tripSeed(
 }
 
 /**
- * Mock trips of today, in the same shape as the real search results. Built on each call (not once
- * at load) so the texts follow the active language and the day stays today. The 15,000 base price
- * is the backend default (Trip.BasePrice); the sightseeing price follows the demo fare settings.
+ * Mock trips for the chosen day and piers, in the same shape as the real search results. Built on
+ * each call (not once at load) so the texts follow the active language. The 15,000 base price is
+ * the backend default (Trip.BasePrice); the sightseeing price follows the demo fare settings.
+ *
+ * Phục vụ thử giao diện: số chỗ thay đổi theo ngày (có chuyến hết chỗ, sắp hết, còn nhiều), và
+ * mọi cặp bến trên hành lang đều có chuyến (đi xuôi hay ngược), kể cả bến trung gian. Chuyến
+ * tham quan chỉ chạy cả hành lang, không bán đoạn lên/xuống tuỳ ý.
  */
-export function buildTrips(): Trip[] {
-  return [
-    tripSeed(1, '07:00', 'Commuter', 15000, 54),
-    tripSeed(2, '09:00', 'Commuter', 15000, 42),
-    tripSeed(3, '12:00', 'Commuter', 15000, 36),
-    tripSeed(4, '15:30', 'Commuter', 15000, 8),
-    tripSeed(5, '17:30', 'Sightseeing', 45000, 12),
-  ].map(toTrip)
+export function buildTrips(
+  query?: Pick<SearchQuery, 'originId' | 'destinationId' | 'dateId'>,
+): Trip[] {
+  const day = dayOf(query?.dateId)
+  const find = (id?: string) => STATION_SEEDS.find((s) => s.id === id)
+  const first = STATION_SEEDS[0]
+  const last = STATION_SEEDS[STATION_SEEDS.length - 1]
+  const from = find(query?.originId) ?? first
+  let to = find(query?.destinationId) ?? last
+  if (to.id === from.id) to = from.id === first.id ? last : first
+
+  // Mỗi ngày một bộ số chỗ khác nhau; hôm nay giữ nguyên bộ gốc.
+  const today = new Date()
+  const offset = Math.round((day.getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86_400_000)
+  const seatSets = [
+    [54, 42, 36, 8, 12],
+    [60, 0, 24, 3, 0],
+    [48, 30, 0, 14, 20],
+    [60, 58, 52, 40, 6],
+  ]
+  const seats = seatSets[((offset % seatSets.length) + seatSets.length) % seatSets.length]
+  const corridor = Math.abs(from.orderIndex - to.orderIndex) === STATION_SEEDS.length - 1
+
+  const trips = [
+    tripSeed(1, day, '07:00', 'Commuter', 15000, seats[0], from, to),
+    tripSeed(2, day, '09:00', 'Commuter', 15000, seats[1], from, to),
+    tripSeed(3, day, '12:00', 'Commuter', 15000, seats[2], from, to),
+    tripSeed(4, day, '15:30', 'Commuter', 15000, seats[3], from, to),
+  ]
+  if (corridor) trips.push(tripSeed(5, day, '17:30', 'Sightseeing', 45000, seats[4], from, to))
+  return trips.map(toTrip)
 }
 
 export const ONBOARD_AMENITIES: AmenityDetail[] = [

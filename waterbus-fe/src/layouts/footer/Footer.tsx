@@ -5,9 +5,11 @@ import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 
 const QUICK_LINKS = [
-  { label: 'Routes & Lines', to: ROUTES.search },
-  { label: 'Timetable & Headways', to: ROUTES.searchResults },
-  { label: 'Help & About', to: ROUTES.help },
+  { label: 'Book a Trip', to: ROUTES.search },
+  { label: 'Timetable', to: ROUTES.searchResults },
+  { label: 'Live Tracking', to: ROUTES.liveTracking },
+  { label: 'My Tickets', to: ROUTES.myTickets },
+  { label: 'Help', to: ROUTES.help },
 ]
 
 /** Slim footer: brand, the few links people look for, and how to reach the operator. */
@@ -37,15 +39,21 @@ export default function Footer() {
               {t(CONTACT.hours)}
             </p>
             <p>
-              <span className="font-semibold text-deep-river">{t('Dispatch Hotline')}:</span>{' '}
-              <a href={CONTACT.hotlineHref} className="hover:text-deep-river">
+              <span className="font-semibold text-deep-river">{t('Support Hotline')}:</span>{' '}
+              <a href={CONTACT.hotlineHref} className="tap-area hover:text-deep-river">
                 {CONTACT.hotline}
               </a>
             </p>
           </div>
         </div>
 
-        <p className="mt-space-xl border-t border-outline-variant/30 pt-space-md text-body-sm text-on-surface-variant">
+        <p className="mt-space-lg max-w-3xl text-xs leading-relaxed text-on-surface-variant">
+          {t(
+            'Refunds: if a trip is cancelled or ends early, the part you paid for that was not served is refunded in full. A ticket missed at check-in is not refunded.',
+          )}
+        </p>
+
+        <p className="mt-space-md border-t border-outline-variant/30 pt-space-md text-body-sm text-on-surface-variant">
           {t('© {year} Smart Waterbus. River Connects Greater Stories.', {
             year: new Date().getFullYear(),
           })}

@@ -8,9 +8,14 @@ export async function askAssistant(
   history: AssistantChatTurn[] = [],
   searchContext: AssistantSearchContext | null = null,
 ): Promise<AssistantReply> {
-  const response = await apiRequest<{ textAnswer: string; cards: AssistantApiCard[]; searchContext?: AssistantSearchContext | null }>(API_ENDPOINTS.assistant, {
+  const response = await apiRequest<{ textAnswer: string; cards: AssistantApiCard[]; searchContext?: AssistantSearchContext | null; isFallback?: boolean }>(API_ENDPOINTS.assistant, {
     method: 'POST', body: { message, history, searchContext },
   })
   // Backend quyết định nội dung và liên kết; không tự dựng giá hoặc chuyến từ lời AI.
-  return { text: response.textAnswer, apiCards: response.cards, searchContext: response.searchContext }
+  return {
+    text: response.textAnswer,
+    apiCards: response.cards,
+    searchContext: response.searchContext,
+    isFallback: response.isFallback,
+  }
 }

@@ -2,7 +2,7 @@ import { t } from '../../i18n'
 import { bookingReference, seatPosition, seatZone } from '../booking/utils'
 import type { Seat } from '../booking/types'
 import type { TripDetail } from '../trips/types'
-import { toIsoDate } from '../../utils/time'
+import { toVietnamDate } from '../../utils/time'
 import type { BookedSnapshot, Ticket } from './types'
 
 /** Ticket code in the backend's format ("TK" and 8 digits), derived from the trip and seat. */
@@ -14,7 +14,26 @@ export function ticketCodeOf(tripId: string, seatId: string): string {
 
 /** True when the ticket is for today. */
 export const isTicketToday = (ticket: Pick<Ticket, 'dateId'>): boolean =>
-  ticket.dateId === toIsoDate(new Date())
+  ticket.dateId === toVietnamDate(new Date())
+
+/** Label of a backend ticket for the traveler (`TicketStatus` and `BoardingStatus` of the BE). */
+export function ticketStatusLabel(status: string, boardingStatus: string): string {
+  if (status === 'CheckedIn' || boardingStatus === 'CheckedIn') return t('Checked in at pier')
+  switch (status) {
+    case 'Valid':
+      return t('Confirmed')
+    case 'Completed':
+      return boardingStatus === 'NoShow' ? t('No-show') : t('Completed')
+    case 'Cancelled':
+      return t('Cancelled')
+    case 'Terminated':
+      return t('Trip ended early')
+    case 'Expired':
+      return t('Expired')
+    default:
+      return status
+  }
+}
 
 /** Stable id of the ticket for a trip and seat. */
 export function bookedTicketId(tripId: string, seatId: string): string {
@@ -74,4 +93,15 @@ export function buildBookedTickets({ trip, seats, fares, passengerNames }: Build
     vesselNote: `${trip.vesselName} ${trip.vesselCode}`,
     gate: trip.originShortName,
   }))
+}
+
+/** Gom các vé cùng một đặt chỗ (cùng `bookingRef`), giữ thứ tự xuất hiện đầu tiên. */
+export function groupByBooking(tickets: Ticket[]): Ticket[][] {
+  const groups = new Map<string, Ticket[]>()
+  for (const ticket of tickets) {
+    const group = groups.get(ticket.bookingRef)
+    if (group) group.push(ticket)
+    else groups.set(ticket.bookingRef, [ticket])
+  }
+  return [...groups.values()]
 }

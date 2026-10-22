@@ -23,6 +23,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         {children}
       </main>
       <Footer />
+      <div aria-hidden className="h-20 bg-white sm:hidden print:hidden" />
       <AssistantWidget />
     </div>
   )

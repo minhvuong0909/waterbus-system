@@ -61,7 +61,7 @@ export default function SignInForm({
         labelAside={
           <button
             type="button"
-            className="text-xs font-semibold text-teal-flow transition-colors hover:text-deep-river hover:underline"
+            className="tap-area text-xs font-semibold text-teal-flow transition-colors hover:text-deep-river hover:underline"
           >
             {t('Forgot password?')}
           </button>
@@ -96,7 +96,7 @@ export default function SignInForm({
         <button
           type="button"
           onClick={onSwitchToRegister}
-          className="ml-1 font-bold text-teal-flow underline hover:text-deep-river"
+          className="tap-area ml-1 font-bold text-teal-flow underline hover:text-deep-river"
         >
           {t('Create Account')}
         </button>

@@ -1,5 +1,5 @@
 import { numberLocale, t } from '../../i18n'
-import { formatClock, toIsoDate } from '../../utils/time'
+import { formatClock, toVietnamDate } from '../../utils/time'
 import type {
   DateOption,
   PierOption,
@@ -25,6 +25,7 @@ export function formatDateLabel(date: DateOption): string {
 
 /** "28 Seats Left", or "54 Seats Available" when plenty remain. */
 export function seatsLabel(trip: Pick<Trip, 'seatsCount' | 'seatsLow'>): string {
+  if (trip.seatsCount <= 0) return t('Sold out')
   if (trip.seatsLow) return t('Limited: Only {count} Seats Left', { count: trip.seatsCount })
   return trip.seatsCount >= 50
     ? t('{count} Seats Available', { count: trip.seatsCount })
@@ -76,32 +77,36 @@ export function timeBandOf(hour: number): TimeBand {
   return hour < 17 ? 'afternoon' : 'sunset'
 }
 
+/** The search endpoint sends no fare (the real fares belong to each seat class), so 0 means "not known yet". */
+export const hasFare = (amountVnd: number): boolean => amountVnd > 0
+
 /** Short reference for a trip, the first 8 characters of its id (e.g. "3F2A9C1B"). */
 export function tripReference(id: string): string {
   return id.replace(/-/g, '').slice(0, 8).toUpperCase()
 }
 
 /** Date option for a `YYYY-MM-DD` id, formatted for the active language. */
-export function describeDate(id: string, today = toIsoDate(new Date())): DateOption {
+export function describeDate(id: string, today = toVietnamDate(new Date())): DateOption {
   const [year, month, day] = id.split('-').map(Number)
-  const date = new Date(year, month - 1, day)
+  // Noon UTC keeps the same calendar day in Vietnam (UTC+7) whatever the browser's time zone.
+  const date = new Date(Date.UTC(year, month - 1, day, 12))
   const locale = numberLocale()
+  const zone = 'Asia/Ho_Chi_Minh'
   return {
     id,
-    weekday: date.toLocaleDateString(locale, { weekday: 'short' }),
-    label: date.toLocaleDateString(locale, { month: 'short', day: 'numeric' }),
-    fullLabel: date.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' }),
+    weekday: date.toLocaleDateString(locale, { weekday: 'short', timeZone: zone }),
+    label: date.toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone: zone }),
+    fullLabel: date.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric', timeZone: zone }),
     isToday: id === today,
   }
 }
 
 /** The next `days` days starting today. */
 export function buildDateOptions(days = SEARCH_WINDOW_DAYS): DateOption[] {
-  const today = new Date()
-  return Array.from({ length: days }, (_, offset) => {
-    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset)
-    return describeDate(toIsoDate(date))
-  })
+  const [year, month, day] = toVietnamDate(new Date()).split('-').map(Number)
+  return Array.from({ length: days }, (_, offset) =>
+    describeDate(toVietnamDate(new Date(Date.UTC(year, month - 1, day + offset, 12)))),
+  )
 }
 
 /**
@@ -134,4 +139,15 @@ export function toTrip(dto: TripDto): Trip {
     fareVnd: dto.basePrice,
     fareLabel: kind === 'sightseeing' ? t('Experience Fare') : t('Standard Fare'),
   }
+}
+
+/**
+ * Chuyến đã rời bến: ngày đã qua, hoặc hôm nay mà giờ khởi hành không còn ở phía trước. Chuyến loại
+ * này không còn bán được (BR-SRCH-02, BR-TIME-01).
+ */
+export function isDeparted(trip: Pick<Trip, 'departTime'>, dateId: string, now = new Date()): boolean {
+  const today = toVietnamDate(now)
+  if (dateId !== today) return dateId < today
+  const [hours, minutes] = trip.departTime.split(':').map(Number)
+  return hours * 60 + minutes <= now.getHours() * 60 + now.getMinutes()
 }

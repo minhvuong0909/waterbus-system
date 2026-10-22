@@ -4,6 +4,7 @@ import { ROUTES } from '../../../routes/routes'
 import type { TripDetail } from '../types'
 import { formatNumber } from '../../../utils/format'
 import { t } from '../../../i18n'
+import { hasFare } from '../utils'
 
 interface TripRouteCardProps {
   trip: TripDetail
@@ -100,12 +101,18 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
                 {t('1 Pax')}
               </span>
             </div>
-            <div className="mt-1 flex items-baseline gap-1">
-              <span className="font-numeric-lg text-numeric-lg font-bold text-deep-river">
-                {formatNumber(trip.fareVnd)}
-              </span>
-              <span className="text-body-md font-medium text-on-surface-variant">{t('VND')}</span>
-            </div>
+            {hasFare(trip.fareVnd) ? (
+              <div className="mt-1 flex items-baseline gap-1">
+                <span className="font-numeric-lg text-numeric-lg font-bold text-deep-river">
+                  {formatNumber(trip.fareVnd)}
+                </span>
+                <span className="text-body-md font-medium text-on-surface-variant">{t('VND')}</span>
+              </div>
+            ) : (
+              <div className="mt-1 text-body-md font-semibold text-deep-river">
+                {t('Price shown when you choose a seat')}
+              </div>
+            )}
             <div className="mt-0.5 flex items-center gap-1 text-body-sm text-on-surface-variant">
               <Icon name="check_circle" className="text-[14px] text-teal-flow" />{' '}
               {t('Instant ticket confirmation')}

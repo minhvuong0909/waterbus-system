@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { Icon } from '../../../components/ui'
+import { usePopoverList } from '../hooks/usePopoverList'
 import type { PierOption } from '../types'
 
 interface PierFieldProps {
@@ -9,6 +9,8 @@ interface PierFieldProps {
   options: PierOption[]
   onChange: (id: string) => void
   className?: string
+  /** Gọn một dòng cho thanh tìm chuyến: bỏ địa chỉ phụ, thấp hơn. */
+  compact?: boolean
 }
 
 /** Search-form card that shows a pier and opens a small list to pick another one. */
@@ -19,17 +21,20 @@ export default function PierField({
   options,
   onChange,
   className = '',
+  compact = false,
 }: PierFieldProps) {
-  const [open, setOpen] = useState(false)
+  const { root, open, setOpen, toggle, placement } = usePopoverList(options.length * 58 + 8)
 
   return (
-    <div className={`relative ${className}`.trim()}>
+    <div ref={root} className={`relative ${className}`.trim()}>
       <button
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="group flex h-full min-h-[112px] w-full min-w-0 flex-col justify-between gap-3 rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] p-3.5 text-left transition-colors hover:border-teal-flow/40 hover:bg-[#EBF2F0]/80"
+        onClick={toggle}
+        className={`group flex h-full w-full min-w-0 flex-col justify-between rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] text-left transition-colors hover:border-teal-flow/40 hover:bg-[#EBF2F0]/80 ${
+          compact ? 'min-h-[64px] gap-1 px-3.5 py-2.5' : 'min-h-[112px] gap-3 p-3.5'
+        }`}
       >
         <span className="mb-1 flex w-full items-center justify-between">
           <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
@@ -45,16 +50,21 @@ export default function PierField({
           <span className="block truncate font-headline-sm text-base font-bold text-deep-river">
             {value.name}
           </span>
-          <span className="mt-0.5 block truncate text-[11px] text-on-surface-variant">
-            {value.subtitle}
-          </span>
+          {!compact && (
+            <span className="mt-0.5 block truncate text-[11px] text-on-surface-variant">
+              {value.subtitle}
+            </span>
+          )}
         </span>
       </button>
 
       {open && (
         <ul
           role="listbox"
-          className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-[#E2ECEE] bg-white py-1 shadow-lg"
+          style={{ maxHeight: placement.maxHeight }}
+          className={`absolute left-0 right-0 z-30 overflow-y-auto rounded-xl border border-[#E2ECEE] bg-white py-1 shadow-lg ${
+            placement.up ? 'bottom-full mb-2' : 'top-full mt-2'
+          }`}
         >
           {options.map((option) => (
             <li key={option.id}>

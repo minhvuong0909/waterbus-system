@@ -11,7 +11,7 @@ interface StoriesSectionProps {
 
 export default function StoriesSection({ stories }: StoriesSectionProps) {
   return (
-    <section className="w-full bg-surface-container-lowest py-10 sm:py-14">
+    <section id="tours" className="w-full scroll-mt-20 bg-surface-container-lowest py-10 sm:py-14">
       <div className="mx-auto max-w-7xl space-y-8 px-5 sm:px-8">
         <div data-reveal className="max-w-2xl space-y-space-xs">
           <h2 className="font-headline-lg text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-[36px]">

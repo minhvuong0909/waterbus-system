@@ -1,8 +1,9 @@
-import { withDelay } from '../../../mocks/delay'
 import { EXPLORE_DATA } from '../../../mocks/explore'
+import { localize } from '../../../i18n'
 import type { ExploreData } from '../types'
 
-// Mock service layer: swap for real API calls later without touching the UI.
+// The Explore content is editorial and lives in the app (the backend has no API for it), so it is
+// returned right away, translated to the active language, without a fake network delay.
 export function getExploreData(): Promise<ExploreData> {
-  return withDelay(EXPLORE_DATA)
+  return Promise.resolve(localize(EXPLORE_DATA))
 }
