@@ -182,6 +182,21 @@ describe('toSeatMap', () => {
     expect(map.seats[1]).toMatchObject({ category: 'front', status: 'held', window: false })
   })
 
+  it('reads the Vietnamese seat class names the backend seeds', () => {
+    const map = toSeatMap(
+      {
+        ...dto,
+        seats: [
+          seat('v1', 'F01', 1, 'Khoang trước VIP', 20000, 'available'),
+          seat('v2', 'O01', 1, 'Boong ngoài trời', 17000, 'available'),
+          seat('v3', 'S01', 1, 'Tiêu chuẩn', 15000, 'available'),
+        ],
+      },
+      { boat: null },
+    )
+    expect(map.seats.map((s) => s.category)).toEqual(['front', 'outdoor', 'standard'])
+  })
+
   it('shows a seat without a fare as taken, and totals use the seat fares', () => {
     const map = toSeatMap(dto, { boat: null })
     expect(map.seats[2].status).toBe('sold')

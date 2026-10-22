@@ -34,7 +34,7 @@ export default function PaymentCallbackPage() {
       <Notice
         icon="receipt_long"
         title={t('We could not find your order')}
-        body={t('Open your booking from the confirmation email, or start a new booking.')}
+        body={t('Open your booking from My Tickets on the device you booked with, or start a new booking.')}
       >
         <Link to={ROUTES.home} className={ACTION}>
           {t('Back to home')}

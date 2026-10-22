@@ -995,6 +995,7 @@ export const vi: Record<string, string> = {
   'Or continue with email': 'Hoặc tiếp tục bằng email',
   'Or register with email': 'Hoặc đăng ký bằng email',
   'Order Confirmed': 'Đơn đã xác nhận',
+  'Awaiting payment': 'Chờ thanh toán',
   'Order Summary': 'Tóm tắt đơn hàng',
   'Origin Pier': 'Bến đi',
   'Other assistance': 'Hỗ trợ khác',
@@ -1585,8 +1586,8 @@ export const vi: Record<string, string> = {
     'Vé của hành khách không check-in đúng hạn không được hoàn tiền.',
   'Your trip details, ticket status and refund information.':
     'Thông tin chuyến, trạng thái vé và hoàn tiền của bạn.',
-  'We emailed the confirmation and a secure link to manage this booking to {email}.':
-    'Chúng tôi đã gửi email xác nhận cùng liên kết bảo mật để quản lý đặt chỗ này tới {email}.',
+  'Keep this booking reference. Your tickets for {email} are saved under My Tickets on this device.':
+    'Hãy lưu lại mã tham chiếu này. Vé của {email} được lưu trong mục Vé của tôi trên thiết bị này.',
   'If a trip is cancelled or ends early, the amount you paid for the affected tickets is refunded to your original payment method. Passengers who miss check-in are not refunded.':
     'Nếu chuyến bị hủy hoặc kết thúc sớm, số tiền bạn đã trả cho các vé bị ảnh hưởng sẽ được hoàn về phương thức thanh toán ban đầu. Hành khách không check-in đúng hạn không được hoàn tiền.',
   'Please enter the buyer’s full name.': 'Vui lòng nhập họ tên người mua.',
@@ -1607,7 +1608,7 @@ export const vi: Record<string, string> = {
   'We couldn’t open the payment page. Nothing was charged, please try again.': 'Không mở được trang thanh toán. Bạn chưa bị trừ tiền, vui lòng thử lại.',
   'You will be redirected to VNPay. Your tickets are issued once the payment is confirmed.': 'Bạn sẽ được chuyển sang VNPay. Vé được phát hành sau khi thanh toán được xác nhận.',
   'We could not find your order': 'Không tìm thấy đơn hàng của bạn',
-  'Open your booking from the confirmation email, or start a new booking.': 'Hãy mở đặt chỗ từ email xác nhận, hoặc đặt vé mới.',
+  'Open your booking from My Tickets on the device you booked with, or start a new booking.': 'Hãy mở đặt chỗ trong mục Vé của tôi trên thiết bị đã đặt, hoặc đặt vé mới.',
   'Confirming your payment…': 'Đang xác nhận thanh toán…',
   'The bank has sent you back. We are waiting for the payment to be confirmed, please do not close this page.': 'Ngân hàng đã chuyển bạn về. Chúng tôi đang chờ xác nhận thanh toán, vui lòng không đóng trang này.',
   'Your payment is not confirmed yet': 'Thanh toán của bạn chưa được xác nhận',

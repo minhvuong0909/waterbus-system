@@ -46,7 +46,7 @@ export default function PaymentPage() {
       detail: returnLeg ? `${seatCodes(seats)} · ${seatCodes(returnLeg.seats)}` : seatCodes(seats),
     },
     { label: 'Details', detail: purchaser.fullName },
-    { label: 'Checkout', detail: 'Order Confirmed' },
+    { label: 'Checkout', detail: 'Awaiting payment' },
     { label: 'Payment', detail: 'Instant QR / Card' },
   ]
 

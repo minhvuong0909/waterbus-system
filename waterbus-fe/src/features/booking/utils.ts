@@ -277,10 +277,20 @@ export function pickJourney(
 
 const COLUMN_LETTERS = ['A', 'B', 'C', 'D'] as const
 
+/**
+ * Cabin of a seat from its class name. The seeded classes are Vietnamese ("Khoang trước VIP",
+ * "Boong ngoài trời", "Tiêu chuẩn"); English names are kept for older data. Accents are dropped
+ * so "truoc" and "trước" match alike.
+ */
 function seatCategoryOf(className: string | null): SeatCategory {
-  const name = (className ?? '').toLowerCase()
-  if (name.includes('front')) return 'front'
-  if (name.includes('outdoor') || name.includes('deck')) return 'outdoor'
+  const name = (className ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd')
+    .toLowerCase()
+  if (name.includes('front') || name.includes('khoang truoc') || name.includes('vip')) return 'front'
+  if (name.includes('outdoor') || name.includes('deck') || name.includes('boong') || name.includes('ngoai troi'))
+    return 'outdoor'
   return 'standard'
 }
 

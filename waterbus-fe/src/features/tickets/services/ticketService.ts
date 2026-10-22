@@ -77,7 +77,8 @@ export async function getTicketWallet(): Promise<TicketWallet> {
 export async function getTicket(id: string | null): Promise<Ticket> {
   if (!USE_MOCK) {
     const tickets = await liveTickets()
-    const ticket = id ? tickets.find((t) => t.id === id) : tickets[0]
+    // The success page selects the session snapshot id, not a backend ticket id: show the first ticket then.
+    const ticket = (id ? tickets.find((t) => t.id === id) : undefined) ?? tickets[0]
     if (!ticket) throw new ApiError(404, 'Chưa có vé đã phát cho đơn hàng trong phiên này.')
     return ticket
   }
