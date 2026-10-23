@@ -11,15 +11,9 @@ import {
   seatCodes,
   ticketFares,
 } from '../../features/booking/utils'
-import {
-  ConfirmationHero,
-  ConfirmationSteps,
-  QuickActions,
-  WhatsNext,
-} from '../../features/payment/components/ConfirmationParts'
+import { ConfirmationHero, ConfirmationSteps } from '../../features/payment/components/ConfirmationParts'
 import { getBookingQr } from '../../features/booking/services/bookingService'
 import { useOrderConfirmation } from '../../features/payment/hooks/useOrderConfirmation'
-import { getNextSteps } from '../../features/payment/services/paymentService'
 import BoardingPassCard from '../../features/tickets/components/BoardingPassCard'
 import { addBooking } from '../../features/tickets/ticketsSlice'
 import { bookingSnapshotId } from '../../features/tickets/utils'
@@ -39,7 +33,6 @@ export default function BookingSuccessPage() {
   const roundTrip = isRoundTrip(query)
   const { noTrip, loading, error, retry, trip, seats, purchaser, totals } = useBooking()
   const back = useBooking({ leg: 'return', enabled: roundTrip })
-  const steps = useFetch(getNextSteps)
   const { phase, detail } = useOrderConfirmation()
   const confirmed = phase === 'confirmed'
   const bookingId = detail?.bookings[0]?.bookingId
@@ -61,7 +54,7 @@ export default function BookingSuccessPage() {
         : Promise.resolve(null),
     [confirmed, returnBookingId],
   )
-  const failure = error ?? back.error ?? steps.error ?? qr.error ?? returnQr.error
+  const failure = error ?? back.error ?? qr.error ?? returnQr.error
 
   // The tickets of the confirmed order go into the wallet (names by seat, as the traveler typed them).
   useEffect(() => {
@@ -104,7 +97,6 @@ export default function BookingSuccessPage() {
         onRetry={() => {
           if (error) retry()
           if (back.error) back.retry()
-          if (steps.error) steps.retry()
           if (qr.error) qr.retry()
           if (returnQr.error) returnQr.retry()
         }}
@@ -132,7 +124,7 @@ export default function BookingSuccessPage() {
   }
 
   const returnReady = !roundTrip || (back.trip && back.totals && !returnQr.loading)
-  if (loading || back.loading || !trip || !totals || !steps.data || !confirmed || qr.loading || !returnReady) {
+  if (loading || back.loading || !trip || !totals || !confirmed || qr.loading || !returnReady) {
     return <PageLoader />
   }
 
@@ -140,13 +132,6 @@ export default function BookingSuccessPage() {
   const returnTickets = roundTrip ? (detail?.bookings[1]?.tickets ?? []) : []
   const returnReference = roundTrip ? detail?.bookings[1]?.bookingCode : undefined
   const reference = detail?.bookings[0]?.bookingCode ?? bookingReference(seats)
-  const pier = trip.originPierName
-  const nextSteps = steps.data.map((s) => ({
-    ...s,
-    title: s.title.replace('{pier}', pier),
-    description: s.description.replace('{pier}', pier),
-    chipLabel: s.chipLabel.replace('{pier}', pier),
-  }))
   // Names as the backend issued them; the typed names stand in for a mock order.
   const names =
     orderedSeats.length > 0
@@ -184,7 +169,7 @@ export default function BookingSuccessPage() {
             <BoardingPassCard
               pass={{
                 tripCode: trip.vesselCode,
-                lineName: t('Central Waterway Line'),
+                lineName: trip.lineLabel,
                 departTime: trip.departTime,
                 departPier: trip.originPierName,
                 arriveTime: trip.arriveTime,
@@ -211,7 +196,7 @@ export default function BookingSuccessPage() {
                 <BoardingPassCard
                   pass={{
                     tripCode: back.trip.vesselCode,
-                    lineName: t('Central Waterway Line'),
+                    lineName: back.trip.lineLabel,
                     departTime: back.trip.departTime,
                     departPier: back.trip.originPierName,
                     arriveTime: back.trip.arriveTime,
@@ -236,7 +221,6 @@ export default function BookingSuccessPage() {
             )}
           </div>
           <div className="space-y-space-md lg:col-span-5">
-            <QuickActions />
             {!roundTrip && (
               <Button
                 variant="secondary"
@@ -252,8 +236,6 @@ export default function BookingSuccessPage() {
           </div>
         </div>
       </div>
-
-      <WhatsNext steps={nextSteps} />
     </div>
   )
 }

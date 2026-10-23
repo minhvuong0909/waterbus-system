@@ -118,12 +118,8 @@ export default function BoardingPassCard({ pass }: { pass: BoardingPassData }) {
       <div className="relative border-t border-dashed border-outline-variant px-space-lg py-space-md">
         <span className="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-surface" />
         <span className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-surface" />
-        <div className="flex flex-col items-start justify-between gap-space-sm sm:flex-row sm:items-center">
-          <span className="flex items-center gap-2 text-xs text-on-surface-variant">
-            <Icon name="directions_boat" className="text-[16px]" />
-            {t('Saigon Central River Crossing')}
-          </span>
-          <div className="flex gap-space-sm">
+        <div className="flex justify-end">
+          <div className="flex flex-wrap gap-space-sm">
             <Link
               to={ROUTES.ticketDetail}
               className="inline-flex items-center gap-2 rounded-lg bg-surface-container px-4 py-2 text-xs font-semibold text-deep-river transition-colors hover:bg-surface-container-high"

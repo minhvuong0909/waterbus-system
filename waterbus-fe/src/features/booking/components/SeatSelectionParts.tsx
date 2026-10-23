@@ -188,7 +188,6 @@ export function BookingSummary({
           seatFeeVnd={totals.seatFeeVnd}
           includedText={t('Included (0 VND)')}
         />
-        <SummaryRow label={t('Harbor Fees & VAT')} value={t('Included')} accent />
       </div>
       <div className="mt-space-sm border-t border-surface-container">
         <TotalRow
@@ -229,11 +228,11 @@ export function BookingSummary({
             <span>{label}</span>
             <Icon name="arrow_forward" className="text-[20px]" />
           </button>
-          <p role="status" className="mt-2 text-center text-xs text-on-surface-variant">
-            {canBook
-              ? t('Please choose an available seat to continue.')
-              : t('Ticket sales are closed for this trip.')}
-          </p>
+          {!canBook && (
+            <p role="status" className="mt-2 text-center text-xs text-on-surface-variant">
+              {t('Ticket sales are closed for this trip.')}
+            </p>
+          )}
         </>
       )}
       <div className="mt-space-sm text-center text-xs">

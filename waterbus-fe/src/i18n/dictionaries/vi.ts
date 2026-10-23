@@ -72,7 +72,7 @@ export const vi: Record<string, string> = {
   'Thanh Đa Pier': 'Bến Thanh Đa',
   'Twilight Sunset on the Saigon River': 'Hoàng hôn trên sông Sài Gòn',
   'Eco-Corridor past Thanh Da Peninsula': 'Hành lang sinh thái qua bán đảo Thanh Đa',
-  'Pay securely online through VNPay and get your e-ticket right away.': 'Thanh toán an toàn trực tuyến qua VNPay và nhận vé điện tử ngay.',
+  'Pay securely online through VNPay and get your e-ticket right away.': 'Trả tiền qua VNPay, vé điện tử có ngay khi giao dịch được xác nhận.',
   'Track SWB-01 speed and live dock ETA.': 'Theo dõi tốc độ SWB-01 và giờ cập bến trực tiếp.',
   'Track vessel speed and live dock ETA.': 'Theo dõi tốc độ tàu và giờ cập bến trực tiếp.',
   'You can request a refund from this page with "Request Refund". The pier team confirms every request.': 'Bạn có thể yêu cầu hoàn tiền tại trang này bằng "Request Refund". Nhân viên bến sẽ xác nhận từng yêu cầu.',
@@ -315,7 +315,7 @@ export const vi: Record<string, string> = {
   '{amount} VND': '{amount} VND',
   '{arriveDistrict} • Arrival': '{arriveDistrict} • Đến',
   '{category} • Born {dob}': '{category} • Sinh {dob}',
-  '{code} departs {pier} across the river corridor.': '{code} rời {pier} băng qua hành lang sông.',
+  '{code} departs {pier} across the river corridor.': 'Tàu {code} rời {pier}.',
   '{count} Seats Available': 'Còn {count} chỗ trống',
   '{count} Seats Left': 'Còn {count} chỗ',
   '{dateLabel} • {departTime} Departure • {seat} (1 Passenger)':
@@ -523,7 +523,6 @@ export const vi: Record<string, string> = {
   'Central River Crossing': 'Chuyến qua sông trung tâm',
   'Central Riverfront ➔ Thu Thiem Curve': 'Bờ sông trung tâm ➔ Khúc quanh Thủ Thiêm',
   'Central Route': 'Tuyến trung tâm',
-  'Central Waterway Line': 'Tuyến thủy trung tâm',
   'Change Seat': 'Đổi ghế',
   'Change Trip': 'Đổi chuyến',
   'Change Trip / Seat': 'Đổi chuyến / ghế',
@@ -543,14 +542,14 @@ export const vi: Record<string, string> = {
   'Choose Seat': 'Chọn ghế',
   'Choose your mobile wallet to continue.': 'Chọn ví điện tử để tiếp tục.',
   'Choose your payment method to finalize your river crossing reservation and issue your ticket.':
-    'Chọn phương thức thanh toán để hoàn tất đặt chỗ qua sông và xuất vé.',
+    'Thanh toán qua VNPay để nhận vé điện tử.',
   'Choose Your Seat': 'Chọn ghế của bạn',
   'City Discovery': 'Khám phá thành phố',
   'City Moves Differently from the River': 'Thành phố chuyển động khác biệt từ dòng sông',
   Close: 'Đóng',
   'Colonial Wharves & Living Heritage': 'Bến cảng thuộc địa và di sản sống',
   'Comfortable indoor temperature with river views.':
-    'Nhiệt độ trong khoang dễ chịu, nhìn ra sông.',
+    'Khoang kín, có máy lạnh.',
   'Comfortable Seating': 'Ghế ngồi thoải mái',
   'Coming Up': 'Sắp tới',
   'Commuter Line': 'Tuyến đi lại hằng ngày',
@@ -1103,7 +1102,6 @@ export const vi: Record<string, string> = {
   'QR E-Ticket Boarding': 'Lên tàu bằng vé điện tử QR',
   'QR Payment': 'Thanh toán QR',
   'QR Ticket Boarding': 'Lên tàu bằng vé QR',
-  'Quick Actions': 'Thao tác nhanh',
   'Quick Links': 'Liên kết nhanh',
   'Quiet Work Zone': 'Khu làm việc yên tĩnh',
   'R{row}': 'H{row}',
@@ -1175,7 +1173,6 @@ export const vi: Record<string, string> = {
   'Route & Vessel': 'Tuyến và tàu',
   'Route Connected': 'Kết nối tuyến',
   'Routes & Lines': 'Tuyến và lộ trình',
-  'Saigon Central River Crossing': 'Chuyến qua sông Sài Gòn trung tâm',
   'Saigon River {line} • {code}': 'Sông Sài Gòn {line} • {code}',
   'Saigon River Central Corridor': 'Hành lang sông Sài Gòn trung tâm',
   'Saigon River Corridor #1': 'Hành lang sông Sài Gòn số 1',
@@ -1202,10 +1199,9 @@ export const vi: Record<string, string> = {
   'Scheduled 08:42': 'Theo lịch 08:42',
   'Scheduled Crossing': 'Thời gian qua sông',
   'Scheduled crossing: {durationMins} minutes': 'Thời gian qua sông: {durationMins} phút',
-  'Scheduled docking at {pier}.': 'Dự kiến cập bến {pier}.',
+  'Scheduled docking at {pier}.': 'Dự kiến đến {pier}.',
   'scheduled for today': 'trong hôm nay',
   'Scheduled upcoming river voyages': 'Các chuyến sông sắp tới đã lên lịch',
-  'Seamless Transit': 'Di chuyển liền mạch',
   Search: 'Tìm',
   'Search journey': 'Tìm hành trình',
   'Search Journey': 'Tìm hành trình',
@@ -1249,7 +1245,7 @@ export const vi: Record<string, string> = {
     'Chọn ghế bạn thích trong khoang toàn cảnh có điều hòa.',
   'Select your preferred seat on the next screen': 'Chọn ghế bạn thích ở màn hình kế tiếp',
   'Select your river crossing across the Saigon River transit corridor.':
-    'Chọn chuyến qua sông trên hành lang vận tải sông Sài Gòn.',
+    'Chọn chuyến phù hợp với giờ bạn muốn đi.',
   'Select your seat on the next step': 'Chọn ghế ở bước kế tiếp',
   Selected: 'Đã chọn',
   'Selected Seat': 'Ghế đã chọn',
@@ -1439,7 +1435,7 @@ export const vi: Record<string, string> = {
   'VAT included': 'Đã gồm VAT',
   'Verify & Board': 'Kiểm tra và lên tàu',
   'Verify your departure details, pier boarding gate, and vessel amenities before choosing your seat.':
-    'Kiểm tra thông tin khởi hành, cổng lên tàu tại bến và tiện nghi trên tàu trước khi chọn ghế.',
+    'Kiểm tra giờ chạy, bến đi, bến đến và tiện nghi trên tàu trước khi chọn ghế.',
   Vessel: 'Tàu',
   'Vessel {vessel} is operating on schedule.': 'Tàu {vessel} đang chạy đúng lịch.',
   'Vessel boarding begins for ticketed passengers.': 'Bắt đầu cho hành khách có vé lên tàu.',
@@ -1510,7 +1506,6 @@ export const vi: Record<string, string> = {
     'Chúng tôi chưa gửi được yêu cầu. Vui lòng thử lại.',
   Wed: 'T4',
   'Welcome credit for first-time riders': 'Tín dụng chào mừng cho hành khách lần đầu',
-  'What Happens Next?': 'Tiếp theo sẽ thế nào?',
   'Where historic shipyard drydocks meet Saigon’s cutting-edge riverside skyline. Gaze portside as the catamaran glides past the waterfront promenade.':
     'Nơi những ụ tàu lịch sử gặp đường chân trời ven sông hiện đại của Sài Gòn. Hãy ngắm mạn trái khi catamaran lướt qua lối đi dạo ven sông.',
   'Where the crossing began: the French colonial Customs Building stands watch over the historic riverfront wharf.':
@@ -1526,6 +1521,8 @@ export const vi: Record<string, string> = {
   'You can look up your river journey using your booking code.':
     'Bạn có thể tra cứu hành trình bằng mã đặt chỗ.',
   'Your Journey in Real Time': 'Hành trình của bạn theo thời gian thực',
+  'Your e-tickets are ready. Show the QR code to staff when you board.':
+    'Vé điện tử đã sẵn sàng. Xuất trình mã QR cho nhân viên khi lên tàu.',
   'Your Journey Is Confirmed': 'Hành trình của bạn đã được xác nhận',
   'Your passenger information is protected by 256-bit waterway security encryption.':
     'Thông tin hành khách của bạn được bảo vệ bằng mã hóa bảo mật 256-bit.',
@@ -1533,8 +1530,6 @@ export const vi: Record<string, string> = {
     'Vé QR của bạn luôn xem được trực tuyến cho đến lúc lên tàu. Chỉ cần đưa màn hình cho máy quét ở cổng bến.',
   'Your QR ticket will be available after successful payment.':
     'Vé QR sẽ có sau khi thanh toán thành công.',
-  'Your river crossing is set. Sit back, take in the Saigon skyline, and enjoy a quiet, smooth ride across the central corridor.':
-    'Chuyến qua sông của bạn đã sẵn sàng. Hãy thư giãn, ngắm đường chân trời Sài Gòn và tận hưởng chuyến đi êm ái qua hành lang trung tâm.',
   'Your River Journey': 'Hành trình trên sông của bạn',
   'Your selected seat remains reserved while you complete checkout.':
     'Ghế bạn chọn vẫn được giữ trong lúc bạn xác nhận đặt chỗ.',
@@ -1835,4 +1830,7 @@ export const vi: Record<string, string> = {
   'Edit details': 'Sửa thông tin',
   'No trip selected yet': 'Bạn chưa chọn chuyến',
   'Choose a trip first, then you can pick your seats and book.': 'Hãy chọn một chuyến trước, sau đó chọn ghế và đặt vé.',
+  'The person who pays for this order': 'Người thanh toán đơn hàng này',
+  'Buyer email': 'Email người mua',
+  'Each passenger gets a ticket in their own name.': 'Mỗi hành khách nhận một vé đứng tên mình.',
 }

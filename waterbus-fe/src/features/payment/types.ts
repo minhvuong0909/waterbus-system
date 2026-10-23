@@ -9,11 +9,3 @@ export interface VnPayReturnResult {
   responseCode: string
   message: string
 }
-
-export interface NextStep {
-  number: string
-  title: string
-  description: string
-  chipIcon: string
-  chipLabel: string
-}

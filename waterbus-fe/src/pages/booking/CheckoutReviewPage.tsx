@@ -49,9 +49,9 @@ export default function CheckoutReviewPage() {
   const steps: BookingStep[] = [
     { label: 'Trip', detail: returnTrip ? t('Round trip') : trip.lineLabel },
     { label: 'Seat', detail: t('{count} Seats Selected', { count: seatCount }) },
-    { label: 'Details', detail: purchaser.fullName },
+    { label: 'Passengers', detail: purchaser.fullName },
     { label: 'Checkout', detail: 'Review Order' },
-    { label: 'Payment', detail: 'Instant QR / Card' },
+    { label: 'Payment', detail: 'VNPay' },
   ]
 
   return (

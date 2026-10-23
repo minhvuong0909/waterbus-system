@@ -47,9 +47,9 @@ export default function PaymentPage() {
       label: 'Seat',
       detail: returnLeg ? `${seatCodes(seats)} · ${seatCodes(returnLeg.seats)}` : seatCodes(seats),
     },
-    { label: 'Details', detail: purchaser.fullName },
+    { label: 'Passengers', detail: purchaser.fullName },
     { label: 'Checkout', detail: 'Awaiting payment' },
-    { label: 'Payment', detail: 'Instant QR / Card' },
+    { label: 'Payment', detail: 'VNPay' },
   ]
 
   return (
@@ -94,7 +94,6 @@ export default function PaymentPage() {
       <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="lg:col-span-8">
           <PaymentMethodPanel
-            tripCode={trip.vesselCode}
             amountVnd={totals.totalVnd}
             reference={hold?.bookingCodes.join(', ') || bookingReference(seats)}
           />

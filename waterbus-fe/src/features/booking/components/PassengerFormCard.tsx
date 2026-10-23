@@ -196,8 +196,8 @@ export default function PassengerFormCard({
           <BookingCard className="p-space-lg md:p-space-xl">
             <SectionTitle
               icon="contact_mail"
-              title={t('Buyer & E-Ticket Recipient')}
-              subtitle={t('The buyer pays for the order and receives the e-tickets and notifications')}
+              title={t('Buyer')}
+              subtitle={t('The person who pays for this order')}
             />
             <div className="grid grid-cols-1 gap-space-md md:grid-cols-2">
               <TextField
@@ -244,8 +244,8 @@ export default function PassengerFormCard({
 
           <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-space-lg py-space-md text-xs text-on-surface-variant shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
             <span className="flex items-center gap-2">
-              <Icon name="lock" className="text-[18px] text-teal-flow" />
-              {t('Your passenger information is protected by 256-bit waterway security encryption.')}
+              <Icon name="info" className="text-[18px] text-teal-flow" />
+              {t('Each passenger gets a ticket in their own name.')}
             </span>
             <Link
               to={ROUTES.seatSelection}

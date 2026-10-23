@@ -30,6 +30,8 @@ export function SeatFeeRow({
   seatFeeVnd: number
   includedText: string
 }) {
+  // With backend prices each seat already costs its class fare: a "0 VND, included" line says nothing.
+  if (seatFeeVnd <= 0) return null
   return (
     <SummaryRow
       label={label}
