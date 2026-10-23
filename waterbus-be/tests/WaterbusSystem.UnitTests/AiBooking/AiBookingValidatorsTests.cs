@@ -56,6 +56,22 @@ public class AiBookingValidatorsTests
         result.IsValid.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("vi", true)]
+    [InlineData("en", true)]
+    [InlineData("fr", false)]
+    public void ChatRequestValidator_OnlySupportsWebsiteLanguages(string? languageCode, bool valid)
+    {
+        var result = _chatRequestValidator.Validate(new AiBookingChatRequest
+        {
+            Message = "Find trips",
+            LanguageCode = languageCode
+        });
+
+        result.IsValid.Should().Be(valid);
+    }
+
     [Fact]
     public void ChatRequestValidator_InvalidServiceType_ShouldFail()
     {

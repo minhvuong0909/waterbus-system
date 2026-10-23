@@ -14,6 +14,10 @@ public class AiBookingChatRequestValidator : AbstractValidator<AiBookingChatRequ
             .NotEmpty().WithMessage("Nội dung tin nhắn không được để trống.")
             .MaximumLength(1000).WithMessage("Tin nhắn vượt quá độ dài tối đa 1000 ký tự.");
 
+        RuleFor(x => x.LanguageCode)
+            .Must(code => code is null or "vi" or "en")
+            .WithMessage("Ngôn ngữ chỉ được là 'vi' hoặc 'en'.");
+
         RuleFor(x => x.History).NotNull().Must(history => history is { Count: <= 8 })
             .WithMessage("Lịch sử hội thoại tối đa 8 lượt.");
         RuleForEach(x => x.History).ChildRules(turn =>

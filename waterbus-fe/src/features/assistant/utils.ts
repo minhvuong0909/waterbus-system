@@ -35,13 +35,14 @@ export function cardDeparture(iso: string, now = new Date()): { time: string; da
  * the trip search sent 0 (the real fares belong to each seat class).
  */
 export function cardPrice(card: Pick<AssistantApiCard, 'basePrice' | 'isPriceVerified' | 'isDevelopmentPreview'>): string | null {
-  if (card.basePrice === null || card.basePrice <= 0) return null
+  if (card.basePrice === null || card.basePrice < 0) return null
+  if (card.basePrice === 0 && !card.isDevelopmentPreview) return null
   if (!card.isPriceVerified && !card.isDevelopmentPreview) return null
   return formatVnd(card.basePrice)
 }
 
 const CHOICE =
-  /^(?:chọn|choose|pick)\s+(?:chuyến\s+|trip\s+)?(a|b|c|d|e|f|g|h|i|j|10|[1-9]|đầu tiên|thứ hai|thứ ba|này|first|second|third|this)\s*[.!]?$/i
+  /^(?:chọn|choose|pick|select)\s+(?:chuyến\s+|trip\s+)?(a|b|c|d|e|f|g|h|i|j|10|[1-9]|đầu tiên|thứ hai|thứ ba|này|first|second|third|this)\s*[.!]?$/i
 
 /**
  * A typed choice such as "chọn chuyến A", "chọn 2" or "choose trip B": the index of the card, -1

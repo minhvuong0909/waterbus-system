@@ -11,6 +11,7 @@ export interface AssistantReply {
 export interface AssistantSearchContext {
   departureStationName?: string | null
   arrivalStationName?: string | null
+  restrictSingleStationToRequestedDirection?: boolean
   departureDate?: string | null
   earliestDepartureTime?: string | null
   latestDepartureTime?: string | null
@@ -18,6 +19,9 @@ export interface AssistantSearchContext {
   latestArrivalTime?: string | null
   tripType?: string | null
   passengerCount?: number | null
+  minimumAvailableSeats?: number | null
+  priceGreaterThan?: number | null
+  priceLessThan?: number | null
 }
 
 export interface ChatMessage {

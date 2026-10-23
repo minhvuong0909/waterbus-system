@@ -94,6 +94,33 @@ public class WaterbusBookingPluginTests
     }
 
     [Fact]
+    public async Task SearchTripsAsync_PriceAndSeatFilters_AreForwardedWithoutInheritingOldSearch()
+    {
+        var plugin = new WaterbusBookingPlugin(_tripSearchToolMock.Object, _bookingLinkToolMock.Object,
+            previousSearch: new TripSearchCriteria { DepartureStationName = "Bạch Đằng", PassengerCount = 2 });
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+
+        await plugin.SearchTripsAsync(priceLessThan: 50000m, minimumAvailableSeats: 1);
+
+        plugin.LatestCriteria.Should().NotBeNull();
+        plugin.LatestCriteria!.DepartureStationName.Should().BeNull();
+        plugin.LatestCriteria.PassengerCount.Should().BeNull();
+        plugin.LatestCriteria.PriceLessThan.Should().Be(50000m);
+        plugin.LatestCriteria.MinimumAvailableSeats.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SearchTripsAsync_NegativePrice_DoesNotCallSearchTool()
+    {
+        var result = await _plugin.SearchTripsAsync(priceGreaterThan: -1m);
+
+        result.Should().Contain("không hợp lệ");
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task SearchTripsAsync_InvalidTime_DoesNotCallSearchTool()
     {
         var result = await _plugin.SearchTripsAsync(preferredDepartureTime: "4pm");

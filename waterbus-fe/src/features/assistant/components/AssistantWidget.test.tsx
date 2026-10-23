@@ -1,18 +1,21 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { store } from '../../../store/store'
 import { ROUTES } from '../../../routes/routes'
 import { askAssistant } from '../services/assistantService'
 import AssistantWidget from './AssistantWidget'
+import { setActiveLocale } from '../../../i18n/translate'
 
 vi.mock('../services/assistantService', () => ({ askAssistant: vi.fn() }))
 
 describe('AssistantWidget live card navigation', () => {
+  beforeEach(() => setActiveLocale('vi'))
   afterEach(() => {
     cleanup()
     vi.clearAllMocks()
+    setActiveLocale('en')
   })
 
   it('uses the card trip and requested stations to open the existing trip flow', async () => {
@@ -162,5 +165,39 @@ describe('AssistantWidget live card navigation', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Ask the assistant' }), { target: { value: 'Ngày mai' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     await waitFor(() => expect(askAssistant).toHaveBeenLastCalledWith('Ngày mai', [], null))
+  })
+
+  it('confirms a typed English card choice in English', async () => {
+    setActiveLocale('en')
+    vi.mocked(askAssistant).mockResolvedValue({
+      text: 'Found one trip.',
+      apiCards: [{
+        tripId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        boardingStationId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        disembarkingStationId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        routeName: 'Bạch Đằng - Bình An',
+        departureStationName: 'Bạch Đằng',
+        arrivalStationName: 'Bình An',
+        departureTime: '2026-10-20T01:00:00Z',
+        availableSeatsCount: 12,
+        basePrice: 0,
+        isPriceVerified: false,
+        bookingUrl: null,
+        isDevelopmentPreview: true,
+      }],
+    })
+    render(<Provider store={store}><MemoryRouter><AssistantWidget /></MemoryRouter></Provider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Open assistant' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ask the assistant' }), {
+      target: { value: 'Show all trips' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await screen.findByRole('button', { name: 'Choose trip A' })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ask the assistant' }), {
+      target: { value: 'select trip A' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(screen.getByText(/This is not a booking yet/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Continue to booking' })).toBeTruthy()
   })
 })

@@ -16,6 +16,9 @@ public record AiBookingChatRequest
     /// <summary>Tiêu chí từ lần tìm trước do client gửi lại; chỉ dùng khi khách yêu cầu sửa tìm kiếm cũ.</summary>
     public TripSearchCriteria? SearchContext { get; init; }
 
+    /// <summary>Ngôn ngữ giao diện của khách: "vi" hoặc "en". Mặc định "vi" cho client cũ.</summary>
+    public string? LanguageCode { get; init; }
+
     /// <summary>
     /// Mã phiên hội thoại (tùy chọn) để hỗ trợ ngữ cảnh nhiều lượt (nếu có).
     /// </summary>
