@@ -11,6 +11,7 @@ import { useDocumentTitle } from '../../hooks'
 import { useAppSelector } from '../../store/hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
+import NoTripSelected from '../../features/booking/components/NoTripSelected'
 
 export default function PaymentPage() {
   useDocumentTitle('Complete Your Payment')
@@ -20,6 +21,7 @@ export default function PaymentPage() {
   const back = useBooking({ leg: 'return', enabled: roundTrip })
   const { trip, seats, purchaser } = outbound
 
+  if (outbound.noTrip) return <NoTripSelected />
   const error = outbound.error ?? back.error
   if (error) {
     return (

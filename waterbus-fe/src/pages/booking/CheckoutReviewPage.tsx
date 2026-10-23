@@ -16,6 +16,7 @@ import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { useAppSelector } from '../../store/hooks'
 import { t } from '../../i18n'
+import NoTripSelected from '../../features/booking/components/NoTripSelected'
 
 export default function CheckoutReviewPage() {
   useDocumentTitle('Review Your Booking')
@@ -25,6 +26,7 @@ export default function CheckoutReviewPage() {
   const { trip, seats, seatIds, purchaser, passengers, termsAccepted, setTerms } = outbound
   const { submit, busy, failure } = useSubmitCheckout()
 
+  if (outbound.noTrip) return <NoTripSelected />
   const error = outbound.error ?? back.error
   if (error) {
     return (

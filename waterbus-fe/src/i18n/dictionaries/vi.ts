@@ -1831,4 +1831,8 @@ export const vi: Record<string, string> = {
   'Deactivate boat': 'Ngừng hoạt động tàu',
   'Deactivate {name}? Passengers will no longer see this station.': 'Ngừng hoạt động {name}? Bến sẽ không còn được hiển thị cho khách.',
   'Deactivate {name}? The boat will no longer be listed as active.': 'Ngừng hoạt động {name}? Tàu sẽ không còn trong danh sách đang hoạt động.',
+  'These details were sent with your order and can no longer be edited here.': 'Thông tin này đã gửi kèm đơn hàng nên không sửa trực tiếp được.',
+  'Edit details': 'Sửa thông tin',
+  'No trip selected yet': 'Bạn chưa chọn chuyến',
+  'Choose a trip first, then you can pick your seats and book.': 'Hãy chọn một chuyến trước, sau đó chọn ghế và đặt vé.',
 }

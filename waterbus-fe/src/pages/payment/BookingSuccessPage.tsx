@@ -27,6 +27,7 @@ import { useDocumentTitle, useFetch } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { t } from '../../i18n'
+import NoTripSelected from '../../features/booking/components/NoTripSelected'
 
 /** Shown only once the backend reports the order as paid (BR-PAY-01), never from the browser alone. */
 export default function BookingSuccessPage() {
@@ -36,7 +37,7 @@ export default function BookingSuccessPage() {
   const { updateQuery } = useSearchQuery()
   const { query, selectedTrip, passengers, returnLeg: returnState } = useAppSelector((s) => s.booking)
   const roundTrip = isRoundTrip(query)
-  const { loading, error, retry, trip, seats, purchaser, totals } = useBooking()
+  const { noTrip, loading, error, retry, trip, seats, purchaser, totals } = useBooking()
   const back = useBooking({ leg: 'return', enabled: roundTrip })
   const steps = useFetch(getNextSteps)
   const { phase, detail } = useOrderConfirmation()
@@ -96,6 +97,7 @@ export default function BookingSuccessPage() {
     }
   }, [confirmed, trip, seats, selectedTrip, query, passengers, dispatch, roundTrip, back.trip, back.seats, returnState])
 
+  if (noTrip) return <NoTripSelected />
   if (failure) {
     return (
       <ErrorState

@@ -4,7 +4,6 @@ import { USE_MOCK } from '../../constant/env'
 import { DEFAULT_PURCHASER } from '../../mocks/booking'
 import { DEFAULT_SEARCH_QUERY } from '../../mocks/tripSearch'
 import type { SearchQuery, Trip } from '../trips/types'
-import type { PaymentMethodId } from '../payment/types'
 import { loadBooking } from './bookingStorage'
 import { MAX_SEATS_PER_BOOKING } from './utils'
 import type { BookingHold, Journey, PurchaserForm, SeatPassengerForm } from './types'
@@ -62,7 +61,6 @@ export interface BookingState {
    */
   journeys: { outbound?: Journey; return?: Journey }
   termsAccepted: boolean
-  paymentMethod: PaymentMethodId
   /** Set once the checkout is created; the seats stay held until it ends or is paid. */
   hold: BookingHold | null
   /** The latest order, read from the backend by id for the payment result. */
@@ -96,7 +94,6 @@ const initialState: BookingState = {
   journeys: {},
   // Consent must be given on purpose, never pre-ticked.
   termsAccepted: false,
-  paymentMethod: 'qr',
   hold: null,
   order: null,
   ...loadBooking(),
@@ -289,9 +286,6 @@ const bookingSlice = createSlice({
     setTermsAccepted(state, action: PayloadAction<boolean>) {
       state.termsAccepted = action.payload
     },
-    setPaymentMethod(state, action: PayloadAction<PaymentMethodId>) {
-      state.paymentMethod = action.payload
-    },
   },
 })
 
@@ -309,7 +303,6 @@ export const {
   copyPassengersToReturn,
   setJourney,
   setTermsAccepted,
-  setPaymentMethod,
   holdStarted,
   holdSubmitted,
   holdCleared,

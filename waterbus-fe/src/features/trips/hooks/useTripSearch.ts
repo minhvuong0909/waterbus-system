@@ -122,5 +122,12 @@ export function useTripDetail(leg: Leg = 'outbound') {
   const booking = useAppSelector((s) => s.booking)
   const view = useMemo(() => legView(booking, leg), [booking, leg])
   const detail = useFetch(() => getTripDetail(view.trip, view.tripId, view.query), [leg, view.tripId])
-  return { detail: detail.data, loading: detail.loading, error: detail.error, retry: detail.retry }
+  return {
+    detail: detail.data,
+    loading: detail.loading,
+    error: detail.error,
+    retry: detail.retry,
+    /** No trip chosen in this session (the page was opened directly). */
+    noTrip: !view.tripId,
+  }
 }

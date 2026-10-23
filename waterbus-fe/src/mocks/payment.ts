@@ -1,23 +1,4 @@
-import type { Ewallet, NextStep, PaymentMethod } from '../features/payment/types'
-
-export const PAYMENT_METHODS: PaymentMethod[] = [
-  {
-    id: 'qr',
-    icon: 'qr_code_scanner',
-    title: 'QR Payment',
-    description: 'Instant bank or e-wallet scan',
-  },
-  { id: 'card', icon: 'credit_card', title: 'Bank Card', description: 'Credit or debit card' },
-  {
-    id: 'wallet',
-    icon: 'account_balance_wallet',
-    title: 'E-Wallet',
-    description: 'Digital mobile wallet',
-  },
-]
-
-// The backend only has the VNPay gateway; MoMo is not part of phase 1.
-export const EWALLETS: Ewallet[] = [{ id: 'vnpay', name: 'VNPay', note: 'Pay via VNPay QR or app' }]
+import type { NextStep } from '../features/payment/types'
 
 // {pier} is replaced with the origin pier name by the page.
 export const NEXT_STEPS: NextStep[] = [
