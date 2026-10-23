@@ -137,7 +137,8 @@ export function toTrip(dto: TripDto): Trip {
     band: timeBandOf(depart.getHours()),
     amenities: [],
     fareVnd: dto.basePrice,
-    fareLabel: kind === 'sightseeing' ? t('Experience Fare') : t('Standard Fare'),
+    // basePrice is the lowest fare of the trip type; seats of other classes cost more.
+    fareLabel: t('Fares from'),
   }
 }
 

@@ -95,7 +95,8 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
           <div>
             <div className="flex items-center justify-between">
               <span className="text-body-sm font-semibold uppercase tracking-wider text-on-surface-variant">
-                {t('Transit Fare')}
+                {/* Lowest fare of the trip (BR-FARE-01): seats of other classes cost more. */}
+                {t('Fares from')}
               </span>
               <span className="rounded bg-secondary-container px-space-xs py-0.5 text-body-sm font-bold text-teal-flow">
                 {t('1 Pax')}
