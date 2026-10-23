@@ -189,6 +189,8 @@ public class ApplicationDbContextInitializer
             await _context.SaveChangesAsync();
         }
 
+        await AssignDemoCaptainAsync();
+
         // 7. Seed FareRule
         if (!await _context.FareRules.AnyAsync())
         {
@@ -360,6 +362,23 @@ public class ApplicationDbContextInitializer
         {
             await _context.SaveChangesAsync();
         }
+    }
+
+    /// <summary>
+    /// Gán thuyền trưởng mặc định cho tàu mẫu SWB-01 để Cổng thuyền trưởng (GPS, bắt đầu/cập bến, SOS) dùng được ngay.
+    /// Chỉ gán khi tàu chưa có thuyền trưởng, không ghi đè phân công Admin đã đặt.
+    /// </summary>
+    private async Task AssignDemoCaptainAsync()
+    {
+        var boat = await _context.Boats.FirstOrDefaultAsync(b => b.Code == "SWB-01" && b.CaptainUserId == null);
+        var captain = await _userManager.FindByEmailAsync("captain@waterbus.vn");
+        if (boat is null || captain is null)
+        {
+            return;
+        }
+
+        boat.CaptainUserId = captain.Id;
+        await _context.SaveChangesAsync();
     }
 
     private async Task SeedUserAsync(string email, string fullName, string password, string role)
