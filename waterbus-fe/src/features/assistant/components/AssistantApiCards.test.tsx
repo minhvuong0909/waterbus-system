@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AssistantApiCard } from '../types'
 import AssistantApiCards from './AssistantApiCards'
+import { setActiveLocale } from '../../../i18n/translate'
 
 const card: AssistantApiCard = {
   tripId: 'trip-id',
@@ -23,7 +24,7 @@ const renderCards = (cards: AssistantApiCard[], onSelect = vi.fn(), selectedId: 
   render(<MemoryRouter><AssistantApiCards cards={cards} onSelect={onSelect} selectedId={selectedId} /></MemoryRouter>)
 
 describe('AssistantApiCards', () => {
-  afterEach(cleanup)
+  afterEach(() => { cleanup(); setActiveLocale('en') })
 
   it('shows the departure in Vietnam time, the seats left and opens the chosen trip', () => {
     const onSelect = vi.fn()
@@ -35,10 +36,12 @@ describe('AssistantApiCards', () => {
     expect(onSelect).toHaveBeenCalledWith(card)
   })
 
-  it('never shows the 0 the trip search sends as a fare', () => {
+  it('shows the API zero fare only in the internal preview', () => {
     renderCards([card])
-
-    expect(screen.queryByText(/\b0 VND|0 ₫/)).toBeNull()
+    expect(screen.getByText('0 VND')).toBeTruthy()
+    cleanup()
+    renderCards([{ ...card, isDevelopmentPreview: false }])
+    expect(screen.queryByText('0 VND')).toBeNull()
     expect(screen.getByText('Price shown when you choose a seat')).toBeTruthy()
   })
 
@@ -63,5 +66,13 @@ describe('AssistantApiCards', () => {
     renderCards([{ ...card, boardingStationId: null }])
 
     expect(screen.queryByRole('button', { name: 'Choose trip A' })).toBeNull()
+  })
+
+  it('shows English seat and action labels in the English interface', () => {
+    setActiveLocale('en')
+    render(<MemoryRouter><AssistantApiCards cards={[card]} onSelect={vi.fn()} /></MemoryRouter>)
+
+    expect(screen.getByText('12 Seats Left')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Choose trip A' })).toBeTruthy()
   })
 })

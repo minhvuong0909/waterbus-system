@@ -143,7 +143,11 @@ public sealed class AiBookingIntegrationAdaptersTests
         var sender = MockSender(20000m);
         var tool = VerifiedSearchTool(sender.Object);
 
-        var result = await tool.SearchTripsAsync(new TripSearchCriteria { ArrivalStationName = "Bình An" });
+        var result = await tool.SearchTripsAsync(new TripSearchCriteria
+        {
+            ArrivalStationName = "Bình An",
+            RestrictSingleStationToRequestedDirection = true
+        });
 
         result.Trips.Should().ContainSingle();
         result.Trips[0].BoardingStationId.Should().Be(DepartureId);
@@ -151,6 +155,29 @@ public sealed class AiBookingIntegrationAdaptersTests
         sender.Verify(s => s.Send(It.Is<SearchTripsQuery>(q =>
             q.DepartureStationId == null && q.ArrivalStationId == ArrivalId),
             It.IsAny<CancellationToken>()), Times.Once);
+        sender.Verify(s => s.Send(It.Is<SearchTripsQuery>(q =>
+            q.DepartureStationId == ArrivalId && q.ArrivalStationId == null),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SearchTool_ExplicitDeparture_DoesNotSearchArrivals()
+    {
+        var sender = MockSender(20000m);
+        var tool = VerifiedSearchTool(sender.Object);
+
+        await tool.SearchTripsAsync(new TripSearchCriteria
+        {
+            DepartureStationName = "Bạch Đằng",
+            RestrictSingleStationToRequestedDirection = true
+        });
+
+        sender.Verify(s => s.Send(It.Is<SearchTripsQuery>(q =>
+            q.DepartureStationId == DepartureId && q.ArrivalStationId == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+        sender.Verify(s => s.Send(It.Is<SearchTripsQuery>(q =>
+            q.DepartureStationId == null && q.ArrivalStationId == DepartureId),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -240,6 +267,47 @@ public sealed class AiBookingIntegrationAdaptersTests
 
         result.Trips.Should().HaveCount(2);
         result.Trips.Select(t => t.TripId).Should().ContainInOrder(trips[2].Id, trips[1].Id);
+    }
+
+    [Fact]
+    public async Task SearchTool_FiltersApiPriceAndFreeSeats_WithoutChangingTripSearchQuery()
+    {
+        var sender = MockSender(0m);
+        var future = DateTimeOffset.UtcNow.AddDays(1);
+        var prices = new[] { 0m, 30000m, 50000m, 70000m };
+        var trips = prices.Select((price, index) => new TripDto(Guid.NewGuid(), "Tuyến test",
+            "Bạch Đằng", "Bình An", future.AddHours(index), future.AddHours(index + 1),
+            60, "Commuter", price, index == 1 ? 0 : 12,
+            new List<TripStopDto> { new(DepartureId, "Bạch Đằng", 1), new(ArrivalId, "Bình An", 2) })).ToList();
+        sender.Setup(s => s.Send(It.IsAny<SearchTripsQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(trips);
+        var tool = new MediatRTripSearchTool(sender.Object,
+            Options.Create(new AiBookingIntegrationOptions { EnableUnverifiedTripCardsForDevelopment = true }),
+            Environment("Development"));
+
+        var under = await tool.SearchTripsAsync(new TripSearchCriteria { PriceLessThan = 50000m,
+            MinimumAvailableSeats = 1 });
+        var over = await tool.SearchTripsAsync(new TripSearchCriteria { PriceGreaterThan = 50000m });
+
+        under.Trips.Should().ContainSingle().Which.BasePrice.Should().Be(0m);
+        over.Trips.Should().ContainSingle().Which.BasePrice.Should().Be(70000m);
+    }
+
+    [Fact]
+    public async Task SearchTool_Unfiltered_ReturnsEveryUpcomingTripInsteadOfOnlyTen()
+    {
+        var sender = MockSender(20000m);
+        var future = DateTimeOffset.UtcNow.AddDays(1);
+        var trips = Enumerable.Range(0, 12).Select(index => new TripDto(Guid.NewGuid(), "Tuyến test",
+            "Bạch Đằng", "Bình An", future.AddMinutes(index), future.AddHours(1).AddMinutes(index),
+            60, "Commuter", 20000m, 12,
+            new List<TripStopDto> { new(DepartureId, "Bạch Đằng", 1), new(ArrivalId, "Bình An", 2) })).ToList();
+        sender.Setup(s => s.Send(It.IsAny<SearchTripsQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(trips);
+
+        var result = await VerifiedSearchTool(sender.Object).SearchTripsAsync(new TripSearchCriteria());
+
+        result.Trips.Should().HaveCount(12);
     }
 
     [Fact]
