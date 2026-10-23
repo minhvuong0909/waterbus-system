@@ -1609,7 +1609,6 @@ export const vi: Record<string, string> = {
   'Passenger {number}': 'Hành khách {number}',
   'Who will travel on this seat': 'Người sẽ ngồi ở ghế này',
   'Optional': 'Không bắt buộc',
-  'Same as the buyer': 'Giống người mua',
   'Buyer & E-Ticket Recipient': 'Người mua và nơi nhận vé điện tử',
   'The buyer pays for the order and receives the e-tickets and notifications': 'Người mua thanh toán đơn hàng và nhận vé điện tử cùng thông báo',
   'One ticket per passenger, issued in each passenger’s name': 'Mỗi hành khách một vé, phát hành theo tên từng hành khách',
@@ -1831,6 +1830,9 @@ export const vi: Record<string, string> = {
   'No trip selected yet': 'Bạn chưa chọn chuyến',
   'Choose a trip first, then you can pick your seats and book.': 'Hãy chọn một chuyến trước, sau đó chọn ghế và đặt vé.',
   'The person who pays for this order': 'Người thanh toán đơn hàng này',
+  'I am also a passenger': 'Tôi cũng là hành khách',
+  '{name} (the buyer)': '{name} (người mua)',
+  'Filled in from the buyer details': 'Lấy theo thông tin người mua',
   'Buyer email': 'Email người mua',
   'Each passenger gets a ticket in their own name.': 'Mỗi hành khách nhận một vé đứng tên mình.',
 }

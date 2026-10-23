@@ -53,6 +53,11 @@ export interface BookingState {
   purchaser: PurchaserForm
   /** Who sits on each seat, by seat id (BR-COM-06). A seat without an entry has no name yet. */
   passengers: Record<string, SeatPassengerForm>
+  /**
+   * The buyer travels too: the first chosen seat carries the buyer's details. The buyer may also
+   * book for someone else (BR-COM-05), then every passenger is typed in.
+   */
+  buyerTravels: boolean
   /** Used only when `query.tripType` is `round-trip`. */
   returnLeg: ReturnLegState
   /**
@@ -90,6 +95,7 @@ const initialState: BookingState = {
   seatIds: [],
   purchaser: USE_MOCK ? DEFAULT_PURCHASER : EMPTY_PURCHASER,
   passengers: {},
+  buyerTravels: true,
   returnLeg: EMPTY_RETURN_LEG,
   journeys: {},
   // Consent must be given on purpose, never pre-ticked.
@@ -107,6 +113,16 @@ function toggle(seatIds: string[], passengers: Record<string, SeatPassengerForm>
   }
   return seatIds.length < MAX_SEATS_PER_BOOKING ? [...seatIds, id] : seatIds
 }
+
+/** Copies the buyer onto the first chosen seat while the buyer travels too. */
+function syncBuyerSeat(state: BookingState) {
+  const seatId = state.seatIds[0]
+  if (!state.buyerTravels || !seatId) return
+  const { fullName, email, phone } = state.purchaser
+  state.passengers[seatId] = { fullName, email, phone }
+}
+// A booking saved before the buyer could travel too gets its first seat in line on reload.
+syncBuyerSeat(initialState)
 
 const bookingSlice = createSlice({
   name: 'booking',
@@ -164,10 +180,18 @@ const bookingSlice = createSlice({
     // (the order is released when the next hold is made). Names are sent later, on submit.
     toggleSeat(state, action: PayloadAction<string>) {
       state.seatIds = toggle(state.seatIds, state.passengers, action.payload)
+      syncBuyerSeat(state)
       state.hold = null
     },
     updatePurchaser(state, action: PayloadAction<Partial<PurchaserForm>>) {
       state.purchaser = { ...state.purchaser, ...action.payload }
+      syncBuyerSeat(state)
+    },
+    /** Unticking "I am also a passenger" leaves the first seat blank for the real traveler's name. */
+    setBuyerTravels(state, action: PayloadAction<boolean>) {
+      state.buyerTravels = action.payload
+      if (action.payload) syncBuyerSeat(state)
+      else if (state.seatIds[0]) state.passengers[state.seatIds[0]] = { ...EMPTY_SEAT_PASSENGER }
     },
     updateSeatPassenger(
       state,
@@ -295,6 +319,7 @@ export const {
   toggleSeat,
   updatePurchaser,
   updateSeatPassenger,
+  setBuyerTravels,
   startReturnLeg,
   setReturnQuery,
   selectReturnTrip,

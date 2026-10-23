@@ -5,7 +5,9 @@ import reducer, {
   orderReleased,
   orderSettled,
   selectTrip,
+  setBuyerTravels,
   toggleSeat,
+  updatePurchaser,
   updateSeatPassenger,
 } from './bookingSlice'
 import type { BookingState } from './bookingSlice'
@@ -72,5 +74,38 @@ describe('selectTrip', () => {
     const state = reducer(reducer(held(), orderSettled()), selectTrip('t1'))
     expect(state.seatIds).toEqual([])
     expect(state.order).toBeNull()
+  })
+})
+
+describe('buyer is also a passenger', () => {
+  const buyer = { fullName: 'Lan', email: 'lan@example.com', phone: '0901234567' }
+  const picked = (): BookingState => {
+    let state = reducer(undefined, selectTrip('t9'))
+    state = reducer(state, toggleSeat('s1'))
+    state = reducer(state, toggleSeat('s2'))
+    return reducer(state, updatePurchaser(buyer))
+  }
+
+  it('fills the first seat with the buyer by default and follows later edits', () => {
+    let state = picked()
+    expect(state.buyerTravels).toBe(true)
+    expect(state.passengers.s1).toEqual(buyer)
+    state = reducer(state, updatePurchaser({ fullName: 'Lan Nguyen' }))
+    expect(state.passengers.s1.fullName).toBe('Lan Nguyen')
+    expect(state.passengers.s2).toBeUndefined()
+  })
+
+  it('clears the first seat when the buyer books for someone else', () => {
+    let state = reducer(picked(), setBuyerTravels(false))
+    expect(state.passengers.s1).toEqual({ fullName: '', email: '', phone: '' })
+    state = reducer(state, updatePurchaser({ fullName: 'Lan Nguyen' }))
+    expect(state.passengers.s1.fullName).toBe('')
+  })
+
+  it('moves the buyer to the next seat when the first seat is removed', () => {
+    const state = reducer(picked(), toggleSeat('s1'))
+    expect(state.seatIds).toEqual(['s2'])
+    expect(state.passengers.s2).toEqual(buyer)
+    expect(state.passengers.s1).toBeUndefined()
   })
 })

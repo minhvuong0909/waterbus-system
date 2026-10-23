@@ -4,8 +4,11 @@ import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
 import BookingProgress from '../../features/booking/components/BookingProgress'
 import CrossingSummary from '../../features/booking/components/CrossingSummary'
 import HoldCountdown from '../../features/booking/components/HoldCountdown'
-import PassengerFormCard from '../../features/booking/components/PassengerFormCard'
-import { copyPassengersToReturn, holdCleared } from '../../features/booking/bookingSlice'
+import PassengerFormCard, {
+  BuyerCard,
+  PassengerFormNote,
+} from '../../features/booking/components/PassengerFormCard'
+import { copyPassengersToReturn, holdCleared, setBuyerTravels } from '../../features/booking/bookingSlice'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import { isRoundTrip } from '../../features/booking/legs'
 import type { BookingStep } from '../../features/booking/types'
@@ -39,6 +42,7 @@ export default function PassengerDetailsPage() {
   const roundTrip = isRoundTrip(useAppSelector((s) => s.booking.query))
   // Once sent with the order (review step), the backend no longer accepts changes to these details.
   const submitted = useAppSelector((s) => s.booking.hold?.submitted ?? false)
+  const buyerTravels = useAppSelector((s) => s.booking.buyerTravels)
   const outbound = useBooking()
   const back = useBooking({ leg: 'return', enabled: roundTrip })
   const { trip, seats, seatIds, purchaser, passengers, editPurchaser, editSeatPassenger } = outbound
@@ -124,13 +128,19 @@ export default function PassengerDetailsPage() {
             </div>
           )}
           <fieldset disabled={submitted} className="m-0 min-w-0 space-y-space-xl border-0 p-0">
+            <BuyerCard
+              purchaser={purchaser}
+              onPurchaser={editPurchaser}
+              buyerTravels={buyerTravels}
+              onBuyerTravels={(value) => dispatch(setBuyerTravels(value))}
+              seatCode={seats[0]?.code}
+            />
             <PassengerFormCard
               purchaser={purchaser}
               seats={seats}
               passengers={passengers}
-              onPurchaser={editPurchaser}
               onPassenger={editSeatPassenger}
-              showBuyer={!returnLeg}
+              buyerSeatId={buyerTravels ? seats[0]?.id : undefined}
               heading={returnLeg ? <LegHeading title={t('Outbound trip')} trip={trip} /> : undefined}
             />
             {returnLeg && (
@@ -138,7 +148,6 @@ export default function PassengerDetailsPage() {
                 purchaser={purchaser}
                 seats={returnLeg.seats}
                 passengers={back.passengers}
-                onPurchaser={editPurchaser}
                 onPassenger={back.editSeatPassenger}
                 heading={
                   <LegHeading
@@ -159,6 +168,7 @@ export default function PassengerDetailsPage() {
                 }
               />
             )}
+            <PassengerFormNote />
           </fieldset>
         </div>
         <div className="lg:col-span-5 lg:self-stretch">
