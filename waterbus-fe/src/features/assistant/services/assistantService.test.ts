@@ -17,9 +17,9 @@ describe('askAssistant', () => {
     const answer = await askAssistant('Đến Linh Đông ngày mai', history)
 
     expect(apiRequest).toHaveBeenCalledWith(API_ENDPOINTS.assistant, {
-      method: 'POST', body: { message: 'Đến Linh Đông ngày mai', history, searchContext: null, languageCode: 'en' },
+      method: 'POST', body: { message: 'Đến Linh Đông ngày mai', history, searchContext: null, pendingClarification: null, languageCode: 'en' },
     })
-    expect(answer).toEqual({ text: 'Tìm thấy chuyến.', apiCards: cards, searchContext: undefined })
+    expect(answer).toEqual({ text: 'Tìm thấy chuyến.', apiCards: cards, searchContext: undefined, pendingClarification: undefined })
   })
 
   it('sends the selected Vietnamese interface language', async () => {
@@ -29,8 +29,23 @@ describe('askAssistant', () => {
     await askAssistant('Có chuyến nào?')
 
     expect(apiRequest).toHaveBeenCalledWith(API_ENDPOINTS.assistant, {
-      method: 'POST', body: { message: 'Có chuyến nào?', history: [], searchContext: null, languageCode: 'vi' },
+      method: 'POST', body: { message: 'Có chuyến nào?', history: [], searchContext: null, pendingClarification: null, languageCode: 'vi' },
     })
+  })
+
+  it('sends the pending scope question back with the user choice', async () => {
+    const pendingClarification = { originalMessage: 'Có chuyến nào còn ghế?' }
+    vi.mocked(apiRequest).mockResolvedValue({ textAnswer: 'Tìm thấy chuyến.', cards: [], pendingClarification: null })
+
+    const answer = await askAssistant('lọc tiếp', [], { departureStationName: 'Bạch Đằng' }, pendingClarification)
+
+    expect(apiRequest).toHaveBeenCalledWith(API_ENDPOINTS.assistant, {
+      method: 'POST', body: {
+        message: 'lọc tiếp', history: [], searchContext: { departureStationName: 'Bạch Đằng' },
+        pendingClarification, languageCode: 'en',
+      },
+    })
+    expect(answer.pendingClarification).toBeNull()
   })
 
   it('propagates API errors instead of returning a canned answer', async () => {

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -39,7 +40,7 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
         "Nếu khách hỏi hiện có những bến nào, gọi ListStations và trả danh sách bến từ tool, không tự bịa.\n" +
         "2. Dữ liệu từ tool là nguồn sự thật duy nhất. Bạn TUYỆT ĐỐI KHÔNG tự bịa đặt giờ chạy, giá vé, bến dừng hoặc đường dẫn đặt vé.\n" +
         "3. Phân tích từng thông tin khách nêu: bến đi/đến, ngày, buổi/giờ, số khách, giá và ghế; truyền đúng trường của SearchTrips. 'Hôm nay' là ngày hiện tại tại Việt Nam, không phải mọi ngày tương lai. 'Chiều tối nay' chỉ tìm trong hôm nay; nếu rỗng phải nói không có, không tự chuyển sang ngày mai. 'Chuyến sắp khởi hành' chỉ là những chuyến gần nhất, khác với 'toàn bộ chuyến'. Chỉ khi khách nêu một bến mà KHÔNG chỉ rõ chiều mới tìm cả hai chiều. 'Điểm đến/bến đến Bạch Đằng' chỉ lọc arrivalStation=Bạch Đằng; 'bến đi/từ Bạch Đằng' chỉ lọc departureStation=Bạch Đằng. Nếu hai bến, giữ đúng chiều đi. 'Khoảng 4 giờ chiều' dùng preferredDepartureTime=16:00; 'sau 16 giờ' dùng earliestDepartureTime=16:00; 'đến trước 17 giờ' dùng latestArrivalTime=17:00.\n" +
-        "Chỉ dùng usePreviousSearch=true cho câu nối tiếp thiếu bối cảnh như 'sớm hơn'/'earlier', 'đổi ngày'/'tomorrow', 'thêm một người'/'one more passenger'; chỉ thay tiêu chí được nhắc. Với 'thêm một người', passengerCount là TỔNG MỚI. Câu hỏi rộng ('có những chuyến nào', 'all trips') hoặc một yêu cầu tìm mới đầy đủ phải dùng usePreviousSearch=false; không lén kế thừa bộ lọc cũ. Khi tên khu vực khớp nhiều bến, yêu cầu khách chọn một bến.\n" +
+        "Với câu bổ sung điều kiện trong phiên như 'dưới 50k', 'còn ghế', 'chiều mai', 'sớm hơn' hoặc 'thêm một người', dùng usePreviousSearch=true và chỉ thay tiêu chí được nhắc; không hỏi lại phạm vi tìm kiếm. Với 'thêm một người', passengerCount là TỔNG MỚI. Câu hỏi rõ ràng yêu cầu tất cả chuyến ('có những chuyến nào', 'all trips') hoặc một hành trình mới đầy đủ phải dùng usePreviousSearch=false, trừ khi khách vừa xác nhận 'lọc tiếp'; không lén kế thừa bộ lọc cũ. Khi tên khu vực khớp nhiều bến, yêu cầu khách chọn một bến.\n" +
         "Khi khách hỏi giá hoặc ghế của chuyến đã tìm, gọi lại SearchTrips với usePreviousSearch=true để lấy dữ liệu mới; mã A/B là vị trí thẻ trong kết quả. Khi hỏi giá trên/dưới một số tiền, truyền priceGreaterThan/priceLessThan bằng VND (50k = 50000). Khi hỏi chuyến còn ghế, truyền minimumAvailableSeats=1. Chỉ so sánh số API trả, không tự suy đoán giá.\n" +
         "4. Khi tool thông báo không tìm thấy chuyến, hãy thông báo lịch sự rằng không có chuyến phù hợp, không được tự bịa ra chuyến tàu nào khác.\n" +
         "5. Bạn TUYỆT ĐỐI KHÔNG thực hiện thao tác quản trị, xóa chuyến, thanh toán hay sửa đổi CSDL. Bạn không có quyền hạn này.\n" +
@@ -78,6 +79,7 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
 
         var message = request.Message.Trim();
         var english = request.LanguageCode == "en";
+        var nowInVietnam = _timeProvider.GetUtcNow().ToOffset(TimeSpan.FromHours(7));
 
         // Từ khóa không phải ranh giới bảo mật: chỉ expose hai plugin read-only/booking-link.
         var config = _options.Value;
@@ -91,18 +93,40 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
         if (string.IsNullOrWhiteSpace(config.ModelId))
             throw new InvalidOperationException("Thiếu cấu hình model cho AI Booking Assistant.");
 
-        // 4. Khởi tạo Plugin và Kernel
-        var allTripsRequest = IsAllTripsRequest(message);
-        var nowInVietnam = _timeProvider.GetUtcNow().ToOffset(TimeSpan.FromHours(7));
+        // API không lưu phiên chat: câu cần hỏi rõ và bộ lọc được client gửi lại.
+        // Không tự đoán khi một câu có thể là tìm mới hoặc lọc tiếp kết quả cũ.
+        var scopeChoice = request.PendingClarification is null
+            ? SearchScopeChoice.None : ParseScopeChoice(message);
+        if (request.PendingClarification is { } pending && scopeChoice != SearchScopeChoice.None)
+            message = pending.OriginalMessage.Trim();
+        else if (request.PendingClarification is { } unanswered
+                 && !IsClearlyIndependentRequest(message) && !IsExplicitFollowUp(message))
+            return ScopeClarification(unanswered.OriginalMessage, request.SearchContext, english);
+
+        if (scopeChoice == SearchScopeChoice.None
+            && NeedsScopeClarification(message, request.SearchContext))
+            return ScopeClarification(message, request.SearchContext, english);
+
+        var forceFreshSearch = scopeChoice == SearchScopeChoice.New;
+        var allTripsRequest = scopeChoice != SearchScopeChoice.Continue && IsAllTripsRequest(message);
         var intent = AiBookingQueryIntent.Parse(message, nowInVietnam, allTripsRequest);
+        var forcePreviousSearch = scopeChoice == SearchScopeChoice.Continue
+            || (scopeChoice == SearchScopeChoice.None && request.SearchContext is not null
+                && !IsExplicitNewScope(message) && !IsClearlyIndependentRequest(message)
+                && !intent.NearestDeparturesOnly
+                && IsExplicitFollowUp(message));
+
+        // 4. Khởi tạo Plugin và Kernel
         var directedNewSearch = (intent.ExplicitArrivalOnly || intent.ExplicitDepartureOnly)
             && !IsDirectionFollowUp(message);
-        var freshSearchRequest = allTripsRequest || IsFreshSearchRequest(message)
-            || intent.NearestDeparturesOnly || directedNewSearch;
+        var freshSearchRequest = !forcePreviousSearch && (forceFreshSearch || allTripsRequest
+            || IsFreshSearchRequest(message) || intent.NearestDeparturesOnly || directedNewSearch
+            || IsClearlyIndependentRequest(message));
         var plugin = new WaterbusBookingPlugin(_tripSearchTool, _bookingLinkTool, config.MaxToolCallsPerTurn,
             freshSearchRequest ? null : request.SearchContext, request.LanguageCode,
             intent.RequiredDate, intent.EarliestDepartureTime, intent.LatestDepartureTime,
-            intent.NearestDeparturesOnly, intent.ExplicitArrivalOnly, intent.ExplicitDepartureOnly);
+            intent.NearestDeparturesOnly, intent.ExplicitArrivalOnly, intent.ExplicitDepartureOnly,
+            forcePreviousSearch);
 
         // Câu yêu cầu toàn bộ chuyến không được mang bộ lọc của các lượt chat cũ.
         // Trường hợp đơn giản gọi thẳng cùng plugin/API, tránh model tái dùng bến/ngày trước đó.
@@ -161,7 +185,8 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
             (english ? "\nThe web interface is in English. Understand English trip requests and answer in English. Vietnamese pier names are proper names and remain unchanged." :
                 "\nGiao diện đang dùng tiếng Việt; trả lời bằng tiếng Việt."));
 
-        foreach (var turn in freshSearchRequest ? Array.Empty<AiBookingChatTurn>() : request.History)
+        foreach (var turn in freshSearchRequest || scopeChoice != SearchScopeChoice.None
+                     ? Array.Empty<AiBookingChatTurn>() : request.History)
         {
             if (turn.Role == "user") chatHistory.AddUserMessage(turn.Content);
             else chatHistory.AddAssistantMessage(turn.Content);
@@ -177,6 +202,8 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
         }
         if (freshSearchRequest)
             userPrompt += "\n[Đây là lần tìm MỚI: không kế thừa bến/ngày/giờ/giá/ghế của lượt trước. Chỉ dùng điều kiện có trong tin nhắn này.]";
+        if (forcePreviousSearch)
+            userPrompt += "\n[Đây là câu LỌC TIẾP theo bộ lọc trước. Gọi SearchTrips với usePreviousSearch=true; chỉ thay điều kiện nêu trong câu hỏi.]";
         if (!string.IsNullOrWhiteSpace(request.PreferredServiceType))
         {
             userPrompt += $" (Loại dịch vụ mong muốn: {request.PreferredServiceType})";
@@ -290,8 +317,8 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
         var intro = nearestOnly
             ? Text(english, $"The {cards.Count} nearest upcoming {(cards.Count == 1 ? "trip" : "trips")}:",
                 $"{cards.Count} chuyến sắp khởi hành gần nhất:")
-            : Text(english, $"Found {cards.Count} matching {(cards.Count == 1 ? "trip" : "trips")} in Trip Search.",
-                $"Tìm thấy {cards.Count} chuyến phù hợp theo dữ liệu Trip Search.");
+            : Text(english, $"Found {cards.Count} matching {(cards.Count == 1 ? "trip" : "trips")}.",
+                $"Tìm thấy {cards.Count} chuyến phù hợp.");
         if (criteria?.PreferredDepartureTime is { } preferred)
             intro += Text(english, $" The first trip is closest to your preferred time of {preferred:HH:mm}.",
                 $" Chuyến đầu tiên gần giờ {preferred:HH:mm} bạn muốn đi nhất.");
@@ -300,8 +327,8 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
             $"{index + 1}. {card.DepartureStationName} → {card.ArrivalStationName}, " +
             card.DepartureTime.ToOffset(TimeSpan.FromHours(7)).ToString(
                 english ? "MMM d, yyyy HH:mm" : "HH:mm dd/MM/yyyy", culture) + ": " +
-            Text(english, $"{card.AvailableSeatsCount} seats left; API fare ",
-                $"còn {card.AvailableSeatsCount} ghế; giá API trả về ") +
+            Text(english, $"{card.AvailableSeatsCount} seats left; fare ",
+                $"còn {card.AvailableSeatsCount} ghế; giá vé ") +
             (card.BasePrice.HasValue
                 ? $"{card.BasePrice.Value.ToString("N0", culture)} ₫"
                 : Text(english, "unavailable", "chưa có dữ liệu")) + ".");
@@ -316,6 +343,89 @@ public class SemanticKernelAiBookingAssistantService : IAiBookingAssistantServic
         return Text(english, "No trips match your request.",
             "Không tìm thấy chuyến phù hợp với yêu cầu của quý khách.");
     }
+
+    private enum SearchScopeChoice { None, New, Continue }
+
+    private static SearchScopeChoice ParseScopeChoice(string message)
+    {
+        var choice = message.Trim().TrimEnd('.', '!', '?').Trim();
+        if (new[] { "1", "toàn bộ", "xem toàn bộ", "tìm mới", "tìm lại từ đầu",
+                "all", "all trips", "new search", "start over" }
+            .Any(value => string.Equals(value, choice, StringComparison.OrdinalIgnoreCase)))
+            return SearchScopeChoice.New;
+        if (new[] { "2", "lọc tiếp", "tiếp tục lọc", "tiếp tục", "theo kết quả trước",
+                "continue", "refine", "keep previous filters" }
+            .Any(value => string.Equals(value, choice, StringComparison.OrdinalIgnoreCase)))
+            return SearchScopeChoice.Continue;
+        return SearchScopeChoice.None;
+    }
+
+    private static AiBookingChatResponse ScopeClarification(
+        string originalMessage, TripSearchCriteria? previous, bool english) => new(
+        Text(english,
+            "Do you want to search all trips again, or refine your previous results? Reply 'all' or 'continue'.",
+            "Bạn muốn xem toàn bộ chuyến theo câu hỏi này hay lọc tiếp kết quả trước? Hãy trả lời 'toàn bộ' hoặc 'lọc tiếp'."),
+        Array.Empty<AiTripCardDto>(), Array.Empty<AiToolExecutionDto>(), false, previous,
+        new AiSearchScopeClarification(originalMessage));
+
+    private static bool NeedsScopeClarification(string message, TripSearchCriteria? previous)
+    {
+        if (previous is null || IsExplicitNewScope(message) || IsClearlyIndependentRequest(message)
+            || IsExplicitFollowUp(message)
+            || AiBookingQueryIntent.Parse(message, DateTimeOffset.UtcNow, false).NearestDeparturesOnly)
+            return false;
+        if (new[] { "những bến nào", "các bến nào", "bến nào đang", "danh sách bến",
+            "which piers", "which stations", "list piers", "list stations" }
+            .Any(value => message.Contains(value, StringComparison.OrdinalIgnoreCase)))
+            return false;
+        if (new[] { "cảm ơn", "thanks", "thank you", "xin chào", "hello", "goodbye" }
+            .Any(value => message.Contains(value, StringComparison.OrdinalIgnoreCase)))
+            return false;
+        // Chỉ hỏi về phạm vi khi khách hỏi chung chung mà không thêm tiêu chí nào.
+        // Câu có giá/ghế/ngày/giờ là cập nhật bộ lọc; câu "có những chuyến nào" là tìm mới.
+        return Regex.IsMatch(message,
+            @"(?<!\p{L})(?:có|còn|xem|tìm|any|which|show)?\s*(?:chuyến|tàu|trips?)\s*(?:nào|không|available|\?)",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
+    private static bool IsExplicitNewScope(string message) =>
+        IsFreshSearchRequest(message) || IsAllTripsRequest(message)
+        || new[] { "toàn bộ", "tất cả", "mọi chuyến", "all trips", "every trip",
+            "show me all", "hiện tại có những chuyến nào", "hiện có những chuyến nào",
+            "what trips are available" }
+            .Any(value => message.Contains(value, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsClearlyIndependentRequest(string message)
+    {
+        if (IsExplicitNewScope(message)) return true;
+        var intent = AiBookingQueryIntent.Parse(message, DateTimeOffset.UtcNow, false);
+        return (intent.ExplicitArrivalOnly || intent.ExplicitDepartureOnly
+            || (message.Contains("từ ", StringComparison.OrdinalIgnoreCase)
+                && message.Contains(" đến ", StringComparison.OrdinalIgnoreCase))
+            || (message.Contains(" from ", StringComparison.OrdinalIgnoreCase)
+                && message.Contains(" to ", StringComparison.OrdinalIgnoreCase)))
+            && !IsDirectionFollowUp(message);
+    }
+
+    private static bool IsExplicitFollowUp(string message) =>
+        string.Equals(message.Trim().TrimEnd('.', '?', '!'), "mai", StringComparison.OrdinalIgnoreCase)
+        || Regex.IsMatch(message,
+            @"^\s*(?:ngày\s*)?(?:\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}(?:/\d{2,4})?)\s*[?!.]?\s*$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
+        || Regex.IsMatch(message, @"^\s*(?:cho\s*)?\d+\s*(?:người|khách|passengers?)\s*[?!.]?\s*$",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
+        || AsksForAvailableSeats(message)
+        || Regex.IsMatch(message, @"(?<!\p{L})(?:dưới|trên|under|below|over|above)\s*\d",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
+        || new[] { "lọc tiếp", "tiếp tục", "trong số", "những chuyến đó", "các chuyến đó",
+            "lần trước", "trước đó", "chuyến này", "sớm hơn", "muộn hơn", "thêm một",
+            "đổi", "thay", "vẫn", "cùng", "giá bao nhiêu", "còn mấy ghế", "ngày mai",
+            "còn bao nhiêu ghế", "bao nhiêu ghế", "giá chuyến", "giá vé", "bao nhiêu tiền",
+            "hôm nay", "tối nay", "chiều mai", "sáng mai", "buổi chiều", "buổi tối",
+            "buổi sáng", "khoảng", "sau 16", "trước 17",
+            "continue", "refine", "previous", "those trips", "this trip", "earlier",
+            "later", "same", "change", "instead", "tomorrow", "today", "tonight", "how much" }
+            .Any(value => message.Contains(value, StringComparison.OrdinalIgnoreCase));
 
     private static bool IsAllTripsRequest(string message) =>
         message.Contains("toàn bộ chuyến", StringComparison.OrdinalIgnoreCase)

@@ -129,6 +129,33 @@ public class AiBookingValidatorsTests
         result.Errors.Should().Contain(e => e.PropertyName.Contains("DepartureStationName"));
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ChatRequestValidator_EmptyPendingQuestion_ShouldFail(string originalMessage)
+    {
+        var result = _chatRequestValidator.Validate(new AiBookingChatRequest
+        {
+            Message = "lọc tiếp",
+            PendingClarification = new AiSearchScopeClarification(originalMessage)
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName.Contains("OriginalMessage"));
+    }
+
+    [Fact]
+    public void ChatRequestValidator_OversizedPendingQuestion_ShouldFail()
+    {
+        var result = _chatRequestValidator.Validate(new AiBookingChatRequest
+        {
+            Message = "lọc tiếp",
+            PendingClarification = new AiSearchScopeClarification(new string('a', 1001))
+        });
+
+        result.IsValid.Should().BeFalse();
+    }
+
     // ── TripSearchCriteriaValidator ─────────────────────────────────────────
 
     [Theory]

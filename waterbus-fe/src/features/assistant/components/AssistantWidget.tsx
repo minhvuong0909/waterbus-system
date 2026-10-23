@@ -6,7 +6,7 @@ import { ROUTES } from '../../../routes/routes'
 import { useAppDispatch } from '../../../store/hooks'
 import { selectTrip, setQuery } from '../../booking/bookingSlice'
 import { askAssistant } from '../services/assistantService'
-import type { AssistantApiCard, AssistantChatTurn, AssistantSearchContext, ChatMessage } from '../types'
+import type { AssistantApiCard, AssistantChatTurn, AssistantSearchContext, AssistantScopeClarification, ChatMessage } from '../types'
 import { MAX_HISTORY_TURNS, MAX_MESSAGE_LENGTH, cardDeparture, cardLetter, parseCardChoice } from '../utils'
 import AssistantApiCards from './AssistantApiCards'
 import { MessageBubble, Suggestions, TypingIndicator } from './AssistantParts'
@@ -31,6 +31,7 @@ export default function AssistantWidget() {
   const [busy, setBusy] = useState(false)
   const [draft, setDraft] = useState('')
   const [searchContext, setSearchContext] = useState<AssistantSearchContext | null>(null)
+  const [pendingClarification, setPendingClarification] = useState<AssistantScopeClarification | null>(null)
   const [selected, setSelected] = useState<{ card: AssistantApiCard; letter: string } | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>(() => [welcome()])
   const nextId = useRef(1)
@@ -70,8 +71,9 @@ export default function AssistantWidget() {
   const ask = async (question: string, history: AssistantChatTurn[]) => {
     setBusy(true)
     try {
-      const answer = await askAssistant(question, history, searchContext)
+      const answer = await askAssistant(question, history, searchContext, pendingClarification)
       if (answer.searchContext !== undefined) setSearchContext(answer.searchContext)
+      setPendingClarification(answer.pendingClarification ?? null)
       setSelected(null)
       add({
         from: 'assistant',
@@ -144,6 +146,7 @@ export default function AssistantWidget() {
   const restart = () => {
     setMessages([welcome()])
     setSearchContext(null)
+    setPendingClarification(null)
     setSelected(null)
     setDraft('')
     inputRef.current?.focus()

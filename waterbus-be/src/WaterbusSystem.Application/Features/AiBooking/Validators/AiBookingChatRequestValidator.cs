@@ -45,5 +45,11 @@ public class AiBookingChatRequestValidator : AbstractValidator<AiBookingChatRequ
             RuleFor(x => x.SearchContext!.ArrivalStationName).MaximumLength(100);
             RuleFor(x => x.SearchContext!).SetValidator(new TripSearchCriteriaValidator());
         });
+
+        When(x => x.PendingClarification is not null, () =>
+        {
+            RuleFor(x => x.PendingClarification!.OriginalMessage)
+                .NotEmpty().MaximumLength(1000);
+        });
     }
 }

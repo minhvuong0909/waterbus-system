@@ -32,6 +32,7 @@ public class WaterbusBookingPlugin
     private readonly bool _nearestDeparturesOnly;
     private readonly bool _explicitArrivalOnly;
     private readonly bool _explicitDepartureOnly;
+    private readonly bool _forcePreviousSearch;
     private int _toolCallCount;
 
     public bool SearchAttempted { get; private set; }
@@ -52,7 +53,8 @@ public class WaterbusBookingPlugin
         TimeOnly? requiredLatestTime = null,
         bool nearestDeparturesOnly = false,
         bool explicitArrivalOnly = false,
-        bool explicitDepartureOnly = false)
+        bool explicitDepartureOnly = false,
+        bool forcePreviousSearch = false)
     {
         _tripSearchTool = tripSearchTool ?? throw new ArgumentNullException(nameof(tripSearchTool));
         _bookingLinkTool = bookingLinkTool ?? throw new ArgumentNullException(nameof(bookingLinkTool));
@@ -65,6 +67,7 @@ public class WaterbusBookingPlugin
         _nearestDeparturesOnly = nearestDeparturesOnly;
         _explicitArrivalOnly = explicitArrivalOnly;
         _explicitDepartureOnly = explicitDepartureOnly;
+        _forcePreviousSearch = forcePreviousSearch;
     }
 
     /// <summary>
@@ -112,7 +115,7 @@ public class WaterbusBookingPlugin
     {
         if (!TryStartToolCall()) return Text("Tool-call limit reached for this message.", "Đã đạt giới hạn gọi công cụ trong lượt hội thoại này.");
 
-        var previous = usePreviousSearch ? _previousSearch : null;
+        var previous = usePreviousSearch || _forcePreviousSearch ? _previousSearch : null;
         // Câu hỏi nêu buổi mới không được mang giờ lọc cũ sang, nhưng có thể giữ bến của lượt trước.
         if (previous is not null && (_requiredEarliestTime.HasValue || _requiredLatestTime.HasValue))
             previous = previous with
@@ -232,8 +235,8 @@ public class WaterbusBookingPlugin
 
         if (searchResult.Trips.Count == 0)
         {
-            return Text("No matching trips were found in the current Trip Search data.",
-                "Không tìm thấy chuyến tàu nào phù hợp trong dữ liệu Trip Search hiện tại.");
+            return Text("No matching trips were found.",
+                "Không tìm thấy chuyến tàu nào phù hợp.");
         }
 
         // "Sắp khởi hành" = những chuyến gần nhất trong ngày phục vụ gần nhất, không phải
@@ -265,11 +268,11 @@ public class WaterbusBookingPlugin
         // Tạo tóm tắt văn bản trả về cho LLM tham khảo
         var culture = CultureInfo.GetCultureInfo(_english ? "en-US" : "vi-VN");
         var summaryLines = displayTrips.Select((t, index) => _english
-            ? $"{index + 1}. {t.RouteName} ({t.TripId}): {t.DepartureStationName} → {t.ArrivalStationName}, {t.DepartureTime:HH:mm}; {t.AvailableSeatsCount} seats left; API fare: {(t.BasePrice.HasValue ? t.BasePrice.Value.ToString("N0", culture) + " VND" : "unavailable")}."
-            : $"{index + 1}. Tuyến '{t.RouteName}' (Mã: {t.TripId}): Khởi hành lúc {t.DepartureTime:HH:mm} tại {t.DepartureStationName}, đến {t.ArrivalStationName} lúc {t.ArrivalTime:HH:mm}. Còn {t.AvailableSeatsCount} ghế. Giá API trả về: {(t.BasePrice.HasValue ? t.BasePrice.Value.ToString("N0", culture) + " VNĐ" : "chưa có dữ liệu")}.");
+            ? $"{index + 1}. {t.RouteName} ({t.TripId}): {t.DepartureStationName} → {t.ArrivalStationName}, {t.DepartureTime:HH:mm}; {t.AvailableSeatsCount} seats left; fare: {(t.BasePrice.HasValue ? t.BasePrice.Value.ToString("N0", culture) + " VND" : "unavailable")}."
+            : $"{index + 1}. Tuyến '{t.RouteName}' (Mã: {t.TripId}): Khởi hành lúc {t.DepartureTime:HH:mm} tại {t.DepartureStationName}, đến {t.ArrivalStationName} lúc {t.ArrivalTime:HH:mm}. Còn {t.AvailableSeatsCount} ghế. Giá vé: {(t.BasePrice.HasValue ? t.BasePrice.Value.ToString("N0", culture) + " VNĐ" : "chưa có dữ liệu")}.");
 
-        return Text($"Found {displayTrips.Count} trips in Trip Search:\n",
-            $"Tìm thấy {displayTrips.Count} chuyến tàu theo dữ liệu Trip Search:\n") + string.Join("\n", summaryLines);
+        return Text($"Found {displayTrips.Count} matching trips:\n",
+            $"Tìm thấy {displayTrips.Count} chuyến phù hợp:\n") + string.Join("\n", summaryLines);
     }
 
     [KernelFunction("BuildBookingLink")]

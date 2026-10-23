@@ -193,7 +193,7 @@ public class WaterbusBookingPluginTests
 
         var result = await _plugin.SearchTripsAsync("Bạch Đằng", "Linh Đông", "2099-10-15", "Commuter", 2);
 
-        result.Should().Contain("Tìm thấy 1 chuyến tàu theo dữ liệu Trip Search");
+        result.Should().Contain("Tìm thấy 1 chuyến phù hợp").And.NotContain("Trip Search");
         _plugin.InterceptedCards.Should().HaveCount(1);
         _plugin.InterceptedCards.First().TripId.Should().Be(tripId);
         _plugin.ExecutedTools.Should().Contain(e => e.ToolName == "SearchTrips" && e.Success);

@@ -3,8 +3,14 @@ export interface AssistantReply {
   text: string
   apiCards?: AssistantApiCard[]
   searchContext?: AssistantSearchContext | null
+  pendingClarification?: AssistantScopeClarification | null
   /** True when the backend could not answer normally and returned a safe default reply. */
   isFallback?: boolean
+}
+
+/** Câu hỏi cần giữ lại đến khi khách chọn tìm mới hay lọc tiếp. */
+export interface AssistantScopeClarification {
+  originalMessage: string
 }
 
 /** Bộ lọc đã được backend kiểm tra ở lần tìm trước, gửi lại cho câu hỏi nối tiếp. */
