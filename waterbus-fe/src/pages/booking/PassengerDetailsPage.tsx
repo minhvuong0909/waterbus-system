@@ -61,7 +61,7 @@ export default function PassengerDetailsPage() {
   const steps: BookingStep[] = [
     { label: 'Trip', detail: 'Trip' },
     { label: 'Seat', detail: t('Seat ({id})', { id: seatDetail }) },
-    { label: 'Passenger Details', detail: 'Passenger Details' },
+    { label: 'Passenger Details', detail: 'Passengers' },
     { label: 'Checkout', detail: 'Checkout' },
     { label: 'Payment', detail: 'Payment' },
   ]

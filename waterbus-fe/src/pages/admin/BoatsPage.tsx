@@ -148,7 +148,7 @@ export default function BoatsPage() {
       className: 'text-right',
       render: (b) => (
         <ActionButton tone="secondary" icon="delete" onClick={() => { remove.clearError(); setDialog({ kind: 'delete', boat: b }) }}>
-          {'Ngừng hoạt động'}
+          {t('Deactivate')}
         </ActionButton>
       ),
     },
@@ -179,9 +179,9 @@ export default function BoatsPage() {
       )}
 
       {dialog?.kind === 'delete' && (
-        <Modal title="Ngừng hoạt động tàu" onClose={() => setDialog(null)}>
+        <Modal title="Deactivate boat" onClose={() => setDialog(null)}>
           <p className="text-sm text-on-surface-variant">
-            {t('Ngừng hoạt động {name}? Tàu sẽ không còn trong danh sách đang hoạt động.', { name: dialog.boat.name })}
+            {t('Deactivate {name}? The boat will no longer be listed as active.', { name: dialog.boat.name })}
           </p>
           {remove.error && (
             <div className="mt-3">
@@ -203,7 +203,7 @@ export default function BoatsPage() {
                 if (done) closeAndReload()
               }}
             >
-              {'Ngừng hoạt động'}
+              {t('Deactivate')}
             </ActionButton>
           </div>
         </Modal>

@@ -10,7 +10,7 @@ export function BookingSummaryCard({ ticket }: { ticket: Ticket }) {
     <div className="rounded-2xl bg-white p-space-lg shadow-[0_2px_16px_rgba(13,37,56,0.06)]">
       <div className="flex flex-wrap items-center justify-between gap-space-md">
         <div className="flex items-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-deep-river text-center font-headline-sm text-xs font-bold leading-tight text-white">
+          <span className="flex h-12 min-w-[3rem] shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-deep-river px-2 text-center font-headline-sm text-xs font-bold leading-tight text-white">
             {ticket.tripCode}
           </span>
           <div>
