@@ -1783,4 +1783,23 @@ export const vi: Record<string, string> = {
   'No trips left to book on this day. Choose another day above.': 'Ngày này không còn chuyến để đặt. Hãy chọn ngày khác ở trên.',
   'No more trips today. The nearest trips are on {date}.': 'Hôm nay không còn chuyến. Các chuyến gần nhất vào {date}.',
   '{length} trips with seats left': '{length} chuyến còn chỗ',
+  'Audio guides': 'Thuyết minh',
+  'Write what the boat says at each landmark, pick a voice and listen to it. Azure turns the script into speech.':
+    'Soạn lời thuyết minh cho từng địa danh, chọn giọng đọc và nghe thử. Azure chuyển văn bản thành giọng nói.',
+  'Landmarks': 'Địa danh',
+  'Pick a landmark on the map to write its narration.': 'Chọn một địa danh trên bản đồ để soạn lời thuyết minh.',
+  'Narration script': 'Lời thuyết minh',
+  'Enter the narration to read at this landmark.': 'Hãy nhập lời thuyết minh sẽ đọc tại địa danh này.',
+  'For example: On your right is the Ba Son waterfront, once the largest shipyard of Saigon…':
+    'Ví dụ: Phía bên phải quý khách là bờ sông Ba Son, nơi từng là xưởng đóng tàu lớn nhất Sài Gòn…',
+  'Played on board when the boat comes near this landmark.': 'Phát trên tàu khi tàu đến gần địa danh này.',
+  'Voice': 'Giọng đọc',
+  'Female voice (Hoài My)': 'Giọng nữ (Hoài My)',
+  'Male voice (Nam Minh)': 'Giọng nam (Nam Minh)',
+  'Generating audio…': 'Đang tạo âm thanh…',
+  'Generate and listen': 'Tạo âm thanh và nghe thử',
+  'Listen before publishing': 'Nghe thử trước khi dùng',
+  '{voice} • {seconds} s • {size} KB': '{voice} • {seconds} giây • {size} KB',
+  'The script changed after this audio. Generate again to hear it.':
+    'Lời thuyết minh đã thay đổi sau lần tạo này. Hãy tạo lại để nghe bản mới.',
 }

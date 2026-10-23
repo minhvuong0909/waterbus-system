@@ -9,6 +9,12 @@ export const API_ENDPOINTS = {
   station: (id: string) => `/api/v1/stations/${id}`,
   boat: (id: string) => `/api/v1/boats/${id}`,
   assistant: '/api/v1/aiassistant/chat',
+  textToSpeech: {
+    /** Admin: Vietnamese script → MP3 with Azure TTS, stored in private Blob storage. */
+    generate: '/api/v1/texttospeech/generate',
+    /** Admin: the stored MP3 of an `assetKey`, to listen before publishing. */
+    audio: '/api/v1/texttospeech/audio',
+  },
   checkouts: {
     /** Holds seats first (Draft); the buyer is submitted later. */
     holds: '/api/v1/checkouts/holds',
