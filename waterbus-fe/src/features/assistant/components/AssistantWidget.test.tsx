@@ -1,18 +1,21 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { store } from '../../../store/store'
 import { ROUTES } from '../../../routes/routes'
 import { askAssistant } from '../services/assistantService'
 import AssistantWidget from './AssistantWidget'
+import { setActiveLocale } from '../../../i18n/translate'
 
 vi.mock('../services/assistantService', () => ({ askAssistant: vi.fn() }))
 
 describe('AssistantWidget live card navigation', () => {
+  beforeEach(() => setActiveLocale('vi'))
   afterEach(() => {
     cleanup()
     vi.clearAllMocks()
+    setActiveLocale('en')
   })
 
   it('uses the card trip and requested stations to open the existing trip flow', async () => {
@@ -97,7 +100,7 @@ describe('AssistantWidget live card navigation', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     await waitFor(() => expect(askAssistant).toHaveBeenLastCalledWith('sớm hơn', expect.any(Array),
-      { departureStationName: 'Bạch Đằng', passengerCount: 2 }))
+      { departureStationName: 'Bạch Đằng', passengerCount: 2 }, null))
   })
 
   it('sends recent chat turns with the next question', async () => {
@@ -124,7 +127,7 @@ describe('AssistantWidget live card navigation', () => {
     await waitFor(() => expect(askAssistant).toHaveBeenLastCalledWith('Ngày 2026-10-20', [
         { role: 'user', content: 'Từ Bến Bạch Đằng đến Bến Linh Đông' },
         { role: 'assistant', content: 'Quý khách muốn đi ngày nào?' },
-    ], null))
+    ], null, null))
   })
   it('offers "Try again" after a failed request and sends the same question again', async () => {
     vi.mocked(askAssistant)
@@ -161,6 +164,65 @@ describe('AssistantWidget live card navigation', () => {
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Ask the assistant' }), { target: { value: 'Ngày mai' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
-    await waitFor(() => expect(askAssistant).toHaveBeenLastCalledWith('Ngày mai', [], null))
+    await waitFor(() => expect(askAssistant).toHaveBeenLastCalledWith('Ngày mai', [], null, null))
+  })
+
+  it('keeps an ambiguous question while the passenger chooses all trips or previous filters', async () => {
+    const previous = { departureStationName: 'Bạch Đằng' }
+    const pending = { originalMessage: 'Có chuyến nào còn ghế?' }
+    vi.mocked(askAssistant)
+      .mockResolvedValueOnce({ text: 'Tìm thấy chuyến.', searchContext: previous })
+      .mockResolvedValueOnce({ text: "Trả lời 'toàn bộ' hoặc 'lọc tiếp'.", searchContext: previous,
+        pendingClarification: pending })
+      .mockResolvedValueOnce({ text: 'Đã lọc tiếp.', searchContext: previous, pendingClarification: null })
+
+    render(<Provider store={store}><MemoryRouter><AssistantWidget /></MemoryRouter></Provider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Open assistant' }))
+    const input = screen.getByRole('textbox', { name: 'Ask the assistant' })
+    fireEvent.change(input, { target: { value: 'Bạch Đằng' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await screen.findByText('Tìm thấy chuyến.')
+    fireEvent.change(input, { target: { value: 'Có chuyến nào còn ghế?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await screen.findByText("Trả lời 'toàn bộ' hoặc 'lọc tiếp'.")
+    fireEvent.change(input, { target: { value: 'lọc tiếp' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => expect(askAssistant).toHaveBeenLastCalledWith('lọc tiếp', expect.any(Array), previous, pending))
+    await screen.findByText('Đã lọc tiếp.')
+  })
+
+  it('confirms a typed English card choice in English', async () => {
+    setActiveLocale('en')
+    vi.mocked(askAssistant).mockResolvedValue({
+      text: 'Found one trip.',
+      apiCards: [{
+        tripId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        boardingStationId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        disembarkingStationId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        routeName: 'Bạch Đằng - Bình An',
+        departureStationName: 'Bạch Đằng',
+        arrivalStationName: 'Bình An',
+        departureTime: '2026-10-20T01:00:00Z',
+        availableSeatsCount: 12,
+        basePrice: 0,
+        isPriceVerified: false,
+        bookingUrl: null,
+        isDevelopmentPreview: true,
+      }],
+    })
+    render(<Provider store={store}><MemoryRouter><AssistantWidget /></MemoryRouter></Provider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Open assistant' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ask the assistant' }), {
+      target: { value: 'Show all trips' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    await screen.findByRole('button', { name: 'Choose trip A' })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Ask the assistant' }), {
+      target: { value: 'select trip A' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(screen.getByText(/This is not a booking yet/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Continue to booking' })).toBeTruthy()
   })
 })

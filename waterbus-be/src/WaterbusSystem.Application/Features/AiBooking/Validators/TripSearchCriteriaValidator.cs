@@ -14,6 +14,16 @@ public class TripSearchCriteriaValidator : AbstractValidator<TripSearchCriteria>
             .InclusiveBetween(1, 50).WithMessage("Số lượng hành khách phải từ 1 đến 50.")
             .When(x => x.PassengerCount.HasValue);
 
+        RuleFor(x => x.MinimumAvailableSeats)
+            .InclusiveBetween(0, 1000).When(x => x.MinimumAvailableSeats.HasValue);
+        RuleFor(x => x.PriceGreaterThan)
+            .GreaterThanOrEqualTo(0).When(x => x.PriceGreaterThan.HasValue);
+        RuleFor(x => x.PriceLessThan)
+            .GreaterThanOrEqualTo(0).When(x => x.PriceLessThan.HasValue);
+        RuleFor(x => x.PriceGreaterThan)
+            .LessThan(x => x.PriceLessThan)
+            .When(x => x.PriceGreaterThan.HasValue && x.PriceLessThan.HasValue);
+
         RuleFor(x => x.EarliestDepartureTime)
             .LessThanOrEqualTo(x => x.LatestDepartureTime)
             .When(x => x.EarliestDepartureTime.HasValue && x.LatestDepartureTime.HasValue)

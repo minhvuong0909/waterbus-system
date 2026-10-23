@@ -78,7 +78,7 @@ public sealed class MediatRTripSearchTool : ITripSearchTool
 
         var date = criteria.DepartureDate?.ToDateTime(TimeOnly.MinValue);
         List<TripDto> trips;
-        if (hasDeparture != hasArrival)
+        if (hasDeparture != hasArrival && !criteria.RestrictSingleStationToRequestedDirection)
         {
             // Một bến không xác định chiều: tìm cả chuyến xuất phát và chuyến đến bến đó.
             var stationId = departureId ?? arrivalId;
@@ -112,11 +112,14 @@ public sealed class MediatRTripSearchTool : ITripSearchTool
 
         var matchingTrips = upcomingTrips
             .Where(t => !criteria.PassengerCount.HasValue || t.AvailableSeatsCount >= criteria.PassengerCount.Value)
+            .Where(t => !criteria.MinimumAvailableSeats.HasValue || t.AvailableSeatsCount >= criteria.MinimumAvailableSeats.Value)
+            .Where(t => !criteria.PriceGreaterThan.HasValue || t.BasePrice > criteria.PriceGreaterThan.Value)
+            .Where(t => !criteria.PriceLessThan.HasValue || t.BasePrice < criteria.PriceLessThan.Value)
             .OrderBy(t => criteria.PreferredDepartureTime.HasValue
                 ? Math.Abs((LocalTime(t.DepartureTime).ToTimeSpan() - criteria.PreferredDepartureTime.Value.ToTimeSpan()).TotalMinutes)
                 : 0)
             .ThenBy(t => t.DepartureTime)
-            .Take(criteria.PreferredDepartureTime.HasValue ? 3 : 10);
+            .ToList();
         var cards = matchingTrips
             .Select(t =>
             {
