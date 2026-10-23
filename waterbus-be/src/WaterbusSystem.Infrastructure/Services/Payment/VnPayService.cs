@@ -354,13 +354,18 @@ public class VnPayService : IVnPayService
 
     public static string GatewayTime(DateTimeOffset instant) => instant.ToOffset(TimeSpan.FromHours(7)).ToString("yyyyMMddHHmmss");
 
-    private string RequireTmnCode() =>
-        _configuration["VnPay:TmnCode"]
-        ?? throw new InvalidOperationException("Thiếu cấu hình VnPay:TmnCode.");
+    private string RequireTmnCode() => RequireSetting("VnPay:TmnCode");
 
-    private string RequireSecret() =>
-        _configuration["VnPay:HashSecret"]
-        ?? throw new InvalidOperationException("Thiếu cấu hình VnPay:HashSecret.");
+    // Khoá rỗng vẫn ký HMAC được: nếu không chặn, ai cũng tự ký được IPN "đã thanh toán" khi quên cấu hình.
+    private string RequireSecret() => RequireSetting("VnPay:HashSecret");
+
+    private string RequireSetting(string key)
+    {
+        var value = _configuration[key];
+        return string.IsNullOrWhiteSpace(value)
+            ? throw new InvalidOperationException($"Thiếu cấu hình {key}.")
+            : value;
+    }
 
     /// <summary>
     /// vnp_RequestId tối đa 32 ký tự alphanumeric, không trùng lặp trong ngày.

@@ -16,7 +16,8 @@ export default function ManageBookingPage() {
   const { token } = useParams()
   const { manage, loading, error, retry } = useManageBooking(token)
 
-  if (error instanceof ApiError && error.status === 404) {
+  // 403: the backend rejects a wrong or expired guest token the same way as an unknown booking.
+  if (error instanceof ApiError && (error.status === 404 || error.status === 403)) {
     return (
       <ErrorState
         title={t('This link is invalid or has expired')}

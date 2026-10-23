@@ -10,6 +10,7 @@ import type { AdminTrip, OperationType } from '../../features/admin/types'
 import {
   allowedOperationsOf,
   formatClockTime,
+  formatDateTime,
   isUpcomingOrRunning,
   tripRouteName,
 } from '../../features/admin/utils'
@@ -114,7 +115,7 @@ export default function CaptainPortalPage() {
         >
           {open.map((x) => (
             <option key={x.id} value={x.id}>
-              {formatClockTime(x.departureTime)} • {tripRouteName(x, routeName)}
+              {formatDateTime(x.departureTime)} • {tripRouteName(x, routeName)}
             </option>
           ))}
         </select>
@@ -124,7 +125,7 @@ export default function CaptainPortalPage() {
               {formatClockTime(trip.departureTime)} → {formatClockTime(trip.arrivalTime)}
             </div>
             <div className="text-sm text-on-surface-variant">
-              {tripRouteName(trip, routeName)} • {trip.boatCode ?? boatName(trip.boatId)} • {t(trip.tripType === 'Commuter' ? 'Regular' : 'Sightseeing')}
+              {formatDateTime(trip.departureTime)} • {tripRouteName(trip, routeName)} • {trip.boatCode ?? boatName(trip.boatId)} • {t(trip.tripType === 'Commuter' ? 'Regular' : 'Sightseeing')}
             </div>
           </div>
           <StatusBadge status={trip.status} />

@@ -20,7 +20,7 @@ export const ROUTES = {
   explore: '/explore',
   help: '/help',
   sitemap: '/sitemap',
-  // Operations area (Admin, Dispatcher) and the captain's portal.
+  // Operations area (Admin) and the captain's portal.
   admin: '/admin',
   adminRadar: '/admin/radar',
   adminTrips: '/admin/trips',
