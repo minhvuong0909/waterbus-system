@@ -15,6 +15,7 @@ import { MAX_SEATS_PER_BOOKING, seatCodes } from '../../features/booking/utils'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
+import NoTripSelected from '../../features/booking/components/NoTripSelected'
 
 export default function SeatSelectionPage() {
   useDocumentTitle('Choose Your Seat')
@@ -24,10 +25,11 @@ export default function SeatSelectionPage() {
   const roundTrip = isRoundTrip(query)
   // `?leg=return`: the seats of the return trip of a round trip.
   const leg: Leg = roundTrip && searchParams.get('leg') === 'return' ? 'return' : 'outbound'
-  const { loading, error, retry, trip, seatMap, seats, seatIds, seatLimitReached, totals, toggleSeat } =
+  const { noTrip, loading, error, retry, trip, seatMap, seats, seatIds, seatLimitReached, totals, toggleSeat } =
     useBooking({ live: true, leg })
   const hold = useSeatHold()
 
+  if (noTrip) return <NoTripSelected />
   if (error) return <ErrorState onRetry={retry} />
 
   if (loading || !trip || !seatMap || !totals) return <PageLoader />

@@ -16,6 +16,7 @@ import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 import OverviewMotion from '../../features/admin/components/OverviewMotion'
+import CurrentWeatherPanel from '../../features/admin/components/CurrentWeatherPanel'
 
 function Kpi({
   icon,
@@ -90,6 +91,7 @@ export default function OverviewPage() {
           to={ROUTES.adminIncidents}
         />
       </div>
+      <CurrentWeatherPanel />
       <Panel title="Next trips" className="mt-6">
         {upcoming.length === 0 ? (
           <p className="text-sm text-on-surface-variant">

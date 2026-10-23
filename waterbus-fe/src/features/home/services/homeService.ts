@@ -1,5 +1,6 @@
 import { HOME_DATA } from '../../../mocks/home'
 import { withDelay } from '../../../mocks/delay'
+import { getLowestFares } from '../../trips/services/fareService'
 import { getPierOptions, getUpcomingTrips } from '../../trips/services/tripService'
 import type { CorridorMap, Departure } from '../../trips/types'
 import type { HomeData } from '../types'
@@ -8,9 +9,17 @@ import { USE_MOCK } from '../../../constant/env'
 
 const MAX_DEPARTURES = 4
 
-// Editorial content (hero, stories, steps): no backend source, so it stays a mock.
-export function getHomeData(): Promise<HomeData> {
-  return withDelay(HOME_DATA)
+// Editorial content (hero, stories, steps) has no backend source and stays static. Prices do not:
+// with the real backend a tour shows the lowest Sightseeing fare of the database, and no duration.
+export async function getHomeData(): Promise<HomeData> {
+  if (USE_MOCK) return withDelay(HOME_DATA)
+  const fares = await getLowestFares().catch(() => ({}) as Awaited<ReturnType<typeof getLowestFares>>)
+  const stories = HOME_DATA.stories.map((story) => ({
+    ...story,
+    fromPriceVnd: fares.Sightseeing,
+    durationMins: undefined,
+  }))
+  return withDelay({ ...HOME_DATA, stories })
 }
 
 export interface NextDepartures {

@@ -40,10 +40,6 @@ export function legView(state: BookingState, leg: Leg): LegView {
   }
 }
 
-/** The legs being booked, in order: one for one-way, two for a round trip. */
-export const activeLegs = (query: Pick<SearchQuery, 'tripType'>): Leg[] =>
-  isRoundTrip(query) ? ['outbound', 'return'] : ['outbound']
-
 /** "YYYY-MM-DDTHH:mm" in Vietnam time: the day of the search plus the time shown on the trip. */
 export const localStamp = (dateId: string, time: string): string => `${dateId}T${time}`
 

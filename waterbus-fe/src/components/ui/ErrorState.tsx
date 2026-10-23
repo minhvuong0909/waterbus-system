@@ -9,6 +9,9 @@ interface ErrorStateProps {
   message?: string
   /** Smaller, inline version for a card or panel instead of a whole page. */
   compact?: boolean
+  icon?: string
+  /** Where to go instead of retrying, e.g. back to the search when nothing was chosen. */
+  action?: { label: string; to: string }
 }
 
 /** Shown when loading data fails. Offers a retry and a way back home. */
@@ -17,6 +20,8 @@ export default function ErrorState({
   title = t('We couldn’t load this page'),
   message = t('Something went wrong while loading the data. Check your connection and try again.'),
   compact = false,
+  icon = 'cloud_off',
+  action,
 }: ErrorStateProps) {
   if (compact) {
     return (
@@ -47,7 +52,7 @@ export default function ErrorState({
       className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-space-md px-margin py-space-3xl text-center"
     >
       <span className="flex h-16 w-16 items-center justify-center rounded-full bg-coral-glow/15 text-coral-glow">
-        <Icon name="cloud_off" className="text-[34px]" />
+        <Icon name={icon} className="text-[34px]" />
       </span>
       <h1 className="font-headline-md text-headline-md text-deep-river">{title}</h1>
       <p className="text-body-md text-on-surface-variant">{message}</p>
@@ -61,6 +66,14 @@ export default function ErrorState({
             <Icon name="refresh" className="text-[18px]" />
             {t('Try again')}
           </button>
+        )}
+        {action && (
+          <Link
+            to={action.to}
+            className="inline-flex items-center rounded-full bg-teal-flow px-6 py-2.5 font-headline-sm text-body-md font-semibold text-on-primary shadow-sm transition-colors hover:bg-secondary"
+          >
+            {action.label}
+          </Link>
         )}
         <Link
           to={ROUTES.home}

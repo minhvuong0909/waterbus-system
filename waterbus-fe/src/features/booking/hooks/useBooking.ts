@@ -5,7 +5,6 @@ import { getTripDetail } from '../../trips/services/tripService'
 import {
   toggleReturnSeat,
   toggleSeat,
-  setPaymentMethod,
   setTermsAccepted,
   updatePurchaser,
   updateReturnPassenger,
@@ -15,7 +14,6 @@ import { legView } from '../legs'
 import type { Leg } from '../legs'
 import { getSeatMap } from '../services/bookingService'
 import { useLiveSeatMap } from './useLiveSeatMap'
-import type { PaymentMethodId } from '../../payment/types'
 import type { TripDetail } from '../../trips/types'
 import type { PurchaserForm, SeatMap, SeatPassengerForm } from '../types'
 import { MAX_SEATS_PER_BOOKING, computeTotals, withOwnHold } from '../utils'
@@ -70,6 +68,8 @@ export function useBooking({ live = false, leg = 'outbound', enabled = true }: U
 
   return {
     leg,
+    /** No trip chosen in this session (e.g. a booking page opened directly): nothing to load. */
+    noTrip: enabled && !view.tripId,
     loading: enabled && (tripDetail.loading || loadedSeatMap.loading || !detail || !seatMap),
     error: tripDetail.error ?? loadedSeatMap.error,
     retry: () => {
@@ -86,7 +86,6 @@ export function useBooking({ live = false, leg = 'outbound', enabled = true }: U
     /** The passenger of each chosen seat of this leg, by seat id. */
     passengers: view.passengers,
     termsAccepted: booking.termsAccepted,
-    paymentMethod: booking.paymentMethod,
     totals,
     /**
      * Adds or removes a seat. Sold, held and unknown seats cannot be added, so the booking never
@@ -102,6 +101,5 @@ export function useBooking({ live = false, leg = 'outbound', enabled = true }: U
     editSeatPassenger: (seatId: string, patch: Partial<SeatPassengerForm>) =>
       dispatch(leg === 'outbound' ? updateSeatPassenger({ seatId, patch }) : updateReturnPassenger({ seatId, patch })),
     setTerms: (v: boolean) => dispatch(setTermsAccepted(v)),
-    setMethod: (m: PaymentMethodId) => dispatch(setPaymentMethod(m)),
   }
 }

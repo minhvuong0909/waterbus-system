@@ -183,7 +183,7 @@ export function PassengerInfoCard({
             <div className="text-sm font-semibold text-deep-river">{purchaser.fullName}</div>
           </div>
           <div>
-            <div className="text-xs text-on-surface-variant">{t('Notification Email')}</div>
+            <div className="text-xs text-on-surface-variant">{t('Buyer email')}</div>
             <div className="text-sm font-semibold text-deep-river">{purchaser.email}</div>
           </div>
           {purchaser.phone.trim() && (
@@ -352,10 +352,6 @@ export function OrderSummary({
         >
           {t('← Back to Passenger Details')}
         </Link>
-      </div>
-      <div className="mt-space-md flex items-start gap-2 text-xs text-on-surface-variant">
-        <Icon name="verified_user" className="text-[18px] text-teal-flow" />
-        {t('Your selected seat remains reserved while you complete checkout.')}
       </div>
     </BookingCard>
   )

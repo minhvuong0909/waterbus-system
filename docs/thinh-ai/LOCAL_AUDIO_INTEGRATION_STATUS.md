@@ -28,6 +28,22 @@ dotnet test WaterbusSystem.sln --filter "FullyQualifiedName~TrackingAudioTrigger
 
 Các test này dùng EF InMemory và fake ACK để chứng minh quyết định/đường nối, **không** dùng loa tàu hay Azure Blob thật. Để xem log qua API local, đặt WebApi User Secret `SightseeingAudio:EnableGpsTriggerEvaluation=true`, khởi động API ở Development và cần sẵn dữ liệu SQL: Trip Sightseeing `EnRoute` gắn Boat/Route, RoutePoi có tọa độ và bán kính dương, AudioGuide `vi` đã publish với URI Blob bền vững. Gửi GPS đúng Boat bằng tài khoản Captain được gán. Log `Audio geofence ...` cho biết lý do; `dispatched=true` chỉ là lệnh đã ghi log, **không** phải playback. Không gửi GPS giả cho Trip production. Xóa User Secret/cấu hình sau demo để tránh log lặp mỗi tick.
 
+## Màn Admin soạn và nghe thử thuyết minh (23/10/2026)
+
+Web Admin có trang **Thuyết minh** (`/admin/audio-guides`): bản đồ các địa danh dọc sông, chọn một địa danh → nhập lời thuyết minh → chọn giọng → sinh MP3 bằng Azure và nghe thử.
+
+| API (chỉ role Admin) | Mục đích |
+|---|---|
+| `POST /api/v1/texttospeech/generate` body `{ text, voiceName }` | Có sẵn. Sinh MP3, lưu Blob private, trả `assetKey`, `durationSeconds`, `voiceName`... |
+| `GET /api/v1/texttospeech/audio?assetKey=audio-assets/...mp3` | **Mới.** Backend đọc MP3 từ Blob private và trả `audio/mpeg` để Admin nghe thử. 400 khi khóa ngoài `audio-assets/` hoặc không phải `.mp3`, 404 khi không có tệp. |
+
+Giọng: nữ `vi-VN-HoaiMyNeural`, nam `vi-VN-NamMinhNeural`.
+
+Giới hạn hiện tại:
+- Danh sách địa danh và tọa độ (gần đúng) nằm ở FE `features/admin/audioGuide.ts`, lấy tên từ nội dung trang Khám phá, vì backend **chưa có API POI**.
+- Lời thuyết minh và MP3 **chưa được lưu vào `AudioGuide`** (entity chưa có cột kịch bản), chỉ giữ trong phiên của trang.
+- Đây là nghe thử cho Admin qua stream có xác thực, **không** phải URL công khai hay player cho hành khách. Phát tự động trên loa tàu vẫn cần các mục dưới đây.
+
 ## Còn thiếu để chạy thật
 
 1. Owner POI/Admin cung cấp luồng kịch bản đã duyệt → TTS → tạo/publish `AudioGuide` và dữ liệu RoutePoi hợp lệ. Hiện repo chưa có API/UI quản lý phần này; unit fixture tự tạo dữ liệu.

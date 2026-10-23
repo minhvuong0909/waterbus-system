@@ -11,6 +11,7 @@ import { useDocumentTitle } from '../../hooks'
 import { useAppSelector } from '../../store/hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
+import NoTripSelected from '../../features/booking/components/NoTripSelected'
 
 export default function PaymentPage() {
   useDocumentTitle('Complete Your Payment')
@@ -20,6 +21,7 @@ export default function PaymentPage() {
   const back = useBooking({ leg: 'return', enabled: roundTrip })
   const { trip, seats, purchaser } = outbound
 
+  if (outbound.noTrip) return <NoTripSelected />
   const error = outbound.error ?? back.error
   if (error) {
     return (
@@ -45,9 +47,9 @@ export default function PaymentPage() {
       label: 'Seat',
       detail: returnLeg ? `${seatCodes(seats)} · ${seatCodes(returnLeg.seats)}` : seatCodes(seats),
     },
-    { label: 'Details', detail: purchaser.fullName },
+    { label: 'Passengers', detail: purchaser.fullName },
     { label: 'Checkout', detail: 'Awaiting payment' },
-    { label: 'Payment', detail: 'Instant QR / Card' },
+    { label: 'Payment', detail: 'VNPay' },
   ]
 
   return (
@@ -92,7 +94,6 @@ export default function PaymentPage() {
       <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="lg:col-span-8">
           <PaymentMethodPanel
-            tripCode={trip.vesselCode}
             amountVnd={totals.totalVnd}
             reference={hold?.bookingCodes.join(', ') || bookingReference(seats)}
           />

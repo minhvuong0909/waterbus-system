@@ -12,10 +12,11 @@ import {
 import type { Column } from '../../features/admin/components/AdminUi'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import { assignBoat, getBoats, getRoutes, getTrips } from '../../features/admin/services/adminService'
-import type { AdminBoat, AdminTrip, AdminTripStatus } from '../../features/admin/types'
+import type { AdminBoat, AdminTrip, AdminTripStatus, AdminTripType } from '../../features/admin/types'
 import { formatDateTime } from '../../features/admin/utils'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { formatNumber } from '../../utils/format'
+import { getLowestFares } from '../../features/trips/services/fareService'
 import { t } from '../../i18n'
 import { USE_MOCK } from '../../constant/env'
 
@@ -74,6 +75,10 @@ export default function TripsPage() {
   const trips = useFetch(getTrips, [version])
   const routes = useFetch(getRoutes)
   const boats = useFetch(getBoats)
+  // Real mode: lowest active fare of each trip type from `GET /fares` (BR-FARE-01: price depends on type and seat class only).
+  const fares = useFetch<Partial<Record<AdminTripType, number>>>(() =>
+    USE_MOCK ? Promise.resolve({}) : getLowestFares().catch(() => ({})),
+  )
   const [filter, setFilter] = useState<'all' | AdminTripStatus>('all')
   const [assigning, setAssigning] = useState<AdminTrip | null>(null)
   const state = combineFetches(trips, routes, boats)
@@ -90,7 +95,15 @@ export default function TripsPage() {
     { header: 'Route', render: (x) => x.routeName ?? routeName(x.routeId) },
     { header: 'Boat', render: (x) => <span className="font-mono font-semibold">{boatCode(x.boatId)}</span> },
     { header: 'Type', render: (x) => t(x.tripType === 'Commuter' ? 'Regular' : 'Sightseeing') },
-    { header: 'Price (VND)', render: (x) => USE_MOCK ? formatNumber(x.basePrice) : '—', className: 'text-right' },
+    {
+      header: 'Fares from (VND)',
+      render: (x) => {
+        if (USE_MOCK) return formatNumber(x.basePrice)
+        const lowest = fares.data?.[x.tripType]
+        return lowest === undefined ? '—' : formatNumber(lowest)
+      },
+      className: 'text-right',
+    },
     { header: 'Status', render: (x) => <StatusBadge status={x.status} /> },
     {
       header: 'Actions',

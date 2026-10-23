@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WaterbusSystem.Application.Features.SightseeingAudio.Commands.SynthesizeAudio;
+using WaterbusSystem.Application.Features.SightseeingAudio.Queries.GetAudioAsset;
 
 namespace WaterbusSystem.WebApi.Controllers;
 
@@ -24,5 +25,19 @@ public class TextToSpeechController : BaseApiController
     {
         var result = await Mediator.Send(command);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Trả tệp MP3 đã sinh theo AssetKey để Admin nghe thử (Blob private, không có URL công khai).
+    /// </summary>
+    /// <param name="assetKey">AssetKey trả về từ <c>generate</c>, ví dụ <c>audio-assets/tts/20261023/abc.mp3</c>.</param>
+    [HttpGet("audio")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK, "audio/mpeg")]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Audio([FromQuery] string assetKey)
+    {
+        var audio = await Mediator.Send(new GetAudioAssetQuery(assetKey));
+        return File(audio.Data, audio.ContentType);
     }
 }

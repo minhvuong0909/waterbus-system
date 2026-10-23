@@ -38,18 +38,24 @@ export default function StoriesSection({ stories }: StoriesSectionProps) {
                   <Icon name={story.badgeIcon} className={`text-[15px] ${story.badgeIconClass}`} />
                   <span>{story.badge}</span>
                 </div>
-                <div className="absolute bottom-4 right-4 rounded-full bg-surface/90 px-3.5 py-1 font-numeric-md text-sm font-bold text-deep-river shadow-sm backdrop-blur-md">
-                  {t('From {price}', { price: formatVnd(story.fromPriceVnd) })}
-                </div>
+                {story.fromPriceVnd !== undefined && (
+                  <div className="absolute bottom-4 right-4 rounded-full bg-surface/90 px-3.5 py-1 font-numeric-md text-sm font-bold text-deep-river shadow-sm backdrop-blur-md">
+                    {t('From {price}', { price: formatVnd(story.fromPriceVnd) })}
+                  </div>
+                )}
               </div>
               <div className="flex flex-1 flex-col justify-between space-y-space-md p-space-lg">
                 <div className="space-y-space-sm">
                   <div className="flex items-center gap-2 text-xs text-on-surface-variant">
-                    <span className="flex items-center gap-1">
-                      <Icon name="timer" className="text-[15px] text-teal-flow" />{' '}
-                      {t('{durationMins} mins', { durationMins: story.durationMins })}
-                    </span>
-                    <span>•</span>
+                    {story.durationMins !== undefined && (
+                      <>
+                        <span className="flex items-center gap-1">
+                          <Icon name="timer" className="text-[15px] text-teal-flow" />{' '}
+                          {t('{durationMins} mins', { durationMins: story.durationMins })}
+                        </span>
+                        <span>•</span>
+                      </>
+                    )}
                     <span className="flex items-center gap-1">
                       <Icon name="pin_drop" className="text-[15px] text-teal-flow" />{' '}
                       {story.location}

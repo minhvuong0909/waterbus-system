@@ -56,7 +56,8 @@ const SeatButton = memo(function SeatButton({
         </span>
       )}
       {selected && (
-        <span className="absolute -top-2 left-1/2 z-10 -translate-x-1/2 rounded bg-signal-amber px-1 text-[8px] font-bold uppercase text-deep-river">
+        // One line and click-through: a wrapped label ("ĐÃ CHỌN") covered the seat and swallowed the click that removes it.
+        <span className="pointer-events-none absolute -top-2 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-signal-amber px-1 text-[8px] font-bold uppercase text-deep-river">
           {t('Selected')}
         </span>
       )}

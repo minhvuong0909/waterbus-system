@@ -100,7 +100,8 @@ export interface NetworkRoute {
   destinationId: string
   badge: string
   summary: string
-  fromFareVnd: number
+  /** Lowest active fare of the route's trip type, from `GET /fares`. */
+  fromFareVnd?: number
 }
 
 export interface AmenityChip {

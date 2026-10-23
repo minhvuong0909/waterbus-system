@@ -125,4 +125,37 @@ public sealed class AzureBlobAudioStorageService : IAudioStorageService
             throw new AudioStorageException("Không thể kiểm tra MP3 trong Azure Blob.");
         }
     }
+
+    public async Task<StoredAudio?> ReadAudioAsync(
+        string assetKey,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(assetKey) || assetKey.Length > 400 || !SafeAssetKey.IsMatch(assetKey))
+            return null;
+
+        try
+        {
+            var content = await _container.GetBlobClient(assetKey).DownloadContentAsync(cancellationToken);
+            return new StoredAudio(content.Value.Content.ToArray(), "audio/mpeg");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (RequestFailedException ex) when (ex.Status == 404)
+        {
+            return null;
+        }
+        catch (RequestFailedException ex)
+        {
+            _logger.LogError("Azure Blob download thất bại ({Status}, {ErrorCode}).", ex.Status, ex.ErrorCode);
+            throw new AudioStorageException("Không thể đọc MP3 từ Azure Blob.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Azure Blob download thất bại ({ExceptionType}).", ex.GetType().Name);
+            throw new AudioStorageException("Không thể đọc MP3 từ Azure Blob.");
+        }
+    }
 }

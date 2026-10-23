@@ -1,10 +1,14 @@
 import type { ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
 import BookingProgress from '../../features/booking/components/BookingProgress'
 import CrossingSummary from '../../features/booking/components/CrossingSummary'
 import HoldCountdown from '../../features/booking/components/HoldCountdown'
-import PassengerFormCard from '../../features/booking/components/PassengerFormCard'
-import { copyPassengersToReturn } from '../../features/booking/bookingSlice'
+import PassengerFormCard, {
+  BuyerCard,
+  PassengerFormNote,
+} from '../../features/booking/components/PassengerFormCard'
+import { copyPassengersToReturn, holdCleared, setBuyerTravels } from '../../features/booking/bookingSlice'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import { isRoundTrip } from '../../features/booking/legs'
 import type { BookingStep } from '../../features/booking/types'
@@ -14,6 +18,7 @@ import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { t } from '../../i18n'
+import NoTripSelected from '../../features/booking/components/NoTripSelected'
 
 /** "Outbound trip · Bach Dang → Linh Dong · 15:00", above the passengers of that leg. */
 function LegHeading({ title, trip, action }: { title: string; trip: TripDetail; action?: ReactNode }) {
@@ -33,11 +38,16 @@ function LegHeading({ title, trip, action }: { title: string; trip: TripDetail; 
 export default function PassengerDetailsPage() {
   useDocumentTitle('Passenger Details')
   const dispatch = useAppDispatch()
+  const navigate = useNavigate()
   const roundTrip = isRoundTrip(useAppSelector((s) => s.booking.query))
+  // Once sent with the order (review step), the backend no longer accepts changes to these details.
+  const submitted = useAppSelector((s) => s.booking.hold?.submitted ?? false)
+  const buyerTravels = useAppSelector((s) => s.booking.buyerTravels)
   const outbound = useBooking()
   const back = useBooking({ leg: 'return', enabled: roundTrip })
   const { trip, seats, seatIds, purchaser, passengers, editPurchaser, editSeatPassenger } = outbound
 
+  if (outbound.noTrip) return <NoTripSelected />
   const error = outbound.error ?? back.error
   if (error) {
     return (
@@ -61,7 +71,7 @@ export default function PassengerDetailsPage() {
   const steps: BookingStep[] = [
     { label: 'Trip', detail: 'Trip' },
     { label: 'Seat', detail: t('Seat ({id})', { id: seatDetail }) },
-    { label: 'Passenger Details', detail: 'Passenger Details' },
+    { label: 'Passenger Details', detail: 'Passengers' },
     { label: 'Checkout', detail: 'Checkout' },
     { label: 'Payment', detail: 'Payment' },
   ]
@@ -96,42 +106,70 @@ export default function PassengerDetailsPage() {
       </div>
 
       <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
-        <div className="space-y-space-xl lg:col-span-7">
-          <PassengerFormCard
-            purchaser={purchaser}
-            seats={seats}
-            passengers={passengers}
-            onPurchaser={editPurchaser}
-            onPassenger={editSeatPassenger}
-            showBuyer={!returnLeg}
-            heading={returnLeg ? <LegHeading title={t('Outbound trip')} trip={trip} /> : undefined}
-          />
-          {returnLeg && (
+        <div className="space-y-space-md lg:col-span-7">
+          {submitted && (
+            <div
+              role="status"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-signal-amber/40 bg-signal-amber/10 px-4 py-3 text-sm text-deep-river"
+            >
+              <span>{t('These details were sent with your order and can no longer be edited here.')}</span>
+              {/* A new hold for the same seats gives a new order whose details can be sent again. */}
+              <button
+                type="button"
+                onClick={() => {
+                  dispatch(holdCleared())
+                  navigate(ROUTES.seatSelection)
+                }}
+                className="inline-flex min-h-[36px] items-center gap-1.5 whitespace-nowrap rounded-full bg-deep-river px-3.5 text-xs font-semibold text-white hover:opacity-90"
+              >
+                <Icon name="edit" className="text-[16px]" />
+                {t('Edit details')}
+              </button>
+            </div>
+          )}
+          <fieldset disabled={submitted} className="m-0 min-w-0 space-y-space-xl border-0 p-0">
+            <BuyerCard
+              purchaser={purchaser}
+              onPurchaser={editPurchaser}
+              buyerTravels={buyerTravels}
+              onBuyerTravels={(value) => dispatch(setBuyerTravels(value))}
+              seatCode={seats[0]?.code}
+            />
             <PassengerFormCard
               purchaser={purchaser}
-              seats={returnLeg.seats}
-              passengers={back.passengers}
-              onPurchaser={editPurchaser}
-              onPassenger={back.editSeatPassenger}
-              heading={
-                <LegHeading
-                  title={t('Return trip')}
-                  trip={returnLeg.trip}
-                  action={
-                    <button
-                      type="button"
-                      disabled={!outboundNamed}
-                      onClick={() => dispatch(copyPassengersToReturn())}
-                      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-teal-flow px-3.5 text-xs font-semibold text-teal-flow transition-colors hover:bg-teal-flow hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Icon name="content_copy" className="text-[16px]" />
-                      {t('Same passengers as outbound')}
-                    </button>
-                  }
-                />
-              }
+              seats={seats}
+              passengers={passengers}
+              onPassenger={editSeatPassenger}
+              buyerSeatId={buyerTravels ? seats[0]?.id : undefined}
+              heading={returnLeg ? <LegHeading title={t('Outbound trip')} trip={trip} /> : undefined}
             />
-          )}
+            {returnLeg && (
+              <PassengerFormCard
+                purchaser={purchaser}
+                seats={returnLeg.seats}
+                passengers={back.passengers}
+                onPassenger={back.editSeatPassenger}
+                heading={
+                  <LegHeading
+                    title={t('Return trip')}
+                    trip={returnLeg.trip}
+                    action={
+                      <button
+                        type="button"
+                        disabled={!outboundNamed}
+                        onClick={() => dispatch(copyPassengersToReturn())}
+                        className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-teal-flow px-3.5 text-xs font-semibold text-teal-flow transition-colors hover:bg-teal-flow hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Icon name="content_copy" className="text-[16px]" />
+                        {t('Same passengers as outbound')}
+                      </button>
+                    }
+                  />
+                }
+              />
+            )}
+            <PassengerFormNote />
+          </fieldset>
         </div>
         <div className="lg:col-span-5 lg:self-stretch">
           <CrossingSummary
