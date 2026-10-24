@@ -1,41 +1,69 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Smart Waterbus Official Design System Tokens
+ * Source of Truth: docs/stitch/stitch_smart_waterbus_passenger_web/smart_waterbus_design.md
+ * Concept: Urban River Flow
  */
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+export const BrandColors = {
+  // Core colors
+  deepRiver: '#0D2538',   // Dominant dark navy / operations header
+  tealFlow: '#147A7E',    // Primary brand action & active state
+  skyAqua: '#4FC3D8',     // High-visibility accent / scanline / laser
+  mist: '#F4F7F8',        // Screen background
+  sandLight: '#E9F0EC',   // Soft light river surface tone
+  ink: '#18242D',         // High contrast primary text
+
+  // Accent colors
+  coralGlow: '#F08A6B',   // Warm alert & notification accent
+  signalAmber: '#E8B63E', // Pending sync & caution warning
+
+  // Utility & Status
+  success: '#059669',
+  successBg: '#DCFCE7',
+  danger: '#DC2626',
+  dangerBg: '#FEF2F2',
+  surface: '#FFFFFF',
+  cardBg: '#FFFFFF',
+  border: '#E2E8F0',
+  textSecondary: '#64748B',
+  textMuted: '#94A3B8',
+};
+
+export const Radius = {
+  sm: 8,
+  md: 12,
+  button: 14,
+  card: 16,
+  panel: 24,
+  pill: 9999,
+};
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: BrandColors.ink,
+    background: BrandColors.mist,
+    tint: BrandColors.tealFlow,
+    icon: BrandColors.textSecondary,
+    tabIconDefault: BrandColors.textSecondary,
+    tabIconSelected: BrandColors.tealFlow,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: '#F8FAFC',
+    background: BrandColors.deepRiver,
+    tint: BrandColors.skyAqua,
+    icon: '#94A3B8',
+    tabIconDefault: '#94A3B8',
+    tabIconSelected: BrandColors.skyAqua,
   },
 };
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {
@@ -45,9 +73,9 @@ export const Fonts = Platform.select({
     mono: 'monospace',
   },
   web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    sans: "Plus Jakarta Sans, Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, sans-serif",
+    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
   },
 });

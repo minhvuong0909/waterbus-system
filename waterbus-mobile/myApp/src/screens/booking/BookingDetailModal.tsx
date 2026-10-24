@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useScannerStore } from '../../store/useScannerStore';
 import { Ticket } from '../../types/scanner';
+import { BrandColors, Radius } from '../../../constants/theme';
 
 export default function BookingDetailModal() {
   const {
@@ -353,11 +354,11 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: Radius.card,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: BrandColors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -371,26 +372,26 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     fontSize: 14,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
   },
   cardValue: {
     fontSize: 14,
-    color: '#1E293B',
+    color: BrandColors.ink,
     fontWeight: '500',
   },
   cardValueBold: {
     fontSize: 15,
-    color: '#0F172A',
+    color: BrandColors.ink,
     fontWeight: '700',
   },
   cardValueHighlight: {
     fontSize: 14,
-    color: '#0284C7',
-    fontWeight: '600',
+    color: BrandColors.tealFlow,
+    fontWeight: '700',
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: BrandColors.border,
     marginVertical: 8,
   },
   sectionHeader: {
@@ -402,37 +403,37 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   sectionSubtitle: {
     fontSize: 12,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginTop: 2,
   },
   selectAllButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    backgroundColor: '#E0F2FE',
-    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    backgroundColor: BrandColors.sandLight,
+    borderRadius: Radius.sm,
   },
   selectAllText: {
     fontSize: 13,
-    color: '#0284C7',
-    fontWeight: '600',
+    color: BrandColors.tealFlow,
+    fontWeight: '700',
   },
   ticketItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: Radius.md,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: BrandColors.border,
   },
   ticketItemSelected: {
-    borderColor: '#0284C7',
-    backgroundColor: '#F0F9FF',
+    borderColor: BrandColors.tealFlow,
+    backgroundColor: '#F0FDF9',
   },
   ticketItemCheckedIn: {
     borderColor: '#D1FAE5',
@@ -454,15 +455,15 @@ const styles = StyleSheet.create({
   passengerName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: Radius.sm,
   },
   badgeGreen: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: BrandColors.successBg,
   },
   badgeAmber: {
     backgroundColor: '#FEF3C7',
@@ -472,7 +473,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   textGreen: {
-    color: '#166534',
+    color: BrandColors.success,
   },
   textAmber: {
     color: '#B45309',
@@ -483,10 +484,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   seatBadge: {
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 6,
+    backgroundColor: BrandColors.deepRiver,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: Radius.sm,
   },
   seatBadgeText: {
     color: '#FFFFFF',
@@ -495,34 +496,34 @@ const styles = StyleSheet.create({
   },
   seatClassText: {
     fontSize: 12,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
   },
   ticketNumberText: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: BrandColors.textMuted,
     marginLeft: 'auto',
   },
   footer: {
     backgroundColor: '#FFFFFF',
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: BrandColors.border,
   },
   checkInButton: {
-    backgroundColor: '#0284C7',
+    backgroundColor: BrandColors.tealFlow,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 14,
-    borderRadius: 10,
-    shadowColor: '#0284C7',
+    borderRadius: Radius.button,
+    shadowColor: BrandColors.tealFlow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 3,
   },
   buttonDisabled: {
-    backgroundColor: '#94A3B8',
+    backgroundColor: BrandColors.textMuted,
     shadowOpacity: 0,
     elevation: 0,
   },

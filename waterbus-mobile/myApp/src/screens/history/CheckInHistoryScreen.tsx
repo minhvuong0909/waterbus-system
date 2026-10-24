@@ -24,6 +24,7 @@ import * as Haptics from 'expo-haptics';
 import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
 import { useScannerStore } from '../../store/useScannerStore';
 import { CheckInEvent } from '../../types/scanner';
+import { BrandColors, Radius } from '../../../constants/theme';
 
 export default function CheckInHistoryScreen() {
   const { stats, isSyncing, syncPendingBatch, refreshStats } = useScannerStore();
@@ -258,7 +259,7 @@ export default function CheckInHistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: BrandColors.mist,
   },
   header: {
     flexDirection: 'row',
@@ -269,34 +270,34 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: BrandColors.border,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontWeight: '800',
+    color: BrandColors.ink,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginTop: 2,
   },
   syncButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0284C7',
+    backgroundColor: BrandColors.tealFlow,
     paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: Radius.button,
     gap: 6,
   },
   syncButtonDisabled: {
-    backgroundColor: '#94A3B8',
+    backgroundColor: BrandColors.textMuted,
   },
   syncButtonText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   metricsContainer: {
     flexDirection: 'row',
@@ -309,19 +310,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingVertical: 12,
     paddingHorizontal: 8,
-    borderRadius: 10,
+    borderRadius: Radius.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: BrandColors.border,
   },
   metricNumber: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   metricLabel: {
     fontSize: 11,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginTop: 3,
     textAlign: 'center',
   },
@@ -333,14 +334,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: BrandColors.border,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   filterRow: {
     flexDirection: 'row',
@@ -351,16 +352,16 @@ const styles = StyleSheet.create({
   filterTab: {
     paddingVertical: 6,
     paddingHorizontal: 14,
-    borderRadius: 20,
-    backgroundColor: '#E2E8F0',
+    borderRadius: Radius.pill,
+    backgroundColor: BrandColors.sandLight,
   },
   filterTabActive: {
-    backgroundColor: '#0F172A',
+    backgroundColor: BrandColors.tealFlow,
   },
   filterTabText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#475569',
+    color: BrandColors.ink,
   },
   filterTabTextActive: {
     color: '#FFFFFF',
@@ -371,11 +372,11 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: Radius.card,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: BrandColors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -394,21 +395,21 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   seatBadge: {
-    backgroundColor: '#E0F2FE',
+    backgroundColor: BrandColors.sandLight,
     paddingVertical: 3,
     paddingHorizontal: 8,
-    borderRadius: 6,
+    borderRadius: Radius.sm,
     marginRight: 8,
   },
   seatBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0284C7',
+    color: BrandColors.tealFlow,
   },
   passengerName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
     flex: 1,
   },
   statusBadge: {
@@ -416,11 +417,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 3,
     paddingHorizontal: 8,
-    borderRadius: 12,
+    borderRadius: Radius.pill,
     gap: 4,
   },
   badgeSynced: {
-    backgroundColor: '#D1FAE5',
+    backgroundColor: BrandColors.successBg,
   },
   badgePending: {
     backgroundColor: '#FEF3C7',
@@ -430,14 +431,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   textSynced: {
-    color: '#059669',
+    color: BrandColors.success,
   },
   textPending: {
-    color: '#D97706',
+    color: BrandColors.signalAmber,
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: BrandColors.border,
     marginVertical: 10,
   },
   cardBody: {
@@ -450,32 +451,32 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 12,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
   },
   infoValueBold: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#334155',
+    color: BrandColors.ink,
   },
   infoValue: {
     fontSize: 12,
-    color: '#334155',
+    color: BrandColors.ink,
   },
   uuidText: {
     fontSize: 11,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     flex: 1,
   },
   notesRow: {
     marginTop: 4,
     paddingTop: 4,
     borderTopWidth: 1,
-    borderTopColor: '#F8FAFC',
+    borderTopColor: BrandColors.border,
   },
   notesText: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: BrandColors.textMuted,
     fontStyle: 'italic',
   },
   emptyContainer: {
@@ -487,12 +488,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginTop: 12,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: BrandColors.textMuted,
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,

@@ -22,6 +22,7 @@ import { useScannerStore } from '../../store/useScannerStore';
 import { QrVerifier } from '../../services/crypto/qrVerifier';
 import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
 import { Trip } from '../../types/scanner';
+import { BrandColors, Radius } from '../../../constants/theme';
 
 const STATIONS = [
   { id: 'ST-BACH-DANG', name: 'Bến Bạch Đằng (Quận 1)' },
@@ -140,7 +141,7 @@ export default function PreloadManifestScreen() {
                   <Ionicons
                     name={isSelected ? 'radio-button-on' : 'radio-button-off'}
                     size={16}
-                    color={isSelected ? '#0284C7' : '#64748B'}
+                    color={isSelected ? BrandColors.tealFlow : BrandColors.textSecondary}
                   />
                   <Text style={[styles.stationChipText, isSelected && styles.stationChipTextSelected]}>
                     {st.name}
@@ -172,7 +173,7 @@ export default function PreloadManifestScreen() {
           <View style={styles.cardHeaderRow}>
             <Text style={styles.cardTitle}>Bộ Nhớ Cục Bộ (SQLite)</Text>
             <TouchableOpacity onPress={() => { refreshStats(); loadTrips(); }} style={styles.refreshIconBtn}>
-              <Ionicons name="refresh" size={18} color="#0284C7" />
+              <Ionicons name="refresh" size={18} color={BrandColors.tealFlow} />
             </TouchableOpacity>
           </View>
 
@@ -186,11 +187,11 @@ export default function PreloadManifestScreen() {
               <Text style={styles.statLabel}>Đơn Booking</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={[styles.statNumber, { color: '#0284C7' }]}>{stats.ticketCount}</Text>
+              <Text style={[styles.statNumber, { color: BrandColors.tealFlow }]}>{stats.ticketCount}</Text>
               <Text style={styles.statLabel}>Tổng Vé Cache</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={[styles.statNumber, { color: '#059669' }]}>{stats.checkedInCount}</Text>
+              <Text style={[styles.statNumber, { color: BrandColors.success }]}>{stats.checkedInCount}</Text>
               <Text style={styles.statLabel}>Đã Check-in</Text>
             </View>
           </View>
@@ -199,7 +200,7 @@ export default function PreloadManifestScreen() {
 
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Vé chờ đồng bộ (Offline Queue):</Text>
-            <Text style={[styles.infoValueBold, stats.pendingSyncCount > 0 && { color: '#EA580C' }]}>
+            <Text style={[styles.infoValueBold, stats.pendingSyncCount > 0 && { color: BrandColors.signalAmber }]}>
               {stats.pendingSyncCount} sự kiện
             </Text>
           </View>
@@ -353,7 +354,7 @@ export default function PreloadManifestScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: BrandColors.mist,
   },
   content: {
     padding: 16,
@@ -365,21 +366,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   subtitle: {
     fontSize: 13,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginTop: 4,
     lineHeight: 18,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: Radius.card,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: BrandColors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -395,15 +396,15 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   cardSubtitle: {
     fontSize: 12,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
   },
   cardDesc: {
     fontSize: 13,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginBottom: 12,
   },
   refreshIconBtn: {
@@ -418,32 +419,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 10,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: BrandColors.border,
+    backgroundColor: '#FFFFFF',
   },
   stationChipSelected: {
-    borderColor: '#0284C7',
-    backgroundColor: '#F0F9FF',
+    borderColor: BrandColors.tealFlow,
+    backgroundColor: '#F0FDF9',
   },
   stationChipText: {
     fontSize: 14,
-    color: '#334155',
+    color: BrandColors.ink,
     marginLeft: 10,
     fontWeight: '500',
   },
   stationChipTextSelected: {
-    color: '#0284C7',
+    color: BrandColors.tealFlow,
     fontWeight: '700',
   },
   preloadButton: {
-    backgroundColor: '#0284C7',
+    backgroundColor: BrandColors.tealFlow,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
-    borderRadius: 10,
+    borderRadius: Radius.button,
     marginTop: 6,
   },
   preloadButtonText: {
@@ -461,28 +462,28 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: BrandColors.mist,
     paddingVertical: 10,
     paddingHorizontal: 6,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: BrandColors.border,
   },
   statNumber: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   statLabel: {
     fontSize: 11,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginTop: 2,
     textAlign: 'center',
   },
   statsDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: BrandColors.border,
     marginBottom: 12,
   },
   infoRow: {
@@ -492,24 +493,24 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 13,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
   },
   infoValue: {
     fontSize: 13,
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   infoValueBold: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   syncButton: {
-    backgroundColor: '#0F172A',
+    backgroundColor: BrandColors.deepRiver,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: Radius.button,
     marginTop: 14,
   },
   syncButtonText: {
@@ -520,17 +521,18 @@ const styles = StyleSheet.create({
   messageBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0F9FF',
+    backgroundColor: '#F0FDF9',
     borderWidth: 1,
-    borderColor: '#BAE6FD',
-    borderRadius: 10,
+    borderColor: BrandColors.tealFlow,
+    borderRadius: Radius.md,
     padding: 12,
     marginBottom: 16,
     gap: 8,
   },
   messageBannerText: {
     fontSize: 13,
-    color: '#0369A1',
+    color: BrandColors.tealFlow,
+    fontWeight: '600',
     flex: 1,
   },
   emptyTripsBox: {
@@ -541,18 +543,18 @@ const styles = StyleSheet.create({
   },
   emptyTripsText: {
     fontSize: 13,
-    color: '#94A3B8',
+    color: BrandColors.textMuted,
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 16,
   },
   tripItemCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
+    backgroundColor: BrandColors.mist,
+    borderRadius: Radius.md,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: BrandColors.border,
   },
   tripItemTop: {
     flexDirection: 'row',
@@ -561,10 +563,10 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   tripCodeBadge: {
-    backgroundColor: '#0284C7',
+    backgroundColor: BrandColors.tealFlow,
     paddingVertical: 2,
     paddingHorizontal: 7,
-    borderRadius: 4,
+    borderRadius: Radius.sm,
   },
   tripCodeBadgeText: {
     color: '#FFFFFF',
@@ -572,13 +574,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   tripTypeBadge: {
-    backgroundColor: '#E2E8F0',
+    backgroundColor: BrandColors.sandLight,
     paddingVertical: 2,
     paddingHorizontal: 7,
-    borderRadius: 4,
+    borderRadius: Radius.sm,
   },
   tripTypeBadgeText: {
-    color: '#475569',
+    color: BrandColors.ink,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -589,13 +591,13 @@ const styles = StyleSheet.create({
   },
   tripStatusText: {
     fontSize: 12,
-    color: '#059669',
+    color: BrandColors.success,
     fontWeight: '600',
   },
   tripRouteName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
     marginBottom: 4,
   },
   tripDetailRow: {
@@ -606,10 +608,10 @@ const styles = StyleSheet.create({
   },
   tripDetailText: {
     fontSize: 12,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
   },
   tripDetailDot: {
-    color: '#CBD5E1',
+    color: BrandColors.border,
     marginHorizontal: 4,
   },
   progressContainer: {
@@ -622,22 +624,22 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 11,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
   },
   progressValue: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#0284C7',
+    color: BrandColors.tealFlow,
   },
   progressBarBg: {
     height: 6,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: BrandColors.border,
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#0284C7',
+    backgroundColor: BrandColors.tealFlow,
     borderRadius: 3,
   },
   scanTripButton: {
@@ -645,51 +647,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#E0F2FE',
+    borderRadius: Radius.sm,
+    backgroundColor: '#F0FDF9',
     gap: 6,
   },
   scanTripButtonText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0284C7',
+    color: BrandColors.tealFlow,
   },
   testGenButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: '#0284C7',
-    backgroundColor: '#F0F9FF',
+    borderColor: BrandColors.tealFlow,
+    backgroundColor: '#F0FDF9',
   },
   testGenButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#0284C7',
+    color: BrandColors.tealFlow,
   },
   qrCodeBox: {
     marginTop: 12,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
+    backgroundColor: BrandColors.mist,
+    borderRadius: Radius.sm,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: BrandColors.border,
   },
   qrCodeLabel: {
     fontSize: 11,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginBottom: 4,
   },
   qrCodeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#0284C7',
+    color: BrandColors.tealFlow,
   },
   signatureText: {
     fontSize: 10,
-    color: '#94A3B8',
+    color: BrandColors.textMuted,
     marginTop: 4,
   },
   dangerCard: {
@@ -701,14 +703,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: Radius.button,
     borderWidth: 1,
     borderColor: '#FCA5A5',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: BrandColors.dangerBg,
   },
   clearCacheBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#DC2626',
+    color: BrandColors.danger,
   },
 });

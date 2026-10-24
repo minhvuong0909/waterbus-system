@@ -24,6 +24,7 @@ import { useScannerStore } from '../../store/useScannerStore';
 import { QrVerifier } from '../../services/crypto/qrVerifier';
 import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
 import BookingDetailModal from '../booking/BookingDetailModal';
+import { BrandColors, Radius } from '../../../constants/theme';
 
 const { width, height } = Dimensions.get('window');
 const SCAN_AREA_SIZE = width * 0.72;
@@ -260,7 +261,7 @@ export default function StaffScannerScreen() {
 
           {/* Test Signed QR Simulator */}
           <TouchableOpacity
-            style={[styles.iconButton, { backgroundColor: 'rgba(2, 132, 199, 0.85)' }]}
+            style={[styles.iconButton, { backgroundColor: 'rgba(20, 122, 126, 0.85)' }]}
             onPress={() => setTestModalOpen(true)}
           >
             <Ionicons name="qr-code" size={24} color="#FFFFFF" />
@@ -302,7 +303,7 @@ export default function StaffScannerScreen() {
                 <Text style={styles.modalBtnText}>Huỷ</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: '#0284C7' }]}
+                style={[styles.modalBtn, { backgroundColor: BrandColors.tealFlow }]}
                 onPress={handleManualSearch}
               >
                 <Text style={styles.modalBtnText}>Tra Cứu</Text>
@@ -368,7 +369,7 @@ const styles = StyleSheet.create({
   },
   centerContainer: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: BrandColors.mist,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -376,21 +377,21 @@ const styles = StyleSheet.create({
   permissionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
     marginTop: 16,
   },
   permissionDesc: {
     fontSize: 14,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     textAlign: 'center',
     marginVertical: 12,
     lineHeight: 20,
   },
   permissionButton: {
-    backgroundColor: '#0284C7',
+    backgroundColor: BrandColors.tealFlow,
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 8,
+    borderRadius: Radius.button,
     marginTop: 8,
   },
   permissionButtonText: {
@@ -409,12 +410,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    backgroundColor: 'rgba(13, 37, 56, 0.92)',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(79, 195, 216, 0.25)',
   },
   staffNameText: {
     color: '#F8FAFC',
@@ -422,35 +423,36 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   stationNameText: {
-    color: '#94A3B8',
+    color: BrandColors.skyAqua,
     fontSize: 12,
     marginTop: 2,
+    fontWeight: '600',
   },
   pendingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EA580C',
+    backgroundColor: BrandColors.signalAmber,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: Radius.pill,
     gap: 4,
   },
   pendingBadgeText: {
-    color: '#FFFFFF',
+    color: BrandColors.ink,
     fontSize: 12,
     fontWeight: '700',
   },
   syncedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: 'rgba(5, 150, 105, 0.2)',
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: Radius.pill,
     gap: 4,
   },
   syncedBadgeText: {
-    color: '#10B981',
+    color: '#34D399',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -458,14 +460,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: BrandColors.dangerBg,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     marginTop: 8,
     gap: 6,
   },
   offlineBannerText: {
-    color: '#DC2626',
+    color: BrandColors.danger,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -477,7 +479,7 @@ const styles = StyleSheet.create({
   reticle: {
     width: SCAN_AREA_SIZE,
     height: SCAN_AREA_SIZE,
-    borderRadius: 16,
+    borderRadius: Radius.card,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
     backgroundColor: 'transparent',
@@ -487,7 +489,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 28,
     height: 28,
-    borderColor: '#38BDF8',
+    borderColor: BrandColors.skyAqua,
   },
   cornerTL: {
     top: 0,
@@ -520,8 +522,8 @@ const styles = StyleSheet.create({
   scanLine: {
     width: '100%',
     height: 3,
-    backgroundColor: '#38BDF8',
-    shadowColor: '#38BDF8',
+    backgroundColor: BrandColors.skyAqua,
+    shadowColor: BrandColors.skyAqua,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 8,
@@ -531,10 +533,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     marginTop: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(13, 37, 56, 0.85)',
     paddingHorizontal: 16,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: Radius.pill,
     textAlign: 'center',
   },
   bottomOverlay: {
@@ -546,20 +548,20 @@ const styles = StyleSheet.create({
   controlRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    backgroundColor: 'rgba(13, 37, 56, 0.92)',
     paddingVertical: 12,
-    borderRadius: 16,
+    borderRadius: Radius.card,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(79, 195, 216, 0.25)',
   },
   iconButton: {
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 10,
+    borderRadius: Radius.sm,
   },
   iconButtonActive: {
-    backgroundColor: 'rgba(234, 179, 8, 0.3)',
+    backgroundColor: 'rgba(232, 182, 62, 0.35)',
   },
   iconButtonText: {
     color: '#FFFFFF',
@@ -569,14 +571,14 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(13, 37, 56, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalBox: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: Radius.card,
     padding: 20,
     width: '100%',
     maxWidth: 400,
@@ -584,18 +586,18 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
     marginBottom: 6,
   },
   modalDesc: {
     fontSize: 13,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginBottom: 16,
   },
   input: {
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
+    borderColor: BrandColors.border,
+    borderRadius: Radius.sm,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
@@ -609,7 +611,7 @@ const styles = StyleSheet.create({
   modalBtn: {
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: Radius.button,
     alignItems: 'center',
   },
   modalBtnText: {
@@ -618,21 +620,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   testItem: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: BrandColors.sandLight,
     padding: 12,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     marginBottom: 10,
     borderLeftWidth: 4,
-    borderLeftColor: '#0284C7',
+    borderLeftColor: BrandColors.tealFlow,
   },
   testItemTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   testItemSubtitle: {
     fontSize: 12,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginTop: 2,
   },
 });

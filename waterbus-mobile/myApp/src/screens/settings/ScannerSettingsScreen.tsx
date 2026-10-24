@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useScannerStore } from '../../store/useScannerStore';
 import { syncService } from '../../services/sync/syncService';
+import { BrandColors, Radius } from '../../../constants/theme';
 
 export default function ScannerSettingsScreen() {
   const { deviceInfo, setForceOfflineMode, syncPendingBatch } = useScannerStore();
@@ -81,7 +82,7 @@ export default function ScannerSettingsScreen() {
             <Switch
               value={deviceInfo.forceOfflineMode}
               onValueChange={setForceOfflineMode}
-              trackColor={{ false: '#CBD5E1', true: '#EF4444' }}
+              trackColor={{ false: '#CBD5E1', true: BrandColors.coralGlow }}
               thumbColor={deviceInfo.forceOfflineMode ? '#FFFFFF' : '#F8FAFC'}
             />
           </View>
@@ -160,7 +161,7 @@ export default function ScannerSettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: BrandColors.mist,
   },
   content: {
     padding: 16,
@@ -171,21 +172,21 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontWeight: '800',
+    color: BrandColors.ink,
   },
   subtitle: {
     fontSize: 13,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginTop: 4,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: Radius.card,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: BrandColors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
     marginBottom: 12,
   },
   profileRow: {
@@ -206,13 +207,13 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#0284C7',
+    backgroundColor: BrandColors.deepRiver,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
   avatarText: {
-    color: '#FFFFFF',
+    color: BrandColors.skyAqua,
     fontWeight: '800',
     fontSize: 18,
   },
@@ -222,22 +223,22 @@ const styles = StyleSheet.create({
   staffName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   staffRole: {
     fontSize: 13,
-    color: '#0284C7',
+    color: BrandColors.tealFlow,
     fontWeight: '600',
     marginTop: 2,
   },
   staffCode: {
     fontSize: 12,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginTop: 2,
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: BrandColors.border,
     marginVertical: 12,
   },
   metaRow: {
@@ -248,21 +249,21 @@ const styles = StyleSheet.create({
   },
   metaLabel: {
     fontSize: 13,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
   },
   metaValue: {
     fontSize: 13,
-    color: '#0F172A',
+    color: BrandColors.ink,
     fontWeight: '600',
   },
   badgePrimary: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: BrandColors.successBg,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: Radius.sm,
   },
   badgePrimaryText: {
-    color: '#15803D',
+    color: BrandColors.success,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -275,48 +276,51 @@ const styles = StyleSheet.create({
   switchTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   switchDesc: {
     fontSize: 12,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginTop: 4,
     lineHeight: 16,
   },
   statusActiveBadge: {
-    backgroundColor: '#E0F2FE',
+    backgroundColor: '#F0FDF9',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: BrandColors.tealFlow,
   },
   statusActiveText: {
-    color: '#0284C7',
+    color: BrandColors.tealFlow,
     fontSize: 11,
     fontWeight: '700',
   },
   inputLabel: {
     fontSize: 13,
-    color: '#475569',
+    color: BrandColors.ink,
     marginBottom: 6,
     fontWeight: '500',
   },
   input: {
     borderWidth: 1.5,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
+    borderColor: BrandColors.border,
+    borderRadius: Radius.sm,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
     marginBottom: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: BrandColors.mist,
+    color: BrandColors.ink,
   },
   saveBtn: {
-    backgroundColor: '#0F172A',
+    backgroundColor: BrandColors.tealFlow,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: Radius.button,
     marginTop: 4,
   },
   saveBtnText: {
@@ -332,7 +336,7 @@ const styles = StyleSheet.create({
   },
   specText: {
     fontSize: 13,
-    color: '#334155',
+    color: BrandColors.ink,
   },
 });
 

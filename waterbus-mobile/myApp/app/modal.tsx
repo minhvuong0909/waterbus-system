@@ -17,6 +17,7 @@ import { SqliteRepository } from '../src/services/sqlite/sqliteRepository';
 import { QrVerifier } from '../src/services/crypto/qrVerifier';
 import { useScannerStore } from '../src/store/useScannerStore';
 import { Booking } from '../src/types/scanner';
+import { BrandColors, Radius } from '../constants/theme';
 
 export default function ManualInspectionModal() {
   const [code, setCode] = useState('');
@@ -219,7 +220,7 @@ export default function ManualInspectionModal() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: BrandColors.mist,
   },
   header: {
     flexDirection: 'row',
@@ -229,7 +230,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: BrandColors.border,
   },
   closeBtn: {
     padding: 4,
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   content: {
     padding: 16,
@@ -245,7 +246,7 @@ const styles = StyleSheet.create({
   },
   desc: {
     fontSize: 13,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     lineHeight: 18,
     marginBottom: 16,
   },
@@ -253,9 +254,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: BrandColors.border,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 12,
@@ -263,15 +264,15 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   searchBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0284C7',
+    backgroundColor: BrandColors.tealFlow,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: Radius.button,
     gap: 8,
     marginBottom: 20,
   },
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
   sampleTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
+    color: BrandColors.textSecondary,
     marginBottom: 8,
   },
   sampleRow: {
@@ -296,22 +297,22 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sampleChip: {
-    backgroundColor: '#E2E8F0',
+    backgroundColor: BrandColors.sandLight,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 16,
+    borderRadius: Radius.pill,
   },
   sampleChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#334155',
+    color: BrandColors.ink,
   },
   resultCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: Radius.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#BAE6FD',
+    borderColor: BrandColors.tealFlow,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -326,25 +327,25 @@ const styles = StyleSheet.create({
   badgeSuccess: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#D1FAE5',
+    backgroundColor: BrandColors.successBg,
     paddingVertical: 4,
     paddingHorizontal: 8,
-    borderRadius: 12,
+    borderRadius: Radius.pill,
     gap: 4,
   },
   badgeSuccessText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#059669',
+    color: BrandColors.success,
   },
   bookingCodeText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#0284C7',
+    color: BrandColors.tealFlow,
   },
   divider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: BrandColors.border,
     marginVertical: 12,
   },
   row: {
@@ -354,21 +355,21 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    color: '#64748B',
+    color: BrandColors.textSecondary,
   },
   value: {
     fontSize: 13,
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   valueBold: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: BrandColors.ink,
   },
   ticketList: {
     marginTop: 10,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 10,
+    backgroundColor: BrandColors.mist,
+    borderRadius: Radius.md,
     padding: 10,
     gap: 8,
   },
@@ -380,11 +381,11 @@ const styles = StyleSheet.create({
   seatText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0284C7',
+    color: BrandColors.tealFlow,
   },
   passengerText: {
     fontSize: 12,
-    color: '#334155',
+    color: BrandColors.ink,
     flex: 1,
   },
   statusText: {
@@ -392,18 +393,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   textChecked: {
-    color: '#059669',
+    color: BrandColors.success,
   },
   textUnchecked: {
-    color: '#D97706',
+    color: BrandColors.signalAmber,
   },
   openCheckInBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: BrandColors.deepRiver,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: Radius.button,
     marginTop: 16,
     gap: 6,
   },
