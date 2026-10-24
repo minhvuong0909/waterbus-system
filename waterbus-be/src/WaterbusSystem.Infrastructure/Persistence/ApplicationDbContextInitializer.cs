@@ -249,18 +249,18 @@ public class ApplicationDbContextInitializer
             var routeStops = await _context.RouteStops.OrderBy(r => r.SequenceNo).ToListAsync();
             
             var scheduleStops = new List<ScheduleStop>();
-            int offset = 0;
-            foreach (var rs in routeStops)
+            for (var i = 0; i < routeStops.Count; i++)
             {
+                var rs = routeStops[i];
+                var (arrival, departure) = DemoStopOffsets(i, routeStops.Count);
                 scheduleStops.Add(new ScheduleStop
                 {
                     ScheduleId = schedule.Id,
                     RouteStopId = rs.Id,
                     VisitOrder = rs.SequenceNo,
-                    ArrivalOffsetMin = offset == 0 ? null : offset,
-                    DepartureOffsetMin = rs.SequenceNo == routeStops.Last().SequenceNo ? null : offset + 2
+                    ArrivalOffsetMin = arrival,
+                    DepartureOffsetMin = departure
                 });
-                offset += 11;
             }
             await _context.ScheduleStops.AddRangeAsync(scheduleStops);
             await _context.SaveChangesAsync();
@@ -288,6 +288,7 @@ public class ApplicationDbContextInitializer
         }
 
         await CorrectDemoStationCoordinatesAsync();
+        await AlignDemoStopTimesAsync();
 
         // Seed only RT01 demo Trips from their actual ScheduleStop definitions.
         // Operational Trip generation and check-in window configuration belong to their own modules.
@@ -318,6 +319,80 @@ public class ApplicationDbContextInitializer
             }
         }
         await _context.SaveChangesAsync();
+    }
+
+    /// <summary>Thời gian chạy cả tuyến demo RT01; trùng khoảng Trip.DepartureTime → Trip.ArrivalTime của chuyến seed.</summary>
+    internal const int DemoRouteDurationMin = 45;
+
+    private const int DemoDwellMin = 2;
+
+    /// <summary>
+    /// Giờ đến / rời của bến thứ <paramref name="index"/> (từ 0) tính từ giờ khởi hành. Bến đầu rời đúng giờ
+    /// khởi hành và bến cuối đến đúng giờ đến của chuyến, để giờ ở từng bến không lệch giờ của cả chuyến.
+    /// </summary>
+    internal static (int? Arrival, int? Departure) DemoStopOffsets(int index, int count)
+    {
+        var arrival = (int)Math.Round((double)DemoRouteDurationMin * index / (count - 1), MidpointRounding.AwayFromZero);
+        return (
+            index == 0 ? null : arrival,
+            index == count - 1 ? null : index == 0 ? 0 : arrival + DemoDwellMin);
+    }
+
+    /// <summary>
+    /// Bản seed cũ để bến đầu rời +2 phút và bến cuối đến +44 phút, lệch giờ của chuyến (08:00 → 08:45).
+    /// Chỉ chỉnh lịch RT01 còn đúng mẫu cũ, nên giờ do Admin tự sửa không bị ghi đè; chạy lại không đổi gì thêm.
+    /// </summary>
+    private async Task AlignDemoStopTimesAsync()
+    {
+        int?[] oldArrival = [null, 11, 22, 33, 44];
+        int?[] oldDeparture = [2, 13, 24, 35, null];
+
+        var schedules = await _context.ScheduleStops
+            .Where(s => s.RouteStop!.Route!.Code == "RT01")
+            .Select(s => s.ScheduleId)
+            .Distinct()
+            .ToListAsync();
+
+        var changed = false;
+        foreach (var scheduleId in schedules)
+        {
+            var stops = await _context.ScheduleStops
+                .Where(s => s.ScheduleId == scheduleId)
+                .OrderBy(s => s.VisitOrder)
+                .ToListAsync();
+            if (stops.Count != oldArrival.Length
+                || !stops.Select(s => s.ArrivalOffsetMin).SequenceEqual(oldArrival)
+                || !stops.Select(s => s.DepartureOffsetMin).SequenceEqual(oldDeparture))
+            {
+                continue;
+            }
+
+            for (var i = 0; i < stops.Count; i++)
+            {
+                (stops[i].ArrivalOffsetMin, stops[i].DepartureOffsetMin) = DemoStopOffsets(i, stops.Count);
+            }
+
+            // Các chuyến chưa chạy đã sinh giờ từ mẫu cũ: tính lại từ giờ khởi hành.
+            var calls = await _context.TripStopCalls
+                .Where(c => c.ScheduleStopId != null
+                    && stops.Select(s => s.Id).Contains(c.ScheduleStopId.Value)
+                    && c.Trip!.Status == WaterbusSystem.Domain.Enums.TripStatus.Scheduled)
+                .Include(c => c.Trip)
+                .ToListAsync();
+            foreach (var call in calls)
+            {
+                var stop = stops.First(s => s.Id == call.ScheduleStopId);
+                var start = call.Trip!.DepartureTime;
+                call.EstimatedArrivalTime = stop.ArrivalOffsetMin.HasValue ? start.AddMinutes(stop.ArrivalOffsetMin.Value) : null;
+                call.EstimatedDepartureTime = stop.DepartureOffsetMin.HasValue ? start.AddMinutes(stop.DepartureOffsetMin.Value) : null;
+            }
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await _context.SaveChangesAsync();
+        }
     }
 
     /// <summary>

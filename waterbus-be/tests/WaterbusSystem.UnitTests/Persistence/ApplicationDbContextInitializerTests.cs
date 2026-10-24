@@ -113,4 +113,92 @@ public class ApplicationDbContextInitializerTests
         byCode["ST03"].Latitude.Should().Be(10.9);
         byCode["ST03"].Longitude.Should().Be(106.8);
     }
+
+    [Fact]
+    public async Task SeedAsync_FreshDatabase_StopTimesShouldSpanTheWholeTripWindow()
+    {
+        using var provider = BuildServices(Guid.NewGuid().ToString());
+        await SeedInNewScopeAsync(provider);
+
+        using var scope = provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var trip = await context.Trips.Include(t => t.TripStopCalls).FirstAsync(t => t.TripStopCalls.Any());
+        var calls = trip.TripStopCalls.OrderBy(c => c.VisitOrder).ToList();
+
+        calls.First().EstimatedDepartureTime.Should().Be(trip.DepartureTime);
+        calls.Last().EstimatedArrivalTime.Should().Be(trip.ArrivalTime);
+    }
+
+    [Fact]
+    public async Task SeedAsync_StopTimesFromTheOldSeed_ShouldBeAlignedOnceAndStayStable()
+    {
+        using var provider = BuildServices(Guid.NewGuid().ToString());
+        await SeedInNewScopeAsync(provider);
+
+        // Dữ liệu cũ: bến đầu rời +2 phút, bến cuối đến +44 phút.
+        int?[] oldArrival = [null, 11, 22, 33, 44];
+        int?[] oldDeparture = [2, 13, 24, 35, null];
+        using (var scope = provider.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var stops = await context.ScheduleStops.OrderBy(s => s.VisitOrder).ToListAsync();
+            for (var i = 0; i < stops.Count; i++)
+            {
+                stops[i].ArrivalOffsetMin = oldArrival[i];
+                stops[i].DepartureOffsetMin = oldDeparture[i];
+            }
+            foreach (var call in await context.TripStopCalls.Include(c => c.Trip).ToListAsync())
+            {
+                var i = call.VisitOrder - 1;
+                call.EstimatedArrivalTime = oldArrival[i] is { } a ? call.Trip!.DepartureTime.AddMinutes(a) : null;
+                call.EstimatedDepartureTime = oldDeparture[i] is { } d ? call.Trip!.DepartureTime.AddMinutes(d) : null;
+            }
+            await context.SaveChangesAsync();
+        }
+
+        await SeedInNewScopeAsync(provider);
+        await SeedInNewScopeAsync(provider);
+
+        using var check = provider.CreateScope();
+        var db = check.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var trip = await db.Trips.Include(t => t.TripStopCalls).FirstAsync(t => t.TripStopCalls.Any());
+        var calls = trip.TripStopCalls.OrderBy(c => c.VisitOrder).ToList();
+        calls.First().EstimatedDepartureTime.Should().Be(trip.DepartureTime);
+        calls.Last().EstimatedArrivalTime.Should().Be(trip.ArrivalTime);
+        (await db.ScheduleStops.OrderBy(s => s.VisitOrder).Select(s => s.ArrivalOffsetMin).ToListAsync())
+            .Should().Equal(null, 11, 23, 34, 45);
+    }
+
+    [Fact]
+    public async Task SeedAsync_ScheduleOffsetsEditedByAdmin_ShouldNotBeOverwritten()
+    {
+        using var provider = BuildServices(Guid.NewGuid().ToString());
+        await SeedInNewScopeAsync(provider);
+
+        using (var scope = provider.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var last = await context.ScheduleStops.OrderByDescending(s => s.VisitOrder).FirstAsync();
+            last.ArrivalOffsetMin = 50; // Admin kéo dài hành trình
+            await context.SaveChangesAsync();
+        }
+
+        await SeedInNewScopeAsync(provider);
+
+        using var check = provider.CreateScope();
+        var db = check.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        (await db.ScheduleStops.OrderByDescending(s => s.VisitOrder).Select(s => s.ArrivalOffsetMin).FirstAsync())
+            .Should().Be(50);
+    }
+
+    [Theory]
+    [InlineData(0, null, 0)]
+    [InlineData(1, 11, 13)]
+    [InlineData(2, 23, 25)]
+    [InlineData(3, 34, 36)]
+    [InlineData(4, 45, null)]
+    public void DemoStopOffsets_FiveStops_ShouldRunFromZeroToTheRouteDuration(int index, int? arrival, int? departure)
+    {
+        ApplicationDbContextInitializer.DemoStopOffsets(index, 5).Should().Be((arrival, departure));
+    }
 }
