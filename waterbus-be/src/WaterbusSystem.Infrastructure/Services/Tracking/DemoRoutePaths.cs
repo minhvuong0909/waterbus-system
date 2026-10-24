@@ -107,6 +107,8 @@ public static class DemoRoutePaths
     private static readonly Dictionary<string, IReadOnlyList<RoutePathInterpolator.GeoPoint>> Paths = new(StringComparer.OrdinalIgnoreCase)
     {
         // Bạch Đằng -> Bình An -> Thanh Đa -> Hiệp Bình Chánh -> Linh Đông
-        ["RT01"] = Rt01
+        ["RT01"] = Rt01,
+        // Linh Đông -> Hiệp Bình Chánh -> Thanh Đa -> Bình An -> Bạch Đằng
+        ["RT02"] = Rt01.Reverse().ToArray()
     };
 }
