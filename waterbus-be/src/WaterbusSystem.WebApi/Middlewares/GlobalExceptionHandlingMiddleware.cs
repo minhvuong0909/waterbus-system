@@ -61,6 +61,13 @@ public class GlobalExceptionHandlingMiddleware
                 problemDetails.Extensions["errors"] = validationException.Errors;
                 break;
 
+            case AuthenticationException authenticationException:
+                context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                problemDetails.Status = (int)HttpStatusCode.Unauthorized;
+                problemDetails.Title = "Xác thực thất bại.";
+                problemDetails.Detail = authenticationException.Message;
+                break;
+
             case ArgumentException argumentException:
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 problemDetails.Status = (int)HttpStatusCode.BadRequest;
