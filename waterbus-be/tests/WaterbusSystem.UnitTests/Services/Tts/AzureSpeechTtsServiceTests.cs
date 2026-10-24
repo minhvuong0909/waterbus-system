@@ -295,7 +295,7 @@ public class AzureSpeechTtsServiceTests
                 It.IsAny<CancellationToken>()))
             .Returns<string, string, string, string, string, CancellationToken>(async (_, _, _, _, _, ct) =>
             {
-                await Task.Delay(2000, ct); // delay lâu hơn timeout
+                await Task.Delay(Timeout.Infinite, ct); // chỉ kết thúc khi timeout huỷ token, không phụ thuộc tốc độ máy chạy CI
                 return new SpeechSynthesisResultData(Array.Empty<byte>(), TimeSpan.Zero, true);
             });
 

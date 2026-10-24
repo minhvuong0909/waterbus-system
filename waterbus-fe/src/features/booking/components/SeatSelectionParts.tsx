@@ -178,7 +178,7 @@ export function BookingSummary({
         <SummaryRow
           label={
             totals.seatCount > 1
-              ? t('Seat fares × {count}', { count: totals.seatCount })
+              ? t('Seat fares ({count} seats)', { count: totals.seatCount })
               : t('Seat fare')
           }
           value={formatVnd(totals.fareVnd)}

@@ -1817,7 +1817,7 @@ export const vi: Record<string, string> = {
   'Could not read the weather right now. Try again in a moment.': 'Chưa lấy được thời tiết. Hãy thử lại sau ít phút.',
   'Loading weather…': 'Đang tải thời tiết…',
   'No active route to watch.': 'Không có tuyến nào đang hoạt động.',
-  'Seat fares × {count}': 'Giá vé × {count}',
+  'Seat fares ({count} seats)': 'Giá vé ({count} ghế)',
   'Seat fare': 'Giá vé',
   'Fares from (VND)': 'Giá từ (VND)',
   'Deactivate': 'Ngừng hoạt động',

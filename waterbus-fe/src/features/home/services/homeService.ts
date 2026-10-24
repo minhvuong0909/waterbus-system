@@ -2,7 +2,7 @@ import { HOME_DATA } from '../../../mocks/home'
 import { withDelay } from '../../../mocks/delay'
 import { getLowestFares } from '../../trips/services/fareService'
 import { getPierOptions, getUpcomingTrips } from '../../trips/services/tripService'
-import type { CorridorMap, Departure } from '../../trips/types'
+import type { CorridorMap, Departure, SearchQuery } from '../../trips/types'
 import type { HomeData } from '../types'
 import { buildCorridorMap, toDeparture } from '../utils'
 import { USE_MOCK } from '../../../constant/env'
@@ -26,15 +26,23 @@ export interface NextDepartures {
   items: Departure[]
   /** True when today has no departure left and these are tomorrow's. */
   tomorrow: boolean
+  /** The piers and day these departures came from, so the timetable page can open the same search. */
+  search?: Pick<SearchQuery, 'originId' | 'destinationId' | 'dateId'>
 }
 
 /** The next departures of today (or tomorrow's when today is over), from the trip search. */
-export async function getNextDepartures(): Promise<NextDepartures> {
-  const { trips, piers, search, tomorrow } = await getUpcomingTrips(MAX_DEPARTURES)
+export async function getNextDepartures(
+  pair?: Pick<SearchQuery, 'originId' | 'destinationId'>,
+): Promise<NextDepartures> {
+  const { trips, piers, search, tomorrow } = await getUpcomingTrips(MAX_DEPARTURES, pair)
   const origin = piers.find((p) => p.id === search.originId)
   const destination = piers.find((p) => p.id === search.destinationId)
   if (!origin || !destination) return { items: [], tomorrow: false }
-  return { items: trips.map((trip) => toDeparture(trip, origin, destination, new Date(), !tomorrow)), tomorrow }
+  return {
+    items: trips.map((trip) => toDeparture(trip, origin, destination, new Date(), !tomorrow)),
+    tomorrow,
+    search,
+  }
 }
 
 /** The stations of the corridor. The vessel on it is a mock until the tracking API exists. */
