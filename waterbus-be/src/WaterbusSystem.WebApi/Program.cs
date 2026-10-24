@@ -5,6 +5,7 @@ using WaterbusSystem.Application;
 using WaterbusSystem.Infrastructure;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.WebApi.BackgroundJobs;
+using WaterbusSystem.WebApi.Filters;
 using WaterbusSystem.WebApi.Middlewares;
 using WaterbusSystem.WebApi.Realtime;
 
@@ -17,6 +18,9 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 // 2. Cấu hình Controllers & JSON
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Filter validate request dùng chung cho Controller theo Clean Architecture thuần (không MediatR)
+builder.Services.AddScoped<ValidateRequestFilter>();
 
 // SignalR hubs + publisher realtime (BoatTracking, SeatSync)
 builder.Services.AddRealtime();

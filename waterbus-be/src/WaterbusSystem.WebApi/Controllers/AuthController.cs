@@ -1,8 +1,8 @@
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using WaterbusSystem.Application.Common.Interfaces;
-using WaterbusSystem.Application.Features.Auth.Commands.Login;
-using WaterbusSystem.Infrastructure.Identity;
+using WaterbusSystem.Application.DTOs.Requests.Auth;
+using WaterbusSystem.Application.DTOs.Responses.Auth;
+using WaterbusSystem.Application.Interfaces.Services;
+using WaterbusSystem.WebApi.Filters;
 
 namespace WaterbusSystem.WebApi.Controllers;
 
@@ -11,43 +11,23 @@ namespace WaterbusSystem.WebApi.Controllers;
 /// </summary>
 public class AuthController : BaseApiController
 {
-    private readonly UserManager<ApplicationUser> _userManager;
-    private readonly SignInManager<ApplicationUser> _signInManager;
-    private readonly IJwtTokenGenerator _jwtTokenGenerator;
+    private readonly IAuthService _authService;
 
-    public AuthController(
-        UserManager<ApplicationUser> userManager,
-        SignInManager<ApplicationUser> signInManager,
-        IJwtTokenGenerator jwtTokenGenerator)
+    public AuthController(IAuthService authService)
     {
-        _userManager = userManager;
-        _signInManager = signInManager;
-        _jwtTokenGenerator = jwtTokenGenerator;
+        _authService = authService;
     }
 
     /// <summary>
     /// Đăng nhập tài khoản hệ thống (Admin, Captain, Staff, Passenger)
     /// </summary>
     [HttpPost("login")]
-    [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
+    [ServiceFilter(typeof(ValidateRequestFilter))]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> Login([FromBody] LoginCommand command)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var user = await _userManager.FindByEmailAsync(command.Email);
-        if (user == null || !user.IsActive)
-        {
-            return Unauthorized(new { message = "Email hoặc mật khẩu không chính xác." });
-        }
-
-        var result = await _signInManager.CheckPasswordSignInAsync(user, command.Password, lockoutOnFailure: false);
-        if (!result.Succeeded)
-        {
-            return Unauthorized(new { message = "Email hoặc mật khẩu không chính xác." });
-        }
-
-        var roles = await _userManager.GetRolesAsync(user);
-        var token = _jwtTokenGenerator.GenerateToken(user.Id, user.Email ?? "", user.FullName, roles);
-
-        return Ok(new AuthResponseDto(user.Id, user.Email ?? "", user.FullName, roles, token));
+        var response = await _authService.LoginAsync(request, HttpContext.RequestAborted);
+        return Ok(response);
     }
 }

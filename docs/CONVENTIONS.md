@@ -1,7 +1,7 @@
 # Smart Waterbus — Quy ước & Quy tắc dự án
 
 > Áp dụng cho cả 6 thành viên. Nguồn chuẩn nghiệp vụ: `Smart_Waterbus_Business_Rules_v2_0_FINAL_2026-09-29.md`.
-> Khi quy ước này mâu thuẫn với `SETUP.md` hoặc `TASK_BREAKDOWN_ROADMAP.md` (viết trước BR v2.0), **file này và BR v2.0 thắng**.
+> Khi quy ước này mâu thuẫn với `SETUP.md` (viết trước BR v2.0), **file này và BR v2.0 thắng**.
 > Phần nào ghi là chưa được cả nhóm xác nhận — chốt trong buổi họp rồi bỏ nhãn.
 
 ---
@@ -42,19 +42,43 @@ Ví dụ: `feat(realtime): add SeatSyncHub with per-trip groups`.
 ### 3.1 Kiến trúc & chiều phụ thuộc
 `WebApi → Application → Domain` và `Infrastructure → Application → Domain`.
 - **Domain**: entity, enum, rule thuần. Không tham chiếu EF, MediatR, hay thư viện hạ tầng.
-- **Application**: CQRS (MediatR), validator, interface (`IApplicationDbContext`, `IDistributedLockService`, `ICurrentUserService`...).
+- **Application**: đang chuyển dần từ CQRS (MediatR) sang Service layer thuần (xem 3.2); validator, interface (`IApplicationDbContext`, `IDistributedLockService`, `ICurrentUserService`, `I{Feature}Service`...).
 - **Infrastructure**: EF Core, Redis, Identity/JWT, VNPay, background job, SignalR publisher.
 - **WebApi**: controller, middleware, DI, cấu hình Hub.
 
-### 3.2 Feature slice
-Mỗi feature một file, đặt tại
+### 3.2 Tổ chức Application — đang chuyển đổi (CQRS/MediatR → Clean Architecture thuần)
+
+Quyết định của nhóm: bỏ CQRS/MediatR, chuyển về Service layer thuần (Controller → Service → Repository/DbContext → Domain). **Lý do là để dễ kiểm soát và đồng bộ cách làm cho cả team** (ít khái niệm phải học hơn MediatR pipeline, dev mới đọc code nhanh hơn) — **không phải vì CQRS/MediatR sai hay kém "chuẩn" Clean Architecture hơn**. Cả 2 cách tổ chức tầng Application đều là Clean Architecture hợp lệ, miễn giữ đúng Dependency Rule (Domain/Application không phụ thuộc Infrastructure); CQRS/MediatR thậm chí ôm sát khái niệm "Use Case Interactor" gốc của Clean Architecture không kém gì Service layer. Thực hiện **tuần tự theo feature**, không đổi 1 lần toàn bộ, để giảm rủi ro regression trên hệ thống đang chạy được. Tiến độ:
+
+| Feature | Trạng thái |
+|---|---|
+| Auth | ✅ Đã migrate — mẫu chuẩn tham khảo |
+| Boats, Bookings, CheckIns, Fares, Incidents, Payments, Refunds, SightseeingAudio, Stations, Tracking, Trips, AiBooking | ⏳ Chưa migrate — vẫn CQRS/MediatR |
+
+**Quy tắc migrate**: KHÔNG trộn 2 pattern trong cùng 1 feature. KHÔNG tự migrate feature chưa được giao — báo trong nhóm trước khi bắt đầu, tránh 2 người cùng đổi 1 feature cùng lúc (xung đột lớn, khó merge). Cập nhật lại bảng trên (đổi ⏳ → ✅) trong PR migrate feature đó.
+
+**Feature chưa migrate** — giữ nguyên pattern cũ: mỗi feature một file, đặt tại
 `Application/Features/{Feature}/{Commands|Queries}/{Name}/{Name}{Command|Query}.cs`
 gồm: DTO, record Command/Query, `AbstractValidator<T>` (nếu có input), Handler.
 Mẫu tham khảo: `CreateBookingCommand.cs`, `SearchTripsQuery.cs`.
 
+**Feature đã/đang migrate** — pattern chuẩn mới:
+```
+Application/
+  DTOs/
+    Requests/{Feature}/{Name}Request.cs
+    Responses/{Feature}/{Name}Response.cs
+  Validators/{Feature}/{Name}RequestValidator.cs
+  Interfaces/Services/I{Feature}Service.cs
+  Services/{Feature}Service.cs          # nếu chỉ cần interface hạ tầng sẵn có (IApplicationDbContext...)
+```
+- Implementation **PHẢI** đặt ở `Infrastructure/...` (không phải `Application/Services/`) nếu cần dùng type cụ thể của hạ tầng mà Application không được phép biết (ví dụ `UserManager<T>`/`SignInManager<T>` của ASP.NET Identity) — xem `Infrastructure/Identity/AuthService.cs` làm mẫu. Lý do: Application không được tham chiếu Infrastructure; Service nào cần type hạ tầng cụ thể thì chính nó phải sống ở Infrastructure, chỉ để lại interface (`IAuthService`) ở Application.
+- Request validate qua filter dùng chung `WebApi/Filters/ValidateRequestFilter.cs`, gắn bằng `[ServiceFilter(typeof(ValidateRequestFilter))]` trên Controller/action đã migrate — **không** đăng ký global (tránh double-validate các Controller CQRS cũ).
+- Mẫu tham khảo đầy đủ 1 feature migrate hoàn chỉnh: `Auth` — `DTOs/Requests/Auth/LoginRequest.cs`, `DTOs/Responses/Auth/LoginResponse.cs`, `Validators/Auth/LoginRequestValidator.cs`, `Interfaces/Services/IAuthService.cs`, `Infrastructure/Identity/AuthService.cs`, `WebApi/Controllers/AuthController.cs`.
+
 ### 3.3 Controller
 - Kế thừa `BaseApiController` (route `api/v1/[controller]`, có sẵn `Mediator`).
-- Chỉ gọi `Mediator.Send(...)` và trả `Ok`/`CreatedAtAction`. **Không đặt logic nghiệp vụ trong controller.**
+- Feature chưa migrate: chỉ gọi `Mediator.Send(...)`. Feature đã migrate: chỉ inject `I{Feature}Service` tương ứng, gắn `[ServiceFilter(typeof(ValidateRequestFilter))]` lên action cần validate request. **Không đặt logic nghiệp vụ trong controller** ở cả 2 trường hợp — Controller chỉ gọi 1 lớp (Mediator hoặc Service) rồi trả `Ok`/`CreatedAtAction`.
 - Gắn `[Authorize(Roles = "...")]` rõ ràng cho mọi endpoint không công khai. Endpoint Guest dùng cơ chế `AccessGrant` (xem `GuestAccessMiddleware`).
 
 ### 3.4 Lỗi
@@ -62,9 +86,13 @@ Ném exception nghiệp vụ, **không** tự `return BadRequest/Conflict` trong
 
 | Exception | HTTP |
 |---|---|
-| `ValidationException` | 400 |
+| `ValidationException`, `ArgumentException` | 400 |
+| `AuthenticationException` | 401 |
+| `ForbiddenAccessException` | 403 |
 | `NotFoundException` | 404 |
-| `ConcurrencyException` (và `SeatAlreadyBookedException`) | 409 |
+| `ConcurrencyException` (và `SeatAlreadyBookedException`), `ConflictException` | 409 |
+| `TextToSpeechException`, `AudioStorageException` | 502 |
+| `AiBookingUnavailableException` | 503 |
 | khác | 500 |
 
 Cần mã mới (vd 403, 422) thì thêm `case` vào middleware, không xử lý riêng lẻ.
@@ -126,7 +154,8 @@ Cần mã mới (vd 403, 422) thì thêm `case` vào middleware, không xử lý
 
 ### 3.11 Đặt tên
 - C#: `PascalCase` cho type/method/property, `_camelCase` cho field private, interface bắt đầu bằng `I`.
-- Command/Query: `CreateStationCommand`, `GetTripDetailQuery`. Handler: `...Handler`. Validator: `...Validator`.
+- Feature chưa migrate (CQRS/MediatR): Command/Query: `CreateStationCommand`, `GetTripDetailQuery`. Handler: `...Handler`. Validator: `...Validator`.
+- Feature đã migrate (Clean Architecture thuần): Request/Response: `LoginRequest`/`LoginResponse`. Validator: `...RequestValidator`. Service: `I{Feature}Service`/`{Feature}Service`.
 - Tên bảng/cột do EF sinh theo tên entity. Không đổi tên thủ công trừ khi có lý do.
 - Comment/XML-doc viết tiếng Việt như code hiện tại; tên định danh viết tiếng Anh.
 

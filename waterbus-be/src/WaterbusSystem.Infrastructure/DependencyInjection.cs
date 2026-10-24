@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.Features.Bookings.Services;
 using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
 using WaterbusSystem.Application.Features.CheckIns;
@@ -120,6 +121,7 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<IAuthService, AuthService>();
         services.AddTransient<IDateTimeService, DateTimeService>();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();

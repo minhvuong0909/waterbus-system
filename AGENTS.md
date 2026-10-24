@@ -2,7 +2,7 @@
 
 Dự án **Smart Waterbus**: đặt vé tàu buýt đường sông + du lịch (PRN232). Đọc file này TRƯỚC khi sửa code.
 Chi tiết đầy đủ: `docs/CONVENTIONS.md`. Nguồn chuẩn nghiệp vụ: `docs/Smart_Waterbus_Business_Rules_v2_0_FINAL_2026-09-29.md` (BR v2.0).
-Nếu `SETUP.md` / `docs/TASK_BREAKDOWN_ROADMAP.md` mâu thuẫn với BR v2.0 hoặc file này → **BR v2.0 và file này thắng** (hai file kia viết trước BR v2.0).
+Nếu `SETUP.md` mâu thuẫn với BR v2.0 hoặc file này → **BR v2.0 và file này thắng** (SETUP.md viết trước BR v2.0).
 
 ## Cấu trúc
 - `waterbus-be/` .NET 8 Web API, Clean Architecture (Domain, Application, Infrastructure, WebApi) + `tests/WaterbusSystem.UnitTests`
@@ -31,14 +31,16 @@ Luôn chạy build + test liên quan trước khi báo hoàn thành; báo trung 
 
 ## Backend
 - Chiều phụ thuộc: WebApi→Application→Domain; Infrastructure→Application→Domain. Domain không tham chiếu EF/MediatR/hạ tầng.
-- **1 file = 1 feature slice**: `Application/Features/{Feature}/{Commands|Queries}/{Name}/{Name}{Command|Query}.cs` chứa DTO + Command/Query + `AbstractValidator` + Handler. Mẫu: `CreateBookingCommand.cs`, `SearchTripsQuery.cs`.
-- Controller kế thừa `BaseApiController`, chỉ `Mediator.Send(...)`, KHÔNG có logic nghiệp vụ. Mọi endpoint không công khai phải có `[Authorize(Roles=...)]`.
-- Lỗi: **ném exception**, không tự `return BadRequest/Conflict`. Map ở `GlobalExceptionHandlingMiddleware` (ProblemDetails): ValidationException 400, NotFoundException 404, ConcurrencyException/SeatAlreadyBookedException 409, còn lại 500. Cần mã mới → thêm `case` vào middleware.
+- **Đang chuyển kiến trúc Application từ CQRS/MediatR sang Service layer thuần (Controller→Service→Repository), làm tuần tự theo feature — KHÔNG đổi 1 lần toàn bộ.** Lý do: dễ kiểm soát và đồng bộ cách làm cho cả team (ít khái niệm phải học hơn MediatR pipeline), **không phải vì CQRS/MediatR sai hay kém "chuẩn" Clean Architecture** — cả 2 cách đều hợp lệ miễn giữ đúng chiều phụ thuộc (Domain/Application không biết Infrastructure). Module đã migrate (hiện tại: `Auth`) là mẫu chuẩn bắt buộc theo cho feature tiếp theo; 12 feature còn lại vẫn giữ nguyên Command/Query/Handler + MediatR y như cũ. KHÔNG trộn 2 pattern trong cùng 1 feature, KHÔNG tự migrate feature chưa được giao (tránh 2 người cùng đổi 1 feature, xung đột merge). Chi tiết + bảng tiến độ: `docs/CONVENTIONS.md` mục 3.2.
+- **Pattern chuẩn mới** (feature đã/đang migrate): `Application/DTOs/Requests|Responses/{Feature}/{Name}Request|Response.cs`, `Application/Validators/{Feature}/{Name}RequestValidator.cs`, `Application/Interfaces/Services/I{Feature}Service.cs`. Implementation đặt ở `Application/Services/` nếu chỉ cần interface hạ tầng sẵn có; đặt ở `Infrastructure/...` nếu PHẢI dùng type cụ thể của hạ tầng (vd `UserManager`/`SignInManager`) — không đặt loại này ở Application vì phá chiều phụ thuộc. Mẫu đầy đủ: `Auth` (`LoginRequest`/`LoginResponse`/`LoginRequestValidator`/`IAuthService`/`AuthService`/`AuthController`). Validate request qua `[ServiceFilter(typeof(ValidateRequestFilter))]`, không qua Mediator pipeline.
+- **Feature chưa migrate**: vẫn theo pattern cũ — 1 file = 1 feature slice `Application/Features/{Feature}/{Commands|Queries}/{Name}/{Name}{Command|Query}.cs` chứa DTO + Command/Query + `AbstractValidator` + Handler. Mẫu: `CreateBookingCommand.cs`, `SearchTripsQuery.cs`.
+- Controller kế thừa `BaseApiController`; KHÔNG có logic nghiệp vụ trong Controller dù gọi `Mediator.Send` (feature cũ) hay `I{Feature}Service` (feature đã migrate). Mọi endpoint không công khai phải có `[Authorize(Roles=...)]`.
+- Lỗi: **ném exception**, không tự `return BadRequest/Conflict`. Map ở `GlobalExceptionHandlingMiddleware` (ProblemDetails): ValidationException 400, AuthenticationException 401, ForbiddenAccessException 403, NotFoundException 404, ConcurrencyException/SeatAlreadyBookedException/ConflictException 409, còn lại 500. Cần mã mới → thêm `case` vào middleware.
 - EF Core: entity kế thừa `BaseEntity`; mỗi entity có `IEntityTypeConfiguration<T>` trong `EntityConfigurations.cs` (khoá, unique mã nghiệp vụ, độ dài chuỗi, `RowVersion.IsRowVersion()`, `DeleteBehavior` tường minh, mặc định `Restrict`). Query chỉ đọc dùng `AsNoTracking()`. Xoá danh mục = soft delete (`IsDeleted`), query lọc `!IsDeleted`; không `Remove()` entity nghiệp vụ. Ưu tiên check constraint/composite FK ở DB cho bất biến.
 - Thời gian `DateTimeOffset` lưu UTC. Tiền `decimal(12,2)`, toạ độ `decimal(10,7)`. Không đổi số của enum đã có.
 - Migration: mỗi lần một người; tên mô tả (`AddBoatPositionIndex`); KHÔNG sửa migration đã merge; migration có thể phá dữ liệu phải có bước kiểm tra trước. Lệnh:
   `dotnet ef migrations add <Name> --project src/WaterbusSystem.Infrastructure --startup-project src/WaterbusSystem.WebApi`
-- Đặt tên: PascalCase, field private `_camelCase`, interface `I...`; `...Command`, `...Query`, `...Handler`, `...Validator`. Identifier tiếng Anh; comment/XML-doc tiếng Việt như code hiện tại.
+- Đặt tên: PascalCase, field private `_camelCase`, interface `I...`. Feature chưa migrate: `...Command`, `...Query`, `...Handler`, `...Validator`. Feature đã migrate: `...Request`, `...Response`, `...RequestValidator`, `I...Service`/`...Service`. Identifier tiếng Anh; comment/XML-doc tiếng Việt như code hiện tại.
 - Test: thêm vào `tests/WaterbusSystem.UnitTests/<Module>/`; mỗi rule/handler mới có test đường chính + 1 lỗi + 1 cạnh biên.
 
 ## Bảo mật

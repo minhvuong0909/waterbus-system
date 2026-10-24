@@ -11,7 +11,6 @@ Thư mục chứa toàn bộ tài liệu nghiệp vụ chuẩn, hợp đồng AP
 | [**Business Rules v2.0 FINAL**](Smart_Waterbus_Business_Rules_v2_0_FINAL_2026-09-29.md) | **Quy tắc nghiệp vụ chuẩn hóa cao nhất của toàn bộ hệ thống** (29/09/2026). Bản gốc bằng văn bản quyết định mọi hành vi về vé, ghế, tiền và sự cố. *(Bản DOCX cùng tên dùng để in ấn/bảo vệ đồ án)*. | 🔴 Bắt buộc tuân thủ tuyệt đối |
 | [**Quy Ước Dự Án (CONVENTIONS.md)**](CONVENTIONS.md) | Quy chuẩn chi tiết về cấu trúc mã nguồn, naming conventions, xử lý lỗi, kiểm thử và bảo mật. | 🔴 Bắt buộc tuân thủ |
 | [**Logical ERD Reviewed**](02_Logical_ERD_REVIEWED.dbml) | Thiết kế cơ sở dữ liệu chi tiết gồm 33 thực thể, quan hệ ràng buộc, khóa chính, khóa ngoại và chỉ mục. | 🟡 Chuẩn thiết kế CSDL |
-| [**Đối Chiếu Domain (DOMAIN_BR_ALIGNMENT.md)**](DOMAIN_BR_ALIGNMENT.md) | Bảng đối soát từng trường dữ liệu và ràng buộc giữa Domain Model trong code và Business Rules. | 🟡 Tài liệu tham chiếu |
 
 ---
 
@@ -33,8 +32,6 @@ Thư mục chứa toàn bộ tài liệu nghiệp vụ chuẩn, hợp đồng AP
 
 *Các tài liệu sau đây phản ánh quá trình triển khai ban đầu hoặc báo cáo đánh giá đồ án, không dùng để ghi đè Business Rules v2.0 FINAL*:
 
-- [**Roadmap Tổng Thể (TASK_BREAKDOWN_ROADMAP.md)**](TASK_BREAKDOWN_ROADMAP.md) & [**Chia Việc Backend (BACKEND_TASK_BREAKDOWN.md)**](BACKEND_TASK_BREAKDOWN.md): Kế hoạch phân chia công việc các giai đoạn.
-- [**Rà Soát ERD (05_AUDIT_REPORT_VI.md)**](05_AUDIT_REPORT_VI.md): Báo cáo đối chiếu Conceptual vs Logical ERD nộp giảng viên.
 - [**Báo Cáo Kỹ Thuật TV6 (TV6_KIET_REPORT.md)**](TV6_KIET_REPORT.md): Báo cáo tiến độ phân hệ Real-time, DevOps & Background Jobs của Kiệt.
 - [**Đề Xuất BR v1.0 Cũ (archive/Smart_Waterbus_Business_Rules_Proposed_v1_0.docx)**](archive/Smart_Waterbus_Business_Rules_Proposed_v1_0.docx): Bản thảo cũ, lưu trữ làm bằng chứng tiến độ đồ án.
 
