@@ -101,6 +101,7 @@ export const NETWORK_ROUTE_SEEDS: NetworkRouteSeed[] = [
     destinationCode: 'ST01',
     badge: 'Chiều về',
     summary: '45 min • 10.8 km river route between Linh Dong and Bach Dang',
+    liveSummary: 'River route between Linh Dong and Bach Dang',
     fromFareVnd: 15000,
   },
 ]
