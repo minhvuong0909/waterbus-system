@@ -95,10 +95,8 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
           <div>
             <div className="flex items-center justify-between">
               <span className="text-body-sm font-semibold uppercase tracking-wider text-on-surface-variant">
-                {t('Transit Fare')}
-              </span>
-              <span className="rounded bg-secondary-container px-space-xs py-0.5 text-body-sm font-bold text-teal-flow">
-                {t('1 Pax')}
+                {/* Lowest fare of the trip (BR-FARE-01): seats of other classes cost more. */}
+                {t('Fares from')}
               </span>
             </div>
             {hasFare(trip.fareVnd) ? (
@@ -129,9 +127,6 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
                 className="text-[18px] transition-transform group-hover:translate-x-1"
               />
             </Link>
-            <p className="text-center text-body-sm text-on-surface-variant">
-              {t('Select your seat on the next step')}
-            </p>
           </div>
         </div>
       </div>

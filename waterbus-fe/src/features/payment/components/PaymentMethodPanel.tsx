@@ -3,7 +3,6 @@ import { formatVndSuffix } from '../../../utils/format'
 import { t } from '../../../i18n'
 
 interface PaymentMethodPanelProps {
-  tripCode: string
   amountVnd: number
   /** Booking code shown as the payment reference. */
   reference: string
@@ -13,13 +12,10 @@ interface PaymentMethodPanelProps {
  * The only payment method is VNPay (BR-PAY): the traveler pays on the VNPay page, which offers QR,
  * bank card and e-wallet. The payment is confirmed by the backend, not by anything done here.
  */
-export default function PaymentMethodPanel({ tripCode, amountVnd, reference }: PaymentMethodPanelProps) {
+export default function PaymentMethodPanel({ amountVnd, reference }: PaymentMethodPanelProps) {
   return (
     <div className="rounded-2xl bg-surface-container-lowest p-space-lg shadow-[0_2px_16px_rgba(13,37,56,0.05)] md:p-space-xl">
       <h2 className="font-headline-lg text-headline-md text-deep-river">{t('Payment Method')}</h2>
-      <p className="text-sm text-on-surface-variant">
-        {t('Select how you would like to pay for trip {tripCode}', { tripCode })}
-      </p>
 
       <div className="mt-space-md flex items-start gap-space-md rounded-2xl border-2 border-teal-flow bg-sand-light/50 p-space-lg">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-teal-flow">
@@ -51,12 +47,6 @@ export default function PaymentMethodPanel({ tripCode, amountVnd, reference }: P
           {t('After completing payment, continue to check the booking status.')}
         </div>
       </div>
-      <p className="mt-space-sm flex items-center gap-2 text-xs text-on-surface-variant">
-        <Icon name="verified_user" className="text-[16px] text-teal-flow" />
-        {t(
-          'Payment details are handled securely. Your ticket will become available after the booking is successfully confirmed.',
-        )}
-      </p>
     </div>
   )
 }

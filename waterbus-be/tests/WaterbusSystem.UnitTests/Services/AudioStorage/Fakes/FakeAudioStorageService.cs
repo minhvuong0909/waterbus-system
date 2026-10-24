@@ -94,6 +94,22 @@ public class FakeAudioStorageService : IAudioStorageService
         return Task.FromResult(_storage.ContainsKey(key));
     }
 
+    public Task<StoredAudio?> ReadAudioAsync(
+        string assetKey,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (_simulateFailure)
+        {
+            throw new AudioStorageException("Mô phỏng lỗi đọc tệp lưu trữ.");
+        }
+
+        return Task.FromResult(_storage.TryGetValue(assetKey, out var bytes)
+            ? new StoredAudio((byte[])bytes.Clone(), "audio/mpeg")
+            : null);
+    }
+
     /// <summary>
     /// Phương thức hỗ trợ kiểm thử: lấy dữ liệu byte thô đã lưu trong fake storage.
     /// </summary>

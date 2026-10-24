@@ -113,6 +113,9 @@ export interface TripStopDto {
   status: string
   estimatedArrivalTime?: string | null
   estimatedDepartureTime?: string | null
+  /** Check-in window of this stop, set by operations (null while not configured). */
+  checkInOpenAt?: string | null
+  checkInCloseAt?: string | null
 }
 
 /** `GET /trips/{tripId}` (TripDetailDto), the parts used to pick the journey. */

@@ -89,7 +89,6 @@ export function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassProps) {
           <div>
             <dt className="text-[11px] text-on-surface-variant">{t('Passenger')}</dt>
             <dd className="text-sm font-semibold text-deep-river">{ticket.passenger}</dd>
-            <div className="text-[11px] text-on-surface-variant">{t('1 Adult Ticket')}</div>
           </div>
           <div>
             <dt className="text-[11px] text-on-surface-variant">{t('Travel Date')}</dt>
@@ -101,7 +100,6 @@ export function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassProps) {
           <div>
             <dt className="text-[11px] text-on-surface-variant">{t('Total Paid')}</dt>
             <dd className="text-sm font-semibold text-deep-river">{formatVnd(ticket.fareVnd)}</dd>
-            <div className="text-[11px] text-on-surface-variant">{t('Fare Tier: Standard')}</div>
           </div>
         </dl>
 
@@ -263,7 +261,7 @@ export function BoardingGuidance({ ticket }: { ticket: Ticket }) {
       </div>
       <span className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs text-deep-river shadow-sm">
         <Icon name="help_outline" className="text-[15px] text-teal-flow" />
-        {t('Terminal Pier Gate 4')}
+        {t('Board at {pier}', { pier: ticket.departPier })}
       </span>
     </div>
   )

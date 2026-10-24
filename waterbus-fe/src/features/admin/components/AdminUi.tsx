@@ -261,7 +261,7 @@ export function ActionButton({
   return (
     <button
       type="button"
-      className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${TONES[tone]} ${className}`.trim()}
+      className={`inline-flex min-h-[44px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${TONES[tone]} ${className}`.trim()}
       {...rest}
     >
       {icon && <Icon name={icon} className="text-[18px]" />}

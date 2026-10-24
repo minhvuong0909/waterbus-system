@@ -91,8 +91,8 @@ export default function CrossingSummary({ trip, seats, totals, canContinue, retu
         <SummaryRow
           label={
             totals.seatCount > 1
-              ? t('Standard River Fare × {count}', { count: totals.seatCount })
-              : t('Standard River Fare')
+              ? t('Seat fares × {count}', { count: totals.seatCount })
+              : t('Seat fare')
           }
           value={formatVnd(totals.fareVnd)}
         />

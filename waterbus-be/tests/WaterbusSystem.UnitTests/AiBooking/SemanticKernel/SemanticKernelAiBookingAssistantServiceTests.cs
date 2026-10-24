@@ -90,7 +90,8 @@ public class SemanticKernelAiBookingAssistantServiceTests
 
     private SemanticKernelAiBookingAssistantService CreateService(
         GroqAssistantOptions? options = null,
-        IChatCompletionService? customChatService = null)
+        IChatCompletionService? customChatService = null,
+        TimeProvider? timeProvider = null)
     {
         var opt = Options.Create(options ?? _defaultOptions);
         return new SemanticKernelAiBookingAssistantService(
@@ -99,7 +100,8 @@ public class SemanticKernelAiBookingAssistantServiceTests
             _bookingLinkToolMock.Object,
             _validator,
             _loggerMock.Object,
-            customChatService ?? _chatCompletionServiceMock.Object);
+            customChatService ?? _chatCompletionServiceMock.Object,
+            timeProvider);
     }
 
     // ── 1. Validation ────────────────────────────────────────────────────────
@@ -269,6 +271,7 @@ public class SemanticKernelAiBookingAssistantServiceTests
 
         response.Should().NotBeNull();
         response.TextAnswer.Should().Contain("Tìm thấy 1 chuyến phù hợp");
+        response.TextAnswer.Should().NotContain("Trip Search").And.NotContain("API");
         response.Cards.Should().HaveCount(1, "thẻ chuyến phải được trích xuất từ plugin intercept");
         response.Cards.First().TripId.Should().Be(tripId);
         response.IsFallback.Should().BeFalse();
@@ -307,6 +310,72 @@ public class SemanticKernelAiBookingAssistantServiceTests
     }
 
     [Fact]
+    public async Task ProcessChatAsync_ExplicitDestination_UsesArrivalOnlyAndDropsPreviousSearch()
+    {
+        var card = new AiTripCardDto(
+            Guid.NewGuid(), "Linh Đông - Bạch Đằng", "Bến Linh Đông", "Bến Bạch Đằng",
+            DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow.AddDays(1).AddMinutes(25),
+            25, "Commuter", 15000m, true, 60, null, new List<AiTripStopDto>());
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(new[] { card }, true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                // Model đưa bến duy nhất vào departureStation: plugin phải sửa chiều trước khi gọi API.
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["departureStation"] = "Bạch Đằng", ["usePreviousSearch"] = true }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Đã tìm thấy chuyến.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Điểm đến Bạch Đằng có chuyến nào?",
+            SearchContext = new TripSearchCriteria
+            {
+                DepartureStationName = "Bến Bạch Đằng",
+                ArrivalStationName = "Bến Linh Đông",
+                DepartureDate = new DateOnly(2099, 10, 15)
+            }
+        });
+
+        response.Cards.Should().ContainSingle().Which.ArrivalStationName.Should().Be("Bến Bạch Đằng");
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(
+            It.Is<TripSearchCriteria>(c => c.DepartureStationName == null
+                && c.ArrivalStationName == "Bạch Đằng" && c.DepartureDate == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("Bến đi Bạch Đằng có chuyến nào?")]
+    [InlineData("Từ Bạch Đằng có chuyến nào?")]
+    public async Task ProcessChatAsync_ExplicitOrigin_UsesDepartureOnlyWhenModelSwapsFields(string message)
+    {
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["arrivalStation"] = "Bạch Đằng" }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Không có chuyến.") };
+            });
+
+        await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = message
+        });
+
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(
+            It.Is<TripSearchCriteria>(c => c.DepartureStationName == "Bạch Đằng"
+                && c.ArrivalStationName == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task ProcessChatAsync_NoStation_InvokesUpcomingSearch()
     {
         _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
@@ -333,6 +402,530 @@ public class SemanticKernelAiBookingAssistantServiceTests
     }
 
     [Fact]
+    public async Task ProcessChatAsync_AllTripsWithFreeSeats_ResetsPreviousFiltersAndShowsApiSeatAndFare()
+    {
+        var card = new AiTripCardDto(Guid.NewGuid(), "Tuyến test", "Bến A", "Bến B",
+            DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow.AddDays(1).AddMinutes(30),
+            30, "Commuter", 0m, false, 12, null, Array.Empty<AiTripStopDto>(),
+            IsDevelopmentPreview: true);
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(new[] { card }, true));
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Toàn bộ chuyến có chuyến nào ghế trống không?",
+            SearchContext = new TripSearchCriteria { DepartureStationName = "Bạch Đằng", PassengerCount = 2 }
+        });
+
+        response.Cards.Should().ContainSingle();
+        response.TextAnswer.Should().Contain("12 ghế").And.Contain("0 ₫");
+        response.SearchContext!.DepartureStationName.Should().BeNull();
+        response.SearchContext.MinimumAvailableSeats.Should().Be(1);
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(It.Is<TripSearchCriteria>(c =>
+            c.DepartureStationName == null && c.PassengerCount == null && c.MinimumAvailableSeats == 1),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _chatCompletionServiceMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_EnglishAllTrips_ResetsPreviousFiltersAndAnswersInEnglish()
+    {
+        var card = new AiTripCardDto(Guid.NewGuid(), "Route A", "Bến A", "Bến B",
+            DateTimeOffset.UtcNow.AddDays(1), DateTimeOffset.UtcNow.AddDays(1).AddMinutes(30),
+            30, "Commuter", 20000m, true, 8, null, Array.Empty<AiTripStopDto>());
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(new[] { card }, true));
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Show all trips with available seats",
+            LanguageCode = "en",
+            SearchContext = new TripSearchCriteria { DepartureStationName = "Bạch Đằng", PassengerCount = 2 }
+        });
+
+        response.TextAnswer.Should().Contain("Found 1 matching trip").And.Contain("8 seats left");
+        response.TextAnswer.Should().NotContain("Tìm thấy");
+        response.SearchContext!.DepartureStationName.Should().BeNull();
+        response.SearchContext.MinimumAvailableSeats.Should().Be(1);
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(It.Is<TripSearchCriteria>(c =>
+            c.DepartureStationName == null && c.PassengerCount == null && c.MinimumAvailableSeats == 1),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _chatCompletionServiceMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_EnglishFollowUp_PreservesPreviousRouteAndUsesEnglishPrompt()
+    {
+        ChatHistory? captured = null;
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (history, _, kernel, ct) =>
+            {
+                captured = history;
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["usePreviousSearch"] = true, ["latestDepartureTime"] = "15:00" }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "No matching trips.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Any earlier trips?",
+            LanguageCode = "en",
+            SearchContext = new TripSearchCriteria { DepartureStationName = "Bạch Đằng" }
+        });
+
+        response.TextAnswer.Should().Be("No trips match your request.");
+        response.SearchContext!.DepartureStationName.Should().Be("Bạch Đằng");
+        response.SearchContext.LatestDepartureTime.Should().Be(new TimeOnly(15, 0));
+        captured!.First().Content.Should().Contain("English");
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_EnglishAllTripsWithNewPier_DoesNotInheritOldRoute()
+    {
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (history, _, kernel, ct) =>
+            {
+                history.Select(turn => turn.Content).Should().NotContain("Find trips from Bạch Đằng");
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["departureStation"] = "Linh Đông", ["usePreviousSearch"] = true }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "No matching trips.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Show all trips from Linh Đông",
+            LanguageCode = "en",
+            History = new[] { new AiBookingChatTurn("user", "Find trips from Bạch Đằng") },
+            SearchContext = new TripSearchCriteria { DepartureStationName = "Bạch Đằng", ArrivalStationName = "Bình An" }
+        });
+
+        response.TextAnswer.Should().Be("No trips match your request.");
+        response.SearchContext!.DepartureStationName.Should().Be("Linh Đông");
+        response.SearchContext.ArrivalStationName.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_ThisEvening_EnforcesVietnamDateEvenWhenModelPassesTomorrow()
+    {
+        var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7)).DateTime);
+        var tomorrow = today.AddDays(1);
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TripSearchCriteria criteria, CancellationToken _) =>
+                new TripSearchResult(criteria.DepartureDate == today
+                    ? Array.Empty<AiTripCardDto>()
+                    : new[] { CardAt(tomorrow, 8) }, true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments
+                    {
+                        ["departureDate"] = tomorrow.ToString("yyyy-MM-dd"),
+                        ["usePreviousSearch"] = true
+                    }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Có chuyến ngày mai.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Toàn bộ chuyến chiều tối nay có chuyến nào?",
+            SearchContext = new TripSearchCriteria
+            {
+                DepartureDate = tomorrow,
+                EarliestDepartureTime = new TimeOnly(8, 0)
+            }
+        });
+
+        response.Cards.Should().BeEmpty();
+        response.TextAnswer.Should().Contain($"{today:dd/MM/yyyy}").And.NotContain("ngày mai");
+        response.SearchContext!.DepartureDate.Should().Be(today);
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(It.Is<TripSearchCriteria>(c =>
+            c.DepartureDate == today && c.EarliestDepartureTime == new TimeOnly(16, 0)
+            && c.LatestDepartureTime == new TimeOnly(22, 0)), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_NextDepartures_ShowsOnlyFirstThreeOnNearestDayAndResetsOldContext()
+    {
+        var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7)).DateTime);
+        var nearDate = today.AddDays(1);
+        var laterDate = today.AddDays(2);
+        var cards = new[] { CardAt(laterDate, 9), CardAt(nearDate, 17), CardAt(nearDate, 8),
+            CardAt(laterDate, 10), CardAt(nearDate, 10), CardAt(nearDate, 16) };
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(cards, true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["usePreviousSearch"] = true }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Tất cả chuyến tương lai.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Có chuyến nào sắp khởi hành?",
+            SearchContext = new TripSearchCriteria { DepartureStationName = "Bạch Đằng", DepartureDate = laterDate }
+        });
+
+        response.Cards.Should().HaveCount(3).And.OnlyContain(c =>
+            DateOnly.FromDateTime(c.DepartureTime.ToOffset(TimeSpan.FromHours(7)).DateTime) == nearDate);
+        response.Cards.Select(c => c.DepartureTime.Hour).Should().BeInAscendingOrder();
+        response.TextAnswer.Should().Contain("gần nhất");
+        response.SearchContext!.DepartureStationName.Should().BeNull();
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(It.Is<TripSearchCriteria>(c =>
+            c.DepartureStationName == null && c.DepartureDate == null), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_BroadPierQuestion_DoesNotReuseOldFilters()
+    {
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["departureStation"] = "Bạch Đằng", ["usePreviousSearch"] = true }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Không có chuyến.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Toàn bộ chuyến ở Bạch Đằng có những chuyến nào?",
+            SearchContext = new TripSearchCriteria { DepartureStationName = "Linh Đông", DepartureDate = new DateOnly(2099, 1, 1) }
+        });
+
+        response.SearchContext!.DepartureStationName.Should().Be("Bạch Đằng");
+        response.SearchContext.DepartureDate.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("Có chuyến nào?")]
+    [InlineData("Bạch Đằng có chuyến nào?")]
+    public async Task ProcessChatAsync_AmbiguousQuestion_AsksBeforeSearchingAndKeepsContext(string message)
+    {
+        var previous = new TripSearchCriteria
+        {
+            DepartureStationName = "Bạch Đằng",
+            DepartureDate = new DateOnly(2099, 10, 15)
+        };
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = message,
+            SearchContext = previous
+        });
+
+        response.TextAnswer.Should().Contain("toàn bộ").And.Contain("lọc tiếp");
+        response.PendingClarification!.OriginalMessage.Should().Be(message);
+        response.SearchContext.Should().BeSameAs(previous);
+        response.Cards.Should().BeEmpty();
+        _tripSearchToolMock.VerifyNoOtherCalls();
+        _chatCompletionServiceMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_PriceFollowUp_KeepsPreviousFiltersEvenIfModelOmitsFlag()
+    {
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["priceLessThan"] = 50000m, ["usePreviousSearch"] = false }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Không có chuyến.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Dưới 50k",
+            SearchContext = new TripSearchCriteria
+            {
+                DepartureStationName = "Bạch Đằng", ArrivalStationName = "Linh Đông",
+                DepartureDate = new DateOnly(2099, 10, 15)
+            }
+        });
+
+        response.PendingClarification.Should().BeNull();
+        response.SearchContext!.DepartureStationName.Should().Be("Bạch Đằng");
+        response.SearchContext.ArrivalStationName.Should().Be("Linh Đông");
+        response.SearchContext.DepartureDate.Should().Be(new DateOnly(2099, 10, 15));
+        response.SearchContext.PriceLessThan.Should().Be(50000m);
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(It.Is<TripSearchCriteria>(c =>
+            c.DepartureStationName == "Bạch Đằng" && c.ArrivalStationName == "Linh Đông"
+            && c.PriceLessThan == 50000m), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_SeatsFollowUp_KeepsPreviousFiltersWithoutAskingScope()
+    {
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["minimumAvailableSeats"] = 1, ["usePreviousSearch"] = false }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Không có chuyến.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Còn chuyến nào có ghế trống?",
+            SearchContext = new TripSearchCriteria { DepartureStationName = "Bạch Đằng" }
+        });
+
+        response.PendingClarification.Should().BeNull();
+        response.SearchContext!.DepartureStationName.Should().Be("Bạch Đằng");
+        response.SearchContext.MinimumAvailableSeats.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_AllTripsWithPrice_StartsFreshDespitePriceFollowUpCue()
+    {
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["priceLessThan"] = 50000m, ["usePreviousSearch"] = true }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Không có chuyến.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Toàn bộ chuyến dưới 50k",
+            SearchContext = new TripSearchCriteria { DepartureStationName = "Bạch Đằng" }
+        });
+
+        response.PendingClarification.Should().BeNull();
+        response.SearchContext!.DepartureStationName.Should().BeNull();
+        response.SearchContext.PriceLessThan.Should().Be(50000m);
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_AllChoice_ResumesOriginalQuestionWithoutOldFilters()
+    {
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["usePreviousSearch"] = true }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Không có chuyến.") };
+            });
+        var previous = new TripSearchCriteria { DepartureStationName = "Bạch Đằng", PassengerCount = 2 };
+        var service = CreateService();
+        var clarification = await service.ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Có chuyến nào?", SearchContext = previous
+        });
+
+        var response = await service.ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "toàn bộ", SearchContext = clarification.SearchContext,
+            PendingClarification = clarification.PendingClarification
+        });
+
+        response.PendingClarification.Should().BeNull();
+        response.SearchContext!.DepartureStationName.Should().BeNull();
+        response.SearchContext.PassengerCount.Should().BeNull();
+        response.SearchContext.MinimumAvailableSeats.Should().BeNull();
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(It.Is<TripSearchCriteria>(c =>
+            c.DepartureStationName == null && c.PassengerCount == null && c.MinimumAvailableSeats == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+        _chatCompletionServiceMock.Verify(c => c.GetChatMessageContentsAsync(
+            It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+            It.IsAny<Kernel>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_ContinueChoice_ResumesOriginalQuestionWithPreviousFilters()
+    {
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                // Model quên cờ usePreviousSearch: lựa chọn của khách vẫn phải thắng.
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["usePreviousSearch"] = false }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Không có chuyến.") };
+            });
+        var previous = new TripSearchCriteria { DepartureStationName = "Bạch Đằng", PassengerCount = 2 };
+        var service = CreateService();
+        var clarification = await service.ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Có chuyến nào?", SearchContext = previous
+        });
+
+        var response = await service.ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "lọc tiếp", SearchContext = clarification.SearchContext,
+            PendingClarification = clarification.PendingClarification
+        });
+
+        response.PendingClarification.Should().BeNull();
+        response.SearchContext!.DepartureStationName.Should().Be("Bạch Đằng");
+        response.SearchContext.PassengerCount.Should().Be(2);
+        response.SearchContext.MinimumAvailableSeats.Should().BeNull();
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(It.Is<TripSearchCriteria>(c =>
+            c.DepartureStationName == "Bạch Đằng" && c.PassengerCount == 2 && c.MinimumAvailableSeats == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_AllChoice_KeepsStationMentionedInPendingQuestion()
+    {
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["departureStation"] = "Bạch Đằng", ["usePreviousSearch"] = true }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Không có chuyến.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "toàn bộ",
+            SearchContext = new TripSearchCriteria { DepartureStationName = "Linh Đông" },
+            PendingClarification = new AiSearchScopeClarification("Bạch Đằng có chuyến nào?")
+        });
+
+        response.SearchContext!.DepartureStationName.Should().Be("Bạch Đằng");
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(It.Is<TripSearchCriteria>(c =>
+            c.DepartureStationName == "Bạch Đằng" && c.ArrivalStationName == null),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_UnclearChoice_KeepsPendingQuestionWithoutSearching()
+    {
+        var pending = new AiSearchScopeClarification("Có chuyến nào còn ghế?");
+        var previous = new TripSearchCriteria { DepartureStationName = "Bạch Đằng" };
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "ừm", SearchContext = previous, PendingClarification = pending
+        });
+
+        response.PendingClarification.Should().Be(pending);
+        response.SearchContext.Should().BeSameAs(previous);
+        _tripSearchToolMock.VerifyNoOtherCalls();
+        _chatCompletionServiceMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_NewDirectedRequest_AbandonsPendingQuestion()
+    {
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["departureStation"] = "Linh Đông", ["arrivalStation"] = "Bạch Đằng",
+                        ["usePreviousSearch"] = true }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Không có chuyến.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Tìm chuyến từ Linh Đông đến Bạch Đằng",
+            SearchContext = new TripSearchCriteria { DepartureStationName = "Bạch Đằng" },
+            PendingClarification = new AiSearchScopeClarification("Có chuyến nào còn ghế?")
+        });
+
+        response.PendingClarification.Should().BeNull();
+        response.SearchContext!.DepartureStationName.Should().Be("Linh Đông");
+        response.SearchContext.ArrivalStationName.Should().Be("Bạch Đằng");
+        _tripSearchToolMock.Verify(t => t.SearchTripsAsync(It.Is<TripSearchCriteria>(c =>
+            c.DepartureStationName == "Linh Đông" && c.ArrivalStationName == "Bạch Đằng"
+            && c.MinimumAvailableSeats == null), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_AmbiguousEnglishQuestion_AsksInEnglish()
+    {
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Any trips?", LanguageCode = "en",
+            SearchContext = new TripSearchCriteria { DepartureStationName = "Bạch Đằng" }
+        });
+
+        response.TextAnswer.Should().Contain("all trips").And.Contain("continue");
+        response.PendingClarification.Should().NotBeNull();
+        _tripSearchToolMock.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ProcessChatAsync_DateOnlyFollowUp_DoesNotAskForScope()
+    {
+        _tripSearchToolMock.Setup(t => t.SearchTripsAsync(It.IsAny<TripSearchCriteria>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TripSearchResult(Array.Empty<AiTripCardDto>(), true));
+        _chatCompletionServiceMock.Setup(c => c.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(), It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(), It.IsAny<CancellationToken>()))
+            .Returns<ChatHistory, PromptExecutionSettings, Kernel, CancellationToken>(async (_, _, kernel, ct) =>
+            {
+                await kernel!.InvokeAsync(kernel.Plugins["WaterbusBookingPlugin"]["SearchTrips"],
+                    new KernelArguments { ["departureDate"] = "2099-10-16", ["usePreviousSearch"] = true }, ct);
+                return new List<ChatMessageContent> { new(AuthorRole.Assistant, "Không có chuyến.") };
+            });
+
+        var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
+        {
+            Message = "Ngày 2099-10-16",
+            SearchContext = new TripSearchCriteria { DepartureStationName = "Bạch Đằng" }
+        });
+
+        response.PendingClarification.Should().BeNull();
+        response.SearchContext!.DepartureStationName.Should().Be("Bạch Đằng");
+        response.SearchContext.DepartureDate.Should().Be(new DateOnly(2099, 10, 16));
+    }
+
+    private static AiTripCardDto CardAt(DateOnly date, int hour)
+    {
+        var departure = new DateTimeOffset(date.ToDateTime(new TimeOnly(hour, 0)), TimeSpan.FromHours(7));
+        return new AiTripCardDto(Guid.NewGuid(), "Tuyến demo", "Bến A", "Bến B", departure,
+            departure.AddMinutes(45), 45, "Commuter", 15000m, true, 60, null, Array.Empty<AiTripStopDto>());
+    }
+
+    [Fact]
     public async Task ProcessChatAsync_ListStations_UsesStationToolNames()
     {
         _tripSearchToolMock.Setup(t => t.ListActiveStationsAsync(It.IsAny<CancellationToken>()))
@@ -349,7 +942,8 @@ public class SemanticKernelAiBookingAssistantServiceTests
 
         var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
         {
-            Message = "Hiện có những bến nào?"
+            Message = "Hiện có những bến nào?",
+            SearchContext = new TripSearchCriteria { DepartureStationName = "Bạch Đằng" }
         });
 
         response.TextAnswer.Should().Contain("Bến Bạch Đằng").And.Contain("Bến Linh Đông");
@@ -412,7 +1006,7 @@ public class SemanticKernelAiBookingAssistantServiceTests
 
         var response = await CreateService().ProcessChatAsync(new AiBookingChatRequest
         {
-            Message = "Từ Bến Bạch Đằng đến Bến Linh Đông",
+            Message = "Bạch Đằng",
             History = new[]
             {
                 new AiBookingChatTurn("user", "Tôi cần tìm chuyến"),
@@ -424,7 +1018,7 @@ public class SemanticKernelAiBookingAssistantServiceTests
         captured.Should().NotBeNull();
         captured!.Select(x => x.Content).Should().ContainInOrder(
             "Tôi cần tìm chuyến", "Quý khách muốn đi từ bến nào đến bến nào?",
-            "Từ Bến Bạch Đằng đến Bến Linh Đông");
+            "Bạch Đằng");
     }
 
     [Fact]

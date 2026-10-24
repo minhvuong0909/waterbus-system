@@ -112,10 +112,10 @@ export default function NetworkSection({ routes, piers }: NetworkSectionProps) {
               <div className="mt-3 flex items-center justify-between border-t border-outline-variant/40 pt-2.5">
                 <div>
                   <span className="block text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">
-                    {t('Standard Fare')}
+                    {t('Fares from')}
                   </span>
                   <span className="font-headline-sm text-sm font-bold text-teal-flow">
-                    {t('From {price}', { price: formatVndSuffix(route.fromFareVnd) })}
+                    {route.fromFareVnd !== undefined ? formatVndSuffix(route.fromFareVnd) : '—'}
                   </span>
                 </div>
                 <button

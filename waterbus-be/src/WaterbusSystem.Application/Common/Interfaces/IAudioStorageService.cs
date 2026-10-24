@@ -30,4 +30,15 @@ public interface IAudioStorageService
     Task<bool> ExistsAsync(
         string assetIdentifier,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Đọc lại tệp âm thanh đã lưu theo AssetKey để phát qua backend (Admin nghe thử).
+    /// </summary>
+    /// <param name="assetKey">Khóa tương đối của tệp, ví dụ <c>audio-assets/tts/20261023/abc.mp3</c>.</param>
+    /// <param name="cancellationToken">Token hủy tác vụ.</param>
+    /// <returns>Nội dung tệp; <c>null</c> nếu khóa không hợp lệ hoặc tệp không tồn tại.</returns>
+    /// <exception cref="Exceptions.AudioStorageException">Khi kho lưu trữ gặp sự cố.</exception>
+    Task<StoredAudio?> ReadAudioAsync(
+        string assetKey,
+        CancellationToken cancellationToken = default);
 }

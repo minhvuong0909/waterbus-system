@@ -14,10 +14,9 @@ interface PassengerFormCardProps {
   seats: Seat[]
   /** Passenger of each seat, by seat id. */
   passengers: Record<string, SeatPassengerForm>
-  onPurchaser: (patch: Partial<PurchaserForm>) => void
   onPassenger: (seatId: string, patch: Partial<SeatPassengerForm>) => void
-  /** False hides the buyer card and the footer, e.g. for the first leg of a round trip. */
-  showBuyer?: boolean
+  /** The seat the buyer travels on: its details come from the buyer card, so they are not asked again. */
+  buyerSeatId?: string
   /** Shown above the passengers, e.g. which leg of a round trip they travel on. */
   heading?: ReactNode
 }
@@ -101,7 +100,15 @@ function TextField({
   )
 }
 
-function SectionTitle({ icon, title, subtitle }: { icon: string; title: string; subtitle: string }) {
+function SectionTitle({
+  icon,
+  title,
+  subtitle,
+}: {
+  icon: string
+  title: string
+  subtitle: string
+}) {
   return (
     <div className="mb-space-md flex items-center gap-space-sm">
       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sand-light text-teal-flow">
@@ -119,13 +126,10 @@ export default function PassengerFormCard({
   purchaser,
   seats,
   passengers,
-  onPurchaser,
   onPassenger,
-  showBuyer = true,
+  buyerSeatId,
   heading,
 }: PassengerFormCardProps) {
-  const buyerErrors = purchaserErrors(purchaser)
-
   return (
     <div className="space-y-space-md">
       {heading}
@@ -147,115 +151,148 @@ export default function PassengerFormCard({
                 {tags && ` • ${tags}`}
               </span>
             </div>
-            <div className="grid grid-cols-1 gap-space-md md:grid-cols-2">
-              <TextField
-                label={t('Full Name')}
-                icon="badge"
-                value={passenger?.fullName ?? ''}
-                error={errors.fullName}
-                onChange={(fullName) => onPassenger(seat.id, { fullName })}
-                autoComplete="off"
-                required
-              />
-              <TextField
-                label={t('Email Address')}
-                hint={t('Optional')}
-                icon="mail"
-                type="email"
-                value={passenger?.email ?? ''}
-                error={errors.email}
-                onChange={(email) => onPassenger(seat.id, { email })}
-              />
-              <TextField
-                label={t('Phone Number')}
-                hint={t('Optional')}
-                value={passenger?.phone ?? ''}
-                onChange={(phone) => onPassenger(seat.id, { phone })}
-                autoComplete="off"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                onPassenger(seat.id, {
-                  fullName: purchaser.fullName,
-                  email: purchaser.email,
-                  phone: purchaser.phone,
-                })
-              }
-              className="mt-space-sm text-xs font-semibold text-teal-flow hover:underline"
-            >
-              {t('Same as the buyer')}
-            </button>
+            {seat.id === buyerSeatId ? (
+              <p className="flex items-center gap-2 rounded-xl bg-mist px-3 py-3 text-sm text-deep-river">
+                <Icon name="badge" className="text-[18px] text-outline" />
+                {purchaser.fullName.trim()
+                  ? t('{name} (the buyer)', { name: purchaser.fullName.trim() })
+                  : t('Filled in from the buyer details')}
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-space-md md:grid-cols-2">
+                <TextField
+                  label={t('Full Name')}
+                  icon="badge"
+                  value={passenger?.fullName ?? ''}
+                  error={errors.fullName}
+                  onChange={(fullName) => onPassenger(seat.id, { fullName })}
+                  autoComplete="off"
+                  required
+                />
+                <TextField
+                  label={t('Email Address')}
+                  hint={t('Optional')}
+                  icon="mail"
+                  type="email"
+                  value={passenger?.email ?? ''}
+                  error={errors.email}
+                  onChange={(email) => onPassenger(seat.id, { email })}
+                />
+                <TextField
+                  label={t('Phone Number')}
+                  hint={t('Optional')}
+                  value={passenger?.phone ?? ''}
+                  onChange={(phone) => onPassenger(seat.id, { phone })}
+                  autoComplete="off"
+                />
+              </div>
+            )}
           </BookingCard>
         )
       })}
+    </div>
+  )
+}
 
-      {showBuyer && (
-        <>
-          <BookingCard className="p-space-lg md:p-space-xl">
-            <SectionTitle
-              icon="contact_mail"
-              title={t('Buyer & E-Ticket Recipient')}
-              subtitle={t('The buyer pays for the order and receives the e-tickets and notifications')}
-            />
-            <div className="grid grid-cols-1 gap-space-md md:grid-cols-2">
-              <TextField
-                label={t('Full Name')}
-                icon="badge"
-                value={purchaser.fullName}
-                error={buyerErrors.fullName}
-                onChange={(fullName) => onPurchaser({ fullName })}
-                autoComplete="name"
-                required
-              />
-              <TextField
-                label={t('Email Address')}
-                icon="mail"
-                type="email"
-                value={purchaser.email}
-                error={buyerErrors.email}
-                onChange={(email) => onPurchaser({ email })}
-                autoComplete="email"
-                required
-              />
-              <Field label={t('Phone Number')} hint={t('Optional')} error={undefined}>
-                <span className="flex gap-2">
-                  <span className="flex items-center rounded-xl bg-mist px-3 text-sm text-deep-river">
-                    <span className="mr-1 text-xs text-on-surface-variant">{t('VN')}</span>
-                    {purchaser.phoneCode}
-                  </span>
-                  <input
-                    className={`${FIELD} px-3`}
-                    value={purchaser.phone}
-                    onChange={(e) => onPurchaser({ phone: e.target.value })}
-                    autoComplete="tel-national"
-                    aria-invalid={buyerErrors.phone ? true : undefined}
-                  />
-                </span>
-              </Field>
-            </div>
-            {buyerErrors.phone && (
-              <p role="alert" className="mt-1 text-xs text-coral-glow">
-                {buyerErrors.phone}
-              </p>
-            )}
-          </BookingCard>
+interface BuyerCardProps {
+  purchaser: PurchaserForm
+  onPurchaser: (patch: Partial<PurchaserForm>) => void
+  /** "I am also a passenger": the buyer takes the first chosen seat. */
+  buyerTravels: boolean
+  onBuyerTravels: (value: boolean) => void
+  /** Code of the seat the buyer takes when travelling. */
+  seatCode?: string
+}
 
-          <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-space-lg py-space-md text-xs text-on-surface-variant shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
-            <span className="flex items-center gap-2">
-              <Icon name="lock" className="text-[18px] text-teal-flow" />
-              {t('Your passenger information is protected by 256-bit waterway security encryption.')}
+/** Who pays (BR-COM-07), asked first: most buyers book for themselves. */
+export function BuyerCard({
+  purchaser,
+  onPurchaser,
+  buyerTravels,
+  onBuyerTravels,
+  seatCode,
+}: BuyerCardProps) {
+  const buyerErrors = purchaserErrors(purchaser)
+  return (
+    <BookingCard className="p-space-lg md:p-space-xl">
+      <SectionTitle
+        icon="contact_mail"
+        title={t('Buyer')}
+        subtitle={t('The person who pays for this order')}
+      />
+      <div className="grid grid-cols-1 gap-space-md md:grid-cols-2">
+        <TextField
+          label={t('Full Name')}
+          icon="badge"
+          value={purchaser.fullName}
+          error={buyerErrors.fullName}
+          onChange={(fullName) => onPurchaser({ fullName })}
+          autoComplete="name"
+          required
+        />
+        <TextField
+          label={t('Email Address')}
+          icon="mail"
+          type="email"
+          value={purchaser.email}
+          error={buyerErrors.email}
+          onChange={(email) => onPurchaser({ email })}
+          autoComplete="email"
+          required
+        />
+        <Field label={t('Phone Number')} hint={t('Optional')} error={undefined}>
+          <span className="flex gap-2">
+            <span className="flex items-center rounded-xl bg-mist px-3 text-sm text-deep-river">
+              <span className="mr-1 text-xs text-on-surface-variant">{t('VN')}</span>
+              {purchaser.phoneCode}
             </span>
-            <Link
-              to={ROUTES.seatSelection}
-              className="whitespace-nowrap font-semibold text-teal-flow hover:underline"
-            >
-              {t('Return to seat map')}
-            </Link>
-          </div>
-        </>
+            <input
+              className={`${FIELD} px-3`}
+              value={purchaser.phone}
+              onChange={(e) => onPurchaser({ phone: e.target.value })}
+              autoComplete="tel-national"
+              aria-invalid={buyerErrors.phone ? true : undefined}
+            />
+          </span>
+        </Field>
+      </div>
+      {buyerErrors.phone && (
+        <p role="alert" className="mt-1 text-xs text-coral-glow">
+          {buyerErrors.phone}
+        </p>
       )}
+      <label className="mt-space-md flex cursor-pointer items-center gap-3 rounded-xl border border-outline-variant/50 px-3 py-3 text-sm text-deep-river">
+        <input
+          type="checkbox"
+          checked={buyerTravels}
+          onChange={(e) => onBuyerTravels(e.target.checked)}
+          className="h-4 w-4 rounded border-outline text-teal-flow focus:ring-teal-flow/30"
+        />
+        <span>
+          <span className="font-semibold">{t('I am also a passenger')}</span>
+          {seatCode && (
+            <span className="text-on-surface-variant"> · {t('Seat {id}', { id: seatCode })}</span>
+          )}
+        </span>
+      </label>
+    </BookingCard>
+  )
+}
+
+/** Closing line under the passenger cards. */
+export function PassengerFormNote() {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-space-lg py-space-md text-xs text-on-surface-variant shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
+      <span className="flex items-center gap-2">
+        <Icon name="info" className="text-[18px] text-teal-flow" />
+        {t('Each passenger gets a ticket in their own name.')}
+      </span>
+      <Link
+        to={ROUTES.seatSelection}
+        className="whitespace-nowrap font-semibold text-teal-flow hover:underline"
+      >
+        {t('Return to seat map')}
+      </Link>
     </div>
   )
 }

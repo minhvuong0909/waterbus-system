@@ -11,7 +11,8 @@ import {
 } from '../../../mocks/tripSearch'
 import { localize, t } from '../../../i18n'
 import { ApiError, apiRequest } from '../../../services/apiClient'
-import { addMinutes, toVietnamDate } from '../../../utils/time'
+import { addMinutes, formatClock, toVietnamDate } from '../../../utils/time'
+import { getLowestFares } from './fareService'
 import type {
   DateOption,
   NetworkRoute,
@@ -57,15 +58,22 @@ export function getPierOptions(): Promise<PierOption[]> {
   return piers
 }
 
-// Mock: the backend has no route list endpoint yet. Seeds are matched to the real stations by
-// code, so a route is only offered when both of its piers exist.
+// The backend has no route list endpoint yet, so the corridors are seeds matched to the real
+// stations by code (a route is only offered when both of its piers exist). With the real backend the
+// fare comes from `GET /fares` and the summary carries no invented duration or distance.
 export async function getNetworkRoutes(): Promise<NetworkRoute[]> {
-  const piers = await getPierOptions()
+  const [piers, fares] = await Promise.all([
+    getPierOptions(),
+    USE_MOCK ? Promise.resolve(undefined) : getLowestFares().catch(() => undefined),
+  ])
   const idOf = (code: string) => piers.find((p) => p.code === code)?.id
   const routes = NETWORK_ROUTE_SEEDS.flatMap(({ originCode, destinationCode, ...route }) => {
     const originId = idOf(originCode)
     const destinationId = idOf(destinationCode)
-    return originId && destinationId ? [{ ...route, originId, destinationId }] : []
+    if (!originId || !destinationId) return []
+    return [USE_MOCK
+      ? { ...route, originId, destinationId }
+      : { ...route, originId, destinationId, summary: route.liveSummary, fromFareVnd: fares?.Commuter }]
   })
   return withDelay(routes, 0)
 }
@@ -159,6 +167,8 @@ export async function getTripDetail(
 ): Promise<TripDetail> {
   const mockTrips = USE_MOCK ? buildTrips() : []
   let trip = selectedTrip ?? mockTrips.find((item) => item.id === tripId) ?? mockTrips[0]
+  // Check-in window of the boarding stop from the backend; null while operations has not set it.
+  let checkIn: { openAt: string | null; closeAt: string | null } | null = null
   if (!USE_MOCK && tripId) {
     const raw = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
     const journey = pickJourney(raw.stops, query.originId, query.destinationId)
@@ -167,6 +177,7 @@ export async function getTripDetail(
       query: { boardingCallId: journey.boarding.callId, disembarkingCallId: journey.disembarking.callId },
     })
     const prices = seats.seats.flatMap((seat) => seat.price === null ? [] : [seat.price])
+    checkIn = { openAt: journey.boarding.checkInOpenAt ?? null, closeAt: journey.boarding.checkInCloseAt ?? null }
     const departureTime = journey.boarding.estimatedDepartureTime ?? raw.departureTime
     const arrivalTime = journey.disembarking.estimatedArrivalTime ?? raw.arrivalTime
     trip = toTrip({ id: raw.tripId, routeName: raw.routeName, tripType: raw.tripType,
@@ -203,20 +214,41 @@ export async function getTripDetail(
     dateFull: date.fullLabel,
     dateShort: date.label,
     timeline: [
-      {
-        time: addMinutes(trip.departTime, -15),
-        title: t('Arrive at {pier}', { pier: origin.pierName }),
-        description: t(
-          'Plan to arrive at the terminal pier a few minutes before scheduled departure.',
-        ),
-        tone: 'teal',
-      },
-      {
-        time: addMinutes(trip.departTime, -5),
-        title: t('Boarding'),
-        description: t('Vessel boarding begins for ticketed passengers.'),
-        tone: 'amber',
-      },
+      // Mock: example times. Real backend: the boarding stop's check-in window, or no row at all
+      // while it is not configured (no invented "15 minutes before").
+      ...(USE_MOCK
+        ? [
+            {
+              time: addMinutes(trip.departTime, -15),
+              title: t('Arrive at {pier}', { pier: origin.pierName }),
+              description: t('Plan to arrive at the terminal pier a few minutes before scheduled departure.'),
+              tone: 'teal' as const,
+            },
+            {
+              time: addMinutes(trip.departTime, -5),
+              title: t('Boarding'),
+              description: t('Vessel boarding begins for ticketed passengers.'),
+              tone: 'amber' as const,
+            },
+          ]
+        : [
+            ...(checkIn?.openAt
+              ? [{
+                  time: formatClock(new Date(checkIn.openAt)),
+                  title: t('Check-in opens at {pier}', { pier: origin.pierName }),
+                  description: t('Show your QR ticket to the staff at the pier.'),
+                  tone: 'teal' as const,
+                }]
+              : []),
+            ...(checkIn?.closeAt
+              ? [{
+                  time: formatClock(new Date(checkIn.closeAt)),
+                  title: t('Check-in closes'),
+                  description: t('Passengers who have not checked in by now cannot board.'),
+                  tone: 'amber' as const,
+                }]
+              : []),
+          ]),
       {
         time: trip.departTime,
         title: t('Departure'),

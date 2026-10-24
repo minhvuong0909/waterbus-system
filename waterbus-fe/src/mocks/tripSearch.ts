@@ -79,6 +79,8 @@ export const DEFAULT_SEARCH_QUERY: SearchQuery = {
 export interface NetworkRouteSeed extends Omit<NetworkRoute, 'originId' | 'destinationId'> {
   originCode: string
   destinationCode: string
+  /** Summary shown with the real backend: no duration or distance, which no API provides yet. */
+  liveSummary: string
 }
 
 // The backend has no route list endpoint yet. This is the one route it seeds (RT01,
@@ -90,6 +92,7 @@ export const NETWORK_ROUTE_SEEDS: NetworkRouteSeed[] = [
     destinationCode: 'ST05',
     badge: 'Main Corridor',
     summary: '45 min • 10.8 km river route between Bach Dang and Linh Dong',
+    liveSummary: 'River route between Bach Dang and Linh Dong',
     fromFareVnd: 15000,
   },
   {

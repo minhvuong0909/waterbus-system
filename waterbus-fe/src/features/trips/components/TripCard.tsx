@@ -74,8 +74,9 @@ export default function TripCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 items-center gap-space-md md:grid-cols-12">
-        <div className="flex items-center gap-space-sm md:col-span-3 md:flex-col md:items-start">
+      {/* Price column sized by its content so the button never wraps; the route name gives way first. */}
+      <div className="grid grid-cols-1 items-center gap-space-md md:grid-cols-[minmax(0,1fr)_minmax(0,3fr)_auto]">
+        <div className="flex min-w-0 items-center gap-space-sm md:flex-col md:items-start">
           <div>
             <span className="block font-headline-sm text-base font-bold text-deep-river">
               {trip.kind === 'sightseeing' ? t('Sightseeing tour') : t('River bus')}
@@ -84,18 +85,18 @@ export default function TripCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-space-sm py-1 md:col-span-6">
+        <div className="flex items-center justify-between gap-space-sm py-1">
           <div className="text-left">
             <div className="font-headline-md text-xl font-bold text-deep-river md:text-2xl">
               {trip.departTime}
             </div>
-            <div className="text-xs font-semibold text-deep-river">{origin.name}</div>
+            <div className="text-xs font-semibold text-deep-river md:whitespace-nowrap">{origin.name}</div>
             {trip.originGate && (
               <div className="text-[11px] text-on-surface-variant">{trip.originGate}</div>
             )}
           </div>
           <div className="flex flex-1 flex-col items-center px-2">
-            <span className={`mb-1 text-center text-xs font-bold ${accent}`}>
+            <span className={`mb-1 whitespace-nowrap text-center text-xs font-bold ${accent}`}>
               {t('{durationMins} min • {crossingKind}', {
                 durationMins: trip.durationMins,
                 crossingKind: trip.crossingKind,
@@ -133,20 +134,20 @@ export default function TripCard({
             <div className="font-headline-md text-xl font-bold text-deep-river md:text-2xl">
               {trip.arriveTime}
             </div>
-            <div className="text-xs font-semibold text-deep-river">{destination.name}</div>
+            <div className="text-xs font-semibold text-deep-river md:whitespace-nowrap">{destination.name}</div>
             {trip.destinationGate && (
               <div className="text-[11px] text-on-surface-variant">{trip.destinationGate}</div>
             )}
           </div>
         </div>
 
-        <div className="flex items-end justify-between gap-2 rounded-xl bg-sand-light/60 p-space-sm md:col-span-3 md:flex-col md:justify-center md:bg-transparent md:p-0 md:text-right">
+        <div className="flex flex-wrap items-end justify-between gap-2 rounded-xl bg-sand-light/60 p-space-sm md:flex-col md:flex-nowrap md:justify-center md:bg-transparent md:p-0 md:text-right">
           <div>
             <span className="block text-[11px] font-semibold uppercase tracking-wider text-outline">
               {trip.fareLabel}
             </span>
             {hasFare(trip.fareVnd) ? (
-              <div className="font-headline-md text-xl font-bold text-deep-river">
+              <div className="whitespace-nowrap font-headline-md text-xl font-bold text-deep-river">
                 {formatNumber(trip.fareVnd)}{' '}
                 <span className="text-xs font-medium text-on-surface-variant">{t('VND')}</span>
               </div>
@@ -159,7 +160,7 @@ export default function TripCard({
           {closed ? (
             <span
               aria-disabled="true"
-              className="inline-flex cursor-not-allowed items-center justify-center rounded-full bg-surface-container px-space-lg py-2 text-sm font-semibold text-on-surface-variant"
+              className="inline-flex cursor-not-allowed items-center justify-center whitespace-nowrap rounded-full bg-surface-container px-space-lg py-2 text-sm font-semibold text-on-surface-variant"
             >
               {departed ? t('Departed') : soldOut ? t('Sold out') : blockedReason}
             </span>
@@ -167,7 +168,7 @@ export default function TripCard({
           <Link
             to={to}
             onClick={() => onSelect(trip)}
-            className={`inline-flex items-center justify-center gap-1.5 rounded-full px-space-lg py-2 text-sm font-semibold transition-all ${
+            className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-all sm:px-space-lg ${
               sunset
                 ? 'bg-coral-glow text-on-primary shadow-[0_2px_8px_rgba(240,138,107,0.3)] hover:opacity-90'
                 : trip.variant === 'featured'

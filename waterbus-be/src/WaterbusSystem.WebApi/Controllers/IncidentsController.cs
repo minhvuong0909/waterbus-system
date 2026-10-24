@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using WaterbusSystem.Application.Common.Models;
 using WaterbusSystem.Application.Features.Incidents.Commands.ResolveIncident;
 using WaterbusSystem.Application.Features.Incidents.Commands.RunWeatherGuard;
+using WaterbusSystem.Application.Features.Incidents.Queries.GetCurrentWeather;
 using WaterbusSystem.Application.Features.Incidents.Queries.GetIncidentById;
 using WaterbusSystem.Application.Features.Incidents.Queries.GetIncidents;
 
@@ -36,6 +37,17 @@ public class IncidentsController : BaseApiController
     {
         var result = await Mediator.Send(new GetIncidentByIdQuery(id));
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Thời tiết hiện tại của từng tuyến đang hoạt động (gió, gió giật, bầu trời, mức Normal/Caution/Danger/Unknown).
+    /// Chỉ đọc: không tạo Incident và không đổi trạng thái chuyến.
+    /// </summary>
+    [HttpGet("weather-now")]
+    [ProducesResponseType(typeof(List<RouteWeatherDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<RouteWeatherDto>>> GetCurrentWeather()
+    {
+        return Ok(await Mediator.Send(new GetCurrentWeatherQuery()));
     }
 
     /// <summary>

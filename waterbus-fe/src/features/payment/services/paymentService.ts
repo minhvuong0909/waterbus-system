@@ -1,23 +1,10 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { USE_MOCK } from '../../../constant/env'
-import { EWALLETS, NEXT_STEPS, PAYMENT_METHODS } from '../../../mocks/payment'
 import { withDelay } from '../../../mocks/delay'
 import { ROUTES } from '../../../routes/routes'
 import { apiRequest } from '../../../services/apiClient'
 import { guestHeaders } from '../../booking/services/bookingService'
-import type { Ewallet, NextStep, PaymentMethod, VnPayReturnResult } from '../types'
-
-export function getPaymentMethods(): Promise<PaymentMethod[]> {
-  return withDelay(PAYMENT_METHODS)
-}
-
-export function getEwallets(): Promise<Ewallet[]> {
-  return withDelay(EWALLETS)
-}
-
-export function getNextSteps(): Promise<NextStep[]> {
-  return withDelay(NEXT_STEPS)
-}
+import type { VnPayReturnResult } from '../types'
 
 interface VnPayUrlResponse {
   paymentUrl: string

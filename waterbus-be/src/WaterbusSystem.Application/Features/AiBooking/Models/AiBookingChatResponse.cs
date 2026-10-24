@@ -9,4 +9,5 @@ public record AiBookingChatResponse(
     IReadOnlyList<AiTripCardDto> Cards,
     IReadOnlyList<AiToolExecutionDto> ExecutedTools,
     bool IsFallback = false,
-    TripSearchCriteria? SearchContext = null);
+    TripSearchCriteria? SearchContext = null,
+    AiSearchScopeClarification? PendingClarification = null);

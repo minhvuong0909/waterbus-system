@@ -120,10 +120,11 @@ export function NextDepartureCard({
 
         <div className="space-y-space-md bg-mist/60 p-space-lg lg:col-span-4">
           <div className="rounded-xl bg-white p-space-md shadow-sm">
-            <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">
+            {/* Title and piers on separate lines: real pier names are too long to share one row. */}
+            <div className="flex flex-col gap-0.5 text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">
               {t('Corridor Tracking')}
-              <span className="flex items-center gap-1 normal-case text-teal-flow">
-                <span className="h-1.5 w-1.5 rounded-full bg-teal-flow" /> {t('Pier 01 → Pier 02')}
+              <span className="flex items-center gap-1 normal-case tracking-normal text-teal-flow">
+                <span className="h-1.5 w-1.5 rounded-full bg-teal-flow" /> {`${ticket.departShort} → ${ticket.arriveShort}`}
               </span>
             </div>
             <svg viewBox="0 0 240 60" className="mt-2 h-14 w-full" aria-hidden="true">

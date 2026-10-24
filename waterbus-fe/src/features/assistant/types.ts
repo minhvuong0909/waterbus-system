@@ -3,14 +3,21 @@ export interface AssistantReply {
   text: string
   apiCards?: AssistantApiCard[]
   searchContext?: AssistantSearchContext | null
+  pendingClarification?: AssistantScopeClarification | null
   /** True when the backend could not answer normally and returned a safe default reply. */
   isFallback?: boolean
+}
+
+/** Câu hỏi cần giữ lại đến khi khách chọn tìm mới hay lọc tiếp. */
+export interface AssistantScopeClarification {
+  originalMessage: string
 }
 
 /** Bộ lọc đã được backend kiểm tra ở lần tìm trước, gửi lại cho câu hỏi nối tiếp. */
 export interface AssistantSearchContext {
   departureStationName?: string | null
   arrivalStationName?: string | null
+  restrictSingleStationToRequestedDirection?: boolean
   departureDate?: string | null
   earliestDepartureTime?: string | null
   latestDepartureTime?: string | null
@@ -18,6 +25,9 @@ export interface AssistantSearchContext {
   latestArrivalTime?: string | null
   tripType?: string | null
   passengerCount?: number | null
+  minimumAvailableSeats?: number | null
+  priceGreaterThan?: number | null
+  priceLessThan?: number | null
 }
 
 export interface ChatMessage {

@@ -30,6 +30,8 @@ interface RequestOptions {
   query?: Record<string, QueryValue>
   body?: unknown
   signal?: AbortSignal
+  /** `blob` for a file response (e.g. an MP3) instead of JSON. */
+  responseType?: 'json' | 'blob'
 }
 
 // Called when a request that carried a token comes back 401, so the app can sign the user out.
@@ -72,11 +74,11 @@ async function toApiError(response: Response): Promise<ApiError> {
 
 /** JSON request to the backend. Adds the bearer token and `Accept-Language`, and throws `ApiError`. */
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', query, body, signal, headers: extraHeaders } = options
+  const { method = 'GET', query, body, signal, headers: extraHeaders, responseType = 'json' } = options
   const token = getToken()
 
   const headers: Record<string, string> = {
-    Accept: 'application/json',
+    Accept: responseType === 'blob' ? '*/*' : 'application/json',
     'Accept-Language': getLocale(),
     ...extraHeaders,
   }
@@ -111,5 +113,6 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   if (response.status === 204) return undefined as T
+  if (responseType === 'blob') return (await response.blob()) as T
   return (await response.json()) as T
 }

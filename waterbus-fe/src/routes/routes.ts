@@ -29,6 +29,7 @@ export const ROUTES = {
   adminBoats: '/admin/boats',
   adminFares: '/admin/fares',
   adminIncidents: '/admin/incidents',
+  adminAudioGuides: '/admin/audio-guides',
   adminApi: '/admin/api',
   captain: '/captain',
 } as const

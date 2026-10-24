@@ -10,11 +10,13 @@ import { useTripDetail } from '../../features/trips/hooks/useTripSearch'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
+import NoTripSelected from '../../features/booking/components/NoTripSelected'
 
 export default function TripDetailPage() {
-  const { detail, loading, error, retry } = useTripDetail()
+  const { detail, loading, error, retry, noTrip } = useTripDetail()
   useDocumentTitle(detail ? t('Trip Detail ({code})', { code: detail.vesselCode }) : 'Trip Detail')
 
+  if (noTrip) return <NoTripSelected />
   if (error) return <ErrorState onRetry={retry} />
 
   if (loading || !detail) return <PageLoader />
