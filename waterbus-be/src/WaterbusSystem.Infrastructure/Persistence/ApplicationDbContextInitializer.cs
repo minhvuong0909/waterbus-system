@@ -290,10 +290,16 @@ public class ApplicationDbContextInitializer
         await CorrectDemoStationCoordinatesAsync();
         await AlignDemoStopTimesAsync();
 
-        // Seed only RT01 demo Trips from their actual ScheduleStop definitions.
-        // Operational Trip generation and check-in window configuration belong to their own modules.
+        // 9. Nạp tuyến về RT02, thêm tàu demo, lịch trình mở rộng, địa danh du lịch (POI) & chuyến sắp tới
+        await SeedRoute2AndStopsAsync();
+        await SeedAdditionalBoatsAsync(frontCabinId, standardId, outdoorId);
+        await SeedAdditionalSchedulesAsync();
+        await SeedPointsOfInterestAsync();
+        await SeedDemoTripsForUpcomingDaysAsync();
+
+        // Seed TripStopCalls cho mọi Trip chưa có điểm dừng (dựa trên ScheduleStop)
         var demoTrips = await _context.Trips
-            .Where(t => t.Route!.Code == "RT01" && t.ScheduleId != null && !t.TripStopCalls.Any())
+            .Where(t => t.ScheduleId != null && !t.TripStopCalls.Any())
             .ToListAsync();
         foreach (var trip in demoTrips)
         {
@@ -314,7 +320,14 @@ public class ApplicationDbContextInitializer
                     EstimatedArrivalTime = stop.ArrivalOffsetMin.HasValue
                         ? trip.DepartureTime.AddMinutes(stop.ArrivalOffsetMin.Value) : null,
                     EstimatedDepartureTime = stop.DepartureOffsetMin.HasValue
-                        ? trip.DepartureTime.AddMinutes(stop.DepartureOffsetMin.Value) : null
+                        ? trip.DepartureTime.AddMinutes(stop.DepartureOffsetMin.Value) : null,
+                    CheckInOpenAt = stop.DepartureOffsetMin.HasValue
+                        ? trip.DepartureTime.AddMinutes(stop.DepartureOffsetMin.Value - 30)
+                        : trip.DepartureTime.AddMinutes(-30),
+                    CheckInCloseAt = stop.DepartureOffsetMin.HasValue
+                        ? trip.DepartureTime.AddMinutes(stop.DepartureOffsetMin.Value)
+                        : trip.DepartureTime,
+                    Status = (trip.Status == TripStatus.EnRoute && stop.VisitOrder == 1) ? "Departed" : "Planned"
                 });
             }
         }
@@ -453,6 +466,339 @@ public class ApplicationDbContextInitializer
         }
 
         boat.CaptainUserId = captain.Id;
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task SeedRoute2AndStopsAsync()
+    {
+        var route2 = await _context.Routes.FirstOrDefaultAsync(r => r.Code == "RT02");
+        var stBachDang = await _context.Stations.FirstOrDefaultAsync(s => s.Code == "ST01");
+        var stBinhAn = await _context.Stations.FirstOrDefaultAsync(s => s.Code == "ST02");
+        var stThanhDa = await _context.Stations.FirstOrDefaultAsync(s => s.Code == "ST03");
+        var stHiepBinhChanh = await _context.Stations.FirstOrDefaultAsync(s => s.Code == "ST04");
+        var stLinhDong = await _context.Stations.FirstOrDefaultAsync(s => s.Code == "ST05");
+
+        if (stBachDang is null || stLinhDong is null) return;
+
+        if (route2 is null)
+        {
+            route2 = new Route
+            {
+                Code = "RT02",
+                Name = "Linh Đông - Bạch Đằng",
+                DepartureStationId = stLinhDong.Id,
+                ArrivalStationId = stBachDang.Id,
+                EstimatedDurationMinutes = 45,
+                DistanceKm = 10.8m,
+                ServiceType = "Regular",
+                IsActive = true
+            };
+            await _context.Routes.AddAsync(route2);
+            await _context.SaveChangesAsync();
+        }
+
+        if (!await _context.RouteStops.AnyAsync(rs => rs.RouteId == route2.Id))
+        {
+            var routeStops = new List<RouteStop>
+            {
+                new() { RouteId = route2.Id, StationId = stLinhDong.Id, SequenceNo = 1 },
+                new() { RouteId = route2.Id, StationId = stHiepBinhChanh!.Id, SequenceNo = 2 },
+                new() { RouteId = route2.Id, StationId = stThanhDa!.Id, SequenceNo = 3 },
+                new() { RouteId = route2.Id, StationId = stBinhAn!.Id, SequenceNo = 4 },
+                new() { RouteId = route2.Id, StationId = stBachDang.Id, SequenceNo = 5 }
+            };
+            await _context.RouteStops.AddRangeAsync(routeStops);
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    private async Task SeedAdditionalBoatsAsync(Guid frontCabinId, Guid standardId, Guid outdoorId)
+    {
+        var boatDefs = new[]
+        {
+            ("SWB-02", "Saigon Waterbus 02", "SG-8900-WS"),
+            ("SWB-03", "Saigon Waterbus 03", "SG-8901-WS")
+        };
+
+        foreach (var (code, name, regNum) in boatDefs)
+        {
+            if (await _context.Boats.AnyAsync(b => b.Code == code)) continue;
+
+            var boat = new Boat
+            {
+                Code = code,
+                Name = name,
+                RegistrationNumber = regNum,
+                TotalSeats = 60,
+                Manufacturer = "Saigon Shipyard",
+                YearBuilt = 2024,
+                IsActive = true
+            };
+
+            for (int i = 1; i <= 12; i++)
+            {
+                boat.Seats.Add(new Seat
+                {
+                    SeatCode = $"F{i:D2}",
+                    SeatClassId = frontCabinId,
+                    RowNumber = (i - 1) / 4 + 1,
+                    ColumnNumber = (i - 1) % 4 + 1
+                });
+            }
+
+            for (int i = 1; i <= 36; i++)
+            {
+                boat.Seats.Add(new Seat
+                {
+                    SeatCode = $"S{i:D2}",
+                    SeatClassId = standardId,
+                    RowNumber = (i - 1) / 4 + 1,
+                    ColumnNumber = (i - 1) % 4 + 1
+                });
+            }
+
+            for (int i = 1; i <= 12; i++)
+            {
+                boat.Seats.Add(new Seat
+                {
+                    SeatCode = $"O{i:D2}",
+                    SeatClassId = outdoorId,
+                    RowNumber = (i - 1) / 4 + 1,
+                    ColumnNumber = (i - 1) % 4 + 1
+                });
+            }
+
+            await _context.Boats.AddAsync(boat);
+        }
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task SeedAdditionalSchedulesAsync()
+    {
+        var route1 = await _context.Routes.FirstOrDefaultAsync(r => r.Code == "RT01");
+        var route2 = await _context.Routes.FirstOrDefaultAsync(r => r.Code == "RT02");
+        if (route1 is null || route2 is null) return;
+
+        var times = new[]
+        {
+            new TimeSpan(7, 30, 0),
+            new TimeSpan(8, 30, 0),
+            new TimeSpan(10, 30, 0),
+            new TimeSpan(14, 0, 0),
+            new TimeSpan(16, 30, 0),
+            new TimeSpan(17, 30, 0),
+            new TimeSpan(19, 0, 0),
+            new TimeSpan(20, 30, 0),
+            new TimeSpan(21, 30, 0)
+        };
+
+        foreach (var route in new[] { route1, route2 })
+        {
+            var routeStops = await _context.RouteStops
+                .Where(rs => rs.RouteId == route.Id)
+                .OrderBy(rs => rs.SequenceNo)
+                .ToListAsync();
+
+            if (routeStops.Count == 0) continue;
+
+            foreach (var time in times)
+            {
+                var exists = await _context.Schedules.AnyAsync(s => s.RouteId == route.Id && s.DepartureTime == time);
+                if (exists) continue;
+
+                var schedule = new Schedule
+                {
+                    RouteId = route.Id,
+                    DepartureTime = time,
+                    IsActive = true
+                };
+                await _context.Schedules.AddAsync(schedule);
+                await _context.SaveChangesAsync();
+
+                var scheduleStops = new List<ScheduleStop>();
+                int offset = 0;
+                foreach (var rs in routeStops)
+                {
+                    scheduleStops.Add(new ScheduleStop
+                    {
+                        ScheduleId = schedule.Id,
+                        RouteStopId = rs.Id,
+                        VisitOrder = rs.SequenceNo,
+                        ArrivalOffsetMin = offset == 0 ? null : offset,
+                        DepartureOffsetMin = rs.SequenceNo == routeStops.Last().SequenceNo ? null : offset + 2
+                    });
+                    offset += 11;
+                }
+                await _context.ScheduleStops.AddRangeAsync(scheduleStops);
+                await _context.SaveChangesAsync();
+            }
+        }
+    }
+
+    private async Task SeedPointsOfInterestAsync()
+    {
+        if (await _context.PointsOfInterest.AnyAsync()) return;
+
+        var pois = new List<PointOfInterest>
+        {
+            new()
+            {
+                Name = "Cột cờ Thủ Ngữ & Bến Nhà Rồng",
+                Description = "Di tích lịch sử văn hóa lâu đời tại ngã ba kênh Bến Nghé và sông Sài Gòn, nơi Bác Hồ ra đi tìm đường cứu nước năm 1911.",
+                Latitude = 10.7688000m,
+                Longitude = 106.7072000m,
+                IsActive = true
+            },
+            new()
+            {
+                Name = "Cầu Ba Son (Cầu Thủ Thiêm 2)",
+                Description = "Cây cầu dây văng hiện đại hình cánh buồm nổi bật, kết nối trung tâm Quận 1 với khu đô thị mới Thủ Thiêm.",
+                Latitude = 10.7816000m,
+                Longitude = 106.7112000m,
+                IsActive = true
+            },
+            new()
+            {
+                Name = "Tòa tháp Landmark 81 & Vinhomes Central Park",
+                Description = "Tòa nhà chọc trời cao nhất Việt Nam (461.3m), biểu tượng cho sự thịnh vượng và năng động của TP.HCM.",
+                Latitude = 10.7951000m,
+                Longitude = 106.7218000m,
+                IsActive = true
+            },
+            new()
+            {
+                Name = "Bán đảo Thanh Đa & Bình Quới",
+                Description = "Khu vực sinh thái xanh thanh bình được bao bọc trọn vẹn bởi nhánh sông Sài Gòn uốn lượn.",
+                Latitude = 10.8250000m,
+                Longitude = 106.7230000m,
+                IsActive = true
+            },
+            new()
+            {
+                Name = "Cầu Bình Lợi lịch sử",
+                Description = "Cây cầu đường sắt vượt sông Sài Gòn đầu tiên xây dựng từ năm 1902, chứng nhân hơn một thế kỷ thăng trầm của thành phố.",
+                Latitude = 10.8255000m,
+                Longitude = 106.7145000m,
+                IsActive = true
+            }
+        };
+
+        await _context.PointsOfInterest.AddRangeAsync(pois);
+        await _context.SaveChangesAsync();
+
+        var routes = await _context.Routes.Where(r => r.Code == "RT01" || r.Code == "RT02").ToListAsync();
+        foreach (var r in routes)
+        {
+            int order = 1;
+            foreach (var poi in pois)
+            {
+                _context.RoutePois.Add(new RoutePoi
+                {
+                    RouteId = r.Id,
+                    PoiId = poi.Id,
+                    DisplayOrder = order++,
+                    TriggerRadiusM = 350,
+                    IsActive = true
+                });
+            }
+        }
+
+        int index = 1;
+        foreach (var poi in pois)
+        {
+            _context.AudioGuides.Add(new AudioGuide
+            {
+                PoiId = poi.Id,
+                LanguageCode = "vi",
+                AudioAssetUri = $"/audio/poi-{index:D2}.mp3",
+                DurationSeconds = 120,
+                IsPublished = true
+            });
+            index++;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task SeedDemoTripsForUpcomingDaysAsync()
+    {
+        var routes = await _context.Routes.Where(r => r.Code == "RT01" || r.Code == "RT02").ToListAsync();
+        if (routes.Count == 0) return;
+
+        var boats = await _context.Boats.Where(b => b.IsActive).ToListAsync();
+        if (boats.Count == 0) return;
+
+        var schedules = await _context.Schedules.Where(s => s.IsActive).ToListAsync();
+        if (schedules.Count == 0) return;
+
+        var vnNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7));
+        var today = vnNow.Date;
+
+        int boatIndex = 0;
+        bool enRouteSeeded = await _context.Trips.AnyAsync(t => t.Status == TripStatus.EnRoute);
+
+        // Tạo chuyến cho Hôm nay (0) và 3 ngày tiếp theo (1, 2, 3)
+        for (int dayOffset = 0; dayOffset <= 3; dayOffset++)
+        {
+            var date = today.AddDays(dayOffset);
+
+            foreach (var route in routes)
+            {
+                var routeSchedules = schedules.Where(s => s.RouteId == route.Id).OrderBy(s => s.DepartureTime).ToList();
+
+                foreach (var sch in routeSchedules)
+                {
+                    var depVn = new DateTimeOffset(date.Year, date.Month, date.Day, sch.DepartureTime.Hours, sch.DepartureTime.Minutes, 0, TimeSpan.FromHours(7));
+                    var depUtc = depVn.ToUniversalTime();
+
+                    if (await _context.Trips.AnyAsync(t => t.RouteId == route.Id && t.DepartureTime == depUtc))
+                    {
+                        continue;
+                    }
+
+                    var boat = boats[boatIndex % boats.Count];
+                    boatIndex++;
+
+                    var tripType = sch.DepartureTime >= new TimeSpan(17, 0, 0)
+                        ? TripType.Sightseeing
+                        : TripType.Commuter;
+
+                    var isTodayPast = dayOffset == 0 && depVn < vnNow;
+                    TripStatus status = TripStatus.Scheduled;
+                    DateTimeOffset? actualDep = null;
+
+                    if (isTodayPast)
+                    {
+                        if (!enRouteSeeded && route.Code == "RT01" && (vnNow - depVn).TotalMinutes < 60)
+                        {
+                            status = TripStatus.EnRoute;
+                            actualDep = depUtc;
+                            enRouteSeeded = true;
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
+
+                    var trip = new Trip
+                    {
+                        ScheduleId = sch.Id,
+                        RouteId = route.Id,
+                        BoatId = boat.Id,
+                        DepartureTime = depUtc,
+                        ArrivalTime = depUtc.AddMinutes(45),
+                        SalesCloseAt = depUtc.AddMinutes(-15),
+                        Status = status,
+                        TripType = tripType,
+                        ActualDepartureTime = actualDep
+                    };
+
+                    await _context.Trips.AddAsync(trip);
+                }
+            }
+        }
+
         await _context.SaveChangesAsync();
     }
 

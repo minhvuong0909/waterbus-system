@@ -95,6 +95,15 @@ export const NETWORK_ROUTE_SEEDS: NetworkRouteSeed[] = [
     liveSummary: 'River route between Bach Dang and Linh Dong',
     fromFareVnd: 15000,
   },
+  {
+    id: 'rt02',
+    originCode: 'ST05',
+    destinationCode: 'ST01',
+    badge: 'Chiều về',
+    summary: '45 min • 10.8 km river route between Linh Dong and Bach Dang',
+    liveSummary: 'River route between Linh Dong and Bach Dang',
+    fromFareVnd: 15000,
+  },
 ]
 
 /** Thời gian qua sông của cả hành lang (5 bến, 4 chặng) theo RT01. */
