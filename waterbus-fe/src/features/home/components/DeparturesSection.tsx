@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { useAppDispatch } from '../../../store/hooks'
-import { selectTrip } from '../../booking/bookingSlice'
+import { selectTrip, setQuery } from '../../booking/bookingSlice'
 import DepartureCard from '../../trips/components/DepartureCard'
 import type { RouteFilter } from '../types'
 import type { NextDepartures } from '../services/homeService'
@@ -84,6 +84,7 @@ export default function DeparturesSection({ filters, departures, pierName }: Dep
 
         <Link
           to={ROUTES.searchResults}
+          onClick={() => departures.search && dispatch(setQuery(departures.search))}
           className="tap-area inline-flex items-center gap-0.5 text-sm font-bold text-teal-flow hover:underline"
         >
           <span>{t('View the full timetable')}</span>

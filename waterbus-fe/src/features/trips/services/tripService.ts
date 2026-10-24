@@ -128,7 +128,10 @@ const minutesOf = (time: string) => {
  * The next departures today on the main corridor (first to last pier), with the search they came
  * from. Departures that already left are dropped.
  */
-export async function getUpcomingTrips(limit: number): Promise<{
+export async function getUpcomingTrips(
+  limit: number,
+  pair: Pick<SearchQuery, 'originId' | 'destinationId'> = DEFAULT_SEARCH_QUERY,
+): Promise<{
   trips: Trip[]
   piers: PierOption[]
   search: Pick<SearchQuery, 'originId' | 'destinationId' | 'dateId'>
@@ -136,7 +139,7 @@ export async function getUpcomingTrips(limit: number): Promise<{
   tomorrow: boolean
 }> {
   const piers = await getPierOptions()
-  const search = { ...pickPiers(piers, DEFAULT_SEARCH_QUERY), dateId: toVietnamDate(new Date()) }
+  const search = { ...pickPiers(piers, pair), dateId: toVietnamDate(new Date()) }
   const all = await getTrips({ ...DEFAULT_SEARCH_QUERY, ...search })
   const now = new Date()
   const bookable = (trip: Trip) => trip.seatsCount > 0
