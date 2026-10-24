@@ -241,8 +241,7 @@ export class QrVerifier {
       // RS256 / Public Key PEM verification
       // For RSA public key verification:
       return this.verifyRsaSha256(data, signature, keyInfo.publicKeyPem);
-    } catch (err) {
-      console.error('[Crypto] Error verifying signature:', err);
+    } catch {
       return false;
     }
   }

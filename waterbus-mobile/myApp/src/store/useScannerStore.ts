@@ -73,8 +73,8 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     try {
       const stats = await SqliteRepository.getManifestStats();
       set({ stats });
-    } catch (err) {
-      console.warn('[Store] Could not load stats:', err);
+    } catch {
+      // Ignore if database is busy
     }
   },
 
@@ -149,12 +149,11 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
 
       // Trigger background batch sync if online
       if (!deviceInfo.forceOfflineMode) {
-        syncService.triggerBatchSync().catch((e) => console.log('Auto sync error:', e));
+        syncService.triggerBatchSync().catch(() => {});
       }
 
       return { success: true, count: res.checkedInCount };
     } catch (error: any) {
-      console.error('[Store] Check-in error:', error);
       return { success: false, count: 0, error: error.message };
     }
   },

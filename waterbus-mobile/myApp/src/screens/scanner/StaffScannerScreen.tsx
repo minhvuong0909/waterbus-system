@@ -84,7 +84,6 @@ export default function StaffScannerScreen() {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       await processQrData(rawData);
     } catch (err: any) {
-      console.error('[Scanner] Scan handling error:', err);
       Alert.alert('Lỗi quét mã', err.message);
     } finally {
       // Re-enable scanner after cooldown

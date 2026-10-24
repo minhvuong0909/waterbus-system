@@ -196,7 +196,6 @@ export async function getDatabase(): Promise<DatabaseAdapter> {
   }
 
   if (!isNativeApp()) {
-    console.log('[SQLite] Running in Web/Test environment — using InMemory SQLite Fallback');
     const fallback = new InMemoryFallbackDatabase();
     await initSchema(fallback);
     dbInstance = fallback;
@@ -225,8 +224,7 @@ export async function getDatabase(): Promise<DatabaseAdapter> {
     await initSchema(adapter);
     dbInstance = adapter;
     return dbInstance;
-  } catch (error) {
-    console.warn('[SQLite] Failed to open native database, falling back to in-memory adapter:', error);
+  } catch {
     const fallback = new InMemoryFallbackDatabase();
     await initSchema(fallback);
     dbInstance = fallback;

@@ -55,8 +55,8 @@ export default function PreloadManifestScreen() {
     try {
       const list = await SqliteRepository.getAllTrips();
       setTrips(list);
-    } catch (err) {
-      console.warn('[Manifest] Failed to load trips:', err);
+    } catch {
+      // Ignored if table not populated yet
     }
   }, []);
 

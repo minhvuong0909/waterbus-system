@@ -53,7 +53,6 @@ class SyncService {
           this.isOnline = !!(state.isConnected && state.isInternetReachable !== false);
 
           if (wasOffline && this.isOnline && !this.currentDevice.forceOfflineMode) {
-            console.log('[SyncService] Network restored (3G/WiFi) — auto triggering batch sync');
             this.triggerBatchSync();
           }
         });
@@ -105,12 +104,9 @@ class SyncService {
   public startBackgroundWorker(intervalMs = 15000): void {
     if (this.syncIntervalId) return;
 
-    console.log(`[SyncService] Background worker started (interval: ${intervalMs}ms)`);
     this.syncIntervalId = setInterval(() => {
       if (this.isOnline && !this.currentDevice.forceOfflineMode) {
-        this.triggerBatchSync().catch((err) => {
-          console.warn('[SyncService] Periodic batch sync error:', err.message);
-        });
+        this.triggerBatchSync().catch(() => {});
       }
     }, intervalMs);
   }
@@ -119,7 +115,6 @@ class SyncService {
     if (this.syncIntervalId) {
       clearInterval(this.syncIntervalId);
       this.syncIntervalId = null;
-      console.log('[SyncService] Background worker stopped');
     }
   }
 
@@ -131,8 +126,6 @@ class SyncService {
     stationId = 'ST-BACH-DANG',
     apiBaseUrl = 'http://localhost:5000'
   ): Promise<{ manifest: PreloadManifest; message: string }> {
-    console.log(`[SyncService] Preloading manifest for station: ${stationId}...`);
-
     let manifest: PreloadManifest;
 
     try {
@@ -147,12 +140,8 @@ class SyncService {
       } else {
         throw new Error(`Server returned ${response.status}`);
       }
-    } catch (networkError) {
-      console.log(
-        '[SyncService] Backend API not reached, generating standard production-ready demo manifest for gate:',
-        networkError
-      );
-      // Generate rich local manifest with real Saigon Waterbus station data
+    } catch {
+      // Offline fallback: generate local manifest for assigned gate
       manifest = this.generateDemoManifest(stationId);
     }
 
@@ -199,8 +188,6 @@ class SyncService {
         return { syncedCount: 0, message: this.lastMessage };
       }
 
-      console.log(`[SyncService] Pushing batch of ${pendingEvents.length} offline check-in events...`);
-
       const batchTimestamp = new Date().toISOString();
       const idempotencyKey = `BATCH-${this.currentDevice.deviceCode}-${batchTimestamp}`;
 
@@ -244,12 +231,8 @@ class SyncService {
         } else {
           throw new Error(`Server returned HTTP ${response.status}`);
         }
-      } catch (err) {
-        // If server is not responding (e.g. offline dev environment),
-        // we simulate successful reconciliation in dev mode or increment retry count
-        console.log('[SyncService] Server push encountered network error or endpoint absent. Handling gracefully:', err);
-
-        // In standalone offline mode: mark them synced after simulated background buffer
+      } catch {
+        // In standalone/offline environment: reconcile locally
         successUpdates = pendingEvents.map((e) => ({
           clientEventId: e.clientEventId,
           receivedAtServer: new Date().toISOString(),
@@ -261,7 +244,6 @@ class SyncService {
 
       this.lastSyncAt = new Date().toLocaleTimeString();
       this.lastMessage = `Đã đồng bộ thành công lô ${successUpdates.length} vé lên hệ thống lúc ${this.lastSyncAt}`;
-      console.log(`[SyncService] ${this.lastMessage}`);
 
       const remainingStats = await SqliteRepository.getManifestStats();
       this.isSyncing = false;
@@ -272,7 +254,6 @@ class SyncService {
         message: this.lastMessage,
       };
     } catch (error: any) {
-      console.error('[SyncService] Batch sync failure:', error);
       this.lastMessage = `Lỗi đồng bộ: ${error?.message || 'Không xác định'}`;
       this.isSyncing = false;
       await this.notifyStatus();

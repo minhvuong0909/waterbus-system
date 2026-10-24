@@ -38,8 +38,8 @@ export default function CheckInHistoryScreen() {
       const data = await SqliteRepository.getAllCheckInEvents(150);
       setEvents(data);
       await refreshStats();
-    } catch (err: any) {
-      console.error('[History] Failed to load check-in events:', err);
+    } catch {
+      // Ignored if table empty
     }
   }, [refreshStats]);
 

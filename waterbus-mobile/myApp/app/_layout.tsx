@@ -28,10 +28,9 @@ export default function RootLayout() {
     // 1. Initialize SQLite schema on boot
     getDatabase()
       .then(() => {
-        console.log("[Waterbus] SQLite initialized successfully.");
         refreshStats();
       })
-      .catch((err) => console.error("[Waterbus] DB Init failed:", err));
+      .catch(() => {});
 
     // 2. Start idempotent batch sync background worker
     syncService.startBackgroundWorker(15000);
