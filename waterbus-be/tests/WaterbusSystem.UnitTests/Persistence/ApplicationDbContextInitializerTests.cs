@@ -138,16 +138,20 @@ public class ApplicationDbContextInitializerTests
         // Dữ liệu cũ: bến đầu rời +2 phút, bến cuối đến +44 phút.
         int?[] oldArrival = [null, 11, 22, 33, 44];
         int?[] oldDeparture = [2, 13, 24, 35, null];
+        Guid scheduleId;
         using (var scope = provider.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var stops = await context.ScheduleStops.OrderBy(s => s.VisitOrder).ToListAsync();
+            scheduleId = (await context.Schedules.FirstAsync(s => s.Route!.Code == "RT01" && s.DepartureTime == new TimeSpan(8, 0, 0))).Id;
+            // Chỉ lịch demo 08:00 của RT01 (seed còn có các lịch khác và tuyến RT02).
+            var stops = await context.ScheduleStops.Where(s => s.ScheduleId == scheduleId).OrderBy(s => s.VisitOrder).ToListAsync();
             for (var i = 0; i < stops.Count; i++)
             {
                 stops[i].ArrivalOffsetMin = oldArrival[i];
                 stops[i].DepartureOffsetMin = oldDeparture[i];
             }
-            foreach (var call in await context.TripStopCalls.Include(c => c.Trip).ToListAsync())
+            foreach (var call in await context.TripStopCalls.Include(c => c.Trip)
+                         .Where(c => c.Trip!.ScheduleId == scheduleId).ToListAsync())
             {
                 var i = call.VisitOrder - 1;
                 call.EstimatedArrivalTime = oldArrival[i] is { } a ? call.Trip!.DepartureTime.AddMinutes(a) : null;
@@ -161,11 +165,11 @@ public class ApplicationDbContextInitializerTests
 
         using var check = provider.CreateScope();
         var db = check.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var trip = await db.Trips.Include(t => t.TripStopCalls).FirstAsync(t => t.TripStopCalls.Any());
+        var trip = await db.Trips.Include(t => t.TripStopCalls).FirstAsync(t => t.ScheduleId == scheduleId && t.TripStopCalls.Any());
         var calls = trip.TripStopCalls.OrderBy(c => c.VisitOrder).ToList();
         calls.First().EstimatedDepartureTime.Should().Be(trip.DepartureTime);
         calls.Last().EstimatedArrivalTime.Should().Be(trip.ArrivalTime);
-        (await db.ScheduleStops.OrderBy(s => s.VisitOrder).Select(s => s.ArrivalOffsetMin).ToListAsync())
+        (await db.ScheduleStops.Where(s => s.ScheduleId == scheduleId).OrderBy(s => s.VisitOrder).Select(s => s.ArrivalOffsetMin).ToListAsync())
             .Should().Equal(null, 11, 23, 34, 45);
     }
 
