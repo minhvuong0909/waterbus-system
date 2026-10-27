@@ -27,6 +27,7 @@ using WaterbusSystem.Application.DTOs.Responses.Refunds;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Infrastructure;
 using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.Infrastructure.Services.Payment;
 using WaterbusSystem.UnitTests.TestHelpers;
 using WaterbusSystem.WebApi.Controllers;
 using WaterbusSystem.WebApi.Filters;
@@ -42,6 +43,9 @@ public sealed class CommercialHttpTests : IAsyncLifetime
     private TestDbContextFactory.TripSeedData _seed = null!;
     private readonly CommercialCheckoutTests.Gateway _gateway = new();
     private readonly string _jwtSecret = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+    private readonly string _callbackSecret = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+    private const string CallbackTmnCode = "HTTPTEST01";
+    private bool _verifyCallbackSignatures;
 
     public async Task InitializeAsync()
     {
@@ -52,6 +56,8 @@ public sealed class CommercialHttpTests : IAsyncLifetime
         {
             ["ConnectionStrings:DefaultConnection"] = "Server=127.0.0.1;Database=NotUsed;Integrated Security=True",
             ["JwtSettings:Secret"] = _jwtSecret,
+            ["VnPay:TmnCode"] = CallbackTmnCode,
+            ["VnPay:HashSecret"] = _callbackSecret,
             ["Qr:PrivateKeyPem"] = signingKey.ExportPkcs8PrivateKeyPem()
         });
         builder.Logging.ClearProviders();
@@ -65,7 +71,9 @@ public sealed class CommercialHttpTests : IAsyncLifetime
         builder.Services.AddSingleton<IDistributedLockService, FakeDistributedLockService>();
         builder.Services.AddScoped<ICommercialTransactionRunner, DirectCommercialTransactionRunner>();
         builder.Services.AddSingleton<ICheckoutSessionStore, CommercialHandlerFactory.MemoryStore>();
-        builder.Services.AddSingleton<IVnPayService>(_gateway);
+        builder.Services.AddScoped<IVnPayService>(sp => _verifyCallbackSignatures
+            ? ActivatorUtilities.CreateInstance<VnPayService>(sp)
+            : _gateway);
         builder.Services.RemoveAll<IRefundGateway>();
         builder.Services.AddSingleton<IRefundGateway>(_gateway);
         builder.Services.AddScoped<ValidateRequestFilter>();
@@ -113,9 +121,12 @@ public sealed class CommercialHttpTests : IAsyncLifetime
         var booking = (await created.Content.ReadFromJsonAsync<BookingResponse>())!;
         Assert.Equal(15000m, booking.TotalAmount);
         Assert.NotNull(created.Headers.Location);
-        Assert.Equal(HttpStatusCode.Forbidden, (await _client.GetAsync($"/api/v1/checkouts/{booking.OrderId}")).StatusCode);
+        Assert.Equal($"/api/v1/Checkouts/{booking.OrderId}", created.Headers.Location.AbsolutePath);
+        Assert.Empty(created.Headers.Location.Query);
+        Assert.Equal(HttpStatusCode.Forbidden, (await _client.GetAsync(created.Headers.Location)).StatusCode);
         _client.DefaultRequestHeaders.Add("X-Guest-Token", booking.AccessToken);
-        var detail = await _client.GetFromJsonAsync<CheckoutDetailDto>($"/api/v1/checkouts/{booking.OrderId}");
+        var detail = await _client.GetFromJsonAsync<CheckoutDetailDto>(created.Headers.Location);
+        Assert.Equal(booking.OrderId, detail!.OrderId);
         Assert.Equal(booking.BookingId, Assert.Single(detail!.Bookings).BookingId);
     }
 
@@ -169,5 +180,96 @@ public sealed class CommercialHttpTests : IAsyncLifetime
             new ConfirmManualRefundRequest(refund.RefundTransactionId, "bank receipt", "manual-bank", refund.Amount));
         Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
         Assert.Equal("Succeeded", (await confirmed.Content.ReadFromJsonAsync<ConfirmManualRefundResultDto>())!.Status);
+    }
+
+    private async Task<Dictionary<string, string>> SignedPendingPaymentCallbackAsync()
+    {
+        _verifyCallbackSignatures = true;
+        var created = await _client.PostAsJsonAsync("/api/v1/bookings", new CreateBookingRequest(_seed.Trip.Id, [_seed.Seat1.Id],
+            _seed.StationA.Id, _seed.StationC.Id, "Buyer", "buyer@example.com", null));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var booking = (await created.Content.ReadFromJsonAsync<BookingResponse>())!;
+        _client.DefaultRequestHeaders.Add("X-Guest-Token", booking.AccessToken);
+        var initiated = await _client.PostAsJsonAsync("/api/v1/payments/create-vnpay-url", new CreateVnPayUrlRequest(booking.OrderId));
+        Assert.Equal(HttpStatusCode.OK, initiated.StatusCode);
+        var attempt = (await initiated.Content.ReadFromJsonAsync<CreateVnPayUrlResponseDto>())!;
+        var fields = new Dictionary<string, string>
+        {
+            ["vnp_TmnCode"] = CallbackTmnCode, ["vnp_TxnRef"] = attempt.MerchantReference,
+            ["vnp_TransactionNo"] = "signed-http-transaction", ["vnp_Amount"] = ((long)(attempt.Amount * 100)).ToString(),
+            ["vnp_ResponseCode"] = "00", ["vnp_TransactionStatus"] = "00", ["vnp_OrderInfo"] = "Waterbus payment + test"
+        };
+        var signedData = string.Join("&", fields.OrderBy(p => p.Key, StringComparer.Ordinal)
+            .Select(p => WebUtility.UrlEncode(p.Key) + "=" + WebUtility.UrlEncode(p.Value)));
+        fields["vnp_SecureHash"] = Convert.ToHexString(HMACSHA512.HashData(Encoding.UTF8.GetBytes(_callbackSecret),
+            Encoding.UTF8.GetBytes(signedData))).ToLowerInvariant();
+        return fields;
+    }
+
+    private async Task<VnPayIpnResultDto> PostCallbackAsync(Dictionary<string, string> fields, HttpContent? body = null)
+    {
+        var query = string.Join("&", fields.Select(p => Uri.EscapeDataString(p.Key) + "=" + Uri.EscapeDataString(p.Value)));
+        var response = await _client.PostAsync("/api/v1/payments/vnpay-ipn?" + query, body);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<VnPayIpnResultDto>())!;
+    }
+
+    private async Task AssertPaymentStateAsync(bool confirmed)
+    {
+        using var scope = _app.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(confirmed ? OrderStatus.Confirmed : OrderStatus.PendingPayment, (await context.PurchaseOrders.SingleAsync()).Status);
+        Assert.Equal(confirmed ? FinancialTransactionStatus.Succeeded : FinancialTransactionStatus.Requested,
+            (await context.FinancialTransactions.SingleAsync()).Status);
+        Assert.Equal(confirmed ? 1 : 0, await context.Tickets.CountAsync());
+    }
+
+    [Fact]
+    public async Task SignedQueryPostIpnConfirmsPayment()
+    {
+        var fields = await SignedPendingPaymentCallbackAsync();
+        Assert.Equal("00", (await PostCallbackAsync(fields)).RspCode);
+        await AssertPaymentStateAsync(true);
+    }
+
+    [Fact]
+    public async Task InvalidSignaturePostIpnDoesNotChangePayment()
+    {
+        var fields = await SignedPendingPaymentCallbackAsync();
+        fields["vnp_Amount"] = "1";
+        Assert.Equal("97", (await PostCallbackAsync(fields)).RspCode);
+        await AssertPaymentStateAsync(false);
+    }
+
+    [Fact]
+    public async Task DuplicateSignedPostIpnIssuesTicketsOnce()
+    {
+        var fields = await SignedPendingPaymentCallbackAsync();
+        Assert.Equal("00", (await PostCallbackAsync(fields)).RspCode);
+        Assert.Equal("02", (await PostCallbackAsync(fields)).RspCode);
+        await AssertPaymentStateAsync(true);
+    }
+
+    [Fact]
+    public async Task FormOnlyPostIpnDoesNotBypassQueryOnlyContract()
+    {
+        var fields = await SignedPendingPaymentCallbackAsync();
+        using var body = new FormUrlEncodedContent(fields);
+        var response = await _client.PostAsync("/api/v1/payments/vnpay-ipn", body);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("97", (await response.Content.ReadFromJsonAsync<VnPayIpnResultDto>())!.RspCode);
+        await AssertPaymentStateAsync(false);
+    }
+
+    [Fact]
+    public async Task PostIpnUsesSignedQueryInsteadOfUnsignedFormOverrides()
+    {
+        var fields = await SignedPendingPaymentCallbackAsync();
+        using var body = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["vnp_Amount"] = "1", ["vnp_TxnRef"] = "another-payment", ["vnp_TransactionStatus"] = "02"
+        });
+        Assert.Equal("00", (await PostCallbackAsync(fields, body)).RspCode);
+        await AssertPaymentStateAsync(true);
     }
 }

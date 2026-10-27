@@ -25,6 +25,6 @@ public class BookingsController(IBookingService service) : BaseApiController
     public async Task<ActionResult<BookingResponse>> CreateBooking([FromBody] CreateBookingRequest request)
     {
         var result = await service.CreateAsync(request, HttpContext.RequestAborted);
-        return CreatedAtAction(nameof(CreateBooking), new { id = result.BookingId }, result);
+        return CreatedAtAction(nameof(CheckoutsController.Get), "Checkouts", new { orderId = result.OrderId }, result);
     }
 }

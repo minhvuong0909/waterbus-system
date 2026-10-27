@@ -20,6 +20,7 @@ Các đường dẫn dưới đây có prefix `/api/v1`.
 
 | Method | Path | Quyền / hành vi |
 | --- | --- | --- |
+| POST | `/bookings` | Công khai, rate limit BookingPolicy; tạo một Booking, HTTP 201 Location trỏ tới `/checkouts/{orderId}` |
 | POST | `/checkouts/holds` | Công khai, rate limit BookingPolicy; tạo Draft với 1–2 legs |
 | POST | `/checkouts` | Công khai, rate limit BookingPolicy; tạo checkout đầy đủ |
 | GET | `/checkouts/{orderId}` | Token của Order; trạng thái Booking, Ticket và giao dịch |
@@ -37,6 +38,8 @@ Các đường dẫn dưới đây có prefix `/api/v1`.
 | POST | `/refunds/confirm-manual` | AdminOnly; bằng chứng, reference và confirmedAmount chính xác |
 
 API thông thường camelCase. IPN trả **đúng** `{ "RspCode": "00", "Message": "Confirm Success" }` theo giao thức VNPay; replay đã xác nhận trả `02`, chữ ký sai `97`, amount sai `04`. HTTP POST IPN vẫn nhận tham số ở query string, như GET.
+
+Response JSON của `POST /bookings` giữ nguyên. Để đọc tài nguyên tại HTTP 201 Location, gửi `X-Guest-Token` chứa `accessToken` được trả về; token không nằm trong URL.
 
 Ví dụ tạo Draft:
 
