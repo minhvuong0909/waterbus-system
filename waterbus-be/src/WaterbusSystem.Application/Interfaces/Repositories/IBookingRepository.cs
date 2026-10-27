@@ -11,4 +11,7 @@ public interface IBookingRepository
     Task<List<SeatReservation>> GetReservationsByStatusAsync(Guid orderId, WaterbusSystem.Domain.Enums.ReservationStatus status, CancellationToken ct);
     void AddTicket(Ticket ticket);
 
+    Task<Booking> GetForRefundAsync(Guid bookingId, CancellationToken ct);
+    Task<bool> HasTicketsForOrderAsync(Guid orderId, CancellationToken ct);
+
 }

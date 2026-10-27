@@ -38,4 +38,13 @@ public sealed class BookingRepository(ApplicationDbContext context) : IBookingRe
 
     public void AddTicket(Ticket ticket) => context.Tickets.Add(ticket);
 
+    public async Task<Booking> GetForRefundAsync(Guid bookingId, CancellationToken ct) =>
+        await context.Bookings.Include(b => b.Trip).ThenInclude(t => t!.TripStopCalls)
+            .Include(b => b.Tickets).Include(b => b.SeatReservations).Include(b => b.Order)
+            .FirstOrDefaultAsync(b => b.Id == bookingId, ct)
+        ?? throw new WaterbusSystem.Domain.Exceptions.NotFoundException(nameof(Booking), bookingId);
+
+    public Task<bool> HasTicketsForOrderAsync(Guid orderId, CancellationToken ct) =>
+        context.Tickets.AnyAsync(t => t.Booking!.OrderId == orderId, ct);
+
 }

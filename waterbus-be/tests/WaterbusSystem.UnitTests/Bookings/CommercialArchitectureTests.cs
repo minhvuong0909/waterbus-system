@@ -3,7 +3,8 @@ using MediatR;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
 using WaterbusSystem.Application.Features.Payments.Services;
-using WaterbusSystem.Application.Features.Refunds.Commands.RequestRefund;
+using WaterbusSystem.Application.Features.Refunds.Services;
+using WaterbusSystem.Application.Features.Bookings.Services;
 using WaterbusSystem.Application.Features.Refunds.Commands.ConfirmManualRefund;
 using Xunit;
 
@@ -28,7 +29,8 @@ public sealed class CommercialArchitectureTests
     public void ProductionMoneyAndSeatWritersRequireATransactionRunner()
     {
         var types = new[] { typeof(CreateBookingCommandHandler), typeof(PaymentConfirmationService),
-            typeof(RequestRefundCommandHandler), typeof(ConfirmManualRefundCommandHandler) };
+            typeof(RefundRequestService), typeof(ManualRefundService), typeof(RefundReconciliationService),
+            typeof(BookingService), typeof(CheckoutService), typeof(CheckoutSeatChangeService), typeof(CheckoutExpirationService), typeof(PaymentService) };
         foreach (var type in types)
         {
             var runner = type.GetConstructors().Single().GetParameters().Single(p => p.ParameterType == typeof(ICommercialTransactionRunner));

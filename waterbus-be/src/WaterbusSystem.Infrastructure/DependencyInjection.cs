@@ -57,6 +57,9 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
         services.AddScoped<IFinancialTransactionRepository, FinancialTransactionRepository>();
         services.AddScoped<IPaymentService, PaymentService>();
+        services.AddScoped<IRefundRequestService, WaterbusSystem.Application.Features.Refunds.Services.RefundRequestService>();
+        services.AddScoped<IManualRefundService, WaterbusSystem.Application.Features.Refunds.Services.ManualRefundService>();
+        services.AddScoped<IRefundReconciliationService, WaterbusSystem.Application.Features.Refunds.Services.RefundReconciliationService>();
         services.AddScoped<IAccessGrantRepository, AccessGrantRepository>();
         services.AddScoped<ICheckoutAccessService>(sp => sp.GetRequiredService<CheckoutAccessService>());
         services.AddScoped<IBookingService, BookingService>();

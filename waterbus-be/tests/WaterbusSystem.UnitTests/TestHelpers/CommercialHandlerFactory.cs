@@ -1,3 +1,5 @@
+using WaterbusSystem.Application.Features.Refunds.Services;
+using WaterbusSystem.Application.Validators.Refunds;
 using Microsoft.Extensions.Logging.Abstractions;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
@@ -96,10 +98,10 @@ internal static class CommercialHandlerFactory
         ICommercialTransactionRunner? transactions = null) => new(Payment(context, gateway, transactions));
 
     internal static RequestRefundCommandHandler Refund(ApplicationDbContext context, IEnumerable<IRefundGateway> gateways,
-        ICommercialTransactionRunner? transactions = null) => new(context, gateways, transactions ?? new DirectCommercialTransactionRunner());
+        ICommercialTransactionRunner? transactions = null) => new(new RefundRequestService(new FinancialTransactionRepository(context), new BookingRepository(context), new EfUnitOfWork(context), new RequestRefundRequestValidator(), gateways, transactions ?? new DirectCommercialTransactionRunner()));
 
     internal static ConfirmManualRefundCommandHandler ManualRefund(ApplicationDbContext context, ICurrentUserService currentUser,
-        ICommercialTransactionRunner? transactions = null) => new(context, currentUser, transactions ?? new DirectCommercialTransactionRunner());
+        ICommercialTransactionRunner? transactions = null) => new(new ManualRefundService(new FinancialTransactionRepository(context), new EfUnitOfWork(context), new ConfirmManualRefundRequestValidator(), currentUser, transactions ?? new DirectCommercialTransactionRunner()));
 
     private sealed class Clock : IDateTimeService { public DateTimeOffset Now => DateTimeOffset.UtcNow; }
     internal sealed class MemoryStore : ICheckoutSessionStore
