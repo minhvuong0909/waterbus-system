@@ -58,7 +58,7 @@ public sealed class CommercialCheckoutTests
         var booking = await Builder(c).Handle(Command(seed), default);
         var g = new Gateway();
         var access = new CheckoutAccessService(new AccessGrantRepository(c), new CheckoutOptions());
-        await new CreateVnPayUrlCommandHandler(c, g, new DirectCommercialTransactionRunner(), new CheckoutOptions(), access)
+        await new CreateVnPayUrlCommandHandler(CommercialHandlerFactory.Payment(c, g))
             .Handle(new CreateVnPayUrlCommand(booking.OrderId, "127.0.0.1", booking.AccessToken), default);
         return (booking, c.FinancialTransactions.Single(), g);
     }
@@ -88,8 +88,7 @@ public sealed class CommercialCheckoutTests
     {
         using var c = TestDbContextFactory.CreateDbContext(); var state = await Pending(c);
         var order = c.PurchaseOrders.Single(); var deadline = order.ExpiresAt;
-        var result = await new CreateVnPayUrlCommandHandler(c, state.Gateway, new DirectCommercialTransactionRunner(),
-            new CheckoutOptions(), new CheckoutAccessService(new AccessGrantRepository(c), new CheckoutOptions()))
+        var result = await new CreateVnPayUrlCommandHandler(CommercialHandlerFactory.Payment(c, state.Gateway))
             .Handle(new(state.Booking.OrderId, "127.0.0.1", state.Booking.AccessToken), default);
         result.MerchantReference.Should().Be(state.Attempt.MerchantReference);
         order.ExpiresAt.Should().Be(deadline); c.FinancialTransactions.Should().ContainSingle();
@@ -128,8 +127,7 @@ public sealed class CommercialCheckoutTests
         using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
         var booking = await Builder(c).Handle(Command(seed), default);
         seed.Trip.Status = TripStatus.Cancelled; await c.SaveChangesAsync();
-        var pay = new CreateVnPayUrlCommandHandler(c, new Gateway(), new DirectCommercialTransactionRunner(),
-            new CheckoutOptions(), new CheckoutAccessService(new AccessGrantRepository(c), new CheckoutOptions()));
+        var pay = new CreateVnPayUrlCommandHandler(CommercialHandlerFactory.Payment(c, new Gateway()));
         await Assert.ThrowsAsync<ConcurrencyException>(() => pay.Handle(new(booking.OrderId, "127.0.0.1", booking.AccessToken), default));
         c.FinancialTransactions.Should().BeEmpty();
     }
@@ -161,8 +159,7 @@ public sealed class CommercialCheckoutTests
         using var c = TestDbContextFactory.CreateDbContext(); var state = await Pending(c);
         state.Gateway.QueryResult = new VnPayQueryResult { IsSuccess = true, MerchantReference = state.Attempt.MerchantReference,
             Amount = 1, TransactionType = "01", TransactionStatus = "00", TransactionNo = "query-success" };
-        var handler = new WaterbusSystem.Application.Features.Payments.Commands.ReconcilePayment.ReconcilePaymentCommandHandler(c,
-            new CheckoutAccessService(new AccessGrantRepository(c), new CheckoutOptions()), state.Gateway, CommercialHandlerFactory.Confirmation(c, state.Gateway));
+        var handler = new WaterbusSystem.Application.Features.Payments.Commands.ReconcilePayment.ReconcilePaymentCommandHandler(CommercialHandlerFactory.Payment(c, state.Gateway));
         var request = new WaterbusSystem.Application.Features.Payments.Commands.ReconcilePayment.ReconcilePaymentCommand(
             state.Booking.OrderId, state.Attempt.Id, state.Booking.AccessToken, "127.0.0.1");
         (await handler.Handle(request, default)).RspCode.Should().Be("99"); c.Tickets.Should().BeEmpty();
@@ -262,7 +259,7 @@ public sealed class CommercialCheckoutTests
             c, CommercialHandlerFactory.Creation(c), new DirectCommercialTransactionRunner(), CommercialHandlerFactory.Effects(c)).Handle(new([new(seed.Trip.Id, [seed.Seat1.Id], seed.StationA.Id, seed.StationC.Id)]), default);
         result.Status.Should().Be("Draft"); c.Tickets.Should().BeEmpty();
         var access = new CheckoutAccessService(new AccessGrantRepository(c), new CheckoutOptions());
-        var pay = new CreateVnPayUrlCommandHandler(c, new Gateway(), new DirectCommercialTransactionRunner(), new CheckoutOptions(), access);
+        var pay = new CreateVnPayUrlCommandHandler(CommercialHandlerFactory.Payment(c, new Gateway()));
         await Assert.ThrowsAsync<ConcurrencyException>(() => pay.Handle(new(result.OrderId, "127.0.0.1", result.AccessToken), default));
         var deadline = result.ExpiresAt;
         await new WaterbusSystem.Application.Features.Bookings.Commands.SubmitCheckout.SubmitCheckoutCommandHandler(c, access, new DirectCommercialTransactionRunner())
@@ -292,7 +289,7 @@ public sealed class CommercialCheckoutTests
         order.ExpiresAt.Should().Be(deadline);
         (await sessions.GetAsync("order:" + order.Id))!.ExpiresAt.Should().Be(deadline!.Value);
         var gateway = new Gateway();
-        await new CreateVnPayUrlCommandHandler(c, gateway, new DirectCommercialTransactionRunner(), new CheckoutOptions(), access)
+        await new CreateVnPayUrlCommandHandler(CommercialHandlerFactory.Payment(c, gateway))
             .Handle(new(order.Id, "127.0.0.1", result.AccessToken), default);
         await CommercialHandlerFactory.Ipn(c, gateway).Handle(Ipn(c.FinancialTransactions.Single()), default);
         c.Tickets.Should().ContainSingle(); c.Tickets.Single().SeatReservation!.SeatId.Should().Be(seed.Seat2.Id);

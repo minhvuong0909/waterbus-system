@@ -81,12 +81,19 @@ internal static class CommercialHandlerFactory
     internal static CreateCheckoutCommandHandler Checkout(ApplicationDbContext context, ICommercialTransactionRunner? transactions = null,
         ICheckoutSessionService? sessions = null) => new(context, Creation(context), transactions ?? new DirectCommercialTransactionRunner(), Effects(context, sessions));
 
+    internal static PaymentService Payment(ApplicationDbContext context, IVnPayService gateway,
+        ICommercialTransactionRunner? transactions = null, ICheckoutSessionService? sessions = null) =>
+        new(new OrderRepository(context), new FinancialTransactionRepository(context), new BookingRepository(context),
+            new EfUnitOfWork(context), gateway, transactions ?? new DirectCommercialTransactionRunner(), new CheckoutOptions(),
+            new CheckoutAccessService(new AccessGrantRepository(context), new CheckoutOptions()),
+            Confirmation(context, gateway, transactions, sessions), sessions);
+
     internal static PaymentConfirmationService Confirmation(ApplicationDbContext context, IVnPayService gateway,
         ICommercialTransactionRunner? transactions = null, ICheckoutSessionService? sessions = null) =>
-        new(context, gateway, transactions ?? new DirectCommercialTransactionRunner(), sessions);
+        new(new FinancialTransactionRepository(context), new BookingRepository(context), new EfUnitOfWork(context), gateway, transactions ?? new DirectCommercialTransactionRunner(), sessions);
 
     internal static ConfirmVnPayIpnCommandHandler Ipn(ApplicationDbContext context, IVnPayService gateway,
-        ICommercialTransactionRunner? transactions = null) => new(Confirmation(context, gateway, transactions));
+        ICommercialTransactionRunner? transactions = null) => new(Payment(context, gateway, transactions));
 
     internal static RequestRefundCommandHandler Refund(ApplicationDbContext context, IEnumerable<IRefundGateway> gateways,
         ICommercialTransactionRunner? transactions = null) => new(context, gateways, transactions ?? new DirectCommercialTransactionRunner());

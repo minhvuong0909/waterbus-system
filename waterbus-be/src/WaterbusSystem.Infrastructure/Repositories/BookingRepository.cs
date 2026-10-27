@@ -29,4 +29,13 @@ public sealed class BookingRepository(ApplicationDbContext context) : IBookingRe
     {
         context.SeatReservations.Add(reservation);
     }
+    public Task<List<Booking>> GetForPaymentConfirmationAsync(Guid orderId, CancellationToken ct) =>
+        context.Bookings.Include(b => b.Trip).Include(b => b.SeatReservations.Where(r => r.Status == ReservationStatus.Pending))
+            .Where(b => b.OrderId == orderId).ToListAsync(ct);
+
+    public Task<List<SeatReservation>> GetReservationsByStatusAsync(Guid orderId, ReservationStatus status, CancellationToken ct) =>
+        context.SeatReservations.AsNoTracking().Where(r => r.Booking!.OrderId == orderId && r.Status == status).ToListAsync(ct);
+
+    public void AddTicket(Ticket ticket) => context.Tickets.Add(ticket);
+
 }

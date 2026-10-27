@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.Features.Payments.Services;
 using System.Text;
 using Azure.Storage.Blobs;
 using Hangfire;
@@ -54,6 +55,8 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString, b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
+        services.AddScoped<IFinancialTransactionRepository, FinancialTransactionRepository>();
+        services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IAccessGrantRepository, AccessGrantRepository>();
         services.AddScoped<ICheckoutAccessService>(sp => sp.GetRequiredService<CheckoutAccessService>());
         services.AddScoped<IBookingService, BookingService>();

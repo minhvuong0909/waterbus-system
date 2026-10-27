@@ -11,4 +11,6 @@ public interface IOrderRepository
     Task<PurchaseOrder> GetDetailAsync(Guid orderId, CancellationToken ct);
     Task<List<PurchaseOrder>> GetExpiredAsync(DateTimeOffset now, DateTimeOffset legacyDeadline, CancellationToken ct);
 
+    Task<PurchaseOrder> GetForPaymentAsync(Guid orderId, CancellationToken ct);
+
 }

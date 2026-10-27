@@ -58,4 +58,9 @@ public sealed class OrderRepository(ApplicationDbContext context) : IOrderReposi
             .Where(o => (o.Status == WaterbusSystem.Domain.Enums.OrderStatus.PendingPayment || o.Status == WaterbusSystem.Domain.Enums.OrderStatus.Draft) &&
                 (o.ExpiresAt <= now || (o.ExpiresAt == null && o.CreatedAt < legacyDeadline))).ToListAsync(ct);
 
+    public async Task<PurchaseOrder> GetForPaymentAsync(Guid orderId, CancellationToken ct) =>
+        await context.PurchaseOrders.Include(o => o.Bookings).ThenInclude(b => b.SeatReservations)
+            .Include(o => o.Bookings).ThenInclude(b => b.Trip).FirstOrDefaultAsync(o => o.Id == orderId, ct)
+        ?? throw new NotFoundException(nameof(PurchaseOrder), orderId);
+
 }
