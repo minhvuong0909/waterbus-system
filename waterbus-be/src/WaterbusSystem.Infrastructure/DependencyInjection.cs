@@ -11,6 +11,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Interfaces.Services;
+using WaterbusSystem.Application.Interfaces.Repositories;
+using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Application.Features.Bookings.Services;
 using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
 using WaterbusSystem.Application.Features.CheckIns;
@@ -25,6 +27,7 @@ using WaterbusSystem.Infrastructure.BackgroundJobs;
 using WaterbusSystem.Infrastructure.Identity;
 using WaterbusSystem.Infrastructure.Locking;
 using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.Infrastructure.Services;
 using WaterbusSystem.Infrastructure.Services.Checkout;
 using WaterbusSystem.Infrastructure.Services.Payment;
@@ -51,6 +54,12 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString, b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
+        services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IBookingRepository, BookingRepository>();
+        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        services.AddScoped<IBookingReferenceRepository, BookingReferenceRepository>();
+        services.AddScoped<ICheckoutService, CheckoutService>();
+        services.AddScoped<ICheckoutSeatChangeService, CheckoutSeatChangeService>();
         services.AddScoped<ApplicationDbContextInitializer>();
 
         // 2. Đăng ký ASP.NET Core Identity
