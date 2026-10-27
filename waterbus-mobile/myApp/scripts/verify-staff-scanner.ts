@@ -17,11 +17,6 @@ declare const require: any;
 const http = require('http');
 
 async function runVerification() {
-  console.log('================================================================');
-  console.log('🚢 SMART WATERBUS — STAFF SCANNER AUTOMATED VERIFICATION SUITE');
-  console.log('   Thành viên 4: Mobile App Developer (Tuấn)');
-  console.log('================================================================\n');
-
   let passedTests = 0;
   let totalTests = 0;
 
@@ -29,25 +24,18 @@ async function runVerification() {
     totalTests++;
     if (condition) {
       passedTests++;
-      console.log(`  ✅ [PASS] ${testName}`);
-      if (detail) console.log(`     ↳ ${detail}`);
+      console.log(`  ✓ ${testName}`);
     } else {
-      console.error(`  ❌ [FAIL] ${testName}`);
-      if (detail) console.error(`     ↳ ${detail}`);
+      console.error(`  ✕ ${testName}`);
+      if (detail) console.error(`    ${detail}`);
     }
   }
-
-  // -------------------------------------------------------------
-  // TEST GROUP 1: OFFLINE QR SIGNATURE VERIFICATION
-  // -------------------------------------------------------------
-  console.log('📦 TEST GROUP 1: Offline QR Verification (BR-QR-01, BR-QR-02)');
 
   const sampleBookingId = 'pub_wb_98a76b5c';
   const sampleTripId = 'TRIP-BD-BA-01';
 
   // 1.1 Generate valid signed QR
   const signed = QrVerifier.generateTestSignedQr(sampleBookingId, sampleTripId, DEFAULT_KEY_INFO);
-  console.log(`   Sample Compact QR: ${signed.compactQr.substring(0, 48)}...`);
 
   // 1.2 Verify valid QR offline
   const validResult = await QrVerifier.verifyQrCode(signed.compactQr);
@@ -90,11 +78,6 @@ async function runVerification() {
     `Error reported: ${expiredResult.error}`
   );
 
-  // -------------------------------------------------------------
-  // TEST GROUP 2: SQLITE LOCAL CACHE & PRELOAD MANIFEST
-  // -------------------------------------------------------------
-  console.log('\n📦 TEST GROUP 2: SQLite Local Database & Preload Cache (BR-OFF-01)');
-
   // 2.1 Preload demo manifest
   const preloadRes = await syncService.preloadManifest('ST-BACH-DANG');
   assert(
@@ -120,11 +103,6 @@ async function runVerification() {
     '2.3 Ultra-fast lookup of Booking & Passenger list by PublicBookingId',
     `Lookup completed in ${lookupTimeMs}ms, Found ${loadedBooking?.tickets.length} tickets for customer "${loadedBooking?.customerName}"`
   );
-
-  // -------------------------------------------------------------
-  // TEST GROUP 3: PASSENGER CHECK-IN & OFFLINE QUEUE
-  // -------------------------------------------------------------
-  console.log('\n📦 TEST GROUP 3: Passenger Selection & Check-In (BR-QR-03, BR-OFF-05)');
 
   if (loadedBooking && loadedBooking.tickets.length >= 2) {
     const ticketToBoard1 = loadedBooking.tickets[0].id;
@@ -168,11 +146,6 @@ async function runVerification() {
     );
   }
 
-  // -------------------------------------------------------------
-  // TEST GROUP 4: IDEMPOTENT BATCH SYNC WORKER
-  // -------------------------------------------------------------
-  console.log('\n📦 TEST GROUP 4: Idempotent Batch Sync Worker (BR-OFF-03)');
-
   const pendingEventsBefore = await SqliteRepository.getPendingEvents();
   assert(
     pendingEventsBefore.length >= 2,
@@ -194,11 +167,6 @@ async function runVerification() {
     '4.3 Pending queue cleared in SQLite after successful server acknowledgment',
     `Remaining pending events: ${pendingEventsAfter.length}`
   );
-
-  // -------------------------------------------------------------
-  // TEST GROUP 5: LIVE HTTP API CONTRACT & CALL VERIFICATION
-  // -------------------------------------------------------------
-  console.log('\n📦 TEST GROUP 5: Live HTTP API Contract & Call Verification');
 
   const mockPort = 5055;
   const mockBaseUrl = `http://127.0.0.1:${mockPort}`;
@@ -457,13 +425,7 @@ async function runVerification() {
     }
   }
 
-  // -------------------------------------------------------------
-  // FINAL SUMMARY
-  // -------------------------------------------------------------
-  console.log('\n================================================================');
-  console.log(`🎯 VERIFICATION SUMMARY: ${passedTests}/${totalTests} TESTS PASSED (100%)`);
-  console.log('   All Member 4 (Tuấn - Staff Scanner) requirements verified successfully!');
-  console.log('================================================================\n');
+  console.log(`\nTests: ${passedTests} passed, ${totalTests} total`);
 
   if (passedTests === totalTests) {
     process.exit(0);
