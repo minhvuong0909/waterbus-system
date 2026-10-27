@@ -48,4 +48,14 @@ public sealed class OrderRepository(ApplicationDbContext context) : IOrderReposi
             cancellationToken);
     }
 
+    public async Task<PurchaseOrder> GetDetailAsync(Guid orderId, CancellationToken ct) =>
+        await context.PurchaseOrders.AsNoTracking().Include(o => o.Bookings).ThenInclude(b => b.Tickets).ThenInclude(t => t.SeatReservation)
+            .Include(o => o.FinancialTransactions).FirstOrDefaultAsync(o => o.Id == orderId, ct)
+        ?? throw new NotFoundException(nameof(PurchaseOrder), orderId);
+
+    public Task<List<PurchaseOrder>> GetExpiredAsync(DateTimeOffset now, DateTimeOffset legacyDeadline, CancellationToken ct) =>
+        context.PurchaseOrders.Include(o => o.Bookings).ThenInclude(b => b.SeatReservations)
+            .Where(o => (o.Status == WaterbusSystem.Domain.Enums.OrderStatus.PendingPayment || o.Status == WaterbusSystem.Domain.Enums.OrderStatus.Draft) &&
+                (o.ExpiresAt <= now || (o.ExpiresAt == null && o.CreatedAt < legacyDeadline))).ToListAsync(ct);
+
 }

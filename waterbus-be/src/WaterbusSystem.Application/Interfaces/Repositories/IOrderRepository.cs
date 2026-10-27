@@ -8,4 +8,7 @@ public interface IOrderRepository
     Task<PurchaseOrder> GetRequiredByIdAsync(Guid orderId, CancellationToken cancellationToken = default);
     Task<PurchaseOrder> GetForSubmissionAsync(Guid orderId, CancellationToken cancellationToken = default);
     Task<bool> HasFinancialTransactionsAsync(Guid orderId, CancellationToken cancellationToken = default);
+    Task<PurchaseOrder> GetDetailAsync(Guid orderId, CancellationToken ct);
+    Task<List<PurchaseOrder>> GetExpiredAsync(DateTimeOffset now, DateTimeOffset legacyDeadline, CancellationToken ct);
+
 }

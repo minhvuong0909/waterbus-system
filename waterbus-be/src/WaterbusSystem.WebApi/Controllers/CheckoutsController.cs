@@ -12,7 +12,7 @@ using WaterbusSystem.Application.Interfaces.Services;
 
 namespace WaterbusSystem.WebApi.Controllers;
 
-public sealed class CheckoutsController(ICheckoutService checkoutService) : BaseApiController
+public sealed class CheckoutsController(ICheckoutService checkoutService, ICheckoutReadService reads) : BaseApiController
 {
 
     [HttpPost]
@@ -36,7 +36,7 @@ public sealed class CheckoutsController(ICheckoutService checkoutService) : Base
 
     [HttpGet("{orderId:guid}")]
     public async Task<IActionResult> Get(Guid orderId, [FromHeader(Name = "X-Guest-Token")] string? accessToken) =>
-        Ok(await Mediator.Send(new GetCheckoutQuery(orderId, accessToken), HttpContext.RequestAborted));
+        Ok(await reads.GetAsync(orderId, accessToken, HttpContext.RequestAborted));
 
 
     [HttpPost("holds")]

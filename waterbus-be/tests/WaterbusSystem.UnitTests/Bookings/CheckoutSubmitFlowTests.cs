@@ -23,8 +23,7 @@ public sealed class CheckoutSubmitFlowTests
             CommercialHandlerFactory.Creation(context),
             new DirectCommercialTransactionRunner(),
             CommercialHandlerFactory.Effects(context),
-            new CheckoutAccessService(
-                context, new CheckoutOptions()),
+            new CheckoutAccessService(new AccessGrantRepository(context), new CheckoutOptions()),
             new EfUnitOfWork(context),
             new SubmitCheckoutRequestValidator(),
             new CreateCheckoutHoldRequestValidator(),

@@ -1,4 +1,4 @@
-using MediatR;
+using WaterbusSystem.Application.Interfaces.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -17,7 +17,7 @@ public sealed class ExpiredBookingCleanupService(IServiceScopeFactory scopeFacto
             try
             {
                 using var scope = scopeFactory.CreateScope();
-                await scope.ServiceProvider.GetRequiredService<ISender>().Send(new ExpireCheckoutHoldsCommand(), stoppingToken);
+                await scope.ServiceProvider.GetRequiredService<ICheckoutExpirationService>().ExpireAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex) { logger.LogError(ex, "Lỗi dọn checkout hết hạn."); }

@@ -32,8 +32,7 @@ internal static class CommercialHandlerFactory
             new BookingReferenceRepository(context),
             new BookingRepository(context),
             new SeatAvailabilityService(context),
-            new CheckoutAccessService(
-                context, new CheckoutOptions()),
+            new CheckoutAccessService(new AccessGrantRepository(context), new CheckoutOptions()),
             new DirectCommercialTransactionRunner(),
             new EfUnitOfWork(context),
             Effects(context),
@@ -54,8 +53,7 @@ internal static class CommercialHandlerFactory
             locks ?? new FakeDistributedLockService(),
             availability ?? new SeatAvailabilityService(context),
             new CheckoutOptions(),
-            new CheckoutAccessService(
-                context,
+            new CheckoutAccessService(new AccessGrantRepository(context),
                 new CheckoutOptions()));
     }
     internal static CheckoutCommitEffects Effects(

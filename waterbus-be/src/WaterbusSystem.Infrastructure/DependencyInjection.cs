@@ -54,6 +54,11 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString, b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
+        services.AddScoped<IAccessGrantRepository, AccessGrantRepository>();
+        services.AddScoped<ICheckoutAccessService>(sp => sp.GetRequiredService<CheckoutAccessService>());
+        services.AddScoped<IBookingService, BookingService>();
+        services.AddScoped<ICheckoutReadService, CheckoutReadService>();
+        services.AddScoped<ICheckoutExpirationService, CheckoutExpirationService>();
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();

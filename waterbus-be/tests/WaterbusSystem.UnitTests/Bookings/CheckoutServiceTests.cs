@@ -27,8 +27,7 @@ public sealed class CheckoutServiceTests
             CommercialHandlerFactory.Creation(context),
             new DirectCommercialTransactionRunner(),
             CommercialHandlerFactory.Effects(context),
-            new CheckoutAccessService(
-                context, new CheckoutOptions()),
+            new CheckoutAccessService(new AccessGrantRepository(context), new CheckoutOptions()),
             new EfUnitOfWork(context),
             new SubmitCheckoutRequestValidator(),
             new CreateCheckoutHoldRequestValidator(),
@@ -108,7 +107,7 @@ public sealed class CheckoutServiceTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(response);
 
-        var controller = new CheckoutsController(service.Object)
+        var controller = new CheckoutsController(service.Object, Mock.Of<ICheckoutReadService>())
         {
             ControllerContext = new ControllerContext
             {
