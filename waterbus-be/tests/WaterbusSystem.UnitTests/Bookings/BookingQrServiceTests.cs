@@ -1,3 +1,6 @@
+using WaterbusSystem.Application.DTOs.Requests.Bookings;
+using WaterbusSystem.Application.DTOs.Responses.Bookings;
+using WaterbusSystem.Application.Validators.Bookings;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -29,7 +32,7 @@ public sealed class BookingQrServiceTests
             seed.StationA.Id, seed.StationC.Id, "Buyer", "buyer@example.com", null));
         var payment = CommercialHandlerFactory.Payment(context, new CommercialCheckoutTests.Gateway());
         await payment.CreateVnPayUrlAsync(created.OrderId, "127.0.0.1", created.AccessToken);
-        await payment.ConfirmIpnAsync(CommercialCheckoutTests.Ipn(context.FinancialTransactions.Single()).Query);
+        await payment.ConfirmIpnAsync(CommercialCheckoutTests.Ipn(context.FinancialTransactions.Single()));
         using var key = RSA.Create(2048);
         var signer = new RsaBookingQrSigner(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {

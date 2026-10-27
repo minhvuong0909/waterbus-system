@@ -5,7 +5,6 @@ using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.DTOs.Requests.Refunds;
 using WaterbusSystem.Application.DTOs.Responses.Refunds;
 using WaterbusSystem.WebApi.Filters;
-using WaterbusSystem.Application.Features.Refunds.Commands.RequestRefund;
 
 namespace WaterbusSystem.WebApi.Controllers;
 

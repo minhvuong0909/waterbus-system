@@ -1,7 +1,6 @@
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.DTOs.Requests.Bookings;
 using WaterbusSystem.Application.DTOs.Responses.Bookings;
-using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
 using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Application.Interfaces.Persistence;
@@ -19,7 +18,7 @@ public sealed class CheckoutService(
     BookingCreationService creation,
     ICommercialTransactionRunner transactions,
     CheckoutCommitEffects effects,
-    CheckoutAccessService access,
+    ICheckoutAccessService access,
     IUnitOfWork unitOfWork,
     IValidator<SubmitCheckoutRequest> submitValidator,
     IValidator<CreateCheckoutHoldRequest> validator,
@@ -41,7 +40,7 @@ public sealed class CheckoutService(
         {
             // Tạo Booking cho lượt đầu tiên
             var firstBooking = await creation.CreateAsync(
-                ToCommand(request.Legs[0]),
+                ToHoldInput(request.Legs[0]),
                 cancellationToken,
                 draft: true);
 
@@ -49,19 +48,19 @@ public sealed class CheckoutService(
 
             var bookings = new List<BookingResponse>
             {
-                ToResponse(firstBooking)
+                firstBooking
             };
 
             // Nếu khứ hồi, tạo Booking thứ hai trong cùng Order
             if (request.Legs.Count == 2)
             {
                 var secondBooking = await creation.CreateAsync(
-                    ToCommand(request.Legs[1]),
+                    ToHoldInput(request.Legs[1]),
                     cancellationToken,
                     order,
                     draft: true);
 
-                bookings.Add(ToResponse(secondBooking));
+                bookings.Add(secondBooking);
             }
 
             return new CheckoutResponse(
@@ -184,7 +183,7 @@ public sealed class CheckoutService(
 
             var bookings = new List<BookingResponse>
             {
-            ToResponse(first)
+            first
             };
 
             if (request.Legs.Count == 2)
@@ -194,7 +193,7 @@ public sealed class CheckoutService(
                     cancellationToken,
                     order);
 
-                bookings.Add(ToResponse(second));
+                bookings.Add(second);
             }
 
             return new CheckoutResponse(
@@ -303,7 +302,7 @@ public sealed class CheckoutService(
 
 
 
-    private static CreateBookingCommand ToCommand(
+    private static BookingCreationInput ToHoldInput(
         CheckoutHoldLegRequest leg) => new(
             leg.TripId,
             leg.SeatIds,
@@ -316,19 +315,4 @@ public sealed class CheckoutService(
             leg.BoardingCallId,
             leg.DisembarkingCallId);
 
-    private static BookingResponse ToResponse(
-        BookingResponseDto booking) => new(
-            booking.BookingId,
-            booking.BookingCode,
-            booking.TotalAmount,
-            booking.Status,
-            booking.HoldDurationSeconds,
-            booking.OrderId,
-            booking.OrderStatus,
-            booking.BoardingCallId,
-            booking.DisembarkingCallId,
-            booking.BoardingStopOrder,
-            booking.DisembarkingStopOrder,
-            booking.CheckoutSessionId,
-            booking.AccessToken);
 }

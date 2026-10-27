@@ -1,8 +1,11 @@
+using WaterbusSystem.Application.DTOs.Requests.Bookings;
+using WaterbusSystem.Application.DTOs.Responses.Bookings;
+using WaterbusSystem.Application.Features.Bookings.Services;
+using WaterbusSystem.Application.Validators.Bookings;
 using System.Security.Cryptography;
 using System.Text;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
-using WaterbusSystem.Application.Features.Payments.Commands.ConfirmVnPayIpn;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Infrastructure.Services.Payment;
@@ -15,7 +18,7 @@ namespace WaterbusSystem.UnitTests.Payments;
 /// Test thật cho luồng xử lý Webhook IPN VNPAY (ConfirmVnPayIpnCommandHandler), dùng VnPayService thật
 /// để tự ký request IPN giả lập (đóng vai máy chủ VNPAY) rồi gửi qua handler như một webhook thật.
 /// </summary>
-public class ConfirmVnPayIpnCommandHandlerTests
+public class PaymentConfirmationServiceTests
 {
     private const string TmnCode = "TESTCODE01";
     private const string HashSecret = "TEST_SECRET_KEY_FOR_UNIT_TEST_ONLY";
@@ -115,7 +118,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         var fields = BuildBaseFields(booking.BookingCode, 15000000, "00");
         var query = BuildSignedIpnQuery(fields, HashSecret);
 
-        var result = await handler.Handle(new ConfirmVnPayIpnCommand(query), CancellationToken.None);
+        var result = await handler.ConfirmIpnAsync(query, CancellationToken.None);
 
         result.RspCode.Should().Be("00");
 
@@ -163,7 +166,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         fields["vnp_TmnCode"] = "WRONG_MERCHANT";
         var query = BuildSignedIpnQuery(fields, HashSecret);
 
-        var result = await handler.Handle(new ConfirmVnPayIpnCommand(query), CancellationToken.None);
+        var result = await handler.ConfirmIpnAsync(query, CancellationToken.None);
 
         result.RspCode.Should().Be("99");
         context.Bookings.Single(b => b.Id == booking.Id).Status.Should().Be(BookingStatus.PendingPayment);
@@ -183,7 +186,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         var query = BuildSignedIpnQuery(fields, HashSecret);
         query["vnp_ResponseCode"] = "24"; // sửa sau khi đã ký -> chữ ký không còn khớp
 
-        var result = await handler.Handle(new ConfirmVnPayIpnCommand(query), CancellationToken.None);
+        var result = await handler.ConfirmIpnAsync(query, CancellationToken.None);
 
         result.RspCode.Should().Be("97");
     }
@@ -199,7 +202,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         var fields = BuildBaseFields(booking.BookingCode, 1, "00"); // số tiền sai hoàn toàn so với tổng Order
         var query = BuildSignedIpnQuery(fields, HashSecret);
 
-        var result = await handler.Handle(new ConfirmVnPayIpnCommand(query), CancellationToken.None);
+        var result = await handler.ConfirmIpnAsync(query, CancellationToken.None);
 
         result.RspCode.Should().Be("04");
     }
@@ -215,10 +218,10 @@ public class ConfirmVnPayIpnCommandHandlerTests
         var fields = BuildBaseFields(booking.BookingCode, 15000000, "00");
         var query = BuildSignedIpnQuery(fields, HashSecret);
 
-        (await handler.Handle(new ConfirmVnPayIpnCommand(query), CancellationToken.None)).RspCode.Should().Be("00");
+        (await handler.ConfirmIpnAsync(query, CancellationToken.None)).RspCode.Should().Be("00");
 
         // BR-PAY-01: gateway retry cùng IdempotencyKey không được ghi nhận lần hai.
-        var second = await handler.Handle(new ConfirmVnPayIpnCommand(query), CancellationToken.None);
+        var second = await handler.ConfirmIpnAsync(query, CancellationToken.None);
 
         second.RspCode.Should().Be("02");
         context.FinancialTransactions.Should().ContainSingle();
@@ -240,7 +243,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         var fields = BuildBaseFields(booking.BookingCode, 15000000, "00");
         var query = BuildSignedIpnQuery(fields, HashSecret);
 
-        var result = await handler.Handle(new ConfirmVnPayIpnCommand(query), CancellationToken.None);
+        var result = await handler.ConfirmIpnAsync(query, CancellationToken.None);
 
         result.RspCode.Should().Be("02");
     }
@@ -256,7 +259,7 @@ public class ConfirmVnPayIpnCommandHandlerTests
         var fields = BuildBaseFields(booking.BookingCode, 15000000, "24"); // 24 = giao dịch bị hủy
         var query = BuildSignedIpnQuery(fields, HashSecret);
 
-        var result = await handler.Handle(new ConfirmVnPayIpnCommand(query), CancellationToken.None);
+        var result = await handler.ConfirmIpnAsync(query, CancellationToken.None);
 
         result.RspCode.Should().Be("00"); // đã xử lý xong, chỉ là thanh toán không thành công
 

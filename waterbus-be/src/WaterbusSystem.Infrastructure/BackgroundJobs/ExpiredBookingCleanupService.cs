@@ -2,7 +2,6 @@ using WaterbusSystem.Application.Interfaces.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using WaterbusSystem.Application.Features.Bookings.Commands.ExpireCheckoutHolds;
 
 namespace WaterbusSystem.Infrastructure.BackgroundJobs;
 

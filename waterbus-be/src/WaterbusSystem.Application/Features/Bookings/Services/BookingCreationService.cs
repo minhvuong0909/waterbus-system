@@ -1,6 +1,6 @@
-using Microsoft.EntityFrameworkCore;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.Common.Interfaces;
-using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
+using WaterbusSystem.Application.DTOs.Responses.Bookings;
 using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Domain.Common;
@@ -19,7 +19,7 @@ public sealed class BookingCreationService
     private readonly IBookingReferenceRepository _references;
     private readonly IDistributedLockService _lockService;
     private readonly ISeatAvailabilityService _seatAvailabilityService;
-    private readonly CheckoutAccessService _access;
+    private readonly ICheckoutAccessService _access;
     private readonly TimeSpan _holdDuration;
 
     private static readonly TripStatus[] SellableTripStatuses =
@@ -36,7 +36,7 @@ public sealed class BookingCreationService
         IDistributedLockService lockService,
         ISeatAvailabilityService seatAvailabilityService,
         CheckoutOptions options,
-        CheckoutAccessService access)
+        ICheckoutAccessService access)
     {
         _orders = orders;
         _bookings = bookings;
@@ -49,32 +49,7 @@ public sealed class BookingCreationService
     }
 
 
-    public Task<BookingResponseDto> CreateAsync(
-        CreateBookingCommand command,
-        CancellationToken cancellationToken,
-        PurchaseOrder? sharedOrder = null,
-        bool draft = false)
-    {
-        var input = new BookingCreationInput(
-            command.TripId,
-            command.SeatIds,
-            command.BoardingStationId,
-            command.DisembarkingStationId,
-            command.CustomerName,
-            command.CustomerEmail,
-            command.CustomerPhone,
-            command.Passengers?
-                .Select(p => new BookingPassengerInput(
-                    p.Name, p.Email, p.Phone))
-                .ToList(),
-            command.BoardingCallId,
-            command.DisembarkingCallId
-        );
-
-        return CreateAsync(input, cancellationToken, sharedOrder, draft);
-    }
-
-    public async Task<BookingResponseDto> CreateAsync(
+    public async Task<BookingResponse> CreateAsync(
         BookingCreationInput request,
         CancellationToken cancellationToken,
         PurchaseOrder? sharedOrder = null,
@@ -257,7 +232,7 @@ public sealed class BookingCreationService
 
             var remainingSeconds = Math.Max(0, (int)(order.ExpiresAt!.Value - DateTimeOffset.UtcNow).TotalSeconds);
 
-            return new BookingResponseDto(
+            return new BookingResponse(
                 booking.Id,
                 booking.BookingCode,
                 booking.QuotedTotal,
@@ -269,11 +244,7 @@ public sealed class BookingCreationService
                 DisembarkingCallId: disembarkingCall.Id,
                 BoardingStopOrder: boardingStopOrder,
                 DisembarkingStopOrder: disembarkingStopOrder,
-                CheckoutSessionId: CheckoutSessionKey.ForOrder(order.Id), AccessToken: accessToken);
-        }
-        catch (DbUpdateConcurrencyException ex)
-        {
-            throw new ConcurrencyException("Xung đột dữ liệu khi cập nhật ghế. Vui lòng thử lại!", ex);
+                CheckoutSessionId: "order:" + order.Id, AccessToken: accessToken);
         }
         finally
         {

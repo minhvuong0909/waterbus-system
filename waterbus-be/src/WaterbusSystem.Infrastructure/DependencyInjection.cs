@@ -15,7 +15,6 @@ using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Application.Features.Bookings.Services;
-using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
 using WaterbusSystem.Application.Features.CheckIns;
 using WaterbusSystem.Application.Features.CheckIns.Services;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;

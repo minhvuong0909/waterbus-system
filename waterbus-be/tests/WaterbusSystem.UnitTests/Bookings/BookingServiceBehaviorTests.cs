@@ -1,6 +1,9 @@
+using WaterbusSystem.Application.DTOs.Requests.Bookings;
+using WaterbusSystem.Application.DTOs.Responses.Bookings;
+using WaterbusSystem.Application.Features.Bookings.Services;
+using WaterbusSystem.Application.Validators.Bookings;
 using FluentAssertions;
 using WaterbusSystem.Application.Common.Exceptions;
-using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.Infrastructure.Services;
@@ -15,7 +18,7 @@ namespace WaterbusSystem.UnitTests.Bookings;
 /// không mock IApplicationDbContext) - bao phủ: tính giá theo PriceMultiplier, chặn ghế sai tàu,
 /// tái sử dụng ghế trên chặng không giao thoa, chặn đặt trùng chặng, và race condition concurrency.
 /// </summary>
-public class CreateBookingCommandHandlerTests
+public class BookingServiceBehaviorTests
 {
     [Fact]
     public async Task Handle_WhenValidRequest_ShouldCreateOrderBookingReservationsWithFlatFareBySeatClass()
@@ -25,7 +28,7 @@ public class CreateBookingCommandHandlerTests
 
         var handler = CommercialHandlerFactory.Booking(context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
 
-        var command = new CreateBookingCommand(
+        var command = new CreateBookingRequest(
             TripId: seed.Trip.Id,
             SeatIds: new List<Guid> { seed.Seat1.Id, seed.Seat2.Id },
             BoardingStationId: seed.StationA.Id,
@@ -34,7 +37,7 @@ public class CreateBookingCommandHandlerTests
             CustomerEmail: "a@test.com",
             CustomerPhone: "0901234567");
 
-        var result = await handler.Handle(command, CancellationToken.None);
+        var result = await handler.CreateAsync(command, CancellationToken.None);
 
         // BR-FARE-01/02: giá phẳng theo TripType x SeatClass. Cả 2 ghế đều thuộc cùng hạng
         // "Tieu chuan" trên chuyến Commuter nên cùng một đơn giá 15.000đ, KHÔNG nhân hệ số
@@ -82,7 +85,7 @@ public class CreateBookingCommandHandlerTests
         var handler = CommercialHandlerFactory.Booking(context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
 
         // seed.SeatOnOtherBoat thuộc otherBoat, không phải boat vận hành seed.Trip
-        var command = new CreateBookingCommand(
+        var command = new CreateBookingRequest(
             TripId: seed.Trip.Id,
             SeatIds: new List<Guid> { seed.SeatOnOtherBoat.Id },
             BoardingStationId: seed.StationA.Id,
@@ -91,7 +94,7 @@ public class CreateBookingCommandHandlerTests
             CustomerEmail: "a@test.com",
             CustomerPhone: "0901234567");
 
-        var act = () => handler.Handle(command, CancellationToken.None);
+        var act = () => handler.CreateAsync(command, CancellationToken.None);
 
         await act.Should().ThrowAsync<ValidationException>();
     }
@@ -105,12 +108,12 @@ public class CreateBookingCommandHandlerTests
         var handler = CommercialHandlerFactory.Booking(context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
 
         // Khách 1: A -> B (chặng [1,2))
-        var firstBooking = await handler.Handle(new CreateBookingCommand(
+        var firstBooking = await handler.CreateAsync(new CreateBookingRequest(
             seed.Trip.Id, new List<Guid> { seed.Seat1.Id }, seed.StationA.Id, seed.StationB.Id,
             "Khach 1", "k1@test.com", "0901111111"), CancellationToken.None);
 
         // Khách 2: B -> C (chặng [2,3)) - cùng ghế S01 nhưng KHÔNG giao thoa với khách 1 -> phải được phép
-        var secondBooking = await handler.Handle(new CreateBookingCommand(
+        var secondBooking = await handler.CreateAsync(new CreateBookingRequest(
             seed.Trip.Id, new List<Guid> { seed.Seat1.Id }, seed.StationB.Id, seed.StationC.Id,
             "Khach 2", "k2@test.com", "0902222222"), CancellationToken.None);
 
@@ -129,12 +132,12 @@ public class CreateBookingCommandHandlerTests
         var handler = CommercialHandlerFactory.Booking(context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
 
         // Khách 1: A -> C (toàn tuyến, chặng [1,3))
-        await handler.Handle(new CreateBookingCommand(
+        await handler.CreateAsync(new CreateBookingRequest(
             seed.Trip.Id, new List<Guid> { seed.Seat1.Id }, seed.StationA.Id, seed.StationC.Id,
             "Khach 1", "k1@test.com", "0901111111"), CancellationToken.None);
 
         // Khách 2: A -> B (chặng [1,2)) - giao thoa với khách 1 -> phải bị từ chối
-        var act = () => handler.Handle(new CreateBookingCommand(
+        var act = () => handler.CreateAsync(new CreateBookingRequest(
             seed.Trip.Id, new List<Guid> { seed.Seat1.Id }, seed.StationA.Id, seed.StationB.Id,
             "Khach 2", "k2@test.com", "0902222222"), CancellationToken.None);
 
@@ -152,7 +155,7 @@ public class CreateBookingCommandHandlerTests
 
         var handler1 = CommercialHandlerFactory.Booking(context, sharedLockService, new SeatAvailabilityService(context));
 
-        var command = new CreateBookingCommand(
+        var command = new CreateBookingRequest(
             seed.Trip.Id, new List<Guid> { seed.Seat1.Id }, seed.StationA.Id, seed.StationC.Id,
             "Khach Dua", "race@test.com", "0909999999");
 
@@ -161,14 +164,14 @@ public class CreateBookingCommandHandlerTests
             $"lock:trip:{seed.Trip.Id}:seat:{seed.Seat1.Id}", TimeSpan.FromSeconds(30), TimeSpan.Zero, TimeSpan.FromMilliseconds(10));
         manualLock.Should().NotBeNull("lock phải lấy được lần đầu");
 
-        var act = () => handler1.Handle(command, CancellationToken.None);
+        var act = () => handler1.CreateAsync(command, CancellationToken.None);
 
         await act.Should().ThrowAsync<SeatAlreadyBookedException>();
 
         // Sau khi release, request thứ 2 (thực chất là lần thử lại) phải thành công
         await manualLock!.DisposeAsync();
 
-        var result = await handler1.Handle(command, CancellationToken.None);
+        var result = await handler1.CreateAsync(command, CancellationToken.None);
         result.Should().NotBeNull();
     }
 }

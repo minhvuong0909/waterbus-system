@@ -11,4 +11,3 @@ public record CreateBookingRequest(
     IReadOnlyList<CreateCheckoutPassengerRequest>? Passengers = null,
     Guid? BoardingCallId = null,
     Guid? DisembarkingCallId = null);
-

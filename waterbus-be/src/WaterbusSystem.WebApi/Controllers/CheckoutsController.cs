@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.RateLimiting;
 using WaterbusSystem.Application.DTOs.Requests.Bookings;
 using WaterbusSystem.Application.DTOs.Responses.Bookings;
 using WaterbusSystem.Application.Interfaces.Services;
+using WaterbusSystem.WebApi.Filters;
 
 namespace WaterbusSystem.WebApi.Controllers;
 
+[ServiceFilter(typeof(ValidateRequestFilter))]
 public sealed class CheckoutsController(ICheckoutService checkoutService, ICheckoutReadService reads, IBookingQrService qr) : BaseApiController
 {
 

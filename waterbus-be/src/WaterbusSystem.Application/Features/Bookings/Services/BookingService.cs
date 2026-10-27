@@ -20,8 +20,6 @@ public sealed class BookingService(BookingCreationService creation, ICommercialT
             request.BoardingCallId, request.DisembarkingCallId);
         var result = await transactions.RunAsync(() => creation.CreateAsync(input, ct), ct);
         await effects.HeldAsync(result.OrderId, ct);
-        return new BookingResponse(result.BookingId, result.BookingCode, result.TotalAmount, result.Status,
-            result.HoldDurationSeconds, result.OrderId, result.OrderStatus, result.BoardingCallId, result.DisembarkingCallId,
-            result.BoardingStopOrder, result.DisembarkingStopOrder, result.CheckoutSessionId, result.AccessToken);
+        return result;
     }
 }

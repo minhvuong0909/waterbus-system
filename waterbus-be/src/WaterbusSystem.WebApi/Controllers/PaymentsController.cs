@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.DTOs.Requests.Payments;
-using WaterbusSystem.Application.Features.Payments.Commands.CreateVnPayUrl;
 
 namespace WaterbusSystem.WebApi.Controllers;
 

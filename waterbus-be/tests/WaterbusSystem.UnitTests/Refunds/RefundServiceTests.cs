@@ -1,3 +1,7 @@
+using WaterbusSystem.Application.DTOs.Requests.Bookings;
+using WaterbusSystem.Application.DTOs.Responses.Bookings;
+using WaterbusSystem.Application.Features.Bookings.Services;
+using WaterbusSystem.Application.Validators.Bookings;
 using Microsoft.EntityFrameworkCore;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
@@ -35,7 +39,7 @@ public sealed class RefundServiceTests
             seed.StationA.Id, seed.StationC.Id, "Buyer", "buyer@example.com", null));
         var payment = CommercialHandlerFactory.Payment(context, gateway);
         await payment.CreateVnPayUrlAsync(booking.OrderId, "127.0.0.1", booking.AccessToken);
-        await payment.ConfirmIpnAsync(CommercialCheckoutTests.Ipn(context.FinancialTransactions.Single()).Query);
+        await payment.ConfirmIpnAsync(CommercialCheckoutTests.Ipn(context.FinancialTransactions.Single()));
         seed.Trip.Status = TripStatus.Cancelled;
         await context.SaveChangesAsync();
         return booking.BookingId;

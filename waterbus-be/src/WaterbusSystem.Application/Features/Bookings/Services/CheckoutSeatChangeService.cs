@@ -18,7 +18,7 @@ public sealed class CheckoutSeatChangeService(
     IBookingReferenceRepository references,
     IBookingRepository bookings,
     ISeatAvailabilityService availability,
-    CheckoutAccessService access,
+    ICheckoutAccessService access,
     ICommercialTransactionRunner transactions,
     IUnitOfWork unitOfWork,
     CheckoutCommitEffects effects,

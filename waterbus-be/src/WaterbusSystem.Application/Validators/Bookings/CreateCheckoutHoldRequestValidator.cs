@@ -1,6 +1,8 @@
 using FluentValidation;
 
-namespace WaterbusSystem.Application.DTOs.Requests.Bookings;
+using WaterbusSystem.Application.DTOs.Requests.Bookings;
+
+namespace WaterbusSystem.Application.Validators.Bookings;
 
 public sealed class CreateCheckoutHoldRequestValidator : AbstractValidator<CreateCheckoutHoldRequest>
 {

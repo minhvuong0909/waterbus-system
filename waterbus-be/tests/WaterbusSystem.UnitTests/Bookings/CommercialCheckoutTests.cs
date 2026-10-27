@@ -1,3 +1,6 @@
+using WaterbusSystem.Application.DTOs.Requests.Bookings;
+using WaterbusSystem.Application.DTOs.Responses.Bookings;
+using WaterbusSystem.Application.Validators.Bookings;
 using WaterbusSystem.Infrastructure.Repositories;
 using System.Security.Cryptography;
 using System.Text;
@@ -5,16 +8,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using WaterbusSystem.Application.Common.Interfaces;
-using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
-using WaterbusSystem.Application.Features.Bookings.Commands.CreateCheckout;
-using WaterbusSystem.Application.Features.Bookings.Commands.CancelCheckout;
-using WaterbusSystem.Application.Features.Bookings.Commands.ExpireCheckoutHolds;
-using WaterbusSystem.Application.Features.Bookings.Commands.UpdateCheckoutSeats;
 using WaterbusSystem.Application.Features.Bookings.Services;
-using WaterbusSystem.Application.Features.Payments.Commands.CreateVnPayUrl;
-using WaterbusSystem.Application.Features.Payments.Commands.ConfirmVnPayIpn;
-using WaterbusSystem.Application.Features.Refunds.Commands.RequestRefund;
-using WaterbusSystem.Application.Features.Refunds.Commands.ConfirmManualRefund;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
@@ -42,24 +36,24 @@ public sealed class CommercialCheckoutTests
         public Task<RefundGatewayResult> RefundAsync(RefundGatewayRequest r, CancellationToken ct = default)
         { RefundCalls++; BeforeRefund?.Invoke(); return Task.FromResult(Outcome); }
     }
-    internal static CreateBookingCommand Command(TestDbContextFactory.TripSeedData s) => new(s.Trip.Id, [s.Seat1.Id],
+    internal static CreateBookingRequest Command(TestDbContextFactory.TripSeedData s) => new(s.Trip.Id, [s.Seat1.Id],
         s.StationA.Id, s.StationC.Id, "Buyer", "buyer@example.com", null);
-    internal static ConfirmVnPayIpnCommand Ipn(FinancialTransaction attempt, string status = "00") => new(new Dictionary<string, string>
+    internal static IReadOnlyDictionary<string, string> Ipn(FinancialTransaction attempt, string status = "00") => new Dictionary<string, string>
     {
         ["vnp_TmnCode"] = "test", ["vnp_TxnRef"] = attempt.MerchantReference!,
         ["vnp_TransactionNo"] = "12345", ["vnp_Amount"] = ((long)(attempt.Amount * 100)).ToString(),
         ["vnp_ResponseCode"] = "00", ["vnp_TransactionStatus"] = status
-    });
-    internal static CreateBookingCommandHandler Builder(ApplicationDbContext c, ICommercialTransactionRunner? runner = null) =>
+    };
+    internal static BookingService Builder(ApplicationDbContext c, ICommercialTransactionRunner? runner = null) =>
         CommercialHandlerFactory.Booking(c, transactions: runner);
-    private static async Task<(BookingResponseDto Booking, FinancialTransaction Attempt, Gateway Gateway)> Pending(ApplicationDbContext c)
+    private static async Task<(BookingResponse Booking, FinancialTransaction Attempt, Gateway Gateway)> Pending(ApplicationDbContext c)
     {
         var seed = TestDbContextFactory.SeedTrip(c);
-        var booking = await Builder(c).Handle(Command(seed), default);
+        var booking = await Builder(c).CreateAsync(Command(seed), default);
         var g = new Gateway();
         var access = new CheckoutAccessService(new AccessGrantRepository(c), new CheckoutOptions());
-        await new CreateVnPayUrlCommandHandler(CommercialHandlerFactory.Payment(c, g))
-            .Handle(new CreateVnPayUrlCommand(booking.OrderId, "127.0.0.1", booking.AccessToken), default);
+        await CommercialHandlerFactory.Payment(c, g)
+            .CreateVnPayUrlAsync(booking.OrderId, "127.0.0.1", booking.AccessToken, default);
         return (booking, c.FinancialTransactions.Single(), g);
     }
 
@@ -74,7 +68,7 @@ public sealed class CommercialCheckoutTests
             c.TripStopCalls.Add(new TripStopCall { Trip = returnTrip, TripId = returnTrip.Id, RouteStop = call.RouteStop, VisitOrder = call.VisitOrder });
         await c.SaveChangesAsync();
         var result = await CommercialHandlerFactory.Checkout(c)
-            .Handle(new CreateCheckoutCommand("Buyer", "buyer@example.com", null,
+            .CreateAsync(new CreateCheckoutRequest("Buyer", "buyer@example.com", null,
                 [new(seed.Trip.Id, [seed.Seat1.Id], seed.StationA.Id, seed.StationC.Id),
                  new(returnTrip.Id, [seed.Seat2.Id], seed.StationA.Id, seed.StationC.Id)]), default);
         c.PurchaseOrders.Single().PurchaseMode.Should().Be(PurchaseMode.RoundTrip);
@@ -88,8 +82,8 @@ public sealed class CommercialCheckoutTests
     {
         using var c = TestDbContextFactory.CreateDbContext(); var state = await Pending(c);
         var order = c.PurchaseOrders.Single(); var deadline = order.ExpiresAt;
-        var result = await new CreateVnPayUrlCommandHandler(CommercialHandlerFactory.Payment(c, state.Gateway))
-            .Handle(new(state.Booking.OrderId, "127.0.0.1", state.Booking.AccessToken), default);
+        var result = await CommercialHandlerFactory.Payment(c, state.Gateway)
+            .CreateVnPayUrlAsync(state.Booking.OrderId, "127.0.0.1", state.Booking.AccessToken, default);
         result.MerchantReference.Should().Be(state.Attempt.MerchantReference);
         order.ExpiresAt.Should().Be(deadline); c.FinancialTransactions.Should().ContainSingle();
     }
@@ -99,7 +93,7 @@ public sealed class CommercialCheckoutTests
     {
         using var c = TestDbContextFactory.CreateDbContext(); var state = await Pending(c);
         c.PurchaseOrders.Single().ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(-1); await c.SaveChangesAsync();
-        await new ExpireCheckoutHoldsCommandHandler(new CheckoutExpirationService(new OrderRepository(c), new EfUnitOfWork(c), new DirectCommercialTransactionRunner(), new CheckoutOptions())).Handle(new(), default);
+        await new CheckoutExpirationService(new OrderRepository(c), new EfUnitOfWork(c), new DirectCommercialTransactionRunner(), new CheckoutOptions()).ExpireAsync(default);
         var old = c.Bookings.Single(); var reservation = c.SeatReservations.Single();
         var newOrder = new PurchaseOrder { PurchaserName = "Other", PurchaserEmail = "other@example.com", QuotedTotal = 15000 };
         var other = new Booking { Order = newOrder, OrderId = newOrder.Id, BookingCode = "OTHER", Status = BookingStatus.PendingPayment, QuotedTotal = 15000 };
@@ -107,7 +101,7 @@ public sealed class CommercialCheckoutTests
         c.SeatReservations.Add(new SeatReservation { Booking = other, BookingId = other.Id, TripId = old.TripId,
             SeatId = reservation.SeatId, BoardingStopOrder = 1, DisembarkingStopOrder = 3, PassengerName = "Other" });
         await c.SaveChangesAsync();
-        (await CommercialHandlerFactory.Ipn(c, state.Gateway).Handle(Ipn(state.Attempt), default)).RspCode.Should().Be("00");
+        (await CommercialHandlerFactory.Ipn(c, state.Gateway).ConfirmIpnAsync(Ipn(state.Attempt), default)).RspCode.Should().Be("00");
         reservation.Status.Should().Be(ReservationStatus.Cancelled); other.Status.Should().Be(BookingStatus.PendingPayment);
         c.Tickets.Should().BeEmpty(); state.Attempt.Status.Should().Be(FinancialTransactionStatus.Succeeded);
         state.Attempt.FailureReason.Should().StartWith("ReconciliationRequired:");
@@ -117,7 +111,7 @@ public sealed class CommercialCheckoutTests
     public async Task PendingGatewayStatusDoesNotIssueTicketOrDestroyAttempt()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var state = await Pending(c);
-        (await CommercialHandlerFactory.Ipn(c, state.Gateway).Handle(Ipn(state.Attempt, "01"), default)).RspCode.Should().Be("99");
+        (await CommercialHandlerFactory.Ipn(c, state.Gateway).ConfirmIpnAsync(Ipn(state.Attempt, "01"), default)).RspCode.Should().Be("99");
         c.Tickets.Should().BeEmpty(); state.Attempt.Status.Should().Be(FinancialTransactionStatus.Requested);
     }
 
@@ -125,10 +119,10 @@ public sealed class CommercialCheckoutTests
     public async Task CannotStartPaymentAfterTripBecomesUnavailable()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
-        var booking = await Builder(c).Handle(Command(seed), default);
+        var booking = await Builder(c).CreateAsync(Command(seed), default);
         seed.Trip.Status = TripStatus.Cancelled; await c.SaveChangesAsync();
-        var pay = new CreateVnPayUrlCommandHandler(CommercialHandlerFactory.Payment(c, new Gateway()));
-        await Assert.ThrowsAsync<ConcurrencyException>(() => pay.Handle(new(booking.OrderId, "127.0.0.1", booking.AccessToken), default));
+        var pay = CommercialHandlerFactory.Payment(c, new Gateway());
+        await Assert.ThrowsAsync<ConcurrencyException>(() => pay.CreateVnPayUrlAsync(booking.OrderId, "127.0.0.1", booking.AccessToken, default));
         c.FinancialTransactions.Should().BeEmpty();
     }
 
@@ -137,7 +131,7 @@ public sealed class CommercialCheckoutTests
     {
         using var c = TestDbContextFactory.CreateDbContext(); var state = await Pending(c);
         c.PurchaseOrders.Single().ExpiresAt = null; await c.SaveChangesAsync();
-        await CommercialHandlerFactory.Ipn(c, state.Gateway).Handle(Ipn(state.Attempt), default);
+        await CommercialHandlerFactory.Ipn(c, state.Gateway).ConfirmIpnAsync(Ipn(state.Attempt), default);
         c.Tickets.Should().BeEmpty(); state.Attempt.FailureReason.Should().StartWith("ReconciliationRequired:");
     }
 
@@ -145,11 +139,11 @@ public sealed class CommercialCheckoutTests
     public async Task ExpirationCleanupIsIdempotentAndDoesNotExpireAnActiveCheckout()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var state = await Pending(c);
-        var cleanup = new ExpireCheckoutHoldsCommandHandler(new CheckoutExpirationService(new OrderRepository(c), new EfUnitOfWork(c), new DirectCommercialTransactionRunner(), new CheckoutOptions()));
-        (await cleanup.Handle(new(), default)).Should().Be(0);
+        var cleanup = new CheckoutExpirationService(new OrderRepository(c), new EfUnitOfWork(c), new DirectCommercialTransactionRunner(), new CheckoutOptions());
+        (await cleanup.ExpireAsync(default)).Should().Be(0);
         c.PurchaseOrders.Single().ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(-1); await c.SaveChangesAsync();
-        (await cleanup.Handle(new(), default)).Should().Be(1);
-        (await cleanup.Handle(new(), default)).Should().Be(0);
+        (await cleanup.ExpireAsync(default)).Should().Be(1);
+        (await cleanup.ExpireAsync(default)).Should().Be(0);
         c.SeatReservations.Single().Status.Should().Be(ReservationStatus.Cancelled);
     }
 
@@ -159,37 +153,35 @@ public sealed class CommercialCheckoutTests
         using var c = TestDbContextFactory.CreateDbContext(); var state = await Pending(c);
         state.Gateway.QueryResult = new VnPayQueryResult { IsSuccess = true, MerchantReference = state.Attempt.MerchantReference,
             Amount = 1, TransactionType = "01", TransactionStatus = "00", TransactionNo = "query-success" };
-        var handler = new WaterbusSystem.Application.Features.Payments.Commands.ReconcilePayment.ReconcilePaymentCommandHandler(CommercialHandlerFactory.Payment(c, state.Gateway));
-        var request = new WaterbusSystem.Application.Features.Payments.Commands.ReconcilePayment.ReconcilePaymentCommand(
-            state.Booking.OrderId, state.Attempt.Id, state.Booking.AccessToken, "127.0.0.1");
-        (await handler.Handle(request, default)).RspCode.Should().Be("99"); c.Tickets.Should().BeEmpty();
+        var handler = CommercialHandlerFactory.Payment(c, state.Gateway);
+        (await handler.ReconcileAsync(state.Booking.OrderId, state.Attempt.Id, state.Booking.AccessToken, "127.0.0.1", default)).RspCode.Should().Be("99"); c.Tickets.Should().BeEmpty();
         state.Gateway.QueryResult = state.Gateway.QueryResult with { Amount = state.Attempt.Amount * 100 };
-        (await handler.Handle(request, default)).RspCode.Should().Be("00"); c.Tickets.Should().ContainSingle();
+        (await handler.ReconcileAsync(state.Booking.OrderId, state.Attempt.Id, state.Booking.AccessToken, "127.0.0.1", default)).RspCode.Should().Be("00"); c.Tickets.Should().ContainSingle();
     }
 
     [Fact]
     public async Task RefundReconciliationMustMatchThisRefundRatherThanOriginalPayment()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var state = await Pending(c);
-        await CommercialHandlerFactory.Ipn(c, state.Gateway).Handle(Ipn(state.Attempt), default);
+        await CommercialHandlerFactory.Ipn(c, state.Gateway).ConfirmIpnAsync(Ipn(state.Attempt), default);
         c.Trips.Single().Status = TripStatus.Cancelled; await c.SaveChangesAsync();
-        var refund = await CommercialHandlerFactory.Refund(c, [state.Gateway]).Handle(new(state.Booking.BookingId, "cancelled"), default);
+        var refund = await CommercialHandlerFactory.Refund(c, [state.Gateway]).RequestAsync(new(state.Booking.BookingId, "cancelled"), default);
         state.Gateway.QueryResult = new VnPayQueryResult { IsSuccess = true, MerchantReference = state.Attempt.MerchantReference,
             Amount = refund.Amount * 100, TransactionType = "01", TransactionStatus = "00", TransactionNo = "12345" };
-        var handler = new WaterbusSystem.Application.Features.Refunds.Commands.ReconcileRefund.ReconcileRefundCommandHandler(new WaterbusSystem.Application.Features.Refunds.Services.RefundReconciliationService(new FinancialTransactionRepository(c), new EfUnitOfWork(c), state.Gateway, new DirectCommercialTransactionRunner()));
-        (await handler.Handle(new(refund.RefundTransactionId, "127.0.0.1"), default)).Should().Be("Processing");
+        var handler = new WaterbusSystem.Application.Features.Refunds.Services.RefundReconciliationService(new FinancialTransactionRepository(c), new EfUnitOfWork(c), state.Gateway, new DirectCommercialTransactionRunner());
+        (await handler.ReconcileAsync(refund.RefundTransactionId, "127.0.0.1", default)).Should().Be("Processing");
         state.Gateway.QueryResult = state.Gateway.QueryResult with { TransactionType = "02", TransactionNo = "refund-bank-reference" };
-        (await handler.Handle(new(refund.RefundTransactionId, "127.0.0.1"), default)).Should().Be("Succeeded");
+        (await handler.ReconcileAsync(refund.RefundTransactionId, "127.0.0.1", default)).Should().Be("Succeeded");
     }
 
     [Fact]
     public async Task CancelReleasesEveryHoldButRequiresTheOwnerToken()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
-        var booking = await Builder(c).Handle(Command(seed), default);
-        var cancel = new CancelCheckoutCommandHandler(c, new DirectCommercialTransactionRunner(), new CheckoutAccessService(new AccessGrantRepository(c), new CheckoutOptions()));
-        await Assert.ThrowsAsync<WaterbusSystem.Application.Common.Exceptions.ForbiddenAccessException>(() => cancel.Handle(new(booking.OrderId, "wrong"), default));
-        await cancel.Handle(new(booking.OrderId, booking.AccessToken), default);
+        var booking = await Builder(c).CreateAsync(Command(seed), default);
+        var cancel = CommercialHandlerFactory.Checkout(c);
+        await Assert.ThrowsAsync<WaterbusSystem.Application.Common.Exceptions.ForbiddenAccessException>(() => cancel.CancelAsync(booking.OrderId, "wrong", default));
+        await cancel.CancelAsync(booking.OrderId, booking.AccessToken, default);
         c.SeatReservations.Should().OnlyContain(r => r.Status == ReservationStatus.Cancelled);
     }
 
@@ -197,12 +189,12 @@ public sealed class CommercialCheckoutTests
     public async Task RefundIsPersistedBeforeGatewayAndReplayDoesNotSendAgain()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var state = await Pending(c);
-        await CommercialHandlerFactory.Ipn(c, state.Gateway).Handle(Ipn(state.Attempt), default);
+        await CommercialHandlerFactory.Ipn(c, state.Gateway).ConfirmIpnAsync(Ipn(state.Attempt), default);
         c.Trips.Single().Status = TripStatus.Cancelled; await c.SaveChangesAsync();
         state.Gateway.BeforeRefund = () => c.FinancialTransactions.Should().Contain(t => t.TransactionType == FinancialTransactionType.Refund && t.Status == FinancialTransactionStatus.Processing);
         var handler = CommercialHandlerFactory.Refund(c, [state.Gateway]);
-        var first = await handler.Handle(new(state.Booking.BookingId, "cancelled"), default);
-        var retry = await handler.Handle(new(state.Booking.BookingId, "retry"), default);
+        var first = await handler.RequestAsync(new(state.Booking.BookingId, "cancelled"), default);
+        var retry = await handler.RequestAsync(new(state.Booking.BookingId, "retry"), default);
         retry.RefundTransactionId.Should().Be(first.RefundTransactionId); state.Gateway.RefundCalls.Should().Be(1);
         first.Amount.Should().Be(state.Attempt.Amount);
     }
@@ -211,7 +203,7 @@ public sealed class CommercialCheckoutTests
     public async Task TicketRefundReferencesItsPaymentRatherThanALaterUnallocatedReceipt()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var state = await Pending(c);
-        await CommercialHandlerFactory.Ipn(c, state.Gateway).Handle(Ipn(state.Attempt), default);
+        await CommercialHandlerFactory.Ipn(c, state.Gateway).ConfirmIpnAsync(Ipn(state.Attempt), default);
         c.Trips.Single().Status = TripStatus.Cancelled;
         c.FinancialTransactions.Add(new FinancialTransaction { OrderId = state.Booking.OrderId,
             Amount = state.Attempt.Amount, Status = FinancialTransactionStatus.Succeeded,
@@ -219,7 +211,7 @@ public sealed class CommercialCheckoutTests
             MerchantReference = "extra-receipt", CreatedAt = DateTimeOffset.UtcNow.AddSeconds(1),
             FailureReason = "ReconciliationRequired: duplicate receipt without allocation" });
         await c.SaveChangesAsync();
-        var result = await CommercialHandlerFactory.Refund(c, [state.Gateway]).Handle(new(state.Booking.BookingId, "cancelled"), default);
+        var result = await CommercialHandlerFactory.Refund(c, [state.Gateway]).RequestAsync(new(state.Booking.BookingId, "cancelled"), default);
         c.FinancialTransactions.Single(p => p.Id == result.RefundTransactionId).OriginalPaymentId.Should().Be(state.Attempt.Id);
     }
 
@@ -229,12 +221,12 @@ public sealed class CommercialCheckoutTests
     public async Task ExpiredOrRevokedOwnerGrantCannotCancelCheckout(bool expired)
     {
         using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
-        var booking = await Builder(c).Handle(Command(seed), default); var grant = c.AccessGrants.Single();
+        var booking = await Builder(c).CreateAsync(Command(seed), default); var grant = c.AccessGrants.Single();
         if (expired) grant.ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(-1); else grant.RevokedAt = DateTimeOffset.UtcNow;
         await c.SaveChangesAsync();
         await Assert.ThrowsAsync<WaterbusSystem.Application.Common.Exceptions.ForbiddenAccessException>(() =>
-            new CancelCheckoutCommandHandler(c, new DirectCommercialTransactionRunner(), new CheckoutAccessService(new AccessGrantRepository(c), new CheckoutOptions()))
-                .Handle(new(booking.OrderId, booking.AccessToken), default));
+            CommercialHandlerFactory.Checkout(c)
+                .CancelAsync(booking.OrderId, booking.AccessToken, default));
         c.SeatReservations.Single().Status.Should().Be(ReservationStatus.Pending);
     }
 
@@ -242,12 +234,12 @@ public sealed class CommercialCheckoutTests
     public async Task ManualRefundCannotRaceAnUnresolvedAutomaticRefund()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var state = await Pending(c);
-        await CommercialHandlerFactory.Ipn(c, state.Gateway).Handle(Ipn(state.Attempt), default);
+        await CommercialHandlerFactory.Ipn(c, state.Gateway).ConfirmIpnAsync(Ipn(state.Attempt), default);
         c.Trips.Single().Status = TripStatus.Cancelled; await c.SaveChangesAsync();
-        var refund = await CommercialHandlerFactory.Refund(c, [state.Gateway]).Handle(new(state.Booking.BookingId, "cancelled"), default);
+        var refund = await CommercialHandlerFactory.Refund(c, [state.Gateway]).RequestAsync(new(state.Booking.BookingId, "cancelled"), default);
         var admin = new Admin();
         await Assert.ThrowsAsync<ConcurrencyException>(() => CommercialHandlerFactory.ManualRefund(c, admin)
-            .Handle(new(refund.RefundTransactionId, "bank transfer", "manual", refund.Amount), default));
+            .ConfirmAsync(new(refund.RefundTransactionId, "bank transfer", "manual", refund.Amount), default));
     }
     private sealed class Admin : ICurrentUserService { public string? UserId => "00000000-0000-0000-0000-000000000001"; public string? UserRole => "Admin"; }
 
@@ -255,18 +247,16 @@ public sealed class CommercialCheckoutTests
     public async Task DraftHoldsCannotPayUntilPurchaserDetailsAreSubmitted()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
-        var result = await new WaterbusSystem.Application.Features.Bookings.Commands.CreateCheckoutHold.CreateCheckoutHoldCommandHandler(
-            c, CommercialHandlerFactory.Creation(c), new DirectCommercialTransactionRunner(), CommercialHandlerFactory.Effects(c)).Handle(new([new(seed.Trip.Id, [seed.Seat1.Id], seed.StationA.Id, seed.StationC.Id)]), default);
+        var result = await CommercialHandlerFactory.Checkout(c).HoldAsync(new([new(seed.Trip.Id, [seed.Seat1.Id], seed.StationA.Id, seed.StationC.Id)]), default);
         result.Status.Should().Be("Draft"); c.Tickets.Should().BeEmpty();
         var access = new CheckoutAccessService(new AccessGrantRepository(c), new CheckoutOptions());
-        var pay = new CreateVnPayUrlCommandHandler(CommercialHandlerFactory.Payment(c, new Gateway()));
-        await Assert.ThrowsAsync<ConcurrencyException>(() => pay.Handle(new(result.OrderId, "127.0.0.1", result.AccessToken), default));
+        var pay = CommercialHandlerFactory.Payment(c, new Gateway());
+        await Assert.ThrowsAsync<ConcurrencyException>(() => pay.CreateVnPayUrlAsync(result.OrderId, "127.0.0.1", result.AccessToken, default));
         var deadline = result.ExpiresAt;
-        await new WaterbusSystem.Application.Features.Bookings.Commands.SubmitCheckout.SubmitCheckoutCommandHandler(c, access, new DirectCommercialTransactionRunner())
-            .Handle(new(result.OrderId, "Buyer", "buyer@example.com", null, AccessToken: result.AccessToken), default);
+        await CommercialHandlerFactory.Checkout(c).SubmitAsync(result.OrderId, new("Buyer", "buyer@example.com", null), result.AccessToken, default);
         c.PurchaseOrders.Single().ExpiresAt.Should().Be(deadline);
         c.SeatReservations.Single().PassengerName.Should().Be("Buyer");
-        await pay.Handle(new(result.OrderId, "127.0.0.1", result.AccessToken), default);
+        await pay.CreateVnPayUrlAsync(result.OrderId, "127.0.0.1", result.AccessToken, default);
         c.FinancialTransactions.Should().ContainSingle();
     }
 
@@ -281,17 +271,19 @@ public sealed class CommercialCheckoutTests
     public async Task ChangingSeatsKeepsOriginalExpiryAndPaymentIssuesOnlyCurrentReservation()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
-        var result = await Builder(c).Handle(Command(seed), default); var order = c.PurchaseOrders.Single(); var deadline = order.ExpiresAt;
+        var result = await Builder(c).CreateAsync(Command(seed), default); var order = c.PurchaseOrders.Single(); var deadline = order.ExpiresAt;
         var access = new CheckoutAccessService(new AccessGrantRepository(c), new CheckoutOptions());
         var sessions = new CheckoutSessionService(new Cache(), new DateTimeService(), TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(15));
-        await new UpdateCheckoutSeatsCommandHandler(c, new DirectCommercialTransactionRunner(), access, new SeatAvailabilityService(c), sessions)
-            .Handle(new(result.OrderId, result.BookingId, [seed.Seat2.Id], [new("New passenger", null, null)], result.AccessToken), default);
+        await new CheckoutSeatChangeService(new OrderRepository(c), new BookingReferenceRepository(c), new BookingRepository(c),
+                new SeatAvailabilityService(c), access, new DirectCommercialTransactionRunner(), new EfUnitOfWork(c),
+                CommercialHandlerFactory.Effects(c, sessions), new UpdateCheckoutSeatsRequestValidator())
+            .UpdateAsync(result.OrderId, result.BookingId, new([seed.Seat2.Id], [new("New passenger", null, null)]), result.AccessToken, default);
         order.ExpiresAt.Should().Be(deadline);
         (await sessions.GetAsync("order:" + order.Id))!.ExpiresAt.Should().Be(deadline!.Value);
         var gateway = new Gateway();
-        await new CreateVnPayUrlCommandHandler(CommercialHandlerFactory.Payment(c, gateway))
-            .Handle(new(order.Id, "127.0.0.1", result.AccessToken), default);
-        await CommercialHandlerFactory.Ipn(c, gateway).Handle(Ipn(c.FinancialTransactions.Single()), default);
+        await CommercialHandlerFactory.Payment(c, gateway)
+            .CreateVnPayUrlAsync(order.Id, "127.0.0.1", result.AccessToken, default);
+        await CommercialHandlerFactory.Ipn(c, gateway).ConfirmIpnAsync(Ipn(c.FinancialTransactions.Single()), default);
         c.Tickets.Should().ContainSingle(); c.Tickets.Single().SeatReservation!.SeatId.Should().Be(seed.Seat2.Id);
         c.SeatReservations.Single(r => r.SeatId == seed.Seat1.Id).Status.Should().Be(ReservationStatus.Cancelled);
     }
@@ -301,9 +293,9 @@ public sealed class CommercialCheckoutTests
     {
         using var c = TestDbContextFactory.CreateDbContext(); var state = await Pending(c);
         c.PurchaseOrders.Single().ExpiresAt = DateTimeOffset.UtcNow.AddSeconds(-1); await c.SaveChangesAsync();
-        await CommercialHandlerFactory.Ipn(c, state.Gateway).Handle(Ipn(state.Attempt), default);
+        await CommercialHandlerFactory.Ipn(c, state.Gateway).ConfirmIpnAsync(Ipn(state.Attempt), default);
         state.Gateway.Outcome = RefundGatewayResult.Succeeded("returned");
-        var first = await CommercialHandlerFactory.Refund(c, [state.Gateway]).Handle(new(state.Booking.BookingId, "late payment"), default);
+        var first = await CommercialHandlerFactory.Refund(c, [state.Gateway]).RequestAsync(new(state.Booking.BookingId, "late payment"), default);
         first.Amount.Should().Be(state.Attempt.Amount); first.Status.Should().Be("Succeeded"); c.Tickets.Should().BeEmpty();
     }
 

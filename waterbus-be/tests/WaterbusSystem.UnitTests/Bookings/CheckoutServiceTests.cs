@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.Validators.Bookings;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;

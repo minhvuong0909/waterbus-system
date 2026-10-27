@@ -1,3 +1,7 @@
+using WaterbusSystem.Application.DTOs.Requests.Bookings;
+using WaterbusSystem.Application.DTOs.Responses.Bookings;
+using WaterbusSystem.Application.Features.Bookings.Services;
+using WaterbusSystem.Application.Validators.Bookings;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -75,7 +79,7 @@ public sealed class PaymentServiceTests
             seed.StationA.Id, seed.StationC.Id, "Buyer", "buyer@example.com", null));
         var service = CommercialHandlerFactory.Payment(context, new CommercialCheckoutTests.Gateway());
         await service.CreateVnPayUrlAsync(booking.OrderId, "127.0.0.1", booking.AccessToken);
-        var query = CommercialCheckoutTests.Ipn(context.FinancialTransactions.Single()).Query;
+        var query = CommercialCheckoutTests.Ipn(context.FinancialTransactions.Single());
         Assert.Equal("00", (await service.ConfirmIpnAsync(query)).RspCode);
         Assert.Equal("02", (await service.ConfirmIpnAsync(query)).RspCode);
         Assert.Single(context.Tickets);

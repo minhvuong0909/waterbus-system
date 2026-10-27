@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.Validators.Bookings;
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;

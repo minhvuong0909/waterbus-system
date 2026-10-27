@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.Validators.Bookings;
 using WaterbusSystem.Application.DTOs.Requests.Bookings;
 using Xunit;
 
