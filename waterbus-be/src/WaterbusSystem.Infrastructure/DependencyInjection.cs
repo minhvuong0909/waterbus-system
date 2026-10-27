@@ -63,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<IAccessGrantRepository, AccessGrantRepository>();
         services.AddScoped<ICheckoutAccessService>(sp => sp.GetRequiredService<CheckoutAccessService>());
         services.AddScoped<IBookingService, BookingService>();
+        services.AddScoped<IBookingQrService, BookingQrService>();
         services.AddScoped<ICheckoutReadService, CheckoutReadService>();
         services.AddScoped<ICheckoutExpirationService, CheckoutExpirationService>();
         services.AddScoped<IOrderRepository, OrderRepository>();

@@ -47,4 +47,9 @@ public sealed class BookingRepository(ApplicationDbContext context) : IBookingRe
     public Task<bool> HasTicketsForOrderAsync(Guid orderId, CancellationToken ct) =>
         context.Tickets.AnyAsync(t => t.Booking!.OrderId == orderId, ct);
 
+    public async Task<Booking> GetForQrAsync(Guid orderId, Guid bookingId, CancellationToken ct) =>
+        await context.Bookings.AsNoTracking().Include(b => b.Tickets)
+            .FirstOrDefaultAsync(b => b.Id == bookingId && b.OrderId == orderId, ct)
+        ?? throw new WaterbusSystem.Domain.Exceptions.NotFoundException(nameof(Booking), bookingId);
+
 }

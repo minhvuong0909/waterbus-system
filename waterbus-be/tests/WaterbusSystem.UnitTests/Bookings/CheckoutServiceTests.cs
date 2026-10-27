@@ -107,7 +107,7 @@ public sealed class CheckoutServiceTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(response);
 
-        var controller = new CheckoutsController(service.Object, Mock.Of<ICheckoutReadService>())
+        var controller = new CheckoutsController(service.Object, Mock.Of<ICheckoutReadService>(), Mock.Of<IBookingQrService>())
         {
             ControllerContext = new ControllerContext
             {

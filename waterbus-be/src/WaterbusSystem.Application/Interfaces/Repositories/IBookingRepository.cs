@@ -14,4 +14,6 @@ public interface IBookingRepository
     Task<Booking> GetForRefundAsync(Guid bookingId, CancellationToken ct);
     Task<bool> HasTicketsForOrderAsync(Guid orderId, CancellationToken ct);
 
+    Task<Booking> GetForQrAsync(Guid orderId, Guid bookingId, CancellationToken ct);
+
 }

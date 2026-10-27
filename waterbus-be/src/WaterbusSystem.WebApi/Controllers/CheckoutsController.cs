@@ -1,18 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using WaterbusSystem.Application.Features.Bookings.Commands.CreateCheckout;
-using WaterbusSystem.Application.Features.Bookings.Commands.CancelCheckout;
-using WaterbusSystem.Application.Features.Bookings.Queries.GetCheckout;
-using WaterbusSystem.Application.Features.Bookings.Queries.GetBookingQr;
-using WaterbusSystem.Application.Features.Bookings.Queries.GetBookingQrPublicKey;
-using WaterbusSystem.Application.Features.Bookings.Commands.SubmitCheckout;
 using WaterbusSystem.Application.DTOs.Requests.Bookings;
 using WaterbusSystem.Application.DTOs.Responses.Bookings;
 using WaterbusSystem.Application.Interfaces.Services;
 
 namespace WaterbusSystem.WebApi.Controllers;
 
-public sealed class CheckoutsController(ICheckoutService checkoutService, ICheckoutReadService reads) : BaseApiController
+public sealed class CheckoutsController(ICheckoutService checkoutService, ICheckoutReadService reads, IBookingQrService qr) : BaseApiController
 {
 
     [HttpPost]
@@ -102,8 +96,8 @@ public sealed class CheckoutsController(ICheckoutService checkoutService, ICheck
 
     [HttpGet("{orderId:guid}/bookings/{bookingId:guid}/qr")]
     public async Task<IActionResult> Qr(Guid orderId, Guid bookingId, [FromHeader(Name = "X-Guest-Token")] string? accessToken) =>
-        Ok(await Mediator.Send(new GetBookingQrQuery(orderId, bookingId, accessToken), HttpContext.RequestAborted));
+        Ok(await qr.GetAsync(orderId, bookingId, accessToken, HttpContext.RequestAborted));
 
     [HttpGet("qr-public-key")]
-    public async Task<IActionResult> PublicKey() => Ok(await Mediator.Send(new GetBookingQrPublicKeyQuery(), HttpContext.RequestAborted));
+    public IActionResult PublicKey() => Ok(qr.GetPublicKey());
 }
