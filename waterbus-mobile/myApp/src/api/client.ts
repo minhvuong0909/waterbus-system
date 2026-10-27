@@ -4,11 +4,20 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
-import { Platform } from 'react-native';
 import { PreloadManifest, SyncBatchResponse, CheckInEvent, PublicKeyInfo } from '../types/scanner';
 
+declare const require: any;
+
+let isAndroid = false;
+try {
+  const RN = require('react-native');
+  isAndroid = RN?.Platform?.OS === 'android';
+} catch {
+  // Web / Test environment fallback
+}
+
 // Default to backend port 5000 (standard for waterbus-be ASP.NET Core)
-const DEFAULT_URL = Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
+const DEFAULT_URL = isAndroid ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
 
 let currentBaseUrl = DEFAULT_URL;
 let authToken: string | null = null;
