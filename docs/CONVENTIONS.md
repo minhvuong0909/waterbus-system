@@ -53,14 +53,15 @@ Quyết định của nhóm: bỏ CQRS/MediatR, chuyển về Service layer thu�
 | Feature | Trạng thái |
 |---|---|
 | Auth | ✅ Đã migrate — mẫu chuẩn tham khảo |
-| Boats, Bookings, CheckIns, Fares, Incidents, Payments, Refunds, SightseeingAudio, Stations, Tracking, Trips, AiBooking | ⏳ Chưa migrate — vẫn CQRS/MediatR |
+| Bookings / Checkout / Guest Access, Payments / VNPay, Refunds, QR | ✅ Đã migrate — Controller → IService → Service → IRepository → Repository → EF Core; xem `waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md` |
+| Boats, CheckIns, Fares, Incidents, SightseeingAudio, Stations, Tracking, Trips, AiBooking | ⏳ Chưa migrate — vẫn CQRS/MediatR |
 
 **Quy tắc migrate**: KHÔNG trộn 2 pattern trong cùng 1 feature. KHÔNG tự migrate feature chưa được giao — báo trong nhóm trước khi bắt đầu, tránh 2 người cùng đổi 1 feature cùng lúc (xung đột lớn, khó merge). Cập nhật lại bảng trên (đổi ⏳ → ✅) trong PR migrate feature đó.
 
 **Feature chưa migrate** — giữ nguyên pattern cũ: mỗi feature một file, đặt tại
 `Application/Features/{Feature}/{Commands|Queries}/{Name}/{Name}{Command|Query}.cs`
 gồm: DTO, record Command/Query, `AbstractValidator<T>` (nếu có input), Handler.
-Mẫu tham khảo: `CreateBookingCommand.cs`, `SearchTripsQuery.cs`.
+Mẫu tham khảo feature chưa migrate: `SearchTripsQuery.cs`. Booking đã chuyển sang service, không dùng slice `CreateBookingCommand` cũ.
 
 **Feature đã/đang migrate** — pattern chuẩn mới:
 ```
