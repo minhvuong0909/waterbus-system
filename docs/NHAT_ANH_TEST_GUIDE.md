@@ -96,7 +96,7 @@ Lệnh này dùng cấu hình thông thường của bạn, không tự bật me
 - Endpoint public key cấp key hiện tại; chiến lược preload/key rotation nhiều key cần thống nhất với Tuấn trước khi triển khai scanner.
 - Mapping env TV2 mới vào Docker Compose thuộc Kiệt; việc thêm vào .env.example chưa tự làm container đọc các key đó.
 
-Code còn local, chưa commit/push. Các thay đổi sẵn có ở `.gitignore` và `waterbus-be/docker-compose.yml` được giữ nguyên; không đưa chúng vào phạm vi sửa TV2.
+Trạng thái lịch sử ngày 2026-10-13: code khi đó còn local, chưa commit/push; các thay đổi sẵn có ở `.gitignore` và `waterbus-be/docker-compose.yml` được giữ ngoài phạm vi TV2. Refactoring hiện đã được commit trên `refactor/commercial-transactions`; trạng thái đồng bộ và kiểm chứng mới được ghi trong báo cáo cuối.
 
 
 Kiểm chứng mới sau fetch main ngày 2026-10-28: `origin/main` = `49e1040ec1611a3eac97d3a65bc6c61fa56db688` đã có sẵn trong nhánh, không cần merge và không có conflict. Build **0 warnings, 0 errors**; runner `-AllTests` với SQL Server và ba Redis: **785 passed, 0 failed, 0 skipped**, gồm **18 integration cases** và **7 HTTP cases**. Xem [báo cáo cuối](../waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md) cho lệnh, phạm vi và giới hạn nghiệm thu. Chưa kiểm chứng merchant VNPay thật hoặc scanner triển khai.
