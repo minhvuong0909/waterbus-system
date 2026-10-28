@@ -4,7 +4,7 @@ Date: 2026-10-28 (Asia/Saigon)
 Owner scope: Nhật Anh
 Branch: `refactor/commercial-transactions`
 
-The assigned backend refactoring is complete. The existing Checkout implementation was preserved in the approved, separate baseline commit. All later commits contain the remaining owned commercial work. All commits are local; nothing was pushed, merged, or opened as a pull request.
+The assigned backend refactoring is complete. The existing Checkout implementation was preserved in the approved, separate baseline commit. All later commits contain the remaining owned commercial work. At the start of this finalization, all feature commits through `3b6701b` were local. Synchronization and post-merge validation will be recorded separately in this report.
 
 ## Module status and main files
 
@@ -30,7 +30,8 @@ HTTP routes, verbs, JSON field names, response meanings, guest header, rate-limi
 
 - Booking responses still expose `totalAmount`; checkout responses retain their existing fields.
 - Guest access requires an active, unrevoked, unexpired hashed grant for the specified order. The middleware resolves current AccessGrant identities and preserves its legacy booking-token lookup.
-- VNPay IPN retains GET and POST support and case-sensitive `RspCode` / `Message` response fields.
+- VNPay IPN retains GET and POST support with signed query-string parameters for both verbs and case-sensitive `RspCode` / `Message` response fields. Form-body fields do not supply or override signed query fields.
+- Since `3b6701b`, POST Booking returns HTTP 201 Location for the existing Checkout GET resource. Its response JSON is unchanged; reading Location requires the returned access token in `X-Guest-Token`, never in the URL.
 - Browser returns never change payment state. Only verified IPNs or verified gateway reconciliation can confirm payment and issue tickets.
 - Existing HMAC and constant-time verification stay inside the existing VNPay adapter. No other payment provider was introduced.
 - Refund requests persist before the external gateway call. Gateway calls remain outside SQL transactions. Manual refunds still require evidence, the exact amount, and an identified admin.
@@ -45,9 +46,9 @@ The existing per-seat Redis mutex is a short critical-section lease (30 seconds)
 
 Checkout cache and realtime updates occur after successful SQL commit. Cache/notification failures do not undo persisted reservations or issue additional tickets. SQL deadlines remain authoritative when Redis is unavailable, and the expiration worker releases expired reservations. Existing Redis ownership, cache TTL, and SQL fallback semantics were preserved.
 
-## Validation results
+## Historical pre-merge validation results
 
-Counts below are test cases, not classes. The original 753 tests were retained; 27 additional test cases bring the final total to 780.
+Counts below are test cases, not classes. At `01aee3d`, the original 753 tests plus 27 additional cases totaled 780. Commit `3b6701b` added five signed POST-IPN HTTP cases; the latest reported pre-merge result was **785 passed, 0 failed, 0 skipped**, including **18 SQL/Redis cases**, with build **0 warnings, 0 errors**. The October 13 baseline of 215 passing tests is earlier historical evidence. None of these results substitutes for post-merge validation.
 
 | Validation | Passed | Failed | Skipped | Notes |
 | --- | ---: | ---: | ---: | --- |
@@ -292,6 +293,13 @@ M	waterbus-be/tests/WaterbusSystem.UnitTests/Refunds/RefundServiceTests.cs
 M	waterbus-be/tests/WaterbusSystem.UnitTests/TestHelpers/CommercialHandlerFactory.cs
 ```
 
-## Final repository state
+## Historical repository state at `01aee3d`
 
-Implementation checkpoint: `44fe03b`. After the implementation commit, `git status --short` and `git diff --stat` both produced no output. A final documentation-only commit adds this report. The final delivery checks confirm a clean working tree, an empty unstaged/staged diff, and the same `refactor/commercial-transactions` branch. All commits remain local.
+Implementation checkpoint: `44fe03b`. After the implementation commit, `git status --short` and `git diff --stat` both produced no output. A final documentation-only commit adds this report. The final delivery checks confirm a clean working tree, an empty unstaged/staged diff, and the same `refactor/commercial-transactions` branch. All commits remained local at that checkpoint.
+
+### `3b6701b` — fix(commercial): correct booking location and verify signed POST IPNs
+
+- `BookingsController` uses `CreatedAtAction` targeting `CheckoutsController.Get` with the order id; HTTP tests follow Location and verify 403 without the guest token and 200 with it.
+- Five additional Kestrel HTTP cases use the existing real `VnPayService` HMAC verifier with generated test secrets: valid signed query confirms; tampering returns `97` without state changes; duplicate returns `02` without extra tickets; form-only returns `97`; unsigned form overrides cannot change signed query fields.
+- Reviewed changes: `docs/NHAT_ANH_COMMERCIAL_API.md`, `waterbus-be/src/WaterbusSystem.WebApi/Controllers/BookingsController.cs`, `waterbus-be/tests/WaterbusSystem.UnitTests/Bookings/CommercialHttpTests.cs`.
+- Reported pre-merge validation: **785 passed, 0 failed, 0 skipped**, including **18 SQL/Redis integration tests**; build **0 warnings, 0 errors**. Actual post-merge execution is documented separately.
