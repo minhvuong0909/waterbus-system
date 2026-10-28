@@ -129,3 +129,6 @@ Baseline lịch sử 2026-10-13 (không phải kết quả hiện tại): build 
 
 
 Kết quả được báo cáo trước đồng bộ main, sau commit `3b6701b` (2026-10-28): build **0 warnings, 0 errors**; **785 passed, 0 failed, 0 skipped**, gồm **18 SQL/Redis integration tests**. Commit này sửa HTTP 201 Location của POST Booking tới Checkout GET hiện có và bổ sung 5 HTTP tests dùng chữ ký VNPay thật cho POST query-string IPN (hợp lệ, sai chữ ký, replay, form-only và form override). Đây là kết quả lịch sử trước merge; kết quả hậu đồng bộ được ghi riêng trong [báo cáo refactoring](../waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md).
+
+
+Kiểm chứng mới sau fetch main ngày 2026-10-28: `origin/main` = `49e1040ec1611a3eac97d3a65bc6c61fa56db688` đã có sẵn trong nhánh, không cần merge và không có conflict. Build **0 warnings, 0 errors**; runner `-AllTests` với SQL Server và ba Redis: **785 passed, 0 failed, 0 skipped**, gồm **18 integration cases** và **7 HTTP cases**. Xem [báo cáo cuối](../waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md) cho lệnh, phạm vi và giới hạn nghiệm thu. Chưa kiểm chứng merchant VNPay thật hoặc scanner triển khai.

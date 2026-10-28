@@ -4,7 +4,29 @@ Date: 2026-10-28 (Asia/Saigon)
 Owner scope: Nhật Anh
 Branch: `refactor/commercial-transactions`
 
-The assigned backend refactoring is complete. The existing Checkout implementation was preserved in the approved, separate baseline commit. All later commits contain the remaining owned commercial work. At the start of this finalization, all feature commits through `3b6701b` were local. Synchronization and post-merge validation will be recorded separately in this report.
+The assigned backend refactoring is complete. The existing Checkout implementation was preserved in the approved, separate baseline commit. All later commits contain the remaining owned commercial work. At the start of this finalization, all feature commits through `3b6701b` were local. The fresh validation after fetching main is recorded below; the historical evidence remains separate.
+
+## Final main synchronization and validation — 2026-10-28
+
+- Integrated `origin/main`: **`49e1040ec1611a3eac97d3a65bc6c61fa56db688`** (Auth service migration, PR #38). Both fetches during finalization confirmed this same main commit. It is already an ancestor of the feature branch; `git merge origin/main` returned `Already up to date.` No merge commit was needed.
+- No merge conflicts occurred; no conflict-resolution files or compatibility fixes were necessary. No production or test C# files, Domain entities, database schemas, migrations, API contracts, or unrelated feature implementations were changed during this finalization.
+- Documentation-only commit **`e5b21bd`** synchronizes architecture, routes, migration status, the `3b6701b` HTTP fix, and historical verification. A separate final documentation commit records the fresh results and updates the obsolete commercial migration status/examples in `AGENTS.md`.
+
+| Fresh validation | Passed | Failed | Skipped | Result / environment |
+| --- | ---: | ---: | ---: | --- |
+| `dotnet build WaterbusSystem.sln --no-restore` | — | — | — | Success; **0 warnings, 0 errors**, 44.63 seconds |
+| `dotnet test WaterbusSystem.sln --no-restore --logger "trx;LogFileName=commercial-final-default.trx"` | 767 | 0 | 18 | SQL/Redis environment unset; 785 total, 18-second test duration |
+| `tests/infrastructure/Run-IntegrationTests.ps1 -AllTests` | **785** | **0** | **0** | Full solution with isolated SQL Server 2022 and three independent Redis nodes; 1 minute 52 seconds test duration |
+| SQL/Redis cases included in that full run | **18** | **0** | **0** | 9 domain persistence/migration + 7 commercial SQL + 2 Redis cases; not an additional suite total |
+| Kestrel HTTP cases included in the suite | **7** | **0** | **0** | Swagger, DI/controller startup, guest authorization, Booking Location, checkout/payment/refund/QR and five signed POST-IPN cases |
+
+The integration runner's restore check found all dependencies up to date. The default run's skips are environment-dependent historical evidence for this operation; the final infrastructure-enabled run has no skipped tests. No tests or assertions were removed or weakened.
+
+HTTP tests use production registrations/controllers with isolated InMemory persistence, fake external gateway behavior where appropriate, the real RSA signer, and the real VNPay HMAC verifier for signed POST callbacks. They do not exercise deployed `Program.cs`, live merchant traffic, or a physical scanner. Separate SQL/Redis tests verify actual persistence, rollback, concurrent booking/payment/refund behavior, seat replacement and cache expiry.
+
+Final review found no unresolved merge entries or conflict markers. Working-tree `git diff --check` passed, and changes made during this operation are documentation only. An additional whole-feature comparison to main reports one inherited whitespace advisory (a blank line at EOF in `CreateBookingRequestValidator.cs` from the earlier refactoring); it has no behavioral effect and was left outside this documentation/integration task. Added-line inspection found no private-key material or credential-token patterns; no credential file or archive is tracked by this operation. The only preserved untracked file is `waterbus-be.zip`. Ignored credentials, SQL volumes and other local environments were retained; the isolated test containers remain running and healthy.
+
+Remaining deployment verification: live VNPay merchant/sandbox payment, IPN, query and refund checks; deployed QR public-key/key-id matching and physical scanner compatibility; configuration mapping for SQL/Redis, JWT, VNPay merchant URLs/secrets, stable RSA private key/key id and checkout TTLs. Existing global SQL write serialization and best-effort post-commit cache/events still require deployment capacity/recovery planning; no throughput/failover benchmark or durable outbox was added. Use the configuration table in `docs/NHAT_ANH_COMMERCIAL_API.md` (repository-relative). No shared or production database was migrated by this operation.
 
 ## Module status and main files
 

@@ -97,3 +97,6 @@ Lệnh này dùng cấu hình thông thường của bạn, không tự bật me
 - Mapping env TV2 mới vào Docker Compose thuộc Kiệt; việc thêm vào .env.example chưa tự làm container đọc các key đó.
 
 Code còn local, chưa commit/push. Các thay đổi sẵn có ở `.gitignore` và `waterbus-be/docker-compose.yml` được giữ nguyên; không đưa chúng vào phạm vi sửa TV2.
+
+
+Kiểm chứng mới sau fetch main ngày 2026-10-28: `origin/main` = `49e1040ec1611a3eac97d3a65bc6c61fa56db688` đã có sẵn trong nhánh, không cần merge và không có conflict. Build **0 warnings, 0 errors**; runner `-AllTests` với SQL Server và ba Redis: **785 passed, 0 failed, 0 skipped**, gồm **18 integration cases** và **7 HTTP cases**. Xem [báo cáo cuối](../waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md) cho lệnh, phạm vi và giới hạn nghiệm thu. Chưa kiểm chứng merchant VNPay thật hoặc scanner triển khai.
