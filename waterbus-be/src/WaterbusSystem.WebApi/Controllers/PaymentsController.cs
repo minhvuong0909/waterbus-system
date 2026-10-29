@@ -1,15 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
-using WaterbusSystem.Application.Features.Payments.Commands.ConfirmVnPayIpn;
-using WaterbusSystem.Application.Features.Payments.Commands.CreateVnPayUrl;
+using WaterbusSystem.Application.Interfaces.Services;
+using WaterbusSystem.Application.DTOs.Requests.Payments;
 
 namespace WaterbusSystem.WebApi.Controllers;
 
-public record CreateVnPayUrlRequest(Guid OrderId);
+
 
 /// <summary>
 /// Quản lý thanh toán qua cổng VNPAY có chữ ký số HMAC-SHA512
 /// </summary>
-public class PaymentsController : BaseApiController
+public class PaymentsController(IPaymentService service) : BaseApiController
 {
     /// <summary>
     /// Sinh URL chuyển hướng khách hàng sang cổng thanh toán VNPAY.
@@ -24,7 +24,7 @@ public class PaymentsController : BaseApiController
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
 
-        var result = await Mediator.Send(new CreateVnPayUrlCommand(request.OrderId, ipAddress, accessToken), HttpContext.RequestAborted);
+        var result = await service.CreateVnPayUrlAsync(request.OrderId, ipAddress, accessToken, HttpContext.RequestAborted);
 
         return Ok(result);
     }
@@ -38,7 +38,7 @@ public class PaymentsController : BaseApiController
     [HttpPost("vnpay-ipn")]
     public async Task<IActionResult> VnPayIpn()
     {
-        var result = await Mediator.Send(new ConfirmVnPayIpnCommand(ToQueryDictionary(Request.Query)));
+        var result = await service.ConfirmIpnAsync(ToQueryDictionary(Request.Query), HttpContext.RequestAborted);
 
         return Ok(result);
     }
@@ -50,12 +50,10 @@ public class PaymentsController : BaseApiController
     /// Xử lý callback khi trình duyệt khách hàng chuyển hướng trở lại sau thanh toán
     /// </summary>
     [HttpGet("vnpay-return")]
-    public async Task<IActionResult> VnPayReturn() => Ok(await Mediator.Send(
-        new WaterbusSystem.Application.Features.Payments.Queries.GetVnPayReturn.GetVnPayReturnQuery(ToQueryDictionary(Request.Query)), HttpContext.RequestAborted));
+    public async Task<IActionResult> VnPayReturn() => Ok(await service.GetReturnAsync(ToQueryDictionary(Request.Query), HttpContext.RequestAborted));
 
     [HttpPost("{orderId:guid}/attempts/{paymentId:guid}/reconcile")]
     public async Task<IActionResult> Reconcile(Guid orderId, Guid paymentId,
-        [FromHeader(Name = "X-Guest-Token")] string? accessToken) => Ok(await Mediator.Send(
-        new WaterbusSystem.Application.Features.Payments.Commands.ReconcilePayment.ReconcilePaymentCommand(orderId, paymentId,
-            accessToken, HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1"), HttpContext.RequestAborted));
+        [FromHeader(Name = "X-Guest-Token")] string? accessToken) => Ok(await service.ReconcileAsync(orderId, paymentId,
+            accessToken, HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1", HttpContext.RequestAborted));
 }

@@ -1,14 +1,15 @@
+using WaterbusSystem.Application.Validators.Bookings;
+using WaterbusSystem.Application.Features.Refunds.Services;
+using WaterbusSystem.Application.Validators.Refunds;
 using Microsoft.Extensions.Logging.Abstractions;
 using WaterbusSystem.Application.Common.Interfaces;
-using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
-using WaterbusSystem.Application.Features.Bookings.Commands.CreateCheckout;
 using WaterbusSystem.Application.Features.Bookings.Services;
-using WaterbusSystem.Application.Features.Payments.Commands.ConfirmVnPayIpn;
 using WaterbusSystem.Application.Features.Payments.Services;
-using WaterbusSystem.Application.Features.Refunds.Commands.RequestRefund;
-using WaterbusSystem.Application.Features.Refunds.Commands.ConfirmManualRefund;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.Infrastructure.Services;
+using WaterbusSystem.Infrastructure.Repositories;
+using WaterbusSystem.Application.DTOs.Requests.Bookings;
+using WaterbusSystem.Application.Interfaces.Services;
 
 namespace WaterbusSystem.UnitTests.TestHelpers;
 
@@ -20,34 +21,87 @@ public sealed class DirectCommercialTransactionRunner : ICommercialTransactionRu
 
 internal static class CommercialHandlerFactory
 {
-    internal static BookingCreationService Creation(ApplicationDbContext context, IDistributedLockService? locks = null,
-        ISeatAvailabilityService? availability = null) => new(context, locks ?? new FakeDistributedLockService(),
-            availability ?? new SeatAvailabilityService(context), new CheckoutOptions(), new CheckoutAccessService(context, new CheckoutOptions()));
 
-    internal static CheckoutCommitEffects Effects(ApplicationDbContext context, ICheckoutSessionService? sessions = null,
-        ISeatEventPublisher? events = null) => new(context, sessions ?? new CheckoutSessionService(new MemoryStore(),
-            new Clock(), TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(15)), NullLogger<CheckoutCommitEffects>.Instance, events);
+    internal static ICheckoutSeatChangeService SeatChanges(
+        ApplicationDbContext context, ICommercialTransactionRunner? transactions = null, ICheckoutSessionService? sessions = null)
+    {
+        return new CheckoutSeatChangeService(
+            new OrderRepository(context),
+            new BookingReferenceRepository(context),
+            new BookingRepository(context),
+            new SeatAvailabilityService(context),
+            new CheckoutAccessService(new AccessGrantRepository(context), new CheckoutOptions()),
+            transactions ?? new DirectCommercialTransactionRunner(),
+            new EfUnitOfWork(context),
+            Effects(context, sessions),
+            new UpdateCheckoutSeatsRequestValidator());
+    }
 
-    internal static CreateBookingCommandHandler Booking(ApplicationDbContext context, IDistributedLockService? locks = null,
+
+    internal static BookingCreationService Creation(
+    ApplicationDbContext context,
+    IDistributedLockService? locks = null,
+    ISeatAvailabilityService? availability = null)
+    {
+        return new BookingCreationService(
+            new OrderRepository(context),
+            new BookingRepository(context),
+            new EfUnitOfWork(context),
+            new BookingReferenceRepository(context),
+            locks ?? new FakeDistributedLockService(),
+            availability ?? new SeatAvailabilityService(context),
+            new CheckoutOptions(),
+            new CheckoutAccessService(new AccessGrantRepository(context),
+                new CheckoutOptions()));
+    }
+    internal static CheckoutCommitEffects Effects(
+        ApplicationDbContext context,
+        ICheckoutSessionService? sessions = null,
+        ISeatEventPublisher? events = null)
+    {
+        return new CheckoutCommitEffects(
+            new OrderRepository(context),
+            new BookingRepository(context),
+            sessions ?? new CheckoutSessionService(
+                new MemoryStore(),
+                new Clock(),
+                TimeSpan.FromMinutes(10),
+                TimeSpan.FromMinutes(15)),
+            NullLogger<CheckoutCommitEffects>.Instance,
+            events);
+    }
+
+    internal static BookingService Booking(ApplicationDbContext context, IDistributedLockService? locks = null,
         ISeatAvailabilityService? availability = null, ICheckoutSessionService? checkoutSessionService = null,
         ICommercialTransactionRunner? transactions = null) => new(Creation(context, locks, availability),
-            transactions ?? new DirectCommercialTransactionRunner(), Effects(context, checkoutSessionService));
+            transactions ?? new DirectCommercialTransactionRunner(), Effects(context, checkoutSessionService), new CreateBookingRequestValidator());
 
-    internal static CreateCheckoutCommandHandler Checkout(ApplicationDbContext context, ICommercialTransactionRunner? transactions = null,
-        ICheckoutSessionService? sessions = null) => new(context, Creation(context), transactions ?? new DirectCommercialTransactionRunner(), Effects(context, sessions));
+    internal static CheckoutService Checkout(ApplicationDbContext context, ICommercialTransactionRunner? transactions = null,
+        ICheckoutSessionService? sessions = null) => new(new OrderRepository(context), Creation(context),
+            transactions ?? new DirectCommercialTransactionRunner(), Effects(context, sessions),
+            new CheckoutAccessService(new AccessGrantRepository(context), new CheckoutOptions()), new EfUnitOfWork(context),
+            new SubmitCheckoutRequestValidator(), new CreateCheckoutHoldRequestValidator(), new CreateCheckoutRequestValidator(),
+            SeatChanges(context, transactions, sessions));
+
+    internal static PaymentService Payment(ApplicationDbContext context, IVnPayService gateway,
+        ICommercialTransactionRunner? transactions = null, ICheckoutSessionService? sessions = null) =>
+        new(new OrderRepository(context), new FinancialTransactionRepository(context), new BookingRepository(context),
+            new EfUnitOfWork(context), gateway, transactions ?? new DirectCommercialTransactionRunner(), new CheckoutOptions(),
+            new CheckoutAccessService(new AccessGrantRepository(context), new CheckoutOptions()),
+            Confirmation(context, gateway, transactions, sessions), sessions);
 
     internal static PaymentConfirmationService Confirmation(ApplicationDbContext context, IVnPayService gateway,
         ICommercialTransactionRunner? transactions = null, ICheckoutSessionService? sessions = null) =>
-        new(context, gateway, transactions ?? new DirectCommercialTransactionRunner(), sessions);
+        new(new FinancialTransactionRepository(context), new BookingRepository(context), new EfUnitOfWork(context), gateway, transactions ?? new DirectCommercialTransactionRunner(), sessions);
 
-    internal static ConfirmVnPayIpnCommandHandler Ipn(ApplicationDbContext context, IVnPayService gateway,
-        ICommercialTransactionRunner? transactions = null) => new(Confirmation(context, gateway, transactions));
+    internal static PaymentService Ipn(ApplicationDbContext context, IVnPayService gateway,
+        ICommercialTransactionRunner? transactions = null) => Payment(context, gateway, transactions);
 
-    internal static RequestRefundCommandHandler Refund(ApplicationDbContext context, IEnumerable<IRefundGateway> gateways,
-        ICommercialTransactionRunner? transactions = null) => new(context, gateways, transactions ?? new DirectCommercialTransactionRunner());
+    internal static RefundRequestService Refund(ApplicationDbContext context, IEnumerable<IRefundGateway> gateways,
+        ICommercialTransactionRunner? transactions = null) => new(new FinancialTransactionRepository(context), new BookingRepository(context), new EfUnitOfWork(context), new RequestRefundRequestValidator(), gateways, transactions ?? new DirectCommercialTransactionRunner());
 
-    internal static ConfirmManualRefundCommandHandler ManualRefund(ApplicationDbContext context, ICurrentUserService currentUser,
-        ICommercialTransactionRunner? transactions = null) => new(context, currentUser, transactions ?? new DirectCommercialTransactionRunner());
+    internal static ManualRefundService ManualRefund(ApplicationDbContext context, ICurrentUserService currentUser,
+        ICommercialTransactionRunner? transactions = null) => new(new FinancialTransactionRepository(context), new EfUnitOfWork(context), new ConfirmManualRefundRequestValidator(), currentUser, transactions ?? new DirectCommercialTransactionRunner());
 
     private sealed class Clock : IDateTimeService { public DateTimeOffset Now => DateTimeOffset.UtcNow; }
     internal sealed class MemoryStore : ICheckoutSessionStore
