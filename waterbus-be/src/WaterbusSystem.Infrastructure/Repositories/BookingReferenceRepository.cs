@@ -15,6 +15,7 @@ public sealed class BookingReferenceRepository(
     {
         return context.Trips
             .Include(t => t.Route)
+            .Include(t => t.Boat)
             .Include(t => t.TripStopCalls)
                 .ThenInclude(c => c.RouteStop)
             .FirstOrDefaultAsync(t => t.Id == tripId, ct);

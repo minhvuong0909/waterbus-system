@@ -85,7 +85,8 @@ public sealed class PaymentConfirmationService
             else if (wasFailed || order.Status != OrderStatus.PendingPayment || order.ExpiresAt == null || order.ExpiresAt <= now ||
                 bookings.Any(b => b.Status != BookingStatus.PendingPayment ||
                     b.SeatReservations.Count(r => r.Status == ReservationStatus.Pending) == 0) ||
-                bookings.Any(b => b.Trip!.Status is not (TripStatus.Scheduled or TripStatus.Boarding) || b.Trip.ActualDepartureTime != null))
+                bookings.Any(b => b.Trip!.Status is not (TripStatus.Scheduled or TripStatus.Boarding) || b.Trip.ActualDepartureTime != null) ||
+                await _bookings.HasUnavailableInventoryAsync(order.Id, ct))
             {
                 payment.FailureReason = "ReconciliationRequired: payment received after checkout expired or trip became unavailable";
                 if (!string.IsNullOrEmpty(previousFailure)) payment.FailureReason += "; previous outcome: " + previousFailure;
