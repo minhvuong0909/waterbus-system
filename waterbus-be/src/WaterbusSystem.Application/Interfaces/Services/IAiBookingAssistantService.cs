@@ -1,6 +1,8 @@
+using WaterbusSystem.Application.DTOs.Responses.AiBooking;
+using WaterbusSystem.Application.DTOs.Requests.AiBooking;
 using WaterbusSystem.Application.Features.AiBooking.Models;
 
-namespace WaterbusSystem.Application.Features.AiBooking.Interfaces;
+namespace WaterbusSystem.Application.Interfaces.Services;
 
 /// <summary>
 /// Dịch vụ AI Booking Assistant xử lý hội thoại người dùng,

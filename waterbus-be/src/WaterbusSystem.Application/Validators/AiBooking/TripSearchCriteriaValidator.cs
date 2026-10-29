@@ -1,7 +1,7 @@
 using FluentValidation;
 using WaterbusSystem.Application.Features.AiBooking.Models;
 
-namespace WaterbusSystem.Application.Features.AiBooking.Validators;
+namespace WaterbusSystem.Application.Validators.AiBooking;
 
 /// <summary>
 /// Validator kiểm tra tính hợp lệ của tham số tìm chuyến được trích xuất từ câu hỏi của khách.

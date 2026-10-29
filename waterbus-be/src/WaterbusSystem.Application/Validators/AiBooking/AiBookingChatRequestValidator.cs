@@ -1,7 +1,8 @@
+using WaterbusSystem.Application.DTOs.Requests.AiBooking;
 using FluentValidation;
 using WaterbusSystem.Application.Features.AiBooking.Models;
 
-namespace WaterbusSystem.Application.Features.AiBooking.Validators;
+namespace WaterbusSystem.Application.Validators.AiBooking;
 
 /// <summary>
 /// Validator kiểm tra tính hợp lệ của request chat gửi tới AI Assistant.

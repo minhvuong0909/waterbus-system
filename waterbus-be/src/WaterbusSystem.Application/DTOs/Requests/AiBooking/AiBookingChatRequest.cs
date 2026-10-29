@@ -1,4 +1,6 @@
-namespace WaterbusSystem.Application.Features.AiBooking.Models;
+using WaterbusSystem.Application.Features.AiBooking.Models;
+
+namespace WaterbusSystem.Application.DTOs.Requests.AiBooking;
 
 /// <summary>
 /// Yêu cầu gửi từ chat widget của khách tới AI Booking Assistant.
@@ -32,7 +34,3 @@ public record AiBookingChatRequest
     /// </summary>
     public string? PreferredServiceType { get; init; }
 }
-
-public record AiBookingChatTurn(string Role, string Content);
-
-public record AiSearchScopeClarification(string OriginalMessage);

@@ -1,6 +1,7 @@
+using WaterbusSystem.Application.DTOs.Requests.AiBooking;
 using FluentAssertions;
 using WaterbusSystem.Application.Features.AiBooking.Models;
-using WaterbusSystem.Application.Features.AiBooking.Validators;
+using WaterbusSystem.Application.Validators.AiBooking;
 using Xunit;
 
 namespace WaterbusSystem.UnitTests.AiBooking;
