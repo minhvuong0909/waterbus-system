@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
 using System.Text.RegularExpressions;
 using Azure;
 using Azure.Storage.Blobs;
@@ -20,29 +21,40 @@ public sealed class AzureBlobAudioStorageService : IAudioStorageService
         "^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\\.mp3$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    private readonly BlobContainerClient _container;
-    private readonly IValidator<StoreAudioCommand> _validator;
+    private readonly Lazy<BlobContainerClient> _containerClient;
+    private BlobContainerClient Container => _containerClient.Value;
+    private readonly IValidator<StoreAudioRequest> _validator;
     private readonly ILogger<AzureBlobAudioStorageService> _logger;
 
     public AzureBlobAudioStorageService(
         BlobContainerClient container,
-        IValidator<StoreAudioCommand> validator,
+        IValidator<StoreAudioRequest> validator,
+        ILogger<AzureBlobAudioStorageService> logger)
+        : this(new Lazy<BlobContainerClient>(() => container), validator, logger)
+    {
+        ArgumentNullException.ThrowIfNull(container);
+    }
+
+    /// <summary>Chỉ đọc cấu hình Blob khi thực sự truy cập asset; GET POI không cần credential Azure.</summary>
+    public AzureBlobAudioStorageService(
+        Lazy<BlobContainerClient> containerClient,
+        IValidator<StoreAudioRequest> validator,
         ILogger<AzureBlobAudioStorageService> logger)
     {
-        _container = container ?? throw new ArgumentNullException(nameof(container));
+        _containerClient = containerClient ?? throw new ArgumentNullException(nameof(containerClient));
         _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<AudioStorageResult> StoreAudioAsync(
-        StoreAudioCommand command,
+        StoreAudioRequest command,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
         cancellationToken.ThrowIfCancellationRequested();
         await _validator.ValidateAndThrowAsync(command, cancellationToken);
 
-        var blob = _container.GetBlobClient(command.AssetKey);
+        var blob = Container.GetBlobClient(command.AssetKey);
         if (blob.Uri.Scheme != Uri.UriSchemeHttps)
             throw new AudioStorageException("Azure Blob production phải dùng HTTPS để truyền MP3 và credential an toàn.");
         if (blob.Uri.Query.Length > 0 || blob.Uri.Fragment.Length > 0)
@@ -97,7 +109,7 @@ public sealed class AzureBlobAudioStorageService : IAudioStorageService
         string assetKey = assetIdentifier;
         if (Uri.TryCreate(assetIdentifier, UriKind.Absolute, out var uri))
         {
-            var prefix = _container.Uri.AbsoluteUri.TrimEnd('/') + "/";
+            var prefix = Container.Uri.AbsoluteUri.TrimEnd('/') + "/";
             if (uri.Query.Length > 0 || uri.Fragment.Length > 0 ||
                 !assetIdentifier.StartsWith(prefix, StringComparison.Ordinal))
                 return false;
@@ -108,7 +120,7 @@ public sealed class AzureBlobAudioStorageService : IAudioStorageService
 
         try
         {
-            return (await _container.GetBlobClient(assetKey).ExistsAsync(cancellationToken)).Value;
+            return (await Container.GetBlobClient(assetKey).ExistsAsync(cancellationToken)).Value;
         }
         catch (OperationCanceledException)
         {
@@ -136,7 +148,7 @@ public sealed class AzureBlobAudioStorageService : IAudioStorageService
 
         try
         {
-            var content = await _container.GetBlobClient(assetKey).DownloadContentAsync(cancellationToken);
+            var content = await Container.GetBlobClient(assetKey).DownloadContentAsync(cancellationToken);
             return new StoredAudio(content.Value.Content.ToArray(), "audio/mpeg");
         }
         catch (OperationCanceledException)

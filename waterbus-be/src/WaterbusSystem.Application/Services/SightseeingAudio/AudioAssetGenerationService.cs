@@ -1,9 +1,10 @@
+using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Common.Models;
-using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
 using WaterbusSystem.Application.Features.SightseeingAudio.Models;
 
-namespace WaterbusSystem.Application.Features.SightseeingAudio.Services;
+namespace WaterbusSystem.Application.Services.SightseeingAudio;
 
 /// <summary>
 /// Ghép hai ranh giới thuộc Thịnh: Azure Speech và Azure Blob.
@@ -38,7 +39,7 @@ public sealed class AudioAssetGenerationService : IAudioAssetGenerationService
             request.ApprovedScriptText,
             cancellationToken: cancellationToken);
 
-        var stored = await _storage.StoreAudioAsync(new StoreAudioCommand
+        var stored = await _storage.StoreAudioAsync(new StoreAudioRequest
         {
             AudioData = audio.AudioData,
             AssetKey = request.AssetKey,

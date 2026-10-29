@@ -1,21 +1,22 @@
+using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
 using FluentValidation;
 using System.Text.RegularExpressions;
 using WaterbusSystem.Application.Common.Models;
 
-namespace WaterbusSystem.Application.Common.Validators;
+namespace WaterbusSystem.Application.Validators.SightseeingAudio;
 
 /// <summary>
-/// Validator kiểm tra tính hợp lệ của StoreAudioCommand trước khi đưa vào kho lưu trữ.
+/// Validator kiểm tra tính hợp lệ của StoreAudioRequest trước khi đưa vào kho lưu trữ.
 /// Đảm bảo dữ liệu MP3 đúng quy cách và AssetKey an toàn (ngăn path traversal).
 /// </summary>
-public class StoreAudioCommandValidator : AbstractValidator<StoreAudioCommand>
+public class StoreAudioRequestValidator : AbstractValidator<StoreAudioRequest>
 {
     private const int MaxAudioSizeBytes = 50 * 1024 * 1024; // 50 MB tối đa cho audio thuyết minh
     private static readonly Regex SafeAssetKey = new(
         "^[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*\\.mp3$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    public StoreAudioCommandValidator()
+    public StoreAudioRequestValidator()
     {
         RuleFor(x => x.AudioData)
             .Cascade(CascadeMode.Stop)

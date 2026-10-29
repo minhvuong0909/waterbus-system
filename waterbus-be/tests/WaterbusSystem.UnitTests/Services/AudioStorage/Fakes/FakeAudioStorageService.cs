@@ -1,8 +1,9 @@
+using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
 using System.Collections.Concurrent;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Common.Models;
-using WaterbusSystem.Application.Common.Validators;
+using WaterbusSystem.Application.Validators.SightseeingAudio;
 
 namespace WaterbusSystem.UnitTests.Services.AudioStorage.Fakes;
 
@@ -14,7 +15,7 @@ namespace WaterbusSystem.UnitTests.Services.AudioStorage.Fakes;
 public class FakeAudioStorageService : IAudioStorageService
 {
     private readonly ConcurrentDictionary<string, byte[]> _storage = new();
-    private readonly StoreAudioCommandValidator _validator = new();
+    private readonly StoreAudioRequestValidator _validator = new();
     private readonly string _baseDurablePrefix;
     private readonly bool _simulateFailure;
 
@@ -27,7 +28,7 @@ public class FakeAudioStorageService : IAudioStorageService
     }
 
     public Task<AudioStorageResult> StoreAudioAsync(
-        StoreAudioCommand command,
+        StoreAudioRequest command,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

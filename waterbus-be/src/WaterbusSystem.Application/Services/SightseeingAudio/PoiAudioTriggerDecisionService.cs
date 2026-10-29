@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.Interfaces.Services;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -6,7 +7,7 @@ using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
 using WaterbusSystem.Application.Features.SightseeingAudio.Models;
 using WaterbusSystem.Domain.Enums;
 
-namespace WaterbusSystem.Application.Features.SightseeingAudio.Services;
+namespace WaterbusSystem.Application.Services.SightseeingAudio;
 
 /// <summary>
 /// Triển khai dịch vụ đánh giá và ra quyết định kích hoạt audio thuyết minh Sightseeing

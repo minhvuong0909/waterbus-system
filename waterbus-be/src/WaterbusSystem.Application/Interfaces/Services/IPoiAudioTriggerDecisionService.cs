@@ -1,6 +1,6 @@
 using WaterbusSystem.Application.Features.SightseeingAudio.Models;
 
-namespace WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
+namespace WaterbusSystem.Application.Interfaces.Services;
 
 /// <summary>
 /// Dịch vụ đánh giá và ra quyết định kích hoạt audio thuyết minh khi tàu vào vùng POI.

@@ -1,9 +1,9 @@
-namespace WaterbusSystem.Application.Common.Models;
+namespace WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
 
 /// <summary>
 /// Dữ liệu yêu cầu lưu trữ file âm thanh MP3 từ Azure TTS vào kho lưu trữ bền vững.
 /// </summary>
-public record StoreAudioCommand
+public record StoreAudioRequest
 {
     /// <summary>
     /// Mảng byte dữ liệu âm thanh MP3.
