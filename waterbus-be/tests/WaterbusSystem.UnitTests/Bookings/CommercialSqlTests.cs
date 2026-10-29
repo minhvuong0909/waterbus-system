@@ -13,6 +13,7 @@ using WaterbusSystem.Infrastructure.Services;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.UnitTests.Domain;
 using WaterbusSystem.UnitTests.TestHelpers;
+using WaterbusSystem.UnitTests.Payments;
 using Xunit;
 
 namespace WaterbusSystem.UnitTests.Bookings;
@@ -182,5 +183,82 @@ public sealed class CommercialSqlTests : IAsyncLifetime
         await using var verify = Context();
         (await verify.Tickets.CountAsync()).Should().Be(1);
         (await verify.PurchaseOrders.SingleAsync()).Status.Should().Be(OrderStatus.Confirmed);
+    }
+
+    [SqlServerDomainFact]
+    public async Task ConcurrentSuccessAfterFailurePreservesAnotherBuyersReservation()
+    {
+        await using var context = Context();
+        var seed = TestDbContextFactory.SeedTrip(context);
+        using var gateway = new VerifiedVnPayFixture();
+        var runner = new SqlCommercialTransactionRunner(context);
+        var booking = await CommercialHandlerFactory.Booking(context, transactions: runner)
+            .CreateAsync(CommercialCheckoutTests.Command(seed));
+        var payments = CommercialHandlerFactory.Payment(context, gateway.Gateway, runner);
+        await payments.CreateVnPayUrlAsync(booking.OrderId, "127.0.0.1", booking.AccessToken);
+        var payment = await context.FinancialTransactions.SingleAsync();
+        await payments.ConfirmIpnAsync(gateway.Callback(payment.MerchantReference!, payment.Amount, "24", "02"));
+        var replacement = await CommercialHandlerFactory.Booking(context, transactions: runner)
+            .CreateAsync(CommercialCheckoutTests.Command(seed));
+        var success = gateway.Callback(payment.MerchantReference!, payment.Amount);
+        async Task<string> Confirm()
+        {
+            await using var own = Context();
+            return (await CommercialHandlerFactory.Payment(own, gateway.Gateway, new SqlCommercialTransactionRunner(own))
+                .ConfirmIpnAsync(success)).RspCode;
+        }
+        (await Task.WhenAll(Confirm(), Confirm())).Should().BeEquivalentTo(["00", "02"]);
+        await using var verify = Context();
+        var receipt = await verify.FinancialTransactions.SingleAsync();
+        receipt.Status.Should().Be(FinancialTransactionStatus.Succeeded);
+        receipt.FailureReason.Should().StartWith("ReconciliationRequired:");
+        (await verify.PurchaseOrders.SingleAsync(o => o.Id == booking.OrderId)).Status.Should().Be(OrderStatus.Expired);
+        (await verify.SeatReservations.SingleAsync(r => r.BookingId == booking.BookingId)).Status.Should().Be(ReservationStatus.Cancelled);
+        (await verify.SeatReservations.SingleAsync(r => r.BookingId == replacement.BookingId)).Status.Should().Be(ReservationStatus.Pending);
+        (await verify.Bookings.SingleAsync(b => b.Id == booking.BookingId)).PaidAllocation.Should().BeNull();
+        (await verify.Tickets.CountAsync()).Should().Be(0);
+    }
+
+    [SqlServerDomainFact]
+    public async Task ConcurrentContradictoryCallbacksNeverDowngradeReceivedMoneyOrDuplicateTickets()
+    {
+        await using var context = Context();
+        var seed = TestDbContextFactory.SeedTrip(context);
+        using var gateway = new VerifiedVnPayFixture();
+        var runner = new SqlCommercialTransactionRunner(context);
+        var booking = await CommercialHandlerFactory.Booking(context, transactions: runner)
+            .CreateAsync(CommercialCheckoutTests.Command(seed));
+        await CommercialHandlerFactory.Payment(context, gateway.Gateway, runner)
+            .CreateVnPayUrlAsync(booking.OrderId, "127.0.0.1", booking.AccessToken);
+        var payment = await context.FinancialTransactions.SingleAsync();
+        async Task<string> Confirm(string response, string status)
+        {
+            await using var own = Context();
+            return (await CommercialHandlerFactory.Payment(own, gateway.Gateway, new SqlCommercialTransactionRunner(own))
+                .ConfirmIpnAsync(gateway.Callback(payment.MerchantReference!, payment.Amount, response, status))).RspCode;
+        }
+        var results = await Task.WhenAll(Confirm("24", "02"), Confirm("00", "00"));
+        results[1].Should().Be("00");
+        results[0].Should().BeOneOf("00", "99");
+        (await Confirm("00", "00")).Should().Be("02");
+        await using var verify = Context();
+        (await verify.FinancialTransactions.SingleAsync()).Status.Should().Be(FinancialTransactionStatus.Succeeded);
+        var order = await verify.PurchaseOrders.SingleAsync();
+        var stored = await verify.Bookings.SingleAsync();
+        var reservation = await verify.SeatReservations.SingleAsync();
+        if (order.Status == OrderStatus.Confirmed)
+        {
+            (await verify.Tickets.CountAsync()).Should().Be(1);
+            stored.PaidAllocation.Should().Be(payment.Amount);
+            reservation.PaidAllocation.Should().Be(payment.Amount);
+            reservation.Status.Should().Be(ReservationStatus.Confirmed);
+        }
+        else
+        {
+            order.Status.Should().Be(OrderStatus.Expired);
+            (await verify.Tickets.CountAsync()).Should().Be(0);
+            stored.PaidAllocation.Should().BeNull();
+            reservation.Status.Should().Be(ReservationStatus.Cancelled);
+        }
     }
 }

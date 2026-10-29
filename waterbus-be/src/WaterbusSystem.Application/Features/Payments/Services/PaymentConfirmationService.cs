@@ -51,17 +51,26 @@ public sealed class PaymentConfirmationService
             var order = payment.Order;
             if ((long)(payment.Amount * 100) != amount) return new VnPayIpnResultDto("04", "Invalid Amount");
             var key = reference + "_" + transactionNo;
-            if (payment.Status == FinancialTransactionStatus.Succeeded ||
-                await _payments.HasIdempotencyKeyAsync(key, ct))
-                return new VnPayIpnResultDto("02", "Order already confirmed");
-            var bookings = await _bookings.GetForPaymentConfirmationAsync(order.Id, ct);
-            if (bookings.Count == 0) return new VnPayIpnResultDto("01", "Order not found");
-            var now = DateTimeOffset.UtcNow;
             var responseCode = query.GetValueOrDefault("vnp_ResponseCode", "");
             var transactionStatus = query.GetValueOrDefault("vnp_TransactionStatus", "");
             if (transactionStatus is not ("00" or "02" or "07" or "09"))
                 return new VnPayIpnResultDto("99", "Reconciliation required");
             var success = responseCode == "00" && transactionStatus == "00";
+            if (payment.Status == FinancialTransactionStatus.Succeeded)
+            {
+                if (success && (string.IsNullOrEmpty(payment.GatewayReference) || payment.GatewayReference == transactionNo))
+                    return new VnPayIpnResultDto("02", "Order already confirmed");
+                return await RecordConflictAsync(payment, responseCode, transactionStatus, transactionNo, ct);
+            }
+            if (payment.Status == FinancialTransactionStatus.Failed && !success && payment.IdempotencyKey == key)
+                return new VnPayIpnResultDto("02", "Outcome already recorded");
+            if (payment.IdempotencyKey != key && await _payments.HasIdempotencyKeyAsync(key, ct))
+                return await RecordConflictAsync(payment, responseCode, transactionStatus, transactionNo, ct);
+            var bookings = await _bookings.GetForPaymentConfirmationAsync(order.Id, ct);
+            if (bookings.Count == 0) return new VnPayIpnResultDto("01", "Order not found");
+            var now = DateTimeOffset.UtcNow;
+            var wasFailed = payment.Status == FinancialTransactionStatus.Failed;
+            var previousFailure = payment.FailureReason;
             payment.IdempotencyKey = key;
             payment.GatewayReference = transactionNo;
             payment.ProcessedAt = now;
@@ -73,16 +82,18 @@ public sealed class PaymentConfirmationService
                 payment.FailureReason = "VNPAY payment failed: " + responseCode + "/" + transactionStatus;
                 if (order.Status == OrderStatus.PendingPayment) Cancel(order, bookings);
             }
-            else if (order.Status != OrderStatus.PendingPayment || order.ExpiresAt == null || order.ExpiresAt <= now ||
+            else if (wasFailed || order.Status != OrderStatus.PendingPayment || order.ExpiresAt == null || order.ExpiresAt <= now ||
                 bookings.Any(b => b.Status != BookingStatus.PendingPayment ||
                     b.SeatReservations.Count(r => r.Status == ReservationStatus.Pending) == 0) ||
                 bookings.Any(b => b.Trip!.Status is not (TripStatus.Scheduled or TripStatus.Boarding) || b.Trip.ActualDepartureTime != null))
             {
                 payment.FailureReason = "ReconciliationRequired: payment received after checkout expired or trip became unavailable";
+                if (!string.IsNullOrEmpty(previousFailure)) payment.FailureReason += "; previous outcome: " + previousFailure;
                 if (order.Status == OrderStatus.PendingPayment) Cancel(order, bookings);
             }
             else
             {
+                payment.FailureReason = null;
                 if (bookings.Sum(b => b.QuotedTotal) != order.QuotedTotal ||
                     bookings.Any(b => b.SeatReservations.Where(r => r.Status == ReservationStatus.Pending).Sum(r => r.QuotedFare) != b.QuotedTotal))
                     throw new InvalidOperationException("Payment allocation does not match Order.");
@@ -112,6 +123,19 @@ public sealed class PaymentConfirmationService
                 try { await _sessions.ReleaseAsync("order:" + changedOrderId.Value, ct); } catch (Exception) { }
         }
         return result;
+    }
+
+    private async Task<VnPayIpnResultDto> RecordConflictAsync(FinancialTransaction payment, string responseCode,
+        string transactionStatus, string transactionNo, CancellationToken ct)
+    {
+        var evidence = $"VerifiedOutcomeConflict: {responseCode}/{transactionStatus}/{transactionNo}";
+        if (payment.FailureReason?.Contains(evidence, StringComparison.Ordinal) != true)
+        {
+            payment.FailureReason = string.IsNullOrEmpty(payment.FailureReason)
+                ? evidence : payment.FailureReason + "; " + evidence;
+            await _unitOfWork.SaveChangesAsync(ct);
+        }
+        return new VnPayIpnResultDto("99", "Reconciliation required");
     }
 
     private static void Cancel(PurchaseOrder order, IEnumerable<Booking> bookings)
