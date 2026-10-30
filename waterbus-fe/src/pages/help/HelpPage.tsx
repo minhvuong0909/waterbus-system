@@ -1,6 +1,6 @@
 import { Card, Icon } from '../../components/ui'
 import { CONTACT } from '../../constant/contact'
-import { FAQ, HELP_HIGHLIGHTS } from '../../features/help/content'
+import { FAQ, HELP_HIGHLIGHTS } from '../../content/help'
 import { useDocumentTitle } from '../../hooks'
 import { t } from '../../i18n'
 

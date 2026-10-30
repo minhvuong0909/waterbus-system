@@ -1,4 +1,4 @@
-import type { Locale } from '../../i18n'
+import type { Locale } from '../i18n'
 
 /**
  * Giới thiệu từng bến, khoá theo mã trạm của backend (ST01…ST05). Nội dung do nhóm front-end viết lại

@@ -1,7 +1,7 @@
 // Pier photos live in `assets/images/piers/` (see the README there): `<code>.jpg` for the first
 // photo and `<code>-2.jpg`, `<code>-3.jpg`, … for more. Vite bundles whatever is in the folder, so
 // adding a photo needs no code change.
-const FILES = import.meta.glob('../../assets/images/piers/*.{jpg,jpeg,png,webp}', {
+const FILES = import.meta.glob('../assets/images/piers/*.{jpg,jpeg,png,webp}', {
   eager: true,
   as: 'url',
 }) as Record<string, string>

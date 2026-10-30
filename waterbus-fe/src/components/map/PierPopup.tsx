@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { pierPhotos } from '../../features/trips/pierImages'
+import { pierPhotos } from '../../content/pierImages'
 import type { Pier } from '../../features/trips/types'
 import { Icon } from '../ui'
 import { t } from '../../i18n'

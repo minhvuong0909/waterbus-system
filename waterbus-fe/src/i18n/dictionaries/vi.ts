@@ -1861,4 +1861,5 @@ export const vi: Record<string, string> = {
   'Price': 'Giá',
   'Active fares per trip type and seat class.': 'Giá vé đang áp dụng theo loại chuyến và hạng ghế.',
   'No active fares.': 'Chưa có giá vé đang áp dụng.',
+  'Total seats': 'Tổng số ghế',
 }
