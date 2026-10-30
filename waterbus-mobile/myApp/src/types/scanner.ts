@@ -138,10 +138,24 @@ export interface QrVerificationResult {
   publicBookingId?: string;
   version?: number;
   tripId?: string;
+  kid?: string;
   error?: string;
   rawPayload?: any;
   verifiedOffline: boolean;
   algorithmUsed?: string;
+}
+
+export interface ScannerAssignmentClaim {
+  id: string;
+  deviceId: string;
+  deviceCode: string;
+  staffAccountId: string;
+  tripStopCallId: string;
+  isPrimaryOffline: boolean;
+  assignmentVersion: number;
+  activeFrom: string;
+  activeUntil?: string | null;
+  assignedAt: string;
 }
 
 export interface ManifestStats {

@@ -126,7 +126,7 @@ export default function BookingDetailModal() {
               <View style={styles.verifiedTextContainer}>
                 <Text style={styles.verifiedTitle}>CHỮ KÝ SỐ HỢP LỆ (XÁC THỰC OFFLINE)</Text>
                 <Text style={styles.verifiedSubtitle}>
-                  Thuật toán: {verificationResult.algorithmUsed || 'HS256'} • Public Key: OK • Mã toàn vẹn
+                  Thuật toán: {verificationResult.algorithmUsed || 'HS256'}{verificationResult.kid ? ` (kid: ${verificationResult.kid})` : ''} • Public Key: OK • Mã toàn vẹn
                 </Text>
               </View>
             </View>

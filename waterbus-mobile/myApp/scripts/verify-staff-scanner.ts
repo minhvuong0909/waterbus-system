@@ -5,8 +5,11 @@
  * 2. SQLite Manifest Preload & Ultra-fast Lookup (BR-OFF-01)
  * 3. Atomic Offline Ticket Check-In & Queue (BR-OFF-03, BR-OFF-05)
  * 4. Idempotent Batch Sync with UUID Deduplication (BR-OFF-03)
+ * 5. Live API Integration Tests
+ * 6. Bug Fixes: H03 (late sync rejection), M08 (primary scanner race), M13 (JWS header kid)
  */
 
+import CryptoJS from 'crypto-js';
 import { QrVerifier, DEFAULT_KEY_INFO } from '../src/services/crypto/qrVerifier';
 import { SqliteRepository } from '../src/services/sqlite/sqliteRepository';
 import { syncService } from '../src/services/sync/syncService';
@@ -328,7 +331,18 @@ async function runVerification() {
         return { ok: true, status: 200, json: async () => mockManifestData };
       }
       if (urlStr.includes('/sync-offline')) {
-        return { ok: true, status: 200, json: async () => ({ processedEvents: [{ clientEventId: 'test-event-id', receivedAtServer: new Date().toISOString() }] }) };
+        const body = init?.body ? JSON.parse(init.body) : {};
+        const events = body.events || [];
+        return { ok: true, status: 200, json: async () => ({
+          batchId: 'BATCH-MOCK-01',
+          successCount: events.length,
+          conflictCount: 0,
+          processedEvents: events.map((e: any) => ({
+            clientEventId: e.clientEventId,
+            outcome: 'Success',
+            syncStatus: 'Synced',
+          })),
+        }) };
       }
       return { ok: true, status: 200, json: async () => ({}) };
     };
@@ -423,6 +437,82 @@ async function runVerification() {
     if (originalFetch) {
       (globalThis as any).fetch = originalFetch;
     }
+  }
+
+  // ═══════════════════════════════════════════════════
+  // GROUP 6: Bug Fixes H03, M08, M13
+  // ═══════════════════════════════════════════════════
+
+  // 6.1 (M13) JWS header kid extraction — kid only in header, not in payload
+  {
+    const headerObj = { alg: 'HS256', typ: 'JWT', kid: DEFAULT_KEY_INFO.kid };
+    const payloadObj = {
+      pbid: sampleBookingId,
+      ver: 1,
+      tid: sampleTripId,
+      iat: Math.floor(Date.now() / 1000),
+      // NOTE: NO kid in payload — kid is only in the JWS header per RFC 7515
+    };
+    const headerB64 = CryptoJS.enc.Base64url.stringify(CryptoJS.enc.Utf8.parse(JSON.stringify(headerObj)));
+    const payloadB64 = CryptoJS.enc.Base64url.stringify(CryptoJS.enc.Utf8.parse(JSON.stringify(payloadObj)));
+    const signable = `${headerB64}.${payloadB64}`;
+    const sig = CryptoJS.HmacSHA256(signable, DEFAULT_KEY_INFO.publicKeyPem).toString(CryptoJS.enc.Base64url);
+    const jwsQr = `${headerB64}.${payloadB64}.${sig}`;
+
+    const jwsResult = await QrVerifier.verifyQrCode(jwsQr);
+    assert(
+      jwsResult.isValid && jwsResult.publicBookingId === sampleBookingId,
+      '6.1 (M13) JWS QR with kid only in header is verified successfully',
+      `kid extracted: ${jwsResult.kid}, booking: ${jwsResult.publicBookingId}`
+    );
+    assert(
+      jwsResult.kid === DEFAULT_KEY_INFO.kid,
+      '6.2 (M13) kid correctly read from JWS header (not payload) per RFC 7515',
+      `Expected kid="${DEFAULT_KEY_INFO.kid}", got kid="${jwsResult.kid}"`
+    );
+  }
+
+  // 6.3 (H03) Late sync rejection handling
+  {
+    // Insert a pending event
+    const lateSyncEventId = `late-sync-test-${Date.now()}`;
+    await SqliteRepository.checkInTickets({
+      ticketIds: ['TK-LATE-TEST-01'],
+      bookingId: 'BK-LATE-TEST',
+      tripId: 'TRIP-LATE-TEST',
+      tripStopCallId: 'TSC-LATE-TEST',
+      staffAccountId: 'STAFF-LATE',
+      staffName: 'Staff Late Test',
+      scannerDeviceId: 'DEV-LATE',
+    });
+    const pendingBefore = await SqliteRepository.getPendingEvents();
+    const lateEvent = pendingBefore.find(e => e.tripId === 'TRIP-LATE-TEST');
+    if (lateEvent) {
+      await SqliteRepository.markEventConflict(
+        lateEvent.clientEventId,
+        'Đồng bộ trễ bị từ chối do quá giờ quy định',
+        true // isLateSyncRejection
+      );
+      const allEvents = await SqliteRepository.getPendingEvents();
+      const stillPending = allEvents.find(e => e.clientEventId === lateEvent.clientEventId);
+      assert(
+        !stillPending,
+        '6.3 (H03) Late sync rejected event removed from pending queue (sync_status=Conflict)',
+        `Event ${lateEvent.clientEventId} no longer in pending queue`
+      );
+    } else {
+      assert(false, '6.3 (H03) Late sync rejection test setup failed', 'Could not find test event');
+    }
+  }
+
+  // 6.4 (M08) Primary Scanner claim — offline fallback
+  {
+    const claimResult = await syncService.claimPrimaryOfflineRole('TSC-TEST-M08', 'http://localhost:19999');
+    assert(
+      claimResult.success === true && typeof claimResult.isPrimary === 'boolean',
+      '6.4 (M08) claimPrimaryOfflineRole falls back gracefully when offline',
+      `success=${claimResult.success}, isPrimary=${claimResult.isPrimary}, msg="${claimResult.message}"`
+    );
   }
 
   console.log(`\nTests: ${passedTests} passed, ${totalTests} total`);

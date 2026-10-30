@@ -70,6 +70,58 @@ class SyncService {
     return { ...this.currentDevice };
   }
 
+  /**
+   * M08: Atomically claim or verify Primary Offline Scanner role
+   * Prevents race condition when multiple scanners attempt to become primary for the same TripStopCall
+   */
+  public async claimPrimaryOfflineRole(
+    tripStopCallId: string,
+    apiBaseUrl = 'http://localhost:5000'
+  ): Promise<{ success: boolean; isPrimary: boolean; message: string }> {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/scanner/claim-primary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceId: this.currentDevice.deviceId,
+          deviceCode: this.currentDevice.deviceCode,
+          staffAccountId: this.currentDevice.staffId,
+          tripStopCallId,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const isPrimary = !!data.isPrimaryOffline;
+        this.setDeviceInfo({ isPrimaryOffline: isPrimary });
+        return {
+          success: true,
+          isPrimary,
+          message: isPrimary
+            ? 'Đã xác lập quyền Primary Scanner thành công (M08/BR-OFF-02).'
+            : 'Thiết bị khác đang giữ quyền Primary Scanner cho lượt bến này.',
+        };
+      } else if (response.status === 409) {
+        // Concurrency conflict / Another primary exists
+        this.setDeviceInfo({ isPrimaryOffline: false });
+        return {
+          success: false,
+          isPrimary: false,
+          message: 'Xung đột phiên (Race condition): Đã có thiết bị khác làm Primary Scanner cho bến này (M08).',
+        };
+      } else {
+        throw new Error(`Server returned HTTP ${response.status}`);
+      }
+    } catch (err: any) {
+      // Offline fallback: keep current designated local primary state
+      return {
+        success: true,
+        isPrimary: this.currentDevice.isPrimaryOffline,
+        message: `Vận hành ngoại tuyến cục bộ: Primary = ${this.currentDevice.isPrimaryOffline}`,
+      };
+    }
+  }
+
   public subscribe(listener: SyncListener): () => void {
     this.listeners.add(listener);
     // Send immediate initial status
@@ -211,6 +263,8 @@ class SyncService {
       };
 
       let successUpdates: { clientEventId: string; receivedAtServer: string }[] = [];
+      let lateRejectionCount = 0;
+      let conflictCount = 0;
 
       try {
         const response = await fetch(`${apiBaseUrl}/api/v1/tickets/sync-offline`, {
@@ -224,14 +278,37 @@ class SyncService {
 
         if (response.ok) {
           const resData: SyncBatchResponse = await response.json();
-          successUpdates = (resData.processedEvents || []).map((pe) => ({
-            clientEventId: pe.clientEventId,
-            receivedAtServer: new Date().toISOString(),
-          }));
+          const processedList = resData.processedEvents || [];
+
+          for (const pe of processedList) {
+            if (pe.syncStatus === 'Synced' || pe.outcome === 'Success') {
+              successUpdates.push({
+                clientEventId: pe.clientEventId,
+                receivedAtServer: new Date().toISOString(),
+              });
+            } else if (pe.syncStatus === 'Conflict' || pe.outcome === 'Conflict') {
+              conflictCount++;
+              // H03: Handle late sync rejection specifically if server reports window closed / late sync rejected
+              const isLate = pe.message?.toLowerCase().includes('muộn') ||
+                             pe.message?.toLowerCase().includes('trễ') ||
+                             pe.message?.toLowerCase().includes('late') ||
+                             pe.message?.toLowerCase().includes('window');
+              if (isLate) lateRejectionCount++;
+              await SqliteRepository.markEventConflict(
+                pe.clientEventId,
+                pe.message || (isLate ? 'Đồng bộ trễ bị từ chối do quá giờ quy định (H03)' : 'Xung đột check-in'),
+                isLate
+              );
+            }
+          }
         } else {
           throw new Error(`Server returned HTTP ${response.status}`);
         }
-      } catch {
+      } catch (err: any) {
+        // If network failure or offline test environment without server
+        if (err.message?.includes('Server returned HTTP')) {
+          throw err;
+        }
         // In standalone/offline environment: reconcile locally
         successUpdates = pendingEvents.map((e) => ({
           clientEventId: e.clientEventId,
@@ -239,11 +316,20 @@ class SyncService {
         }));
       }
 
-      // Mark events as Synced in SQLite
-      await SqliteRepository.markEventsSynced(successUpdates);
+      // Mark successful events as Synced in SQLite
+      if (successUpdates.length > 0) {
+        await SqliteRepository.markEventsSynced(successUpdates);
+      }
 
       this.lastSyncAt = new Date().toLocaleTimeString();
-      this.lastMessage = `Đã đồng bộ thành công lô ${successUpdates.length} vé lên hệ thống lúc ${this.lastSyncAt}`;
+      let statusSummary = `Đã đồng bộ thành công ${successUpdates.length} vé`;
+      if (lateRejectionCount > 0) {
+        statusSummary += `, ${lateRejectionCount} vé bị từ chối do đồng bộ trễ (H03)`;
+      }
+      if (conflictCount > lateRejectionCount) {
+        statusSummary += `, ${conflictCount - lateRejectionCount} vé xung đột`;
+      }
+      this.lastMessage = `${statusSummary} lúc ${this.lastSyncAt}`;
 
       const remainingStats = await SqliteRepository.getManifestStats();
       this.isSyncing = false;

@@ -424,11 +424,12 @@ export class SqliteRepository {
   }
 
   /**
-   * Mark an event as Conflict (e.g. checked-in on another device earlier)
+   * Mark an event as Conflict or Rejected due to Late Sync (H03 fix)
    */
   static async markEventConflict(
     clientEventId: string,
-    reason: string
+    reason: string,
+    isLateSyncRejection: boolean = false
   ): Promise<void> {
     const db = await getDatabase();
     const nowIso = new Date().toISOString();
@@ -436,11 +437,11 @@ export class SqliteRepository {
     await db.runAsync(
       `UPDATE offline_checkin_events 
        SET sync_status = 'Conflict', 
-           outcome = 'Conflict',
+           outcome = ?,
            last_sync_attempt_at = ?, 
            error_message = ? 
        WHERE client_event_id = ?`,
-      [nowIso, reason, clientEventId]
+      [isLateSyncRejection ? 'LateSyncRejected' : 'Conflict', nowIso, reason, clientEventId]
     );
   }
 

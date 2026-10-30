@@ -68,11 +68,12 @@ export class QrVerifier {
         : false);
 
     if (!isSignatureValid) {
-      return {
+        return {
         isValid: false,
         publicBookingId: payload.pbid,
         version: payload.ver,
         tripId: payload.tid,
+        kid: payload.kid,
         error: 'Chữ ký số KHÔNG HỢP LỆ (Cảnh báo: QR có dấu hiệu bị giả mạo hoặc sai Public Key)',
         verifiedOffline: true,
         algorithmUsed: keyInfo.algorithm,
@@ -88,6 +89,7 @@ export class QrVerifier {
           publicBookingId: payload.pbid,
           version: payload.ver,
           tripId: payload.tid,
+          kid: payload.kid,
           error: `Mã QR đã hết hạn sử dụng lúc ${new Date(payload.exp * 1000).toLocaleTimeString()}`,
           verifiedOffline: true,
           algorithmUsed: keyInfo.algorithm,
@@ -100,6 +102,7 @@ export class QrVerifier {
       publicBookingId: payload.pbid,
       version: payload.ver || 1,
       tripId: payload.tid,
+      kid: payload.kid,
       rawPayload: payload,
       verifiedOffline: true,
       algorithmUsed: keyInfo.algorithm,
@@ -171,14 +174,29 @@ export class QrVerifier {
     }
 
     // Format C: JWS compact (base64url header . base64url payload . base64url signature)
+    // M13 FIX: Read kid directly from JWS header first, per RFC 7515 & RsaBookingQrSigner
     const jwsParts = raw.split('.');
     if (jwsParts.length === 3) {
       try {
+        let headerKid: string | undefined;
+        try {
+          const headerJson = this.base64UrlDecode(jwsParts[0]);
+          const headerObj = JSON.parse(headerJson);
+          if (headerObj && typeof headerObj.kid === 'string') {
+            headerKid = headerObj.kid;
+          }
+        } catch {
+          // Ignore header parse error and continue
+        }
+
         const payloadJson = this.base64UrlDecode(jwsParts[1]);
         const payloadObj = JSON.parse(payloadJson);
         if (payloadObj.pbid || payloadObj.sub) {
           const pbid = payloadObj.pbid || payloadObj.sub;
           const signable = `${jwsParts[0]}.${jwsParts[1]}`;
+          // Prioritize kid from JWS header (M13 fix), fallback to payload.kid
+          const effectiveKid = headerKid || payloadObj.kid;
+
           return {
             payload: {
               pbid,
@@ -186,7 +204,7 @@ export class QrVerifier {
               tid: payloadObj.tid,
               iat: payloadObj.iat,
               exp: payloadObj.exp,
-              kid: payloadObj.kid,
+              kid: effectiveKid,
             },
             signature: jwsParts[2],
             rawSignableData: signable,

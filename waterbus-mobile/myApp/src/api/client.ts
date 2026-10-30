@@ -106,6 +106,28 @@ export const scannerApiService = {
   },
 
   /**
+   * POST /api/v1/scanner/claim-primary (M08)
+   * Atomically claims or renews the Primary Offline Scanner role for a TripStopCall
+   * Server validates assignment lease/version to prevent race conditions (BR-OFF-02)
+   */
+  async claimPrimaryRole(params: {
+    deviceId: string;
+    tripStopCallId: string;
+    staffAccountId: string;
+    expectedVersion?: number;
+  }): Promise<{
+    success: boolean;
+    isPrimaryOffline: boolean;
+    assignmentVersion: number;
+    activeFrom: string;
+    activeUntil?: string;
+    message?: string;
+  }> {
+    const response = await apiClient.post(`/api/v1/scanner/claim-primary`, params);
+    return response.data;
+  },
+
+  /**
    * Health check / Ping
    */
   async ping(): Promise<boolean> {

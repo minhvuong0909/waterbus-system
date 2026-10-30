@@ -44,6 +44,7 @@ interface ScannerState {
   performCheckIn: (ticketIds: string[], notes?: string) => Promise<{ success: boolean; count: number; error?: string }>;
   preloadCache: (stationId?: string) => Promise<boolean>;
   syncPendingBatch: () => Promise<number>;
+  claimPrimaryScanner: (tripStopCallId: string) => Promise<{ success: boolean; isPrimary: boolean; message: string }>;
   setForceOfflineMode: (enabled: boolean) => void;
   clearCache: () => Promise<void>;
 }
@@ -183,6 +184,18 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       set({ isSyncing: false, syncMessage: `Lỗi đồng bộ: ${e.message}` });
       return 0;
     }
+  },
+
+  claimPrimaryScanner: async (tripStopCallId: string) => {
+    const res = await syncService.claimPrimaryOfflineRole(tripStopCallId);
+    set((state) => ({
+      deviceInfo: {
+        ...state.deviceInfo,
+        isPrimaryOffline: res.isPrimary,
+      },
+      syncMessage: res.message,
+    }));
+    return res;
   },
 
   setForceOfflineMode: (enabled: boolean) => {

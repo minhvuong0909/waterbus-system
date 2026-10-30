@@ -123,6 +123,20 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       }
       return { lastInsertRowId: 0, changes: 0 };
     }
+    // H03: markEventConflict — SET sync_status = 'Conflict', outcome = ?
+    if (normalized.includes("SYNC_STATUS = 'CONFLICT'") && normalized.includes('OUTCOME = ?')) {
+      const [outcomeVal, lAtt, errMsg, cEventId] = params;
+      const event = this.tables.offline_checkin_events.find(e => e.client_event_id === cEventId);
+      if (event) {
+        event.sync_status = 'Conflict';
+        event.outcome = outcomeVal; // 'LateSyncRejected' or 'Conflict'
+        event.last_sync_attempt_at = lAtt;
+        event.error_message = errMsg;
+        return { lastInsertRowId: 0, changes: 1 };
+      }
+      return { lastInsertRowId: 0, changes: 0 };
+    }
+    // markEventsSynced — SET sync_status = 'Synced'
     if (normalized.includes('UPDATE OFFLINE_CHECKIN_EVENTS SET SYNC_STATUS')) {
       const [recAt, lAtt, cEventId] = params;
       const targetId = cEventId || params[params.length - 1];
