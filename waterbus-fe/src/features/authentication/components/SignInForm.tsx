@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Icon } from '../../../components/ui'
-import type { SignInPayload } from '../authenticationTypes'
+import type { SignInPayload } from '../types'
 import AuthField from './AuthField'
 import { t } from '../../../i18n'
 

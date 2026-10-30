@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { t } from '../../../i18n'
 import type { AdminTrip, OperationType } from '../types'
-import { formatDateTime } from '../utils'
+import { formatDateTime } from '../../../utils/time'
 import { useSubmit } from '../hooks/useAdmin'
-import { operateTrip } from '../services/adminService'
+import { operateTrip } from '../services/operationsService'
 import { ActionButton, Notice } from './AdminUi'
 
 export const OPERATION_LABEL: Record<OperationType, string> = {
@@ -28,18 +28,16 @@ const OPERATION_HELP: Partial<Record<OperationType, string>> = {
   NoAction: 'You looked at this alert and the trip needs nothing. The decision is kept in the log.',
 }
 
-/** Asks for the reason of a dispatch decision on a trip and sends it (`POST /trips/{id}/status`). */
+/** Asks for the reason of an admin decision on a trip and sends it (`POST /trips/{id}/status`). */
 export default function OperationForm({
   trip,
   type,
-  by,
   incidentId,
   onCancel,
   onDone,
 }: {
   trip: AdminTrip
   type: OperationType
-  by: string
   /** The open alert this decision answers; the backend records it against that trip. */
   incidentId?: string
   onCancel: () => void
@@ -59,7 +57,7 @@ export default function OperationForm({
           setShowError(true)
           return
         }
-        const done = await run(() => operateTrip(trip.id, type, reason.trim(), by, incidentId))
+        const done = await run(() => operateTrip(trip.id, type, reason.trim(), incidentId))
         if (done) onDone()
       }}
     >

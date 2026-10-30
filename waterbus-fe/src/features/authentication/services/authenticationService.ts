@@ -5,7 +5,7 @@ import type {
   AuthSession,
   LoginResponse,
   SignInPayload,
-} from '../authenticationTypes'
+} from '../types'
 
 /** `POST /auth/login`. Rejects with ApiError(401) when the email or password is wrong. */
 export async function signIn({ email, password }: SignInPayload): Promise<AuthSession> {

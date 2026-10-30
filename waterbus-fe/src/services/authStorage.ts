@@ -1,4 +1,4 @@
-import type { AuthSession } from '../features/authentication/authenticationTypes'
+import type { AuthSession } from '../features/authentication/types'
 import { isTokenExpired } from '../utils/jwt'
 
 const STORAGE_KEY = 'waterbus.session'

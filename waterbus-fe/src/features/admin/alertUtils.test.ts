@@ -20,8 +20,7 @@ describe('alertMetrics', () => {
       .toEqual({ condition: 'mưa nhẹ', windKmh: 38, gustKmh: undefined })
   })
 
-  it('falls back to the mock wind, or to nothing for a free text report', () => {
-    expect(alertMetrics({ message: 'Engine fault on SWB-01.', windSpeedKmh: 41 })).toEqual({ windKmh: 41 })
+  it('gives nothing for a free text report', () => {
     expect(alertMetrics({ message: 'Engine fault on SWB-01.' })).toEqual({})
   })
 })

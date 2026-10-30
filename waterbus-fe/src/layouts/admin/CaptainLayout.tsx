@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Logo } from '../../components/brand'
-import { useAuth } from '../../features/authentication/hook/authenticationHook'
+import { useAuth } from '../../features/authentication/hooks/useAuth'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 

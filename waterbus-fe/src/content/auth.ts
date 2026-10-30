@@ -1,4 +1,4 @@
-import type { AuthShowcase } from '../features/authentication/authenticationTypes'
+import type { AuthShowcase } from '../features/authentication/types'
 
 // Nội dung biên tập của màn đăng nhập, không có API.
 export const AUTH_SHOWCASE: AuthShowcase = {

@@ -3,14 +3,10 @@ import { ErrorState, Icon, PageLoader } from '../../components/ui'
 import { PageHeader, Panel, StatusBadge } from '../../features/admin/components/AdminUi'
 import { useReload } from '../../features/admin/hooks/useAdmin'
 import { useFleetHub } from '../../features/admin/hooks/useFleetHub'
-import {
-  getBoats,
-  getOperationTrips,
-  getRoutes,
-  getStations,
-  getWeatherAlerts,
-} from '../../features/admin/services/adminService'
-import { formatDateTime, isFinished, tripRouteName } from '../../features/admin/utils'
+import { getBoats } from '../../features/admin/services/boatService'
+import { getOpenIncidents, getOperationTrips } from '../../features/admin/services/operationsService'
+import { isFinished } from '../../features/admin/utils'
+import { formatDateTime } from '../../utils/time'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -52,23 +48,19 @@ export default function OverviewPage() {
   const [version, reload] = useReload()
   const trips = useFetch(getOperationTrips, [version])
   const boats = useFetch(getBoats)
-  const stations = useFetch(getStations)
-  const routes = useFetch(getRoutes)
-  const alerts = useFetch(getWeatherAlerts, [version])
+  const alerts = useFetch(() => getOpenIncidents(), [version])
   // Counts and the next trips follow status changes and new alerts as they happen.
   useFleetHub(
     { onTripStatus: reload, onAlert: reload, onIncident: reload, onReconnected: reload },
   )
-  const state = combineFetches(trips, boats, stations, routes, alerts)
+  const state = combineFetches(trips, boats, alerts)
 
   if (state.error) return <ErrorState onRetry={state.retry} />
-  if (state.loading || !trips.data || !boats.data || !stations.data || !routes.data || !alerts.data)
-    return <PageLoader />
+  if (state.loading || !trips.data || !boats.data || !alerts.data) return <PageLoader />
 
   const today = new Date().toDateString()
   const todays = trips.data.filter((x) => new Date(x.departureTime).toDateString() === today)
   const upcoming = trips.data.filter((x) => !isFinished(x.status)).slice(0, 5)
-  const routeName = (id: string) => routes.data?.find((r) => r.id === id)?.name ?? '—'
 
   return (
     <OverviewMotion>
@@ -106,7 +98,7 @@ export default function OverviewPage() {
                   {formatDateTime(x.departureTime)}
                 </span>
                 <span className="flex-1 truncate text-on-surface-variant">
-                  {tripRouteName(x, routeName)}
+                  {x.routeName}
                 </span>
                 <StatusBadge status={x.status} />
               </li>

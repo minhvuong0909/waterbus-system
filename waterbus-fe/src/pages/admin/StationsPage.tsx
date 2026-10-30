@@ -16,7 +16,7 @@ import {
   deleteStation,
   getStations,
   updateStation,
-} from '../../features/admin/services/adminService'
+} from '../../features/admin/services/stationService'
 import type { AdminStation, NewStation } from '../../features/admin/types'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'

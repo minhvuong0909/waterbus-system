@@ -4,18 +4,13 @@ import { ActionButton, Modal, Notice, StatusBadge } from '../../features/admin/c
 import GpsSharePanel from '../../features/admin/components/GpsSharePanel'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import { useFleetHub } from '../../features/admin/hooks/useFleetHub'
-import { getBoats, getOperationTrips, getRoutes, operateTrip } from '../../features/admin/services/adminService'
+import { getOperationTrips, operateTrip } from '../../features/admin/services/operationsService'
 import type { AdminTrip, OperationType } from '../../features/admin/types'
-import {
-  allowedOperationsOf,
-  formatClockTime,
-  formatDateTime,
-  isUpcomingOrRunning,
-  tripRouteName,
-} from '../../features/admin/utils'
-import { useAuth } from '../../features/authentication/hook/authenticationHook'
-import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
+import { isUpcomingOrRunning } from '../../features/admin/utils'
+import { useAuth } from '../../features/authentication/hooks/useAuth'
+import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
+import { formatClock, formatDateTime } from '../../utils/time'
 
 /** Large touch target for use on board. */
 function BigButton({
@@ -54,8 +49,6 @@ export default function CaptainPortalPage() {
   const { user } = useAuth()
   const [version, reload] = useReload()
   const trips = useFetch(getOperationTrips, [version])
-  const routes = useFetch(getRoutes)
-  const boats = useFetch(getBoats)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sosOpen, setSosOpen] = useState(false)
   const [note, setNote] = useState('')
@@ -66,19 +59,15 @@ export default function CaptainPortalPage() {
   // The captain follows their own boat: a status change by the admin shows up at once.
   const boatIds = [...new Set((trips.data ?? []).map((x) => x.boatId).filter(Boolean))]
   useFleetHub({ onTripStatus: reload, onReconnected: reload }, boatIds.length > 0, boatIds)
-  const state = combineFetches(trips, routes, boats)
 
-  if (state.error) return <ErrorState onRetry={state.retry} />
-  if (state.loading || !trips.data || !routes.data || !boats.data) return <PageLoader />
+  if (trips.error) return <ErrorState onRetry={trips.retry} />
+  if (!trips.data) return <PageLoader />
 
   const open = trips.data.filter((x) => isUpcomingOrRunning(x.status))
   // Default to the trip on the river, otherwise the next one.
   const trip: AdminTrip | undefined =
     open.find((x) => x.id === selectedId) ?? open.find((x) => x.status === 'EnRoute') ?? open[0]
 
-  const routeName = (id: string) => routes.data?.find((r) => r.id === id)?.name ?? '—'
-  const boatName = (id: string) => boats.data?.find((b) => b.id === id)?.name ?? '—'
-  const by = user?.fullName ?? ''
 
   if (!trip) {
     return (
@@ -88,9 +77,9 @@ export default function CaptainPortalPage() {
     )
   }
 
-  const can = (op: OperationType) => allowedOperationsOf(trip).includes(op)
+  const can = (op: OperationType) => trip.allowedOperations.includes(op)
   const perform = async (type: OperationType, reason: string) => {
-    const done = await action.run(() => operateTrip(trip.id, type, reason, by))
+    const done = await action.run(() => operateTrip(trip.id, type, reason))
     if (done) reload()
     return Boolean(done)
   }
@@ -114,17 +103,17 @@ export default function CaptainPortalPage() {
         >
           {open.map((x) => (
             <option key={x.id} value={x.id}>
-              {formatDateTime(x.departureTime)} • {tripRouteName(x, routeName)}
+              {formatDateTime(x.departureTime)} • {x.routeName}
             </option>
           ))}
         </select>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="font-headline-md text-3xl font-bold text-deep-river">
-              {formatClockTime(trip.departureTime)} → {formatClockTime(trip.arrivalTime)}
+              {formatClock(new Date(trip.departureTime))} → {formatClock(new Date(trip.arrivalTime))}
             </div>
             <div className="text-sm text-on-surface-variant">
-              {formatDateTime(trip.departureTime)} • {tripRouteName(trip, routeName)} • {trip.boatCode ?? boatName(trip.boatId)} • {t(trip.tripType === 'Commuter' ? 'Regular' : 'Sightseeing')}
+              {formatDateTime(trip.departureTime)} • {trip.routeName} • {trip.boatCode ?? '—'} • {t(trip.tripType === 'Commuter' ? 'Regular' : 'Sightseeing')}
             </div>
           </div>
           <StatusBadge status={trip.status} />

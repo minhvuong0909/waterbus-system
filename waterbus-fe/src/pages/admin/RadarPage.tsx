@@ -6,27 +6,23 @@ import { AlertBanner } from '../../features/admin/components/AlertParts'
 import { sortAlerts } from '../../features/admin/alertUtils'
 import { useNow, useReload } from '../../features/admin/hooks/useAdmin'
 import { useLiveFleet } from '../../features/admin/hooks/useFleetHub'
-import {
-  getRoutes,
-  getStations,
-  getWeatherAlerts,
-} from '../../features/admin/services/adminService'
-import { getFleetBoats, knotsToKmh } from '../../features/admin/services/operationsService'
+import { getBoats } from '../../features/admin/services/boatService'
+import { getOpenIncidents, knotsToKmh } from '../../features/admin/services/operationsService'
+import { getStations } from '../../features/admin/services/stationService'
 import type { WeatherAlert } from '../../features/admin/types'
-import { formatClockTimeWithSeconds, routeStations } from '../../features/admin/utils'
 import { riverPathOf } from '../../constant/riverPaths'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
 import type { RealtimeStatus } from '../../services/realtime'
+import { formatClockWithSeconds } from '../../utils/time'
 
 /** A real position older than this is shown as stale (the boat stopped reporting). */
 const STALE_AFTER_MS = 2 * 60_000
 /**
- * The backend has no route list endpoint yet and seeds a single route, RT01 (the one its GPS
- * simulator also follows). Until the API returns routes, the real radar draws this route along the
- * river; without it the line would join the piers in a straight line across the land.
+ * The backend has no route list endpoint and seeds a single route, RT01 (the one its GPS simulator
+ * also follows), so the radar draws that route along the river instead of straight lines over land.
  */
-const DEFAULT_ROUTE_CODE = 'RT01'
+const ROUTE_CODE = 'RT01'
 
 function WeatherBanners({ alerts }: { alerts: WeatherAlert[] }) {
   if (alerts.length === 0) return null
@@ -55,16 +51,16 @@ function LiveIndicator({ status }: { status: RealtimeStatus }) {
   )
 }
 
-/** Real radar: boats from the API, positions from GPS / the simulator through the tracking hub. */
-function LiveRadar() {
+/** Radar: boats from the API, positions from GPS / the simulator through the tracking hub. */
+export default function RadarPage() {
+  useDocumentTitle('Live Operations')
   const [alertVersion, reloadAlerts] = useReload()
   const stations = useFetch(getStations)
-  const routes = useFetch(getRoutes)
-  const boats = useFetch(getFleetBoats)
-  const alerts = useFetch(getWeatherAlerts, [alertVersion])
+  const boats = useFetch(getBoats)
+  const alerts = useFetch(() => getOpenIncidents(), [alertVersion])
   const fleet = useLiveFleet(reloadAlerts)
   const now = useNow(15_000) // re-evaluate "stale" labels
-  const state = combineFetches(stations, routes, boats, alerts)
+  const state = combineFetches(stations, boats, alerts)
 
   const onRiver = useMemo(
     () =>
@@ -77,11 +73,11 @@ function LiveRadar() {
   )
 
   if (state.error || fleet.error) return <ErrorState onRetry={state.error ? state.retry : fleet.retry} />
-  if (state.loading || !fleet.loaded || !stations.data || !routes.data || !boats.data || !alerts.data) {
+  if (state.loading || !fleet.loaded || !stations.data || !boats.data || !alerts.data) {
     return <PageLoader />
   }
 
-  const corridor = routes.data[0] ? routeStations(routes.data[0], stations.data) : stations.data
+  const corridor = stations.data.filter((s) => s.isActive).sort((a, b) => a.orderIndex - b.orderIndex)
 
   return (
     <>
@@ -91,7 +87,7 @@ function LiveRadar() {
         <div className="h-[70vh] min-h-[24rem] lg:col-span-2">
           <FleetMap
             stations={corridor}
-            path={riverPathOf(routes.data[0]?.code ?? DEFAULT_ROUTE_CODE)}
+            path={riverPathOf(ROUTE_CODE)}
             boats={onRiver.map((b) => ({ tripId: b.boatId, code: b.code, latitude: b.latitude, longitude: b.longitude }))}
           />
         </div>
@@ -112,7 +108,7 @@ function LiveRadar() {
                     </span>
                   </div>
                   <div className="mt-2 flex justify-between text-xs text-on-surface-variant">
-                    <span>{t('Updated {time}', { time: formatClockTimeWithSeconds(b.observedAt) })}</span>
+                    <span>{t('Updated {time}', { time: formatClockWithSeconds(b.observedAt) })}</span>
                     {knotsToKmh(b.speedKnots) != null && (
                       <span>{t('{speed} km/h', { speed: knotsToKmh(b.speedKnots) ?? 0 })}</span>
                     )}
@@ -128,9 +124,4 @@ function LiveRadar() {
       </div>
     </>
   )
-}
-
-export default function RadarPage() {
-  useDocumentTitle('Live Operations')
-  return <LiveRadar />
 }

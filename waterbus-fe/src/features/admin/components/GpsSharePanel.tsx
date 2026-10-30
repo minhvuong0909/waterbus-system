@@ -6,8 +6,8 @@ import { useFetch } from '../../../hooks'
 import { t } from '../../../i18n'
 import { connectHub, hubErrorMessage } from '../../../services/realtime'
 import type { RealtimeStatus } from '../../../services/realtime'
-import { getFleetBoats } from '../services/operationsService'
-import { formatClockTimeWithSeconds } from '../utils'
+import { formatClockWithSeconds } from '../../../utils/time'
+import { getBoats } from '../services/boatService'
 import { Notice, Panel } from './AdminUi'
 
 /** Send at most one position every few seconds, whatever rate the device reports at. */
@@ -20,7 +20,7 @@ const MS_TO_KNOTS = 1.943844
  * captain assigned to the boat. Browsers allow geolocation only on HTTPS or localhost.
  */
 export default function GpsSharePanel({ userId }: { userId: string }) {
-  const boats = useFetch(getFleetBoats)
+  const boats = useFetch(getBoats)
   const boat = boats.data?.find((b) => b.captainUserId?.toLowerCase() === userId.toLowerCase())
   const [sharing, setSharing] = useState(false)
   const [status, setStatus] = useState<RealtimeStatus>('connecting')
@@ -114,9 +114,9 @@ export default function GpsSharePanel({ userId }: { userId: string }) {
                 ? lastSent
                   ? ignored
                     ? t('Position at {time} was ignored: the boat already has a newer one.', {
-                        time: formatClockTimeWithSeconds(lastSent),
+                        time: formatClockWithSeconds(lastSent),
                       })
-                    : t('Position sent at {time}.', { time: formatClockTimeWithSeconds(lastSent) })
+                    : t('Position sent at {time}.', { time: formatClockWithSeconds(lastSent) })
                   : t('Waiting for the first GPS fix…')
                 : t('Connecting…')}
             </p>

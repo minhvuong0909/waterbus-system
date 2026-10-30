@@ -4,7 +4,6 @@ import type {
   AdminTrip,
   AdminTripStatus,
   AdminTripType,
-  FleetBoat,
   LiveBoatPosition,
   OperationLog,
   OperationType,
@@ -12,7 +11,7 @@ import type {
   WeatherCheckResult,
 } from '../types'
 
-// Live operations backed by the real API: boats, boat tracking and weather incidents.
+// Operations backed by the real API: trips and their status, boat tracking and incidents.
 // Realtime updates for the same data come from the boat-tracking hub (see useFleetHub).
 
 interface Paged<T> {
@@ -78,15 +77,6 @@ export interface IncidentRaisedEvent {
   boatId: string | null
   message: string
   occurredAt: string
-}
-
-export async function getFleetBoats(): Promise<FleetBoat[]> {
-  const boats: FleetBoat[] = []
-  for (let pageNumber = 1; ; pageNumber++) {
-    const page = await apiRequest<Paged<FleetBoat>>(API_ENDPOINTS.boats, { query: { pageNumber, pageSize: 100 } })
-    boats.push(...page.items)
-    if (!page.items.length || boats.length >= page.totalCount) return boats.filter((b) => b.isActive)
-  }
 }
 
 export const getLatestBoatPositions = () => apiRequest<BoatLatestPositionDto[]>(API_ENDPOINTS.tracking.boats)
@@ -179,7 +169,6 @@ export const knotsToKmh = (knots: number | null) => (knots == null ? null : Math
 
 interface TripOperationItemDto {
   id: string
-  scheduleId: string | null
   routeId: string
   routeCode: string
   routeName: string
@@ -193,21 +182,19 @@ interface TripOperationItemDto {
 }
 
 /** Trips from 12 hours ago to 7 days ahead, with the operations the backend allows on each right now. */
-export async function getLiveOperationTrips(): Promise<AdminTrip[]> {
+export async function getOperationTrips(): Promise<AdminTrip[]> {
   const items = await apiRequest<TripOperationItemDto[]>(API_ENDPOINTS.trips.operations)
   return items.map((t) => ({
     id: t.id,
-    scheduleId: t.scheduleId,
     routeId: t.routeId,
     boatId: t.boatId ?? '',
     departureTime: t.departureTime,
     arrivalTime: t.arrivalTime,
     tripType: t.tripType,
     status: t.status,
-    basePrice: 0,
     routeCode: t.routeCode,
     routeName: t.routeName,
-    boatCode: t.boatCode ?? undefined,
+    boatCode: t.boatCode,
     allowedOperations: t.allowedOperations,
   }))
 }
@@ -221,7 +208,7 @@ interface TripOperationEventDto {
   actedBy: string | null
 }
 
-export async function getLiveOperationLogs(): Promise<OperationLog[]> {
+export async function getOperationLogs(): Promise<OperationLog[]> {
   const events = await apiRequest<TripOperationEventDto[]>(API_ENDPOINTS.trips.operationEvents, { query: { take: 50 } })
   return events.map((e) => ({
     id: e.id,
@@ -238,7 +225,7 @@ export async function getLiveOperationLogs(): Promise<OperationLog[]> {
  * start and arrive on their own boat; an admin decides everything else. Pass `incidentId` to record the
  * decision against an incident. A captain's SOS creates an incident and leaves the trip as it is.
  */
-export async function operateLiveTrip(
+export async function operateTrip(
   tripId: string,
   type: OperationType,
   reason: string,

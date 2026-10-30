@@ -6,14 +6,13 @@ import {
   StatusBadge,
 } from '../../features/admin/components/AdminUi'
 import type { Column } from '../../features/admin/components/AdminUi'
-import { useReload } from '../../features/admin/hooks/useAdmin'
-import { getBoats, getRoutes, getTrips } from '../../features/admin/services/adminService'
+import { getOperationTrips } from '../../features/admin/services/operationsService'
 import type { AdminTrip, AdminTripStatus, AdminTripType } from '../../features/admin/types'
-import { formatDateTime } from '../../features/admin/utils'
-import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
+import { useDocumentTitle, useFetch } from '../../hooks'
 import { formatNumber } from '../../utils/format'
 import { getLowestFares } from '../../features/trips/services/fareService'
 import { t } from '../../i18n'
+import { formatDateTime } from '../../utils/time'
 
 const STATUSES: AdminTripStatus[] = [
   'Scheduled',
@@ -28,28 +27,22 @@ const STATUSES: AdminTripStatus[] = [
 
 export default function TripsPage() {
   useDocumentTitle('Trips')
-  const [version] = useReload()
-  const trips = useFetch(getTrips, [version])
-  const routes = useFetch(getRoutes)
-  const boats = useFetch(getBoats)
+  const trips = useFetch(getOperationTrips)
   // Lowest active fare of each trip type from `GET /fares` (BR-FARE-01: price depends on type and seat class only).
   const fares = useFetch<Partial<Record<AdminTripType, number>>>(() =>
     getLowestFares().catch(() => ({})),
   )
   const [filter, setFilter] = useState<'all' | AdminTripStatus>('all')
-  const state = combineFetches(trips, routes, boats)
 
-  if (state.error) return <ErrorState onRetry={state.retry} />
-  if (state.loading || !trips.data || !routes.data || !boats.data) return <PageLoader />
+  if (trips.error) return <ErrorState onRetry={trips.retry} />
+  if (!trips.data) return <PageLoader />
 
-  const routeName = (id: string) => routes.data?.find((r) => r.id === id)?.name ?? '—'
-  const boatCode = (id: string) => boats.data?.find((b) => b.id === id)?.code ?? '—'
   const rows = trips.data.filter((trip) => filter === 'all' || trip.status === filter)
 
   const columns: Column<AdminTrip>[] = [
     { header: 'Departure', render: (x) => formatDateTime(x.departureTime) },
-    { header: 'Route', render: (x) => x.routeName ?? routeName(x.routeId) },
-    { header: 'Boat', render: (x) => <span className="font-mono font-semibold">{boatCode(x.boatId)}</span> },
+    { header: 'Route', render: (x) => x.routeName },
+    { header: 'Boat', render: (x) => <span className="font-mono font-semibold">{x.boatCode ?? '—'}</span> },
     { header: 'Type', render: (x) => t(x.tripType === 'Commuter' ? 'Regular' : 'Sightseeing') },
     {
       header: 'Fares from (VND)',

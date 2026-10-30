@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  getLiveOperationLogs,
-  getLiveOperationTrips,
+  getOperationLogs,
+  getOperationTrips,
   getOpenIncidents,
-  operateLiveTrip,
+  operateTrip,
   resolveIncident,
 } from './operationsService'
 
@@ -25,10 +25,10 @@ const lastCall = () => {
   return { url, method: init.method, body: init.body ? JSON.parse(init.body as string) : undefined }
 }
 
-describe('operateLiveTrip', () => {
+describe('operateTrip', () => {
   it('posts the operation, the reason and the incident it answers', async () => {
     fetchMock.mockResolvedValue(json({ status: 'Suspended' }))
-    const result = await operateLiveTrip('trip-1', 'Suspend', 'Dông', 'inc-1')
+    const result = await operateTrip('trip-1', 'Suspend', 'Dông', 'inc-1')
     expect(result.status).toBe('Suspended')
     expect(lastCall()).toMatchObject({
       url: expect.stringMatching(/\/api\/v1\/trips\/trip-1\/status$/),
@@ -39,13 +39,13 @@ describe('operateLiveTrip', () => {
 
   it('sends null for an empty reason and no incident', async () => {
     fetchMock.mockResolvedValue(json({ status: 'EnRoute' }))
-    await operateLiveTrip('trip-1', 'Start', '')
+    await operateTrip('trip-1', 'Start', '')
     expect(lastCall().body).toEqual({ operation: 'Start', reason: null, incidentId: null })
   })
 
   it('sends an SOS to its own endpoint and leaves the trip status alone', async () => {
     fetchMock.mockResolvedValue(json({ incidentId: 'inc-9' }))
-    const result = await operateLiveTrip('trip-1', 'SOS', 'Cháy động cơ')
+    const result = await operateTrip('trip-1', 'SOS', 'Cháy động cơ')
     expect(result.status).toBeNull()
     expect(lastCall()).toMatchObject({
       url: expect.stringMatching(/\/api\/v1\/trips\/trip-1\/sos$/),
@@ -55,11 +55,11 @@ describe('operateLiveTrip', () => {
 
   it('surfaces the backend refusal as an error', async () => {
     fetchMock.mockResolvedValue(json({ title: 'Conflict', detail: 'Không thể thực hiện' }, 409))
-    await expect(operateLiveTrip('trip-1', 'Cancel', 'x')).rejects.toMatchObject({ status: 409, message: 'Không thể thực hiện' })
+    await expect(operateTrip('trip-1', 'Cancel', 'x')).rejects.toMatchObject({ status: 409, message: 'Không thể thực hiện' })
   })
 })
 
-describe('getLiveOperationTrips', () => {
+describe('getOperationTrips', () => {
   it('maps the backend list and keeps the operations it allows', async () => {
     fetchMock.mockResolvedValue(
       json([
@@ -79,7 +79,7 @@ describe('getLiveOperationTrips', () => {
         },
       ]),
     )
-    const [trip] = await getLiveOperationTrips()
+    const [trip] = await getOperationTrips()
     expect(trip).toMatchObject({
       id: 't1',
       boatId: '',
@@ -87,11 +87,11 @@ describe('getLiveOperationTrips', () => {
       status: 'Scheduled',
       allowedOperations: ['Start', 'Cancel'],
     })
-    expect(trip.boatCode).toBeUndefined()
+    expect(trip.boatCode).toBeNull()
   })
 })
 
-describe('getLiveOperationLogs', () => {
+describe('getOperationLogs', () => {
   it('maps events to the log and shows a dash when nobody is recorded', async () => {
     fetchMock.mockResolvedValue(
       json([
@@ -99,7 +99,7 @@ describe('getLiveOperationLogs', () => {
         { id: 'e2', tripId: 't1', action: 'Resume', note: null, occurredAt: '2026-10-17T08:10:00Z', actedBy: null },
       ]),
     )
-    const logs = await getLiveOperationLogs()
+    const logs = await getOperationLogs()
     expect(logs).toEqual([
       { id: 'e1', type: 'Suspend', tripId: 't1', reason: 'Dông', by: 'Admin', at: '2026-10-17T08:00:00Z' },
       { id: 'e2', type: 'Resume', tripId: 't1', reason: '', by: '—', at: '2026-10-17T08:10:00Z' },

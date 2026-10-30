@@ -6,7 +6,7 @@ import { ROUTES } from '../../../routes/routes'
 import { useReload } from '../hooks/useAdmin'
 import { getCurrentWeather, toKmh } from '../services/weatherService'
 import type { RouteWeather, RouteWeatherStatus } from '../services/weatherService'
-import { formatClockTime } from '../utils'
+import { formatClock } from '../../../utils/time'
 import { Panel } from './AdminUi'
 
 const STATUS: Record<RouteWeatherStatus, { label: string; icon: string; className: string }> = {
@@ -81,7 +81,7 @@ export default function CurrentWeatherPanel() {
           <h2 className="text-base font-semibold text-deep-river">{t('Current weather')}</h2>
           <p className="text-xs text-on-surface-variant">
             {observedAt
-              ? t('Measured at {time} at the piers of each route.', { time: formatClockTime(observedAt) })
+              ? t('Measured at {time} at the piers of each route.', { time: formatClock(new Date(observedAt)) })
               : t('Measured at the piers of each route.')}
           </p>
         </div>

@@ -3,7 +3,7 @@ import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { t } from '../../../i18n'
 
-export default function GuestLookupStrip() {
+export default function GuestBookingNote() {
   return (
     <div className="flex flex-col items-stretch justify-between gap-4 rounded-2xl border border-teal-flow/15 bg-white p-4 text-sm text-on-surface-variant sm:flex-row sm:items-center sm:p-5">
       <div className="flex items-center gap-3">

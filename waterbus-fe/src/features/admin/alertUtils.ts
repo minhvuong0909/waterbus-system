@@ -1,6 +1,6 @@
 import { t } from '../../i18n'
 import type { OperationType, WeatherAlert } from './types'
-import { formatDateTime } from './utils'
+import { formatDateTime } from '../../utils/time'
 
 export interface AlertMetrics {
   /** Sky condition as the weather service words it, e.g. "mưa nhẹ". */
@@ -19,11 +19,11 @@ const toNumber = (text: string | undefined) => {
   return Number.isFinite(value) ? value : undefined
 }
 
-/** Wind, gust and sky of a weather alert, when its text or the mock data gives them. */
-export function alertMetrics(alert: Pick<WeatherAlert, 'message' | 'windSpeedKmh'>): AlertMetrics {
+/** Wind, gust and sky of a weather alert, read from the text the weather guard writes. */
+export function alertMetrics(alert: Pick<WeatherAlert, 'message'>): AlertMetrics {
   const match = alert.message.match(DESCRIPTION)
   if (match) return { condition: match[1].trim(), windKmh: toNumber(match[2]), gustKmh: toNumber(match[3]) }
-  return alert.windSpeedKmh != null ? { windKmh: alert.windSpeedKmh } : {}
+  return {}
 }
 
 /** The part of the message after the measurements (the advice to the admin), or the whole message. */

@@ -4,7 +4,8 @@ import { t } from '../../../i18n'
 import { ROUTES } from '../../../routes/routes'
 import { alertMetrics, alertNote, alertTone, decisionOperation, isCaptainReport, pendingCountOf, timeAgo } from '../alertUtils'
 import type { AdminTrip, OperationType, WeatherAlert } from '../types'
-import { allowedOperationsOf, formatDateTime, tripBoatCode, weatherAlertTitle } from '../utils'
+import { formatDateTime } from '../../../utils/time'
+import { weatherAlertTitle } from '../utils'
 import { StatusBadge } from './AdminUi'
 import { OPERATION_LABEL } from './OperationForm'
 
@@ -75,7 +76,6 @@ function DecisionProgress({ alert }: { alert: WeatherAlert }) {
 export function AlertCard({
   alert,
   trips,
-  boatCode,
   onDecide,
   onClose,
   closing,
@@ -83,7 +83,6 @@ export function AlertCard({
   alert: WeatherAlert
   /** Trips in operation, to know what can still be done with each affected trip. */
   trips: AdminTrip[]
-  boatCode: (boatId: string) => string
   onDecide: (trip: AdminTrip, type: OperationType, incidentId: string) => void
   onClose: (alert: WeatherAlert) => void
   closing: boolean
@@ -138,14 +137,14 @@ export function AlertCard({
             const departure = link.departureTime ?? trip?.departureTime
             const status = link.tripStatus ?? trip?.status
             const decisions = trip
-              ? [...ALERT_DECISIONS.filter((op) => allowedOperationsOf(trip).includes(op)), 'NoAction' as const]
+              ? [...ALERT_DECISIONS.filter((op) => trip.allowedOperations.includes(op)), 'NoAction' as const]
               : []
             return (
               <li key={link.tripId} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-deep-river">
                     <Icon name="directions_boat" className="text-[18px] text-teal-flow" />
-                    <span className="font-mono">{trip ? tripBoatCode(trip, boatCode) : '—'}</span>
+                    <span className="font-mono">{trip?.boatCode ?? '—'}</span>
                     <span>{departure ? formatDateTime(departure) : '—'}</span>
                     {status && <StatusBadge status={status} />}
                   </div>

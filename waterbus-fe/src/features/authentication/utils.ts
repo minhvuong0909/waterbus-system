@@ -1,4 +1,4 @@
-import type { AuthUser } from './authenticationTypes'
+import type { AuthUser } from './types'
 
 /** True when the user holds at least one of `roles`. An empty list means any signed-in user. */
 export function hasAnyRole(user: AuthUser | null, roles: readonly string[] = []): boolean {

@@ -14,40 +14,27 @@ import type { WeatherAlert } from '../../features/admin/types'
 import type { Column } from '../../features/admin/components/AdminUi'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import {
-  closeAlert,
-  getAlertsWithTrips,
-  getBoats,
+  getOpenIncidents,
   getOperationLogs,
   getOperationTrips,
-  getRoutes,
-} from '../../features/admin/services/adminService'
-import type { AdminTrip, OperationType } from '../../features/admin/types'
-import {
-  DISPATCH_OPERATIONS,
-  allowedOperationsOf,
-  formatDateTime,
-  isFinished,
-  tripBoatCode,
-  tripRouteName,
-} from '../../features/admin/utils'
+  resolveIncident,
+  runWeatherCheck,
+} from '../../features/admin/services/operationsService'
+import type { AdminTrip, OperationType, WeatherCheckResult } from '../../features/admin/types'
+import { DISPATCH_OPERATIONS, isFinished } from '../../features/admin/utils'
 import { useFleetHub } from '../../features/admin/hooks/useFleetHub'
-import { runWeatherCheck } from '../../features/admin/services/operationsService'
-import type { WeatherCheckResult } from '../../features/admin/types'
-import { useAuth } from '../../features/authentication/hook/authenticationHook'
+import { formatDateTime } from '../../utils/time'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
 import OperationForm, { OPERATION_LABEL } from '../../features/admin/components/OperationForm'
 
 export default function IncidentsPage() {
   useDocumentTitle('Incidents')
-  const { user } = useAuth()
   const [version, reload] = useReload()
   const trips = useFetch(getOperationTrips, [version])
   const logs = useFetch(getOperationLogs, [version])
   const [alertVersion, reloadAlerts] = useReload()
-  const alerts = useFetch(getAlertsWithTrips, [alertVersion])
-  const routes = useFetch(getRoutes)
-  const boats = useFetch(getBoats)
+  const alerts = useFetch(() => getOpenIncidents(true), [alertVersion])
   const [pending, setPending] = useState<{ trip: AdminTrip; type: OperationType; incidentId?: string } | null>(null)
   const weatherCheck = useSubmit()
   const closing = useSubmit()
@@ -61,16 +48,14 @@ export default function IncidentsPage() {
   useFleetHub(
     { onAlert: reloadAlerts, onIncident: reloadAlerts, onTripStatus: refresh, onReconnected: refresh },
   )
-  const state = combineFetches(trips, logs, alerts, routes, boats)
+  const state = combineFetches(trips, logs, alerts)
 
   if (state.error) return <ErrorState onRetry={state.retry} />
-  if (state.loading || !trips.data || !logs.data || !alerts.data || !routes.data || !boats.data) return <PageLoader />
+  if (state.loading || !trips.data || !logs.data || !alerts.data) return <PageLoader />
 
-  const routeName = (id: string) => routes.data?.find((r) => r.id === id)?.name ?? '—'
-  const boatCode = (id: string) => boats.data?.find((b) => b.id === id)?.code ?? '—'
   const tripLabel = (id: string | null) => {
     const trip = trips.data?.find((x) => x.id === id)
-    return trip ? `${tripBoatCode(trip, boatCode)} • ${formatDateTime(trip.departureTime)}` : '—'
+    return trip ? `${trip.boatCode ?? '—'} • ${formatDateTime(trip.departureTime)}` : '—'
   }
   const active = trips.data.filter((x) => !isFinished(x.status))
   const openAlerts = sortAlerts(alerts.data)
@@ -88,8 +73,8 @@ export default function IncidentsPage() {
 
   const columns: Column<AdminTrip>[] = [
     { header: 'Departure', render: (x) => formatDateTime(x.departureTime) },
-    { header: 'Route', render: (x) => tripRouteName(x, routeName) },
-    { header: 'Boat', render: (x) => <span className="font-mono font-semibold">{tripBoatCode(x, boatCode)}</span> },
+    { header: 'Route', render: (x) => x.routeName },
+    { header: 'Boat', render: (x) => <span className="font-mono font-semibold">{x.boatCode ?? '—'}</span> },
     {
       header: 'Status',
       render: (x) => (
@@ -109,7 +94,7 @@ export default function IncidentsPage() {
       render: (x) => {
         const incidentId = awaitingDecision.get(x.id)
         const operations: OperationType[] = [
-          ...DISPATCH_OPERATIONS.filter((op) => allowedOperationsOf(x).includes(op)),
+          ...DISPATCH_OPERATIONS.filter((op) => x.allowedOperations.includes(op)),
           ...(incidentId ? (['NoAction'] as OperationType[]) : []),
         ]
         return (
@@ -222,7 +207,6 @@ export default function IncidentsPage() {
               key={alert.id}
               alert={alert}
               trips={trips.data ?? []}
-              boatCode={boatCode}
               closing={closing.busy}
               onClose={setConfirmClose}
               onDecide={(trip, type, incidentId) => setPending({ trip, type, incidentId })}
@@ -255,7 +239,7 @@ export default function IncidentsPage() {
               disabled={closing.busy}
               onClick={async () => {
                 const alert = confirmClose
-                await closing.run(() => closeAlert(alert.id))
+                await closing.run(() => resolveIncident(alert.id))
                 setConfirmClose(null)
                 reloadAlerts()
               }}
@@ -271,7 +255,6 @@ export default function IncidentsPage() {
           <OperationForm
             trip={pending.trip}
             type={pending.type}
-            by={user?.fullName ?? ''}
             incidentId={pending.incidentId}
             onCancel={() => setPending(null)}
             onDone={() => {

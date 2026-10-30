@@ -11,7 +11,7 @@ import {
 } from '../../features/admin/components/AdminUi'
 import type { Column } from '../../features/admin/components/AdminUi'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
-import { createBoat, deleteBoat, getBoats } from '../../features/admin/services/adminService'
+import { createBoat, deleteBoat, getBoats } from '../../features/admin/services/boatService'
 import type { AdminBoat } from '../../features/admin/types'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
@@ -24,9 +24,7 @@ const EMPTY = {
   registrationNumber: '',
   manufacturer: '',
   yearBuilt: String(new Date().getFullYear()),
-  frontCabinSeats: '0',
-  standardSeats: '60',
-  outdoorSeats: '0',
+  totalSeats: '60',
 }
 type FormState = typeof EMPTY
 
@@ -39,15 +37,8 @@ function validate(form: FormState): Partial<Record<keyof FormState, string>> {
   if (!Number.isInteger(year) || year < 1950 || year > new Date().getFullYear() + 1) {
     errors.yearBuilt = t('Enter a valid year.')
   }
-  for (const key of ['frontCabinSeats', 'standardSeats', 'outdoorSeats'] as const) {
-    const count = Number(form[key])
-    if (form[key] === '' || !Number.isInteger(count) || count < 0) errors[key] = t('Enter a whole number, 0 or more.')
-  }
-  if (!errors.frontCabinSeats && !errors.standardSeats && !errors.outdoorSeats) {
-    if (Number(form.frontCabinSeats) + Number(form.standardSeats) + Number(form.outdoorSeats) < 1) {
-      errors.standardSeats = t('A boat needs at least one seat.')
-    }
-  }
+  const seats = Number(form.totalSeats)
+  if (!Number.isInteger(seats) || seats < 1) errors.totalSeats = t('A boat needs at least one seat.')
   return errors
 }
 
@@ -58,7 +49,7 @@ function BoatForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => vo
   const errors = showErrors ? validate(form) : {}
   const set = (key: keyof FormState) => (e: { target: { value: string } }) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))
- 
+
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (Object.keys(validate(form)).length > 0) {
@@ -72,9 +63,7 @@ function BoatForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => vo
         registrationNumber: form.registrationNumber.trim(),
         manufacturer: form.manufacturer.trim(),
         yearBuilt: Number(form.yearBuilt),
-        frontCabinSeats: Number(form.frontCabinSeats),
-        standardSeats: Number(form.standardSeats),
-        outdoorSeats: Number(form.outdoorSeats),
+        totalSeats: Number(form.totalSeats),
       }),
     )
     if (saved) onDone()
@@ -88,16 +77,8 @@ function BoatForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => vo
         <TextField label="Registration number" value={form.registrationNumber} onChange={set('registrationNumber')} error={errors.registrationNumber} />
         <TextField label="Manufacturer" value={form.manufacturer} onChange={set('manufacturer')} />
         <TextField label="Year built" inputMode="numeric" value={form.yearBuilt} onChange={set('yearBuilt')} error={errors.yearBuilt} />
+        <TextField label="Total seats" inputMode="numeric" value={form.totalSeats} onChange={set('totalSeats')} error={errors.totalSeats} />
       </div>
-      <fieldset className="rounded-lg border border-outline-variant/50 p-3">
-        <legend className="px-1 text-xs font-semibold text-on-surface-variant">{t('Seat layout')}</legend>
-        <div className="grid grid-cols-3 gap-3">
-          <TextField label="Tổng số ghế" inputMode="numeric" value={form.standardSeats} onChange={set('standardSeats')} error={errors.standardSeats} />
-        </div>
-        <p className="mt-2 text-xs text-on-surface-variant">
-          Chỉ lưu tổng số ghế. Chưa có API cấu hình sơ đồ ghế cho tàu mới.
-        </p>
-      </fieldset>
       {error && <Notice tone="error">{error}</Notice>}
       <div className="flex justify-end gap-2 pt-1">
         <ActionButton tone="secondary" onClick={onCancel}>
