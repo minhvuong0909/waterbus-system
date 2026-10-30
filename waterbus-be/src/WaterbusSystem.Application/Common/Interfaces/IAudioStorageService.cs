@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
 using WaterbusSystem.Application.Common.Models;
 
 namespace WaterbusSystem.Application.Common.Interfaces;
@@ -18,7 +19,7 @@ public interface IAudioStorageService
     /// <exception cref="Exceptions.AudioStorageException">Khi quá trình lưu trữ gặp sự cố.</exception>
     /// <exception cref="OperationCanceledException">Khi tác vụ bị hủy thông qua token.</exception>
     Task<AudioStorageResult> StoreAudioAsync(
-        StoreAudioCommand command,
+        StoreAudioRequest command,
         CancellationToken cancellationToken = default);
 
     /// <summary>

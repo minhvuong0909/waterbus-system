@@ -4,7 +4,7 @@ using FluentValidation;
 using Microsoft.SemanticKernel;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.AiBooking.Models;
-using WaterbusSystem.Application.Features.AiBooking.Validators;
+using WaterbusSystem.Application.Validators.AiBooking;
 
 namespace WaterbusSystem.Infrastructure.Services.AiBooking.Plugins;
 

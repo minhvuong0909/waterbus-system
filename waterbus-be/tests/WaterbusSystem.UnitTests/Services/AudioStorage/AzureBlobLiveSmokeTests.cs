@@ -1,9 +1,10 @@
+using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
 using Azure.Storage.Blobs;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using WaterbusSystem.Application.Common.Models;
-using WaterbusSystem.Application.Common.Validators;
+using WaterbusSystem.Application.Validators.SightseeingAudio;
 using WaterbusSystem.Infrastructure.Services.AudioStorage;
 using WaterbusSystem.WebApi.Controllers;
 using Xunit;
@@ -32,7 +33,7 @@ public sealed class AzureBlobLiveSmokeTests
         var container = new BlobContainerClient(connectionString, containerName);
         var storage = new AzureBlobAudioStorageService(
             container,
-            new StoreAudioCommandValidator(),
+            new StoreAudioRequestValidator(),
             NullLogger<AzureBlobAudioStorageService>.Instance);
 
         // GUID mới: tuyệt đối không đụng vào AudioGuide/MP3 đã publish.
@@ -43,7 +44,7 @@ public sealed class AzureBlobLiveSmokeTests
 
         try
         {
-            var stored = await storage.StoreAudioAsync(new StoreAudioCommand
+            var stored = await storage.StoreAudioAsync(new StoreAudioRequest
             {
                 AssetKey = assetKey,
                 AudioData = bytes,

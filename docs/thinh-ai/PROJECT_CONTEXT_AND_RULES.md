@@ -5,12 +5,12 @@
 Backend dùng .NET 8 và Clean Architecture:
 
 - `WaterbusSystem.Domain`: entity, enum, domain exception.
-- `WaterbusSystem.Application`: CQRS feature slice, MediatR, validator, interface.
+- `WaterbusSystem.Application`: phần `AiBooking`/`SightseeingAudio` dùng Request/Response, validator, service và interface repository/provider. Các feature khác theo trạng thái migrate trong `docs/CONVENTIONS.md` mục 3.2.
 - `WaterbusSystem.Infrastructure`: EF Core, provider bên ngoài, persistence, DI.
 - `WaterbusSystem.WebApi`: controller và middleware HTTP.
 - `WaterbusSystem.UnitTests`: unit tests bằng xUnit/FluentAssertions.
 
-Controller phải mỏng, chỉ nhận HTTP input, gọi `Mediator.Send(...)` và trả response. Business logic không đặt trong controller.
+Controller AI/audio phải mỏng, nhận HTTP input, gọi service interface và trả response; validate qua `ValidateRequestFilter`. Không còn Command/Query/Handler MediatR thuộc hai feature này. Riêng `MediatRTripSearchTool` là adapter Infrastructure gọi query của `Trips`/`Stations` chưa migrate. Xem [AI_SERVICE_MIGRATION.md](AI_SERVICE_MIGRATION.md) để đọc vị trí file mới và ranh giới tích hợp.
 
 ## 2. Phân công của Thịnh và ranh giới module
 

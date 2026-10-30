@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
 using FluentAssertions;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Models;
@@ -10,7 +11,7 @@ public class FakeAudioStorageServiceTests
 {
     private readonly FakeAudioStorageService _storage = new();
 
-    private static StoreAudioCommand CreateSampleCommand() => new()
+    private static StoreAudioRequest CreateSampleCommand() => new()
     {
         AudioData = new byte[] { 0xFF, 0xFB, 0x90, 0x64, 0x01, 0x02, 0x03 },
         AssetKey = "pois/sample-poi-id/vi.mp3",

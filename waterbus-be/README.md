@@ -20,8 +20,8 @@ waterbus-be/
 │   │       ├── Bookings/               # Commands/Queries: CreateBooking, CancelBooking, GetBooking...
 │   │       ├── Payments/               # Commands/Queries: ProcessVnPayPayment, HandleWebhook...
 │   │       ├── Trips/                  # Commands/Queries: SearchTrips, GetTripDetail, GetSeatMap...
-│   │       ├── AiBooking/              # AskAiBookingQuery, Validators, TripSearchTool contracts
-│   │       ├── SightseeingAudio/       # Geofence Audio Trigger Engine & Evaluation Services
+│   │       ├── AiBooking/              # Models và contract tool; HTTP DTOs/Validators/Interfaces ở các thư mục tương ứng
+│   │       ├── SightseeingAudio/       # Models và contract tích hợp; service ở Application/Services/SightseeingAudio
 │   │       └── Stations/, Boats/...    # Danh mục bến tàu, đội tàu thủy
 │   │
 │   ├── WaterbusSystem.Infrastructure/  # External Services & Data Persistence
@@ -30,7 +30,7 @@ waterbus-be/
 │   │   └── Services/AiBooking/, Tts/   # Semantic Kernel, Azure Speech TTS, Blob Storage
 │   │
 │   └── WaterbusSystem.WebApi/          # API Host & Presentation Layer
-│       ├── Controllers/                # REST Controllers (kế thừa BaseApiController, chỉ Mediator.Send)
+│       ├── Controllers/                # Gọi IService ở feature đã migrate; Mediator.Send ở feature chưa migrate
 │       ├── Hubs/                       # Real-time SignalR Hubs (/hubs/seat-sync, /hubs/boat-tracking)
 │       ├── Middlewares/                # GlobalExceptionHandlingMiddleware (ProblemDetails chuẩn)
 │       └── Program.cs                  # Dependency Injection & Middleware Pipeline configuration

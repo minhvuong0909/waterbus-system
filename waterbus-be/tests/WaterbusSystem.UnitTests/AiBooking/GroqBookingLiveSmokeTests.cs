@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.DTOs.Requests.AiBooking;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -5,7 +6,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.AiBooking.Models;
-using WaterbusSystem.Application.Features.AiBooking.Validators;
+using WaterbusSystem.Application.Validators.AiBooking;
 using WaterbusSystem.Infrastructure.Services.AiBooking;
 using WaterbusSystem.UnitTests.AiBooking.Fakes;
 using WaterbusSystem.WebApi.Controllers;

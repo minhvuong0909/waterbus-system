@@ -2,6 +2,8 @@
 
 Hướng dẫn lấy và cấu hình key an toàn: [AI_KEYS_AND_LOCAL_TEST.md](AI_KEYS_AND_LOCAL_TEST.md).
 
+Vị trí code và kiến trúc service layer sau khi chuyển `AiBooking`/`SightseeingAudio`: [AI_SERVICE_MIGRATION.md](AI_SERVICE_MIGRATION.md).
+
 Tài liệu này là bản hướng dẫn triển khai cho **phần AI của Thịnh**, đối chiếu Google Drive với repo tại ngày 09/10/2026. Tab `module` của Google Doc “Bản sao của Waterbus Management” ghi rõ **“Thành viên 5: AI Developer – Thịnh”**, gồm:
 
 - **AI Booking Assistant:** Semantic Kernel kết nối OpenAI/Gemini, function/plugin gọi API tìm chuyến và trả dữ liệu cho UI Card.
@@ -17,7 +19,7 @@ Repo không ghi tên thành viên trong roadmap; repo dùng để xác định B
 - Có Logical ERD đã review.
 - Có `PointOfInterest`, `RoutePoi`, `AudioGuide`, `BoatPositionEvent`.
 - Có EF Core mapping, DbSet và migrations.
-- Có convention Clean Architecture, CQRS/MediatR, FluentValidation và unit test.
+- Có convention Clean Architecture, FluentValidation và unit test; trạng thái migrate từng feature được ghi trong `docs/CONVENTIONS.md` mục 3.2.
 
 Google Drive hữu ích để biết phân công ban đầu, nhưng quyết định nghiệp vụ và ranh giới triển khai phải được kiểm tra lại với repo. Khi nguồn mâu thuẫn:
 
