@@ -2,10 +2,6 @@ import { useId } from 'react'
 import type { ReactNode } from 'react'
 import { t } from '../../i18n'
 
-/** Shared look of the form inputs. */
-export const inputClass =
-  'min-h-[42px] w-full rounded-xl border border-outline-variant/70 bg-white px-3 py-2 text-sm text-deep-river transition-colors focus:border-teal-flow focus:ring-2 focus:ring-teal-flow/15 disabled:bg-surface-container-low'
-
 export interface FieldShellProps {
   label: string
   hint?: string

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Button, Notice } from '../../../components/ui'
-import { inputClass } from '../../../components/ui/FieldShell'
+import { Button, Notice, TextField } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { formatClock, fromVietnamDateTimeInput, toVietnamDateTimeInput } from '../../../utils/time'
 import type { TripStopDto } from '../../booking/types'
@@ -40,14 +39,12 @@ export default function CheckInWindowRow({ stop }: { stop: TripStopDto }) {
           {locked && ` • ${t(stop.status)}`}
         </p>
       </div>
-      <label className="md:col-span-3">
-        <span className="mb-1 block text-xs font-semibold text-on-surface-variant">{t('Opens')}</span>
-        <input type="datetime-local" className={inputClass} value={openAt} disabled={locked} onChange={(e) => setOpenAt(e.target.value)} />
-      </label>
-      <label className="md:col-span-3">
-        <span className="mb-1 block text-xs font-semibold text-on-surface-variant">{t('Closes')}</span>
-        <input type="datetime-local" className={inputClass} value={closeAt} disabled={locked} onChange={(e) => setCloseAt(e.target.value)} />
-      </label>
+      <div className="md:col-span-3">
+        <TextField label="Opens" type="datetime-local" value={openAt} disabled={locked} onChange={(e) => setOpenAt(e.target.value)} />
+      </div>
+      <div className="md:col-span-3">
+        <TextField label="Closes" type="datetime-local" value={closeAt} disabled={locked} onChange={(e) => setCloseAt(e.target.value)} />
+      </div>
       <div className="md:col-span-3">
         <Button type="submit" size="sm" icon="save" disabled={locked || busy} className="w-full">
           {busy ? t('Saving…') : t('Save')}

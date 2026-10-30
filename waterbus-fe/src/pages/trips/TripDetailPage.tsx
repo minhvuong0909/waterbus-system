@@ -1,10 +1,8 @@
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import TripAside from '../../features/trips/components/TripAside'
-import {
-  BoardingSteps,
-  JourneyTimeline,
-  OnboardAmenities,
-} from '../../features/trips/components/TripInfoSections'
+import BoardingSteps from '../../features/trips/components/BoardingSteps'
+import JourneyTimeline from '../../features/trips/components/JourneyTimeline'
+import OnboardAmenities from '../../features/trips/components/OnboardAmenities'
 import TripRouteCard from '../../features/trips/components/TripRouteCard'
 import { useTripDetail } from '../../features/trips/hooks/useTripSearch'
 import { useDocumentTitle } from '../../hooks'

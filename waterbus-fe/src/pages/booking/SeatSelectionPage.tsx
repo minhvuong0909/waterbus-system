@@ -1,6 +1,7 @@
 import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
 import HoldCountdown from '../../features/booking/components/HoldCountdown'
-import SeatMapView, { SeatLegend } from '../../features/booking/components/SeatMapView'
+import SeatMapView from '../../features/booking/components/SeatMapView'
+import SeatLegend from '../../features/booking/components/SeatLegend'
 import BookingSummary from '../../features/booking/components/BookingSummary'
 import TripStrip from '../../features/booking/components/TripStrip'
 import { RETURN_RESULTS, useSeatHold } from '../../features/booking/hooks/useCheckout'

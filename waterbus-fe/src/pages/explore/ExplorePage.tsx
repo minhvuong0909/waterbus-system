@@ -1,10 +1,8 @@
-import {
-  ExploreHero,
-  JourneysSection,
-  LandmarksSection,
-  StepAboardBanner,
-  StoriesSection,
-} from '../../features/explore/components/ExploreSections'
+import ExploreHero from '../../features/explore/components/ExploreHero'
+import JourneysSection from '../../features/explore/components/JourneysSection'
+import LandmarksSection from '../../features/explore/components/LandmarksSection'
+import StepAboardBanner from '../../features/explore/components/StepAboardBanner'
+import StoriesSection from '../../features/explore/components/StoriesSection'
 import { getExploreData } from '../../features/explore/services/exploreService'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { Reveal } from '../../components/motion'

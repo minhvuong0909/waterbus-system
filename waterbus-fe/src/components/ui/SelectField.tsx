@@ -1,5 +1,6 @@
 import type { SelectHTMLAttributes } from 'react'
-import FieldShell, { inputClass } from './FieldShell'
+import FieldShell from './FieldShell'
+import { INPUT_CLASS } from './styles'
 
 export default function SelectField({
   label,
@@ -11,7 +12,7 @@ export default function SelectField({
   return (
     <FieldShell label={label} hint={hint} error={error}>
       {(id) => (
-        <select id={id} className={inputClass} aria-invalid={Boolean(error)} {...select}>
+        <select id={id} className={INPUT_CLASS} aria-invalid={Boolean(error)} {...select}>
           {children}
         </select>
       )}

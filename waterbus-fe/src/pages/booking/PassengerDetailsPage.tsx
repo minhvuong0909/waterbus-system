@@ -4,10 +4,9 @@ import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
 import BookingProgress from '../../features/booking/components/BookingProgress'
 import CrossingSummary from '../../features/booking/components/CrossingSummary'
 import HoldCountdown from '../../features/booking/components/HoldCountdown'
-import PassengerFormCard, {
-  BuyerCard,
-  PassengerFormNote,
-} from '../../features/booking/components/PassengerFormCard'
+import PassengerFormCard from '../../features/booking/components/PassengerFormCard'
+import BuyerCard from '../../features/booking/components/BuyerCard'
+import PassengerFormNote from '../../features/booking/components/PassengerFormNote'
 import { copyPassengersToReturn, holdCleared, setBuyerTravels } from '../../features/booking/bookingSlice'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import { isRoundTrip } from '../../features/booking/legs'

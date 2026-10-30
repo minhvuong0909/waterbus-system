@@ -2,7 +2,11 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Journey, Landmark } from '../types'
-import { ExploreHero, JourneysSection, LandmarksSection, SIGHTSEEING_RESULTS, StepAboardBanner } from './ExploreSections'
+import ExploreHero from './ExploreHero'
+import JourneysSection from './JourneysSection'
+import LandmarksSection from './LandmarksSection'
+import { SIGHTSEEING_RESULTS } from '../constants'
+import StepAboardBanner from './StepAboardBanner'
 
 const journey = (id: string, route = 'Bach Dang Pier ➔ Linh Dong Pier'): Journey => ({
   id, image: `${id}.jpg`, tags: ['Scenic Route', 'Skyline Views'], title: `Title ${id}`, description: 'd', route,
