@@ -4,7 +4,7 @@
  * and backend server URL settings.
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -37,8 +37,8 @@ export default function ScannerSettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Cấu Hình & Thông Tin Nhân Viên</Text>
-          <Text style={styles.subtitle}>Thiết lập thiết bị soát vé cầm tay (Staff Scanner)</Text>
+          <Text style={styles.title}>Cài đặt và thông tin nhân viên</Text>
+          <Text style={styles.subtitle}>Thiết lập máy soát vé cầm tay</Text>
         </View>
 
         {/* Staff Profile Card */}
@@ -49,8 +49,8 @@ export default function ScannerSettingsScreen() {
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.staffName}>{deviceInfo.staffName}</Text>
-              <Text style={styles.staffRole}>Nhân Viên Soát Vé (Thành viên 4)</Text>
-              <Text style={styles.staffCode}>Mã NV: {deviceInfo.staffId}</Text>
+              <Text style={styles.staffRole}>Nhân viên soát vé</Text>
+              <Text style={styles.staffCode}>Mã nhân viên: {deviceInfo.staffId}</Text>
             </View>
           </View>
 
@@ -61,22 +61,22 @@ export default function ScannerSettingsScreen() {
             <Text style={styles.metaValue}>{deviceInfo.stationName}</Text>
           </View>
           <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>Quyền ghi ngoại tuyến:</Text>
+            <Text style={styles.metaLabel}>Khả năng làm việc khi mất mạng:</Text>
             <View style={styles.badgePrimary}>
-              <Text style={styles.badgePrimaryText}>Primary Offline Scanner</Text>
+              <Text style={styles.badgePrimaryText}>Đã sẵn sàng</Text>
             </View>
           </View>
         </View>
 
         {/* Operating Mode (Offline vs Online) */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Chế Độ Vận Hành Mạng</Text>
+          <Text style={styles.cardTitle}>Kết nối mạng</Text>
 
           <View style={styles.switchRow}>
             <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={styles.switchTitle}>Mô Phỏng Ngoại Tuyến (Force Offline)</Text>
+              <Text style={styles.switchTitle}>Chỉ lưu dữ liệu trên thiết bị</Text>
               <Text style={styles.switchDesc}>
-                Khi bật, ứng dụng sẽ không gửi dữ liệu ra ngoài và chỉ lưu 100% vào SQLite cục bộ để kiểm thử bến mất mạng.
+                Khi bật, ứng dụng không gửi dữ liệu lên máy chủ. Dữ liệu sẽ được lưu trên thiết bị để sử dụng khi mất kết nối.
               </Text>
             </View>
             <Switch
@@ -91,9 +91,9 @@ export default function ScannerSettingsScreen() {
 
           <View style={styles.switchRow}>
             <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={styles.switchTitle}>Tự Động Đồng Bộ (Idempotent Sync)</Text>
+              <Text style={styles.switchTitle}>Tự động gửi dữ liệu</Text>
               <Text style={styles.switchDesc}>
-                Background Task tự động quét hàng đợi và đẩy lô mỗi 15 giây khi có kết nối 3G/WiFi.
+                Ứng dụng tự gửi các lượt soát vé đang chờ mỗi 15 giây khi có kết nối mạng.
               </Text>
             </View>
             <View style={styles.statusActiveBadge}>
@@ -104,9 +104,9 @@ export default function ScannerSettingsScreen() {
 
         {/* Device & Backend Config */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Thông Số Kỹ Thuật Thiết Bị</Text>
+          <Text style={styles.cardTitle}>Thông tin thiết bị</Text>
 
-          <Text style={styles.inputLabel}>Mã định danh máy quét (Device Code):</Text>
+          <Text style={styles.inputLabel}>Mã thiết bị:</Text>
           <TextInput
             style={styles.input}
             value={deviceCode}
@@ -114,7 +114,7 @@ export default function ScannerSettingsScreen() {
             autoCapitalize="characters"
           />
 
-          <Text style={styles.inputLabel}>Địa chỉ Máy Chủ Backend (API Gateway):</Text>
+          <Text style={styles.inputLabel}>Địa chỉ máy chủ:</Text>
           <TextInput
             style={styles.input}
             value={backendUrl}
@@ -129,28 +129,19 @@ export default function ScannerSettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Security & Specification Info */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Quy Chuẩn Kỹ Thuật (BR v2.0)</Text>
+          <Text style={styles.cardTitle}>Tính năng hỗ trợ</Text>
           <View style={styles.specItem}>
             <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.specText}>BR-QR-01: QR tĩnh ký số per-Booking.</Text>
+            <Text style={styles.specText}>Mã vé được xác thực trước khi ghi nhận khách lên tàu.</Text>
           </View>
           <View style={styles.specItem}>
             <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.specText}>BR-QR-02: Xác thực chữ ký số bằng Public Key offline.</Text>
+            <Text style={styles.specText}>Có thể soát vé khi không có kết nối mạng.</Text>
           </View>
           <View style={styles.specItem}>
             <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.specText}>BR-QR-03: Nhân viên tích chọn từng khách có mặt.</Text>
-          </View>
-          <View style={styles.specItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.specText}>BR-OFF-01: SQLite Preload cache trước giờ mở cổng.</Text>
-          </View>
-          <View style={styles.specItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.specText}>BR-OFF-03: ClientEventId Unique chống trùng lặp (Idempotent).</Text>
+            <Text style={styles.specText}>Dữ liệu sẽ được gửi lên máy chủ khi có kết nối mạng.</Text>
           </View>
         </View>
       </ScrollView>
@@ -339,4 +330,3 @@ const styles = StyleSheet.create({
     color: BrandColors.ink,
   },
 });
-

@@ -4,7 +4,7 @@
  * Displays cache metrics, batch sync status, loaded trip list, and QR test simulator.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -19,10 +19,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useScannerStore } from '../../store/useScannerStore';
-import { QrVerifier } from '../../services/crypto/qrVerifier';
 import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
 import { Trip } from '../../types/scanner';
 import { BrandColors, Radius } from '../../../constants/theme';
+import { getTripStatusLabel, getTripTypeLabel } from '../../utils/scannerDisplayLabels';
 
 const STATIONS = [
   { id: 'ST-BACH-DANG', name: 'Bến Bạch Đằng (Quận 1)' },
@@ -48,7 +48,6 @@ export default function PreloadManifestScreen() {
   } = useScannerStore();
 
   const [selectedStationId, setSelectedStationId] = useState<string>(deviceInfo.stationId);
-  const [testQrInfo, setTestQrInfo] = useState<{ compact: string; signature: string } | null>(null);
   const [trips, setTrips] = useState<TripWithStats[]>([]);
 
   const loadTrips = useCallback(async () => {
@@ -72,9 +71,9 @@ export default function PreloadManifestScreen() {
       await loadTrips();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
-        'Đã Tải Trước Thành Công',
-        `Toàn bộ danh sách chuyến, vé hợp lệ và Public Key đã được lưu an toàn vào cơ sở dữ liệu SQLite.\nThiết bị đã sẵn sàng tác nghiệp soát vé ngoại tuyến 100%!`,
-        [{ text: 'OK' }]
+        'Đã tải dữ liệu thành công',
+        'Danh sách chuyến và vé đã được lưu trên thiết bị. Thiết bị đã sẵn sàng soát vé khi không có kết nối mạng.',
+        [{ text: 'Đóng' }]
       );
     }
   };
@@ -85,30 +84,25 @@ export default function PreloadManifestScreen() {
     await loadTrips();
     if (count > 0) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Đồng Bộ Thành Công', `Đã đẩy lô ${count} sự kiện check-in lên máy chủ.`);
+      Alert.alert('Đã gửi dữ liệu', `Đã gửi ${count} lượt soát vé lên máy chủ.`);
     } else {
-      Alert.alert('Thông báo', 'Không có vé nào tồn đọng cần đồng bộ.');
+      Alert.alert('Thông báo', 'Không có lượt soát vé nào đang chờ gửi.');
     }
-  };
-
-  const handleGenerateTestQr = () => {
-    const test = QrVerifier.generateTestSignedQr('pub_wb_98a76b5c', 'TRIP-BD-BA-01');
-    setTestQrInfo({ compact: test.compactQr, signature: test.signature });
   };
 
   const handleClearCacheConfirm = () => {
     Alert.alert(
-      'Xác nhận xoá cache',
-      'Bạn có chắc chắn muốn xoá toàn bộ dữ liệu SQLite trên máy? Dữ liệu chưa sync có thể bị mất.',
+      'Xác nhận xóa dữ liệu',
+      'Bạn có chắc chắn muốn xóa toàn bộ dữ liệu đã tải về thiết bị? Các lượt soát vé chưa gửi có thể bị mất.',
       [
-        { text: 'Huỷ', style: 'cancel' },
+        { text: 'Hủy', style: 'cancel' },
         {
-          text: 'Xoá Cache',
+          text: 'Xóa dữ liệu',
           style: 'destructive',
           onPress: async () => {
             await clearCache();
             await loadTrips();
-            Alert.alert('Đã xoá', 'Bộ nhớ đệm SQLite đã được làm sạch.');
+            Alert.alert('Đã xóa', 'Dữ liệu trên thiết bị đã được xóa.');
           },
         },
       ]
@@ -120,15 +114,15 @@ export default function PreloadManifestScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Screen Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Quản Lý Bến & Tải Vé (Preload)</Text>
+          <Text style={styles.title}>Chuẩn bị dữ liệu cho ca trực</Text>
           <Text style={styles.subtitle}>
-            Tải trước manifest chuyến, vé hợp lệ và Public Key vào bộ nhớ SQLite trước giờ mở cổng bến (BR-OFF-01)
+            Tải danh sách chuyến và vé về thiết bị trước giờ mở cửa bến.
           </Text>
         </View>
 
         {/* Station Selector */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Chọn Bến Mở Cổng Tác Nghiệp</Text>
+          <Text style={styles.cardTitle}>Chọn bến làm việc</Text>
           <View style={styles.stationList}>
             {STATIONS.map((st) => {
               const isSelected = selectedStationId === st.id;
@@ -163,7 +157,7 @@ export default function PreloadManifestScreen() {
               <Ionicons name="cloud-download" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
             )}
             <Text style={styles.preloadButtonText}>
-              {isPreloading ? 'ĐANG TẢI DỮ LIỆU...' : 'TẢI TRƯỚC DỮ LIỆU (PRELOAD CACHE)'}
+              {isPreloading ? 'ĐANG TẢI DỮ LIỆU...' : 'TẢI DỮ LIỆU VỀ THIẾT BỊ'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -171,7 +165,7 @@ export default function PreloadManifestScreen() {
         {/* SQLite Database Statistics Card */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Bộ Nhớ Cục Bộ (SQLite)</Text>
+            <Text style={styles.cardTitle}>Dữ liệu trên thiết bị</Text>
             <TouchableOpacity onPress={() => { refreshStats(); loadTrips(); }} style={styles.refreshIconBtn}>
               <Ionicons name="refresh" size={18} color={BrandColors.tealFlow} />
             </TouchableOpacity>
@@ -180,39 +174,39 @@ export default function PreloadManifestScreen() {
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>{stats.tripCount}</Text>
-              <Text style={styles.statLabel}>Chuyến Đi</Text>
+              <Text style={styles.statLabel}>Chuyến</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>{stats.bookingCount}</Text>
-              <Text style={styles.statLabel}>Đơn Booking</Text>
+              <Text style={styles.statLabel}>Đơn đặt vé</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={[styles.statNumber, { color: BrandColors.tealFlow }]}>{stats.ticketCount}</Text>
-              <Text style={styles.statLabel}>Tổng Vé Cache</Text>
+              <Text style={styles.statLabel}>Tổng số vé</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={[styles.statNumber, { color: BrandColors.success }]}>{stats.checkedInCount}</Text>
-              <Text style={styles.statLabel}>Đã Check-in</Text>
+              <Text style={styles.statLabel}>Đã xác nhận lên tàu</Text>
             </View>
           </View>
 
           <View style={styles.statsDivider} />
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Vé chờ đồng bộ (Offline Queue):</Text>
+            <Text style={styles.infoLabel}>Lượt soát vé chờ gửi:</Text>
             <Text style={[styles.infoValueBold, stats.pendingSyncCount > 0 && { color: BrandColors.signalAmber }]}>
-              {stats.pendingSyncCount} sự kiện
+              {stats.pendingSyncCount} lượt
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Lần tải trước gần nhất:</Text>
+            <Text style={styles.infoLabel}>Lần tải dữ liệu gần nhất:</Text>
             <Text style={styles.infoValue}>
               {stats.lastPreloadAt ? new Date(stats.lastPreloadAt).toLocaleString('vi-VN') : 'Chưa tải'}
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Dung lượng SQLite:</Text>
-            <Text style={styles.infoValue}>~{stats.databaseSizeKb} KB (Chế độ WAL)</Text>
+            <Text style={styles.infoLabel}>Dung lượng dữ liệu:</Text>
+            <Text style={styles.infoValue}>Khoảng {stats.databaseSizeKb} KB</Text>
           </View>
 
           {/* Sync Button */}
@@ -227,7 +221,7 @@ export default function PreloadManifestScreen() {
               <Ionicons name="sync" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
             )}
             <Text style={styles.syncButtonText}>
-              {isSyncing ? 'ĐANG ĐỒNG BỘ LÔ...' : `ĐẨY LÔ SYNC LÊN SERVER (${stats.pendingSyncCount})`}
+              {isSyncing ? 'ĐANG GỬI DỮ LIỆU...' : `GỬI ${stats.pendingSyncCount} LƯỢT SOÁT VÉ`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -243,7 +237,7 @@ export default function PreloadManifestScreen() {
         {/* Loaded Trips Section */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Danh Sách Chuyến Đã Nạp ({trips.length})</Text>
+            <Text style={styles.cardTitle}>Chuyến đã tải ({trips.length})</Text>
             <Text style={styles.cardSubtitle}>Ca trực hôm nay</Text>
           </View>
 
@@ -251,7 +245,7 @@ export default function PreloadManifestScreen() {
             <View style={styles.emptyTripsBox}>
               <Ionicons name="boat-outline" size={36} color="#CBD5E1" />
               <Text style={styles.emptyTripsText}>
-                Chưa có chuyến nào được tải vào máy. Bấm nút "Tải Trước Dữ Liệu" ở trên để nạp chuyến và vé.
+                Chưa có chuyến nào trên thiết bị. Nhấn nút tải dữ liệu về thiết bị để xem chuyến và vé.
               </Text>
             </View>
           ) : (
@@ -269,12 +263,12 @@ export default function PreloadManifestScreen() {
                       <Text style={styles.tripCodeBadgeText}>{trip.tripCode}</Text>
                     </View>
                     <View style={styles.tripTypeBadge}>
-                      <Text style={styles.tripTypeBadgeText}>{trip.tripType}</Text>
+                      <Text style={styles.tripTypeBadgeText}>{getTripTypeLabel(trip.tripType)}</Text>
                     </View>
                     <View style={{ flex: 1 }} />
                     <View style={styles.tripStatusBadge}>
                       <Ionicons name="radio-button-on" size={12} color="#059669" />
-                      <Text style={styles.tripStatusText}>{trip.status}</Text>
+                      <Text style={styles.tripStatusText}>{getTripStatusLabel(trip.status)}</Text>
                     </View>
                   </View>
 
@@ -306,7 +300,7 @@ export default function PreloadManifestScreen() {
                     onPress={() => router.push('/(tabs)')}
                   >
                     <Ionicons name="qr-code" size={16} color="#0284C7" />
-                    <Text style={styles.scanTripButtonText}>Mở Camera Soát Chuyến Này</Text>
+                    <Text style={styles.scanTripButtonText}>Mở máy ảnh để soát vé</Text>
                   </TouchableOpacity>
                 </View>
               );
@@ -314,36 +308,11 @@ export default function PreloadManifestScreen() {
           )}
         </View>
 
-        {/* Test QR Generator Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Tạo Mã QR Mẫu Kèm Chữ Ký Số (Demo)</Text>
-          <Text style={styles.cardDesc}>
-            Sinh chuỗi QR mẫu ký theo chuẩn HMAC-SHA256 để kiểm thử quét và giải mã ngoại tuyến:
-          </Text>
-
-          <TouchableOpacity style={styles.testGenButton} onPress={handleGenerateTestQr}>
-            <Ionicons name="qr-code-outline" size={18} color="#0284C7" style={{ marginRight: 6 }} />
-            <Text style={styles.testGenButtonText}>Sinh Chuỗi QR Hợp Lệ</Text>
-          </TouchableOpacity>
-
-          {testQrInfo && (
-            <View style={styles.qrCodeBox}>
-              <Text style={styles.qrCodeLabel}>Chuỗi QR đã ký (Dán vào camera hoặc nhập tay):</Text>
-              <Text style={styles.qrCodeText} selectable>
-                {testQrInfo.compact}
-              </Text>
-              <Text style={styles.signatureText} numberOfLines={1}>
-                Chữ ký: {testQrInfo.signature}
-              </Text>
-            </View>
-          )}
-        </View>
-
         {/* Clear Cache Card */}
         <View style={styles.dangerCard}>
           <TouchableOpacity style={styles.clearCacheBtn} onPress={handleClearCacheConfirm}>
             <Ionicons name="trash-outline" size={18} color="#DC2626" style={{ marginRight: 6 }} />
-            <Text style={styles.clearCacheBtnText}>Xoá Toàn Bộ Dữ Liệu SQLite Cục Bộ</Text>
+            <Text style={styles.clearCacheBtnText}>Xóa toàn bộ dữ liệu trên thiết bị</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -655,44 +624,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: BrandColors.tealFlow,
-  },
-  testGenButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: BrandColors.tealFlow,
-    backgroundColor: '#F0FDF9',
-  },
-  testGenButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: BrandColors.tealFlow,
-  },
-  qrCodeBox: {
-    marginTop: 12,
-    backgroundColor: BrandColors.mist,
-    borderRadius: Radius.sm,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: BrandColors.border,
-  },
-  qrCodeLabel: {
-    fontSize: 11,
-    color: BrandColors.textSecondary,
-    marginBottom: 4,
-  },
-  qrCodeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: BrandColors.tealFlow,
-  },
-  signatureText: {
-    fontSize: 10,
-    color: BrandColors.textMuted,
-    marginTop: 4,
   },
   dangerCard: {
     marginTop: 4,

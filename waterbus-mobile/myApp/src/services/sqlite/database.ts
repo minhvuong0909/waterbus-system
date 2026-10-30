@@ -42,7 +42,10 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
 
   async runAsync(sql: string, params: any[] = []): Promise<{ lastInsertRowId: number; changes: number }> {
     const trimmed = sql.trim().toUpperCase();
-    if (trimmed.startsWith('INSERT INTO PUBLIC_KEYS')) {
+    if (
+      trimmed.startsWith('INSERT INTO PUBLIC_KEYS') ||
+      trimmed.startsWith('INSERT OR REPLACE INTO PUBLIC_KEYS')
+    ) {
       const [kid, algo, pem, from, to, active] = params;
       const filtered = this.tables.public_keys.filter(k => k.kid !== kid);
       filtered.push({ kid, algorithm: algo, public_key_pem: pem, valid_from: from, valid_to: to, is_active: active });
@@ -136,6 +139,19 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       }
       return { lastInsertRowId: 0, changes: 0 };
     }
+    if (normalized.includes('UPDATE OFFLINE_CHECKIN_EVENTS SET RETRY_COUNT')) {
+      const [lastAttemptAt, errorMessage, clientEventId] = params;
+      const event = this.tables.offline_checkin_events.find(
+        (item) => item.client_event_id === clientEventId
+      );
+      if (event) {
+        event.retry_count += 1;
+        event.last_sync_attempt_at = lastAttemptAt;
+        event.error_message = errorMessage;
+        return { lastInsertRowId: 0, changes: 1 };
+      }
+      return { lastInsertRowId: 0, changes: 0 };
+    }
     // markEventsSynced — SET sync_status = 'Synced'
     if (normalized.includes('UPDATE OFFLINE_CHECKIN_EVENTS SET SYNC_STATUS')) {
       const [recAt, lAtt, cEventId] = params;
@@ -187,7 +203,11 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       return [...this.tables.manifest_tickets] as any;
     }
     if (trimmed.includes('FROM PUBLIC_KEYS')) {
-      return [...this.tables.public_keys] as any;
+      const activeKeys = this.tables.public_keys.filter((key) => key.is_active === 1);
+      if (trimmed.includes('KID = ?')) {
+        return activeKeys.filter((key) => key.kid === params[0]) as any;
+      }
+      return activeKeys.sort((left, right) => right.valid_from.localeCompare(left.valid_from)) as any;
     }
     return [];
   }

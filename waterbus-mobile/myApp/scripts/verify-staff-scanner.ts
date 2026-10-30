@@ -9,15 +9,62 @@
  * 6. Bug Fixes: H03 (late sync rejection), M08 (primary scanner race), M13 (JWS header kid)
  */
 
-import CryptoJS from 'crypto-js';
-import { QrVerifier, DEFAULT_KEY_INFO } from '../src/services/crypto/qrVerifier';
+import { QrVerifier } from '../src/services/crypto/qrVerifier';
 import { SqliteRepository } from '../src/services/sqlite/sqliteRepository';
 import { syncService } from '../src/services/sync/syncService';
 import { scannerApiService, setApiBaseUrl } from '../src/api/client';
+import { useScannerStore } from '../src/store/useScannerStore';
+import { PreloadManifest, PublicKeyInfo } from '../src/types/scanner';
 
 declare const process: any;
 declare const require: any;
 const http = require('http');
+const crypto = require('crypto');
+
+const testKeyPair = crypto.generateKeyPairSync('rsa', {
+  modulusLength: 2048,
+  publicKeyEncoding: { type: 'spki', format: 'pem' },
+  privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+});
+
+const testPublicKeyInfo: PublicKeyInfo = {
+  kid: 'waterbus-test-rsa-2026',
+  algorithm: 'RS256',
+  publicKeyPem: testKeyPair.publicKey,
+  validFrom: '2026-01-01T00:00:00Z',
+  validTo: '2027-01-01T00:00:00Z',
+  isActive: true,
+};
+
+function signTestData(data: string): string {
+  return crypto.sign('RSA-SHA256', Buffer.from(data), testKeyPair.privateKey).toString('base64url');
+}
+
+function createSignedJws(payload: Record<string, unknown>, kid = testPublicKeyInfo.kid): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT', kid })).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signable = `${header}.${body}`;
+  return `${signable}.${signTestData(signable)}`;
+}
+
+function createHs256Jws(payload: Record<string, unknown>): string {
+  const header = Buffer.from(JSON.stringify({
+    alg: 'HS256',
+    typ: 'JWT',
+    kid: testPublicKeyInfo.kid,
+  })).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signable = `${header}.${body}`;
+  const signature = crypto.createHmac('sha256', 'test-only-secret').update(signable).digest('base64url');
+  return `${signable}.${signature}`;
+}
+
+function createSignedJsonQr(payload: Record<string, unknown>): string {
+  const canonical = JSON.stringify(
+    Object.fromEntries(Object.entries(payload).sort(([left], [right]) => left.localeCompare(right)))
+  );
+  return JSON.stringify({ ...payload, sig: signTestData(canonical) });
+}
 
 async function runVerification() {
   let passedTests = 0;
@@ -36,28 +83,123 @@ async function runVerification() {
 
   const sampleBookingId = 'pub_wb_98a76b5c';
   const sampleTripId = 'TRIP-BD-BA-01';
+  const testManifest: PreloadManifest = {
+    stationId: 'ST-BACH-DANG',
+    stationName: 'Bến Bạch Đằng',
+    generatedAt: new Date().toISOString(),
+    publicKey: testPublicKeyInfo,
+    trips: [{
+      id: sampleTripId,
+      tripCode: 'SWB-0830',
+      routeName: 'Bạch Đằng - Bình An',
+      tripType: 'Commuter',
+      boatName: 'Tàu thử nghiệm',
+      departureStationId: 'ST-BACH-DANG',
+      departureStationName: 'Bến Bạch Đằng',
+      arrivalStationId: 'ST-BINH-AN',
+      arrivalStationName: 'Bến Bình An',
+      departureTime: new Date().toISOString(),
+      status: 'Boarding',
+    }],
+    bookings: [{
+      id: 'BK-001',
+      publicBookingId: sampleBookingId,
+      bookingCode: 'WB-TEST-001',
+      tripId: sampleTripId,
+      customerName: 'Trần Văn Minh',
+      totalAmount: 30000,
+      qrCredentialVersion: 1,
+      status: 'Confirmed',
+      tickets: [
+        {
+          id: 'TK-001-A1',
+          bookingId: 'BK-001',
+          ticketNumber: 'TK-TEST-001',
+          seatCode: 'A01',
+          seatClass: 'Standard',
+          passengerName: 'Trần Văn Minh',
+          status: 'Valid',
+          boardingStatus: 'NotCheckedIn',
+          faceFare: 15000,
+          paidFare: 15000,
+        },
+        {
+          id: 'TK-001-A2',
+          bookingId: 'BK-001',
+          ticketNumber: 'TK-TEST-002',
+          seatCode: 'A02',
+          seatClass: 'Standard',
+          passengerName: 'Lê Thị Mai',
+          status: 'Valid',
+          boardingStatus: 'NotCheckedIn',
+          faceFare: 15000,
+          paidFare: 15000,
+        },
+      ],
+    }],
+  };
+  await SqliteRepository.saveManifest(testManifest);
 
-  // 1.1 Generate valid signed QR
-  const signed = QrVerifier.generateTestSignedQr(sampleBookingId, sampleTripId, DEFAULT_KEY_INFO);
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const signedQr = createSignedJws({
+    pbid: sampleBookingId,
+    ver: 1,
+    tid: sampleTripId,
+    iat: issuedAt,
+  });
 
   // 1.2 Verify valid QR offline
-  const validResult = await QrVerifier.verifyQrCode(signed.compactQr);
+  const validResult = await QrVerifier.verifyQrCode(signedQr);
   assert(
     validResult.isValid && validResult.publicBookingId === sampleBookingId,
-    '1.1 Verify valid signed QR offline with Public Key',
+    '1.1 Verify authentic RS256 JWS offline with the cached public key',
     `Algorithm: ${validResult.algorithmUsed}, VerifiedOffline: ${validResult.verifiedOffline}`
   );
 
-  // 1.3 Verify JSON format QR
-  const jsonResult = await QrVerifier.verifyQrCode(signed.jsonQr);
+  const unknownKeyResult = await QrVerifier.verifyQrCode(createSignedJws({
+    pbid: sampleBookingId,
+    ver: 1,
+  }, 'unknown-key-id'));
+  assert(
+    !unknownKeyResult.isValid,
+    '1.1a Reject a QR with an unknown key id instead of falling back to another key'
+  );
+
+  const signedJsonQr = createSignedJsonQr({
+    pbid: sampleBookingId,
+    ver: 1,
+    tid: sampleTripId,
+    iat: issuedAt,
+    kid: testPublicKeyInfo.kid,
+  });
+  const jsonResult = await QrVerifier.verifyQrCode(signedJsonQr);
   assert(
     jsonResult.isValid && jsonResult.publicBookingId === sampleBookingId,
     '1.2 Verify JSON-structured signed QR offline',
     `Booking ID parsed: ${jsonResult.publicBookingId}`
   );
 
-  // 1.4 Tamper detection (modified publicBookingId)
-  const tamperedQr = signed.compactQr.replace(sampleBookingId, 'pub_wb_FORGED_ID');
+  const subsetSignedPayload = {
+    pbid: sampleBookingId,
+    ver: 1,
+    tid: 'TRIP-FORGED',
+    iat: issuedAt,
+    kid: testPublicKeyInfo.kid,
+  };
+  const subsetSignedQr = JSON.stringify({
+    ...subsetSignedPayload,
+    sig: signTestData(`WB1.${sampleBookingId}.1.${issuedAt}`),
+  });
+  const subsetSignatureResult = await QrVerifier.verifyQrCode(subsetSignedQr);
+  assert(
+    !subsetSignatureResult.isValid,
+    '1.2a Reject signatures that do not cover all signed JSON payload fields'
+  );
+
+  const signedParts = signedQr.split('.');
+  const changedPayload = JSON.parse(Buffer.from(signedParts[1], 'base64url').toString('utf8'));
+  changedPayload.pbid = 'pub_wb_FORGED_ID';
+  const tamperedQr = `${signedParts[0]}.${Buffer.from(JSON.stringify(changedPayload)).toString('base64url')}.${signedParts[2]}`;
   const tamperedResult = await QrVerifier.verifyQrCode(tamperedQr);
   assert(
     !tamperedResult.isValid && !!tamperedResult.error,
@@ -65,35 +207,94 @@ async function runVerification() {
     `Expected rejection: ${tamperedResult.error}`
   );
 
-  // 1.5 Expired QR detection
-  const expiredQrObj = {
+  const plainIdResult = await QrVerifier.verifyQrCode(sampleBookingId);
+  assert(
+    !plainIdResult.isValid,
+    '1.4 Reject a plain booking ID without a digital signature'
+  );
+
+  const fakeLongSignatureQr = `${signedQr.slice(0, signedQr.lastIndexOf('.') + 1)}${'A'.repeat(342)}`;
+  const fakeLongSignatureResult = await QrVerifier.verifyQrCode(fakeLongSignatureQr);
+  assert(
+    !fakeLongSignatureResult.isValid,
+    '1.5 Reject a long but forged RSA signature'
+  );
+
+  const hmacQrResult = await QrVerifier.verifyQrCode(createHs256Jws({
     pbid: sampleBookingId,
     ver: 1,
+  }));
+  assert(
+    !hmacQrResult.isValid,
+    '1.6 Reject HMAC-signed QR credentials; only backend RS256 keys are accepted'
+  );
+
+  const malformedExpiryResult = await QrVerifier.verifyQrCode(createSignedJws({
+    pbid: sampleBookingId,
+    ver: 1,
+    exp: 'not-a-timestamp',
+  }));
+  assert(
+    !malformedExpiryResult.isValid,
+    '1.7 Reject signed QR credentials with a malformed expiration value'
+  );
+
+  const expiredQr = createSignedJsonQr({
+    pbid: sampleBookingId,
+    ver: 1,
+    tid: sampleTripId,
     iat: Math.floor(Date.now() / 1000) - 7200,
-    exp: Math.floor(Date.now() / 1000) - 3600, // Expired 1 hour ago
-    sig: 'dummy_sig',
-    kid: DEFAULT_KEY_INFO.kid,
-  };
-  const expiredResult = await QrVerifier.verifyQrCode(JSON.stringify(expiredQrObj));
+    exp: Math.floor(Date.now() / 1000) - 3600,
+    kid: testPublicKeyInfo.kid,
+  });
+  const expiredResult = await QrVerifier.verifyQrCode(expiredQr);
   assert(
     !expiredResult.isValid,
-    '1.4 Reject expired QR code past expiration window',
+    '1.8 Reject expired QR code past expiration window',
     `Error reported: ${expiredResult.error}`
   );
 
   // 2.1 Preload demo manifest
-  const preloadRes = await syncService.preloadManifest('ST-BACH-DANG');
+  const originalFetchForPreload = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => testManifest,
+  } as Response);
+  let preloadRes: { manifest: PreloadManifest; message: string };
+  try {
+    preloadRes = await syncService.preloadManifest('ST-BACH-DANG', 'https://scanner-test.invalid');
+  } finally {
+    globalThis.fetch = originalFetchForPreload;
+  }
   assert(
     preloadRes.manifest.bookings.length > 0 && preloadRes.manifest.trips.length > 0,
-    '2.1 Preload manifest before gate opening into SQLite',
+    '2.1 Preload authentic server manifest before gate opening into SQLite',
     `Preloaded ${preloadRes.manifest.bookings.length} bookings, ${preloadRes.manifest.trips.length} trips`
+  );
+
+  const fetchBeforeOfflinePreload = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error('network unavailable');
+  };
+  let offlinePreloadRejected = false;
+  try {
+    await syncService.preloadManifest('ST-BACH-DANG', 'https://scanner-test.invalid');
+  } catch {
+    offlinePreloadRejected = true;
+  } finally {
+    globalThis.fetch = fetchBeforeOfflinePreload;
+  }
+  assert(
+    offlinePreloadRejected,
+    '2.2 Do not report a generated sample manifest as a successful preload when offline'
   );
 
   // 2.2 Verify stats
   const stats = await SqliteRepository.getManifestStats();
   assert(
     stats.ticketCount > 0 && stats.tripCount > 0 && stats.bookingCount > 0,
-    '2.2 SQLite local cache reflects correct manifest counts',
+    '2.3 SQLite local cache reflects correct manifest counts',
     `Cached: ${stats.tripCount} trips, ${stats.bookingCount} bookings, ${stats.ticketCount} tickets`
   );
 
@@ -103,13 +304,23 @@ async function runVerification() {
   const lookupTimeMs = Date.now() - startTime;
   assert(
     loadedBooking !== null && loadedBooking.tickets.length > 0,
-    '2.3 Ultra-fast lookup of Booking & Passenger list by PublicBookingId',
+    '2.4 Ultra-fast lookup of Booking & Passenger list by PublicBookingId',
     `Lookup completed in ${lookupTimeMs}ms, Found ${loadedBooking?.tickets.length} tickets for customer "${loadedBooking?.customerName}"`
   );
 
   if (loadedBooking && loadedBooking.tickets.length >= 2) {
     const ticketToBoard1 = loadedBooking.tickets[0].id;
     const ticketToBoard2 = loadedBooking.tickets[1].id;
+
+    useScannerStore.getState().setCurrentBooking(loadedBooking, tamperedResult);
+    const rejectedCheckIn = await useScannerStore.getState().performCheckIn([ticketToBoard1]);
+    assert(
+      !rejectedCheckIn.success && rejectedCheckIn.count === 0,
+      '3.0 Reject check-in when QR signature is invalid',
+      rejectedCheckIn.error
+    );
+
+    useScannerStore.getState().setCurrentBooking(loadedBooking, validResult);
 
     // Check-in 2 passengers
     const checkInResult = await SqliteRepository.checkInTickets({
@@ -156,18 +367,92 @@ async function runVerification() {
     `Found ${pendingEventsBefore.length} events pending sync`
   );
 
-  // Trigger batch sync
-  const syncResult = await syncService.triggerBatchSync();
+  const originalFetchForSync = globalThis.fetch;
+  let failedAttemptKey: string | null = null;
+  let successfulAttemptKey: string | null = null;
+  globalThis.fetch = async (_input, init) => {
+    failedAttemptKey = (init?.headers as Record<string, string>)['Idempotency-Key'];
+    throw new Error('network unavailable');
+  };
+  const failedSyncResult = await syncService.triggerBatchSync('https://scanner-test.invalid');
+  const pendingAfterFailure = await SqliteRepository.getPendingEvents();
   assert(
-    syncResult.syncedCount >= 2,
-    '4.2 Batch sync worker processes pending queue and marks events as "Synced"',
-    `Synced ${syncResult.syncedCount} events successfully`
+    failedSyncResult.syncedCount === 0 &&
+      pendingAfterFailure.length >= 2 &&
+      pendingAfterFailure.every((event) => event.retryCount > 0),
+    '4.2 Keep events pending and record retry metadata when the server cannot be reached',
+    `${failedSyncResult.message}; pending: ${pendingAfterFailure.length}; retries: ${pendingAfterFailure.map((event) => event.retryCount).join(',')}`
   );
+
+  globalThis.fetch = async (_input, init) => {
+    successfulAttemptKey = (init?.headers as Record<string, string>)['Idempotency-Key'];
+    const requestBody = JSON.parse(String(init?.body));
+    const firstEventId = requestBody.events[0].clientEventId;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        batchId: 'BATCH-ACK-TEST',
+        successCount: 1,
+        conflictCount: 0,
+        processedEvents: [
+          { clientEventId: firstEventId, outcome: 'Success', syncStatus: 'Synced' },
+          { clientEventId: 'not-in-this-batch', outcome: 'Success', syncStatus: 'Synced' },
+        ],
+      }),
+    } as Response;
+  };
+  let partialSyncResult: { syncedCount: number; message: string };
+  try {
+    partialSyncResult = await syncService.triggerBatchSync('https://scanner-test.invalid');
+  } finally {
+    globalThis.fetch = originalFetchForSync;
+  }
+  assert(
+    partialSyncResult.syncedCount === 1,
+    '4.3 Mark only requested events with explicit success acknowledgments as Synced',
+    `Synced ${partialSyncResult.syncedCount} event(s)`
+  );
+  const pendingAfterPartialAck = await SqliteRepository.getPendingEvents();
+  assert(
+    pendingAfterPartialAck.length === 1,
+    '4.4 Keep events without an individual acknowledgment pending',
+    `Pending after partial acknowledgment: ${pendingAfterPartialAck.length}`
+  );
+  assert(
+    !!failedAttemptKey && failedAttemptKey === successfulAttemptKey,
+    '4.5 Retries reuse a stable Idempotency-Key for the same queued events',
+    `Failed attempt key: ${failedAttemptKey}; successful attempt key: ${successfulAttemptKey}`
+  );
+
+  const originalFetchForFinalSync = globalThis.fetch;
+  globalThis.fetch = async (_input, init) => {
+    const requestBody = JSON.parse(String(init?.body));
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        batchId: 'BATCH-ACK-REMAINDER',
+        successCount: requestBody.events.length,
+        conflictCount: 0,
+        processedEvents: requestBody.events.map((event: { clientEventId: string }) => ({
+          clientEventId: event.clientEventId,
+          outcome: 'Success',
+          syncStatus: 'Synced',
+        })),
+      }),
+    } as Response;
+  };
+  try {
+    await syncService.triggerBatchSync('https://scanner-test.invalid');
+  } finally {
+    globalThis.fetch = originalFetchForFinalSync;
+  }
 
   const pendingEventsAfter = await SqliteRepository.getPendingEvents();
   assert(
     pendingEventsAfter.length === 0,
-    '4.3 Pending queue cleared in SQLite after successful server acknowledgment',
+    '4.6 Pending queue cleared only after successful server acknowledgment',
     `Remaining pending events: ${pendingEventsAfter.length}`
   );
 
@@ -220,7 +505,7 @@ async function runVerification() {
         ]
       }
     ],
-    publicKeys: [DEFAULT_KEY_INFO],
+    publicKey: testPublicKeyInfo,
     generatedAt: new Date().toISOString()
   };
 
@@ -276,7 +561,7 @@ async function runVerification() {
     // Route 4: Scanner Public Key
     if (reqUrl.pathname === '/api/v1/scanner/public-key' && req.method === 'GET') {
       res.writeHead(200);
-      res.end(JSON.stringify(DEFAULT_KEY_INFO));
+      res.end(JSON.stringify(testPublicKeyInfo));
       return;
     }
 
@@ -445,30 +730,24 @@ async function runVerification() {
 
   // 6.1 (M13) JWS header kid extraction — kid only in header, not in payload
   {
-    const headerObj = { alg: 'HS256', typ: 'JWT', kid: DEFAULT_KEY_INFO.kid };
     const payloadObj = {
       pbid: sampleBookingId,
       ver: 1,
       tid: sampleTripId,
       iat: Math.floor(Date.now() / 1000),
-      // NOTE: NO kid in payload — kid is only in the JWS header per RFC 7515
     };
-    const headerB64 = CryptoJS.enc.Base64url.stringify(CryptoJS.enc.Utf8.parse(JSON.stringify(headerObj)));
-    const payloadB64 = CryptoJS.enc.Base64url.stringify(CryptoJS.enc.Utf8.parse(JSON.stringify(payloadObj)));
-    const signable = `${headerB64}.${payloadB64}`;
-    const sig = CryptoJS.HmacSHA256(signable, DEFAULT_KEY_INFO.publicKeyPem).toString(CryptoJS.enc.Base64url);
-    const jwsQr = `${headerB64}.${payloadB64}.${sig}`;
+    const jwsQr = createSignedJws(payloadObj);
 
     const jwsResult = await QrVerifier.verifyQrCode(jwsQr);
     assert(
       jwsResult.isValid && jwsResult.publicBookingId === sampleBookingId,
-      '6.1 (M13) JWS QR with kid only in header is verified successfully',
+      '6.1 (M13) RS256 JWS QR with kid only in header is verified successfully',
       `kid extracted: ${jwsResult.kid}, booking: ${jwsResult.publicBookingId}`
     );
     assert(
-      jwsResult.kid === DEFAULT_KEY_INFO.kid,
+      jwsResult.kid === testPublicKeyInfo.kid,
       '6.2 (M13) kid correctly read from JWS header (not payload) per RFC 7515',
-      `Expected kid="${DEFAULT_KEY_INFO.kid}", got kid="${jwsResult.kid}"`
+      `Expected kid="${testPublicKeyInfo.kid}", got kid="${jwsResult.kid}"`
     );
   }
 
@@ -528,4 +807,3 @@ runVerification().catch((err) => {
   console.error('Fatal test error:', err);
   process.exit(1);
 });
-

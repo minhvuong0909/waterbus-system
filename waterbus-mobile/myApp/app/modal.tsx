@@ -14,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { SqliteRepository } from '../src/services/sqlite/sqliteRepository';
-import { QrVerifier } from '../src/services/crypto/qrVerifier';
 import { useScannerStore } from '../src/store/useScannerStore';
 import { Booking } from '../src/types/scanner';
 import { BrandColors, Radius } from '../constants/theme';
@@ -28,7 +27,7 @@ export default function ManualInspectionModal() {
   const handleSearch = async (searchTerm?: string) => {
     const query = (searchTerm || code).trim();
     if (!query) {
-      Alert.alert('Thông báo', 'Vui lòng nhập mã vé hoặc mã Booking.');
+      Alert.alert('Thông báo', 'Vui lòng nhập mã vé hoặc mã đặt chỗ.');
       return;
     }
 
@@ -51,12 +50,12 @@ export default function ManualInspectionModal() {
         setFoundBooking(null);
         Alert.alert(
           'Không tìm thấy',
-          `Không tìm thấy dữ liệu cho mã "${query}" trong bộ nhớ SQLite của máy.\n\nVui lòng kiểm tra lại mã hoặc tải trước manifest bến.`
+          `Không tìm thấy thông tin cho mã "${query}" trên thiết bị.\n\nVui lòng kiểm tra lại mã hoặc tải dữ liệu của bến trước.`
         );
       }
-    } catch (err: any) {
+    } catch {
       setIsSearching(false);
-      Alert.alert('Lỗi tra cứu', err.message);
+      Alert.alert('Không thể tra cứu', 'Vui lòng thử lại.');
     }
   };
 
@@ -64,10 +63,10 @@ export default function ManualInspectionModal() {
     if (!foundBooking) return;
     router.back();
     const verification = {
-      isValid: true,
+      isValid: false,
       publicBookingId: foundBooking.publicBookingId,
-      algorithmUsed: 'HS256',
-      verifiedOffline: true,
+      error: 'Tra cứu bằng mã đơn không xác thực được mã QR. Hãy quét mã QR hợp lệ trước khi xác nhận khách lên tàu.',
+      verifiedOffline: false,
     };
     setCurrentBooking(foundBooking, verification);
   };
@@ -79,13 +78,13 @@ export default function ManualInspectionModal() {
         <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
           <Ionicons name="close" size={24} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Tra Cứu Vé & Booking Nhanh</Text>
+        <Text style={styles.headerTitle}>Tra cứu vé nhanh</Text>
         <View style={{ width: 32 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.desc}>
-          Dùng khi màn hình điện thoại khách bị nứt, QR mờ camera không đọc được, hoặc khách chỉ nhớ mã đặt chỗ:
+        Dùng để tra cứu thông tin khi màn hình điện thoại bị hỏng hoặc mã QR không đọc được. Cần quét mã QR hợp lệ để xác nhận khách lên tàu.
         </Text>
 
         {/* Input Box */}
@@ -117,7 +116,7 @@ export default function ManualInspectionModal() {
           ) : (
             <>
               <Ionicons name="search" size={18} color="#FFFFFF" />
-              <Text style={styles.searchBtnText}>Tra Cứu Trong SQLite</Text>
+              <Text style={styles.searchBtnText}>Tra cứu trên thiết bị</Text>
             </>
           )}
         </TouchableOpacity>
@@ -198,8 +197,8 @@ export default function ManualInspectionModal() {
                     />
                     <Text style={styles.seatText}>Ghế {t.seatCode}</Text>
                     <Text style={styles.passengerText}>{t.passengerName}</Text>
-                    <Text style={[styles.statusText, isChecked ? styles.textChecked : styles.textUnchecked]}>
-                      {isChecked ? 'Đã lên tàu' : 'Chưa check-in'}
+                        <Text style={[styles.statusText, isChecked ? styles.textChecked : styles.textUnchecked]}>
+                          {isChecked ? 'Đã lên tàu' : 'Chưa lên tàu'}
                     </Text>
                   </View>
                 );
@@ -208,7 +207,7 @@ export default function ManualInspectionModal() {
 
             <TouchableOpacity style={styles.openCheckInBtn} onPress={handleOpenCheckIn}>
               <Ionicons name="checkbox-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.openCheckInBtnText}>Mở Màn Hình Tích Chọn Soát Vé</Text>
+              <Text style={styles.openCheckInBtnText}>Xem thông tin vé</Text>
             </TouchableOpacity>
           </View>
         )}

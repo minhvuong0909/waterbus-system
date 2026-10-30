@@ -4,19 +4,10 @@
  * WITHOUT calling backend API (BR-QR-01, BR-QR-02, BR-OFF-01)
  */
 
+import * as forge from 'node-forge';
 import CryptoJS from 'crypto-js';
 import { SqliteRepository } from '../sqlite/sqliteRepository';
 import { PublicKeyInfo, QrPayload, QrVerificationResult } from '../../types/scanner';
-
-// Default development public key / secret if cache not yet populated
-export const DEFAULT_KEY_INFO: PublicKeyInfo = {
-  kid: 'waterbus-root-2026',
-  algorithm: 'HS256',
-  publicKeyPem: 'swb_production_secret_key_2026_verify_offline_staff_scanner_token_salt',
-  validFrom: '2026-01-01T00:00:00Z',
-  validTo: '2027-01-01T00:00:00Z',
-  isActive: true,
-};
 
 export class QrVerifier {
   /**
@@ -38,50 +29,56 @@ export class QrVerifier {
     if (!parsed) {
       return {
         isValid: false,
-        error: 'Cấu trúc mã QR không hợp lệ (không chứa dữ liệu Waterbus)',
+        error: 'Mã QR không đúng định dạng.',
         verifiedOffline: true,
       };
     }
 
-    const { payload, signature, rawSignableData, format } = parsed;
+    const { payload, signature, rawSignableData } = parsed;
 
     if (!payload.pbid) {
       return {
         isValid: false,
-        error: 'Thiếu định danh PublicBookingId trong mã QR (BR-QR-02)',
+        error: 'Mã QR không có thông tin đặt vé.',
         verifiedOffline: true,
       };
     }
 
     // 2. Fetch Public Key from SQLite local cache
-    let keyInfo = await SqliteRepository.getActivePublicKey(payload.kid);
-    if (!keyInfo) {
-      // Fallback to active key or default seed key
-      keyInfo = (await SqliteRepository.getActivePublicKey()) || DEFAULT_KEY_INFO;
-    }
-
-    // 3. Verify digital signature
-    const isSignatureValid =
-      this.verifySignature(rawSignableData, signature, keyInfo) ||
-      (parsed.alternateSignableData
-        ? this.verifySignature(parsed.alternateSignableData, signature, keyInfo)
-        : false);
-
-    if (!isSignatureValid) {
-        return {
+    const keyInfo = payload.kid
+      ? await SqliteRepository.getActivePublicKey(payload.kid)
+      : await SqliteRepository.getActivePublicKey();
+    if (!keyInfo || keyInfo.algorithm !== 'RS256' || !keyInfo.publicKeyPem.trim()) {
+      return {
         isValid: false,
         publicBookingId: payload.pbid,
         version: payload.ver,
         tripId: payload.tid,
         kid: payload.kid,
-        error: 'Chữ ký số KHÔNG HỢP LỆ (Cảnh báo: QR có dấu hiệu bị giả mạo hoặc sai Public Key)',
+        error: 'Không tìm thấy khóa công khai RS256 hợp lệ trên thiết bị. Vui lòng tải lại dữ liệu.',
+        verifiedOffline: true,
+        algorithmUsed: keyInfo?.algorithm,
+      };
+    }
+
+    // 3. Verify digital signature
+    const isSignatureValid = this.verifySignature(rawSignableData, signature, keyInfo);
+
+    if (!isSignatureValid) {
+      return {
+        isValid: false,
+        publicBookingId: payload.pbid,
+        version: payload.ver,
+        tripId: payload.tid,
+        kid: payload.kid,
+        error: 'Chữ ký số không hợp lệ. Mã QR có thể đã bị thay đổi hoặc không đáng tin cậy.',
         verifiedOffline: true,
         algorithmUsed: keyInfo.algorithm,
       };
     }
 
     // 4. Check expiration if exp field is present
-    if (payload.exp) {
+    if (payload.exp !== undefined) {
       const nowSeconds = Math.floor(Date.now() / 1000);
       if (nowSeconds > payload.exp) {
         return {
@@ -119,7 +116,6 @@ export class QrVerifier {
     payload: QrPayload;
     signature: string;
     rawSignableData: string;
-    alternateSignableData?: string;
     format: 'compact' | 'json' | 'jws';
   } | null {
     // Format A: Compact WB1.<pbid>.<ver>.<iat>.<sig>
@@ -146,10 +142,15 @@ export class QrVerifier {
     if (raw.startsWith('{') && raw.endsWith('}')) {
       try {
         const obj = JSON.parse(raw);
-        if (obj.pbid && obj.sig) {
+        if (
+          typeof obj.pbid === 'string' &&
+          obj.pbid.length > 0 &&
+          typeof obj.sig === 'string' &&
+          this.hasValidPayloadMetadata(obj)
+        ) {
           const sig = obj.sig;
           // Build canonical signable payload without sig
-          const signableObj: any = { ...obj };
+          const signableObj: Record<string, unknown> = { ...obj };
           delete signableObj.sig;
           const canonical = this.canonicalStringify(signableObj);
 
@@ -164,11 +165,10 @@ export class QrVerifier {
             },
             signature: sig,
             rawSignableData: canonical,
-            alternateSignableData: `WB1.${obj.pbid}.${obj.ver || 1}.${obj.iat || 0}`,
             format: 'json',
           };
         }
-      } catch (e) {
+      } catch {
         // Not valid JSON, continue
       }
     }
@@ -178,24 +178,22 @@ export class QrVerifier {
     const jwsParts = raw.split('.');
     if (jwsParts.length === 3) {
       try {
-        let headerKid: string | undefined;
-        try {
-          const headerJson = this.base64UrlDecode(jwsParts[0]);
-          const headerObj = JSON.parse(headerJson);
-          if (headerObj && typeof headerObj.kid === 'string') {
-            headerKid = headerObj.kid;
-          }
-        } catch {
-          // Ignore header parse error and continue
-        }
+        const headerJson = this.base64UrlDecode(jwsParts[0]);
+        const headerObj = JSON.parse(headerJson);
+        if (headerObj?.alg !== 'RS256') return null;
+        const headerKid = typeof headerObj.kid === 'string' ? headerObj.kid : undefined;
 
         const payloadJson = this.base64UrlDecode(jwsParts[1]);
         const payloadObj = JSON.parse(payloadJson);
-        if (payloadObj.pbid || payloadObj.sub) {
+        if (
+          typeof (payloadObj.pbid || payloadObj.sub) === 'string' &&
+          this.hasValidPayloadMetadata(payloadObj)
+        ) {
           const pbid = payloadObj.pbid || payloadObj.sub;
           const signable = `${jwsParts[0]}.${jwsParts[1]}`;
-          // Prioritize kid from JWS header (M13 fix), fallback to payload.kid
+          // Prefer the key id from the protected JWS header.
           const effectiveKid = headerKid || payloadObj.kid;
+          if (typeof effectiveKid !== 'string' || effectiveKid.length === 0) return null;
 
           return {
             payload: {
@@ -211,19 +209,9 @@ export class QrVerifier {
             format: 'jws',
           };
         }
-      } catch (e) {
+      } catch {
         // Not valid JWS
       }
-    }
-
-    // Fallback: Plain PublicBookingId string (for legacy tests or direct barcode scan)
-    if (/^[A-Za-z0-9_-]{8,64}$/.test(raw)) {
-      return {
-        payload: { pbid: raw, ver: 1 },
-        signature: 'mock_direct_id',
-        rawSignableData: raw,
-        format: 'compact',
-      };
     }
 
     return null;
@@ -237,90 +225,19 @@ export class QrVerifier {
     signature: string,
     keyInfo: PublicKeyInfo
   ): boolean {
-    // If it's a test direct barcode scan
-    if (signature === 'mock_direct_id') {
-      return true;
-    }
-
     try {
-      if (keyInfo.algorithm === 'HS256' || !keyInfo.publicKeyPem.includes('BEGIN')) {
-        // Symmetric HMAC-SHA256 verification (ultra-fast < 1ms)
-        const secret = keyInfo.publicKeyPem || DEFAULT_KEY_INFO.publicKeyPem;
-        const expectedHmac = CryptoJS.HmacSHA256(data, secret).toString(CryptoJS.enc.Hex);
-        const expectedBase64 = CryptoJS.HmacSHA256(data, secret).toString(CryptoJS.enc.Base64url);
-
-        return (
-          signature.toLowerCase() === expectedHmac.toLowerCase() ||
-          signature === expectedBase64 ||
-          this.constantTimeEquals(signature, expectedHmac)
-        );
+      if (keyInfo.algorithm !== 'RS256' || !keyInfo.publicKeyPem.includes('BEGIN PUBLIC KEY')) {
+        return false;
       }
 
-      // RS256 / Public Key PEM verification
-      // For RSA public key verification:
-      return this.verifyRsaSha256(data, signature, keyInfo.publicKeyPem);
+      const publicKey = forge.pki.publicKeyFromPem(keyInfo.publicKeyPem);
+      const digest = forge.md.sha256.create();
+      digest.update(data, 'utf8');
+      const signatureBytes = this.decodeBase64Url(signature);
+      return publicKey.verify(digest.digest().bytes(), signatureBytes);
     } catch {
       return false;
     }
-  }
-
-  /**
-   * RSA-SHA256 signature verification logic
-   */
-  private static verifyRsaSha256(
-    data: string,
-    signature: string,
-    pemKey: string
-  ): boolean {
-    try {
-      // Compute SHA256 digest of data
-      const dataHash = CryptoJS.SHA256(data).toString(CryptoJS.enc.Hex);
-
-      // In pure JS offline verification:
-      // If full PKCS#1 v1.5 decoding is present or mocked with public exponent
-      if (signature.length >= 32) {
-        // Compute expected signature hash using key thumbprint
-        const keyHash = CryptoJS.SHA256(pemKey).toString(CryptoJS.enc.Hex);
-        const combined = CryptoJS.HmacSHA256(dataHash, keyHash).toString(CryptoJS.enc.Hex);
-        return signature.toLowerCase() === combined.toLowerCase() || signature.length > 64;
-      }
-      return false;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Helper: Generate a valid signed QR code for testing & demonstration
-   */
-  static generateTestSignedQr(
-    publicBookingId: string,
-    tripId?: string,
-    keyInfo: PublicKeyInfo = DEFAULT_KEY_INFO
-  ): {
-    compactQr: string;
-    jsonQr: string;
-    signature: string;
-  } {
-    const ver = 1;
-    const iat = Math.floor(Date.now() / 1000);
-    const signable = `WB1.${publicBookingId}.${ver}.${iat}`;
-
-    const secret = keyInfo.publicKeyPem;
-    const signature = CryptoJS.HmacSHA256(signable, secret).toString(CryptoJS.enc.Hex);
-    const compactQr = `${signable}.${signature}`;
-
-    const jsonObj = {
-      pbid: publicBookingId,
-      ver,
-      tid: tripId,
-      iat,
-      kid: keyInfo.kid,
-      sig: signature,
-    };
-    const jsonQr = JSON.stringify(jsonObj);
-
-    return { compactQr, jsonQr, signature };
   }
 
   /**
@@ -335,6 +252,22 @@ export class QrVerifier {
     return `{${parts.join(',')}}`;
   }
 
+  private static hasValidPayloadMetadata(value: Record<string, unknown>): boolean {
+    const isOptionalTimestamp = (field: unknown) =>
+      field === undefined || (Number.isSafeInteger(field) && Number(field) >= 0);
+    const isOptionalString = (field: unknown) =>
+      field === undefined || typeof field === 'string';
+
+    return (
+      (value.ver === undefined ||
+        (Number.isSafeInteger(value.ver) && Number(value.ver) >= 1)) &&
+      isOptionalTimestamp(value.iat) &&
+      isOptionalTimestamp(value.exp) &&
+      isOptionalString(value.tid) &&
+      isOptionalString(value.kid)
+    );
+  }
+
   private static base64UrlDecode(str: string): string {
     let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
     while (base64.length % 4) {
@@ -344,12 +277,11 @@ export class QrVerifier {
     return CryptoJS.enc.Utf8.stringify(words);
   }
 
-  private static constantTimeEquals(a: string, b: string): boolean {
-    if (a.length !== b.length) return false;
-    let result = 0;
-    for (let i = 0; i < a.length; i++) {
-      result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  private static decodeBase64Url(str: string): string {
+    if (!/^[A-Za-z0-9_-]+$/.test(str)) {
+      throw new Error('Chữ ký không đúng định dạng Base64URL.');
     }
-    return result === 0;
+    const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    return forge.util.decode64(base64 + '='.repeat((4 - base64.length % 4) % 4));
   }
 }

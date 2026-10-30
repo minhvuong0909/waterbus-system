@@ -4,7 +4,7 @@
  * passenger seat list, and per-passenger check-in checkboxes (BR-QR-03).
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useScannerStore } from '../../store/useScannerStore';
 import { Ticket } from '../../types/scanner';
 import { BrandColors, Radius } from '../../../constants/theme';
+import { getSeatClassLabel } from '../../utils/scannerDisplayLabels';
 
 export default function BookingDetailModal() {
   const {
@@ -33,6 +34,7 @@ export default function BookingDetailModal() {
 
   const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isQrVerified = verificationResult?.isValid === true;
 
   // Initialize selected tickets: auto-select unchecked tickets by default
   useEffect(() => {
@@ -71,8 +73,13 @@ export default function BookingDetailModal() {
   };
 
   const handleConfirmCheckIn = async () => {
+    if (!isQrVerified) {
+      Alert.alert('Chưa xác thực mã vé', 'Hãy quét mã QR hợp lệ trước khi xác nhận khách lên tàu.');
+      return;
+    }
+
     if (selectedTicketIds.length === 0) {
-      Alert.alert('Chưa chọn vé', 'Vui lòng tích chọn ít nhất một hành khách đang có mặt để check-in.');
+      Alert.alert('Chưa chọn vé', 'Vui lòng chọn ít nhất một hành khách đang có mặt để xác nhận lên tàu.');
       return;
     }
 
@@ -86,17 +93,17 @@ export default function BookingDetailModal() {
       if (result.success) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert(
-          'Check-in Thành Công',
-          `Đã ghi nhận check-in cho ${result.count} hành khách vào bộ nhớ SQLite cục bộ.\nSự kiện được lưu vào hàng đợi đồng bộ an toàn (Idempotent Sync).`,
-          [{ text: 'Đóng / Quét tiếp', onPress: closeBookingModal }]
+          'Đã xác nhận lên tàu',
+          `Đã ghi nhận ${result.count} hành khách lên tàu. Thông tin sẽ được gửi lên máy chủ khi có kết nối mạng.`,
+          [{ text: 'Đóng và quét tiếp', onPress: closeBookingModal }]
         );
       } else {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Lỗi Check-in', result.error || 'Không thể thực hiện check-in');
+        Alert.alert('Không thể xác nhận lên tàu', result.error || 'Vui lòng thử lại.');
       }
-    } catch (e: any) {
+    } catch {
       setIsSubmitting(false);
-      Alert.alert('Lỗi', e.message);
+      Alert.alert('Không thể ghi nhận', 'Vui lòng thử lại.');
     }
   };
 
@@ -112,7 +119,7 @@ export default function BookingDetailModal() {
             <Ionicons name="close" size={28} color="#0F172A" />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Chi Tiết Booking & Soát Vé</Text>
+            <Text style={styles.headerTitle}>Chi tiết đơn đặt vé</Text>
             <Text style={styles.headerSubtitle}>{currentBooking.bookingCode}</Text>
           </View>
           <View style={{ width: 40 }} />
@@ -124,9 +131,9 @@ export default function BookingDetailModal() {
             <View style={styles.verifiedBanner}>
               <Ionicons name="shield-checkmark" size={24} color="#059669" />
               <View style={styles.verifiedTextContainer}>
-                <Text style={styles.verifiedTitle}>CHỮ KÝ SỐ HỢP LỆ (XÁC THỰC OFFLINE)</Text>
+                <Text style={styles.verifiedTitle}>MÃ VÉ ĐÃ ĐƯỢC XÁC THỰC</Text>
                 <Text style={styles.verifiedSubtitle}>
-                  Thuật toán: {verificationResult.algorithmUsed || 'HS256'}{verificationResult.kid ? ` (kid: ${verificationResult.kid})` : ''} • Public Key: OK • Mã toàn vẹn
+                  Mã vé hợp lệ và đã được kiểm tra an toàn trên thiết bị.
                 </Text>
               </View>
             </View>
@@ -134,7 +141,7 @@ export default function BookingDetailModal() {
             <View style={styles.invalidBanner}>
               <Ionicons name="alert-circle" size={24} color="#DC2626" />
               <View style={styles.verifiedTextContainer}>
-                <Text style={styles.invalidTitle}>CẢNH BÁO: CHỮ KÝ SỐ KHÔNG HỢP LỆ</Text>
+                <Text style={styles.invalidTitle}>CẢNH BÁO: KHÔNG THỂ XÁC THỰC MÃ VÉ</Text>
                 <Text style={styles.invalidSubtitle}>{verificationResult?.error || 'QR không xác thực'}</Text>
               </View>
             </View>
@@ -173,14 +180,14 @@ export default function BookingDetailModal() {
           <View style={styles.sectionHeader}>
             <View>
               <Text style={styles.sectionTitle}>
-                Danh Sách Vé Trong Đơn ({currentBooking.tickets.length} khách)
+                Danh sách vé ({currentBooking.tickets.length} khách)
               </Text>
               <Text style={styles.sectionSubtitle}>
-                Đã lên: {checkedCount} • Chưa check-in: {uncheckedCount}
+                Đã lên tàu: {checkedCount} • Chưa lên tàu: {uncheckedCount}
               </Text>
             </View>
 
-            {uncheckedCount > 0 ? (
+            {uncheckedCount > 0 && isQrVerified ? (
               <TouchableOpacity onPress={handleSelectAll} style={styles.selectAllButton}>
                 <Text style={styles.selectAllText}>
                   {selectedTicketIds.length === uncheckedCount ? 'Bỏ chọn' : 'Chọn tất cả'}
@@ -203,7 +210,8 @@ export default function BookingDetailModal() {
                   isSelected && styles.ticketItemSelected,
                 ]}
                 onPress={() => toggleSelectTicket(ticket)}
-                activeOpacity={isCheckedIn ? 1 : 0.7}
+                disabled={!isQrVerified || isCheckedIn}
+                activeOpacity={!isQrVerified || isCheckedIn ? 1 : 0.7}
               >
                 {/* Checkbox */}
                 <View style={styles.checkboxContainer}>
@@ -232,7 +240,7 @@ export default function BookingDetailModal() {
                           isCheckedIn ? styles.textGreen : styles.textAmber,
                         ]}
                       >
-                        {isCheckedIn ? 'ĐÃ LÊN TÀU' : 'CHƯA CHECK-IN'}
+                        {isCheckedIn ? 'ĐÃ LÊN TÀU' : 'CHƯA LÊN TÀU'}
                       </Text>
                     </View>
                   </View>
@@ -241,7 +249,7 @@ export default function BookingDetailModal() {
                     <View style={styles.seatBadge}>
                       <Text style={styles.seatBadgeText}>Ghế: {ticket.seatCode}</Text>
                     </View>
-                    <Text style={styles.seatClassText}>{ticket.seatClass}</Text>
+                    <Text style={styles.seatClassText}>{getSeatClassLabel(ticket.seatClass)}</Text>
                     <Text style={styles.ticketNumberText}>{ticket.ticketNumber}</Text>
                   </View>
                 </View>
@@ -255,16 +263,18 @@ export default function BookingDetailModal() {
           <TouchableOpacity
             style={[
               styles.checkInButton,
-              (selectedTicketIds.length === 0 || isSubmitting) && styles.buttonDisabled,
+              (!isQrVerified || selectedTicketIds.length === 0 || isSubmitting) && styles.buttonDisabled,
             ]}
             onPress={handleConfirmCheckIn}
-            disabled={selectedTicketIds.length === 0 || isSubmitting}
+            disabled={!isQrVerified || selectedTicketIds.length === 0 || isSubmitting}
           >
             <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" style={{ marginRight: 8 }} />
             <Text style={styles.checkInButtonText}>
               {isSubmitting
                 ? 'ĐANG GHI NHẬN...'
-                : `XÁC NHẬN CHECK-IN (${selectedTicketIds.length} VÉ)`}
+                : !isQrVerified
+                  ? 'QUÉT MÃ QR HỢP LỆ ĐỂ TIẾP TỤC'
+                : `XÁC NHẬN LÊN TÀU (${selectedTicketIds.length} VÉ)`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -534,4 +544,3 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 });
-

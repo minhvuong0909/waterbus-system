@@ -109,9 +109,16 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
   },
 
   performCheckIn: async (ticketIds: string[], notes?: string) => {
-    const { currentBooking, deviceInfo } = get();
+    const { currentBooking, deviceInfo, verificationResult } = get();
     if (!currentBooking || ticketIds.length === 0) {
       return { success: false, count: 0, error: 'Không có vé nào được chọn' };
+    }
+    if (verificationResult?.isValid !== true) {
+      return {
+        success: false,
+        count: 0,
+        error: 'Cần quét mã QR hợp lệ trước khi xác nhận khách lên tàu.',
+      };
     }
 
     try {
@@ -160,28 +167,28 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
   },
 
   preloadCache: async (stationId?: string) => {
-    set({ isPreloading: true, syncMessage: 'Đang tải dữ liệu chuyến và Public Key...' });
+    set({ isPreloading: true, syncMessage: 'Đang tải dữ liệu chuyến và khóa xác thực...' });
     try {
       const targetStation = stationId || get().deviceInfo.stationId;
       const res = await syncService.preloadManifest(targetStation);
       await get().refreshStats();
       set({ isPreloading: false, syncMessage: res.message });
       return true;
-    } catch (e: any) {
-      set({ isPreloading: false, syncMessage: `Lỗi tải trước: ${e.message}` });
+    } catch {
+      set({ isPreloading: false, syncMessage: 'Không thể tải dữ liệu. Vui lòng kiểm tra kết nối và thử lại.' });
       return false;
     }
   },
 
   syncPendingBatch: async () => {
-    set({ isSyncing: true, syncMessage: 'Đang gửi lô check-in lên hệ thống...' });
+    set({ isSyncing: true, syncMessage: 'Đang gửi lượt soát vé lên máy chủ...' });
     try {
       const res = await syncService.triggerBatchSync();
       await get().refreshStats();
       set({ isSyncing: false, syncMessage: res.message });
       return res.syncedCount;
-    } catch (e: any) {
-      set({ isSyncing: false, syncMessage: `Lỗi đồng bộ: ${e.message}` });
+    } catch {
+      set({ isSyncing: false, syncMessage: 'Không thể gửi dữ liệu. Vui lòng kiểm tra kết nối và thử lại.' });
       return 0;
     }
   },
@@ -203,14 +210,13 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     syncService.setDeviceInfo(updated);
     set({
       deviceInfo: updated,
-      syncMessage: enabled ? 'Đã bật chế độ Ngoại Tuyến (Offline Mode)' : 'Đã bật chế độ Tự động đồng bộ',
+      syncMessage: enabled ? 'Đã bật chế độ sử dụng khi mất kết nối.' : 'Đã bật chế độ tự động gửi dữ liệu.',
     });
   },
 
   clearCache: async () => {
     await SqliteRepository.clearCache();
     await get().refreshStats();
-    set({ syncMessage: 'Đã xoá sạch bộ nhớ đệm cục bộ' });
+    set({ syncMessage: 'Đã xóa dữ liệu trên thiết bị.' });
   },
 }));
-

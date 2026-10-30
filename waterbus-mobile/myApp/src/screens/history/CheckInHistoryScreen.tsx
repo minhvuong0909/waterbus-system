@@ -16,7 +16,6 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -59,9 +58,9 @@ export default function CheckInHistoryScreen() {
     await loadEvents();
     if (count > 0) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Đồng Bộ Thành Công', `Đã đẩy lô ${count} sự kiện check-in lên máy chủ!`);
+      Alert.alert('Đã gửi dữ liệu', `Đã gửi ${count} lượt soát vé lên máy chủ.`);
     } else {
-      Alert.alert('Thông Báo', 'Không có sự kiện nào đang chờ đồng bộ.');
+      Alert.alert('Thông báo', 'Không có lượt soát vé nào đang chờ gửi.');
     }
   };
 
@@ -110,7 +109,7 @@ export default function CheckInHistoryScreen() {
               color={isSynced ? '#059669' : '#D97706'}
             />
             <Text style={[styles.statusBadgeText, isSynced ? styles.textSynced : styles.textPending]}>
-              {isSynced ? 'Đã Đồng Bộ' : 'Chờ Sync'}
+              {isSynced ? 'Đã gửi' : 'Chờ gửi'}
             </Text>
           </View>
         </View>
@@ -130,14 +129,6 @@ export default function CheckInHistoryScreen() {
             <Text style={styles.infoValue}>{dateFormatted}</Text>
           </View>
 
-          <View style={styles.infoRow}>
-            <Ionicons name="finger-print-outline" size={14} color="#64748B" />
-            <Text style={styles.infoLabel}>Mã Event (UUID):</Text>
-            <Text style={styles.uuidText} numberOfLines={1} ellipsizeMode="middle">
-              {item.clientEventId}
-            </Text>
-          </View>
-
           {item.notes ? (
             <View style={styles.notesRow}>
               <Text style={styles.notesText}>Ghi chú: {item.notes}</Text>
@@ -153,8 +144,8 @@ export default function CheckInHistoryScreen() {
       {/* Top Banner */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Lịch Sử Soát Vé</Text>
-          <Text style={styles.headerSubtitle}>Hàng đợi đồng bộ lũy đẳng (Idempotent Sync)</Text>
+          <Text style={styles.headerTitle}>Lịch sử soát vé</Text>
+          <Text style={styles.headerSubtitle}>Theo dõi các lượt đã ghi nhận và đang chờ gửi</Text>
         </View>
         <TouchableOpacity
           style={[styles.syncButton, isSyncing && styles.syncButtonDisabled]}
@@ -166,7 +157,7 @@ export default function CheckInHistoryScreen() {
           ) : (
             <>
               <Ionicons name="sync" size={16} color="#FFFFFF" />
-              <Text style={styles.syncButtonText}>Sync Lô</Text>
+              <Text style={styles.syncButtonText}>Gửi dữ liệu</Text>
             </>
           )}
         </TouchableOpacity>
@@ -176,15 +167,15 @@ export default function CheckInHistoryScreen() {
       <View style={styles.metricsContainer}>
         <View style={styles.metricCard}>
           <Text style={styles.metricNumber}>{events.length}</Text>
-          <Text style={styles.metricLabel}>Tổng Đã Quét</Text>
+          <Text style={styles.metricLabel}>Tổng lượt đã soát</Text>
         </View>
         <View style={[styles.metricCard, { borderTopColor: '#D97706', borderTopWidth: 3 }]}>
           <Text style={[styles.metricNumber, { color: '#D97706' }]}>{pendingCount}</Text>
-          <Text style={styles.metricLabel}>Chờ Sync Server</Text>
+          <Text style={styles.metricLabel}>Chờ gửi lên máy chủ</Text>
         </View>
         <View style={[styles.metricCard, { borderTopColor: '#059669', borderTopWidth: 3 }]}>
           <Text style={[styles.metricNumber, { color: '#059669' }]}>{syncedCount}</Text>
-          <Text style={styles.metricLabel}>Đã Lưu Cloud</Text>
+          <Text style={styles.metricLabel}>Đã gửi lên máy chủ</Text>
         </View>
       </View>
 
@@ -221,7 +212,7 @@ export default function CheckInHistoryScreen() {
           onPress={() => setFilter('PENDING')}
         >
           <Text style={[styles.filterTabText, filter === 'PENDING' && styles.filterTabTextActive]}>
-            Chờ Sync ({pendingCount})
+            Chờ gửi ({pendingCount})
           </Text>
         </TouchableOpacity>
 
@@ -230,7 +221,7 @@ export default function CheckInHistoryScreen() {
           onPress={() => setFilter('SYNCED')}
         >
           <Text style={[styles.filterTabText, filter === 'SYNCED' && styles.filterTabTextActive]}>
-            Đã Sync ({syncedCount})
+            Đã gửi ({syncedCount})
           </Text>
         </TouchableOpacity>
       </View>
@@ -247,7 +238,7 @@ export default function CheckInHistoryScreen() {
             <Ionicons name="file-tray-outline" size={56} color="#CBD5E1" />
             <Text style={styles.emptyTitle}>Chưa có lượt soát vé nào</Text>
             <Text style={styles.emptySubtitle}>
-              Khi nhân viên quét mã QR vé và xác nhận check-in, lịch sử và mã chống trùng lặp UUID sẽ xuất hiện tại đây.
+              Lịch sử sẽ hiển thị tại đây sau khi nhân viên quét mã vé và xác nhận khách lên tàu.
             </Text>
           </View>
         }
@@ -461,12 +452,6 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 12,
     color: BrandColors.ink,
-  },
-  uuidText: {
-    fontSize: 11,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    color: BrandColors.textSecondary,
-    flex: 1,
   },
   notesRow: {
     marginTop: 4,

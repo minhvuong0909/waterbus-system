@@ -59,7 +59,15 @@ Module dành cho nhân viên soát vé (Staff Scanner) tại bến tàu Smart Wa
 1. **Giao diện Soát vé (Camera QR Scanner)**: Quét mã QR tốc độ cao, hỗ trợ flash, laser scanline, phản hồi rung haptic, hiển thị danh sách vé trong Booking và tích chọn hành khách check-in (BR-QR-03).
 2. **Cơ sở dữ liệu cục bộ (SQLite)**: Preload cache danh sách vé hợp lệ, thông tin chuyến và Public Key vào máy trước giờ mở cổng bến (BR-OFF-01).
 3. **Verify QR Offline**: Giải mã và xác thực chữ ký số bằng Public Key trực tiếp trên máy không cần gọi API (BR-QR-01, BR-QR-02).
-4. **Cơ chế Đồng bộ Idempotent Sync**: Background Task lưu sự kiện ngoại tuyến (`client_event_id` UUID v4 duy nhất) và tự động đẩy lô (Batch sync) lên Server khi có mạng (BR-OFF-03).
+4. **Cơ chế Đồng bộ Idempotent Sync**: lưu sự kiện ngoại tuyến (`client_event_id` UUID v4 duy nhất) và gửi theo lô khi ứng dụng đang chạy, có mạng (BR-OFF-03).
+
+### Quy tắc xác thực và đồng bộ
+
+- QR chỉ được xác thực bằng chữ ký `RS256` với khóa công khai PEM lấy từ manifest đã tải về. Ứng dụng không dùng khóa bí mật mặc định, không chấp nhận `HS256`, mã đặt vé thuần hoặc chữ ký giả.
+- Nếu không tải được manifest thật hoặc manifest thiếu khóa `RS256` hợp lệ, thao tác preload báo lỗi và không thay bằng dữ liệu mẫu.
+- Một lượt soát chỉ chuyển sang `Synced` khi phản hồi máy chủ xác nhận đúng `clientEventId`, `syncStatus = Synced` và `outcome = Success`. Lỗi mạng, phản hồi thiếu hoặc không xác nhận từng sự kiện sẽ giữ sự kiện ở trạng thái chờ và ghi nhận lần thử lại.
+- Khóa `Idempotency-Key` của lô được tạo ổn định từ mã thiết bị và các `clientEventId`; gửi lại cùng lô sẽ dùng lại khóa đó.
+- Bộ gửi lặp chạy trong tiến trình ứng dụng; Android không đảm bảo nó tiếp tục chạy sau khi ứng dụng bị đóng hoặc hệ điều hành dừng ứng dụng.
 
 ### Chạy kiểm thử tự động:
 ```bash
@@ -70,40 +78,40 @@ npm run test:scanner
 
 Hướng dẫn này bắt đầu từ lúc app vừa mở trên điện thoại. Thực hiện trên Android; tên tab/nút bên dưới tương ứng với giao diện hiện tại.
 
-> **An toàn khi test:** chỉ dùng dữ liệu demo hoặc booking được dành riêng cho kiểm thử. Không check-in vé thật, không xóa cache khi còn sự kiện offline cần giữ, và không bật đồng bộ lên server sản xuất.
+> **An toàn khi test:** chỉ dùng booking được dành riêng cho kiểm thử trên backend test. Không check-in vé thật, không xóa cache khi còn sự kiện offline cần giữ, và không bật đồng bộ lên server sản xuất.
 
 #### A. Mở app lần đầu và chuẩn bị dữ liệu
 
 1. **Mở app.** Nếu app đang hiện màn hình Expo/Metro báo lỗi thay vì giao diện soát vé, dừng ở đây: khởi động lại dev server với cache mới (`npx expo start --clear --lan` trong thư mục `waterbus-mobile\myApp`), kết nối điện thoại và máy tính vào cùng Wi-Fi, rồi mở lại app.
 2. **Cấp quyền camera.** Khi Android hỏi, chọn cho phép. Nếu trước đó đã từ chối, vào **Cài đặt Android → Ứng dụng → myApp → Quyền → Camera → Cho phép**, rồi quay lại app. Màn hình chính phải thấy hình camera và khung quét. Nếu chưa cấp quyền, bấm **Cấp Quyền Camera**.
 3. **Nhận biết bốn tab ở cạnh dưới màn hình:**
-   - **Soát Vé**: camera, nhập mã, và nút **Test QR**.
+   - **Soát Vé**: camera và nhập mã. Nhập mã thủ công chỉ tra cứu, không xác thực QR và không cho phép check-in.
    - **Chuyến & Tải Vé**: chọn bến, preload cache, xem chuyến và số liệu SQLite.
    - **Lịch Sử**: các sự kiện check-in trên máy và nút **Sync Lô**.
    - **Ca Trực**: hồ sơ thiết bị và công tắc **Mô Phỏng Ngoại Tuyến (Force Offline)**.
-4. **Nạp dữ liệu kiểm thử:** mở **Chuyến & Tải Vé**, chọn **Bến Bạch Đằng (Quận 1)**, bấm **TẢI TRƯỚC DỮ LIỆU (PRELOAD CACHE)** và đợi hoàn tất. Kết quả demo dự kiến có 2 chuyến, 3 booking và 6 vé. Nếu số liệu bằng 0, làm mới màn hình; nếu vẫn bằng 0 thì preload chưa sẵn sàng để quét booking demo.
-5. **Phân biệt dữ liệu demo với dữ liệu server:** trong phiên bản hiện tại, nếu gọi API manifest thất bại, app tự tạo manifest demo và vẫn báo tải thành công. Vì vậy, thấy dữ liệu demo hoặc thông báo preload thành công **không chứng minh** backend đã kết nối.
+4. **Nạp dữ liệu kiểm thử:** chỉ tiếp tục nếu backend test có endpoint manifest và trả về dữ liệu booking/chuyến cùng khóa công khai `RS256` còn hoạt động. Mở **Chuyến & Tải Vé**, chọn bến được backend hỗ trợ, bấm **TẢI DỮ LIỆU VỀ THIẾT BỊ** và xác nhận thông báo tải thành công. Số chuyến/vé phụ thuộc dữ liệu backend.
+5. Nếu endpoint không truy cập được, phản hồi lỗi hoặc thiếu khóa công khai hợp lệ, ứng dụng báo tải thất bại. Không có manifest mẫu tự tạo; không tiếp tục kiểm thử bằng dữ liệu cũ như thể đó là dữ liệu vừa tải.
 6. **Không xóa cache để “làm sạch” một cách tùy tiện.** Nút xóa cache nằm cuối tab **Chuyến & Tải Vé**; thao tác này xóa cả dữ liệu SQLite và có thể làm mất sự kiện chưa đồng bộ. Chỉ dùng khi chủ động khởi tạo lại bài test và chắc chắn không cần giữ dữ liệu nào.
 
-#### B. M13 — kiểm tra `kid` chỉ có trong JWS header
+#### B. M13 — kiểm tra QR ký `RS256` ngoại tuyến
 
-**Mục tiêu:** scanner xác thực QR JWS mẫu và hiển thị `kid` lấy từ header, không phụ thuộc `kid` trong payload.
+**Mục tiêu:** scanner xác minh chữ ký JWS `RS256` bằng khóa công khai đã tải, lấy `kid` từ header được bảo vệ và không gọi API trong lúc xác minh.
 
-1. Hoàn thành phần A để booking mẫu `pub_wb_98a76b5c` có trong cache.
-2. Mở ảnh QR mẫu [qr1-jws-m13.png](./test-qr-codes/qr1-jws-m13.png) trên một thiết bị khác, máy tính, hoặc bản in. Mã mẫu hết hạn sau 24 giờ kể từ lúc được tạo; nếu đã hết hạn, tạo QR JWS thử nghiệm mới trước khi chạy bài test. Không mở QR trên chính điện thoại đang quét vì camera không thể quét màn hình của thiết bị đó.
-3. Trên điện thoại scanner, mở tab **Soát Vé**. Hướng camera vào QR mẫu và giữ yên trong khung quét; nếu khó đọc, tăng độ sáng màn hình đang hiển thị QR hoặc bấm **Bật Đèn** khi quét bản in.
+1. Hoàn thành phần A với manifest và booking test thật được cấp bởi backend.
+2. Mở QR do backend phát hành cho booking đó trên một thiết bị khác, máy tính hoặc bản in. Không tự tạo/chỉnh sửa QR trên ứng dụng scanner.
+3. Trên điện thoại scanner, mở tab **Soát Vé**. Hướng camera vào QR và giữ yên trong khung quét; nếu khó đọc, tăng độ sáng màn hình hiển thị QR hoặc bấm **Bật Đèn** khi quét bản in.
 4. Chờ màn hình **Chi Tiết Booking & Soát Vé** xuất hiện. Kiểm tra:
    - Có banner **CHỮ KÝ SỐ HỢP LỆ (XÁC THỰC OFFLINE)**.
-   - Dòng thuật toán hiển thị `HS256` và `kid: waterbus-root-2026`.
-   - Booking là `WB20261006001` / `pub_wb_98a76b5c`; danh sách có ghế A01, A02, A03.
-   - Không bật mạng hoặc chờ phản hồi API trong lúc xác thực. QR được xác minh bằng khóa đã cache/local.
+   - Thuật toán là `RS256`; `kid` khớp khóa công khai đã tải.
+   - Booking nằm trong manifest đã preload.
+   - Tắt mạng sau khi preload để xác nhận QR vẫn được xác minh offline.
 5. Nhấn nút đóng ở góc trên để quay lại camera. **Không cần bấm XÁC NHẬN CHECK-IN** để kiểm tra M13.
 
-**Kết quả đạt:** đúng booking mở được; banner chữ ký hợp lệ và `kid` khớp giá trị nêu trên.
+**Kết quả đạt:** QR do backend phát hành mở đúng booking; banner chữ ký hợp lệ và `kid` khớp khóa đã tải.
 
-**Nếu không đạt:** nếu camera không nhận QR, thử ảnh lớn/sáng hơn. Nếu hiện “chưa có dữ liệu chuyến trong máy”, quay lại phần A và xác nhận đã preload đúng bến. Nếu hiện booking nhưng banner báo chữ ký không hợp lệ, chụp ảnh màn hình và ghi nhận M13 thất bại; không check-in booking đó.
+**Nếu không đạt:** nếu camera không nhận QR, thử ảnh lớn/sáng hơn. Nếu báo chưa có dữ liệu, tải lại manifest đúng bến. Nếu chữ ký không hợp lệ hoặc khóa chưa được tải, không check-in booking đó.
 
-**Không dùng nút `Test QR` để kết luận M13:** nút này tạo QR định dạng compact `WB1...`, không phải JWS có `kid` chỉ nằm trong header. QR M13 phải là ảnh JWS ở liên kết trên.
+Ứng dụng không còn tạo QR mẫu trên thiết bị: chỉ backend có khóa riêng mới được phát hành QR có thể xác thực. Mã đặt vé thuần và chữ ký `HS256` bị từ chối.
 
 #### C. H03 — tạo sự kiện offline và kiểm tra đồng bộ trễ
 
@@ -111,9 +119,9 @@ H03 cần server quyết định từ chối sự kiện đến sau giờ đóng
 
 ##### C1. Kiểm tra ghi nhận offline an toàn trên điện thoại
 
-1. Hoàn thành phần A, đảm bảo booking demo đã được preload. Mở **Ca Trực**.
+1. Hoàn thành phần A, đảm bảo booking test đã được preload. Mở **Ca Trực**.
 2. Bật **Mô Phỏng Ngoại Tuyến (Force Offline)**. Giữ công tắc bật trong suốt bài test; không đóng app giữa chừng vì cài đặt offline hiện chỉ giữ trong trạng thái chạy hiện tại.
-3. Quay lại **Soát Vé**, bấm **Test QR**, chọn **Booking 1: Trần Văn Minh**. Đây là QR compact demo, dùng để mở booking/check-in chứ **không** dùng kiểm tra M13.
+3. Quay lại **Soát Vé**, quét QR `RS256` thật do backend phát hành cho booking test. Không dùng mã đặt vé nhập tay để mở luồng check-in.
 4. Trong màn hình chi tiết, xác nhận đúng booking và có 3 vé chưa check-in. Chỉ chọn **một** vé thử, ví dụ ghế A01; không bấm **Chọn tất cả**.
 5. Bấm **XÁC NHẬN CHECK-IN (1 VÉ)**. Chờ thông báo check-in thành công và đóng màn hình chi tiết.
 6. Mở **Lịch Sử**. Sự kiện mới phải xuất hiện; ghi lại mã UUID ở dòng **Mã Event (UUID)**. Số **Chờ Sync** dự kiến tăng thêm 1. Có thể kiểm tra thêm tab **Chuyến & Tải Vé** ở chỉ số **Vé chờ đồng bộ (Offline Queue)**.
@@ -127,9 +135,9 @@ H03 cần server quyết định từ chối sự kiện đến sau giờ đóng
 4. Chỉ khi endpoint backend đã được xác nhận hoạt động và trỏ vào môi trường test, tắt Force Offline và bấm **Sync Lô** một lần. Lưu phản hồi/log server cho UUID đã ghi.
 5. Kết quả server mong đợi: sự kiện bị từ chối vì cửa sổ check-in đã đóng. Kết quả lưu cục bộ mong đợi: `sync_status = Conflict`, `outcome = LateSyncRejected`, có lý do từ chối; không được ghi nhận là check-in thành công trên server.
 
-**Không coi thông báo “Đã đồng bộ thành công” hoặc số pending về 0 là bằng chứng server đã xử lý.** Khi request mạng lỗi, mã hiện tại có nhánh fallback đánh dấu pending events là synced cục bộ. Ngoài ra, tab **Lịch Sử** chưa có bộ lọc/nhãn riêng đáng tin cậy cho `Conflict`/`LateSyncRejected`; cần xác nhận bằng log/DB test hoặc cải thiện UI trước khi nghiệm thu H03.
+Khi request lỗi, sự kiện được giữ `Pending`, tăng số lần thử và không được báo đã đồng bộ. Khi máy chủ chỉ xác nhận một phần, chỉ các `clientEventId` được xác nhận thành công mới chuyển `Synced`; sự kiện còn lại tiếp tục chờ gửi. Đối chiếu UUID và phản hồi backend khi nghiệm thu H03.
 
-**Dừng lại nếu chưa có backend test:** repository hiện chưa có `/api/v1/tickets/sync-offline` xử lý sự kiện này. Đừng tắt Force Offline rồi bấm Sync chỉ để thử; trong môi trường API không khả dụng, fallback cục bộ có thể làm sự kiện mang trạng thái synced dù server chưa nhận được.
+**Dừng lại nếu chưa có backend test:** repository hiện chưa có `/api/v1/tickets/sync-offline` xử lý sự kiện này. Không tắt Force Offline rồi bấm Sync để thử khi chưa có endpoint test; sự kiện sẽ tiếp tục chờ trên máy thay vì được đánh dấu đã đồng bộ.
 
 #### D. M08 — hai thiết bị cùng giành Primary Scanner
 
@@ -156,7 +164,7 @@ Với mỗi mã lỗi, ghi lại ngày/giờ, mã bug (H03/M08/M13), model Andro
 
 #### Giới hạn hiện tại cần biết trước khi nghiệm thu
 
-- Backend của repository chưa có các endpoint scanner cần cho manifest và đồng bộ (`/api/v1/scanner/manifest`, `/api/v1/tickets/sync-offline`) và claim Primary (`/api/v1/scanner/claim-primary`); app có thể tạo manifest demo khi preload API lỗi.
+- Backend của repository chưa có các endpoint scanner cần cho manifest và đồng bộ (`/api/v1/scanner/manifest`, `/api/v1/tickets/sync-offline`) và claim Primary (`/api/v1/scanner/claim-primary`). Vì vậy, hiện chưa thể hoàn tất kiểm thử end-to-end trên điện thoại chỉ với repository này.
 - Ô địa chỉ backend trong tab **Ca Trực** hiện chưa được áp dụng vào service đồng bộ. Trên điện thoại Android, `localhost` trỏ về chính điện thoại, không phải máy tính đang chạy backend.
 - Luồng claim Primary chưa được gọi từ giao diện. M08 cần backend và giao diện hỗ trợ trước khi có thể nghiệm thu end-to-end trên điện thoại.
-- Khi API đồng bộ không truy cập được, fallback trong app có thể đánh dấu sự kiện synced cục bộ. Phải kiểm tra phản hồi/log backend trước khi kết luận sự kiện đã đồng bộ hoặc H03 đã được xử lý đúng.
+- Khi API đồng bộ không truy cập được, sự kiện vẫn ở trạng thái chờ và được ghi nhận lần gửi lại; chỉ ACK đúng sự kiện từ backend mới chuyển sự kiện sang `Synced`.

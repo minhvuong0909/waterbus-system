@@ -4,7 +4,7 @@
  * instant offline digital signature verification & SQLite lookup.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -36,7 +36,6 @@ export default function StaffScannerScreen() {
   const [isScannedLocked, setIsScannedLocked] = useState<boolean>(false);
   const [manualModalOpen, setManualModalOpen] = useState<boolean>(false);
   const [manualCode, setManualCode] = useState<string>('');
-  const [testModalOpen, setTestModalOpen] = useState<boolean>(false);
 
   const {
     setCurrentBooking,
@@ -83,8 +82,8 @@ export default function StaffScannerScreen() {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       await processQrData(rawData);
-    } catch (err: any) {
-      Alert.alert('Lỗi quét mã', err.message);
+    } catch {
+      Alert.alert('Không thể quét mã', 'Vui lòng thử lại hoặc nhập mã vé thủ công.');
     } finally {
       // Re-enable scanner after cooldown
       setTimeout(() => {
@@ -97,16 +96,16 @@ export default function StaffScannerScreen() {
     // 1. Verify digital signature offline using cached Public Key
     const verification = await QrVerifier.verifyQrCode(qrString);
 
-    if (!verification.isValid && !verification.publicBookingId) {
+    if (!verification.isValid || !verification.publicBookingId) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(
-        'QR Không Hợp Lệ',
-        verification.error || 'Mã QR không đúng định dạng của Smart Waterbus.'
+        'Mã vé không hợp lệ',
+        verification.error || 'Mã QR không đúng định dạng.'
       );
       return;
     }
 
-    const publicBookingId = verification.publicBookingId || qrString.trim();
+    const publicBookingId = verification.publicBookingId;
 
     // 2. Query SQLite local cache for booking & tickets
     let booking = await SqliteRepository.getBookingByPublicId(publicBookingId);
@@ -123,10 +122,10 @@ export default function StaffScannerScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert(
         'Chưa có dữ liệu chuyến trong máy',
-        `Đã giải mã QR: "${publicBookingId}".\nTuy nhiên dữ liệu đơn này chưa có trong bộ nhớ SQLite của máy.\n\nNhân viên vui lòng bấm "Tải trước Cache" trước giờ mở cổng bến.`,
+        `Mã QR: "${publicBookingId}".\nThông tin đơn đặt vé này chưa được tải về thiết bị.\n\nVui lòng tải dữ liệu của bến trước giờ mở cửa.`,
         [
-          { text: 'Huỷ', style: 'cancel' },
-          { text: 'Tải trước ngay', onPress: () => preloadCache() },
+          { text: 'Hủy', style: 'cancel' },
+          { text: 'Tải dữ liệu ngay', onPress: () => preloadCache() },
         ]
       );
     }
@@ -139,12 +138,6 @@ export default function StaffScannerScreen() {
     setManualCode('');
   };
 
-  const triggerTestQrScan = (publicBookingId: string) => {
-    setTestModalOpen(false);
-    const test = QrVerifier.generateTestSignedQr(publicBookingId);
-    processQrData(test.compactQr);
-  };
-
   // Render Camera Permission fallback
   if (!permission) {
     return <View style={styles.centerContainer}><Text>Đang yêu cầu quyền camera...</Text></View>;
@@ -154,18 +147,12 @@ export default function StaffScannerScreen() {
     return (
       <View style={styles.centerContainer}>
         <Ionicons name="camera-reverse-outline" size={64} color="#0284C7" />
-        <Text style={styles.permissionTitle}>Cần Quyền Truy Cập Camera</Text>
+        <Text style={styles.permissionTitle}>Cần quyền sử dụng máy ảnh</Text>
         <Text style={styles.permissionDesc}>
-          Ứng dụng cần quyền camera để nhân viên soát vé quét mã QR lên tàu với tốc độ cao.
+          Ứng dụng cần dùng máy ảnh để nhân viên quét mã vé cho khách lên tàu.
         </Text>
         <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-          <Text style={styles.permissionButtonText}>Cấp Quyền Camera</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.permissionButton, { backgroundColor: '#0F172A', marginTop: 12 }]}
-          onPress={() => setTestModalOpen(true)}
-        >
-          <Text style={styles.permissionButtonText}>Dùng Trình Giả Lập Quét (Demo)</Text>
+          <Text style={styles.permissionButtonText}>Cho phép sử dụng máy ảnh</Text>
         </TouchableOpacity>
       </View>
     );
@@ -197,19 +184,19 @@ export default function StaffScannerScreen() {
       <View style={styles.topOverlay}>
         <View style={styles.topInfoBar}>
           <View>
-            <Text style={styles.staffNameText}>NV: {deviceInfo.staffName} ({deviceInfo.deviceCode})</Text>
+            <Text style={styles.staffNameText}>Nhân viên: {deviceInfo.staffName} ({deviceInfo.deviceCode})</Text>
             <Text style={styles.stationNameText}>{deviceInfo.stationName}</Text>
           </View>
 
           {stats.pendingSyncCount > 0 ? (
             <TouchableOpacity onPress={syncPendingBatch} style={styles.pendingBadge}>
               <Ionicons name="cloud-upload" size={16} color="#FFFFFF" />
-              <Text style={styles.pendingBadgeText}>{stats.pendingSyncCount} chờ sync</Text>
+              <Text style={styles.pendingBadgeText}>{stats.pendingSyncCount} lượt chờ gửi</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.syncedBadge}>
               <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-              <Text style={styles.syncedBadgeText}>Đã sync đủ</Text>
+              <Text style={styles.syncedBadgeText}>Đã gửi đủ</Text>
             </View>
           )}
         </View>
@@ -217,7 +204,7 @@ export default function StaffScannerScreen() {
         {deviceInfo.forceOfflineMode && (
           <View style={styles.offlineBanner}>
             <Ionicons name="wifi-outline" size={16} color="#DC2626" />
-            <Text style={styles.offlineBannerText}>ĐANG BẬT CHẾ ĐỘ NGOẠI TUYẾN CỐ ĐỊNH (OFFLINE FIRST)</Text>
+            <Text style={styles.offlineBannerText}>ĐANG SỬ DỤNG KHI MẤT KẾT NỐI</Text>
           </View>
         )}
       </View>
@@ -234,7 +221,7 @@ export default function StaffScannerScreen() {
           {/* Animated Laser Scanline */}
           <Animated.View style={[styles.scanLine, { transform: [{ translateY }] }]} />
         </View>
-        <Text style={styles.hintText}>Hướng camera vào mã QR vé trên điện thoại của khách</Text>
+        <Text style={styles.hintText}>Hướng máy ảnh vào mã QR vé trên điện thoại của khách</Text>
       </View>
 
       {/* Bottom Floating Control Buttons */}
@@ -258,22 +245,13 @@ export default function StaffScannerScreen() {
             <Text style={styles.iconButtonText}>Nhập Mã</Text>
           </TouchableOpacity>
 
-          {/* Test Signed QR Simulator */}
-          <TouchableOpacity
-            style={[styles.iconButton, { backgroundColor: 'rgba(20, 122, 126, 0.85)' }]}
-            onPress={() => setTestModalOpen(true)}
-          >
-            <Ionicons name="qr-code" size={24} color="#FFFFFF" />
-            <Text style={styles.iconButtonText}>Test QR</Text>
-          </TouchableOpacity>
-
           {/* Switch Camera Facing */}
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}
           >
             <Ionicons name="camera-reverse" size={24} color="#FFFFFF" />
-            <Text style={styles.iconButtonText}>Đổi Cam</Text>
+            <Text style={styles.iconButtonText}>Đổi máy ảnh</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -282,9 +260,9 @@ export default function StaffScannerScreen() {
       <Modal visible={manualModalOpen} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Nhập Mã Vé / Booking Thủ Công</Text>
+            <Text style={styles.modalTitle}>Nhập mã vé hoặc mã đặt chỗ</Text>
             <Text style={styles.modalDesc}>
-              Dùng khi màn hình khách bị vỡ hoặc camera không nhận dạng được mã QR.
+              Dùng khi màn hình khách bị hỏng hoặc máy ảnh không đọc được mã QR.
             </Text>
             <TextInput
               style={styles.input}
@@ -305,52 +283,9 @@ export default function StaffScannerScreen() {
                 style={[styles.modalBtn, { backgroundColor: BrandColors.tealFlow }]}
                 onPress={handleManualSearch}
               >
-                <Text style={styles.modalBtnText}>Tra Cứu</Text>
+                <Text style={styles.modalBtnText}>Tra cứu</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Test QR Simulator Modal */}
-      <Modal visible={testModalOpen} transparent animationType="slide">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Mô Phỏng Quét QR Vé Mẫu (Test)</Text>
-            <Text style={styles.modalDesc}>
-              Chọn một vé đã được ký số bằng Public Key để thử nghiệm xác thực ngoại tuyến:
-            </Text>
-
-            <TouchableOpacity
-              style={styles.testItem}
-              onPress={() => triggerTestQrScan('pub_wb_98a76b5c')}
-            >
-              <Text style={styles.testItemTitle}>Booking 1: Trần Văn Minh (3 vé: A01, A02, A03)</Text>
-              <Text style={styles.testItemSubtitle}>ID: pub_wb_98a76b5c • Tuyến Bạch Đằng - Linh Đông</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.testItem}
-              onPress={() => triggerTestQrScan('pub_wb_11f22e33')}
-            >
-              <Text style={styles.testItemTitle}>Booking 2: Nguyễn Thu Trang (2 vé: B05, B06)</Text>
-              <Text style={styles.testItemSubtitle}>ID: pub_wb_11f22e33 • Khoang Tiêu Chuẩn</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.testItem}
-              onPress={() => triggerTestQrScan('pub_wb_44d55c66')}
-            >
-              <Text style={styles.testItemTitle}>Booking 3: Phạm Đức Huy (1 vé: C10)</Text>
-              <Text style={styles.testItemSubtitle}>ID: pub_wb_44d55c66 • Boong ngoài trời</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalBtn, { backgroundColor: '#0F172A', marginTop: 14 }]}
-              onPress={() => setTestModalOpen(false)}
-            >
-              <Text style={styles.modalBtnText}>Đóng</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -618,23 +553,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
   },
-  testItem: {
-    backgroundColor: BrandColors.sandLight,
-    padding: 12,
-    borderRadius: Radius.sm,
-    marginBottom: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: BrandColors.tealFlow,
-  },
-  testItemTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: BrandColors.ink,
-  },
-  testItemSubtitle: {
-    fontSize: 12,
-    color: BrandColors.textSecondary,
-    marginTop: 2,
-  },
 });
-

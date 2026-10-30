@@ -6,15 +6,14 @@
  */
 
 import { SqliteRepository } from '../sqlite/sqliteRepository';
-import { DEFAULT_KEY_INFO } from '../crypto/qrVerifier';
-
-declare const require: any;
+import CryptoJS from 'crypto-js';
 import {
   PreloadManifest,
-  CheckInEvent,
   SyncBatchResponse,
   ScannerDeviceInfo,
 } from '../../types/scanner';
+
+declare const require: any;
 
 export type SyncListener = (status: {
   isSyncing: boolean;
@@ -98,8 +97,8 @@ class SyncService {
           success: true,
           isPrimary,
           message: isPrimary
-            ? 'Đã xác lập quyền Primary Scanner thành công (M08/BR-OFF-02).'
-            : 'Thiết bị khác đang giữ quyền Primary Scanner cho lượt bến này.',
+            ? 'Thiết bị này được phân công soát vé chính tại bến.'
+            : 'Một thiết bị khác đã được phân công soát vé chính tại bến này.',
         };
       } else if (response.status === 409) {
         // Concurrency conflict / Another primary exists
@@ -107,17 +106,19 @@ class SyncService {
         return {
           success: false,
           isPrimary: false,
-          message: 'Xung đột phiên (Race condition): Đã có thiết bị khác làm Primary Scanner cho bến này (M08).',
+          message: 'Một thiết bị khác đã được phân công soát vé chính tại bến này.',
         };
       } else {
         throw new Error(`Server returned HTTP ${response.status}`);
       }
-    } catch (err: any) {
+    } catch {
       // Offline fallback: keep current designated local primary state
       return {
         success: true,
         isPrimary: this.currentDevice.isPrimaryOffline,
-        message: `Vận hành ngoại tuyến cục bộ: Primary = ${this.currentDevice.isPrimaryOffline}`,
+        message: this.currentDevice.isPrimaryOffline
+          ? 'Chưa thể xác nhận trên máy chủ. Thiết bị này vẫn được phân công soát vé chính.'
+          : 'Chưa thể xác nhận quyền soát vé trên máy chủ.',
       };
     }
   }
@@ -178,31 +179,36 @@ class SyncService {
     stationId = 'ST-BACH-DANG',
     apiBaseUrl = 'http://localhost:5000'
   ): Promise<{ manifest: PreloadManifest; message: string }> {
-    let manifest: PreloadManifest;
-
-    try {
-      // Attempt API call to backend if reachable
-      const response = await fetch(`${apiBaseUrl}/api/v1/scanner/manifest?stationId=${stationId}`, {
+    const response = await fetch(
+      `${apiBaseUrl}/api/v1/scanner/manifest?stationId=${encodeURIComponent(stationId)}`,
+      {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (response.ok) {
-        manifest = await response.json();
-      } else {
-        throw new Error(`Server returned ${response.status}`);
       }
-    } catch {
-      // Offline fallback: generate local manifest for assigned gate
-      manifest = this.generateDemoManifest(stationId);
+    );
+    if (!response.ok) {
+      throw new Error(`Không thể tải dữ liệu từ máy chủ (HTTP ${response.status}).`);
     }
 
-    // Save transactional manifest into SQLite
+    const manifest: PreloadManifest = await response.json();
+    if (
+      !manifest ||
+      manifest.stationId !== stationId ||
+      !manifest.publicKey ||
+      manifest.publicKey.algorithm !== 'RS256' ||
+      !manifest.publicKey.isActive ||
+      !manifest.publicKey.publicKeyPem?.includes('BEGIN PUBLIC KEY') ||
+      !Array.isArray(manifest.trips) ||
+      !Array.isArray(manifest.bookings)
+    ) {
+      throw new Error('Dữ liệu tải về thiếu thông tin chuyến, vé hoặc khóa công khai RS256 hợp lệ.');
+    }
+
     await SqliteRepository.saveManifest(manifest);
 
-    this.lastMessage = `Đã tải trước thành công ${manifest.bookings.length} đơn đặt, ${
+    this.lastMessage = `Đã tải thành công ${manifest.bookings.length} đơn đặt vé, ${
       manifest.bookings.flatMap((b) => b.tickets).length
-    } vé vào SQLite`;
+    } vé về thiết bị.`;
     await this.notifyStatus();
 
     return {
@@ -219,11 +225,11 @@ class SyncService {
     apiBaseUrl = 'http://localhost:5000'
   ): Promise<{ syncedCount: number; message: string }> {
     if (this.isSyncing) {
-      return { syncedCount: 0, message: 'Tiến trình đồng bộ đang chạy' };
+      return { syncedCount: 0, message: 'Đang gửi dữ liệu, vui lòng đợi.' };
     }
 
     if (this.currentDevice.forceOfflineMode) {
-      this.lastMessage = 'Đang bật chế độ Ngoại tuyến cố định (Offline Mode). Không gửi lên server.';
+      this.lastMessage = 'Chế độ sử dụng khi mất kết nối đang bật. Dữ liệu chưa được gửi lên máy chủ.';
       await this.notifyStatus();
       return { syncedCount: 0, message: this.lastMessage };
     }
@@ -234,14 +240,16 @@ class SyncService {
     try {
       const pendingEvents = await SqliteRepository.getPendingEvents(50);
       if (pendingEvents.length === 0) {
-        this.lastMessage = 'Dữ liệu cục bộ đã đồng bộ đầy đủ (0 vé tồn đọng)';
+        this.lastMessage = 'Không có lượt soát vé nào đang chờ gửi.';
         this.isSyncing = false;
         await this.notifyStatus(0);
         return { syncedCount: 0, message: this.lastMessage };
       }
 
       const batchTimestamp = new Date().toISOString();
-      const idempotencyKey = `BATCH-${this.currentDevice.deviceCode}-${batchTimestamp}`;
+      const eventIds = pendingEvents.map((event) => event.clientEventId);
+      const batchFingerprint = CryptoJS.SHA256([...eventIds].sort().join(':')).toString();
+      const idempotencyKey = `BATCH-${this.currentDevice.deviceCode}-${batchFingerprint}`;
 
       const requestPayload = {
         scannerDeviceId: this.currentDevice.deviceId,
@@ -262,10 +270,13 @@ class SyncService {
         })),
       };
 
-      let successUpdates: { clientEventId: string; receivedAtServer: string }[] = [];
+      const successUpdates: { clientEventId: string; receivedAtServer: string }[] = [];
       let lateRejectionCount = 0;
       let conflictCount = 0;
+      const acknowledgedIds = new Set<string>();
+      const requestedIds = new Set(eventIds);
 
+      let resData: SyncBatchResponse;
       try {
         const response = await fetch(`${apiBaseUrl}/api/v1/tickets/sync-offline`, {
           method: 'POST',
@@ -276,58 +287,70 @@ class SyncService {
           body: JSON.stringify(requestPayload),
         });
 
-        if (response.ok) {
-          const resData: SyncBatchResponse = await response.json();
-          const processedList = resData.processedEvents || [];
-
-          for (const pe of processedList) {
-            if (pe.syncStatus === 'Synced' || pe.outcome === 'Success') {
-              successUpdates.push({
-                clientEventId: pe.clientEventId,
-                receivedAtServer: new Date().toISOString(),
-              });
-            } else if (pe.syncStatus === 'Conflict' || pe.outcome === 'Conflict') {
-              conflictCount++;
-              // H03: Handle late sync rejection specifically if server reports window closed / late sync rejected
-              const isLate = pe.message?.toLowerCase().includes('muộn') ||
-                             pe.message?.toLowerCase().includes('trễ') ||
-                             pe.message?.toLowerCase().includes('late') ||
-                             pe.message?.toLowerCase().includes('window');
-              if (isLate) lateRejectionCount++;
-              await SqliteRepository.markEventConflict(
-                pe.clientEventId,
-                pe.message || (isLate ? 'Đồng bộ trễ bị từ chối do quá giờ quy định (H03)' : 'Xung đột check-in'),
-                isLate
-              );
-            }
-          }
-        } else {
-          throw new Error(`Server returned HTTP ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
-      } catch (err: any) {
-        // If network failure or offline test environment without server
-        if (err.message?.includes('Server returned HTTP')) {
-          throw err;
+        resData = await response.json();
+        if (!resData || !Array.isArray(resData.processedEvents)) {
+          throw new Error('Máy chủ trả về kết quả đồng bộ không hợp lệ.');
         }
-        // In standalone/offline environment: reconcile locally
-        successUpdates = pendingEvents.map((e) => ({
-          clientEventId: e.clientEventId,
-          receivedAtServer: new Date().toISOString(),
-        }));
+      } catch {
+        await SqliteRepository.recordSyncFailure(
+          eventIds,
+          'Chưa nhận được xác nhận từ máy chủ; lượt soát vẫn được giữ để gửi lại.'
+        );
+        throw new Error('Không nhận được xác nhận từ máy chủ.');
       }
 
-      // Mark successful events as Synced in SQLite
+      for (const pe of resData.processedEvents) {
+        if (!requestedIds.has(pe.clientEventId) || acknowledgedIds.has(pe.clientEventId)) {
+          continue;
+        }
+
+        if (pe.syncStatus === 'Synced' && pe.outcome === 'Success') {
+          acknowledgedIds.add(pe.clientEventId);
+          successUpdates.push({
+            clientEventId: pe.clientEventId,
+            receivedAtServer: new Date().toISOString(),
+          });
+        } else if (pe.syncStatus === 'Conflict' || pe.outcome === 'Conflict') {
+          acknowledgedIds.add(pe.clientEventId);
+          conflictCount++;
+          const isLate = pe.message?.toLowerCase().includes('muộn') ||
+            pe.message?.toLowerCase().includes('trễ') ||
+            pe.message?.toLowerCase().includes('late') ||
+            pe.message?.toLowerCase().includes('window');
+          if (isLate) lateRejectionCount++;
+          await SqliteRepository.markEventConflict(
+            pe.clientEventId,
+            pe.message || (isLate ? 'Đồng bộ trễ bị từ chối do quá giờ quy định (H03)' : 'Xung đột check-in'),
+            isLate
+          );
+        }
+      }
+
+      const unacknowledgedIds = eventIds.filter((eventId) => !acknowledgedIds.has(eventId));
+      if (unacknowledgedIds.length > 0) {
+        await SqliteRepository.recordSyncFailure(
+          unacknowledgedIds,
+          'Máy chủ chưa xác nhận lượt soát; lượt này sẽ được gửi lại.'
+        );
+      }
+
       if (successUpdates.length > 0) {
         await SqliteRepository.markEventsSynced(successUpdates);
       }
 
       this.lastSyncAt = new Date().toLocaleTimeString();
-      let statusSummary = `Đã đồng bộ thành công ${successUpdates.length} vé`;
+      let statusSummary = `Đã được máy chủ xác nhận ${successUpdates.length} lượt soát`;
       if (lateRejectionCount > 0) {
-        statusSummary += `, ${lateRejectionCount} vé bị từ chối do đồng bộ trễ (H03)`;
+        statusSummary += `, ${lateRejectionCount} vé không được chấp nhận do gửi trễ`;
       }
       if (conflictCount > lateRejectionCount) {
-        statusSummary += `, ${conflictCount - lateRejectionCount} vé xung đột`;
+        statusSummary += `, ${conflictCount - lateRejectionCount} vé bị trùng thông tin`;
+      }
+      if (unacknowledgedIds.length > 0) {
+        statusSummary += `, ${unacknowledgedIds.length} lượt chưa được xác nhận và sẽ gửi lại`;
       }
       this.lastMessage = `${statusSummary} lúc ${this.lastSyncAt}`;
 
@@ -339,8 +362,8 @@ class SyncService {
         syncedCount: successUpdates.length,
         message: this.lastMessage,
       };
-    } catch (error: any) {
-      this.lastMessage = `Lỗi đồng bộ: ${error?.message || 'Không xác định'}`;
+    } catch {
+      this.lastMessage = 'Không thể gửi dữ liệu lên máy chủ. Các lượt chưa được xác nhận vẫn được giữ trên thiết bị.';
       this.isSyncing = false;
       await this.notifyStatus();
       return { syncedCount: 0, message: this.lastMessage };
@@ -504,7 +527,14 @@ class SyncService {
       stationId,
       stationName: 'Bến Bạch Đằng (Quận 1)',
       generatedAt: new Date().toISOString(),
-      publicKey: DEFAULT_KEY_INFO,
+      publicKey: {
+        kid: 'unavailable',
+        algorithm: 'RS256',
+        publicKeyPem: '',
+        validFrom: '',
+        validTo: '',
+        isActive: false,
+      },
       trips,
       bookings,
     };
