@@ -15,7 +15,6 @@ export async function getHomeData(): Promise<HomeData> {
   const stories = HOME_DATA.stories.map((story) => ({
     ...story,
     fromPriceVnd: fares.Sightseeing,
-    durationMins: undefined,
   }))
   return localize({ ...HOME_DATA, stories })
 }

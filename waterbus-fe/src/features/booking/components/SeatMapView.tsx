@@ -2,14 +2,12 @@ import { memo, useMemo } from 'react'
 import { Icon } from '../../../components/ui'
 import { formatVndSuffix } from '../../../utils/format'
 import type { Seat, SeatCategory, SeatMap } from '../types'
-import { CABIN_ORDER, cabinLabel, seatFeeFor, seatTags } from '../utils'
+import { CABIN_ORDER, cabinLabel, seatTags } from '../utils'
 import { t } from '../../../i18n'
 
 interface SeatMapViewProps {
   seatMap: SeatMap
   selectedIds: string[]
-  /** Fare of the selected trip, used to show each cabin's surcharge. */
-  fareVnd: number
   onSelect: (id: string) => void
 }
 
@@ -31,21 +29,11 @@ const SeatButton = memo(function SeatButton({
   const sold = seat.status === 'sold'
   const held = seat.status === 'held'
   const unavailable = sold || held
-  const surcharge = seat.priceMultiplier > 1
   const tags = seatTags(seat)
   const state = sold ? t('sold') : held ? t('held by another traveler') : ''
 
   return (
     <div className="relative">
-      {surcharge && (
-        <span
-          className={`absolute -left-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full text-white ${
-            unavailable ? 'bg-outline' : 'bg-signal-amber'
-          }`}
-        >
-          <Icon name="workspace_premium" className="text-[11px]" />
-        </span>
-      )}
       {seat.window && (
         <span
           className={`absolute -right-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white ${
@@ -77,8 +65,6 @@ const SeatButton = memo(function SeatButton({
             ? 'cursor-not-allowed border-transparent bg-outline-variant/50 text-outline'
             : held
             ? 'cursor-not-allowed border-dashed border-signal-amber bg-signal-amber/15 text-deep-river/70'
-            : surcharge
-            ? 'border-signal-amber/60 bg-signal-amber/10 text-deep-river hover:border-signal-amber hover:bg-signal-amber/20'
             : 'border-teal-flow/40 bg-white text-deep-river hover:border-teal-flow hover:bg-sand-light'
         }`}
       >
@@ -126,31 +112,19 @@ export function SeatLegend() {
   )
 }
 
-function CabinHeading({
-  category,
-  feeVnd,
-  priceVnd,
-}: {
-  category: SeatCategory
-  feeVnd: number
-  /** Fare of a seat in this cabin when the backend priced it; shown instead of a surcharge. */
-  priceVnd?: number
-}) {
+function CabinHeading({ category, priceVnd }: { category: SeatCategory; /** Fare of a seat in this cabin. */ priceVnd?: number }) {
   return (
     <div className="flex items-center gap-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-teal-flow">
       <span className="h-px flex-1 bg-teal-flow/30" />
       {cabinLabel(category)}
       {priceVnd !== undefined && <span className="text-deep-river">• {formatVndSuffix(priceVnd)}</span>}
-      {priceVnd === undefined && feeVnd > 0 && (
-        <span className="text-signal-amber">• +{formatVndSuffix(feeVnd)}</span>
-      )}
       <span className="h-px flex-1 bg-teal-flow/30" />
     </div>
   )
 }
 
 /** Top-down plan of the boat: front cabin, standard cabin and outdoor deck, seats A-B | aisle | C-D. */
-export default function SeatMapView({ seatMap, selectedIds, fareVnd, onSelect }: SeatMapViewProps) {
+export default function SeatMapView({ seatMap, selectedIds, onSelect }: SeatMapViewProps) {
   const cabins = useMemo(
     () =>
       CABIN_ORDER.map((category) => {
@@ -160,11 +134,10 @@ export default function SeatMapView({ seatMap, selectedIds, fareVnd, onSelect }:
           category,
           seats,
           rows,
-          feeVnd: seatFeeFor(seats[0], fareVnd),
           priceVnd: seats[0]?.priceVnd,
         }
       }).filter((cabin) => cabin.seats.length > 0),
-    [seatMap.seats, fareVnd],
+    [seatMap.seats],
   )
 
   return (
@@ -200,7 +173,7 @@ export default function SeatMapView({ seatMap, selectedIds, fareVnd, onSelect }:
         </div>
 
         <div className="mt-2 space-y-3">
-          {cabins.map(({ category, seats, rows, feeVnd, priceVnd }) => {
+          {cabins.map(({ category, seats, rows, priceVnd }) => {
             const seatAt = (row: number, column: Seat['column']) =>
               seats.find((s) => s.row === row && s.column === column)
             const renderSeat = (row: number, column: Seat['column']) => {
@@ -218,7 +191,7 @@ export default function SeatMapView({ seatMap, selectedIds, fareVnd, onSelect }:
             }
             return (
               <div key={category} className="space-y-3">
-                <CabinHeading category={category} feeVnd={feeVnd} priceVnd={priceVnd} />
+                <CabinHeading category={category} priceVnd={priceVnd} />
                 {rows.map((row) => (
                   <div key={row} className={GRID}>
                     {COLUMNS_LEFT.map((c) => renderSeat(row, c))}

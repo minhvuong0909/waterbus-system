@@ -32,7 +32,7 @@ export function toDeparture(
   }
 }
 
-/** The corridor shown on the maps: the piers at their coordinates. Passengers have no live vessel position. */
+/** The corridor shown on the maps: the piers at their coordinates. */
 export function buildCorridorMap(piers: PierOption[]): CorridorMap {
   const placed = piers.map((pier) => ({
     id: pier.id,
@@ -43,5 +43,5 @@ export function buildCorridorMap(piers: PierOption[]): CorridorMap {
     latitude: pier.latitude,
     longitude: pier.longitude,
   }))
-  return { piers: placed, vessel: null }
+  return { piers: placed }
 }

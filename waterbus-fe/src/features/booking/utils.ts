@@ -47,17 +47,9 @@ export function cabinsLabel(seats: Seat[]): string {
   return categories.length > 0 ? categories.map(cabinLabel).join(' / ') : t('Main Saloon')
 }
 
-/** Extra charge of the seat: the fare times (multiplier - 1), so 0 for a standard seat. */
-export function seatFeeFor(seat: Seat | undefined, fareVnd: number): number {
-  return seat ? Math.round(fareVnd * (seat.priceMultiplier - 1)) : 0
-}
-
 export interface BookingTotals {
   seatCount: number
-  /** Trip fare for all seats (the backend charges the base price once per seat). */
-  fareVnd: number
-  /** Cabin surcharges of all seats, 0 when every seat is standard. */
-  seatFeeVnd: number
+  /** Sum of the seat fares; the backend charges nothing else. */
   totalVnd: number
 }
 
@@ -66,32 +58,18 @@ export function addTotals(a: BookingTotals, b?: BookingTotals): BookingTotals {
   if (!b) return a
   return {
     seatCount: a.seatCount + b.seatCount,
-    fareVnd: a.fareVnd + b.fareVnd,
-    seatFeeVnd: a.seatFeeVnd + b.seatFeeVnd,
     totalVnd: a.totalVnd + b.totalVnd,
   }
 }
 
-/** What each ticket costs: the trip fare plus that seat's cabin surcharge. */
-export function ticketFares(fareVnd: number, seats: Seat[]): number[] {
-  return seats.map((seat) => seat.priceVnd ?? fareVnd + seatFeeFor(seat, fareVnd))
-}
-
+/**
+ * What the chosen seats cost. Each seat carries its own fare from the backend (flat per trip type and
+ * seat class, BR-FARE); the trip's lowest fare stands in only while a seat has none.
+ */
 export function computeTotals(trip: TripDetail, seats: Seat[]): BookingTotals {
-  // Seats from the backend carry their own fare (flat per seat class, BR-FARE), so there is no
-  // separate surcharge; the mock map prices a seat as the trip fare times its multiplier.
-  if (seats.length > 0 && seats.every((seat) => seat.priceVnd !== undefined)) {
-    const fareVnd = seats.reduce((sum, seat) => sum + (seat.priceVnd ?? 0), 0)
-    return { seatCount: seats.length, fareVnd, seatFeeVnd: 0, totalVnd: fareVnd }
-  }
-  const fareVnd = trip.fareVnd * seats.length
-  const seatFeeVnd = seats.reduce((sum, seat) => sum + seatFeeFor(seat, trip.fareVnd), 0)
-  return { seatCount: seats.length, fareVnd, seatFeeVnd, totalVnd: fareVnd + seatFeeVnd }
+  const totalVnd = seats.reduce((sum, seat) => sum + (seat.priceVnd ?? trip.fareVnd), 0)
+  return { seatCount: seats.length, totalVnd }
 }
-
-/** True for a seat that costs more than the base fare. */
-export const hasSurcharge = (seat: Seat | undefined): boolean =>
-  seat?.priceVnd === undefined && (seat?.priceMultiplier ?? 1) > 1
 
 /** "Front Cabin • Window", "Window", "Outdoor Deck" or "" (a standard aisle seat). */
 export function seatTags(seat: Seat | undefined): string {
@@ -125,12 +103,6 @@ export function seatPosition(seat: Seat | undefined): string {
 /** Cabin the seat is in, e.g. "Front Cabin"; "Main Saloon" until the seat is known. */
 export function seatZone(seat: Seat | undefined): string {
   return seat ? cabinLabel(seat.category) : t('Main Saloon')
-}
-
-/** Mock booking reference in the backend's format (WB + date and time + 3 digits). The backend issues the real one. */
-export function bookingReference(seats: Seat[]): string {
-  const digits = seatCodes(seats).replace(/\D/g, '').padStart(3, '0').slice(-3)
-  return `WB${new Date().toISOString().replace(/\D/g, '').slice(0, 8)}0000${digits}`
 }
 
 /** Purchaser phone as the backend expects it: digits only with a leading 0, or undefined when none. */
@@ -304,7 +276,6 @@ function toSeat(dto: TripSeatDto): Seat {
     category: seatCategoryOf(dto.seatClassName),
     row: dto.rowNumber,
     column,
-    priceMultiplier: 1,
     // A seat without a fare (or otherwise unavailable) cannot be chosen, so it is shown as taken.
     status: dto.price === null ? 'sold' : status,
     window: column === 'A' || column === 'D',

@@ -5,7 +5,6 @@ import 'leaflet/dist/leaflet.css'
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { MAP_TILE_ATTRIBUTION, MAP_TILE_URL } from '../../constant/env'
 import type { CorridorMap, Pier } from '../../features/trips/types'
-import { t } from '../../i18n'
 import PierPopup from './PierPopup'
 
 interface PierMapProps {
@@ -31,13 +30,6 @@ function pierIcon(selected: boolean): L.DivIcon {
     iconAnchor: [size / 2, size / 2],
   })
 }
-
-const vesselIcon = L.divIcon({
-  className: 'vessel-pin',
-  html: '<span class="vessel-pin__disc"><span class="material-symbols-outlined">directions_boat</span></span>',
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
-})
 
 /** Fits the view to the piers once the map has its real size, and again if the piers change. */
 function FitToPiers({ points }: { points: [number, number][] }) {
@@ -67,7 +59,6 @@ export default function PierMap({
     () => map.piers.map((p): [number, number] => [p.latitude, p.longitude]),
     [map.piers],
   )
-  const { vessel } = map
 
   return (
     <div
@@ -105,20 +96,6 @@ export default function PierMap({
             </Tooltip>
           </Marker>
         ))}
-        {vessel && (
-          <Marker
-            position={[vessel.latitude, vessel.longitude]}
-            icon={vesselIcon}
-            zIndexOffset={500}
-          >
-            <Tooltip direction="top" offset={[0, -18]}>
-              {`${vessel.code} • ${vessel.status} • ${t('{speedKmh} km/h • Next: {nextPier}', {
-                speedKmh: vessel.speedKmh,
-                nextPier: vessel.nextPier,
-              })}`}
-            </Tooltip>
-          </Marker>
-        )}
       </MapContainer>
 
       {selected && (

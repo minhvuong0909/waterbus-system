@@ -43,7 +43,6 @@ export const HOME_DATA: HomeData = {
       badgeIcon: 'wb_sunny',
       badgeIconClass: 'text-coral-glow',
       fromPriceVnd: 45000,
-      durationMins: 45,
       location: 'Bạch Đằng Pier',
       title: 'Twilight Sunset on the Saigon River',
       description:
@@ -58,7 +57,6 @@ export const HOME_DATA: HomeData = {
       badgeIcon: 'museum',
       badgeIconClass: 'text-sky-aqua',
       fromPriceVnd: 45000,
-      durationMins: 45,
       location: 'Bạch Đằng Pier',
       title: 'Historic Waterfront & Colonial Wharfs',
       description:
@@ -73,7 +71,6 @@ export const HOME_DATA: HomeData = {
       badgeIcon: 'forest',
       badgeIconClass: 'text-teal-flow',
       fromPriceVnd: 45000,
-      durationMins: 45,
       location: 'Thanh Đa Pier',
       title: 'Eco-Corridor past Thanh Da Peninsula',
       description:

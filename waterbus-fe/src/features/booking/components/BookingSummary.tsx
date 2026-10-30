@@ -7,9 +7,8 @@ import type { Seat } from '../types'
 import type { BookingFailure } from '../hooks/useCheckout'
 import type { BookingTotals } from '../utils'
 import { MAX_SEATS_PER_BOOKING } from '../utils'
-import { hasSurcharge, seatFeeFor, seatPosition, seatZone } from '../utils'
+import { seatPosition, seatZone } from '../utils'
 import BookingCard from './BookingCard'
-import SeatFeeRow from './SeatFeeRow'
 import SummaryRow from './SummaryRow'
 import TotalRow from './TotalRow'
 import SummaryTimer from './SummaryTimer'
@@ -47,7 +46,6 @@ export default function BookingSummary({
   changeTripTo = ROUTES.searchResults,
 }: BookingSummaryProps) {
   const label = continueLabel ?? t('Continue to Passenger Details')
-  const surcharge = seats.some(hasSurcharge)
   // An empty selection, or one with a seat somebody else took, must not reach checkout.
   const canContinue =
     canBook && seats.length > 0 && seats.every((seat) => seat.status === 'available')
@@ -96,8 +94,6 @@ export default function BookingSummary({
         ) : (
           <ul className="flex flex-wrap gap-1.5">
             {seats.map((seat) => {
-              const priced = seat.priceVnd !== undefined
-              const fee = priced ? (seat.priceVnd ?? 0) : seatFeeFor(seat, trip.fareVnd)
               return (
                 <li
                   key={seat.id}
@@ -105,10 +101,8 @@ export default function BookingSummary({
                   className="inline-flex items-baseline gap-1.5 rounded-lg bg-sand-light px-2.5 py-1 text-sm font-bold text-deep-river"
                 >
                   {seat.code}
-                  {fee > 0 && (
-                    <span className="text-[10px] font-medium text-teal-flow">
-                      {priced ? formatVndSuffix(fee) : `+${formatVndSuffix(fee)}`}
-                    </span>
+                  {seat.priceVnd !== undefined && (
+                    <span className="text-[10px] font-medium text-teal-flow">{formatVndSuffix(seat.priceVnd)}</span>
                   )}
                 </li>
               )
@@ -129,12 +123,7 @@ export default function BookingSummary({
               ? t('Seat fares ({count} seats)', { count: totals.seatCount })
               : t('Seat fare')
           }
-          value={formatVnd(totals.fareVnd)}
-        />
-        <SeatFeeRow
-          label={surcharge ? t('Cabin Surcharge') : t('Seat Reservation Fee')}
-          seatFeeVnd={totals.seatFeeVnd}
-          includedText={t('Included (0 VND)')}
+          value={formatVnd(totals.totalVnd)}
         />
       </div>
       <div className="mt-space-sm border-t border-surface-container">

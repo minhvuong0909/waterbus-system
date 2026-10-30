@@ -33,18 +33,8 @@ export interface Pier {
   longitude: number
 }
 
-export interface Vessel {
-  code: string
-  status: string
-  speedKmh: number
-  nextPier: string
-  latitude: number
-  longitude: number
-}
-
 export interface CorridorMap {
   piers: Pier[]
-  vessel: Vessel | null
 }
 
 // ---- Trip search -----------------------------------------------------------

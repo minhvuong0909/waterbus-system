@@ -47,14 +47,6 @@ export default function NetworkSection({ routes, piers }: NetworkSectionProps) {
             <span className="h-2.5 w-2.5 rounded-full border border-white bg-deep-river" />
             <span>{t('Pier Station Hub')}</span>
           </div>
-          <span className="text-outline-variant">•</span>
-          <div className="flex items-center gap-1.5">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-aqua opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-teal-flow" />
-            </span>
-            <span className="font-semibold text-teal-flow">{t('Live Vessel SWB-01')}</span>
-          </div>
         </div>
       </div>
 

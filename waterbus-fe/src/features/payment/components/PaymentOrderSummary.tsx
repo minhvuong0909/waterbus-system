@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
 import BookingCard from '../../booking/components/BookingCard'
-import SeatFeeRow from '../../booking/components/SeatFeeRow'
 import SummaryRow from '../../booking/components/SummaryRow'
 import TotalRow from '../../booking/components/TotalRow'
 import { selectedSeatsLabel } from '../../booking/utils'
@@ -119,12 +118,7 @@ export default function PaymentOrderSummary({
       </div>
 
       <div className="mt-space-sm space-y-1.5 border-t border-surface-container pt-space-sm">
-        <SummaryRow label={t('Trip Fare')} value={formatVnd(totals.fareVnd)} />
-        <SeatFeeRow
-          label={t('Seat Fee')}
-          seatFeeVnd={totals.seatFeeVnd}
-          includedText={t('Included')}
-        />
+        <SummaryRow label={t('Trip Fare')} value={formatVnd(totals.totalVnd)} />
       </div>
       <div className="mt-space-sm border-t border-surface-container pt-space-sm">
         <TotalRow

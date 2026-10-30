@@ -70,7 +70,7 @@ export interface BookingState {
   order: PlacedOrder | null
 }
 
-/** Blank buyer: real bookings start empty, only mock mode is pre-filled with a sample traveler. */
+/** Blank buyer form. */
 const EMPTY_PURCHASER: PurchaserForm = { fullName: '', phoneCode: '+84', phone: '', email: '' }
 
 export const EMPTY_SEAT_PASSENGER: SeatPassengerForm = { fullName: '', email: '', phone: '' }
@@ -89,7 +89,7 @@ const initialState: BookingState = {
   query: DEFAULT_SEARCH_QUERY,
   selectedTripId: null,
   selectedTrip: null,
-  // No seat is picked for the traveler, in mock mode too: they choose every seat themselves.
+  // No seat is picked for the traveler: they choose every seat themselves.
   seatIds: [],
   purchaser: EMPTY_PURCHASER,
   passengers: {},

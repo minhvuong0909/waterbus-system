@@ -111,7 +111,6 @@ export default function SeatSelectionPage() {
             <SeatMapView
               seatMap={seatMap}
               selectedIds={seatIds}
-              fareVnd={trip.fareVnd}
               onSelect={toggleSeat}
             />
           </div>

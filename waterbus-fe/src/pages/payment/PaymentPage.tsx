@@ -2,7 +2,7 @@ import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
 import BookingProgress from '../../features/booking/components/BookingProgress'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import type { BookingStep } from '../../features/booking/types'
-import { addTotals, bookingReference, seatCodes } from '../../features/booking/utils'
+import { addTotals, seatCodes } from '../../features/booking/utils'
 import { isRoundTrip } from '../../features/booking/legs'
 import PaymentMethodPanel from '../../features/payment/components/PaymentMethodPanel'
 import HoldCountdown from '../../features/booking/components/HoldCountdown'
@@ -95,7 +95,7 @@ export default function PaymentPage() {
         <div className="lg:col-span-8">
           <PaymentMethodPanel
             amountVnd={totals.totalVnd}
-            reference={hold?.bookingCodes.join(', ') || bookingReference(seats)}
+            reference={hold?.bookingCodes.join(', ') ?? ''}
           />
         </div>
         <div className="lg:col-span-4 lg:self-stretch">

@@ -5,9 +5,8 @@ import { formatVnd } from '../../../utils/format'
 import type { TripDetail } from '../../trips/types'
 import type { Seat } from '../types'
 import type { BookingTotals } from '../utils'
-import { passengersLabel, seatCodes, selectedSeatsLabel } from '../utils'
+import { passengersLabel, selectedSeatsLabel } from '../utils'
 import BookingCard from './BookingCard'
-import SeatFeeRow from './SeatFeeRow'
 import SummaryRow from './SummaryRow'
 import TotalRow from './TotalRow'
 import SummaryTimer from './SummaryTimer'
@@ -97,14 +96,7 @@ export default function CrossingSummary({ trip, seats, totals, canContinue, retu
               ? t('Seat fares ({count} seats)', { count: totals.seatCount })
               : t('Seat fare')
           }
-          value={formatVnd(totals.fareVnd)}
-        />
-        <SeatFeeRow
-          label={t('Seat Reservation ({seats})', {
-            seats: returnLeg ? `${seatCodes(seats)} · ${seatCodes(returnLeg.seats)}` : seatCodes(seats),
-          })}
-          seatFeeVnd={totals.seatFeeVnd}
-          includedText={t('Included (0 VND)')}
+          value={formatVnd(totals.totalVnd)}
         />
       </div>
       <div className="mt-space-sm border-t border-surface-container">

@@ -1,7 +1,6 @@
 import { useParams } from 'react-router-dom'
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import BookingSummaryCard from '../../features/tickets/components/BookingSummaryCard'
-import OperatingBanner from '../../features/tickets/components/OperatingBanner'
 import RefundPolicyCard from '../../features/tickets/components/RefundPolicyCard'
 import { useManageBooking } from '../../features/tickets/hooks/useTickets'
 import { useDocumentTitle } from '../../hooks'
@@ -63,7 +62,6 @@ export default function ManageBookingPage() {
 
       <div className="mt-space-lg space-y-space-md">
         <BookingSummaryCard ticket={manage.ticket} />
-        <OperatingBanner vessel={manage.ticket.tripCode} />
       </div>
 
       <div className="mt-space-md">

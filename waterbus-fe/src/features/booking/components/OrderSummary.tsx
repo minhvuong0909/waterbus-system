@@ -6,7 +6,6 @@ import type { TripDetail } from '../../trips/types'
 import type { BookingFailure } from '../hooks/useCheckout'
 import type { BookingTotals } from '../utils'
 import BookingCard from './BookingCard'
-import SeatFeeRow from './SeatFeeRow'
 import SummaryRow from './SummaryRow'
 import { t } from '../../../i18n'
 import SummaryTimer from './SummaryTimer'
@@ -74,12 +73,7 @@ export default function OrderSummary({
       )}
 
       <div className="mt-space-md space-y-1.5">
-        <SummaryRow label={t('Trip Fare')} value={formatVnd(totals.fareVnd)} />
-        <SeatFeeRow
-          label={t('Seat Fee')}
-          seatFeeVnd={totals.seatFeeVnd}
-          includedText={t('Included')}
-        />
+        <SummaryRow label={t('Trip Fare')} value={formatVnd(totals.totalVnd)} />
       </div>
 
       <div className="mt-space-md flex items-center justify-between rounded-xl bg-mist/70 px-space-md py-space-md">

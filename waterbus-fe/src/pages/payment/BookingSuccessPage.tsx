@@ -4,7 +4,6 @@ import { useSearchQuery } from '../../features/trips/hooks/useTripSearch'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import { isRoundTrip } from '../../features/booking/legs'
 import {
-  bookingReference,
   cabinsLabel,
   passengersLabel,
   seatCodes,
@@ -93,7 +92,7 @@ export default function BookingSuccessPage() {
   const orderedSeats = (roundTrip ? detail?.bookings.slice(0, 1) : detail?.bookings)?.flatMap((b) => b.tickets) ?? []
   const returnTickets = roundTrip ? (detail?.bookings[1]?.tickets ?? []) : []
   const returnReference = roundTrip ? detail?.bookings[1]?.bookingCode : undefined
-  const reference = detail?.bookings[0]?.bookingCode ?? bookingReference(seats)
+  const reference = detail?.bookings[0]?.bookingCode ?? ''
   // Names as the backend issued them; the typed names stand in until the tickets are listed.
   const names =
     orderedSeats.length > 0

@@ -47,15 +47,6 @@ export default function StoriesSection({ stories }: StoriesSectionProps) {
               <div className="flex flex-1 flex-col justify-between space-y-space-md p-space-lg">
                 <div className="space-y-space-sm">
                   <div className="flex items-center gap-2 text-xs text-on-surface-variant">
-                    {story.durationMins !== undefined && (
-                      <>
-                        <span className="flex items-center gap-1">
-                          <Icon name="timer" className="text-[15px] text-teal-flow" />{' '}
-                          {t('{durationMins} mins', { durationMins: story.durationMins })}
-                        </span>
-                        <span>•</span>
-                      </>
-                    )}
                     <span className="flex items-center gap-1">
                       <Icon name="pin_drop" className="text-[15px] text-teal-flow" />{' '}
                       {story.location}

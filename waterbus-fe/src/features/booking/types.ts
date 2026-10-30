@@ -17,11 +17,9 @@ export interface Seat {
   row: number
   /** Column letter A-D (BE `ColumnNumber` 1-4). A and D are window seats. */
   column: 'A' | 'B' | 'C' | 'D'
-  /** Fare multiplier of the seat (BE `PriceMultiplier`), 1 for a standard seat. */
-  priceMultiplier: number
   status: SeatStatus
   window: boolean
-  /** Fare of this seat for the chosen journey, from the backend (flat per trip type and seat class). */
+  /** Fare of this seat for the chosen journey (flat per trip type and seat class); absent for a seat without a fare, which cannot be chosen. */
   priceVnd?: number
 }
 
@@ -36,7 +34,7 @@ export interface Journey {
 export interface SeatMap {
   vesselName: string
   seats: Seat[]
-  /** Set for a backend seat map; absent for the mock one. */
+  /** The boarding and alighting stops the seat map was read for. */
   journey?: Journey
   /** False when sales are closed for the trip (backend `salesState` is not `open`). */
   canBook?: boolean
@@ -47,7 +45,7 @@ export interface SeatEvent {
   type: 'SeatLocked' | 'SeatUnlocked' | 'SeatSold'
   tripId: string
   seatId: string
-  /** The journey segment the change applies to; absent for mock events (whole trip). */
+  /** The journey segment the change applies to (BE `VisitOrder`s). */
   boardingVisitOrder?: number
   disembarkingVisitOrder?: number
 }
@@ -252,7 +250,7 @@ export interface BookingHold {
   seatIds: string[]
   /** True once buyer and passengers were submitted; the order is then awaiting payment. */
   submitted: boolean
-  /** Guest token of the order; null for a mock order. */
+  /** Guest token of the order (`X-Guest-Token`); null when the backend issues none. */
   accessToken: string | null
   bookingCodes: string[]
   totalAmount: number
