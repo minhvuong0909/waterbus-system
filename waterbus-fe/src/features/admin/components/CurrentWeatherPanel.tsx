@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Icon } from '../../../components/ui'
+import { Icon, Panel } from '../../../components/ui'
 import { useFetch } from '../../../hooks'
 import { t } from '../../../i18n'
 import { ROUTES } from '../../../routes/routes'
@@ -7,7 +7,6 @@ import { useReload } from '../hooks/useAdmin'
 import { getCurrentWeather, toKmh } from '../services/weatherService'
 import type { RouteWeather, RouteWeatherStatus } from '../services/weatherService'
 import { formatClock } from '../../../utils/time'
-import { Panel } from './AdminUi'
 
 const STATUS: Record<RouteWeatherStatus, { label: string; icon: string; className: string }> = {
   Normal: { label: 'Normal', icon: 'check_circle', className: 'bg-teal-flow/10 text-teal-flow' },

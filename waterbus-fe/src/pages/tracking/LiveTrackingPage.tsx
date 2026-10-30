@@ -1,7 +1,6 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import FleetMap from '../../components/map/FleetMap'
 import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
-import { StatusBadge } from '../../features/admin/components/AdminUi'
 import { isGuid } from '../../features/booking/utils'
 import StopTimeline from '../../features/tracking/components/StopTimeline'
 import { useTripTracking } from '../../features/tracking/hooks/useTripTracking'
@@ -9,6 +8,7 @@ import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 import { formatClock } from '../../utils/time'
+import TripStatusBadge from '../../features/trips/components/TripStatusBadge'
 
 /** Opened from a ticket (`?tripId=`): no trip, nothing to follow. */
 function NoTripChosen() {
@@ -47,7 +47,7 @@ function TripTracking({ tripId }: { tripId: string }) {
 
       <div className="mt-space-md flex flex-wrap items-center gap-3">
         <h1 className="text-3xl font-bold tracking-tight text-deep-river">{trip.routeName}</h1>
-        <StatusBadge status={trip.status} />
+        <TripStatusBadge status={trip.status} />
       </div>
       {trip.boat && (
         <p className="mt-1 text-sm text-on-surface-variant">

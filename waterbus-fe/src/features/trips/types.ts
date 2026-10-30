@@ -216,3 +216,17 @@ export interface TripDto {
   basePrice: number
   availableSeatsCount: number
 }
+
+/** BE `TripType`. */
+export type TripType = 'Commuter' | 'Sightseeing'
+
+/** BE `TripStatus` (BR-OPS-01). */
+export type TripStatus =
+  | 'Scheduled'
+  | 'Boarding'
+  | 'EnRoute'
+  | 'Suspended'
+  | 'Arrived'
+  | 'Completed'
+  | 'Cancelled'
+  | 'Terminated'

@@ -4,7 +4,7 @@ import type { AdminTrip, OperationType } from '../types'
 import { formatDateTime } from '../../../utils/time'
 import { useSubmit } from '../hooks/useAdmin'
 import { operateTrip } from '../services/operationsService'
-import { ActionButton, Notice } from './AdminUi'
+import { Button, Notice } from '../../../components/ui'
 
 export const OPERATION_LABEL: Record<OperationType, string> = {
   OpenBoarding: 'Open boarding',
@@ -84,12 +84,12 @@ export default function OperationForm({
       </div>
       {error && <Notice tone="error">{error}</Notice>}
       <div className="flex justify-end gap-2 pt-1">
-        <ActionButton tone="secondary" onClick={onCancel}>
+        <Button size="sm" variant="neutral" onClick={onCancel}>
           {t('Back')}
-        </ActionButton>
-        <ActionButton type="submit" tone={type === 'Cancel' || type === 'Terminate' ? 'danger' : 'primary'} disabled={busy}>
+        </Button>
+        <Button size="sm" type="submit" variant={type === 'Cancel' || type === 'Terminate' ? 'danger' : 'primary'} disabled={busy}>
           {busy ? t('Working…') : t(OPERATION_LABEL[type])}
-        </ActionButton>
+        </Button>
       </div>
     </form>
   )

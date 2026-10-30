@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import FleetMap from '../../components/map/FleetMap'
-import { ErrorState, PageLoader } from '../../components/ui'
-import { PageHeader, Panel } from '../../features/admin/components/AdminUi'
+import { ErrorState, PageHeader, PageLoader, Panel } from '../../components/ui'
 import { AlertBanner } from '../../features/admin/components/AlertParts'
 import { sortAlerts } from '../../features/admin/alertUtils'
 import { useNow, useReload } from '../../features/admin/hooks/useAdmin'

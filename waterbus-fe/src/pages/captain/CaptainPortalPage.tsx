@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { ErrorState, Icon, PageLoader } from '../../components/ui'
-import { ActionButton, Modal, Notice, StatusBadge } from '../../features/admin/components/AdminUi'
+import { Button, ErrorState, Icon, Modal, Notice, PageLoader } from '../../components/ui'
 import GpsSharePanel from '../../features/admin/components/GpsSharePanel'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import { useFleetHub } from '../../features/admin/hooks/useFleetHub'
@@ -11,6 +10,7 @@ import { useAuth } from '../../features/authentication/hooks/useAuth'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
 import { formatClock, formatDateTime } from '../../utils/time'
+import TripStatusBadge from '../../features/trips/components/TripStatusBadge'
 
 /** Large touch target for use on board. */
 function BigButton({
@@ -116,7 +116,7 @@ export default function CaptainPortalPage() {
               {formatDateTime(trip.departureTime)} • {trip.routeName} • {trip.boatCode ?? '—'} • {t(trip.tripType === 'Commuter' ? 'Regular' : 'Sightseeing')}
             </div>
           </div>
-          <StatusBadge status={trip.status} />
+          <TripStatusBadge status={trip.status} />
         </div>
       </div>
 
@@ -164,11 +164,11 @@ export default function CaptainPortalPage() {
             className="w-full rounded-lg border border-outline-variant px-3 py-2 text-sm text-deep-river"
           />
           <div className="mt-4 flex justify-end gap-2">
-            <ActionButton tone="secondary" onClick={() => setSosOpen(false)}>
+            <Button size="sm" variant="neutral" onClick={() => setSosOpen(false)}>
               {t('Cancel')}
-            </ActionButton>
-            <ActionButton
-              tone="danger"
+            </Button>
+            <Button size="sm"
+              variant="danger"
               disabled={action.busy}
               onClick={async () => {
                 if (await perform('SOS', note.trim() || t('Emergency reported by the captain.'))) {
@@ -179,7 +179,7 @@ export default function CaptainPortalPage() {
               }}
             >
               {t('Send SOS')}
-            </ActionButton>
+            </Button>
           </div>
         </Modal>
       )}

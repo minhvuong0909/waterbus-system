@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ErrorState, Icon, PageLoader } from '../../components/ui'
-import { PageHeader, Panel, StatusBadge } from '../../features/admin/components/AdminUi'
+import { ErrorState, Icon, PageHeader, PageLoader, Panel } from '../../components/ui'
 import { useReload } from '../../features/admin/hooks/useAdmin'
 import { useFleetHub } from '../../features/admin/hooks/useFleetHub'
 import { getBoats } from '../../features/admin/services/boatService'
@@ -12,6 +11,7 @@ import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 import OverviewMotion from '../../features/admin/components/OverviewMotion'
 import CurrentWeatherPanel from '../../features/admin/components/CurrentWeatherPanel'
+import TripStatusBadge from '../../features/trips/components/TripStatusBadge'
 
 function Kpi({
   icon,
@@ -100,7 +100,7 @@ export default function OverviewPage() {
                 <span className="flex-1 truncate text-on-surface-variant">
                   {x.routeName}
                 </span>
-                <StatusBadge status={x.status} />
+                <TripStatusBadge status={x.status} />
               </li>
             ))}
           </ul>

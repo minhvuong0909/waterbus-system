@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { HubConnection } from '@microsoft/signalr'
-import { Icon } from '../../../components/ui'
+import { Icon, Notice, Panel } from '../../../components/ui'
 import { HUBS } from '../../../constant/apiEndpoints'
 import { useFetch } from '../../../hooks'
 import { t } from '../../../i18n'
@@ -8,7 +8,6 @@ import { connectHub, hubErrorMessage } from '../../../services/realtime'
 import type { RealtimeStatus } from '../../../services/realtime'
 import { formatClockWithSeconds } from '../../../utils/time'
 import { getBoats } from '../services/boatService'
-import { Notice, Panel } from './AdminUi'
 
 /** Send at most one position every few seconds, whatever rate the device reports at. */
 const MIN_SEND_INTERVAL_MS = 3000

@@ -6,8 +6,8 @@ import { alertMetrics, alertNote, alertTone, decisionOperation, isCaptainReport,
 import type { AdminTrip, OperationType, WeatherAlert } from '../types'
 import { formatDateTime } from '../../../utils/time'
 import { weatherAlertTitle } from '../utils'
-import { StatusBadge } from './AdminUi'
 import { OPERATION_LABEL } from './OperationForm'
+import TripStatusBadge from '../../trips/components/TripStatusBadge'
 
 /** Decisions that answer an alert for one trip (Resume and Close are routine trip operations). */
 const ALERT_DECISIONS: OperationType[] = ['Suspend', 'Cancel', 'Terminate']
@@ -146,7 +146,7 @@ export function AlertCard({
                     <Icon name="directions_boat" className="text-[18px] text-teal-flow" />
                     <span className="font-mono">{trip?.boatCode ?? '—'}</span>
                     <span>{departure ? formatDateTime(departure) : '—'}</span>
-                    {status && <StatusBadge status={status} />}
+                    {status && <TripStatusBadge status={status} />}
                   </div>
                 </div>
                 {link.decision ? (

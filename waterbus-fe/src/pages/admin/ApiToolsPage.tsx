@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useDocumentTitle, useFetch } from '../../hooks'
-import { ErrorState, Icon, PageLoader } from '../../components/ui'
-import { ActionButton, PageHeader, Panel } from '../../features/admin/components/AdminUi'
+import { Button, ErrorState, Icon, PageHeader, PageLoader, Panel } from '../../components/ui'
 import { ApiError } from '../../services/apiClient'
 import { executeApi, getApiOperations } from '../../features/admin/services/apiToolsService'
 
@@ -166,7 +165,7 @@ export default function ApiToolsPage() {
                   />
                 </label>
               )}
-              <ActionButton
+              <Button size="sm"
                 type="submit"
                 icon={busy ? 'hourglass_top' : 'send'}
                 className="w-full sm:w-auto"
@@ -177,7 +176,7 @@ export default function ApiToolsPage() {
                   : operation.machineOnly
                   ? 'Callback do gateway gọi'
                   : 'Gửi yêu cầu'}
-              </ActionButton>
+              </Button>
             </fieldset>
           </form>
           <details className="mt-5 border-t border-outline-variant/30 pt-4 text-xs text-on-surface-variant">

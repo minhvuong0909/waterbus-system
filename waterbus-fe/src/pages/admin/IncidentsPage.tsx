@@ -1,17 +1,8 @@
 import { useState } from 'react'
-import { ErrorState, PageLoader } from '../../components/ui'
-import {
-  ActionButton,
-  DataTable,
-  Modal,
-  Notice,
-  PageHeader,
-  StatusBadge,
-} from '../../features/admin/components/AdminUi'
+import { Button, DataTable, ErrorState, Modal, Notice, PageHeader, PageLoader } from '../../components/ui'
 import { AlertCard, AlertsEmpty } from '../../features/admin/components/AlertParts'
 import { pendingCountOf, sortAlerts } from '../../features/admin/alertUtils'
 import type { WeatherAlert } from '../../features/admin/types'
-import type { Column } from '../../features/admin/components/AdminUi'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import {
   getOpenIncidents,
@@ -27,6 +18,8 @@ import { formatDateTime } from '../../utils/time'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
 import OperationForm, { OPERATION_LABEL } from '../../features/admin/components/OperationForm'
+import type { Column } from '../../components/ui'
+import TripStatusBadge from '../../features/trips/components/TripStatusBadge'
 
 export default function IncidentsPage() {
   useDocumentTitle('Incidents')
@@ -79,7 +72,7 @@ export default function IncidentsPage() {
       header: 'Status',
       render: (x) => (
         <span className="inline-flex flex-wrap items-center gap-2">
-          <StatusBadge status={x.status} />
+          <TripStatusBadge status={x.status} />
           {awaitingDecision.has(x.id) && (
             <span className="rounded-full bg-signal-amber/25 px-2 py-0.5 text-[11px] font-semibold text-deep-river">
               {t('Needs your decision')}
@@ -100,15 +93,15 @@ export default function IncidentsPage() {
         return (
           <span className="inline-flex flex-wrap justify-end gap-1">
             {operations.map((op) => (
-              <ActionButton
+              <Button size="sm"
                 key={op}
-                tone={op === 'Cancel' || op === 'Terminate' ? 'danger' : 'secondary'}
+                variant={op === 'Cancel' || op === 'Terminate' ? 'danger' : 'neutral'}
                 onClick={() =>
                   setPending({ trip: x, type: op, incidentId: ANSWERS_ALERT.includes(op) ? incidentId : undefined })
                 }
               >
                 {t(OPERATION_LABEL[op])}
-              </ActionButton>
+              </Button>
             ))}
           </span>
         )
@@ -155,9 +148,9 @@ export default function IncidentsPage() {
           </div>
         </div>
         <div className="flex flex-col justify-between gap-2 rounded-2xl border border-outline-variant/40 bg-white p-4">
-          <ActionButton
+          <Button size="sm"
             icon="cloud_sync"
-            tone="secondary"
+            variant="neutral"
             disabled={weatherCheck.busy}
             onClick={async () => {
               setCheckResult(null)
@@ -169,7 +162,7 @@ export default function IncidentsPage() {
             }}
           >
             {weatherCheck.busy ? t('Working…') : t('Check the weather now')}
-          </ActionButton>
+          </Button>
           <span className="text-xs text-on-surface-variant">
             {checkResult
               ? t(
@@ -232,10 +225,10 @@ export default function IncidentsPage() {
             </p>
           )}
           <div className="mt-4 flex justify-end gap-2">
-            <ActionButton tone="secondary" onClick={() => setConfirmClose(null)}>
+            <Button size="sm" variant="neutral" onClick={() => setConfirmClose(null)}>
               {t('Back')}
-            </ActionButton>
-            <ActionButton
+            </Button>
+            <Button size="sm"
               disabled={closing.busy}
               onClick={async () => {
                 const alert = confirmClose
@@ -245,7 +238,7 @@ export default function IncidentsPage() {
               }}
             >
               {closing.busy ? t('Working…') : t('Close alert')}
-            </ActionButton>
+            </Button>
           </div>
         </Modal>
       )}

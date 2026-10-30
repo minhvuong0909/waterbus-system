@@ -1,4 +1,4 @@
-import type { AdminTripStatus } from '../admin/types'
+import type { TripStatus } from '../trips/types'
 
 /** A stop of the tracked trip, placed at its station's coordinates. */
 export interface TrackedStop {
@@ -17,7 +17,7 @@ export interface TrackedStop {
 export interface TrackedTrip {
   tripId: string
   routeName: string
-  status: AdminTripStatus
+  status: TripStatus
   boat: { boatId: string; code: string; name: string } | null
   departureTime: string
   arrivalTime: string

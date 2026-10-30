@@ -1,20 +1,12 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { ErrorState, PageLoader } from '../../components/ui'
-import {
-  ActionButton,
-  DataTable,
-  Modal,
-  Notice,
-  PageHeader,
-  TextField,
-} from '../../features/admin/components/AdminUi'
-import type { Column } from '../../features/admin/components/AdminUi'
+import { Button, DataTable, ErrorState, Modal, Notice, PageHeader, PageLoader, TextField } from '../../components/ui'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import { createBoat, deleteBoat, getBoats } from '../../features/admin/services/boatService'
 import type { AdminBoat } from '../../features/admin/types'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
+import type { Column } from '../../components/ui'
 
 type Dialog = { kind: 'form' } | { kind: 'delete'; boat: AdminBoat } | null
 
@@ -81,12 +73,12 @@ function BoatForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => vo
       </div>
       {error && <Notice tone="error">{error}</Notice>}
       <div className="flex justify-end gap-2 pt-1">
-        <ActionButton tone="secondary" onClick={onCancel}>
+        <Button size="sm" variant="neutral" onClick={onCancel}>
           {t('Cancel')}
-        </ActionButton>
-        <ActionButton type="submit" disabled={busy}>
+        </Button>
+        <Button size="sm" type="submit" disabled={busy}>
           {busy ? t('Saving…') : t('Save boat')}
-        </ActionButton>
+        </Button>
       </div>
     </form>
   )
@@ -117,9 +109,9 @@ export default function BoatsPage() {
       header: 'Actions',
       className: 'text-right',
       render: (b) => (
-        <ActionButton tone="secondary" icon="delete" onClick={() => { remove.clearError(); setDialog({ kind: 'delete', boat: b }) }}>
+        <Button size="sm" variant="neutral" icon="delete" onClick={() => { remove.clearError(); setDialog({ kind: 'delete', boat: b }) }}>
           {t('Deactivate')}
-        </ActionButton>
+        </Button>
       ),
     },
   ]
@@ -135,9 +127,9 @@ export default function BoatsPage() {
         title="Boats"
         description="The fleet and the seat layout each boat is created with."
         actions={
-          <ActionButton icon="add" onClick={() => setDialog({ kind: 'form' })}>
+          <Button size="sm" icon="add" onClick={() => setDialog({ kind: 'form' })}>
             {t('Add boat')}
-          </ActionButton>
+          </Button>
         }
       />
       <DataTable columns={columns} rows={boats.data} rowKey={(b) => b.id} />
@@ -159,11 +151,11 @@ export default function BoatsPage() {
             </div>
           )}
           <div className="mt-4 flex justify-end gap-2">
-            <ActionButton tone="secondary" onClick={() => setDialog(null)}>
+            <Button size="sm" variant="neutral" onClick={() => setDialog(null)}>
               {t('Cancel')}
-            </ActionButton>
-            <ActionButton
-              tone="danger"
+            </Button>
+            <Button size="sm"
+              variant="danger"
               disabled={remove.busy}
               onClick={async () => {
                 const done = await remove.run(async () => {
@@ -174,7 +166,7 @@ export default function BoatsPage() {
               }}
             >
               {t('Deactivate')}
-            </ActionButton>
+            </Button>
           </div>
         </Modal>
       )}

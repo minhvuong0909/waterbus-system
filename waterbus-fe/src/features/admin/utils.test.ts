@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { AdminTripStatus } from './types'
 import { DISPATCH_OPERATIONS, isFinished, isUpcomingOrRunning } from './utils'
+import type { TripStatus } from '../trips/types'
 
-const STATUSES: AdminTripStatus[] = [
+const STATUSES: TripStatus[] = [
   'Scheduled',
   'Boarding',
   'EnRoute',

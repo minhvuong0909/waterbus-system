@@ -1,15 +1,16 @@
 import { t } from '../../i18n'
-import type { AdminTripStatus, OperationType, WeatherAlert } from './types'
+import type { OperationType, WeatherAlert } from './types'
+import type { TripStatus } from '../trips/types'
 
 /** Operations the admin applies from the trip menu (the captain's Start / Arrive / SOS have their own buttons). */
 export const DISPATCH_OPERATIONS: OperationType[] = ['Suspend', 'Resume', 'Cancel', 'Terminate', 'Complete']
 
 /** The trip is over for good: nothing more can be done with it. */
-export const isFinished = (status: AdminTripStatus): boolean =>
+export const isFinished = (status: TripStatus): boolean =>
   status === 'Completed' || status === 'Cancelled' || status === 'Terminated'
 
 /** The trip still has to run or is running: the captain has something to do with it. */
-export const isUpcomingOrRunning = (status: AdminTripStatus): boolean =>
+export const isUpcomingOrRunning = (status: TripStatus): boolean =>
   status === 'Scheduled' || status === 'Boarding' || status === 'EnRoute' || status === 'Suspended'
 
 /** Heading of an alert; a weather alert carries the wind speed in its message. */

@@ -1,20 +1,17 @@
 import { useState } from 'react'
-import { ErrorState, PageLoader } from '../../components/ui'
-import {
-  DataTable,
-  PageHeader,
-  StatusBadge,
-} from '../../features/admin/components/AdminUi'
-import type { Column } from '../../features/admin/components/AdminUi'
+import { DataTable, ErrorState, PageHeader, PageLoader } from '../../components/ui'
 import { getOperationTrips } from '../../features/admin/services/operationsService'
-import type { AdminTrip, AdminTripStatus, AdminTripType } from '../../features/admin/types'
+import type { AdminTrip } from '../../features/admin/types'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { formatNumber } from '../../utils/format'
 import { getLowestFares } from '../../features/trips/services/fareService'
 import { t } from '../../i18n'
 import { formatDateTime } from '../../utils/time'
+import type { TripStatus, TripType } from '../../features/trips/types'
+import type { Column } from '../../components/ui'
+import TripStatusBadge from '../../features/trips/components/TripStatusBadge'
 
-const STATUSES: AdminTripStatus[] = [
+const STATUSES: TripStatus[] = [
   'Scheduled',
   'Boarding',
   'EnRoute',
@@ -29,10 +26,10 @@ export default function TripsPage() {
   useDocumentTitle('Trips')
   const trips = useFetch(getOperationTrips)
   // Lowest active fare of each trip type from `GET /fares` (BR-FARE-01: price depends on type and seat class only).
-  const fares = useFetch<Partial<Record<AdminTripType, number>>>(() =>
+  const fares = useFetch<Partial<Record<TripType, number>>>(() =>
     getLowestFares().catch(() => ({})),
   )
-  const [filter, setFilter] = useState<'all' | AdminTripStatus>('all')
+  const [filter, setFilter] = useState<'all' | TripStatus>('all')
 
   if (trips.error) return <ErrorState onRetry={trips.retry} />
   if (!trips.data) return <PageLoader />
@@ -52,7 +49,7 @@ export default function TripsPage() {
       },
       className: 'text-right',
     },
-    { header: 'Status', render: (x) => <StatusBadge status={x.status} /> },
+    { header: 'Status', render: (x) => <TripStatusBadge status={x.status} /> },
   ]
 
   return (
@@ -65,7 +62,7 @@ export default function TripsPage() {
             {t('Status')}
             <select
               value={filter}
-              onChange={(e) => setFilter(e.target.value as 'all' | AdminTripStatus)}
+              onChange={(e) => setFilter(e.target.value as 'all' | TripStatus)}
               className="rounded-lg border border-outline-variant bg-white px-2 py-1.5 text-sm text-deep-river"
             >
               <option value="all">{t('All')}</option>

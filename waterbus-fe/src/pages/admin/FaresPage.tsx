@@ -1,11 +1,10 @@
-import { ErrorState, PageLoader } from '../../components/ui'
-import { DataTable, PageHeader } from '../../features/admin/components/AdminUi'
-import type { Column } from '../../features/admin/components/AdminUi'
+import { DataTable, ErrorState, PageHeader, PageLoader } from '../../components/ui'
 import { getFares } from '../../features/trips/services/fareService'
 import type { FareDto } from '../../features/trips/services/fareService'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
 import { formatVnd } from '../../utils/format'
+import type { Column } from '../../components/ui'
 
 const columns: Column<FareDto>[] = [
   { header: 'Trip type', render: (f) => t(f.tripType === 'Commuter' ? 'Regular' : f.tripType) },

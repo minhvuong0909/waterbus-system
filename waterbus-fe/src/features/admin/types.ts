@@ -1,4 +1,4 @@
-import type { StationDto } from '../trips/types'
+import type { StationDto, TripStatus, TripType } from '../trips/types'
 
 /** Station as the backend returns it (`GET /api/v1/stations`). */
 export type AdminStation = StationDto
@@ -16,20 +16,6 @@ export interface AdminBoat {
   captainUserId: string | null
 }
 
-/** BE `TripType`. */
-export type AdminTripType = 'Commuter' | 'Sightseeing'
-
-/** BE `TripStatus` (BR-OPS-01). */
-export type AdminTripStatus =
-  | 'Scheduled'
-  | 'Boarding'
-  | 'EnRoute'
-  | 'Suspended'
-  | 'Arrived'
-  | 'Completed'
-  | 'Cancelled'
-  | 'Terminated'
-
 /** A trip as the operations list returns it (BE `TripOperationItemDto`). */
 export interface AdminTrip {
   id: string
@@ -42,8 +28,8 @@ export interface AdminTrip {
   /** ISO 8601 */
   departureTime: string
   arrivalTime: string
-  tripType: AdminTripType
-  status: AdminTripStatus
+  tripType: TripType
+  status: TripStatus
   /** What the backend allows right now for this trip (BE `TripLifecycle`). */
   allowedOperations: OperationType[]
 }
@@ -75,7 +61,7 @@ export interface AlertTrip {
   tripId: string
   decision: string | null
   departureTime?: string
-  tripStatus?: AdminTripStatus
+  tripStatus?: TripStatus
   decisionAt?: string | null
 }
 

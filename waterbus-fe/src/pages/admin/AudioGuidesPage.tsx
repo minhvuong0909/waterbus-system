@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ErrorState, Icon, PageLoader } from '../../components/ui'
-import { ActionButton, Notice, PageHeader, Panel, SelectField } from '../../features/admin/components/AdminUi'
+import { Button, ErrorState, Icon, Notice, PageHeader, PageLoader, Panel, SelectField } from '../../components/ui'
 import { MAX_NARRATION_LENGTH, NARRATION_VOICES } from '../../features/admin/audioGuide'
 import type { NarrationPoi, NarrationVoice } from '../../features/admin/audioGuide'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
@@ -130,9 +129,9 @@ function NarrationEditor({
 
       {error && <Notice tone="error">{error}</Notice>}
 
-      <ActionButton type="submit" icon="volume_up" disabled={busy} className="w-full">
+      <Button size="sm" type="submit" icon="volume_up" disabled={busy} className="w-full">
         {busy ? t('Generating audio…') : t('Generate and listen')}
-      </ActionButton>
+      </Button>
 
       {preview && (
         <div className="space-y-2 rounded-xl bg-surface-container-low p-3">
@@ -154,14 +153,14 @@ function NarrationEditor({
           )}
           {publishing.error && <Notice tone="error">{publishing.error}</Notice>}
           {published && <Notice tone="success">{t('Audio guide published.')}</Notice>}
-          <ActionButton
+          <Button size="sm"
             icon="publish"
             disabled={publishing.busy || published || preview.text !== text}
             onClick={publish}
             className="w-full"
           >
             {publishing.busy ? t('Publishing…') : t('Publish this audio')}
-          </ActionButton>
+          </Button>
         </div>
       )}
     </form>

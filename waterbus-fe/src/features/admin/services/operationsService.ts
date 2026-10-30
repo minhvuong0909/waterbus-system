@@ -2,14 +2,13 @@ import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
 import type {
   AdminTrip,
-  AdminTripStatus,
-  AdminTripType,
   LiveBoatPosition,
   OperationLog,
   OperationType,
   WeatherAlert,
   WeatherCheckResult,
 } from '../types'
+import type { TripStatus, TripType } from '../../trips/types'
 
 // Operations backed by the real API: trips and their status, boat tracking and incidents.
 // Realtime updates for the same data come from the boat-tracking hub (see useFleetHub).
@@ -62,8 +61,8 @@ export interface WeatherAlertEvent {
 export interface TripStatusEvent {
   tripId: string
   boatId: string | null
-  status: AdminTripStatus
-  previousStatus: AdminTripStatus
+  status: TripStatus
+  previousStatus: TripStatus
   operation: OperationType
   changedAt: string
 }
@@ -109,12 +108,12 @@ interface IncidentDetailDto {
   }[]
 }
 
-const TRIP_STATUS_BY_NUMBER: AdminTripStatus[] = [
+const TRIP_STATUS_BY_NUMBER: TripStatus[] = [
   'Scheduled', 'Boarding', 'EnRoute', 'Suspended', 'Arrived', 'Completed', 'Cancelled', 'Terminated',
 ]
 
 /** A trip status sent as the enum number or its name. */
-function tripStatusOf(value: number | string | undefined): AdminTripStatus | undefined {
+function tripStatusOf(value: number | string | undefined): TripStatus | undefined {
   if (typeof value === 'number') return TRIP_STATUS_BY_NUMBER[value - 1]
   return TRIP_STATUS_BY_NUMBER.find((status) => status === value)
 }
@@ -174,8 +173,8 @@ interface TripOperationItemDto {
   routeName: string
   boatId: string | null
   boatCode: string | null
-  tripType: AdminTripType
-  status: AdminTripStatus
+  tripType: TripType
+  status: TripStatus
   departureTime: string
   arrivalTime: string
   allowedOperations: OperationType[]
@@ -230,12 +229,12 @@ export async function operateTrip(
   type: OperationType,
   reason: string,
   incidentId?: string,
-): Promise<{ status: AdminTripStatus | null }> {
+): Promise<{ status: TripStatus | null }> {
   if (type === 'SOS') {
     await apiRequest(API_ENDPOINTS.trips.sos(tripId), { method: 'POST', body: { note: reason } })
     return { status: null }
   }
-  const result = await apiRequest<{ status: AdminTripStatus }>(API_ENDPOINTS.trips.status(tripId), {
+  const result = await apiRequest<{ status: TripStatus }>(API_ENDPOINTS.trips.status(tripId), {
     method: 'POST',
     body: { operation: type, reason: reason || null, incidentId: incidentId ?? null },
   })
