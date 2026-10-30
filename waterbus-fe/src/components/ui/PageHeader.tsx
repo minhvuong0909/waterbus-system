@@ -14,7 +14,7 @@ export default function PageHeader({
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="font-headline-md text-2xl font-bold leading-tight tracking-tight text-deep-river sm:text-[28px]">
+        <h1 className="font-display text-2xl font-bold leading-tight tracking-tight text-deep-river sm:text-3xl">
           {t(title)}
         </h1>
         {description && <p className="mt-1 text-sm text-on-surface-variant">{t(description)}</p>}

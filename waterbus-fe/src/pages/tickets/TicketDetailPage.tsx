@@ -33,7 +33,7 @@ export default function TicketDetailPage() {
       <div className="mt-space-md flex flex-col justify-between gap-space-md md:flex-row md:items-end">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="font-headline-xl text-4xl font-bold tracking-tight text-deep-river">
+            <h1 className="font-display text-4xl font-bold tracking-tight text-deep-river">
               {t('Your Ticket')}
             </h1>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container">

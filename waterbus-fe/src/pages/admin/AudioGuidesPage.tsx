@@ -103,7 +103,7 @@ function NarrationEditor({
           placeholder={t('For example: On your right is the Ba Son waterfront, once the largest shipyard of Saigon…')}
           className="w-full rounded-xl border border-outline-variant/70 bg-white px-3 py-2 text-sm leading-relaxed text-deep-river transition-colors focus:border-teal-flow focus:ring-2 focus:ring-teal-flow/15"
         />
-        <div className="mt-1 flex justify-between gap-3 text-[11px] text-on-surface-variant">
+        <div className="mt-1 flex justify-between gap-3 text-2xs text-on-surface-variant">
           {textError ? (
             <span role="alert" className="text-coral-glow">{textError}</span>
           ) : (
@@ -136,7 +136,7 @@ function NarrationEditor({
       {preview && (
         <div className="space-y-2 rounded-xl bg-surface-container-low p-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-deep-river">
-            <Icon name="headphones" className="text-[20px] text-teal-flow" />
+            <Icon name="headphones" className="text-xl text-teal-flow" />
             {t('Listen before publishing')}
           </div>
           {/* Autoplay right after generating: the admin pressed the button to hear it. */}
@@ -218,7 +218,7 @@ export default function AudioGuidesPage() {
                       : 'border-outline-variant bg-white text-deep-river hover:bg-surface-container-low'
                   }`}
                 >
-                  <Icon name={poi.isPublished ? 'check_circle' : previews[poi.poiId] ? 'headphones' : 'photo_camera'} className="text-[18px]" />
+                  <Icon name={poi.isPublished ? 'check_circle' : previews[poi.poiId] ? 'headphones' : 'photo_camera'} className="text-lg" />
                   {poi.name}
                 </button>
               ))}
@@ -239,7 +239,7 @@ export default function AudioGuidesPage() {
             />
           ) : (
             <div className="flex min-h-[240px] flex-col items-center justify-center gap-2 text-center text-sm text-on-surface-variant">
-              <Icon name="touch_app" className="text-[32px] text-teal-flow" />
+              <Icon name="touch_app" className="text-3xl text-teal-flow" />
               {t('Pick a landmark to write its narration.')}
             </div>
           )}

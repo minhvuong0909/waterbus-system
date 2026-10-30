@@ -45,14 +45,14 @@ export default function SeatSelectionPage() {
       <div className="mt-2 flex flex-col justify-between gap-space-md md:flex-row md:items-end">
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-flow/20 bg-secondary-container/60 px-2.5 py-0.5 text-xs font-semibold text-teal-flow">
-            <Icon name="airline_seat_recline_extra" className="text-[14px]" />
+            <Icon name="airline_seat_recline_extra" className="text-sm" />
             {roundTrip
               ? leg === 'return'
                 ? t('Return trip · seats')
                 : t('Outbound trip · seats')
               : t('Step 2 of 5: Seat Selection')}
           </span>
-          <h1 className="mt-1 font-headline-lg text-headline-lg tracking-tight text-deep-river">
+          <h1 className="mt-1 font-display text-headline-lg tracking-tight text-deep-river">
             {leg === 'return' ? t('Choose your return seats') : t('Choose Your Seat')}
           </h1>
           {leg === 'return' && outboundSeatCount > 0 && (
@@ -65,7 +65,7 @@ export default function SeatSelectionPage() {
           <HoldCountdown
             fallback={
               <span className="inline-flex items-center gap-1 rounded-xl bg-white px-space-md py-2 text-xs font-semibold text-teal-flow shadow-sm">
-                <Icon name="timer" className="text-[15px]" /> {t('Cart holds for 10:00')}
+                <Icon name="timer" className="text-sm" /> {t('Cart holds for 10:00')}
               </span>
             }
           />
@@ -75,7 +75,7 @@ export default function SeatSelectionPage() {
       <div className="mt-space-md space-y-space-md">
         <TripStrip trip={trip} seats={seats} totalVnd={totals.totalVnd} />
         <p className="flex items-center gap-2 rounded-xl border border-teal-flow/20 bg-sand-light/60 px-space-md py-2 text-xs text-on-surface-variant">
-          <Icon name="touch_app" className="text-[18px] text-teal-flow" />
+          <Icon name="touch_app" className="text-lg text-teal-flow" />
           {t('Tap an available seat to select it. Up to {max} seats per booking.', {
             max: MAX_SEATS_PER_BOOKING,
           })}
@@ -95,10 +95,10 @@ export default function SeatSelectionPage() {
 
       <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="space-y-space-md lg:col-span-7">
-          <div className="rounded-2xl bg-white p-space-lg shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
+          <div className="rounded-2xl bg-white p-space-lg shadow-card">
             <div className="mb-space-md flex flex-wrap items-start justify-between gap-space-md">
               <div>
-                <h2 className="flex items-center gap-2 font-headline-md text-headline-sm text-deep-river">
+                <h2 className="flex items-center gap-2 font-display text-headline-sm text-deep-river">
                   <span className="h-2 w-2 rounded-full bg-teal-flow" />
                   {seatMap.vesselName}
                 </h2>

@@ -33,8 +33,8 @@ export default function OrderSummary({
   return (
     <BookingCard className="p-space-lg lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100svh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain">
       <div className="mb-space-md flex items-center justify-between">
-        <h2 className="font-headline-md text-headline-sm text-deep-river">{t('Order Summary')}</h2>
-        <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[11px] font-bold text-teal-flow">
+        <h2 className="font-display text-headline-sm text-deep-river">{t('Order Summary')}</h2>
+        <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-2xs font-bold text-teal-flow">
           {t('Trip {vesselCode}', { vesselCode: trip.vesselCode })}
         </span>
       </div>
@@ -44,13 +44,13 @@ export default function OrderSummary({
       <div className="rounded-xl bg-mist/70 p-space-md">
         <div className="mb-2 flex items-center justify-between text-xs font-semibold text-deep-river">
           <span>{trip.originPierLabel}</span>
-          <Icon name="sailing" className="text-[16px] text-teal-flow" />
+          <Icon name="sailing" className="text-base text-teal-flow" />
           <span>{trip.destinationPierLabel}</span>
         </div>
         <div className="h-1 overflow-hidden rounded-full bg-surface-container">
           <div className="h-full w-3/4 rounded-full bg-teal-flow" />
         </div>
-        <div className="mt-2 flex items-center justify-between text-[11px] text-on-surface-variant">
+        <div className="mt-2 flex items-center justify-between text-2xs text-on-surface-variant">
           <span>{t('Depart {departTime}', { departTime: trip.departTime })}</span>
           <span>{t('Direct Line')}</span>
           <span>{t('Arrive {arriveTime}', { arriveTime: trip.arriveTime })}</span>
@@ -58,13 +58,13 @@ export default function OrderSummary({
       </div>
       {returnTrip && (
         <div className="mt-2 rounded-xl bg-mist/70 p-space-md">
-          <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-teal-flow">{t('Return trip')}</div>
+          <div className="mb-1 text-2xs font-bold uppercase tracking-wider text-teal-flow">{t('Return trip')}</div>
           <div className="flex items-center justify-between text-xs font-semibold text-deep-river">
             <span>{returnTrip.originPierLabel}</span>
-            <Icon name="sailing" className="text-[16px] text-teal-flow" />
+            <Icon name="sailing" className="text-base text-teal-flow" />
             <span>{returnTrip.destinationPierLabel}</span>
           </div>
-          <div className="mt-1 flex items-center justify-between text-[11px] text-on-surface-variant">
+          <div className="mt-1 flex items-center justify-between text-2xs text-on-surface-variant">
             <span>{t('Depart {departTime}', { departTime: returnTrip.departTime })}</span>
             <span>{returnTrip.dateShort}</span>
             <span>{t('Arrive {arriveTime}', { arriveTime: returnTrip.arriveTime })}</span>
@@ -77,9 +77,9 @@ export default function OrderSummary({
       </div>
 
       <div className="mt-space-md flex items-center justify-between rounded-xl bg-mist/70 px-space-md py-space-md">
-        <span className="font-headline-sm text-lg font-bold text-deep-river">{t('Total')}</span>
+        <span className="font-display text-lg font-bold text-deep-river">{t('Total')}</span>
         <span className="text-right">
-          <span className="block font-numeric-lg text-numeric-lg font-bold leading-none text-deep-river">
+          <span className="block font-display text-numeric-lg font-bold leading-none text-deep-river">
             {formatNumber(totals.totalVnd)}
           </span>
           <span className="text-xs font-semibold text-teal-flow">{t('VND')}</span>
@@ -92,12 +92,12 @@ export default function OrderSummary({
             type="button"
             onClick={onContinue}
             disabled={busy}
-            className="group mt-space-md flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-headline-sm text-base font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary disabled:opacity-70"
+            className="group mt-space-md flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-display text-base font-semibold text-on-primary shadow-glow transition-all hover:bg-secondary disabled:opacity-70"
           >
             {busy ? t('Preparing your order…') : t('Continue to Payment')}
             <Icon
               name="arrow_forward"
-              className="text-[18px] transition-transform group-hover:translate-x-1"
+              className="text-lg transition-transform group-hover:translate-x-1"
             />
           </button>
           {failure && (
@@ -117,10 +117,10 @@ export default function OrderSummary({
           <button
             type="button"
             disabled
-            className="mt-space-md flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-headline-sm text-base font-semibold text-on-primary opacity-50"
+            className="mt-space-md flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-display text-base font-semibold text-on-primary opacity-50"
           >
             {t('Continue to Payment')}
-            <Icon name="arrow_forward" className="text-[18px]" />
+            <Icon name="arrow_forward" className="text-lg" />
           </button>
           <p role="status" className="mt-2 text-center text-xs text-on-surface-variant">
             {t('Please accept the Waterway Carriage Rules to continue.')}

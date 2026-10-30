@@ -56,15 +56,15 @@ export default function BookingSummary({
       <SummaryTimer
         fallback={
           <span className="inline-flex items-center gap-1 rounded-xl bg-surface-container px-space-md py-2 text-xs font-semibold text-teal-flow">
-            <Icon name="timer" className="text-[15px]" /> {t('Cart holds for 10:00')}
+            <Icon name="timer" className="text-sm" /> {t('Cart holds for 10:00')}
           </span>
         }
       />
       <div className="mb-space-md flex items-center justify-between">
-        <h2 className="font-headline-md text-headline-sm text-deep-river">
+        <h2 className="font-display text-headline-sm text-deep-river">
           {t('Booking Summary')}
         </h2>
-        <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[11px] font-bold text-teal-flow">
+        <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-2xs font-bold text-teal-flow">
           {t('Trip {vesselCode}', { vesselCode: trip.vesselCode })}
         </span>
       </div>
@@ -72,7 +72,7 @@ export default function BookingSummary({
       <div className="space-y-1 rounded-xl border border-outline-variant/40 bg-mist/60 p-space-md">
         <div className="flex items-center justify-between gap-2 text-sm font-semibold text-deep-river">
           <span>{trip.originPierName}</span>
-          <Icon name="arrow_forward" className="text-[16px] text-teal-flow" />
+          <Icon name="arrow_forward" className="text-base text-teal-flow" />
           <span>{trip.destinationPierName}</span>
         </div>
         <p className="text-xs text-on-surface-variant">
@@ -83,9 +83,9 @@ export default function BookingSummary({
       </div>
 
       <div className="mt-space-md">
-        <div className="mb-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-teal-flow">
+        <div className="mb-1.5 flex items-center justify-between text-2xs font-bold uppercase tracking-wider text-teal-flow">
           {t('Reserved Seat Choice')}
-          <Icon name="airline_seat_recline_extra" className="text-[16px]" />
+          <Icon name="airline_seat_recline_extra" className="text-base" />
         </div>
         {seats.length === 0 ? (
           <p className="text-xs text-on-surface-variant">
@@ -102,7 +102,7 @@ export default function BookingSummary({
                 >
                   {seat.code}
                   {seat.priceVnd !== undefined && (
-                    <span className="text-[10px] font-medium text-teal-flow">{formatVndSuffix(seat.priceVnd)}</span>
+                    <span className="text-2xs font-medium text-teal-flow">{formatVndSuffix(seat.priceVnd)}</span>
                   )}
                 </li>
               )
@@ -140,12 +140,12 @@ export default function BookingSummary({
             type="button"
             onClick={onContinue}
             disabled={busy}
-            className="group mt-space-sm flex w-full items-center justify-between rounded-xl bg-teal-flow px-space-lg py-space-md font-headline-sm text-lg font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary disabled:opacity-70"
+            className="group mt-space-sm flex w-full items-center justify-between rounded-xl bg-teal-flow px-space-lg py-space-md font-display text-lg font-semibold text-on-primary shadow-glow transition-all hover:bg-secondary disabled:opacity-70"
           >
             <span>{busy ? t('Holding your seat…') : label}</span>
             <Icon
               name="arrow_forward"
-              className="text-[20px] transition-transform group-hover:translate-x-1"
+              className="text-xl transition-transform group-hover:translate-x-1"
             />
           </button>
           {failure && (
@@ -160,10 +160,10 @@ export default function BookingSummary({
           <button
             type="button"
             disabled
-            className="mt-space-sm flex w-full cursor-not-allowed items-center justify-between rounded-xl bg-teal-flow px-space-lg py-space-md font-headline-sm text-lg font-semibold text-on-primary opacity-50"
+            className="mt-space-sm flex w-full cursor-not-allowed items-center justify-between rounded-xl bg-teal-flow px-space-lg py-space-md font-display text-lg font-semibold text-on-primary opacity-50"
           >
             <span>{label}</span>
-            <Icon name="arrow_forward" className="text-[20px]" />
+            <Icon name="arrow_forward" className="text-xl" />
           </button>
           {!canBook && (
             <p role="status" className="mt-2 text-center text-xs text-on-surface-variant">

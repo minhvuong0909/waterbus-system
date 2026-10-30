@@ -29,7 +29,7 @@ export default function NetworkSection({ routes, piers }: NetworkSectionProps) {
         <div>
           <div className="flex items-center gap-space-xs">
             <span className="h-2.5 w-2.5 rounded-full bg-teal-flow" />
-            <h2 className="font-headline-sm text-2xl font-bold tracking-tight text-deep-river">
+            <h2 className="font-display text-2xl font-bold tracking-tight text-deep-river">
               {t('Explore the River Network')}
             </h2>
           </div>
@@ -37,7 +37,7 @@ export default function NetworkSection({ routes, piers }: NetworkSectionProps) {
             {t('Click a pier to see its photo and address, or pick a popular connection.')}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-4 rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] px-4 py-2 text-xs font-medium text-on-surface-variant">
+        <div className="flex flex-wrap items-center gap-4 rounded-xl border border-outline-variant/50 bg-mist px-4 py-2 text-xs font-medium text-on-surface-variant">
           <div className="flex items-center gap-1.5">
             <span className="h-1.5 w-3 rounded-full bg-teal-flow" />
             <span className="font-semibold text-deep-river">{t('Route 01 Main Corridor')}</span>
@@ -86,16 +86,16 @@ export default function NetworkSection({ routes, piers }: NetworkSectionProps) {
           {routes.map((route) => (
             <div
               key={route.id}
-              className="flex flex-col justify-between rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] p-4 shadow-xs transition-all hover:border-teal-flow/40 hover:bg-white hover:shadow-sm"
+              className="flex flex-col justify-between rounded-xl border border-outline-variant/50 bg-mist p-4 shadow-xs transition-all hover:border-teal-flow/40 hover:bg-white hover:shadow-sm"
             >
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 font-headline-sm text-base font-bold text-deep-river">
+                  <div className="flex items-center gap-1.5 font-display text-base font-bold text-deep-river">
                     <span>{pier(route.originId)?.shortName}</span>
-                    <Icon name="arrow_forward" className="text-[16px] text-teal-flow" />
+                    <Icon name="arrow_forward" className="text-base text-teal-flow" />
                     <span>{pier(route.destinationId)?.shortName}</span>
                   </div>
-                  <span className="shrink-0 rounded-md bg-secondary-container px-2 py-0.5 font-headline-sm text-[10px] font-bold tracking-tight text-on-secondary-container">
+                  <span className="shrink-0 rounded-md bg-secondary-container px-2 py-0.5 font-display text-2xs font-bold tracking-tight text-on-secondary-container">
                     {route.badge}
                   </span>
                 </div>
@@ -103,22 +103,22 @@ export default function NetworkSection({ routes, piers }: NetworkSectionProps) {
               </div>
               <div className="mt-3 flex items-center justify-between border-t border-outline-variant/40 pt-2.5">
                 <div>
-                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">
+                  <span className="block text-2xs font-semibold uppercase tracking-wider text-on-surface-variant">
                     {t('Fares from')}
                   </span>
-                  <span className="font-headline-sm text-sm font-bold text-teal-flow">
+                  <span className="font-display text-sm font-bold text-teal-flow">
                     {route.fromFareVnd !== undefined ? formatVndSuffix(route.fromFareVnd) : '—'}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => applyRoute(route)}
-                  className="group inline-flex items-center gap-1 rounded-lg border border-teal-flow/20 bg-white px-3 py-1.5 font-headline-sm text-xs font-bold text-teal-flow shadow-2xs transition-all hover:bg-teal-flow hover:text-on-primary"
+                  className="group inline-flex items-center gap-1 rounded-lg border border-teal-flow/20 bg-white px-3 py-1.5 font-display text-xs font-bold text-teal-flow shadow-2xs transition-all hover:bg-teal-flow hover:text-on-primary"
                 >
                   <span>{t('Use this route')}</span>
                   <Icon
                     name="arrow_forward"
-                    className="text-[14px] transition-transform group-hover:translate-x-0.5"
+                    className="text-sm transition-transform group-hover:translate-x-0.5"
                   />
                 </button>
               </div>

@@ -25,7 +25,7 @@ function LegHeading({ title, trip, action }: { title: string; trip: TripDetail; 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 px-1">
       <div>
-        <h2 className="font-headline-sm text-lg font-bold text-deep-river">{title}</h2>
+        <h2 className="font-display text-lg font-bold text-deep-river">{title}</h2>
         <p className="text-xs text-on-surface-variant">
           {trip.originShortName} → {trip.destinationShortName} · {trip.dateShort} · {trip.departTime}
         </p>
@@ -91,7 +91,7 @@ export default function PassengerDetailsPage() {
 
       <div className="mt-space-lg flex flex-col justify-between gap-space-md md:flex-row md:items-end">
         <div>
-          <h1 className="font-headline-xl text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-lg">
+          <h1 className="font-display text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-lg">
             {t('Passenger Details')}
           </h1>
           <p className="text-body-md text-on-surface-variant">
@@ -122,7 +122,7 @@ export default function PassengerDetailsPage() {
                 }}
                 className="inline-flex min-h-[36px] items-center gap-1.5 whitespace-nowrap rounded-full bg-deep-river px-3.5 text-xs font-semibold text-white hover:opacity-90"
               >
-                <Icon name="edit" className="text-[16px]" />
+                <Icon name="edit" className="text-base" />
                 {t('Edit details')}
               </button>
             </div>
@@ -160,7 +160,7 @@ export default function PassengerDetailsPage() {
                         onClick={() => dispatch(copyPassengersToReturn())}
                         className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-teal-flow px-3.5 text-xs font-semibold text-teal-flow transition-colors hover:bg-teal-flow hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        <Icon name="content_copy" className="text-[16px]" />
+                        <Icon name="content_copy" className="text-base" />
                         {t('Same passengers as outbound')}
                       </button>
                     }

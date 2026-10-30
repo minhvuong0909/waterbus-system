@@ -120,7 +120,7 @@ export default function SearchResultsPage() {
                   {leg === 'return' ? t('Return trip · step 2 of 2') : t('Outbound trip · step 1 of 2')}
                 </span>
               )}
-              <h1 className="font-headline-lg text-2xl font-bold leading-tight tracking-tight text-deep-river md:text-3xl lg:text-[34px]">
+              <h1 className="font-display text-2xl font-bold leading-tight tracking-tight text-deep-river md:text-3xl lg:text-4xl">
                 {leg === 'return' ? t('Choose your return trip') : t('Available Departures')}
               </h1>
               <p className="mt-1 text-sm text-on-surface-variant">

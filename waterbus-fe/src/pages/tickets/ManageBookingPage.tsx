@@ -41,7 +41,7 @@ export default function ManageBookingPage() {
 
       <div className="mt-space-md flex flex-col justify-between gap-space-md md:flex-row md:items-start">
         <div>
-          <h1 className="font-headline-xl text-4xl font-bold tracking-tight text-deep-river">
+          <h1 className="font-display text-4xl font-bold tracking-tight text-deep-river">
             {t('Manage Your Booking')}
           </h1>
           <p className="mt-1 text-body-md text-on-surface-variant">

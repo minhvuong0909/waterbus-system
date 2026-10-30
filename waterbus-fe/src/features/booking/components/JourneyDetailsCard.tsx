@@ -11,7 +11,7 @@ import EditLink from './EditLink'
 function Fact({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div className="rounded-xl bg-mist/70 px-space-md py-space-sm">
-      <div className="text-[11px] text-on-surface-variant">{label}</div>
+      <div className="text-2xs text-on-surface-variant">{label}</div>
       <div className={`text-sm font-semibold ${accent ? 'text-teal-flow' : 'text-deep-river'}`}>
         {value}
       </div>
@@ -45,11 +45,11 @@ export default function JourneyDetailsCard({
       />
       <div className="grid grid-cols-1 items-center gap-space-md rounded-xl bg-mist/70 p-space-md md:grid-cols-12">
         <div className="flex items-start gap-3 md:col-span-4">
-          <span className="mt-1 flex h-5 w-5 items-center justify-center rounded-full bg-deep-river text-[10px] font-bold text-white">
+          <span className="mt-1 flex h-5 w-5 items-center justify-center rounded-full bg-deep-river text-2xs font-bold text-white">
             1
           </span>
           <div>
-            <div className="font-headline-sm text-2xl font-bold leading-none text-deep-river">
+            <div className="font-display text-2xl font-bold leading-none text-deep-river">
               {trip.departTime}
             </div>
             <div className="mt-1 text-sm font-semibold text-deep-river">{trip.originPierLabel}</div>
@@ -62,18 +62,18 @@ export default function JourneyDetailsCard({
         </div>
         <div className="flex flex-col items-center md:col-span-4">
           <span className="inline-flex items-center gap-1 rounded-full bg-secondary-container px-3 py-0.5 text-xs font-semibold text-on-secondary-container">
-            <Icon name="waves" className="text-[14px]" />
+            <Icon name="waves" className="text-sm" />
             {t('{durationMins} min river crossing', { durationMins: trip.durationMins })}
           </span>
           <div className="my-1 flex w-full items-center gap-2 text-outline">
             <span className="h-px flex-1 bg-outline-variant" />
-            <Icon name="arrow_forward" className="text-[16px] text-teal-flow" />
+            <Icon name="arrow_forward" className="text-base text-teal-flow" />
             <span className="h-px flex-1 bg-outline-variant" />
           </div>
         </div>
         <div className="flex items-start justify-end gap-3 text-right md:col-span-4">
           <div>
-            <div className="font-headline-sm text-2xl font-bold leading-none text-deep-river">
+            <div className="font-display text-2xl font-bold leading-none text-deep-river">
               {trip.arriveTime}
             </div>
             <div className="mt-1 text-sm font-semibold text-deep-river">
@@ -85,7 +85,7 @@ export default function JourneyDetailsCard({
               </div>
             )}
           </div>
-          <span className="mt-1 flex h-5 w-5 items-center justify-center rounded-full bg-teal-flow text-[10px] font-bold text-white">
+          <span className="mt-1 flex h-5 w-5 items-center justify-center rounded-full bg-teal-flow text-2xs font-bold text-white">
             2
           </span>
         </div>

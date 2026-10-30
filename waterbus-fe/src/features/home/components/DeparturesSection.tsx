@@ -31,7 +31,7 @@ export default function DeparturesSection({ filters, departures, pierName }: Dep
           className="flex flex-col justify-between gap-space-md md:flex-row md:items-end"
         >
           <div>
-            <h2 className="font-headline-lg text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-[36px]">
+            <h2 className="font-display text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-4xl">
               {t('Upcoming departures')}
             </h2>
             <p className="mt-1 text-sm text-on-surface-variant">
@@ -74,7 +74,7 @@ export default function DeparturesSection({ filters, departures, pierName }: Dep
         ) : (
           <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-teal-flow/20 bg-white px-5 py-8 text-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-flow/10 text-teal-flow">
-              <Icon name="directions_boat" className="text-[26px]" />
+              <Icon name="directions_boat" className="text-2xl" />
             </span>
             <p className="max-w-sm text-sm leading-relaxed text-on-surface-variant">
               {t('No departures of this type are scheduled yet.')}
@@ -88,7 +88,7 @@ export default function DeparturesSection({ filters, departures, pierName }: Dep
           className="tap-area inline-flex items-center gap-0.5 text-sm font-bold text-teal-flow hover:underline"
         >
           <span>{t('View the full timetable')}</span>
-          <Icon name="chevron_right" className="text-[16px]" />
+          <Icon name="chevron_right" className="text-base" />
         </Link>
       </div>
     </section>

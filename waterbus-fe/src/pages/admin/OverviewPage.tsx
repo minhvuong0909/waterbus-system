@@ -28,10 +28,10 @@ function Kpi({
     <Link
       to={to}
       data-admin-enter
-      className="hover-lift flex min-w-0 items-center gap-3 rounded-2xl border border-outline-variant/30 bg-white p-4 shadow-[0_2px_8px_rgba(13,37,56,0.025)] hover:border-teal-flow/40 sm:gap-4 sm:p-5"
+      className="hover-lift flex min-w-0 items-center gap-3 rounded-2xl border border-outline-variant/30 bg-white p-4 shadow-card hover:border-teal-flow/40 sm:gap-4 sm:p-5"
     >
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-flow/10 text-teal-flow sm:h-12 sm:w-12 sm:rounded-2xl">
-        <Icon name={icon} className="text-[24px]" />
+        <Icon name={icon} className="text-2xl" />
       </span>
       <span className="min-w-0">
         <span className="mb-1 block text-3xl font-bold leading-none tabular-nums tracking-tight text-deep-river">

@@ -63,7 +63,7 @@ export default function SignInForm({ submitting, onSubmit }: SignInFormProps) {
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow px-5 py-3 text-sm font-bold tracking-wide text-white shadow-md shadow-teal-flow/20 transition-all hover:bg-deep-river hover:shadow-lg hover:shadow-teal-flow/30 active:scale-[0.99] disabled:opacity-60"
         >
           <span>{submitting ? t('Signing in…') : t('Sign In')}</span>
-          <Icon name="arrow_forward" className="text-[18px]" />
+          <Icon name="arrow_forward" className="text-lg" />
         </button>
       </div>
 

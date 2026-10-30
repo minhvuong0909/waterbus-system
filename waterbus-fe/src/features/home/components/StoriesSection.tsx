@@ -14,7 +14,7 @@ export default function StoriesSection({ stories }: StoriesSectionProps) {
     <section id="tours" className="w-full scroll-mt-20 bg-surface-container-lowest py-10 sm:py-14">
       <div className="mx-auto max-w-7xl space-y-8 px-5 sm:px-8">
         <div data-reveal className="max-w-2xl space-y-space-xs">
-          <h2 className="font-headline-lg text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-[36px]">
+          <h2 className="font-display text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-4xl">
             {t('A Different Perspective on Saigon’s Skyline & Heritage')}
           </h2>
         </div>
@@ -35,11 +35,11 @@ export default function StoriesSection({ stories }: StoriesSectionProps) {
                   style={{ backgroundImage: `url(${story.image})` }}
                 />
                 <div className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full border border-white/10 bg-deep-river/85 px-3 py-1 text-xs font-medium text-on-primary backdrop-blur-md">
-                  <Icon name={story.badgeIcon} className={`text-[15px] ${story.badgeIconClass}`} />
+                  <Icon name={story.badgeIcon} className={`text-sm ${story.badgeIconClass}`} />
                   <span>{story.badge}</span>
                 </div>
                 {story.fromPriceVnd !== undefined && (
-                  <div className="absolute bottom-4 right-4 rounded-full bg-surface/90 px-3.5 py-1 font-numeric-md text-sm font-bold text-deep-river shadow-sm backdrop-blur-md">
+                  <div className="absolute bottom-4 right-4 rounded-full bg-surface/90 px-3.5 py-1 font-display text-sm font-bold text-deep-river shadow-sm backdrop-blur-md">
                     {t('From {price}', { price: formatVnd(story.fromPriceVnd) })}
                   </div>
                 )}
@@ -48,22 +48,22 @@ export default function StoriesSection({ stories }: StoriesSectionProps) {
                 <div className="space-y-space-sm">
                   <div className="flex items-center gap-2 text-xs text-on-surface-variant">
                     <span className="flex items-center gap-1">
-                      <Icon name="pin_drop" className="text-[15px] text-teal-flow" />{' '}
+                      <Icon name="pin_drop" className="text-sm text-teal-flow" />{' '}
                       {story.location}
                     </span>
                   </div>
-                  <h3 className="font-headline-sm text-headline-sm font-bold text-deep-river transition-colors group-hover:text-teal-flow">
+                  <h3 className="font-display text-headline-sm font-bold text-deep-river transition-colors group-hover:text-teal-flow">
                     {story.title}
                   </h3>
                 </div>
                 <div className="flex items-center justify-between border-t border-surface-container pt-3 text-body-md font-semibold text-teal-flow">
                   <span className="inline-flex items-center gap-1 transition-transform group-hover:translate-x-1">
                     {t('Explore Tour')}
-                    <Icon name="arrow_forward" className="text-[18px]" />
+                    <Icon name="arrow_forward" className="text-lg" />
                   </span>
                   <Icon
                     name={story.trailingIcon}
-                    className={`text-[20px] ${story.trailingIconClass}`}
+                    className={`text-xl ${story.trailingIconClass}`}
                   />
                 </div>
               </div>

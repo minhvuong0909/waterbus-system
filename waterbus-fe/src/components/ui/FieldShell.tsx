@@ -22,9 +22,9 @@ export default function FieldShell({ label, hint, error, children }: FieldShellP
         {t(label)}
       </label>
       {children(id)}
-      {hint && !error && <p className="mt-1 text-[11px] text-on-surface-variant">{t(hint)}</p>}
+      {hint && !error && <p className="mt-1 text-2xs text-on-surface-variant">{t(hint)}</p>}
       {error && (
-        <p role="alert" className="mt-1 text-[11px] text-coral-glow">
+        <p role="alert" className="mt-1 text-2xs text-coral-glow">
           {error}
         </p>
       )}

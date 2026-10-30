@@ -77,7 +77,7 @@ export default function OperationForm({
           aria-invalid={showError && !reason.trim()}
         />
         {showError && !reason.trim() && (
-          <p role="alert" className="mt-1 text-[11px] text-coral-glow">
+          <p role="alert" className="mt-1 text-2xs text-coral-glow">
             {t('Give a reason, it is kept in the log.')}
           </p>
         )}

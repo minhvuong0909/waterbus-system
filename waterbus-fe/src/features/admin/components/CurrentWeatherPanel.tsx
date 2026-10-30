@@ -21,9 +21,9 @@ const kmh = (ms: number | null) =>
 function Measure({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <Icon name={icon} className="shrink-0 text-[18px] text-teal-flow" />
+      <Icon name={icon} className="shrink-0 text-lg text-teal-flow" />
       <div className="min-w-0 leading-tight">
-        <div className="text-[11px] text-on-surface-variant">{t(label)}</div>
+        <div className="text-2xs text-on-surface-variant">{t(label)}</div>
         <div className="truncate text-sm font-semibold text-deep-river">{value}</div>
       </div>
     </div>
@@ -36,19 +36,19 @@ function RouteRow({ route }: { route: RouteWeather }) {
     <li className="grid grid-cols-1 gap-3 py-3 sm:grid-cols-[minmax(0,1.3fr)_auto_minmax(0,2fr)] sm:items-center sm:gap-4">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-surface-container px-2 py-0.5 font-mono text-[11px] font-semibold text-deep-river">
+          <span className="rounded-full bg-surface-container px-2 py-0.5 font-mono text-2xs font-semibold text-deep-river">
             {route.routeCode}
           </span>
           <span className="truncate text-sm font-semibold text-deep-river">{route.routeName}</span>
         </div>
         {route.pointsFailed > 0 && route.status !== 'Unknown' && (
-          <p className="mt-1 text-[11px] text-on-surface-variant">
+          <p className="mt-1 text-2xs text-on-surface-variant">
             {t('Weather missing at {failed} of {total} piers.', { failed: route.pointsFailed, total: route.pointsChecked })}
           </p>
         )}
       </div>
       <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${status.className}`}>
-        <Icon name={status.icon} className="text-[16px]" />
+        <Icon name={status.icon} className="text-base" />
         {t(status.label)}
       </span>
       <div className="grid grid-cols-3 gap-3">
@@ -97,7 +97,7 @@ export default function CurrentWeatherPanel() {
             disabled={weather.loading}
             className="inline-flex min-h-[36px] items-center gap-1 rounded-full bg-deep-river px-3 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
-            <Icon name="refresh" className="text-[16px]" />
+            <Icon name="refresh" className="text-base" />
             {weather.loading ? t('Updating…') : t('Refresh')}
           </button>
         </div>

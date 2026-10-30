@@ -36,7 +36,7 @@ const SeatButton = memo(function SeatButton({
     <div className="relative">
       {seat.window && (
         <span
-          className={`absolute -right-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white ${
+          className={`absolute -right-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full text-3xs font-bold text-white ${
             unavailable ? 'bg-outline' : 'bg-sky-aqua'
           }`}
         >
@@ -45,7 +45,7 @@ const SeatButton = memo(function SeatButton({
       )}
       {selected && (
         // One line and click-through: a wrapped label ("ĐÃ CHỌN") covered the seat and swallowed the click that removes it.
-        <span className="pointer-events-none absolute -top-2 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-signal-amber px-1 text-[8px] font-bold uppercase text-deep-river">
+        <span className="pointer-events-none absolute -top-2 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-signal-amber px-1 text-3xs font-bold uppercase text-deep-river">
           {t('Selected')}
         </span>
       )}
@@ -58,7 +58,7 @@ const SeatButton = memo(function SeatButton({
           state ? `, ${state}` : ''
         }`}
         onClick={() => onSelect(seat.id)}
-        className={`flex h-[46px] w-full flex-col items-center justify-center rounded-lg border-2 text-[11px] font-semibold transition-all ${
+        className={`flex h-[46px] w-full flex-col items-center justify-center rounded-lg border-2 text-2xs font-semibold transition-all ${
           selected
             ? 'border-teal-flow bg-teal-flow text-white shadow-md'
             : sold
@@ -68,7 +68,7 @@ const SeatButton = memo(function SeatButton({
             : 'border-teal-flow/40 bg-white text-deep-river hover:border-teal-flow hover:bg-sand-light'
         }`}
       >
-        <Icon name={held ? 'hourglass_top' : 'airline_seat_recline_normal'} className="text-[16px]" />
+        <Icon name={held ? 'hourglass_top' : 'airline_seat_recline_normal'} className="text-base" />
         {seat.code}
       </button>
     </div>
@@ -79,26 +79,26 @@ export function SeatLegend() {
   return (
     <div className="flex flex-wrap items-center gap-space-md text-xs text-on-surface-variant">
       <span className="flex items-center gap-1.5">
-        <span className="flex h-5 w-5 items-center justify-center rounded border-2 border-teal-flow/40 bg-white text-[8px] font-bold text-deep-river">
+        <span className="flex h-5 w-5 items-center justify-center rounded border-2 border-teal-flow/40 bg-white text-3xs font-bold text-deep-river">
           {t('A1')}
         </span>
         {t('Available')}
       </span>
       <span className="flex items-center gap-1.5 font-semibold text-deep-river">
-        <span className="flex h-5 w-5 items-center justify-center rounded bg-teal-flow text-[8px] font-bold text-white">
+        <span className="flex h-5 w-5 items-center justify-center rounded bg-teal-flow text-3xs font-bold text-white">
           {t('A2')}
         </span>
         {t('Selected')}
       </span>
       <span className="flex items-center gap-1.5">
         <span className="flex h-5 w-5 items-center justify-center rounded border-2 border-dashed border-signal-amber bg-signal-amber/15 text-deep-river/70">
-          <Icon name="hourglass_top" className="text-[12px]" />
+          <Icon name="hourglass_top" className="text-xs" />
         </span>
         {t('Held by another traveler')}
       </span>
       <span className="flex items-center gap-1.5">
         <span className="flex h-5 w-5 items-center justify-center rounded bg-outline-variant/50 text-outline">
-          <Icon name="block" className="text-[13px]" />
+          <Icon name="block" className="text-xs" />
         </span>
         {t('Sold')}
       </span>
@@ -114,7 +114,7 @@ export function SeatLegend() {
 
 function CabinHeading({ category, priceVnd }: { category: SeatCategory; /** Fare of a seat in this cabin. */ priceVnd?: number }) {
   return (
-    <div className="flex items-center gap-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-teal-flow">
+    <div className="flex items-center gap-2 pt-1 text-2xs font-bold uppercase tracking-wider text-teal-flow">
       <span className="h-px flex-1 bg-teal-flow/30" />
       {cabinLabel(category)}
       {priceVnd !== undefined && <span className="text-deep-river">• {formatVndSuffix(priceVnd)}</span>}
@@ -141,32 +141,32 @@ export default function SeatMapView({ seatMap, selectedIds, onSelect }: SeatMapV
   )
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-teal-flow/20 bg-gradient-to-b from-[#E0F2F5] via-[#EBF7F8] to-[#E3EFF3] p-space-sm sm:p-space-lg">
+    <div className="relative overflow-hidden rounded-2xl border border-teal-flow/20 bg-gradient-to-b from-sky-aqua/10 via-mist to-sand-light p-space-sm sm:p-space-lg">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(#147a7e_1px,transparent_1px)] opacity-30 [background-size:18px_18px]" />
       <div className="pointer-events-none absolute inset-y-8 left-4 hidden w-4 rounded-full bg-teal-flow/30 md:block" />
       <div className="pointer-events-none absolute inset-y-8 right-4 hidden w-4 rounded-full bg-teal-flow/30 md:block" />
 
       <div className="relative mx-auto max-w-sm rounded-t-[80px] rounded-b-3xl border border-outline-variant/40 bg-white px-space-sm pb-space-md pt-space-lg shadow-lg sm:px-space-md">
-        <div className="mx-auto mb-space-sm flex w-fit items-center gap-2 rounded-full border border-outline-variant/40 bg-white px-4 py-1.5 text-[11px] font-bold uppercase tracking-wider text-deep-river shadow-sm">
-          <Icon name="navigation" className="text-[14px]" />
+        <div className="mx-auto mb-space-sm flex w-fit items-center gap-2 rounded-full border border-outline-variant/40 bg-white px-4 py-1.5 text-2xs font-bold uppercase tracking-wider text-deep-river shadow-sm">
+          <Icon name="navigation" className="text-sm" />
           {t('Forward / Bow • River Cruise Direction')}
         </div>
 
-        <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-teal-flow">
+        <div className="mb-2 flex items-center justify-between text-2xs font-semibold uppercase tracking-wider text-teal-flow">
           <span className="flex items-center gap-1">
-            <Icon name="waves" className="text-[13px]" /> {t('Portside Panoramic Window')}
+            <Icon name="waves" className="text-xs" /> {t('Portside Panoramic Window')}
           </span>
           <span className="flex items-center gap-1">
-            {t('Starboard Window')} <Icon name="waves" className="text-[13px]" />
+            {t('Starboard Window')} <Icon name="waves" className="text-xs" />
           </span>
         </div>
         <div
-          className={`${GRID} text-center text-[10px] font-semibold text-on-surface-variant`}
+          className={`${GRID} text-center text-2xs font-semibold text-on-surface-variant`}
         >
           <span>{t('Port A')}</span>
           <span>{t('Aisle B')}</span>
           <span className="flex items-center justify-center">
-            <Icon name="keyboard_double_arrow_down" className="text-[12px]" />
+            <Icon name="keyboard_double_arrow_down" className="text-xs" />
           </span>
           <span>{t('Aisle C')}</span>
           <span>{t('Starboard D')}</span>
@@ -195,7 +195,7 @@ export default function SeatMapView({ seatMap, selectedIds, onSelect }: SeatMapV
                 {rows.map((row) => (
                   <div key={row} className={GRID}>
                     {COLUMNS_LEFT.map((c) => renderSeat(row, c))}
-                    <span className="flex h-6 items-center justify-center rounded bg-mist text-[9px] font-bold text-outline">
+                    <span className="flex h-6 items-center justify-center rounded bg-mist text-3xs font-bold text-outline">
                       {t('R{row}', { row })}
                     </span>
                     {COLUMNS_RIGHT.map((c) => renderSeat(row, c))}
@@ -206,19 +206,19 @@ export default function SeatMapView({ seatMap, selectedIds, onSelect }: SeatMapV
           })}
         </div>
 
-        <div className="mt-space-md flex items-center gap-2 border-t border-dashed border-outline-variant pt-space-md text-[11px] font-semibold text-on-surface-variant">
+        <div className="mt-space-md flex items-center gap-2 border-t border-dashed border-outline-variant pt-space-md text-2xs font-semibold text-on-surface-variant">
           <span className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-outline-variant/40 bg-mist px-2 py-2">
-            <Icon name="luggage" className="text-[15px]" /> {t('Luggage Compartment')}
+            <Icon name="luggage" className="text-sm" /> {t('Luggage Compartment')}
           </span>
           <span className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-outline-variant/40 bg-mist px-2 py-2">
-            <Icon name="door_open" className="text-[15px] text-signal-amber" />{' '}
+            <Icon name="door_open" className="text-sm text-signal-amber" />{' '}
             {t('Stern Boarding Gate / Entry')}
           </span>
         </div>
-        <div className="mt-2 flex items-center justify-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-teal-flow">
-          <Icon name="arrow_downward" className="text-[12px]" />
+        <div className="mt-2 flex items-center justify-center gap-1 text-2xs font-semibold uppercase tracking-wider text-teal-flow">
+          <Icon name="arrow_downward" className="text-xs" />
           {t('Aft Gangway • Disembarkation Point')}
-          <Icon name="arrow_downward" className="text-[12px]" />
+          <Icon name="arrow_downward" className="text-xs" />
         </div>
       </div>
     </div>

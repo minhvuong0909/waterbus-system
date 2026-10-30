@@ -31,12 +31,12 @@ export default function QrModal({ ticket, onClose }: { ticket: Ticket; onClose: 
           aria-label={t('Close')}
           className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-surface-container text-deep-river hover:bg-surface-container-high"
         >
-          <Icon name="close" className="text-[20px]" />
+          <Icon name="close" className="text-xl" />
         </button>
-        <span className="text-[11px] font-bold uppercase tracking-wider text-teal-flow">
+        <span className="text-2xs font-bold uppercase tracking-wider text-teal-flow">
           {t('Fast Turnstile Scan')}
         </span>
-        <h2 className="mt-1 font-headline-sm text-2xl font-bold text-deep-river">
+        <h2 className="mt-1 font-display text-2xl font-bold text-deep-river">
           {t('Boarding QR Code')}
         </h2>
         <p className="text-xs text-on-surface-variant">

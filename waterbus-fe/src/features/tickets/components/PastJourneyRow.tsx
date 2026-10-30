@@ -46,15 +46,15 @@ export default function PastJourneyRow({
 }) {
   const look = closedTicketLook(ticket)
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl bg-white p-space-md shadow-[0_1px_8px_rgba(13,37,56,0.05)]">
+    <div className="flex items-center justify-between gap-3 rounded-2xl bg-white p-space-md shadow-card">
       <div className="flex items-center gap-3">
         <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${look.tone}`}>
-          <Icon name={look.icon} className="text-[22px]" />
+          <Icon name={look.icon} className="text-2xl" />
         </span>
         <div>
           <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-deep-river">
             {ticket.departShort} → {ticket.arriveShort}
-            <span className={`rounded px-2 py-0.5 text-[10px] font-semibold ${look.badge}`}>
+            <span className={`rounded px-2 py-0.5 text-2xs font-semibold ${look.badge}`}>
               {ticket.status}
             </span>
           </div>

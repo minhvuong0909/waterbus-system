@@ -45,7 +45,7 @@ export default function Modal({
         className="relative max-h-full w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-xl focus:outline-none"
       >
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 id={titleId} className="font-headline-sm text-lg font-bold text-deep-river">
+          <h2 id={titleId} className="font-display text-lg font-bold text-deep-river">
             {t(title)}
           </h2>
           <button
@@ -54,7 +54,7 @@ export default function Modal({
             aria-label={t('Close')}
             className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-surface-container"
           >
-            <Icon name="close" className="text-[18px]" />
+            <Icon name="close" className="text-lg" />
           </button>
         </div>
         {children}

@@ -12,9 +12,9 @@ const ALERT_DECISIONS: OperationType[] = ['Suspend', 'Cancel', 'Terminate']
 function Metric({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <div className="flex items-center gap-2 rounded-lg bg-white/70 px-2.5 py-1.5">
-      <Icon name={icon} className="text-[18px] text-teal-flow" />
+      <Icon name={icon} className="text-lg text-teal-flow" />
       <div className="leading-tight">
-        <div className="text-[11px] text-on-surface-variant">{label}</div>
+        <div className="text-2xs text-on-surface-variant">{label}</div>
         <div className="text-sm font-bold text-deep-river">{value}</div>
       </div>
     </div>
@@ -83,15 +83,15 @@ export default function AlertCard({
     <article className={`rounded-2xl border border-l-4 border-outline-variant/40 bg-white p-4 shadow-sm ${tone.accent}`}>
       <div className="flex items-start gap-3">
         <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone.badge}`}>
-          <Icon name={tone.icon} className="text-[22px]" />
+          <Icon name={tone.icon} className="text-2xl" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${tone.badge}`}>
+            <span className={`rounded-full px-2 py-0.5 text-2xs font-bold uppercase tracking-wide ${tone.badge}`}>
               {tone.label}
             </span>
             {alert.routeCode && (
-              <span className="rounded-full bg-surface-container px-2 py-0.5 font-mono text-[11px] font-semibold text-deep-river">
+              <span className="rounded-full bg-surface-container px-2 py-0.5 font-mono text-2xs font-semibold text-deep-river">
                 {alert.routeCode}
               </span>
             )}
@@ -99,7 +99,7 @@ export default function AlertCard({
               {timeAgo(alert.issuedAt)}
             </span>
           </div>
-          <h3 className="mt-1 font-headline-sm text-base font-bold text-deep-river">{titleOf(alert)}</h3>
+          <h3 className="mt-1 font-display text-base font-bold text-deep-river">{titleOf(alert)}</h3>
           <p className="text-xs text-on-surface-variant">
             {isCaptainReport(alert) ? t('Reported by the captain') : t('Raised by the weather check')}
           </p>
@@ -110,7 +110,7 @@ export default function AlertCard({
           onClick={() => onClose(alert)}
           className="inline-flex min-h-[36px] shrink-0 items-center gap-1 rounded-full border border-outline-variant px-3 text-xs font-semibold text-deep-river hover:bg-surface-container-low disabled:opacity-50"
         >
-          <Icon name="close" className="text-[16px]" />
+          <Icon name="close" className="text-base" />
           {t('Close alert')}
         </button>
       </div>
@@ -132,7 +132,7 @@ export default function AlertCard({
               <li key={link.tripId} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-deep-river">
-                    <Icon name="directions_boat" className="text-[18px] text-teal-flow" />
+                    <Icon name="directions_boat" className="text-lg text-teal-flow" />
                     <span className="font-mono">{trip?.boatCode ?? '—'}</span>
                     <span>{departure ? formatDateTime(departure) : '—'}</span>
                     {status && <TripStatusBadge status={status} />}
@@ -140,7 +140,7 @@ export default function AlertCard({
                 </div>
                 {link.decision ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-teal-flow/15 px-2.5 py-1 text-xs font-semibold text-teal-flow">
-                    <Icon name="check_circle" className="text-[16px]" />
+                    <Icon name="check_circle" className="text-base" />
                     {(() => {
                       const op = decisionOperation(link.decision)
                       return op ? t(OPERATION_LABEL[op]) : link.decision

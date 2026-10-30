@@ -20,9 +20,9 @@ export default function DataTable<T>({
   empty?: string
 }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-outline-variant/30 bg-white shadow-[0_2px_8px_rgba(13,37,56,0.025)]">
+    <div className="overflow-x-auto rounded-2xl border border-outline-variant/30 bg-white shadow-card">
       <table className="w-full min-w-[40rem] text-left text-sm">
-        <thead className="border-b border-outline-variant/30 bg-[#F8FAFC] text-[11px] uppercase tracking-wider text-on-surface-variant">
+        <thead className="border-b border-outline-variant/30 bg-mist text-2xs uppercase tracking-wider text-on-surface-variant">
           <tr>
             {columns.map((c) => (
               <th

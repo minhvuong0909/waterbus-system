@@ -33,7 +33,7 @@ export default function TripDetailPage() {
             ]}
           />
           <div className="flex items-center gap-space-sm pt-space-xs">
-            <h1 className="font-headline-lg text-headline-lg tracking-tight text-deep-river">
+            <h1 className="font-display text-headline-lg tracking-tight text-deep-river">
               {t('Review Your Journey')}
             </h1>
           </div>

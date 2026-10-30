@@ -10,9 +10,9 @@ import { t } from '../../../i18n'
 function Fact({ label, value, icon }: { label: string; value: string; icon?: string }) {
   return (
     <div>
-      <div className="text-[11px] text-on-surface-variant">{label}</div>
+      <div className="text-2xs text-on-surface-variant">{label}</div>
       <div className="flex items-center gap-1 text-sm font-semibold text-deep-river">
-        {icon && <Icon name={icon} className="text-[16px] text-teal-flow" />}
+        {icon && <Icon name={icon} className="text-base text-teal-flow" />}
         {value}
       </div>
     </div>
@@ -28,37 +28,37 @@ export default function NextDepartureCard({
   onOpen: (id: string) => void
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-[0_4px_24px_rgba(13,37,56,0.08)]">
+    <div className="relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-raised">
       <div className="h-1.5 bg-gradient-to-r from-teal-flow via-sky-aqua to-deep-river" />
       <div className="grid grid-cols-1 lg:grid-cols-12">
         <div className="flex flex-col p-space-lg lg:col-span-8">
           <div className="flex flex-wrap items-start justify-between gap-space-sm">
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-mist text-teal-flow">
-                <Icon name="directions_boat" className="text-[22px]" />
+                <Icon name="directions_boat" className="text-2xl" />
               </span>
               <div>
                 <div className="text-sm font-semibold text-deep-river">{ticket.lineName}</div>
-                <div className="font-mono text-[11px] text-on-surface-variant">
+                <div className="font-mono text-2xs text-on-surface-variant">
                   {t('Ref: {bookingRef}', { bookingRef: ticket.bookingRef })}
                 </div>
               </div>
             </div>
             <span className="inline-flex items-center gap-1 rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container">
-              <Icon name="verified" className="text-[14px]" />
+              <Icon name="verified" className="text-sm" />
               {t('Confirmed Booking')}
             </span>
           </div>
 
           <div className="mt-space-md grid grid-cols-1 items-center gap-space-md rounded-xl bg-mist/70 p-space-md md:grid-cols-12">
             <div className="md:col-span-4">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">
+              <div className="text-2xs font-semibold uppercase tracking-wider text-on-surface-variant">
                 {t('Origin Pier')}
               </div>
-              <div className="font-headline-sm text-3xl font-bold text-deep-river">
+              <div className="font-display text-3xl font-bold text-deep-river">
                 {ticket.departTime}
               </div>
-              <div className="font-headline-sm text-base font-semibold text-deep-river">
+              <div className="font-display text-base font-semibold text-deep-river">
                 {ticket.departPier}
               </div>
               <div className="text-xs text-on-surface-variant">{ticket.departDistrict}</div>
@@ -70,19 +70,19 @@ export default function NextDepartureCard({
               <div className="my-1 flex w-full items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-deep-river" />
                 <span className="h-px flex-1 bg-outline-variant" />
-                <Icon name="waves" className="text-[16px] text-teal-flow" />
+                <Icon name="waves" className="text-base text-teal-flow" />
                 <span className="h-px flex-1 bg-outline-variant" />
                 <span className="h-2 w-2 rounded-full bg-teal-flow" />
               </div>
             </div>
             <div className="md:col-span-4 md:text-right">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">
+              <div className="text-2xs font-semibold uppercase tracking-wider text-on-surface-variant">
                 {t('Destination Pier')}
               </div>
-              <div className="font-headline-sm text-3xl font-bold text-deep-river">
+              <div className="font-display text-3xl font-bold text-deep-river">
                 {ticket.arriveTime}
               </div>
-              <div className="font-headline-sm text-base font-semibold text-deep-river">
+              <div className="font-display text-base font-semibold text-deep-river">
                 {ticket.arrivePier}
               </div>
               <div className="text-xs text-on-surface-variant">{ticket.arriveDistrict}</div>
@@ -108,7 +108,7 @@ export default function NextDepartureCard({
               to={ROUTES.manageBooking}
               className="flex items-center gap-1 font-semibold text-teal-flow hover:underline"
             >
-              <Icon name="info" className="text-[15px]" />
+              <Icon name="info" className="text-sm" />
               {t('View Booking Details')}
             </Link>
             <span className="text-on-surface-variant">
@@ -120,7 +120,7 @@ export default function NextDepartureCard({
         <div className="space-y-space-md bg-mist/60 p-space-lg lg:col-span-4">
           <div className="rounded-xl bg-white p-space-md shadow-sm">
             {/* Title and piers on separate lines: real pier names are too long to share one row. */}
-            <div className="flex flex-col gap-0.5 text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">
+            <div className="flex flex-col gap-0.5 text-2xs font-semibold uppercase tracking-wider text-on-surface-variant">
               {t('Corridor Tracking')}
               <span className="flex items-center gap-1 normal-case tracking-normal text-teal-flow">
                 <span className="h-1.5 w-1.5 rounded-full bg-teal-flow" /> {`${ticket.departShort} → ${ticket.arriveShort}`}
@@ -139,7 +139,7 @@ export default function NextDepartureCard({
               <circle cx="216" cy="32" r="5" fill="#147A7E" />
               <circle cx="120" cy="30" r="8" fill="#147A7E" stroke="#fff" strokeWidth="2" />
             </svg>
-            <div className="mt-1 flex justify-between text-[10px] text-on-surface-variant">
+            <div className="mt-1 flex justify-between text-2xs text-on-surface-variant">
               <span>{ticket.departShort}</span>
               <span>{ticket.arriveShort}</span>
             </div>
@@ -149,11 +149,11 @@ export default function NextDepartureCard({
             <div className="mx-auto w-fit rounded-xl bg-white p-2 shadow-sm">
               {ticket.qrPayload && <QrCode value={ticket.qrPayload} size={120} />}
             </div>
-            <div className="mt-2 font-mono text-[11px] font-semibold text-deep-river">
+            <div className="mt-2 font-mono text-2xs font-semibold text-deep-river">
               {ticket.ticketCode}
             </div>
-            <div className="flex items-center justify-center gap-1 text-[11px] text-on-surface-variant">
-              <Icon name="sensors" className="text-[13px]" /> {t('Scan at turnstile barrier')}
+            <div className="flex items-center justify-center gap-1 text-2xs text-on-surface-variant">
+              <Icon name="sensors" className="text-xs" /> {t('Scan at turnstile barrier')}
             </div>
           </div>
 
@@ -162,14 +162,14 @@ export default function NextDepartureCard({
             onClick={() => onOpen(ticket.id)}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 text-sm font-semibold text-on-primary transition-colors hover:bg-secondary"
           >
-            <Icon name="qr_code_2" className="text-[18px]" />
+            <Icon name="qr_code_2" className="text-lg" />
             {t('View Full Ticket')}
           </Link>
           <Link
             to={`${ROUTES.liveTracking}?tripId=${ticket.tripId}`}
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-outline-variant/50 bg-white py-3 text-sm font-semibold text-deep-river transition-colors hover:bg-surface-container-low"
           >
-            <Icon name="near_me" className="text-[18px]" />
+            <Icon name="near_me" className="text-lg" />
             {t('Track Live Vessel')}
           </Link>
         </div>

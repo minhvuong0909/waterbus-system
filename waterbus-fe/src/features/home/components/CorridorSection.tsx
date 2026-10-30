@@ -22,7 +22,7 @@ export default function CorridorSection({ map }: CorridorSectionProps) {
       <div className="mx-auto max-w-7xl space-y-6 px-5 sm:px-8">
         <h2
           data-reveal
-          className="font-headline-lg text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-[36px]"
+          className="font-display text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-4xl"
         >
           {t('River corridor map')}
         </h2>

@@ -103,7 +103,7 @@ export default function GpsSharePanel({ userId }: { userId: string }) {
                 sharing ? 'bg-coral-glow' : 'bg-teal-flow'
               }`}
             >
-              <Icon name={sharing ? 'location_off' : 'my_location'} className="text-[20px]" />
+              <Icon name={sharing ? 'location_off' : 'my_location'} className="text-xl" />
               {sharing ? t('Stop sharing GPS') : t('Share GPS')}
             </button>
           </div>

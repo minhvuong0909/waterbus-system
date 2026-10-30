@@ -15,7 +15,7 @@ export default function EditLink({
       to={to}
       className="flex items-center gap-1 whitespace-nowrap text-xs font-semibold text-teal-flow hover:underline"
     >
-      <Icon name={icon} className="text-[14px]" />
+      <Icon name={icon} className="text-sm" />
       {children}
     </Link>
   )

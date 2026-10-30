@@ -32,11 +32,11 @@ export default function AuthShowcasePanel() {
       </svg>
 
       <div className="relative z-10 mb-8">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-sky-aqua backdrop-blur-md">
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-2xs font-semibold uppercase tracking-wider text-sky-aqua backdrop-blur-md">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-aqua" />
           {t(showcase.eyebrow)}
         </div>
-        <h2 className="mb-3 font-headline-xl text-3xl font-extrabold leading-[1.2] tracking-tight text-white xl:text-[34px]">
+        <h2 className="mb-3 font-display text-3xl font-extrabold leading-[1.2] tracking-tight text-white xl:text-4xl">
           {t(showcase.headline[0])} <br />
           <span className="text-sky-aqua">{t(showcase.headline[1])}</span>
         </h2>
@@ -47,7 +47,7 @@ export default function AuthShowcasePanel() {
         {showcase.highlights.map((text) => (
           <li key={text} className="flex items-center gap-2.5 text-xs text-outline-variant">
             <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-teal-flow/30 text-sky-aqua">
-              <Icon name="check" className="text-[12px]" />
+              <Icon name="check" className="text-xs" />
             </span>
             {t(text)}
           </li>

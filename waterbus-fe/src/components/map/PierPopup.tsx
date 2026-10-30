@@ -42,7 +42,7 @@ export default function PierPopup({ pier, onClose, actions }: PierPopupProps) {
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-1 text-white/80">
-            <Icon name="photo_camera" className="text-[36px]" />
+            <Icon name="photo_camera" className="text-4xl" />
             <span className="text-xs">{t('Photos coming soon')}</span>
           </div>
         )}
@@ -55,7 +55,7 @@ export default function PierPopup({ pier, onClose, actions }: PierPopupProps) {
               aria-label={t('Previous photo')}
               className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-deep-river shadow hover:bg-white"
             >
-              <Icon name="chevron_left" className="text-[20px]" />
+              <Icon name="chevron_left" className="text-xl" />
             </button>
             <button
               type="button"
@@ -63,9 +63,9 @@ export default function PierPopup({ pier, onClose, actions }: PierPopupProps) {
               aria-label={t('Next photo')}
               className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-deep-river shadow hover:bg-white"
             >
-              <Icon name="chevron_right" className="text-[20px]" />
+              <Icon name="chevron_right" className="text-xl" />
             </button>
-            <span className="absolute bottom-2 right-2 rounded-full bg-deep-river/75 px-2 py-0.5 text-[11px] font-semibold text-white">
+            <span className="absolute bottom-2 right-2 rounded-full bg-deep-river/75 px-2 py-0.5 text-2xs font-semibold text-white">
               {current + 1}/{photos.length}
             </span>
           </>
@@ -77,7 +77,7 @@ export default function PierPopup({ pier, onClose, actions }: PierPopupProps) {
           aria-label={t('Close')}
           className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-deep-river shadow hover:bg-white"
         >
-          <Icon name="close" className="text-[18px]" />
+          <Icon name="close" className="text-lg" />
         </button>
       </div>
 
@@ -101,10 +101,10 @@ export default function PierPopup({ pier, onClose, actions }: PierPopupProps) {
       )}
 
       <div className="space-y-space-xs p-space-md">
-        <h3 className="font-headline-sm text-lg font-bold text-deep-river">{pier.name}</h3>
+        <h3 className="font-display text-lg font-bold text-deep-river">{pier.name}</h3>
         {pier.address && (
           <p className="flex items-start gap-1.5 text-sm text-on-surface-variant">
-            <Icon name="location_on" className="text-[18px] text-teal-flow" />
+            <Icon name="location_on" className="text-lg text-teal-flow" />
             {pier.address}
           </p>
         )}

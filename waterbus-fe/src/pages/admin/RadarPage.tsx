@@ -112,7 +112,7 @@ export default function RadarPage() {
                       <span>{t('{speed} km/h', { speed: knotsToKmh(b.speedKnots) ?? 0 })}</span>
                     )}
                   </div>
-                  <div className="mt-1 font-mono text-[11px] text-on-surface-variant">
+                  <div className="mt-1 font-mono text-2xs text-on-surface-variant">
                     {b.latitude.toFixed(5)}, {b.longitude.toFixed(5)}
                   </div>
                 </li>

@@ -70,7 +70,7 @@ export default function PaymentPage() {
 
       <div className="mt-space-lg flex flex-col justify-between gap-space-md md:flex-row md:items-end">
         <div>
-          <h1 className="font-headline-xl text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-lg">
+          <h1 className="font-display text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-lg">
             {t('Complete Your Payment')}
           </h1>
           <p className="text-body-md text-on-surface-variant">
@@ -83,7 +83,7 @@ export default function PaymentPage() {
           <HoldCountdown
             fallback={
               <span className="inline-flex items-center gap-2 rounded-xl bg-surface-container px-space-md py-2 text-xs text-on-surface-variant">
-                <Icon name="event_seat" className="text-[16px] text-teal-flow" />
+                <Icon name="event_seat" className="text-base text-teal-flow" />
                 {t('Your selected seat remains reserved while you complete payment.')}
               </span>
             }

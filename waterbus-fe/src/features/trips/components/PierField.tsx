@@ -32,26 +32,26 @@ export default function PierField({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={toggle}
-        className={`group flex h-full w-full min-w-0 flex-col justify-between rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] text-left transition-colors hover:border-teal-flow/40 hover:bg-[#EBF2F0]/80 ${
+        className={`group flex h-full w-full min-w-0 flex-col justify-between rounded-xl border border-outline-variant/50 bg-mist text-left transition-colors hover:border-teal-flow/40 hover:bg-sand-light/80 ${
           compact ? 'min-h-[64px] gap-1 px-3.5 py-2.5' : 'min-h-[112px] gap-3 p-3.5'
         }`}
       >
         <span className="mb-1 flex w-full items-center justify-between">
-          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
+          <span className="flex items-center gap-1.5 text-2xs font-bold uppercase tracking-wider text-on-surface-variant">
             <span className={`h-2 w-2 rounded-full ${dotClass}`} />
             {label}
           </span>
           <Icon
             name="expand_more"
-            className="text-[16px] text-outline transition-colors group-hover:text-deep-river"
+            className="text-base text-outline transition-colors group-hover:text-deep-river"
           />
         </span>
         <span className="block w-full min-w-0">
-          <span className="block truncate font-headline-sm text-base font-bold text-deep-river">
+          <span className="block truncate font-display text-base font-bold text-deep-river">
             {value.name}
           </span>
           {!compact && (
-            <span className="mt-0.5 block truncate text-[11px] text-on-surface-variant">
+            <span className="mt-0.5 block truncate text-2xs text-on-surface-variant">
               {value.subtitle}
             </span>
           )}
@@ -62,7 +62,7 @@ export default function PierField({
         <ul
           role="listbox"
           style={{ maxHeight: placement.maxHeight }}
-          className={`absolute left-0 right-0 z-30 overflow-y-auto rounded-xl border border-[#E2ECEE] bg-white py-1 shadow-lg ${
+          className={`absolute left-0 right-0 z-30 overflow-y-auto rounded-xl border border-outline-variant/50 bg-white py-1 shadow-lg ${
             placement.up ? 'bottom-full mb-2' : 'top-full mt-2'
           }`}
         >
@@ -81,7 +81,7 @@ export default function PierField({
                 }`}
               >
                 <span className="text-sm font-semibold text-deep-river">{option.name}</span>
-                <span className="text-[11px] text-on-surface-variant">{option.subtitle}</span>
+                <span className="text-2xs text-on-surface-variant">{option.subtitle}</span>
               </button>
             </li>
           ))}

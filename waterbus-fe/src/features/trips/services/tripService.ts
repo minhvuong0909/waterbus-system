@@ -3,6 +3,7 @@ import { BOARDING_STEPS, ONBOARD_AMENITIES } from '../../../content/tripDetail'
 import { DEFAULT_SEARCH_QUERY } from '../searchDefaults'
 import { localize, t } from '../../../i18n'
 import { ApiError, apiRequest } from '../../../services/apiClient'
+import { createRequestCache } from '../../../services/requestCache'
 import { formatClock, toVietnamDate } from '../../../utils/time'
 import { getLowestFares } from './fareService'
 import type {
@@ -27,26 +28,21 @@ import {
 import type { TripDetailDto, TripSeatMapDto } from '../../booking/types'
 import { pickJourney } from '../../booking/utils'
 
-/** The piers change rarely and one page asks for them several times, so they are kept this long. */
-const PIER_CACHE_MS = 60_000
-let pierCache: { piers: Promise<PierOption[]>; at: number } | undefined
+/** The piers change rarely and one page asks for them several times. */
+const pierCache = createRequestCache<PierOption[]>(60_000)
+/** A page asks for the same day from several places (list, day strip, home); seats change, so briefly. */
+const tripSearchCache = createRequestCache<Trip[]>(15_000)
 
 /** Forgets the cached piers, e.g. after an Admin changed a station. */
 export function clearPierCache() {
-  pierCache = undefined
+  pierCache.clear()
 }
 
-/** `GET /stations`: the active piers in river order. Requests in flight and recent results are shared. */
+/** `GET /stations`: the active piers in river order. */
 export function getPierOptions(): Promise<PierOption[]> {
-  if (pierCache && Date.now() - pierCache.at < PIER_CACHE_MS) return pierCache.piers
-  const piers = apiRequest<StationDto[]>(API_ENDPOINTS.stations).then((stations) => stations.map(toPierOption))
-  const entry = { piers, at: Date.now() }
-  pierCache = entry
-  // A failure is not kept: the next call asks again.
-  piers.catch(() => {
-    if (pierCache === entry) pierCache = undefined
-  })
-  return piers
+  return pierCache.get('all', () =>
+    apiRequest<StationDto[]>(API_ENDPOINTS.stations).then((stations) => stations.map(toPierOption)),
+  )
 }
 
 /**
@@ -79,15 +75,18 @@ export function getDateOptions(): Promise<DateOption[]> {
 }
 
 /** `GET /trips/search` for the selected piers and day. */
-export async function getTrips(query: SearchQuery): Promise<Trip[]> {
-  const dtos = await apiRequest<TripDto[]>(API_ENDPOINTS.trips.search, {
-    query: {
-      departureStationId: query.originId,
-      arrivalStationId: query.destinationId,
-      departureDate: query.dateId,
-    },
+export function getTrips(query: SearchQuery): Promise<Trip[]> {
+  const key = `${query.originId}|${query.destinationId}|${query.dateId}`
+  return tripSearchCache.get(key, async () => {
+    const dtos = await apiRequest<TripDto[]>(API_ENDPOINTS.trips.search, {
+      query: {
+        departureStationId: query.originId,
+        arrivalStationId: query.destinationId,
+        departureDate: query.dateId,
+      },
+    })
+    return dtos.map(toTrip)
   })
-  return dtos.map(toTrip)
 }
 
 /**

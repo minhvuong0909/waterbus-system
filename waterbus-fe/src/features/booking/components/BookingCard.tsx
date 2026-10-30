@@ -10,7 +10,7 @@ export default function BookingCard({
 }) {
   return (
     <section
-      className={`rounded-2xl bg-surface-container-lowest p-space-lg shadow-[0_2px_16px_rgba(13,37,56,0.05)] ${className}`.trim()}
+      className={`rounded-2xl bg-surface-container-lowest p-space-lg shadow-card ${className}`.trim()}
     >
       {children}
     </section>

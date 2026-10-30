@@ -70,7 +70,7 @@ export default function CheckoutReviewPage() {
 
       <div className="mt-space-xl flex flex-col justify-between gap-space-md md:flex-row md:items-end">
         <div>
-          <h1 className="font-headline-xl text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-xl">
+          <h1 className="font-display text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-xl">
             {t('Review Your Booking')}
           </h1>
           <p className="text-body-md text-on-surface-variant">

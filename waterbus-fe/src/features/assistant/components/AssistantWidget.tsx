@@ -191,14 +191,14 @@ export default function AssistantWidget() {
         <section
           role="dialog"
           aria-label={t('Smart Waterbus Assistant')}
-          className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white sm:static sm:inset-auto sm:h-[min(40rem,calc(100vh-7rem))] sm:w-[24rem] sm:rounded-2xl sm:border sm:border-outline-variant/40 sm:shadow-[0_12px_40px_rgba(13,37,56,0.18)]"
+          className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white sm:static sm:inset-auto sm:h-[min(40rem,calc(100vh-7rem))] sm:w-[24rem] sm:rounded-2xl sm:border sm:border-outline-variant/40 sm:shadow-overlay"
         >
           <header className="flex items-center gap-3 bg-deep-river px-space-md py-3 text-on-primary">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-sky-aqua">
-              <Icon name="bolt" className="text-[20px]" />
+              <Icon name="bolt" className="text-xl" />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="font-headline-sm text-sm font-bold">{t('Smart Waterbus Assistant')}</div>
+              <div className="font-display text-sm font-bold">{t('Smart Waterbus Assistant')}</div>
               <div className="truncate text-xs text-sand-light/80">{t('Find waterbus trips')}</div>
             </div>
             {!fresh && (
@@ -210,7 +210,7 @@ export default function AssistantWidget() {
                 title={t('New conversation')}
                 className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/10 disabled:opacity-50"
               >
-                <Icon name="refresh" className="text-[18px]" />
+                <Icon name="refresh" className="text-lg" />
               </button>
             )}
             <button
@@ -219,7 +219,7 @@ export default function AssistantWidget() {
               aria-label={t('Close assistant')}
               className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-white/10"
             >
-              <Icon name="close" className="text-[20px]" />
+              <Icon name="close" className="text-xl" />
             </button>
           </header>
 
@@ -267,7 +267,7 @@ export default function AssistantWidget() {
                 className="inline-flex min-h-[40px] shrink-0 items-center gap-1 rounded-full bg-teal-flow px-4 text-sm font-semibold text-white hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-flow"
               >
                 {t('Continue to booking')}
-                <Icon name="arrow_forward" className="text-[16px]" />
+                <Icon name="arrow_forward" className="text-base" />
               </button>
             </div>
           )}
@@ -291,10 +291,10 @@ export default function AssistantWidget() {
                 aria-label={t('Send')}
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-flow text-white transition-colors hover:bg-secondary disabled:bg-outline-variant/60"
               >
-                <Icon name="send" className="text-[18px]" />
+                <Icon name="send" className="text-lg" />
               </button>
             </div>
-            <p className="mt-1.5 px-1 text-[11px] leading-snug text-outline">
+            <p className="mt-1.5 px-1 text-2xs leading-snug text-outline">
               {t('Trips come from the live timetable. Check the time and price before you pay.')}
             </p>
           </form>
@@ -307,9 +307,9 @@ export default function AssistantWidget() {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-label={open ? t('Close assistant') : t('Open assistant')}
-        className={`${open ? 'hidden sm:flex' : 'flex'} h-14 w-14 items-center justify-center rounded-full bg-teal-flow text-on-primary shadow-[0_6px_20px_rgba(20,122,126,0.35)] transition-all hover:bg-secondary active:scale-95`}
+        className={`${open ? 'hidden sm:flex' : 'flex'} h-14 w-14 items-center justify-center rounded-full bg-teal-flow text-on-primary shadow-glow transition-all hover:bg-secondary active:scale-95`}
       >
-        <Icon name={open ? 'close' : 'chat'} className="text-[26px]" />
+        <Icon name={open ? 'close' : 'chat'} className="text-2xl" />
       </button>
     </div>
   )

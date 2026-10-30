@@ -13,7 +13,7 @@ export default function HelpPage() {
         <span className="text-body-sm font-bold uppercase tracking-wider text-teal-flow">
           {t('About Smart Waterbus')}
         </span>
-        <h1 className="font-headline-lg text-headline-lg font-bold tracking-tight text-deep-river">
+        <h1 className="font-display text-headline-lg font-bold tracking-tight text-deep-river">
           {t('Help & About')}
         </h1>
         <p className="text-body-lg text-on-surface-variant">
@@ -28,9 +28,9 @@ export default function HelpPage() {
           <li key={h.title}>
             <Card className="h-full space-y-space-sm p-space-lg">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-mist text-teal-flow">
-                <Icon name={h.icon} className="text-[24px]" />
+                <Icon name={h.icon} className="text-2xl" />
               </span>
-              <h2 className="font-headline-sm text-headline-sm font-bold text-deep-river">
+              <h2 className="font-display text-headline-sm font-bold text-deep-river">
                 {t(h.title)}
               </h2>
               <p className="text-body-md text-on-surface-variant">{t(h.description)}</p>
@@ -43,18 +43,18 @@ export default function HelpPage() {
         <section className="space-y-space-md lg:col-span-2" aria-labelledby="faq-title">
           <h2
             id="faq-title"
-            className="font-headline-md text-headline-md font-bold text-deep-river"
+            className="font-display text-headline-md font-bold text-deep-river"
           >
             {t('Frequently Asked Questions')}
           </h2>
           <Card className="divide-y divide-outline-variant/30">
             {FAQ.map((item) => (
               <details key={item.question} className="group px-space-lg py-space-md">
-                <summary className="-my-3 flex cursor-pointer list-none items-center justify-between gap-space-md font-headline-sm text-body-lg font-semibold text-deep-river [&::-webkit-details-marker]:hidden py-3">
+                <summary className="-my-3 flex cursor-pointer list-none items-center justify-between gap-space-md font-display text-body-lg font-semibold text-deep-river [&::-webkit-details-marker]:hidden py-3">
                   {t(item.question)}
                   <Icon
                     name="expand_more"
-                    className="shrink-0 text-[22px] text-teal-flow transition-transform group-open:rotate-180"
+                    className="shrink-0 text-2xl text-teal-flow transition-transform group-open:rotate-180"
                   />
                 </summary>
                 <p className="pt-space-sm text-body-md text-on-surface-variant">{t(item.answer)}</p>
@@ -65,7 +65,7 @@ export default function HelpPage() {
 
         <aside className="space-y-space-md" aria-label={t('Support & Contact')}>
           <Card className="space-y-space-sm p-space-lg">
-            <h2 className="font-headline-sm text-headline-sm font-bold text-deep-river">
+            <h2 className="font-display text-headline-sm font-bold text-deep-river">
               {t('Support & Contact')}
             </h2>
             <p className="text-body-sm font-semibold text-deep-river">{t('Operational Hours')}</p>
@@ -77,7 +77,7 @@ export default function HelpPage() {
               href={CONTACT.hotlineHref}
               className="tap-area inline-flex items-center gap-2 text-body-md font-semibold text-teal-flow hover:underline"
             >
-              <Icon name="call" className="text-[18px]" />
+              <Icon name="call" className="text-lg" />
               {CONTACT.hotline}
             </a>
           </Card>

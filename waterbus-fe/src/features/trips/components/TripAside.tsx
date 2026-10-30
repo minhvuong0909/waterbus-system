@@ -7,11 +7,11 @@ import { t } from '../../../i18n'
 export default function TripAside({ trip }: { trip: TripDetail }) {
   return (
     <aside className="space-y-space-lg lg:sticky lg:top-24 lg:col-span-5">
-      <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
+      <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-card">
         <div className="p-space-md">
           <div className="mb-space-sm flex items-center justify-between text-body-sm">
             <span className="flex items-center gap-1 font-semibold text-deep-river">
-              <Icon name="explore" className="text-[16px] text-teal-flow" />
+              <Icon name="explore" className="text-base text-teal-flow" />
               {t('Corridor Crossing Map')}
             </span>
             <span className="text-on-surface-variant">

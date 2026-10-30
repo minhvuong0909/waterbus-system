@@ -13,7 +13,7 @@ interface TripRouteCardProps {
 /** Hero card on the trip detail page: route, times and fare with the "Choose Seat" action. */
 export default function TripRouteCard({ trip }: TripRouteCardProps) {
   return (
-    <section className="relative mb-space-xl overflow-hidden rounded-2xl bg-surface-container-lowest p-space-lg shadow-[0_4px_24px_rgba(13,37,56,0.06)] md:p-space-xl">
+    <section className="relative mb-space-xl overflow-hidden rounded-2xl bg-surface-container-lowest p-space-lg shadow-raised md:p-space-xl">
       <div className="pointer-events-none absolute -right-16 -top-16 h-80 w-80 rounded-full bg-sky-aqua/10 blur-3xl" />
       <div className="relative z-10 flex flex-col justify-between gap-space-xl xl:flex-row xl:items-center">
         <div className="flex-1 space-y-space-md">
@@ -25,7 +25,7 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
               {trip.direct ? t('Direct Crossing') : trip.crossingKind}
             </span>
             <span className="flex items-center gap-1 rounded bg-sand-light px-space-sm py-1 text-xs font-semibold text-teal-flow">
-              <Icon name="event_seat" className="text-[15px]" />
+              <Icon name="event_seat" className="text-sm" />
               {t('{count} Seats Available', { count: trip.seatsCount })}
             </span>
           </div>
@@ -39,10 +39,10 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
                 <span className="my-1 h-10 w-0.5 bg-mist" />
               </div>
               <div>
-                <div className="font-numeric-lg text-numeric-lg leading-none text-deep-river">
+                <div className="font-display text-numeric-lg leading-none text-deep-river">
                   {trip.departTime}
                 </div>
-                <div className="mt-1 font-headline-sm text-headline-sm text-deep-river">
+                <div className="mt-1 font-display text-headline-sm text-deep-river">
                   {trip.originPierName}
                 </div>
                 <div className="text-body-sm text-on-surface-variant">{trip.originDistrict}</div>
@@ -51,7 +51,7 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
 
             <div className="flex flex-col items-center justify-center px-space-xs py-space-xs md:col-span-4">
               <span className="mb-1 flex items-center gap-1 text-body-sm font-semibold text-teal-flow">
-                <Icon name="schedule" className="text-[16px]" />
+                <Icon name="schedule" className="text-base" />
                 {t('{durationMins} min {crossingKind}', {
                   durationMins: trip.durationMins,
                   crossingKind: trip.crossingKind,
@@ -60,7 +60,7 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
               <div className="flex w-full items-center gap-2">
                 <div className="h-0.5 flex-1 rounded-full bg-gradient-to-r from-teal-flow to-sky-aqua" />
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary-container text-teal-flow shadow-sm">
-                  <Icon name="directions_boat" className="text-[18px]" />
+                  <Icon name="directions_boat" className="text-lg" />
                 </div>
                 <div className="h-0.5 flex-1 rounded-full bg-gradient-to-r from-sky-aqua to-teal-flow" />
               </div>
@@ -71,10 +71,10 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
 
             <div className="flex items-start gap-space-sm text-left md:col-span-4 md:justify-end md:text-right">
               <div>
-                <div className="font-numeric-lg text-numeric-lg leading-none text-deep-river">
+                <div className="font-display text-numeric-lg leading-none text-deep-river">
                   {trip.arriveTime}
                 </div>
-                <div className="mt-1 font-headline-sm text-headline-sm text-deep-river">
+                <div className="mt-1 font-display text-headline-sm text-deep-river">
                   {trip.destinationPierName}
                 </div>
                 <div className="text-body-sm text-on-surface-variant">
@@ -101,7 +101,7 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
             </div>
             {hasFare(trip.fareVnd) ? (
               <div className="mt-1 flex items-baseline gap-1">
-                <span className="font-numeric-lg text-numeric-lg font-bold text-deep-river">
+                <span className="font-display text-numeric-lg font-bold text-deep-river">
                   {formatNumber(trip.fareVnd)}
                 </span>
                 <span className="text-body-md font-medium text-on-surface-variant">{t('VND')}</span>
@@ -112,19 +112,19 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
               </div>
             )}
             <div className="mt-0.5 flex items-center gap-1 text-body-sm text-on-surface-variant">
-              <Icon name="check_circle" className="text-[14px] text-teal-flow" />{' '}
+              <Icon name="check_circle" className="text-sm text-teal-flow" />{' '}
               {t('Instant ticket confirmation')}
             </div>
           </div>
           <div className="space-y-space-xs pt-space-md">
             <Link
               to={ROUTES.seatSelection}
-              className="group inline-flex w-full items-center justify-center gap-space-xs rounded-full bg-teal-flow px-space-lg py-space-sm font-headline-sm text-[16px] font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary"
+              className="group inline-flex w-full items-center justify-center gap-space-xs rounded-full bg-teal-flow px-space-lg py-space-sm font-display text-base font-semibold text-on-primary shadow-glow transition-all hover:bg-secondary"
             >
               <span>{t('Choose Seat')}</span>
               <Icon
                 name="arrow_forward"
-                className="text-[18px] transition-transform group-hover:translate-x-1"
+                className="text-lg transition-transform group-hover:translate-x-1"
               />
             </Link>
           </div>

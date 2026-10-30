@@ -49,8 +49,8 @@ export default function SearchForm({ piers, dates, variant = 'card' }: SearchFor
     <div
       className={
         bar
-          ? 'rounded-2xl border border-white/70 bg-white p-2.5 shadow-[0_14px_44px_rgba(13,37,56,0.28)]'
-          : 'rounded-2xl border border-[#E2ECEE] bg-white p-4 shadow-[0_4px_24px_rgba(13,37,56,0.04)] sm:p-6'
+          ? 'rounded-2xl border border-white/70 bg-white p-2.5 shadow-overlay'
+          : 'rounded-2xl border border-outline-variant/50 bg-white p-4 shadow-raised sm:p-6'
       }
     >
       {!bar && (
@@ -119,11 +119,11 @@ export default function SearchForm({ piers, dates, variant = 'card' }: SearchFor
           onClick={() =>
             updateQuery({ originId: query.destinationId, destinationId: query.originId })
           }
-          className="group absolute right-3 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[#E2ECEE] bg-white text-deep-river shadow-sm transition-all before:absolute before:-inset-1 before:content-[''] hover:bg-teal-flow hover:text-on-primary md:left-1/2 md:right-auto md:-translate-x-1/2 xl:static xl:h-10 xl:w-10 xl:translate-x-0 xl:translate-y-0 xl:self-center xl:justify-self-center"
+          className="group absolute right-3 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-outline-variant/50 bg-white text-deep-river shadow-sm transition-all before:absolute before:-inset-1 before:content-[''] hover:bg-teal-flow hover:text-on-primary md:left-1/2 md:right-auto md:-translate-x-1/2 xl:static xl:h-10 xl:w-10 xl:translate-x-0 xl:translate-y-0 xl:self-center xl:justify-self-center"
         >
           <Icon
             name="swap_horiz"
-            className="rotate-90 text-[18px] transition-transform group-hover:rotate-[270deg] md:rotate-0 md:group-hover:rotate-180"
+            className="rotate-90 text-lg transition-transform group-hover:rotate-[270deg] md:rotate-0 md:group-hover:rotate-180"
           />
         </button>
         <PierField
@@ -157,12 +157,12 @@ export default function SearchForm({ piers, dates, variant = 'card' }: SearchFor
         <div className="flex items-stretch md:col-span-2 xl:col-span-1">
           <button
             type="submit"
-            className={`group flex w-full items-center justify-center gap-1 rounded-xl bg-teal-flow font-headline-sm text-sm font-bold text-on-primary ${bar ? 'min-h-[64px] px-8' : 'min-h-[58px]'}  shadow-[0_2px_12px_rgba(20,122,126,0.28)] transition-all hover:bg-secondary hover:shadow-[0_4px_16px_rgba(20,122,126,0.38)]`}
+            className={`group flex w-full items-center justify-center gap-1 rounded-xl bg-teal-flow font-display text-sm font-bold text-on-primary ${bar ? 'min-h-[64px] px-8' : 'min-h-[58px]'}  shadow-glow transition-all hover:bg-secondary hover:shadow-glow`}
           >
             <span>{t('Find trips')}</span>
             <Icon
               name="arrow_forward"
-              className="text-[18px] transition-transform group-hover:translate-x-0.5"
+              className="text-lg transition-transform group-hover:translate-x-0.5"
             />
           </button>
         </div>

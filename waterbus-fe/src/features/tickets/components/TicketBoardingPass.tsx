@@ -13,21 +13,21 @@ interface BoardingPassProps {
 /** Main boarding pass on the ticket detail page: journey, facts, large QR and actions. */
 export default function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassProps) {
   return (
-    <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-[0_4px_24px_rgba(13,37,56,0.08)]">
+    <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-raised">
       <div className="flex items-center justify-between bg-deep-river px-space-lg py-space-md text-on-primary">
         <div className="flex items-center gap-3">
-          <Icon name="directions_boat" className="text-[24px]" />
+          <Icon name="directions_boat" className="text-2xl" />
           <div>
-            <div className="font-headline-sm text-sm font-bold">
+            <div className="font-display text-sm font-bold">
               {t('Smart Waterbus • Boarding Pass')}
             </div>
-            <div className="text-[11px] text-sand-light/80">
+            <div className="text-2xs text-sand-light/80">
               {t('Single Crossing • Central Route')}
             </div>
           </div>
         </div>
         <span className="inline-flex items-center gap-1 rounded-full bg-teal-flow/30 px-3 py-1 text-xs font-semibold text-sky-aqua">
-          <Icon name="verified" className="text-[14px]" />
+          <Icon name="verified" className="text-sm" />
           {t('Trip {tripCode}', { tripCode: ticket.tripCode })}
         </span>
       </div>
@@ -35,17 +35,17 @@ export default function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassPr
       <div className="relative p-space-lg">
         <div className="grid grid-cols-3 items-center gap-2">
           <div>
-            <div className="text-[11px] text-on-surface-variant">{t('Departure')}</div>
-            <div className="font-headline-sm text-4xl font-bold text-deep-river">
+            <div className="text-2xs text-on-surface-variant">{t('Departure')}</div>
+            <div className="font-display text-4xl font-bold text-deep-river">
               {ticket.departTime}
             </div>
-            <div className="font-headline-sm text-lg font-semibold text-deep-river">
+            <div className="font-display text-lg font-semibold text-deep-river">
               {ticket.departPier}
             </div>
             <div className="text-xs text-on-surface-variant">{ticket.departDistrict}</div>
           </div>
           <div className="flex flex-col items-center">
-            <span className="rounded-full bg-secondary-container/60 px-2.5 py-0.5 text-[11px] text-teal-flow">
+            <span className="rounded-full bg-secondary-container/60 px-2.5 py-0.5 text-2xs text-teal-flow">
               {t('{durationMins} min river crossing', { durationMins: ticket.durationMins })}
             </span>
             <div className="my-2 flex w-full items-center gap-1">
@@ -55,16 +55,16 @@ export default function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassPr
               <span className="h-px flex-1 bg-outline-variant" />
               <span className="h-2 w-2 rounded-full bg-deep-river" />
             </div>
-            <span className="flex items-center gap-1 text-[11px] text-on-surface-variant">
-              {t('Direct Line')} <Icon name="swap_horiz" className="text-[13px] text-teal-flow" />
+            <span className="flex items-center gap-1 text-2xs text-on-surface-variant">
+              {t('Direct Line')} <Icon name="swap_horiz" className="text-xs text-teal-flow" />
             </span>
           </div>
           <div className="text-right">
-            <div className="text-[11px] text-on-surface-variant">{t('Arrival')}</div>
-            <div className="font-headline-sm text-4xl font-bold text-deep-river">
+            <div className="text-2xs text-on-surface-variant">{t('Arrival')}</div>
+            <div className="font-display text-4xl font-bold text-deep-river">
               {ticket.arriveTime}
             </div>
-            <div className="font-headline-sm text-lg font-semibold text-deep-river">
+            <div className="font-display text-lg font-semibold text-deep-river">
               {ticket.arrivePier}
             </div>
             <div className="text-xs text-on-surface-variant">{ticket.arriveDistrict}</div>
@@ -78,23 +78,23 @@ export default function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassPr
 
         <dl className="grid grid-cols-2 gap-space-md rounded-xl bg-mist/70 p-space-md md:grid-cols-4">
           <div>
-            <dt className="text-[11px] text-on-surface-variant">{t('Assigned Seat')}</dt>
-            <dd className="font-headline-sm text-xl font-bold text-teal-flow">{ticket.seat}</dd>
-            <div className="text-[11px] text-on-surface-variant">{ticket.seatNote}</div>
+            <dt className="text-2xs text-on-surface-variant">{t('Assigned Seat')}</dt>
+            <dd className="font-display text-xl font-bold text-teal-flow">{ticket.seat}</dd>
+            <div className="text-2xs text-on-surface-variant">{ticket.seatNote}</div>
           </div>
           <div>
-            <dt className="text-[11px] text-on-surface-variant">{t('Passenger')}</dt>
+            <dt className="text-2xs text-on-surface-variant">{t('Passenger')}</dt>
             <dd className="text-sm font-semibold text-deep-river">{ticket.passenger}</dd>
           </div>
           <div>
-            <dt className="text-[11px] text-on-surface-variant">{t('Travel Date')}</dt>
+            <dt className="text-2xs text-on-surface-variant">{t('Travel Date')}</dt>
             <dd className="text-sm font-semibold text-deep-river">{ticket.dateLabel}</dd>
-            <div className="text-[11px] text-teal-flow">
+            <div className="text-2xs text-teal-flow">
               {ticket.completed ? t('Completed') : isTicketToday(ticket) ? t('Today') : ticket.dateShort}
             </div>
           </div>
           <div>
-            <dt className="text-[11px] text-on-surface-variant">{t('Total Paid')}</dt>
+            <dt className="text-2xs text-on-surface-variant">{t('Total Paid')}</dt>
             <dd className="text-sm font-semibold text-deep-river">{formatVnd(ticket.fareVnd)}</dd>
           </div>
         </dl>
@@ -105,7 +105,7 @@ export default function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassPr
             {ticket.ticketCode}
           </div>
           <div className="flex items-center justify-center gap-1 text-xs font-medium text-teal-flow">
-            <Icon name="qr_code_scanner" className="text-[15px]" />
+            <Icon name="qr_code_scanner" className="text-sm" />
             {t('Hold near scanner or present to boarding staff')}
           </div>
         </div>
@@ -116,7 +116,7 @@ export default function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassPr
             onClick={onEnlarge}
             className="flex items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 text-sm font-semibold text-on-primary transition-colors hover:bg-secondary"
           >
-            <Icon name="fullscreen" className="text-[18px]" />
+            <Icon name="fullscreen" className="text-lg" />
             {t('Enlarge QR Ticket')}
           </button>
           <button
@@ -124,7 +124,7 @@ export default function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassPr
             onClick={() => window.print()}
             className="flex items-center justify-center gap-2 rounded-xl bg-surface-container py-3 text-sm font-semibold text-deep-river transition-colors hover:bg-surface-container-high"
           >
-            <Icon name="print" className="text-[18px]" />
+            <Icon name="print" className="text-lg" />
             {t('Print / Save PDF')}
           </button>
         </div>

@@ -9,17 +9,17 @@ export default function ConfirmationHero({ reference, email }: { reference: stri
           <span className="h-2 w-2 rounded-full bg-teal-flow" />
           {t('Payment Received • Booking Confirmed')}
         </span>
-        <h1 className="font-headline-xl text-4xl font-bold tracking-tight text-deep-river md:text-headline-xl">
+        <h1 className="font-display text-4xl font-bold tracking-tight text-deep-river md:text-headline-xl">
           {t('Your Journey Is Confirmed')}
         </h1>
         <p className="max-w-lg text-body-lg text-on-surface-variant">
           {t('Your e-tickets are ready. Show the QR code to staff when you board.')}
         </p>
         <div className="inline-flex items-center gap-3 rounded-xl border border-outline-variant/40 bg-white px-space-md py-2 shadow-sm">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">
+          <span className="text-2xs font-semibold uppercase tracking-wider text-on-surface-variant">
             {t('Booking Ref:')}
           </span>
-          <span className="font-headline-sm text-base font-bold text-deep-river">{reference}</span>
+          <span className="font-display text-base font-bold text-deep-river">{reference}</span>
           <CopyButton value={reference} />
         </div>
         <p className="text-sm text-on-surface-variant">

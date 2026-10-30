@@ -43,7 +43,7 @@ export default function Header() {
   const staffArea = hasAnyRole(user, STAFF_ROLES) && user ? landingRouteFor(user.roles) : null
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 print:hidden border-b border-surface-container/60 bg-mist/90 shadow-[0_2px_12px_rgba(13,37,56,0.03)] backdrop-blur-xl">
+    <header className="fixed inset-x-0 top-0 z-50 print:hidden border-b border-surface-container/60 bg-mist/90 shadow-card backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-20 sm:px-6">
         <div className="flex min-w-0 items-center gap-6">
           <Link

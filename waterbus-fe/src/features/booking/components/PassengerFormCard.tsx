@@ -47,7 +47,7 @@ function Field({
       <span className="relative block">
         {icon && (
           <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-outline">
-            <Icon name={icon} className="text-[18px]" />
+            <Icon name={icon} className="text-lg" />
           </span>
         )}
         {children}
@@ -112,10 +112,10 @@ function SectionTitle({
   return (
     <div className="mb-space-md flex items-center gap-space-sm">
       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sand-light text-teal-flow">
-        <Icon name={icon} className="text-[22px]" />
+        <Icon name={icon} className="text-2xl" />
       </div>
       <div>
-        <h2 className="font-headline-md text-headline-sm text-deep-river">{title}</h2>
+        <h2 className="font-display text-headline-sm text-deep-river">{title}</h2>
         <p className="text-xs text-on-surface-variant">{subtitle}</p>
       </div>
     </div>
@@ -146,14 +146,14 @@ export default function PassengerFormCard({
                 subtitle={t('Who will travel on this seat')}
               />
               <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container">
-                <Icon name="airline_seat_recline_extra" className="text-[15px]" />
+                <Icon name="airline_seat_recline_extra" className="text-sm" />
                 {t('Seat {id}', { id: seat.code })}
                 {tags && ` • ${tags}`}
               </span>
             </div>
             {seat.id === buyerSeatId ? (
               <p className="flex items-center gap-2 rounded-xl bg-mist px-3 py-3 text-sm text-deep-river">
-                <Icon name="badge" className="text-[18px] text-outline" />
+                <Icon name="badge" className="text-lg text-outline" />
                 {purchaser.fullName.trim()
                   ? t('{name} (the buyer)', { name: purchaser.fullName.trim() })
                   : t('Filled in from the buyer details')}
@@ -282,9 +282,9 @@ export function BuyerCard({
 /** Closing line under the passenger cards. */
 export function PassengerFormNote() {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-space-lg py-space-md text-xs text-on-surface-variant shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
+    <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-space-lg py-space-md text-xs text-on-surface-variant shadow-card">
       <span className="flex items-center gap-2">
-        <Icon name="info" className="text-[18px] text-teal-flow" />
+        <Icon name="info" className="text-lg text-teal-flow" />
         {t('Each passenger gets a ticket in their own name.')}
       </span>
       <Link

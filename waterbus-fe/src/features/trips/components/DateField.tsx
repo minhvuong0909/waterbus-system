@@ -33,23 +33,23 @@ export default function DateField({ dates, value, onChange, compact = false, lab
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={toggle}
-        className={`group flex h-full w-full min-w-0 flex-col justify-between rounded-xl border border-[#E2ECEE] bg-[#F4F7F8] text-left transition-colors hover:border-teal-flow/40 hover:bg-[#EBF2F0]/80 ${
+        className={`group flex h-full w-full min-w-0 flex-col justify-between rounded-xl border border-outline-variant/50 bg-mist text-left transition-colors hover:border-teal-flow/40 hover:bg-sand-light/80 ${
           compact ? 'min-h-[64px] gap-1 px-3.5 py-2.5' : 'min-h-[112px] gap-3 p-3.5'
         }`}
       >
         <span className="flex w-full items-center justify-between">
-          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
-            <Icon name="calendar_today" className="text-[15px] text-teal-flow" />
+          <span className="flex items-center gap-1.5 text-2xs font-bold uppercase tracking-wider text-on-surface-variant">
+            <Icon name="calendar_today" className="text-sm text-teal-flow" />
             {label ?? t('Date')}
           </span>
           <Icon
             name="expand_more"
-            className={`text-[16px] text-outline transition-transform group-hover:text-deep-river ${
+            className={`text-base text-outline transition-transform group-hover:text-deep-river ${
               open ? 'rotate-180' : ''
             }`}
           />
         </span>
-        <span className="block truncate font-headline-sm text-base font-bold text-deep-river">
+        <span className="block truncate font-display text-base font-bold text-deep-river">
           {formatDateLabel(selected)}
         </span>
       </button>
@@ -59,7 +59,7 @@ export default function DateField({ dates, value, onChange, compact = false, lab
           role="listbox"
           aria-label={label ?? t('Departure Date')}
           style={{ maxHeight: placement.maxHeight }}
-          className={`absolute left-0 right-0 z-30 min-w-[16rem] overflow-y-auto rounded-xl border border-[#E2ECEE] bg-white py-1 shadow-lg ${
+          className={`absolute left-0 right-0 z-30 min-w-[16rem] overflow-y-auto rounded-xl border border-outline-variant/50 bg-white py-1 shadow-lg ${
             placement.up ? 'bottom-full mb-2' : 'top-full mt-2'
           }`}
         >
@@ -85,18 +85,18 @@ export default function DateField({ dates, value, onChange, compact = false, lab
                       isSelected ? 'bg-teal-flow text-on-primary' : 'bg-mist text-deep-river'
                     }`}
                   >
-                    <span className="text-[9px] font-semibold uppercase tracking-wide opacity-80">
+                    <span className="text-3xs font-semibold uppercase tracking-wide opacity-80">
                       {date.weekday}
                     </span>
-                    <span className="mt-0.5 font-numeric-md text-sm font-bold">{dayOfMonth(date.id)}</span>
+                    <span className="mt-0.5 font-display text-sm font-bold">{dayOfMonth(date.id)}</span>
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-deep-river">
                       {formatDateLabel(date)}
                     </span>
-                    {tag && <span className="text-[11px] font-medium text-teal-flow">{tag}</span>}
+                    {tag && <span className="text-2xs font-medium text-teal-flow">{tag}</span>}
                   </span>
-                  {isSelected && <Icon name="check" className="text-[18px] text-teal-flow" />}
+                  {isSelected && <Icon name="check" className="text-lg text-teal-flow" />}
                 </button>
               </li>
             )

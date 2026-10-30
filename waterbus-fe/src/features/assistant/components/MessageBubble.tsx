@@ -41,10 +41,10 @@ export default function MessageBubble({
           }`}
         >
           {message.tone === 'error' && (
-            <Icon name="error" className="mr-1 align-[-3px] text-[16px] text-coral-glow" />
+            <Icon name="error" className="mr-1 align-[-3px] text-base text-coral-glow" />
           )}
           {message.tone === 'fallback' && (
-            <Icon name="info" className="mr-1 align-[-3px] text-[16px] text-signal-amber" />
+            <Icon name="info" className="mr-1 align-[-3px] text-base text-signal-amber" />
           )}
           {message.text}
         </div>
@@ -54,7 +54,7 @@ export default function MessageBubble({
             onClick={onRetry}
             className="mt-1.5 inline-flex min-h-[32px] items-center gap-1 rounded-full border border-outline-variant/60 bg-white px-3 text-xs font-semibold text-teal-flow hover:bg-surface-container-low"
           >
-            <Icon name="refresh" className="text-[16px]" />
+            <Icon name="refresh" className="text-base" />
             {t('Try again')}
           </button>
         )}

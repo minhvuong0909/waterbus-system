@@ -8,9 +8,9 @@ import { t } from '../../../i18n'
  */
 export default function RefundPolicyCard() {
   return (
-    <div className="rounded-2xl bg-white p-space-lg shadow-[0_2px_16px_rgba(13,37,56,0.06)]">
-      <h2 className="flex items-center gap-2 font-headline-sm text-lg font-bold text-deep-river">
-        <Icon name="payments" className="text-[22px] text-teal-flow" />
+    <div className="rounded-2xl bg-white p-space-lg shadow-card">
+      <h2 className="flex items-center gap-2 font-display text-lg font-bold text-deep-river">
+        <Icon name="payments" className="text-2xl text-teal-flow" />
         {t('Refunds')}
       </h2>
       <p className="mt-space-sm text-sm text-on-surface-variant">

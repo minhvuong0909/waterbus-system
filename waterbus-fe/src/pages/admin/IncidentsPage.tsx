@@ -75,7 +75,7 @@ export default function IncidentsPage() {
         <span className="inline-flex flex-wrap items-center gap-2">
           <TripStatusBadge status={x.status} />
           {awaitingDecision.has(x.id) && (
-            <span className="rounded-full bg-signal-amber/25 px-2 py-0.5 text-[11px] font-semibold text-deep-river">
+            <span className="rounded-full bg-signal-amber/25 px-2 py-0.5 text-2xs font-semibold text-deep-river">
               {t('Needs your decision')}
             </span>
           )}
@@ -130,7 +130,7 @@ export default function IncidentsPage() {
       <div className="mb-5 grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-outline-variant/40 bg-white p-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-on-surface-variant">{t('Open alerts')}</div>
-          <div className="mt-1 font-headline-md text-2xl font-bold text-deep-river">{openAlerts.length}</div>
+          <div className="mt-1 font-display text-2xl font-bold text-deep-river">{openAlerts.length}</div>
         </div>
         <div
           className={`rounded-2xl border p-4 ${
@@ -141,7 +141,7 @@ export default function IncidentsPage() {
             {t('Trips waiting for a decision')}
           </div>
           <div
-            className={`mt-1 font-headline-md text-2xl font-bold ${
+            className={`mt-1 font-display text-2xl font-bold ${
               waitingTrips > 0 ? 'text-coral-glow' : 'text-deep-river'
             }`}
           >

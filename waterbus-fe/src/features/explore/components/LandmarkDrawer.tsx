@@ -84,19 +84,19 @@ export default function LandmarkDrawer({ landmark, onClose }: { landmark: Landma
             aria-label={t('Close')}
             className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-deep-river shadow hover:bg-white"
           >
-            <Icon name="close" className="text-[20px]" />
+            <Icon name="close" className="text-xl" />
           </button>
         </div>
         <div className="space-y-space-sm p-space-lg">
           <span className="inline-block rounded-full bg-sand-light px-2.5 py-0.5 text-xs font-semibold text-teal-flow">
             {landmark.category}
           </span>
-          <h2 id="landmark-drawer-title" className="font-headline-md text-headline-sm font-bold text-deep-river">
+          <h2 id="landmark-drawer-title" className="font-display text-headline-sm font-bold text-deep-river">
             {landmark.title}
           </h2>
           <p className="text-body-md leading-relaxed text-on-surface-variant">{landmark.description}</p>
           <p className="flex items-start gap-2 rounded-xl bg-mist px-space-md py-space-sm text-sm text-deep-river">
-            <Icon name="campaign" className="mt-0.5 text-[18px] text-teal-flow" />
+            <Icon name="campaign" className="mt-0.5 text-lg text-teal-flow" />
             {t('On sightseeing journeys, stories about the places you pass play over the boat’s speakers.')}
           </p>
         </div>

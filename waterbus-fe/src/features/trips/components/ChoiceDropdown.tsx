@@ -38,14 +38,14 @@ export default function ChoiceDropdown({
         onClick={toggle}
         className="group flex min-h-[44px] w-full min-w-0 items-center gap-1.5 rounded-xl border border-deep-river/10 bg-white px-3 text-left shadow-sm transition-colors hover:border-teal-flow/40 focus-visible:border-teal-flow/60"
       >
-        {icon && <Icon name={icon} className="text-[15px] text-teal-flow" />}
+        {icon && <Icon name={icon} className="text-sm text-teal-flow" />}
         <span className="shrink-0 text-xs text-outline">{label}</span>
         <span className="min-w-0 flex-1 truncate text-sm font-semibold text-deep-river">
           {selected?.label}
         </span>
         <Icon
           name="expand_more"
-          className={`text-[18px] text-outline transition-transform group-hover:text-deep-river ${
+          className={`text-lg text-outline transition-transform group-hover:text-deep-river ${
             open ? 'rotate-180' : ''
           }`}
         />
@@ -56,7 +56,7 @@ export default function ChoiceDropdown({
           role="listbox"
           aria-label={label}
           style={{ maxHeight: placement.maxHeight }}
-          className={`absolute left-0 right-0 z-30 min-w-[12rem] overflow-y-auto rounded-xl border border-[#E2ECEE] bg-white py-1 shadow-lg ${
+          className={`absolute left-0 right-0 z-30 min-w-[12rem] overflow-y-auto rounded-xl border border-outline-variant/50 bg-white py-1 shadow-lg ${
             placement.up ? 'bottom-full mb-2' : 'top-full mt-2'
           }`}
         >
@@ -77,7 +77,7 @@ export default function ChoiceDropdown({
                   }`}
                 >
                   {option.label}
-                  {isSelected && <Icon name="check" className="text-[18px] text-teal-flow" />}
+                  {isSelected && <Icon name="check" className="text-lg text-teal-flow" />}
                 </button>
               </li>
             )

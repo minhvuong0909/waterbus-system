@@ -38,7 +38,7 @@ function BigButton({
       onClick={onClick}
       className={`flex min-h-[5.5rem] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-4 py-3 text-lg font-bold shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${tones[tone]}`}
     >
-      <Icon name={icon} className="text-[32px]" />
+      <Icon name={icon} className="text-3xl" />
       {label}
     </button>
   )
@@ -109,7 +109,7 @@ export default function CaptainPortalPage() {
         </select>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="font-headline-md text-3xl font-bold text-deep-river">
+            <div className="font-display text-3xl font-bold text-deep-river">
               {formatClock(new Date(trip.departureTime))} → {formatClock(new Date(trip.arrivalTime))}
             </div>
             <div className="text-sm text-on-surface-variant">

@@ -24,10 +24,10 @@ export default function ReturnLegBar({ piers }: { piers: PierOption[] }) {
     updateQuery(id === query.originId ? { destinationId: id, originId: query.destinationId } : { destinationId: id })
 
   return (
-    <div className="rounded-2xl border border-white/70 bg-white p-2.5 shadow-[0_14px_44px_rgba(13,37,56,0.12)]">
+    <div className="rounded-2xl border border-white/70 bg-white p-2.5 shadow-overlay">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-mist px-3.5 py-2.5 text-sm">
         <span className="flex min-w-0 items-start gap-2 text-deep-river">
-          <Icon name="check_circle" className="mt-px shrink-0 text-[18px] text-teal-flow" />
+          <Icon name="check_circle" className="mt-px shrink-0 text-lg text-teal-flow" />
           <span className="shrink-0 whitespace-nowrap font-semibold">{t('Outbound')}:</span>
           <span className="min-w-0">
             {pier(outboundQuery.originId)?.shortName} → {pier(outboundQuery.destinationId)?.shortName}
@@ -52,9 +52,9 @@ export default function ReturnLegBar({ piers }: { piers: PierOption[] }) {
           type="button"
           aria-label={t('Swap origin and destination')}
           onClick={() => updateQuery({ originId: query.destinationId, destinationId: query.originId })}
-          className="group absolute right-3 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[#E2ECEE] bg-white text-deep-river shadow-sm transition-all before:absolute before:-inset-1 before:content-[''] hover:bg-teal-flow hover:text-on-primary md:left-1/2 md:right-auto md:-translate-x-1/2"
+          className="group absolute right-3 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-outline-variant/50 bg-white text-deep-river shadow-sm transition-all before:absolute before:-inset-1 before:content-[''] hover:bg-teal-flow hover:text-on-primary md:left-1/2 md:right-auto md:-translate-x-1/2"
         >
-          <Icon name="swap_horiz" className="rotate-90 text-[18px] md:rotate-0" />
+          <Icon name="swap_horiz" className="rotate-90 text-lg md:rotate-0" />
         </button>
         <PierField
           className="min-w-0"

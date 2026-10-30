@@ -68,7 +68,7 @@ export default function BookingSuccessPage() {
   if (phase === 'none' || phase === 'failed' || phase === 'timeout' || phase === 'paidLate') {
     return (
       <div className="mx-auto max-w-lg px-margin py-space-3xl text-center">
-        <h1 className="font-headline-md text-headline-md text-deep-river">
+        <h1 className="font-display text-headline-md text-deep-river">
           {t('Your booking is not confirmed')}
         </h1>
         <p className="mt-space-sm text-body-md text-on-surface-variant">
@@ -125,7 +125,7 @@ export default function BookingSuccessPage() {
         <div className="mt-space-2xl grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
           <div className="space-y-space-lg lg:col-span-7">
             {roundTrip && (
-              <h2 className="font-headline-sm text-lg font-bold text-deep-river">{t('Outbound trip')}</h2>
+              <h2 className="font-display text-lg font-bold text-deep-river">{t('Outbound trip')}</h2>
             )}
             <BoardingPassCard
               pass={{
@@ -153,7 +153,7 @@ export default function BookingSuccessPage() {
             />
             {roundTrip && back.trip && back.totals && (
               <>
-                <h2 className="font-headline-sm text-lg font-bold text-deep-river">{t('Return trip')}</h2>
+                <h2 className="font-display text-lg font-bold text-deep-river">{t('Return trip')}</h2>
                 <BoardingPassCard
                   pass={{
                     tripCode: back.trip.vesselCode,

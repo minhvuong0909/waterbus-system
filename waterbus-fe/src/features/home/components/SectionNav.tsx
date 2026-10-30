@@ -75,7 +75,7 @@ export default function SectionNav() {
 
       <nav
         aria-label={t('Page sections')}
-        className="fixed right-5 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-1 rounded-full bg-white/80 px-1.5 py-2 shadow-[0_6px_24px_rgba(13,37,56,0.15)] backdrop-blur-md xl:flex"
+        className="fixed right-5 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-1 rounded-full bg-white/80 px-1.5 py-2 shadow-overlay backdrop-blur-md xl:flex"
       >
         {SECTIONS.map(({ id, label }) => (
           <button
