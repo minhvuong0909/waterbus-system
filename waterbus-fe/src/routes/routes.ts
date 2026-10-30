@@ -24,7 +24,6 @@ export const ROUTES = {
   admin: '/admin',
   adminRadar: '/admin/radar',
   adminTrips: '/admin/trips',
-  adminSchedules: '/admin/schedules',
   adminStations: '/admin/stations',
   adminBoats: '/admin/boats',
   adminFares: '/admin/fares',

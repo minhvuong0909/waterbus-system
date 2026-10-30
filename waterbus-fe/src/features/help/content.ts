@@ -17,8 +17,8 @@ export const HELP_HIGHLIGHTS: HelpHighlight[] = [
   },
   {
     icon: 'radar',
-    title: 'Track your vessel',
-    description: 'See where your boat is and when it reaches your pier.',
+    title: 'Follow your trip',
+    description: 'Open a ticket to see the trip status and the stops it calls at.',
   },
   {
     icon: 'energy_savings_leaf',

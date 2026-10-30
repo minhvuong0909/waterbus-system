@@ -1,16 +1,8 @@
-import { Link } from 'react-router-dom'
 import { Card, Icon } from '../../components/ui'
 import { CONTACT } from '../../constant/contact'
 import { FAQ, HELP_HIGHLIGHTS } from '../../features/help/content'
 import { useDocumentTitle } from '../../hooks'
-import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
-
-const SHORTCUTS = [
-  { label: 'My Tickets', icon: 'confirmation_number', to: ROUTES.myTickets },
-  { label: 'Live Tracking', icon: 'radar', to: ROUTES.liveTracking },
-  { label: 'Timetable', icon: 'schedule', to: ROUTES.searchResults },
-]
 
 export default function HelpPage() {
   useDocumentTitle('Help & About')
@@ -26,7 +18,7 @@ export default function HelpPage() {
         </h1>
         <p className="text-body-lg text-on-surface-variant">
           {t(
-            'Smart Waterbus is an electric river bus service for Saigon, with online booking, QR e-tickets and live vessel tracking.',
+            'Smart Waterbus is an electric river bus service for Saigon, with online booking, QR e-tickets and live trip status.',
           )}
         </p>
       </header>
@@ -71,7 +63,7 @@ export default function HelpPage() {
           </Card>
         </section>
 
-        <aside className="space-y-space-md" aria-label={t('Contact and shortcuts')}>
+        <aside className="space-y-space-md" aria-label={t('Support & Contact')}>
           <Card className="space-y-space-sm p-space-lg">
             <h2 className="font-headline-sm text-headline-sm font-bold text-deep-river">
               {t('Support & Contact')}
@@ -79,7 +71,7 @@ export default function HelpPage() {
             <p className="text-body-sm font-semibold text-deep-river">{t('Operational Hours')}</p>
             <p className="text-body-md text-on-surface-variant">{t(CONTACT.hours)}</p>
             <p className="pt-space-xs text-body-sm font-semibold text-deep-river">
-              {t('Dispatch Hotline')}
+              {t('Support Hotline')}
             </p>
             <a
               href={CONTACT.hotlineHref}
@@ -88,25 +80,6 @@ export default function HelpPage() {
               <Icon name="call" className="text-[18px]" />
               {CONTACT.hotline}
             </a>
-          </Card>
-
-          <Card className="p-space-lg">
-            <h2 className="mb-space-sm font-headline-sm text-headline-sm font-bold text-deep-river">
-              {t('Quick Links')}
-            </h2>
-            <ul className="space-y-1">
-              {SHORTCUTS.map((s) => (
-                <li key={s.to}>
-                  <Link
-                    to={s.to}
-                    className="flex items-center gap-3 rounded-lg px-2 py-2 text-body-md font-medium text-deep-river transition-colors hover:bg-mist"
-                  >
-                    <Icon name={s.icon} className="text-[20px] text-teal-flow" />
-                    {t(s.label)}
-                  </Link>
-                </li>
-              ))}
-            </ul>
           </Card>
         </aside>
       </div>

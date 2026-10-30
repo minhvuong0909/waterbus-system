@@ -1,17 +1,14 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
-import { ApiError, apiRequest } from '../../../services/apiClient'
+import { apiRequest } from '../../../services/apiClient'
 import { clearPierCache } from '../../trips/services/tripService'
 import type { StationDto } from '../../trips/types'
 import type {
   AdminBoat,
   AdminRoute,
-  AdminSchedule,
   AdminStation,
   AdminTrip,
   AdminTripStatus,
-  GenerateTripsInput,
   NewBoat,
-  NewSchedule,
   NewStation,
   OperationLog,
   OperationType,
@@ -26,11 +23,7 @@ import {
   resolveIncident,
 } from './operationsService'
 
-// Bến/tàu và vận hành gọi API. Các lệnh chưa có endpoint báo chưa hỗ trợ (501) thay vì giả vờ đã lưu.
-
-function unavailable(feature: string): never {
-  throw new ApiError(501, `Backend chưa có API ${feature}. Thao tác chưa được lưu.`)
-}
+// Bến, tàu, chuyến và vận hành của khu Admin/Captain, đều gọi API thật.
 
 // ---- Stations -----------------------------------------------------------------
 
@@ -91,26 +84,7 @@ export async function deleteBoat(id: string): Promise<void> {
   await apiRequest(API_ENDPOINTS.boat(id), { method: 'PUT', body: { ...boat, isActive: false } })
 }
 
-// ---- Schedules and trips ------------------------------------------------------
-
-/** The backend has no schedule or trip-generation API yet, so the schedule screen is read-only. */
-export const schedulesSupported: boolean = false
-
-export const getSchedules = () => Promise.resolve([] as AdminSchedule[])
-
-/* eslint-disable @typescript-eslint/no-unused-vars -- giữ chữ ký để màn hình gọi như API thật */
-export async function createSchedule(_input: NewSchedule): Promise<AdminSchedule> {
-  return unavailable('tạo lịch chạy')
-}
-
-export async function setScheduleActive(_id: string, _isActive: boolean): Promise<void> {
-  return unavailable('cập nhật lịch chạy')
-}
-
-export async function generateTrips(_input: GenerateTripsInput): Promise<{ created: number; skipped: number }> {
-  return unavailable('sinh chuyến từ lịch')
-}
-/* eslint-enable @typescript-eslint/no-unused-vars */
+// ---- Trips -------------------------------------------------------------------
 
 export const getTrips = (): Promise<AdminTrip[]> => getLiveOperationTrips()
 

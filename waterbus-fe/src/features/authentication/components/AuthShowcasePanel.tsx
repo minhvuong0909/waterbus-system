@@ -1,14 +1,9 @@
 import heroImage from '../../../assets/images/vessel.jpg'
 import { Icon } from '../../../components/ui'
-import type { AuthShowcase } from '../authenticationTypes'
+import { AUTH_SHOWCASE as showcase } from '../../../content/auth'
+import { t } from '../../../i18n'
 
-interface AuthShowcasePanelProps {
-  showcase: AuthShowcase
-}
-
-export default function AuthShowcasePanel({ showcase }: AuthShowcasePanelProps) {
-  const { crossing } = showcase
-
+export default function AuthShowcasePanel() {
   return (
     <div className="relative hidden flex-col justify-between overflow-hidden bg-deep-river p-8 text-white lg:col-span-5 lg:flex lg:p-10">
       <img
@@ -36,46 +31,16 @@ export default function AuthShowcasePanel({ showcase }: AuthShowcasePanelProps) 
         <path d="M0,220 C160,180 220,380 400,320" />
       </svg>
 
-      <div className="relative z-10">
+      <div className="relative z-10 mb-8">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-sky-aqua backdrop-blur-md">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-aqua" />
-          {showcase.eyebrow}
+          {t(showcase.eyebrow)}
         </div>
         <h2 className="mb-3 font-headline-xl text-3xl font-extrabold leading-[1.2] tracking-tight text-white xl:text-[34px]">
-          {showcase.headline[0]} <br />
-          <span className="text-sky-aqua">{showcase.headline[1]}</span>
+          {t(showcase.headline[0])} <br />
+          <span className="text-sky-aqua">{t(showcase.headline[1])}</span>
         </h2>
-        <p className="max-w-sm text-sm leading-relaxed text-outline-variant">{showcase.intro}</p>
-      </div>
-
-      <div className="relative z-10 my-8 rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-        <div className="mb-3 flex items-center justify-between text-xs font-semibold text-outline-variant">
-          <span className="flex items-center gap-1.5 text-sky-aqua">
-            <Icon name="radio_button_checked" className="text-[14px] text-teal-flow" />
-            {crossing.corridor}
-          </span>
-          <span className="font-mono text-[11px] text-outline">{crossing.duration}</span>
-        </div>
-        <div className="relative flex items-center justify-between pb-2 pt-1">
-          <div className="absolute inset-x-3 top-1/2 h-0.5 -translate-y-1/2 bg-on-surface-variant" />
-          <div className="absolute left-3 top-1/2 h-0.5 w-1/2 -translate-y-1/2 bg-teal-flow" />
-          <div className="relative flex flex-col items-center">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-teal-flow shadow-sm" />
-            <span className="mt-1.5 text-[10px] font-semibold text-surface-container">
-              {crossing.from}
-            </span>
-          </div>
-          <div className="relative -mt-1 flex flex-col items-center">
-            <div className="flex items-center gap-1 rounded-full bg-sky-aqua px-2 py-0.5 text-[10px] font-bold text-deep-river shadow-md">
-              <Icon name="directions_boat" className="text-[12px]" />
-              <span>{crossing.vessel}</span>
-            </div>
-          </div>
-          <div className="relative flex flex-col items-center">
-            <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-outline bg-on-surface-variant" />
-            <span className="mt-1.5 text-[10px] font-semibold text-outline">{crossing.to}</span>
-          </div>
-        </div>
+        <p className="max-w-sm text-sm leading-relaxed text-outline-variant">{t(showcase.intro)}</p>
       </div>
 
       <ul className="relative z-10 flex flex-col gap-2.5 border-t border-white/10 pt-4">
@@ -84,7 +49,7 @@ export default function AuthShowcasePanel({ showcase }: AuthShowcasePanelProps) 
             <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-teal-flow/30 text-sky-aqua">
               <Icon name="check" className="text-[12px]" />
             </span>
-            {text}
+            {t(text)}
           </li>
         ))}
       </ul>

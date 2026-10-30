@@ -1,9 +1,6 @@
-import { Link } from 'react-router-dom'
 import { useEffect, useRef } from 'react'
 import heroVideo from '../../../assets/videos/saigon-waterbus.mp4'
 import heroPoster from '../../../assets/videos/saigon-waterbus-poster.jpg'
-import { Icon } from '../../../components/ui'
-import { ROUTES } from '../../../routes/routes'
 import { t } from '../../../i18n'
 import { usePrefersReducedMotion } from '../../../hooks'
 import HeroSearch from './HeroSearch'
@@ -74,13 +71,6 @@ export default function HeroSection() {
                 </span>
               </h1>
             </div>
-            <Link
-              to={ROUTES.liveTracking}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-white/40 bg-deep-river/40 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-colors hover:bg-deep-river/70"
-            >
-              <Icon name="near_me" className="text-[18px]" />
-              {t('Live Tracking')}
-            </Link>
           </div>
         </div>
 

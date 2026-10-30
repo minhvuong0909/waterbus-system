@@ -16,7 +16,6 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { to: ROUTES.admin, label: 'Overview', icon: 'dashboard', roles: [admin] },
   { to: ROUTES.adminRadar, label: 'Live Operations', icon: 'radar', roles: [admin] },
   { to: ROUTES.adminTrips, label: 'Trips', icon: 'directions_boat', roles: [admin] },
-  { to: ROUTES.adminSchedules, label: 'Schedules', icon: 'calendar_month', roles: [admin] },
   { to: ROUTES.adminStations, label: 'Stations', icon: 'anchor', roles: [admin] },
   { to: ROUTES.adminBoats, label: 'Boats', icon: 'sailing', roles: [admin] },
   { to: ROUTES.adminFares, label: 'Fares', icon: 'payments', roles: [admin] },

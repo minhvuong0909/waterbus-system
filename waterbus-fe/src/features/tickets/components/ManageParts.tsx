@@ -31,7 +31,7 @@ export function BookingSummaryCard({ ticket }: { ticket: Ticket }) {
             {t('View Ticket')}
           </Link>
           <Link
-            to={ROUTES.liveTracking}
+            to={`${ROUTES.liveTracking}?tripId=${ticket.tripId}`}
             className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant/50 bg-white px-4 py-2 text-xs font-semibold text-deep-river shadow-sm transition-colors hover:bg-surface-container-low"
           >
             <Icon name="map" className="text-[16px]" />

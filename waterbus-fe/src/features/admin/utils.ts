@@ -13,16 +13,6 @@ export function backendDayOf(date: Date): number {
   return date.getDay() === 0 ? 7 : date.getDay()
 }
 
-export const WEEKDAYS = [
-  { day: 1, label: 'Mon' },
-  { day: 2, label: 'Tue' },
-  { day: 3, label: 'Wed' },
-  { day: 4, label: 'Thu' },
-  { day: 5, label: 'Fri' },
-  { day: 6, label: 'Sat' },
-  { day: 7, label: 'Sun' },
-] as const
-
 /** Status a trip moves to for each operation (mock mode; the backend decides in `TripLifecycle`). */
 export const OPERATION_RESULT: Record<OperationType, AdminTripStatus | null> = {
   OpenBoarding: 'Boarding',

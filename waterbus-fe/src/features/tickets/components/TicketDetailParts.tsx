@@ -207,11 +207,11 @@ export function TicketCorridorCard({ ticket }: { ticket: Ticket }) {
   )
 }
 
-export function TicketActions() {
+export function TicketActions({ tripId }: { tripId: string }) {
   return (
     <div className="space-y-space-sm rounded-2xl bg-surface-container-lowest p-space-lg shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
       <Link
-        to={ROUTES.liveTracking}
+        to={`${ROUTES.liveTracking}?tripId=${tripId}`}
         className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 text-sm font-semibold text-on-primary transition-colors hover:bg-secondary"
       >
         <Icon name="near_me" className="text-[18px]" />

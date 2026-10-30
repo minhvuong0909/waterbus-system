@@ -1,15 +1,31 @@
-import { PageHeader } from '../../features/admin/components/AdminUi'
-import { useDocumentTitle } from '../../hooks'
+import { ErrorState, PageLoader } from '../../components/ui'
+import { DataTable, PageHeader } from '../../features/admin/components/AdminUi'
+import type { Column } from '../../features/admin/components/AdminUi'
+import { getFares } from '../../features/trips/services/fareService'
+import type { FareDto } from '../../features/trips/services/fareService'
+import { useDocumentTitle, useFetch } from '../../hooks'
+import { t } from '../../i18n'
+import { formatVnd } from '../../utils/format'
 
-// Backend chưa có API quản lý bảng giá (chỉ `GET /fares` công khai, đọc), nên màn này không sửa được giá.
+const columns: Column<FareDto>[] = [
+  { header: 'Trip type', render: (f) => t(f.tripType === 'Commuter' ? 'Regular' : f.tripType) },
+  { header: 'Seat class', render: (f) => f.seatClassName },
+  { header: 'Price', render: (f) => formatVnd(f.price), className: 'text-right' },
+]
+
+/** Active fares (BR-FARE-01: price depends on trip type and seat class). Read only: the backend has no fare editing API. */
 export default function FaresPage() {
   useDocumentTitle('Fares')
+  const fares = useFetch(getFares)
+
+  if (fares.error) return <ErrorState onRetry={fares.retry} />
+  if (!fares.data) return <PageLoader />
+
+  const rows = [...fares.data].sort((a, b) => a.tripType.localeCompare(b.tripType) || a.price - b.price)
   return (
-    <div className="p-6">
-      <PageHeader
-        title="Fares"
-        description="Backend chưa có API quản lý bảng giá. Giá vé thật được lấy từ API sơ đồ ghế theo đoạn chuyến."
-      />
-    </div>
+    <>
+      <PageHeader title="Fares" description="Active fares per trip type and seat class." />
+      <DataTable columns={columns} rows={rows} rowKey={(f) => `${f.tripType}-${f.seatClassId}`} empty="No active fares." />
+    </>
   )
 }

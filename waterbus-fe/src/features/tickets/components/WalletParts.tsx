@@ -166,7 +166,7 @@ export function NextDepartureCard({
             {t('View Full Ticket')}
           </Link>
           <Link
-            to={ROUTES.liveTracking}
+            to={`${ROUTES.liveTracking}?tripId=${ticket.tripId}`}
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-outline-variant/50 bg-white py-3 text-sm font-semibold text-deep-river transition-colors hover:bg-surface-container-low"
           >
             <Icon name="near_me" className="text-[18px]" />

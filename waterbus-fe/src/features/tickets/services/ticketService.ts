@@ -45,7 +45,7 @@ async function liveTickets(token?: string): Promise<Ticket[]> {
       booking.status === 'Confirmed' ? getBookingQr(orderId, booking.bookingId, accessToken) : null,
     ])
     return booking.tickets.map((ticket): Ticket => ({
-      id: ticket.ticketId, ticketCode: ticket.ticketCode, qrPayload: ticket.status === 'Valid' ? qr?.payload : undefined,
+      id: ticket.ticketId, tripId: raw.tripId, ticketCode: ticket.ticketCode, qrPayload: ticket.status === 'Valid' ? qr?.payload : undefined,
       tripCode: raw.boat?.code ?? raw.tripId, lineName: raw.routeName, routeTag: raw.tripType,
       bookingRef: booking.bookingCode, status: ticketStatusLabel(ticket.status, ticket.boardingStatus),
       departTime: trip.departTime, arriveTime: trip.arriveTime, durationMins: trip.durationMins,

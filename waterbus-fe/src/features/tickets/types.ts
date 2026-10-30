@@ -1,5 +1,7 @@
 export interface Ticket {
   id: string
+  /** Backend trip id, used to follow the trip on the tracking page. */
+  tripId: string
   /** Vessel/trip code, e.g. "SWB-01". */
   tripCode: string
   lineName: string

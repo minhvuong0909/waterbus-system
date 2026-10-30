@@ -48,17 +48,6 @@ export type AdminTripStatus =
   | 'Cancelled'
   | 'Terminated'
 
-/** Fixed weekly timetable entry (BE `Schedule`). Days follow the backend: 1 = Monday ... 7 = Sunday. */
-export interface AdminSchedule {
-  id: string
-  routeId: string
-  /** `HH:mm` */
-  departureTime: string
-  daysOfWeek: number[]
-  tripType: AdminTripType
-  isActive: boolean
-}
-
 /** A real run of a boat (BE `Trip`). */
 export interface AdminTrip {
   id: string
@@ -160,22 +149,6 @@ export type NewStation = Pick<
 
 export type NewBoat = Pick<AdminBoat, 'code' | 'name' | 'registrationNumber' | 'manufacturer' | 'yearBuilt'> &
   SeatLayout
-
-export interface NewSchedule {
-  routeId: string
-  departureTime: string
-  daysOfWeek: number[]
-  tripType: AdminTripType
-}
-
-/** Input of "generate trips": the schedule has no boat, so the admin picks one for the batch. */
-export interface GenerateTripsInput {
-  scheduleId: string
-  boatId: string
-  /** `YYYY-MM-DD` */
-  fromDate: string
-  toDate: string
-}
 
 /** A boat as `GET /api/v1/boats` returns it. */
 export interface FleetBoat {

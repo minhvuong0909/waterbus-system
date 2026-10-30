@@ -13,7 +13,6 @@ import { t } from '../../i18n'
 const NAV_ITEMS = [
   { label: 'Timetable', to: ROUTES.searchResults },
   { label: 'Explore', to: ROUTES.explore },
-  { label: 'Live Tracking', to: ROUTES.liveTracking },
   { label: 'My Tickets', to: ROUTES.myTickets },
   { label: 'Help', to: ROUTES.help },
 ]
