@@ -24,7 +24,8 @@ public sealed class PaymentService(IOrderRepository orders, IFinancialTransactio
             var now = DateTimeOffset.UtcNow;
             if (order.Status != OrderStatus.PendingPayment || order.ExpiresAt <= now || order.ExpiresAt == null ||
                 order.Bookings.Any(b => b.Status != BookingStatus.PendingPayment ||
-                    b.Trip == null || b.Trip.Status is not (TripStatus.Scheduled or TripStatus.Boarding) || b.Trip.ActualDepartureTime != null))
+                    b.Trip == null || b.Trip.Status is not (TripStatus.Scheduled or TripStatus.Boarding) || b.Trip.ActualDepartureTime != null) ||
+                await bookings.HasUnavailableInventoryAsync(orderId, ct))
                 throw new ConcurrencyException("Đơn hàng đã hết hạn hoặc không còn chờ thanh toán.");
             var attempt = await payments.GetRequestedPaymentAsync(order.Id, ct);
             if (attempt is null)
