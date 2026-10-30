@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WaterbusSystem.Application.DTOs.Requests.Auth;
 using WaterbusSystem.Application.DTOs.Responses.Auth;
 using WaterbusSystem.Application.Interfaces.Services;
@@ -23,6 +24,7 @@ public class AuthController : BaseApiController
     /// </summary>
     [HttpPost("login")]
     [ServiceFilter(typeof(ValidateRequestFilter))]
+    [EnableRateLimiting("AuthPolicy")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
