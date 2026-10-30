@@ -1,19 +1,7 @@
 import { t } from '../../i18n'
 import type { TripDetail } from '../trips/types'
-import type {
-  CreateHoldRequest,
-  Journey,
-  SeatMap,
-  SubmitCheckoutRequest,
-  TripDetailDto,
-  TripSeatDto,
-  TripSeatMapDto,
-  TripStopDto,
-  PurchaserForm,
-  Seat,
-  SeatCategory,
-  SeatPassengerForm,
-} from './types'
+import type { CreateHoldRequest, Journey, SeatMap, SubmitCheckoutRequest, PurchaserForm, Seat, SeatCategory, SeatPassengerForm } from './types'
+import type { TripDetailDto, TripSeatDto, TripSeatMapDto } from '../trips/types'
 
 /** Cabin names, in the order they appear on the boat. */
 export const CABIN_ORDER = ['front', 'standard', 'outdoor'] as const
@@ -218,34 +206,6 @@ export function buildSubmitRequest(input: SubmitInput): SubmitCheckoutRequest {
   }
 }
 
-/**
- * The boarding and alighting stops for the chosen piers: the first stop at the origin pier that
- * allows boarding, followed later in the trip by a stop at the destination that allows alighting.
- * Uses the trip's real stops, never the pier order (a loop trip can call at one pier twice).
- */
-export function pickJourney(
-  stops: TripStopDto[],
-  originId: string,
-  destinationId: string,
-): { boarding: TripStopDto; disembarking: TripStopDto } | null {
-  const usable = stops.filter((stop) => stop.status !== 'Skipped')
-  const sameStation = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
-  const boardings = usable
-    .filter((stop) => stop.canBoard && sameStation(stop.stationId, originId))
-    .sort((a, b) => a.visitOrder - b.visitOrder)
-  for (const boarding of boardings) {
-    const disembarking = usable
-      .filter(
-        (stop) =>
-          stop.canAlight &&
-          sameStation(stop.stationId, destinationId) &&
-          stop.visitOrder > boarding.visitOrder,
-      )
-      .sort((a, b) => a.visitOrder - b.visitOrder)[0]
-    if (disembarking) return { boarding, disembarking }
-  }
-  return null
-}
 
 const COLUMN_LETTERS = ['A', 'B', 'C', 'D'] as const
 

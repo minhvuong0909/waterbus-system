@@ -1,13 +1,13 @@
 import { lazy, Suspense } from 'react'
-import { buildCorridorMap } from '../../home/utils'
+import { buildCorridorMap } from '../../trips/utils'
 import { Icon } from '../../../components/ui'
 import { formatVndSuffix } from '../../../utils/format'
 import { useSearchQuery } from '../hooks/useTripSearch'
-import type { NetworkRoute, PierOption } from '../types'
+import type { NetworkRoute, PierOption } from '../../trips/types'
 import { t } from '../../../i18n'
 
 // The map pulls in Leaflet and its styles, so it loads after the rest of the page.
-const PierMap = lazy(() => import('../../../components/map/PierMap'))
+const PierMap = lazy(() => import('../../trips/components/PierMap'))
 
 interface NetworkSectionProps {
   routes: NetworkRoute[]

@@ -72,64 +72,9 @@ export interface BookingStep {
 
 // ---- Backend seat map (GET /trips/{tripId}/seats) ------------------------------------
 
-export interface TripSeatDto {
-  seatId: string
-  seatCode: string
-  rowNumber: number
-  columnNumber: number
-  seatClassId: string
-  seatClassName: string | null
-  price: number | null
-  currency: string
-  /** available | held | sold | unavailable */
-  status: string
-  unavailableReason: string | null
-  holdExpiresAt: string | null
-}
 
-export interface TripSeatMapDto {
-  tripId: string
-  boatId: string
-  boardingCallId: string
-  disembarkingCallId: string
-  boardingVisitOrder: number
-  disembarkingVisitOrder: number
-  canBook: boolean
-  salesState: string
-  availableSeatsCount: number
-  asOf: string
-  seats: TripSeatDto[]
-}
 
-export interface TripStopDto {
-  callId: string
-  stationId: string
-  stationName: string
-  visitOrder: number
-  canBoard: boolean
-  canAlight: boolean
-  status: string
-  estimatedArrivalTime?: string | null
-  estimatedDepartureTime?: string | null
-  /** Check-in window of this stop, set by operations (null while not configured). */
-  checkInOpenAt?: string | null
-  checkInCloseAt?: string | null
-}
 
-/** `GET /trips/{tripId}` (TripDetailDto), the parts used to pick the journey. */
-export interface TripDetailDto {
-  tripId: string
-  routeId: string
-  routeName: string
-  tripType: string
-  status: string
-  departureTime: string
-  arrivalTime: string
-  canBook: boolean
-  salesState: string
-  boat: { boatId: string; code: string; name: string } | null
-  stops: TripStopDto[]
-}
 
 // ---- Checkout (backend `/api/v1/checkouts`, CheckoutsController) -------------------
 

@@ -18,3 +18,17 @@ export function weatherAlertTitle(alert: WeatherAlert): string {
   if (alert.kind && alert.kind !== 'Weather') return t('Captain emergency report')
   return t('Level {level} weather warning', { level: alert.level })
 }
+
+/** Button and log label of each operation. */
+export const OPERATION_LABEL: Record<OperationType, string> = {
+  OpenBoarding: 'Open boarding',
+  Complete: 'Close trip',
+  NoAction: 'No action needed',
+  Suspend: 'Suspend',
+  Resume: 'Resume',
+  Cancel: 'Cancel trip',
+  Terminate: 'Terminate',
+  Start: 'Start',
+  Arrive: 'Arrive',
+  SOS: 'SOS',
+}

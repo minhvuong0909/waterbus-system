@@ -1,11 +1,8 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { ROLES } from '../../../constant/roles'
 import { ApiError, apiRequest } from '../../../services/apiClient'
-import type {
-  AuthSession,
-  LoginResponse,
-  SignInPayload,
-} from '../types'
+import type { LoginResponse, SignInPayload } from '../types'
+import type { AuthSession } from '../../../services/authStorage'
 
 /** `POST /auth/login`. Rejects with ApiError(401) when the email or password is wrong. */
 export async function signIn({ email, password }: SignInPayload): Promise<AuthSession> {

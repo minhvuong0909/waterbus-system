@@ -1,7 +1,7 @@
 import { Icon } from '../../../components/ui'
-import { usePopoverList } from '../hooks/usePopoverList'
-import type { DateOption } from '../types'
-import { formatDateLabel } from '../utils'
+import { usePopoverList } from '../../../hooks/usePopoverList'
+import type { DateOption } from '../../trips/types'
+import { formatDateLabel } from '../../trips/utils'
 import { t } from '../../../i18n'
 
 interface DateFieldProps {

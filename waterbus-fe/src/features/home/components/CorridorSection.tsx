@@ -7,7 +7,7 @@ import type { CorridorMap } from '../../trips/types'
 import { t } from '../../../i18n'
 
 // The map pulls in Leaflet and its styles, so it loads after the rest of the page.
-const PierMap = lazy(() => import('../../../components/map/PierMap'))
+const PierMap = lazy(() => import('../../trips/components/PierMap'))
 
 interface CorridorSectionProps {
   map: CorridorMap

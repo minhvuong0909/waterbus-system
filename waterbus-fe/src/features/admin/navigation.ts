@@ -9,7 +9,7 @@ export interface AdminNavItem {
   roles: readonly string[]
 }
 
-const { admin, captain } = ROLES
+const { admin } = ROLES
 
 /** Điều hướng khu vực quản trị; công cụ kiểm thử chỉ xuất hiện ở môi trường phát triển. */
 export const ADMIN_NAV: AdminNavItem[] = [
@@ -26,16 +26,3 @@ export const ADMIN_NAV: AdminNavItem[] = [
     ? [{ to: ROUTES.adminApi, label: 'Test API', icon: 'api', roles: [admin] }]
     : []),
 ]
-
-/** Roles allowed in the captain's portal. */
-export const CAPTAIN_ROLES = [captain, admin] as const
-
-/** Roles that work in the operations area at all. */
-export const STAFF_ROLES = [admin, captain] as const
-
-/** Where a user lands after signing in. */
-export function landingRouteFor(roles: readonly string[]): string {
-  if (roles.includes(admin)) return ROUTES.admin
-  if (roles.includes(captain)) return ROUTES.captain
-  return ROUTES.myTickets
-}

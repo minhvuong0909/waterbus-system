@@ -1,5 +1,5 @@
 import { Icon } from '../../../components/ui'
-import { usePopoverList } from '../hooks/usePopoverList'
+import { usePopoverList } from '../../../hooks/usePopoverList'
 
 export interface Choice {
   id: string

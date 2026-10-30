@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { pierPhotos } from '../../content/pierImages'
-import type { Pier } from '../../features/trips/types'
-import { Icon } from '../ui'
-import { t } from '../../i18n'
+import { pierPhotos } from '../../../content/pierImages'
+import type { Pier } from '../types'
+import { Icon } from '../../../components/ui'
+import { t } from '../../../i18n'
 
 interface PierPopupProps {
   pier: Pier

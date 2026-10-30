@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { clearSession, saveSession } from '../../../services/authStorage'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
 import { signedIn, signedOut } from '../authenticationSlice'
-import type { AuthSession } from '../types'
+import type { AuthSession } from '../../../services/authStorage'
 
 /** Current user plus the actions that start and end a session. */
 export function useAuth() {

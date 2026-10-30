@@ -1,6 +1,6 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
-import type { TripDetailDto } from '../../booking/types'
+import type { TripDetailDto } from '../../trips/types'
 import { getPierOptions } from '../../trips/services/tripService'
 import type { TrackedTrip } from '../types'
 

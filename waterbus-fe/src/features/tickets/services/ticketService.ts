@@ -6,7 +6,7 @@ import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
 import { loadBooking } from '../../booking/bookingStorage'
 import { getCheckout, getBookingQr } from '../../booking/services/bookingService'
-import type { TripDetailDto } from '../../booking/types'
+import type { TripDetailDto } from '../../trips/types'
 import { toTrip } from '../../trips/utils'
 import { toVietnamDate } from '../../../utils/time'
 

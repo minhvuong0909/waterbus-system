@@ -3,8 +3,8 @@ import type { ReactNode } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
-import { MAP_TILE_ATTRIBUTION, MAP_TILE_URL } from '../../constant/env'
-import type { CorridorMap, Pier } from '../../features/trips/types'
+import { MAP_TILE_ATTRIBUTION, MAP_TILE_URL } from '../../../constant/env'
+import type { CorridorMap, Pier } from '../types'
 import PierPopup from './PierPopup'
 
 interface PierMapProps {

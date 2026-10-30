@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button, ErrorState, Icon, Modal, Notice, PageLoader } from '../../components/ui'
-import GpsSharePanel from '../../features/admin/components/GpsSharePanel'
+import GpsSharePanel from '../../features/captain/components/GpsSharePanel'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import { useFleetHub } from '../../features/admin/hooks/useFleetHub'
 import { getOperationTrips, operateTrip } from '../../features/admin/services/operationsService'

@@ -1,17 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PurchaserForm, SeatPassengerForm } from './types'
-import {
-  buildHoldRequest,
-  buildSubmitRequest,
-  computeTotals,
-  pickJourney,
-  toSeatMap,
-  isBookingComplete,
-  purchaserErrors,
-  seatPassengerErrors,
-  toCustomerPhone,
-  withOwnHold,
-} from './utils'
+import { buildHoldRequest, buildSubmitRequest, computeTotals, toSeatMap, isBookingComplete, purchaserErrors, seatPassengerErrors, toCustomerPhone, withOwnHold } from './utils'
+import { pickJourney } from '../trips/utils'
 
 const PURCHASER: PurchaserForm = {
   fullName: 'Nguyen Van An',

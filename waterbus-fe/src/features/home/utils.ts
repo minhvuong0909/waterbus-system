@@ -1,5 +1,5 @@
 import { t } from '../../i18n'
-import type { CorridorMap, Departure, PierOption, Trip } from '../trips/types'
+import type { Departure, PierOption, Trip } from '../trips/types'
 import { seatsLabel } from '../trips/utils'
 
 /** A departure leaves within this many minutes -> shown as "Boarding". */
@@ -32,16 +32,3 @@ export function toDeparture(
   }
 }
 
-/** The corridor shown on the maps: the piers at their coordinates. */
-export function buildCorridorMap(piers: PierOption[]): CorridorMap {
-  const placed = piers.map((pier) => ({
-    id: pier.id,
-    name: pier.name,
-    subtitle: pier.district,
-    code: pier.code,
-    address: pier.subtitle,
-    latitude: pier.latitude,
-    longitude: pier.longitude,
-  }))
-  return { piers: placed }
-}

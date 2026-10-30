@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Button, Notice, TextField } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { formatClock, fromVietnamDateTimeInput, toVietnamDateTimeInput } from '../../../utils/time'
-import type { TripStopDto } from '../../booking/types'
+import type { TripStopDto } from '../../trips/types'
 import { useSubmit } from '../hooks/useAdmin'
 import { setCheckInWindow } from '../services/checkInService'
 

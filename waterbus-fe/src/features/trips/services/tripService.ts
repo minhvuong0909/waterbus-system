@@ -25,8 +25,8 @@ import {
   toTrip,
   isDeparted,
 } from '../utils'
-import type { TripDetailDto, TripSeatMapDto } from '../../booking/types'
-import { pickJourney } from '../../booking/utils'
+import type { TripDetailDto, TripSeatMapDto } from '../types'
+import { pickJourney } from '../utils'
 
 /** The piers change rarely and one page asks for them several times. */
 const pierCache = createRequestCache<PierOption[]>(60_000)

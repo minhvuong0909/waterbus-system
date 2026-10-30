@@ -1,6 +1,6 @@
 import { Icon } from '../../../components/ui'
-import { usePopoverList } from '../hooks/usePopoverList'
-import type { PierOption } from '../types'
+import { usePopoverList } from '../../../hooks/usePopoverList'
+import type { PierOption } from '../../trips/types'
 
 interface PierFieldProps {
   label: string

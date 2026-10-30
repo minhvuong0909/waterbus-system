@@ -7,7 +7,7 @@ import { t } from '../../../i18n'
 import { connectHub, hubErrorMessage } from '../../../services/realtime'
 import type { RealtimeStatus } from '../../../services/realtime'
 import { formatClockWithSeconds } from '../../../utils/time'
-import { getBoats } from '../services/boatService'
+import { getBoats } from '../../admin/services/boatService'
 
 /** Send at most one position every few seconds, whatever rate the device reports at. */
 const MIN_SEND_INTERVAL_MS = 3000

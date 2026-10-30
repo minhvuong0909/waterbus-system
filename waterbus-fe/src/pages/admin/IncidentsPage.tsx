@@ -13,12 +13,12 @@ import {
   runWeatherCheck,
 } from '../../features/admin/services/operationsService'
 import type { AdminTrip, OperationType, WeatherCheckResult } from '../../features/admin/types'
-import { DISPATCH_OPERATIONS, isFinished } from '../../features/admin/utils'
+import { DISPATCH_OPERATIONS, OPERATION_LABEL, isFinished } from '../../features/admin/utils'
 import { useFleetHub } from '../../features/admin/hooks/useFleetHub'
 import { formatDateTime } from '../../utils/time'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
-import OperationForm, { OPERATION_LABEL } from '../../features/admin/components/OperationForm'
+import OperationForm from '../../features/admin/components/OperationForm'
 import type { Column } from '../../components/ui'
 import TripStatusBadge from '../../features/trips/components/TripStatusBadge'
 

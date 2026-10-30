@@ -1,23 +1,12 @@
 import { useState } from 'react'
 import { t } from '../../../i18n'
+import { OPERATION_LABEL } from '../utils'
 import type { AdminTrip, OperationType } from '../types'
 import { formatDateTime } from '../../../utils/time'
 import { useSubmit } from '../hooks/useAdmin'
 import { operateTrip } from '../services/operationsService'
 import { Button, Notice } from '../../../components/ui'
 
-export const OPERATION_LABEL: Record<OperationType, string> = {
-  OpenBoarding: 'Open boarding',
-  Complete: 'Close trip',
-  NoAction: 'No action needed',
-  Suspend: 'Suspend',
-  Resume: 'Resume',
-  Cancel: 'Cancel trip',
-  Terminate: 'Terminate',
-  Start: 'Start',
-  Arrive: 'Arrive',
-  SOS: 'SOS',
-}
 
 const OPERATION_HELP: Partial<Record<OperationType, string>> = {
   Suspend: 'The trip is put on hold until you resume it. Tickets stay valid and nothing is refunded.',

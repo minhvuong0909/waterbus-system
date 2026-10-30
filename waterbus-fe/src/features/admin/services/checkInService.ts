@@ -1,6 +1,6 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
-import type { TripDetailDto, TripStopDto } from '../../booking/types'
+import type { TripDetailDto, TripStopDto } from '../../trips/types'
 
 /** The stops of a trip in visit order, with their check-in windows (`GET /trips/{id}`). */
 export async function getTripStops(tripId: string): Promise<TripStopDto[]> {

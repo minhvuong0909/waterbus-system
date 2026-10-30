@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from 'react'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
 import { combineFetches, useFetch } from '../../../hooks'
-import { selectReturnTrip, selectTrip, setQuery, setReturnQuery } from '../../booking/bookingSlice'
-import { legView } from '../../booking/legs'
-import type { Leg } from '../../booking/legs'
+import { selectReturnTrip, selectTrip, setQuery, setReturnQuery } from '../bookingSlice'
+import { legView } from '../legs'
+import type { Leg } from '../legs'
 import {
   getDateOptions,
   getDayTripCounts,
@@ -11,9 +11,9 @@ import {
   getPierOptions,
   getTripDetail,
   getTrips,
-} from '../services/tripService'
-import type { DateOption, PierOption, SearchQuery, Trip } from '../types'
-import { pickPiers } from '../utils'
+} from '../../trips/services/tripService'
+import type { DateOption, PierOption, SearchQuery, Trip } from '../../trips/types'
+import { pickPiers } from '../../trips/utils'
 
 /**
  * The search of one leg and how to change it. The outbound leg is the main search; the return

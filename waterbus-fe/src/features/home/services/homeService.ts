@@ -4,7 +4,8 @@ import { getLowestFares } from '../../trips/services/fareService'
 import { getPierOptions, getUpcomingTrips } from '../../trips/services/tripService'
 import type { CorridorMap, Departure, SearchQuery } from '../../trips/types'
 import type { HomeData } from '../types'
-import { buildCorridorMap, toDeparture } from '../utils'
+import { toDeparture } from '../utils'
+import { buildCorridorMap } from '../../trips/utils'
 
 const MAX_DEPARTURES = 4
 

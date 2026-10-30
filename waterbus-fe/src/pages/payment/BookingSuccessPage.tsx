@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { Breadcrumb, Button, ErrorState, PageLoader } from '../../components/ui'
-import { useSearchQuery } from '../../features/trips/hooks/useTripSearch'
+import { useSearchQuery } from '../../features/booking/hooks/useTripSearch'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import { isRoundTrip } from '../../features/booking/legs'
 import {

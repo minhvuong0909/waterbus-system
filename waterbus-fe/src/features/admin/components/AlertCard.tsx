@@ -3,7 +3,7 @@ import { t } from '../../../i18n'
 import { alertMetrics, alertNote, alertTone, decisionOperation, formatKmh, isCaptainReport, pendingCountOf, timeAgo, titleOf } from '../alertUtils'
 import type { AdminTrip, OperationType, WeatherAlert } from '../types'
 import { formatDateTime } from '../../../utils/time'
-import { OPERATION_LABEL } from './OperationForm'
+import { OPERATION_LABEL } from '../utils'
 import TripStatusBadge from '../../trips/components/TripStatusBadge'
 
 /** Decisions that answer an alert for one trip (Resume and Close are routine trip operations). */

@@ -3,7 +3,7 @@ import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { useAppSelector } from '../../../store/hooks'
 import { useSearchQuery } from '../hooks/useTripSearch'
-import type { PierOption } from '../types'
+import type { PierOption } from '../../trips/types'
 import PierField from './PierField'
 import { t } from '../../../i18n'
 

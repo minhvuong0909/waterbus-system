@@ -1,16 +1,10 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { t } from '../../../i18n'
 import { ApiError, apiRequest } from '../../../services/apiClient'
-import type {
-  CheckoutDetail,
-  CheckoutResponse,
-  CreateHoldRequest,
-  SeatMap,
-  SubmitCheckoutRequest,
-  TripDetailDto,
-  TripSeatMapDto,
-} from '../types'
-import { isGuid, pickJourney, toSeatMap } from '../utils'
+import type { CheckoutDetail, CheckoutResponse, CreateHoldRequest, SeatMap, SubmitCheckoutRequest } from '../types'
+import type { TripDetailDto, TripSeatMapDto } from '../../trips/types'
+import { isGuid, toSeatMap } from '../utils'
+import { pickJourney } from '../../trips/utils'
 
 /** Header that proves the caller owns a guest order (BE `CheckoutAccessService`). */
 export const guestHeaders = (accessToken: string | null): Record<string, string> =>
