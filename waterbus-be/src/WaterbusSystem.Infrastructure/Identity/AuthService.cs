@@ -37,7 +37,13 @@ public class AuthService : IAuthService
             throw new AuthenticationException(InvalidCredentialsMessage);
         }
 
-        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: false);
+        // M11: lockoutOnFailure true để Identity tích lũy số lần sai và tự khóa tài khoản
+        // (Lockout.MaxFailedAccessAttempts/DefaultLockoutTimeSpan cấu hình ở DependencyInjection.cs).
+        var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
+        if (result.IsLockedOut)
+        {
+            throw new AuthenticationException("Tài khoản đã bị tạm khóa do nhập sai mật khẩu nhiều lần. Vui lòng thử lại sau.");
+        }
         if (!result.Succeeded)
         {
             throw new AuthenticationException(InvalidCredentialsMessage);

@@ -61,7 +61,9 @@ public class BoatsController : BaseApiController
     {
         if (id != command.Id)
         {
-            return BadRequest("ID trong URL không khớp với ID trong request body.");
+            // M10: throw để GlobalExceptionHandlingMiddleware trả ProblemDetails + traceId thống nhất,
+            // thay vì BadRequest(string) tự ý trả một JSON shape khác.
+            throw new ArgumentException("ID trong URL không khớp với ID trong request body.");
         }
 
         await Mediator.Send(command);

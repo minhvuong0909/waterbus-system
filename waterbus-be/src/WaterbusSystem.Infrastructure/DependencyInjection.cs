@@ -5,6 +5,7 @@ using Azure.Storage.Blobs;
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -83,6 +84,11 @@ public static class DependencyInjection
             options.Password.RequireNonAlphanumeric = false;
             options.Password.RequiredLength = 6;
             options.User.RequireUniqueEmail = true;
+
+            // M11: khóa tài khoản sau 5 lần sai mật khẩu liên tiếp, mở lại sau 5 phút.
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+            options.Lockout.AllowedForNewUsers = true;
         })
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
@@ -117,9 +123,13 @@ public static class DependencyInjection
             };
 
             // SignalR: đọc JWT từ query access_token cho đường dẫn /hubs
+            // M10: chuẩn hóa 401/403 của JWT challenge/forbid về cùng hình dạng ProblemDetails + traceId
+            // mà GlobalExceptionHandlingMiddleware đang dùng cho các lỗi khác (JwtProblemDetailsEvents.cs).
             options.Events = new JwtBearerEvents
             {
-                OnMessageReceived = SignalRTokenReader.OnMessageReceived
+                OnMessageReceived = SignalRTokenReader.OnMessageReceived,
+                OnChallenge = JwtProblemDetailsEvents.OnChallenge,
+                OnForbidden = JwtProblemDetailsEvents.OnForbidden
             };
         });
 
