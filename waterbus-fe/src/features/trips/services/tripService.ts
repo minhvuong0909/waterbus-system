@@ -67,7 +67,7 @@ export async function getNetworkRoutes(): Promise<NetworkRoute[]> {
     originId: from.id,
     destinationId: to.id,
     badge,
-    summary: `River route between ${from.shortName} and ${to.shortName}`,
+    summary: t('River route between {from} and {to}', { from: from.shortName, to: to.shortName }),
     fromFareVnd: fares?.Commuter,
   })
   return localize([corridor(first, last, 'Main Corridor'), corridor(last, first, 'Return')])
