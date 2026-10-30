@@ -1,26 +1,20 @@
 import { useState } from 'react'
 import { ErrorState, PageLoader } from '../../components/ui'
 import {
-  ActionButton,
   DataTable,
-  Modal,
-  Notice,
   PageHeader,
-  SelectField,
   StatusBadge,
 } from '../../features/admin/components/AdminUi'
 import type { Column } from '../../features/admin/components/AdminUi'
-import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
-import { assignBoat, getBoats, getRoutes, getTrips } from '../../features/admin/services/adminService'
-import type { AdminBoat, AdminTrip, AdminTripStatus, AdminTripType } from '../../features/admin/types'
+import { useReload } from '../../features/admin/hooks/useAdmin'
+import { getBoats, getRoutes, getTrips } from '../../features/admin/services/adminService'
+import type { AdminTrip, AdminTripStatus, AdminTripType } from '../../features/admin/types'
 import { formatDateTime } from '../../features/admin/utils'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { formatNumber } from '../../utils/format'
 import { getLowestFares } from '../../features/trips/services/fareService'
 import { t } from '../../i18n'
-import { USE_MOCK } from '../../constant/env'
 
-const CAN_REASSIGN: AdminTripStatus[] = ['Scheduled', 'Boarding', 'Suspended']
 const STATUSES: AdminTripStatus[] = [
   'Scheduled',
   'Boarding',
@@ -32,55 +26,17 @@ const STATUSES: AdminTripStatus[] = [
   'Terminated',
 ]
 
-function AssignBoatForm({ trip, boats, onCancel, onDone }: { trip: AdminTrip; boats: AdminBoat[]; onCancel: () => void; onDone: () => void }) {
-  const [boatId, setBoatId] = useState(trip.boatId)
-  const { run, busy, error } = useSubmit()
-
-  return (
-    <form
-      noValidate
-      className="space-y-3"
-      onSubmit={async (e) => {
-        e.preventDefault()
-        const saved = await run(() => assignBoat(trip.id, boatId))
-        if (saved) onDone()
-      }}
-    >
-      <p className="text-sm text-on-surface-variant">
-        {t('Trip of {time}. A boat cannot be on two trips at the same time.', { time: formatDateTime(trip.departureTime) })}
-      </p>
-      <SelectField label="Boat" value={boatId} onChange={(e) => setBoatId(e.target.value)}>
-        {boats.map((b) => (
-          <option key={b.id} value={b.id}>
-            {b.code} • {b.name}
-          </option>
-        ))}
-      </SelectField>
-      {error && <Notice tone="error">{error}</Notice>}
-      <div className="flex justify-end gap-2 pt-1">
-        <ActionButton tone="secondary" onClick={onCancel}>
-          {t('Cancel')}
-        </ActionButton>
-        <ActionButton type="submit" disabled={busy || boatId === trip.boatId}>
-          {busy ? t('Saving…') : t('Assign boat')}
-        </ActionButton>
-      </div>
-    </form>
-  )
-}
-
 export default function TripsPage() {
   useDocumentTitle('Trips')
-  const [version, reload] = useReload()
+  const [version] = useReload()
   const trips = useFetch(getTrips, [version])
   const routes = useFetch(getRoutes)
   const boats = useFetch(getBoats)
-  // Real mode: lowest active fare of each trip type from `GET /fares` (BR-FARE-01: price depends on type and seat class only).
+  // Lowest active fare of each trip type from `GET /fares` (BR-FARE-01: price depends on type and seat class only).
   const fares = useFetch<Partial<Record<AdminTripType, number>>>(() =>
-    USE_MOCK ? Promise.resolve({}) : getLowestFares().catch(() => ({})),
+    getLowestFares().catch(() => ({})),
   )
   const [filter, setFilter] = useState<'all' | AdminTripStatus>('all')
-  const [assigning, setAssigning] = useState<AdminTrip | null>(null)
   const state = combineFetches(trips, routes, boats)
 
   if (state.error) return <ErrorState onRetry={state.retry} />
@@ -98,23 +54,12 @@ export default function TripsPage() {
     {
       header: 'Fares from (VND)',
       render: (x) => {
-        if (USE_MOCK) return formatNumber(x.basePrice)
         const lowest = fares.data?.[x.tripType]
         return lowest === undefined ? '—' : formatNumber(lowest)
       },
       className: 'text-right',
     },
     { header: 'Status', render: (x) => <StatusBadge status={x.status} /> },
-    {
-      header: 'Actions',
-      className: 'text-right',
-      render: (x) =>
-        USE_MOCK && CAN_REASSIGN.includes(x.status) ? (
-          <ActionButton tone="secondary" icon="swap_horiz" onClick={() => setAssigning(x)}>
-            {t('Change boat')}
-          </ActionButton>
-        ) : null,
-    },
   ]
 
   return (
@@ -141,20 +86,6 @@ export default function TripsPage() {
         }
       />
       <DataTable columns={columns} rows={rows} rowKey={(x) => x.id} empty="No trips match this filter." />
-
-      {assigning && (
-        <Modal title="Assign boat" onClose={() => setAssigning(null)}>
-          <AssignBoatForm
-            trip={assigning}
-            boats={boats.data}
-            onCancel={() => setAssigning(null)}
-            onDone={() => {
-              setAssigning(null)
-              reload()
-            }}
-          />
-        </Modal>
-      )}
     </>
   )
 }

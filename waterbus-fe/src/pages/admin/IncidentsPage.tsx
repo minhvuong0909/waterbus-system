@@ -33,7 +33,6 @@ import {
 import { useFleetHub } from '../../features/admin/hooks/useFleetHub'
 import { runWeatherCheck } from '../../features/admin/services/operationsService'
 import type { WeatherCheckResult } from '../../features/admin/types'
-import { USE_MOCK } from '../../constant/env'
 import { useAuth } from '../../features/authentication/hook/authenticationHook'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
@@ -61,7 +60,6 @@ export default function IncidentsPage() {
   }
   useFleetHub(
     { onAlert: reloadAlerts, onIncident: reloadAlerts, onTripStatus: refresh, onReconnected: refresh },
-    !USE_MOCK,
   )
   const state = combineFetches(trips, logs, alerts, routes, boats)
 
@@ -171,40 +169,38 @@ export default function IncidentsPage() {
             {waitingTrips}
           </div>
         </div>
-        {!USE_MOCK && (
-          <div className="flex flex-col justify-between gap-2 rounded-2xl border border-outline-variant/40 bg-white p-4">
-            <ActionButton
-              icon="cloud_sync"
-              tone="secondary"
-              disabled={weatherCheck.busy}
-              onClick={async () => {
-                setCheckResult(null)
-                const result = await weatherCheck.run(runWeatherCheck)
-                if (result) {
-                  setCheckResult(result)
-                  reloadAlerts()
-                }
-              }}
-            >
-              {weatherCheck.busy ? t('Working…') : t('Check the weather now')}
-            </ActionButton>
-            <span className="text-xs text-on-surface-variant">
-              {checkResult
-                ? t(
-                    checkResult.incidentsResolved
-                      ? 'Checked {routes} routes: {created} new, {updated} updated, {resolved} closed alerts.'
-                      : 'Checked {routes} routes: {created} new, {updated} updated alerts.',
-                    {
-                      routes: checkResult.routesChecked,
-                      created: checkResult.incidentsCreated,
-                      updated: checkResult.incidentsUpdated,
-                      resolved: checkResult.incidentsResolved ?? 0,
-                    },
-                  )
-                : t('The weather is also checked on a schedule.')}
-            </span>
-          </div>
-        )}
+        <div className="flex flex-col justify-between gap-2 rounded-2xl border border-outline-variant/40 bg-white p-4">
+          <ActionButton
+            icon="cloud_sync"
+            tone="secondary"
+            disabled={weatherCheck.busy}
+            onClick={async () => {
+              setCheckResult(null)
+              const result = await weatherCheck.run(runWeatherCheck)
+              if (result) {
+                setCheckResult(result)
+                reloadAlerts()
+              }
+            }}
+          >
+            {weatherCheck.busy ? t('Working…') : t('Check the weather now')}
+          </ActionButton>
+          <span className="text-xs text-on-surface-variant">
+            {checkResult
+              ? t(
+                  checkResult.incidentsResolved
+                    ? 'Checked {routes} routes: {created} new, {updated} updated, {resolved} closed alerts.'
+                    : 'Checked {routes} routes: {created} new, {updated} updated alerts.',
+                  {
+                    routes: checkResult.routesChecked,
+                    created: checkResult.incidentsCreated,
+                    updated: checkResult.incidentsUpdated,
+                    resolved: checkResult.incidentsResolved ?? 0,
+                  },
+                )
+              : t('The weather is also checked on a schedule.')}
+          </span>
+        </div>
       </div>
       {weatherCheck.error && (
         <div className="mb-3">

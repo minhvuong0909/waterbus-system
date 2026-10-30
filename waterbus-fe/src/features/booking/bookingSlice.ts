@@ -1,8 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
-import { USE_MOCK } from '../../constant/env'
-import { DEFAULT_PURCHASER } from '../../mocks/booking'
-import { DEFAULT_SEARCH_QUERY } from '../../mocks/tripSearch'
+import { DEFAULT_SEARCH_QUERY } from '../trips/searchDefaults'
 import type { SearchQuery, Trip } from '../trips/types'
 import { loadBooking } from './bookingStorage'
 import { MAX_SEATS_PER_BOOKING } from './utils'
@@ -93,7 +91,7 @@ const initialState: BookingState = {
   selectedTrip: null,
   // No seat is picked for the traveler, in mock mode too: they choose every seat themselves.
   seatIds: [],
-  purchaser: USE_MOCK ? DEFAULT_PURCHASER : EMPTY_PURCHASER,
+  purchaser: EMPTY_PURCHASER,
   passengers: {},
   buyerTravels: true,
   returnLeg: EMPTY_RETURN_LEG,

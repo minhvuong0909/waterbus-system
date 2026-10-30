@@ -1,4 +1,4 @@
-import { EXPLORE_DATA } from '../../../mocks/explore'
+import { EXPLORE_DATA } from '../../../content/explore'
 import { localize } from '../../../i18n'
 import type { ExploreData } from '../types'
 

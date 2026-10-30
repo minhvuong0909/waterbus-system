@@ -1,25 +1,23 @@
-import { HOME_DATA } from '../../../mocks/home'
-import { withDelay } from '../../../mocks/delay'
+import { HOME_DATA } from '../../../content/home'
+import { localize } from '../../../i18n'
 import { getLowestFares } from '../../trips/services/fareService'
 import { getPierOptions, getUpcomingTrips } from '../../trips/services/tripService'
 import type { CorridorMap, Departure, SearchQuery } from '../../trips/types'
 import type { HomeData } from '../types'
 import { buildCorridorMap, toDeparture } from '../utils'
-import { USE_MOCK } from '../../../constant/env'
 
 const MAX_DEPARTURES = 4
 
 // Editorial content (hero, stories, steps) has no backend source and stays static. Prices do not:
 // with the real backend a tour shows the lowest Sightseeing fare of the database, and no duration.
 export async function getHomeData(): Promise<HomeData> {
-  if (USE_MOCK) return withDelay(HOME_DATA)
   const fares = await getLowestFares().catch(() => ({}) as Awaited<ReturnType<typeof getLowestFares>>)
   const stories = HOME_DATA.stories.map((story) => ({
     ...story,
     fromPriceVnd: fares.Sightseeing,
     durationMins: undefined,
   }))
-  return withDelay({ ...HOME_DATA, stories })
+  return localize({ ...HOME_DATA, stories })
 }
 
 export interface NextDepartures {
@@ -45,9 +43,7 @@ export async function getNextDepartures(
   }
 }
 
-/** The stations of the corridor. The vessel on it is a mock until the tracking API exists. */
+/** The stations of the corridor, read from `GET /stations`. */
 export async function getCorridorMap(): Promise<CorridorMap> {
-  const map = buildCorridorMap(await getPierOptions())
-  if (!USE_MOCK) map.vessel = null
-  return map
+  return buildCorridorMap(await getPierOptions())
 }

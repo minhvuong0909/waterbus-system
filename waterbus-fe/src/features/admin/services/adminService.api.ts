@@ -9,9 +9,9 @@ import type {
   AdminStation,
   AdminTrip,
   AdminTripStatus,
-  FareSettings,
-  FleetPosition,
+  GenerateTripsInput,
   NewBoat,
+  NewSchedule,
   NewStation,
   OperationLog,
   OperationType,
@@ -26,8 +26,7 @@ import {
   resolveIncident,
 } from './operationsService'
 
-// Chế độ thật: bến/tàu và vận hành gọi API. Các lệnh chưa có endpoint báo chưa hỗ trợ (501) thay vì
-// giả vờ đã lưu. Bản dữ liệu giả nằm ở adminService.mock.ts; adminService.ts chọn một trong hai.
+// Bến/tàu và vận hành gọi API. Các lệnh chưa có endpoint báo chưa hỗ trợ (501) thay vì giả vờ đã lưu.
 
 function unavailable(feature: string): never {
   throw new ApiError(501, `Backend chưa có API ${feature}. Thao tác chưa được lưu.`)
@@ -92,15 +91,6 @@ export async function deleteBoat(id: string): Promise<void> {
   await apiRequest(API_ENDPOINTS.boat(id), { method: 'PUT', body: { ...boat, isActive: false } })
 }
 
-// ---- Fares --------------------------------------------------------------------
-
-export const getFares = (): Promise<FareSettings> =>
-  Promise.reject(new ApiError(501, 'Backend chưa có API quản lý bảng giá.'))
-
-export async function saveFares(): Promise<FareSettings> {
-  return unavailable('lưu bảng giá')
-}
-
 // ---- Schedules and trips ------------------------------------------------------
 
 /** The backend has no schedule or trip-generation API yet, so the schedule screen is read-only. */
@@ -108,23 +98,21 @@ export const schedulesSupported: boolean = false
 
 export const getSchedules = () => Promise.resolve([] as AdminSchedule[])
 
-export async function createSchedule(): Promise<AdminSchedule> {
+/* eslint-disable @typescript-eslint/no-unused-vars -- giữ chữ ký để màn hình gọi như API thật */
+export async function createSchedule(_input: NewSchedule): Promise<AdminSchedule> {
   return unavailable('tạo lịch chạy')
 }
 
-export async function setScheduleActive(): Promise<void> {
+export async function setScheduleActive(_id: string, _isActive: boolean): Promise<void> {
   return unavailable('cập nhật lịch chạy')
 }
 
-export async function generateTrips(): Promise<{ created: number; skipped: number }> {
+export async function generateTrips(_input: GenerateTripsInput): Promise<{ created: number; skipped: number }> {
   return unavailable('sinh chuyến từ lịch')
 }
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 export const getTrips = (): Promise<AdminTrip[]> => getLiveOperationTrips()
-
-export async function assignBoat(): Promise<AdminTrip> {
-  return unavailable('đổi tàu cho chuyến')
-}
 
 // ---- Operations ---------------------------------------------------------------
 
@@ -153,10 +141,4 @@ export async function operateTrip(
   incidentId?: string,
 ): Promise<{ status: AdminTripStatus | null }> {
   return operateLiveTrip(tripId, type, reason, incidentId)
-}
-
-// ---- Radar --------------------------------------------------------------------
-
-export async function getFleetPositions(): Promise<FleetPosition[]> {
-  return unavailable('vị trí mô phỏng; hãy dùng màn Live Operations để xem GPS thật')
 }

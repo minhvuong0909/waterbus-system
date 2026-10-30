@@ -17,6 +17,12 @@ export const API_ENDPOINTS = {
     /** Admin: the stored MP3 of an `assetKey`, to listen before publishing. */
     audio: '/api/v1/texttospeech/audio',
   },
+  audioGuides: {
+    /** Admin: the POIs of the database with the state of their Vietnamese audio guide. */
+    pois: '/api/v1/audioguides/pois',
+    /** Admin: links a generated MP3 to a POI and publishes it. */
+    publish: '/api/v1/audioguides/publish',
+  },
   checkouts: {
     /** Holds seats first (Draft); the buyer is submitted later. */
     holds: '/api/v1/checkouts/holds',

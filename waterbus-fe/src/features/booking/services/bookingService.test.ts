@@ -79,7 +79,7 @@ describe('createHold', () => {
     fetchMock.mockResolvedValue(
       json({ orderId: GUID(9), quotedTotal: 1, accessToken: 'tok', bookings: [] }, 201),
     )
-    const result = await createHold(holdRequest([GUID(4)]), 1)
+    const result = await createHold(holdRequest([GUID(4)]))
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toMatch(/\/api\/v1\/checkouts\/holds$/)
     expect(init.method).toBe('POST')
@@ -87,7 +87,7 @@ describe('createHold', () => {
   })
 
   it('rejects demo trips in live mode instead of reporting a fake order', async () => {
-    await expect(createHold(holdRequest(['S01'], 'trip-1'), 250000)).rejects.toMatchObject({ status: 400 })
+    await expect(createHold(holdRequest(['S01'], 'trip-1'))).rejects.toMatchObject({ status: 400 })
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

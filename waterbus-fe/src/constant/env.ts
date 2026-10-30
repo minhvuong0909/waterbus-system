@@ -6,9 +6,6 @@ export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BA
   '',
 )
 
-/** When true, services skip the network and return mock data (see `.env.example`). */
-export const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
-
 /**
  * Map tiles of the pier maps. The default is Esri's topographic map, which
  * shows the river and the districts clearly and needs no key. Set

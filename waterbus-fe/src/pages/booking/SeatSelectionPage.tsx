@@ -125,7 +125,7 @@ export default function SeatSelectionPage() {
             totals={totals}
             limitReached={seatLimitReached}
             canBook={seatMap.canBook !== false}
-            onContinue={() => hold.submit(leg, trip.id, totals.totalVnd, seatMap.journey)}
+            onContinue={() => hold.submit(leg, trip.id, seatMap.journey)}
             continueLabel={roundTrip && leg === 'outbound' ? t('Continue to the return trip') : undefined}
             changeTripTo={leg === 'return' ? RETURN_RESULTS : undefined}
             busy={hold.busy}

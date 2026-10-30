@@ -1781,7 +1781,13 @@ export const vi: Record<string, string> = {
   'Write what the boat says at each landmark, pick a voice and listen to it. Azure turns the script into speech.':
     'Soạn lời thuyết minh cho từng địa danh, chọn giọng đọc và nghe thử. Azure chuyển văn bản thành giọng nói.',
   'Landmarks': 'Địa danh',
-  'Pick a landmark on the map to write its narration.': 'Chọn một địa danh trên bản đồ để soạn lời thuyết minh.',
+  'Pick a landmark to write its narration.': 'Chọn một địa danh để soạn lời thuyết minh.',
+  'This landmark has a published audio guide.': 'Địa danh này đã có thuyết minh được xuất bản.',
+  'This landmark has no published audio guide yet.': 'Địa danh này chưa có thuyết minh được xuất bản.',
+  'Publish this audio': 'Xuất bản audio này',
+  'Publishing…': 'Đang xuất bản…',
+  'Audio guide published.': 'Đã xuất bản thuyết minh.',
+  'There are no landmarks yet.': 'Chưa có địa danh nào.',
   'Narration script': 'Lời thuyết minh',
   'Enter the narration to read at this landmark.': 'Hãy nhập lời thuyết minh sẽ đọc tại địa danh này.',
   'For example: On your right is the Ba Son waterfront, once the largest shipyard of Saigon…':

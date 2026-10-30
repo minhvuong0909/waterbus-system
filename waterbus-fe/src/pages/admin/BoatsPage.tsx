@@ -13,10 +13,8 @@ import type { Column } from '../../features/admin/components/AdminUi'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import { createBoat, deleteBoat, getBoats } from '../../features/admin/services/adminService'
 import type { AdminBoat } from '../../features/admin/types'
-import { totalSeatsOf } from '../../features/admin/utils'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
-import { USE_MOCK } from '../../constant/env'
 
 type Dialog = { kind: 'form' } | { kind: 'delete'; boat: AdminBoat } | null
 
@@ -26,9 +24,9 @@ const EMPTY = {
   registrationNumber: '',
   manufacturer: '',
   yearBuilt: String(new Date().getFullYear()),
-  frontCabinSeats: USE_MOCK ? '12' : '0',
-  standardSeats: USE_MOCK ? '36' : '60',
-  outdoorSeats: USE_MOCK ? '12' : '0',
+  frontCabinSeats: '0',
+  standardSeats: '60',
+  outdoorSeats: '0',
 }
 type FormState = typeof EMPTY
 
@@ -60,12 +58,7 @@ function BoatForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => vo
   const errors = showErrors ? validate(form) : {}
   const set = (key: keyof FormState) => (e: { target: { value: string } }) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))
-  const total = totalSeatsOf({
-    frontCabinSeats: Number(form.frontCabinSeats) || 0,
-    standardSeats: Number(form.standardSeats) || 0,
-    outdoorSeats: Number(form.outdoorSeats) || 0,
-  })
-
+ 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (Object.keys(validate(form)).length > 0) {
@@ -99,12 +92,10 @@ function BoatForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => vo
       <fieldset className="rounded-lg border border-outline-variant/50 p-3">
         <legend className="px-1 text-xs font-semibold text-on-surface-variant">{t('Seat layout')}</legend>
         <div className="grid grid-cols-3 gap-3">
-          {USE_MOCK && <TextField label="Front cabin" inputMode="numeric" value={form.frontCabinSeats} onChange={set('frontCabinSeats')} error={errors.frontCabinSeats} />}
-          <TextField label={USE_MOCK ? 'Standard' : 'Tổng số ghế'} inputMode="numeric" value={form.standardSeats} onChange={set('standardSeats')} error={errors.standardSeats} />
-          {USE_MOCK && <TextField label="Outdoor deck" inputMode="numeric" value={form.outdoorSeats} onChange={set('outdoorSeats')} error={errors.outdoorSeats} />}
+          <TextField label="Tổng số ghế" inputMode="numeric" value={form.standardSeats} onChange={set('standardSeats')} error={errors.standardSeats} />
         </div>
         <p className="mt-2 text-xs text-on-surface-variant">
-          {USE_MOCK ? t('Total seats: {total}. Seat codes are generated as F01.., S01.. and O01..', { total }) : 'Chỉ lưu tổng số ghế. Chưa có API cấu hình sơ đồ ghế cho tàu mới.'}
+          Chỉ lưu tổng số ghế. Chưa có API cấu hình sơ đồ ghế cho tàu mới.
         </p>
       </fieldset>
       {error && <Notice tone="error">{error}</Notice>}
@@ -138,9 +129,7 @@ export default function BoatsPage() {
     {
       header: 'Seats',
       render: (b) => (
-        <span title={t('Front cabin / standard / outdoor')}>
-          {b.totalSeats} {USE_MOCK && <span className="text-on-surface-variant">({b.frontCabinSeats}/{b.standardSeats}/{b.outdoorSeats})</span>}
-        </span>
+        <span>{b.totalSeats}</span>
       ),
     },
     {

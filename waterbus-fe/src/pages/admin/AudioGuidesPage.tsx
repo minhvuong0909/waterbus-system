@@ -1,13 +1,16 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Icon } from '../../components/ui'
+import { ErrorState, Icon, PageLoader } from '../../components/ui'
 import { ActionButton, Notice, PageHeader, Panel, SelectField } from '../../features/admin/components/AdminUi'
-import PoiMap from '../../features/admin/components/PoiMap'
-import { MAX_NARRATION_LENGTH, NARRATION_POIS, NARRATION_VOICES } from '../../features/admin/audioGuide'
+import { MAX_NARRATION_LENGTH, NARRATION_VOICES } from '../../features/admin/audioGuide'
 import type { NarrationPoi, NarrationVoice } from '../../features/admin/audioGuide'
-import { useSubmit } from '../../features/admin/hooks/useAdmin'
-import { getStations } from '../../features/admin/services/adminService'
-import { fetchNarrationAudio, generateNarration } from '../../features/admin/services/audioGuideService'
+import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
+import {
+  fetchNarrationAudio,
+  generateNarration,
+  getNarrationPois,
+  publishNarration,
+} from '../../features/admin/services/audioGuideService'
 import type { GeneratedNarration } from '../../features/admin/services/audioGuideService'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
@@ -35,15 +38,19 @@ function NarrationEditor({
   preview,
   onDraft,
   onPreview,
+  onPublished,
 }: {
   poi: NarrationPoi
   draft: Draft
   preview?: Preview
   onDraft: (draft: Draft) => void
   onPreview: (preview: Preview) => void
+  onPublished: () => void
 }) {
   const textId = useId()
   const { run, busy, error } = useSubmit()
+  const publishing = useSubmit()
+  const [published, setPublished] = useState(false)
   const [showError, setShowError] = useState(false)
   const text = draft.text.trim()
   const textError = showError && !text ? t('Enter the narration to read at this landmark.') : undefined
@@ -59,14 +66,28 @@ function NarrationEditor({
       const audio = await fetchNarrationAudio(narration.assetKey)
       return { narration, url: URL.createObjectURL(audio), text }
     })
-    if (result) onPreview(result)
+    if (result) {
+      setPublished(false)
+      onPreview(result)
+    }
+  }
+
+  const publish = async () => {
+    if (!preview) return
+    const result = await publishing.run(() => publishNarration(poi.poiId, preview.narration))
+    if (result) {
+      setPublished(true)
+      onPublished()
+    }
   }
 
   return (
     <form onSubmit={submit} noValidate className="space-y-4">
       <div>
-        <h2 className="text-lg font-bold text-deep-river">{t(poi.title)}</h2>
-        <p className="mt-1 text-sm text-on-surface-variant">{t(poi.description)}</p>
+        <h2 className="text-lg font-bold text-deep-river">{poi.name}</h2>
+        <p className="mt-1 text-sm text-on-surface-variant">
+          {poi.isPublished ? t('This landmark has a published audio guide.') : t('This landmark has no published audio guide yet.')}
+        </p>
       </div>
 
       <div>
@@ -131,6 +152,16 @@ function NarrationEditor({
           {preview.text !== text && (
             <p className="text-xs text-coral-glow">{t('The script changed after this audio. Generate again to hear it.')}</p>
           )}
+          {publishing.error && <Notice tone="error">{publishing.error}</Notice>}
+          {published && <Notice tone="success">{t('Audio guide published.')}</Notice>}
+          <ActionButton
+            icon="publish"
+            disabled={publishing.busy || published || preview.text !== text}
+            onClick={publish}
+            className="w-full"
+          >
+            {publishing.busy ? t('Publishing…') : t('Publish this audio')}
+          </ActionButton>
         </div>
       )}
     </form>
@@ -139,15 +170,20 @@ function NarrationEditor({
 
 export default function AudioGuidesPage() {
   useDocumentTitle('Audio guides')
-  const stations = useFetch(getStations)
+  const [version, reload] = useReload()
+  const pois = useFetch(getNarrationPois, [version])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [previews, setPreviews] = useState<Record<string, Preview>>({})
-  const selected = NARRATION_POIS.find((p) => p.id === selectedId)
 
   // Object URLs keep the MP3 in memory: release them when the page closes.
   const urls = useRef<string[]>([])
   useEffect(() => () => urls.current.forEach((url) => URL.revokeObjectURL(url)), [])
+
+  if (pois.error) return <ErrorState onRetry={pois.retry} />
+  if (!pois.data) return <PageLoader />
+
+  const selected = pois.data.find((p) => p.poiId === selectedId)
 
   const savePreview = (poiId: string, preview: Preview) => {
     setPreviews((current) => {
@@ -158,60 +194,54 @@ export default function AudioGuidesPage() {
     urls.current.push(preview.url)
   }
 
-  const corridor = (stations.data ?? [])
-    .filter((s) => s.isActive !== false)
-    .sort((a, b) => a.orderIndex - b.orderIndex)
-
   return (
     <>
       <PageHeader
         title="Audio guides"
-        description="Write what the boat says at each landmark, pick a voice and listen to it. Azure turns the script into speech."
+        description="Write what the boat says at each landmark, pick a voice, listen to it and publish it. Azure turns the script into speech."
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        <div className="space-y-3 lg:col-span-7">
-          <PoiMap
-            pois={NARRATION_POIS}
-            stations={corridor}
-            selectedId={selectedId}
-            readyIds={new Set(Object.keys(previews))}
-            onSelect={setSelectedId}
-          />
-          <div className="flex flex-wrap gap-2" role="group" aria-label={t('Landmarks')}>
-            {NARRATION_POIS.map((poi) => (
-              <button
-                key={poi.id}
-                type="button"
-                aria-pressed={poi.id === selectedId}
-                onClick={() => setSelectedId(poi.id)}
-                className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-                  poi.id === selectedId
-                    ? 'border-deep-river bg-deep-river text-white'
-                    : 'border-outline-variant bg-white text-deep-river hover:bg-surface-container-low'
-                }`}
-              >
-                <Icon name={previews[poi.id] ? 'check_circle' : 'photo_camera'} className="text-[18px]" />
-                {t(poi.title)}
-              </button>
-            ))}
-          </div>
+        <div className="lg:col-span-7">
+          {pois.data.length === 0 ? (
+            <p className="text-sm text-on-surface-variant">{t('There are no landmarks yet.')}</p>
+          ) : (
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('Landmarks')}>
+              {pois.data.map((poi) => (
+                <button
+                  key={poi.poiId}
+                  type="button"
+                  aria-pressed={poi.poiId === selectedId}
+                  onClick={() => setSelectedId(poi.poiId)}
+                  className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                    poi.poiId === selectedId
+                      ? 'border-deep-river bg-deep-river text-white'
+                      : 'border-outline-variant bg-white text-deep-river hover:bg-surface-container-low'
+                  }`}
+                >
+                  <Icon name={poi.isPublished ? 'check_circle' : previews[poi.poiId] ? 'headphones' : 'photo_camera'} className="text-[18px]" />
+                  {poi.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <Panel className="lg:col-span-5">
           {selected ? (
             <NarrationEditor
-              key={selected.id}
+              key={selected.poiId}
               poi={selected}
-              draft={drafts[selected.id] ?? EMPTY_DRAFT}
-              preview={previews[selected.id]}
-              onDraft={(draft) => setDrafts((d) => ({ ...d, [selected.id]: draft }))}
-              onPreview={(preview) => savePreview(selected.id, preview)}
+              draft={drafts[selected.poiId] ?? EMPTY_DRAFT}
+              preview={previews[selected.poiId]}
+              onDraft={(draft) => setDrafts((d) => ({ ...d, [selected.poiId]: draft }))}
+              onPreview={(preview) => savePreview(selected.poiId, preview)}
+              onPublished={reload}
             />
           ) : (
             <div className="flex min-h-[240px] flex-col items-center justify-center gap-2 text-center text-sm text-on-surface-variant">
               <Icon name="touch_app" className="text-[32px] text-teal-flow" />
-              {t('Pick a landmark on the map to write its narration.')}
+              {t('Pick a landmark to write its narration.')}
             </div>
           )}
         </Panel>

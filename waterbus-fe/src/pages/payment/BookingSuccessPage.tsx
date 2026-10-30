@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Breadcrumb, Button, ErrorState, PageLoader } from '../../components/ui'
 import { useSearchQuery } from '../../features/trips/hooks/useTripSearch'
@@ -9,27 +8,23 @@ import {
   cabinsLabel,
   passengersLabel,
   seatCodes,
-  ticketFares,
 } from '../../features/booking/utils'
 import { ConfirmationHero, ConfirmationSteps } from '../../features/payment/components/ConfirmationParts'
 import { getBookingQr } from '../../features/booking/services/bookingService'
 import { useOrderConfirmation } from '../../features/payment/hooks/useOrderConfirmation'
 import BoardingPassCard from '../../features/tickets/components/BoardingPassCard'
-import { addBooking } from '../../features/tickets/ticketsSlice'
-import { bookingSnapshotId } from '../../features/tickets/utils'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
-import { useAppDispatch, useAppSelector } from '../../store/hooks'
+import { useAppSelector } from '../../store/hooks'
 import { t } from '../../i18n'
 import NoTripSelected from '../../features/booking/components/NoTripSelected'
 
 /** Shown only once the backend reports the order as paid (BR-PAY-01), never from the browser alone. */
 export default function BookingSuccessPage() {
   useDocumentTitle('Booking Confirmed')
-  const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { updateQuery } = useSearchQuery()
-  const { query, selectedTrip, passengers, returnLeg: returnState } = useAppSelector((s) => s.booking)
+  const { query, passengers, returnLeg: returnState } = useAppSelector((s) => s.booking)
   const roundTrip = isRoundTrip(query)
   const { noTrip, loading, error, retry, trip, seats, purchaser, totals } = useBooking()
   const back = useBooking({ leg: 'return', enabled: roundTrip })
@@ -55,40 +50,6 @@ export default function BookingSuccessPage() {
     [confirmed, returnBookingId],
   )
   const failure = error ?? back.error ?? qr.error ?? returnQr.error
-
-  // The tickets of the confirmed order go into the wallet (names by seat, as the traveler typed them).
-  useEffect(() => {
-    if (!confirmed || !trip || seats.length === 0) return
-    dispatch(
-      addBooking({
-        id: bookingSnapshotId(trip.id, seats),
-        tripId: trip.id,
-        selectedTrip,
-        query,
-        seats,
-        fares: ticketFares(trip.fareVnd, seats),
-        passengerNames: seats.map((seat) => passengers[seat.id]?.fullName ?? ''),
-      }),
-    )
-    if (roundTrip && back.trip && back.seats.length > 0) {
-      dispatch(
-        addBooking({
-          id: bookingSnapshotId(back.trip.id, back.seats),
-          tripId: back.trip.id,
-          selectedTrip: returnState.trip,
-          query: {
-            tripType: 'one-way',
-            originId: returnState.originId,
-            destinationId: returnState.destinationId,
-            dateId: returnState.dateId,
-          },
-          seats: back.seats,
-          fares: ticketFares(back.trip.fareVnd, back.seats),
-          passengerNames: back.seats.map((seat) => returnState.passengers[seat.id]?.fullName ?? ''),
-        }),
-      )
-    }
-  }, [confirmed, trip, seats, selectedTrip, query, passengers, dispatch, roundTrip, back.trip, back.seats, returnState])
 
   if (noTrip) return <NoTripSelected />
   if (failure) {
@@ -132,7 +93,7 @@ export default function BookingSuccessPage() {
   const returnTickets = roundTrip ? (detail?.bookings[1]?.tickets ?? []) : []
   const returnReference = roundTrip ? detail?.bookings[1]?.bookingCode : undefined
   const reference = detail?.bookings[0]?.bookingCode ?? bookingReference(seats)
-  // Names as the backend issued them; the typed names stand in for a mock order.
+  // Names as the backend issued them; the typed names stand in until the tickets are listed.
   const names =
     orderedSeats.length > 0
       ? orderedSeats.map((ticket) => ticket.passengerName)

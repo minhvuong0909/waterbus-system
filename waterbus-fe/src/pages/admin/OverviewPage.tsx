@@ -11,7 +11,6 @@ import {
   getWeatherAlerts,
 } from '../../features/admin/services/adminService'
 import { formatDateTime, isFinished, tripRouteName } from '../../features/admin/utils'
-import { USE_MOCK } from '../../constant/env'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -59,7 +58,6 @@ export default function OverviewPage() {
   // Counts and the next trips follow status changes and new alerts as they happen.
   useFleetHub(
     { onTripStatus: reload, onAlert: reload, onIncident: reload, onReconnected: reload },
-    !USE_MOCK,
   )
   const state = combineFetches(trips, boats, stations, routes, alerts)
 

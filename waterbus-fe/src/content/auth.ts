@@ -1,14 +1,6 @@
-import type { AuthShowcase, AuthUser } from '../features/authentication/authenticationTypes'
+import type { AuthShowcase } from '../features/authentication/authenticationTypes'
 
-// The backend has no register or Google sign-in endpoint yet, so these flows end with this
-// passenger. Real sign-in does not use it.
-export const MOCK_USER: AuthUser = {
-  id: 'user-001',
-  fullName: 'Nguyen Van An',
-  email: 'passenger@smartwaterbus.vn',
-  roles: ['Passenger'],
-}
-
+// Nội dung biên tập của màn đăng nhập, không có API.
 export const AUTH_SHOWCASE: AuthShowcase = {
   eyebrow: 'Urban River Flow Network',
   headline: ['Your River Journey', 'Starts Here'],

@@ -1,10 +1,7 @@
-import { withDelayExact } from '../../../mocks/delay'
 import { ApiError } from '../../../services/apiClient'
-import { buildAllTickets, buildManageBooking, buildTicketWallet } from '../../../mocks/tickets'
 import { getTripDetail } from '../../trips/services/tripService'
-import { buildBookedTickets, ticketStatusLabel } from '../utils'
-import type { BookedSnapshot, ManageBooking, Ticket, TicketWallet } from '../types'
-import { USE_MOCK } from '../../../constant/env'
+import { ticketStatusLabel } from '../utils'
+import type { ManageBooking, Ticket, TicketWallet } from '../types'
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
 import { loadBooking } from '../../booking/bookingStorage'
@@ -63,56 +60,28 @@ async function liveTickets(token?: string): Promise<Ticket[]> {
   return tickets.flat()
 }
 
-// Mock service layer: swap for real API calls later without touching the UI.
+/** The tickets of the order in this session (or behind the secure link), split into upcoming and past. */
 export async function getTicketWallet(): Promise<TicketWallet> {
-  if (!USE_MOCK) {
-    const tickets = await liveTickets()
-    const upcoming = tickets.filter((t) => !t.completed)
-    return { next: upcoming[0], later: upcoming.slice(1), past: tickets.filter((t) => t.completed) }
-  }
-  return withDelayExact(buildTicketWallet())
+  const tickets = await liveTickets()
+  const upcoming = tickets.filter((t) => !t.completed)
+  return { next: upcoming[0], later: upcoming.slice(1), past: tickets.filter((t) => t.completed) }
 }
 
-/** Falls back to the next departure so the detail page never errors. */
+/** The ticket with this id; the first ticket of the order when `id` is not one of them. */
 export async function getTicket(id: string | null): Promise<Ticket> {
-  if (!USE_MOCK) {
-    const tickets = await liveTickets()
-    // The success page selects the session snapshot id, not a backend ticket id: show the first ticket then.
-    const ticket = (id ? tickets.find((t) => t.id === id) : undefined) ?? tickets[0]
-    if (!ticket) throw new ApiError(404, 'Chưa có vé đã phát cho đơn hàng trong phiên này.')
-    return ticket
-  }
-  return withDelayExact(buildAllTickets().find((t) => t.id === id) ?? buildTicketWallet().next)
+  const tickets = await liveTickets()
+  // The success page may select an id that is not a backend ticket id: show the first ticket then.
+  const ticket = (id ? tickets.find((t) => t.id === id) : undefined) ?? tickets[0]
+  if (!ticket) throw new ApiError(404, 'Chưa có vé đã phát cho đơn hàng trong phiên này.')
+  return ticket
 }
-
-// A secure link token is a long random string (the shape the backend's magic links will have).
-const LINK_TOKEN = /^[A-Za-z0-9_-]{16,}$/
 
 /**
- * Mock: the backend has no booking lookup or magic link yet (roadmap P1-BE-05 / P4-BE-03).
- * Without a `token` this is the signed-in traveler's booking; with one it is the booking behind
- * the link, or ApiError(404) when the link is not valid.
+ * The booking of the order in this session or, with a secure link `token`, the order behind the
+ * link. The backend has no booking lookup by account yet (roadmap P1-BE-05 / P4-BE-03).
  */
 export async function getManageBooking(token?: string): Promise<ManageBooking> {
-  if (!USE_MOCK) {
-    const tickets = await liveTickets(token)
-    if (!tickets[0]) throw new ApiError(404, 'Mở đơn đã thanh toán trong phiên này hoặc cung cấp orderId và link bảo mật.')
-    return { bookingCode: tickets[0].bookingRef, ticket: tickets[0] }
-  }
-  if (token !== undefined && !LINK_TOKEN.test(token)) {
-    return Promise.reject(new ApiError(404, 'This link is invalid or has expired.'))
-  }
-  return withDelayExact(buildManageBooking())
-}
-
-/** Rebuilds the wallet tickets (one per seat) for this session's bookings in the active language. */
-export async function getBookedTickets(bookings: BookedSnapshot[]): Promise<Ticket[]> {
-  if (!USE_MOCK) return []
-  const perBooking = await Promise.all(
-    bookings.map(async (b) => {
-      const trip = await getTripDetail(b.selectedTrip, b.tripId, b.query)
-      return buildBookedTickets({ trip, seats: b.seats, fares: b.fares, passengerNames: b.passengerNames })
-    }),
-  )
-  return perBooking.flat()
+  const tickets = await liveTickets(token)
+  if (!tickets[0]) throw new ApiError(404, 'Mở đơn đã thanh toán trong phiên này hoặc cung cấp orderId và link bảo mật.')
+  return { bookingCode: tickets[0].bookingRef, ticket: tickets[0] }
 }
