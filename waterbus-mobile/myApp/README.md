@@ -65,3 +65,98 @@ Module dành cho nhân viên soát vé (Staff Scanner) tại bến tàu Smart Wa
 ```bash
 npm run test:scanner
 ```
+
+### Hướng dẫn kiểm thử thủ công trên điện thoại Android
+
+Hướng dẫn này bắt đầu từ lúc app vừa mở trên điện thoại. Thực hiện trên Android; tên tab/nút bên dưới tương ứng với giao diện hiện tại.
+
+> **An toàn khi test:** chỉ dùng dữ liệu demo hoặc booking được dành riêng cho kiểm thử. Không check-in vé thật, không xóa cache khi còn sự kiện offline cần giữ, và không bật đồng bộ lên server sản xuất.
+
+#### A. Mở app lần đầu và chuẩn bị dữ liệu
+
+1. **Mở app.** Nếu app đang hiện màn hình Expo/Metro báo lỗi thay vì giao diện soát vé, dừng ở đây: khởi động lại dev server với cache mới (`npx expo start --clear --lan` trong thư mục `waterbus-mobile\myApp`), kết nối điện thoại và máy tính vào cùng Wi-Fi, rồi mở lại app.
+2. **Cấp quyền camera.** Khi Android hỏi, chọn cho phép. Nếu trước đó đã từ chối, vào **Cài đặt Android → Ứng dụng → myApp → Quyền → Camera → Cho phép**, rồi quay lại app. Màn hình chính phải thấy hình camera và khung quét. Nếu chưa cấp quyền, bấm **Cấp Quyền Camera**.
+3. **Nhận biết bốn tab ở cạnh dưới màn hình:**
+   - **Soát Vé**: camera, nhập mã, và nút **Test QR**.
+   - **Chuyến & Tải Vé**: chọn bến, preload cache, xem chuyến và số liệu SQLite.
+   - **Lịch Sử**: các sự kiện check-in trên máy và nút **Sync Lô**.
+   - **Ca Trực**: hồ sơ thiết bị và công tắc **Mô Phỏng Ngoại Tuyến (Force Offline)**.
+4. **Nạp dữ liệu kiểm thử:** mở **Chuyến & Tải Vé**, chọn **Bến Bạch Đằng (Quận 1)**, bấm **TẢI TRƯỚC DỮ LIỆU (PRELOAD CACHE)** và đợi hoàn tất. Kết quả demo dự kiến có 2 chuyến, 3 booking và 6 vé. Nếu số liệu bằng 0, làm mới màn hình; nếu vẫn bằng 0 thì preload chưa sẵn sàng để quét booking demo.
+5. **Phân biệt dữ liệu demo với dữ liệu server:** trong phiên bản hiện tại, nếu gọi API manifest thất bại, app tự tạo manifest demo và vẫn báo tải thành công. Vì vậy, thấy dữ liệu demo hoặc thông báo preload thành công **không chứng minh** backend đã kết nối.
+6. **Không xóa cache để “làm sạch” một cách tùy tiện.** Nút xóa cache nằm cuối tab **Chuyến & Tải Vé**; thao tác này xóa cả dữ liệu SQLite và có thể làm mất sự kiện chưa đồng bộ. Chỉ dùng khi chủ động khởi tạo lại bài test và chắc chắn không cần giữ dữ liệu nào.
+
+#### B. M13 — kiểm tra `kid` chỉ có trong JWS header
+
+**Mục tiêu:** scanner xác thực QR JWS mẫu và hiển thị `kid` lấy từ header, không phụ thuộc `kid` trong payload.
+
+1. Hoàn thành phần A để booking mẫu `pub_wb_98a76b5c` có trong cache.
+2. Mở ảnh QR mẫu [qr1-jws-m13.png](./test-qr-codes/qr1-jws-m13.png) trên một thiết bị khác, máy tính, hoặc bản in. Mã mẫu hết hạn sau 24 giờ kể từ lúc được tạo; nếu đã hết hạn, tạo QR JWS thử nghiệm mới trước khi chạy bài test. Không mở QR trên chính điện thoại đang quét vì camera không thể quét màn hình của thiết bị đó.
+3. Trên điện thoại scanner, mở tab **Soát Vé**. Hướng camera vào QR mẫu và giữ yên trong khung quét; nếu khó đọc, tăng độ sáng màn hình đang hiển thị QR hoặc bấm **Bật Đèn** khi quét bản in.
+4. Chờ màn hình **Chi Tiết Booking & Soát Vé** xuất hiện. Kiểm tra:
+   - Có banner **CHỮ KÝ SỐ HỢP LỆ (XÁC THỰC OFFLINE)**.
+   - Dòng thuật toán hiển thị `HS256` và `kid: waterbus-root-2026`.
+   - Booking là `WB20261006001` / `pub_wb_98a76b5c`; danh sách có ghế A01, A02, A03.
+   - Không bật mạng hoặc chờ phản hồi API trong lúc xác thực. QR được xác minh bằng khóa đã cache/local.
+5. Nhấn nút đóng ở góc trên để quay lại camera. **Không cần bấm XÁC NHẬN CHECK-IN** để kiểm tra M13.
+
+**Kết quả đạt:** đúng booking mở được; banner chữ ký hợp lệ và `kid` khớp giá trị nêu trên.
+
+**Nếu không đạt:** nếu camera không nhận QR, thử ảnh lớn/sáng hơn. Nếu hiện “chưa có dữ liệu chuyến trong máy”, quay lại phần A và xác nhận đã preload đúng bến. Nếu hiện booking nhưng banner báo chữ ký không hợp lệ, chụp ảnh màn hình và ghi nhận M13 thất bại; không check-in booking đó.
+
+**Không dùng nút `Test QR` để kết luận M13:** nút này tạo QR định dạng compact `WB1...`, không phải JWS có `kid` chỉ nằm trong header. QR M13 phải là ảnh JWS ở liên kết trên.
+
+#### C. H03 — tạo sự kiện offline và kiểm tra đồng bộ trễ
+
+H03 cần server quyết định từ chối sự kiện đến sau giờ đóng check-in. Với app/repository hiện tại, chỉ có thể kiểm tra phần **tạo và giữ sự kiện offline trên điện thoại**; chưa thể xác nhận phần server từ chối trễ.
+
+##### C1. Kiểm tra ghi nhận offline an toàn trên điện thoại
+
+1. Hoàn thành phần A, đảm bảo booking demo đã được preload. Mở **Ca Trực**.
+2. Bật **Mô Phỏng Ngoại Tuyến (Force Offline)**. Giữ công tắc bật trong suốt bài test; không đóng app giữa chừng vì cài đặt offline hiện chỉ giữ trong trạng thái chạy hiện tại.
+3. Quay lại **Soát Vé**, bấm **Test QR**, chọn **Booking 1: Trần Văn Minh**. Đây là QR compact demo, dùng để mở booking/check-in chứ **không** dùng kiểm tra M13.
+4. Trong màn hình chi tiết, xác nhận đúng booking và có 3 vé chưa check-in. Chỉ chọn **một** vé thử, ví dụ ghế A01; không bấm **Chọn tất cả**.
+5. Bấm **XÁC NHẬN CHECK-IN (1 VÉ)**. Chờ thông báo check-in thành công và đóng màn hình chi tiết.
+6. Mở **Lịch Sử**. Sự kiện mới phải xuất hiện; ghi lại mã UUID ở dòng **Mã Event (UUID)**. Số **Chờ Sync** dự kiến tăng thêm 1. Có thể kiểm tra thêm tab **Chuyến & Tải Vé** ở chỉ số **Vé chờ đồng bộ (Offline Queue)**.
+7. Đến đây chỉ kết luận: “check-in offline đã được lưu vào hàng đợi trên máy”. Giữ Force Offline bật và **không bấm `Sync Lô`** cho tới khi có môi trường backend kiểm thử đúng.
+
+##### C2. Kiểm thử từ chối đồng bộ trễ qua backend (chỉ khi backend test đã sẵn sàng)
+
+1. Xác nhận backend kiểm thử có endpoint xử lý đồng bộ offline, có chuyến/lượt bến thật, và có quy tắc đóng cửa sổ check-in. Đảm bảo cấu hình API trên điện thoại thực sự được service sử dụng; ô địa chỉ server trên màn hình **Ca Trực** hiện chưa được áp dụng vào service đồng bộ.
+2. Dùng sự kiện test mới, chưa từng đồng bộ. Trước giờ đóng check-in, bật Force Offline, preload manifest từ backend và check-in đúng một vé test như phần C1.
+3. Xác nhận sự kiện còn `Pending` trước giờ đóng; ghi lại UUID và thời điểm check-in. Để sự kiện trong máy đến **sau** giờ đóng được cấu hình ở backend.
+4. Chỉ khi endpoint backend đã được xác nhận hoạt động và trỏ vào môi trường test, tắt Force Offline và bấm **Sync Lô** một lần. Lưu phản hồi/log server cho UUID đã ghi.
+5. Kết quả server mong đợi: sự kiện bị từ chối vì cửa sổ check-in đã đóng. Kết quả lưu cục bộ mong đợi: `sync_status = Conflict`, `outcome = LateSyncRejected`, có lý do từ chối; không được ghi nhận là check-in thành công trên server.
+
+**Không coi thông báo “Đã đồng bộ thành công” hoặc số pending về 0 là bằng chứng server đã xử lý.** Khi request mạng lỗi, mã hiện tại có nhánh fallback đánh dấu pending events là synced cục bộ. Ngoài ra, tab **Lịch Sử** chưa có bộ lọc/nhãn riêng đáng tin cậy cho `Conflict`/`LateSyncRejected`; cần xác nhận bằng log/DB test hoặc cải thiện UI trước khi nghiệm thu H03.
+
+**Dừng lại nếu chưa có backend test:** repository hiện chưa có `/api/v1/tickets/sync-offline` xử lý sự kiện này. Đừng tắt Force Offline rồi bấm Sync chỉ để thử; trong môi trường API không khả dụng, fallback cục bộ có thể làm sự kiện mang trạng thái synced dù server chưa nhận được.
+
+#### D. M08 — hai thiết bị cùng giành Primary Scanner
+
+**Không thể hoàn tất M08 chỉ bằng thao tác trên giao diện app hiện tại.** Tab **Ca Trực** hiển thị nhãn “Primary Offline Scanner” tĩnh; giao diện chưa có nút claim hoặc chọn `TripStopCall`, và backend repository chưa có `/api/v1/scanner/claim-primary`.
+
+Khi phiên bản có luồng claim và backend test đã triển khai endpoint, thực hiện bài test tích hợp sau:
+
+1. Chuẩn bị **hai điện thoại** cài app, hai mã thiết bị khác nhau, tài khoản/nhân viên test được phân quyền, cùng truy cập một backend kiểm thử.
+2. Xác nhận thời gian hai máy gần nhau; chuẩn bị cùng một chuyến và đúng cùng `TripStopCall` còn hiệu lực. Không dùng mỗi `stationId` thay cho `TripStopCallId`.
+3. Trên cả hai máy, mở ca trực/chuyến test tương ứng. Bắt đầu thao tác claim trên hai máy gần như đồng thời (hai người thao tác hoặc công cụ test API gửi song song).
+4. Ghi lại phản hồi từng máy. Kết quả đạt là chỉ **một** thiết bị nhận `isPrimaryOffline = true`; thiết bị còn lại nhận conflict hoặc `isPrimaryOffline = false`.
+5. Gửi claim lần nữa từ thiết bị thua cho cùng `TripStopCall`. Kết quả vẫn không được có hai Primary. Lưu request/response đã che thông tin nhạy cảm và log server để đối chiếu.
+
+**Không kết luận M08 đạt chỉ vì một máy hiện nhãn Primary.** Trước khi endpoint và thao tác claim được nối vào app, chỉ có thể kiểm thử khi gọi API bằng công cụ kiểm thử riêng; đó không phải kiểm thử UI trên điện thoại.
+
+#### E. Ghi nhận kết quả và dọn dẹp
+
+Với mỗi mã lỗi, ghi lại ngày/giờ, mã bug (H03/M08/M13), model Android, phiên bản app, chế độ mạng, tên chuyến/lượt bến test, bước thực hiện, kết quả mong đợi/thực tế và ảnh chụp màn hình. Che tên/số điện thoại khách, token và dữ liệu cá nhân trước khi chia sẻ.
+
+- **M13:** chụp banner chữ ký và dòng `kid`.
+- **H03:** lưu UUID, thời điểm check-in, thời điểm gửi, phản hồi/log backend và trạng thái cuối cùng trong SQLite; ảnh số pending một mình không đủ.
+- **M08:** lưu kết quả claim của cả hai thiết bị và log backend chứng minh chỉ có một Primary.
+- Chỉ tắt Force Offline sau khi đã ghi nhận kết quả. Không xóa cache nếu còn sự kiện pending/conflict cần điều tra.
+
+#### Giới hạn hiện tại cần biết trước khi nghiệm thu
+
+- Backend của repository chưa có các endpoint scanner cần cho manifest và đồng bộ (`/api/v1/scanner/manifest`, `/api/v1/tickets/sync-offline`) và claim Primary (`/api/v1/scanner/claim-primary`); app có thể tạo manifest demo khi preload API lỗi.
+- Ô địa chỉ backend trong tab **Ca Trực** hiện chưa được áp dụng vào service đồng bộ. Trên điện thoại Android, `localhost` trỏ về chính điện thoại, không phải máy tính đang chạy backend.
+- Luồng claim Primary chưa được gọi từ giao diện. M08 cần backend và giao diện hỗ trợ trước khi có thể nghiệm thu end-to-end trên điện thoại.
+- Khi API đồng bộ không truy cập được, fallback trong app có thể đánh dấu sự kiện synced cục bộ. Phải kiểm tra phản hồi/log backend trước khi kết luận sự kiện đã đồng bộ hoặc H03 đã được xử lý đúng.
