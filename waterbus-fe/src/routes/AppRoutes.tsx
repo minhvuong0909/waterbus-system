@@ -1,9 +1,10 @@
 import { lazy } from 'react'
 import type { ComponentType } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { ADMIN_NAV, CAPTAIN_ROLES } from '../features/admin/navigation'
+import { ADMIN_NAV } from '../features/admin/navigation'
+import { CAPTAIN_ROLES } from '../constant/roles'
 import AdminLayout from '../layouts/admin/AdminLayout'
-import CaptainLayout from '../layouts/admin/CaptainLayout'
+import CaptainLayout from '../layouts/captain/CaptainLayout'
 import PrivateRoute from './PrivateRoute'
 import PublicRoute from './PublicRoute'
 import RouteWithLayout from './RouteWithLayout'
@@ -35,11 +36,11 @@ const ADMIN_PAGES: Record<string, ComponentType> = {
   [ROUTES.admin]: lazy(() => import('../pages/admin/OverviewPage')),
   [ROUTES.adminRadar]: lazy(() => import('../pages/admin/RadarPage')),
   [ROUTES.adminTrips]: lazy(() => import('../pages/admin/TripsPage')),
-  [ROUTES.adminSchedules]: lazy(() => import('../pages/admin/SchedulesPage')),
   [ROUTES.adminStations]: lazy(() => import('../pages/admin/StationsPage')),
   [ROUTES.adminBoats]: lazy(() => import('../pages/admin/BoatsPage')),
   [ROUTES.adminFares]: lazy(() => import('../pages/admin/FaresPage')),
   [ROUTES.adminIncidents]: lazy(() => import('../pages/admin/IncidentsPage')),
+  [ROUTES.adminCheckIn]: lazy(() => import('../pages/admin/CheckInPage')),
   [ROUTES.adminAudioGuides]: lazy(() => import('../pages/admin/AudioGuidesPage')),
 }
 const CaptainPortalPage = lazy(() => import('../pages/captain/CaptainPortalPage'))

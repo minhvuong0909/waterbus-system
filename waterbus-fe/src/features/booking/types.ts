@@ -17,11 +17,9 @@ export interface Seat {
   row: number
   /** Column letter A-D (BE `ColumnNumber` 1-4). A and D are window seats. */
   column: 'A' | 'B' | 'C' | 'D'
-  /** Fare multiplier of the seat (BE `PriceMultiplier`), 1 for a standard seat. */
-  priceMultiplier: number
   status: SeatStatus
   window: boolean
-  /** Fare of this seat for the chosen journey, from the backend (flat per trip type and seat class). */
+  /** Fare of this seat for the chosen journey (flat per trip type and seat class); absent for a seat without a fare, which cannot be chosen. */
   priceVnd?: number
 }
 
@@ -36,7 +34,7 @@ export interface Journey {
 export interface SeatMap {
   vesselName: string
   seats: Seat[]
-  /** Set for a backend seat map; absent for the mock one. */
+  /** The boarding and alighting stops the seat map was read for. */
   journey?: Journey
   /** False when sales are closed for the trip (backend `salesState` is not `open`). */
   canBook?: boolean
@@ -47,7 +45,7 @@ export interface SeatEvent {
   type: 'SeatLocked' | 'SeatUnlocked' | 'SeatSold'
   tripId: string
   seatId: string
-  /** The journey segment the change applies to; absent for mock events (whole trip). */
+  /** The journey segment the change applies to (BE `VisitOrder`s). */
   boardingVisitOrder?: number
   disembarkingVisitOrder?: number
 }
@@ -74,64 +72,9 @@ export interface BookingStep {
 
 // ---- Backend seat map (GET /trips/{tripId}/seats) ------------------------------------
 
-export interface TripSeatDto {
-  seatId: string
-  seatCode: string
-  rowNumber: number
-  columnNumber: number
-  seatClassId: string
-  seatClassName: string | null
-  price: number | null
-  currency: string
-  /** available | held | sold | unavailable */
-  status: string
-  unavailableReason: string | null
-  holdExpiresAt: string | null
-}
 
-export interface TripSeatMapDto {
-  tripId: string
-  boatId: string
-  boardingCallId: string
-  disembarkingCallId: string
-  boardingVisitOrder: number
-  disembarkingVisitOrder: number
-  canBook: boolean
-  salesState: string
-  availableSeatsCount: number
-  asOf: string
-  seats: TripSeatDto[]
-}
 
-export interface TripStopDto {
-  callId: string
-  stationId: string
-  stationName: string
-  visitOrder: number
-  canBoard: boolean
-  canAlight: boolean
-  status: string
-  estimatedArrivalTime?: string | null
-  estimatedDepartureTime?: string | null
-  /** Check-in window of this stop, set by operations (null while not configured). */
-  checkInOpenAt?: string | null
-  checkInCloseAt?: string | null
-}
 
-/** `GET /trips/{tripId}` (TripDetailDto), the parts used to pick the journey. */
-export interface TripDetailDto {
-  tripId: string
-  routeId: string
-  routeName: string
-  tripType: string
-  status: string
-  departureTime: string
-  arrivalTime: string
-  canBook: boolean
-  salesState: string
-  boat: { boatId: string; code: string; name: string } | null
-  stops: TripStopDto[]
-}
 
 // ---- Checkout (backend `/api/v1/checkouts`, CheckoutsController) -------------------
 
@@ -252,7 +195,7 @@ export interface BookingHold {
   seatIds: string[]
   /** True once buyer and passengers were submitted; the order is then awaiting payment. */
   submitted: boolean
-  /** Guest token of the order; null for a mock order. */
+  /** Guest token of the order (`X-Guest-Token`); null when the backend issues none. */
   accessToken: string | null
   bookingCodes: string[]
   totalAmount: number

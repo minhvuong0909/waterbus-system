@@ -1,17 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PurchaserForm, SeatPassengerForm } from './types'
-import {
-  buildHoldRequest,
-  buildSubmitRequest,
-  computeTotals,
-  pickJourney,
-  toSeatMap,
-  isBookingComplete,
-  purchaserErrors,
-  seatPassengerErrors,
-  toCustomerPhone,
-  withOwnHold,
-} from './utils'
+import { buildHoldRequest, buildSubmitRequest, computeTotals, toSeatMap, isBookingComplete, purchaserErrors, seatPassengerErrors, toCustomerPhone, withOwnHold } from './utils'
+import { pickJourney } from '../trips/utils'
 
 const PURCHASER: PurchaserForm = {
   fullName: 'Nguyen Van An',
@@ -201,13 +191,19 @@ describe('toSeatMap', () => {
     const map = toSeatMap(dto, { boat: null })
     expect(map.seats[2].status).toBe('sold')
     const totals = computeTotals({ fareVnd: 0 } as never, [map.seats[0], map.seats[1]])
-    expect(totals).toMatchObject({ fareVnd: 33000, seatFeeVnd: 0, totalVnd: 33000 })
+    expect(totals).toEqual({ seatCount: 2, totalVnd: 33000 })
+  })
+
+  it('prices a seat without its own fare at the trip fare', () => {
+    const seat = { id: 's', code: 'S01', category: 'standard' as const, row: 1, column: 'A' as const, status: 'available' as const, window: false }
+    expect(computeTotals({ fareVnd: 15000 } as never, [seat, { ...seat, id: 't', priceVnd: 20000 }])).toEqual({ seatCount: 2, totalVnd: 35000 })
+    expect(computeTotals({ fareVnd: 15000 } as never, [])).toEqual({ seatCount: 0, totalVnd: 0 })
   })
 })
 
 describe('withOwnHold', () => {
   const seat = (id: string, status: 'available' | 'held' | 'sold') => ({
-    id, code: id, category: 'standard' as const, row: 1, column: 'A' as const, priceMultiplier: 1, status, window: false,
+    id, code: id, category: 'standard' as const, row: 1, column: 'A' as const, status, window: false,
   })
   const map = { vesselName: 'SWB-01', seats: [seat('mine', 'held'), seat('theirs', 'held'), seat('gone', 'sold')] }
   const now = Date.parse('2026-10-21T07:00:00Z')

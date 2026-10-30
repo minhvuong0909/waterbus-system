@@ -18,8 +18,6 @@ export interface Story {
   badgeIconClass: string
   /** Lowest active Sightseeing fare from `GET /fares`; absent when there is none. */
   fromPriceVnd?: number
-  /** Only known in mock mode: the backend has no tour duration. */
-  durationMins?: number
   location: string
   title: string
   description: string

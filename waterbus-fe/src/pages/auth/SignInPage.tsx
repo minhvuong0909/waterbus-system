@@ -1,6 +1,6 @@
 import { Breadcrumb } from '../../components/ui'
 import AuthCard from '../../features/authentication/components/AuthCard'
-import GuestLookupStrip from '../../features/authentication/components/GuestLookupStrip'
+import GuestBookingNote from '../../features/authentication/components/GuestBookingNote'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { Reveal } from '../../components/motion'
@@ -22,7 +22,7 @@ export default function SignInPage() {
         <AuthCard />
       </div>
       <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-8">
-        <GuestLookupStrip />
+        <GuestBookingNote />
       </div>
     </Reveal>
   )

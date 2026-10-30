@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useDocumentTitle, useFetch } from '../../hooks'
-import { ErrorState, Icon, PageLoader } from '../../components/ui'
-import { ActionButton, PageHeader, Panel } from '../../features/admin/components/AdminUi'
+import { Button, ErrorState, Icon, PageHeader, PageLoader, Panel } from '../../components/ui'
 import { ApiError } from '../../services/apiClient'
 import { executeApi, getApiOperations } from '../../features/admin/services/apiToolsService'
 
@@ -83,7 +82,7 @@ export default function ApiToolsPage() {
         <Panel>
           <div className="mb-5 flex items-center gap-3 border-b border-outline-variant/30 pb-4">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-flow/10 text-teal-flow">
-              <Icon name="terminal" className="text-[20px]" />
+              <Icon name="terminal" className="text-xl" />
             </span>
             <h2 className="font-semibold text-deep-river">Yêu cầu API</h2>
           </div>
@@ -120,7 +119,7 @@ export default function ApiToolsPage() {
               </label>
               <div className="flex min-w-0 items-start gap-2 rounded-xl bg-mist p-3">
                 <span
-                  className={`shrink-0 rounded-md px-2 py-1 font-mono text-[11px] font-bold ${methodClass}`}
+                  className={`shrink-0 rounded-md px-2 py-1 font-mono text-2xs font-bold ${methodClass}`}
                 >
                   {operation.method}
                 </span>
@@ -166,7 +165,7 @@ export default function ApiToolsPage() {
                   />
                 </label>
               )}
-              <ActionButton
+              <Button size="sm"
                 type="submit"
                 icon={busy ? 'hourglass_top' : 'send'}
                 className="w-full sm:w-auto"
@@ -177,7 +176,7 @@ export default function ApiToolsPage() {
                   : operation.machineOnly
                   ? 'Callback do gateway gọi'
                   : 'Gửi yêu cầu'}
-              </ActionButton>
+              </Button>
             </fieldset>
           </form>
           <details className="mt-5 border-t border-outline-variant/30 pt-4 text-xs text-on-surface-variant">
@@ -199,7 +198,7 @@ export default function ApiToolsPage() {
             <h2 className="text-sm font-semibold text-deep-river">Phản hồi từ máy chủ</h2>
             <span
               role="status"
-              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+              className={`rounded-full px-2.5 py-1 text-2xs font-semibold ${
                 result
                   ? failed
                     ? 'bg-red-50 text-red-700'
@@ -221,7 +220,7 @@ export default function ApiToolsPage() {
           ) : (
             <div className="flex min-h-[300px] flex-col items-center justify-center gap-3 px-6 py-12 text-center">
               <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-mist text-teal-flow">
-                <Icon name="data_object" className="text-[28px]" />
+                <Icon name="data_object" className="text-3xl" />
               </span>
               <p className="text-sm font-semibold text-deep-river">
                 {busy ? 'Đang chờ máy chủ' : 'Sẵn sàng kiểm thử'}

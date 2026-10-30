@@ -1,11 +1,41 @@
-import { withDelay } from '../../../mocks/delay'
-import { TRACKING_DATA } from '../../../mocks/tracking'
-import type { TrackingData } from '../types'
-import { USE_MOCK } from '../../../constant/env'
-import { ApiError } from '../../../services/apiClient'
+import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
+import { apiRequest } from '../../../services/apiClient'
+import type { TripDetailDto } from '../../trips/types'
+import { getPierOptions } from '../../trips/services/tripService'
+import type { TrackedTrip } from '../types'
 
-// Mock service layer: swap for a real live-position feed later without touching the UI.
-export function getTrackingData(): Promise<TrackingData> {
-  if (!USE_MOCK) return Promise.reject(new ApiError(501, 'Backend chưa có API theo dõi chuyến cho Passenger/Guest. Admin xem GPS thật tại Live Operations.'))
-  return withDelay(TRACKING_DATA)
+/**
+ * `GET /trips/{id}` (public) with each stop placed at its station from `GET /stations`. Stops whose
+ * station is no longer listed are left off the map rather than drawn at a made-up position.
+ */
+export async function getTrackedTrip(tripId: string): Promise<TrackedTrip> {
+  const [trip, piers] = await Promise.all([
+    apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId)),
+    getPierOptions(),
+  ])
+  const stops = [...trip.stops]
+    .sort((a, b) => a.visitOrder - b.visitOrder)
+    .flatMap((stop) => {
+      const pier = piers.find((p) => p.id === stop.stationId)
+      if (!pier) return []
+      return [{
+        callId: stop.callId,
+        stationName: stop.stationName,
+        visitOrder: stop.visitOrder,
+        latitude: pier.latitude,
+        longitude: pier.longitude,
+        status: stop.status,
+        estimatedArrivalTime: stop.estimatedArrivalTime ?? null,
+        estimatedDepartureTime: stop.estimatedDepartureTime ?? null,
+      }]
+    })
+  return {
+    tripId: trip.tripId,
+    routeName: trip.routeName,
+    status: trip.status as TrackedTrip['status'],
+    boat: trip.boat,
+    departureTime: trip.departureTime,
+    arrivalTime: trip.arrivalTime,
+    stops,
+  }
 }

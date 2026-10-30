@@ -8,9 +8,9 @@ import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 
 const ACTION =
-  'inline-flex items-center gap-2 rounded-full bg-teal-flow px-6 py-2.5 font-headline-sm text-body-md font-semibold text-on-primary shadow-sm transition-colors hover:bg-secondary'
+  'inline-flex items-center gap-2 rounded-full bg-teal-flow px-6 py-2.5 font-display text-body-md font-semibold text-on-primary shadow-sm transition-colors hover:bg-secondary'
 const ACTION_OUTLINE =
-  'inline-flex items-center rounded-full border border-teal-flow px-6 py-2.5 font-headline-sm text-body-md font-semibold text-teal-flow transition-colors hover:bg-sand-light'
+  'inline-flex items-center rounded-full border border-teal-flow px-6 py-2.5 font-display text-body-md font-semibold text-teal-flow transition-colors hover:bg-sand-light'
 
 /**
  * Where VNPay sends the traveler back to (`VnPay:ReturnUrl`). The redirect only says what the
@@ -48,7 +48,7 @@ export default function PaymentCallbackPage() {
     return (
       <div role="status" className="mx-auto max-w-lg px-margin py-space-3xl text-center">
         <PageLoader />
-        <h1 className="font-headline-md text-headline-md text-deep-river">
+        <h1 className="font-display text-headline-md text-deep-river">
           {t('Confirming your payment…')}
         </h1>
         <p className="mt-space-sm text-body-md text-on-surface-variant">
@@ -66,7 +66,7 @@ export default function PaymentCallbackPage() {
         body={t('If money was taken from your account, the tickets will appear once the bank confirms it. You can check again or ask us to verify with the bank.')}
       >
         <button type="button" onClick={confirmation.recheck} className={ACTION}>
-          <Icon name="refresh" className="text-[18px]" />
+          <Icon name="refresh" className="text-lg" />
           {t('Check again')}
         </button>
         <button type="button" onClick={confirmation.reconcile} className={ACTION_OUTLINE}>
@@ -113,7 +113,7 @@ export default function PaymentCallbackPage() {
       ) : (
         <>
           <Link to={ROUTES.payment} className={ACTION}>
-            <Icon name="refresh" className="text-[18px]" />
+            <Icon name="refresh" className="text-lg" />
             {t('Try payment again')}
           </Link>
           <Link to={ROUTES.seatSelection} className={ACTION_OUTLINE}>
@@ -145,9 +145,9 @@ function Notice({
       className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-space-md px-margin py-space-3xl text-center"
     >
       <span className="flex h-16 w-16 items-center justify-center rounded-full bg-coral-glow/15 text-coral-glow">
-        <Icon name={icon} className="text-[34px]" />
+        <Icon name={icon} className="text-4xl" />
       </span>
-      <h1 className="font-headline-md text-headline-md text-deep-river">{title}</h1>
+      <h1 className="font-display text-headline-md text-deep-river">{title}</h1>
       <p className="text-body-md text-on-surface-variant">{body}</p>
       {shown.length > 0 && (
         <dl className="grid w-full grid-cols-2 gap-2 rounded-xl bg-mist/70 p-space-md text-left text-xs">

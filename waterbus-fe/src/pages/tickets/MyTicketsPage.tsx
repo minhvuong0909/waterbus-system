@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Breadcrumb, Button, ErrorState, Icon, PageLoader } from '../../components/ui'
-import {
-  NextDepartureCard,
-  PastJourneyRow,
-  UpcomingTripCard,
-} from '../../features/tickets/components/WalletParts'
+import NextDepartureCard from '../../features/tickets/components/NextDepartureCard'
+import PastJourneyRow from '../../features/tickets/components/PastJourneyRow'
+import UpcomingTripCard from '../../features/tickets/components/UpcomingTripCard'
 import { useTicketWallet } from '../../features/tickets/hooks/useTickets'
 import { groupByBooking, isTicketToday } from '../../features/tickets/utils'
 import { useDocumentTitle } from '../../hooks'
@@ -28,9 +26,9 @@ export default function MyTicketsPage() {
       <Breadcrumb items={[{ label: 'Home', to: ROUTES.home }, { label: 'My Tickets' }]} />
       <div className="mx-auto mt-space-xl flex max-w-md flex-col items-center rounded-2xl border border-outline-variant/40 bg-white p-space-xl text-center shadow-sm">
         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary-container text-on-secondary-container">
-          <Icon name="confirmation_number" className="text-[32px]" />
+          <Icon name="confirmation_number" className="text-3xl" />
         </span>
-        <h1 className="mt-space-md font-headline-lg text-headline-md text-deep-river">
+        <h1 className="mt-space-md font-display text-headline-md text-deep-river">
           {t('You have no tickets yet')}
         </h1>
         <p className="mt-space-xs text-body-md text-on-surface-variant">
@@ -57,7 +55,7 @@ export default function MyTicketsPage() {
         : 'text-on-surface-variant hover:text-deep-river'
     }`
   const badge = (active: boolean) =>
-    `rounded-full px-1.5 text-[11px] ${
+    `rounded-full px-1.5 text-2xs ${
       active ? 'bg-teal-flow text-white' : 'bg-surface-container text-on-surface-variant'
     }`
 
@@ -68,7 +66,7 @@ export default function MyTicketsPage() {
       <div className="mt-space-sm flex flex-col justify-between gap-space-md md:flex-row md:items-start">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="font-headline-xl text-4xl font-bold tracking-tight text-deep-river">
+            <h1 className="font-display text-4xl font-bold tracking-tight text-deep-river">
               {t('My Tickets')}
             </h1>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container">
@@ -84,7 +82,7 @@ export default function MyTicketsPage() {
           to={ROUTES.search}
           className="inline-flex items-center gap-2 self-start rounded-xl border border-outline-variant/50 bg-white px-5 py-2.5 text-sm font-semibold text-deep-river shadow-sm transition-colors hover:bg-surface-container-low"
         >
-          <Icon name="add" className="text-[18px]" />
+          <Icon name="add" className="text-lg" />
           {t('Book New Trip')}
         </Link>
       </div>
@@ -112,7 +110,7 @@ export default function MyTicketsPage() {
 
       {tab === 'upcoming' && wallet.next ? (
         <>
-          <div className="mt-space-lg flex items-center justify-between text-[11px] font-bold uppercase tracking-wider">
+          <div className="mt-space-lg flex items-center justify-between text-2xs font-bold uppercase tracking-wider">
             <span className="flex items-center gap-2 text-teal-flow">
               <span className="h-2 w-2 rounded-full bg-teal-flow" /> {isTicketToday(wallet.next) ? t('Next Departure • Today') : t('Next Departure')}
             </span>
@@ -126,7 +124,7 @@ export default function MyTicketsPage() {
 
           <div className="mt-space-2xl flex items-end justify-between">
             <div>
-              <h2 className="font-headline-lg text-headline-md text-deep-river">
+              <h2 className="font-display text-headline-md text-deep-river">
                 {t('Later This Week')}
               </h2>
               <p className="text-xs text-on-surface-variant">
@@ -167,7 +165,7 @@ export default function MyTicketsPage() {
 
       <div className="mt-space-2xl flex items-end justify-between">
         <div>
-          <h2 className="font-headline-lg text-headline-md text-deep-river">
+          <h2 className="font-display text-headline-md text-deep-river">
             {t('Recent Past Journeys')}
           </h2>
           <p className="text-xs text-on-surface-variant">{t('Completed river transit records')}</p>

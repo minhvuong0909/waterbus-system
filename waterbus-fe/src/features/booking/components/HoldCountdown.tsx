@@ -36,7 +36,7 @@ export default function HoldCountdown({ fallback = null }: { fallback?: ReactNod
         role="alert"
         className="flex flex-wrap items-center gap-space-sm rounded-xl border border-coral-glow/30 bg-coral-glow/10 px-space-md py-2 text-xs text-deep-river"
       >
-        <Icon name="timer_off" className="text-[16px] text-coral-glow" />
+        <Icon name="timer_off" className="text-base text-coral-glow" />
         {t('Your seat hold has expired and the seat was released.')}
         <button
           type="button"
@@ -58,7 +58,7 @@ export default function HoldCountdown({ fallback = null }: { fallback?: ReactNod
         low ? 'bg-coral-glow/15 text-coral-glow' : 'bg-surface-container text-on-surface-variant'
       }`}
     >
-      <Icon name="timer" className="text-[16px]" />
+      <Icon name="timer" className="text-base" />
       {t('Your seat is held for')}
       <strong className="font-mono text-sm text-deep-river">{formatClock(remainingSeconds)}</strong>
     </span>

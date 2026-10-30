@@ -1,12 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
-import {
-  BookingCard,
-  SeatFeeRow,
-  SummaryRow,
-  TotalRow,
-} from '../../booking/components/SummaryParts'
+import BookingCard from '../../booking/components/BookingCard'
+import SummaryRow from '../../booking/components/SummaryRow'
+import TotalRow from '../../booking/components/TotalRow'
 import { selectedSeatsLabel } from '../../booking/utils'
 import type { BookingTotals } from '../../booking/utils'
 import type { PurchaserForm, Seat } from '../../booking/types'
@@ -34,19 +31,19 @@ interface PaymentOrderSummaryProps {
 function LegRoute({ trip, label }: { trip: TripDetail; label?: string }) {
   return (
     <div className="rounded-xl bg-mist/70 p-space-md">
-      {label && <div className="mb-1 text-[11px] font-bold uppercase tracking-wider text-teal-flow">{label}</div>}
+      {label && <div className="mb-1 text-2xs font-bold uppercase tracking-wider text-teal-flow">{label}</div>}
       <div className="flex items-start justify-between text-xs font-semibold text-deep-river">
         <span>
           {trip.originPierLabel}
           <span className="block font-normal text-teal-flow">{trip.departTime}</span>
         </span>
-        <Icon name="sailing" className="text-[18px] text-teal-flow" />
+        <Icon name="sailing" className="text-lg text-teal-flow" />
         <span className="text-right">
           {trip.destinationPierLabel}
           <span className="block font-normal text-teal-flow">{trip.arriveTime}</span>
         </span>
       </div>
-      <div className="mt-2 border-t border-outline-variant/60 pt-2 text-center text-[11px] text-on-surface-variant">
+      <div className="mt-2 border-t border-outline-variant/60 pt-2 text-center text-2xs text-on-surface-variant">
         {trip.dateFull} • {t('{durationMins} min crossing', { durationMins: trip.durationMins })}
       </div>
     </div>
@@ -87,8 +84,8 @@ export default function PaymentOrderSummary({
   return (
     <BookingCard className="p-space-lg lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100svh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain">
       <div className="mb-space-md flex items-center justify-between">
-        <h2 className="font-headline-md text-headline-sm text-deep-river">{t('Order Summary')}</h2>
-        <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-[11px] font-bold text-teal-flow">
+        <h2 className="font-display text-headline-sm text-deep-river">{t('Order Summary')}</h2>
+        <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-2xs font-bold text-teal-flow">
           {t('Trip {vesselCode}', { vesselCode: trip.vesselCode })}
         </span>
       </div>
@@ -121,12 +118,7 @@ export default function PaymentOrderSummary({
       </div>
 
       <div className="mt-space-sm space-y-1.5 border-t border-surface-container pt-space-sm">
-        <SummaryRow label={t('Trip Fare')} value={formatVnd(totals.fareVnd)} />
-        <SeatFeeRow
-          label={t('Seat Fee')}
-          seatFeeVnd={totals.seatFeeVnd}
-          includedText={t('Included')}
-        />
+        <SummaryRow label={t('Trip Fare')} value={formatVnd(totals.totalVnd)} />
       </div>
       <div className="mt-space-sm border-t border-surface-container pt-space-sm">
         <TotalRow
@@ -140,12 +132,12 @@ export default function PaymentOrderSummary({
         type="button"
         onClick={pay}
         disabled={busy || expired || !hold}
-        className="group mt-space-sm flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-headline-sm text-base font-semibold text-on-primary shadow-[0_2px_12px_rgba(20,122,126,0.25)] transition-all hover:bg-secondary disabled:opacity-70"
+        className="group mt-space-sm flex w-full items-center justify-center gap-2 rounded-xl bg-teal-flow py-3 font-display text-base font-semibold text-on-primary shadow-glow transition-all hover:bg-secondary disabled:opacity-70"
       >
         {busy ? t('Opening the payment page…') : t('Pay with VNPay')}
         <Icon
           name="arrow_forward"
-          className="text-[18px] transition-transform group-hover:translate-x-1"
+          className="text-lg transition-transform group-hover:translate-x-1"
         />
       </button>
       <p className="mt-2 text-center text-xs text-on-surface-variant">

@@ -1,23 +1,12 @@
 import { useState } from 'react'
 import { t } from '../../../i18n'
+import { OPERATION_LABEL } from '../utils'
 import type { AdminTrip, OperationType } from '../types'
-import { formatDateTime } from '../utils'
+import { formatDateTime } from '../../../utils/time'
 import { useSubmit } from '../hooks/useAdmin'
-import { operateTrip } from '../services/adminService'
-import { ActionButton, Notice } from './AdminUi'
+import { operateTrip } from '../services/operationsService'
+import { Button, Notice } from '../../../components/ui'
 
-export const OPERATION_LABEL: Record<OperationType, string> = {
-  OpenBoarding: 'Open boarding',
-  Complete: 'Close trip',
-  NoAction: 'No action needed',
-  Suspend: 'Suspend',
-  Resume: 'Resume',
-  Cancel: 'Cancel trip',
-  Terminate: 'Terminate',
-  Start: 'Start',
-  Arrive: 'Arrive',
-  SOS: 'SOS',
-}
 
 const OPERATION_HELP: Partial<Record<OperationType, string>> = {
   Suspend: 'The trip is put on hold until you resume it. Tickets stay valid and nothing is refunded.',
@@ -28,18 +17,16 @@ const OPERATION_HELP: Partial<Record<OperationType, string>> = {
   NoAction: 'You looked at this alert and the trip needs nothing. The decision is kept in the log.',
 }
 
-/** Asks for the reason of a dispatch decision on a trip and sends it (`POST /trips/{id}/status`). */
+/** Asks for the reason of an admin decision on a trip and sends it (`POST /trips/{id}/status`). */
 export default function OperationForm({
   trip,
   type,
-  by,
   incidentId,
   onCancel,
   onDone,
 }: {
   trip: AdminTrip
   type: OperationType
-  by: string
   /** The open alert this decision answers; the backend records it against that trip. */
   incidentId?: string
   onCancel: () => void
@@ -59,7 +46,7 @@ export default function OperationForm({
           setShowError(true)
           return
         }
-        const done = await run(() => operateTrip(trip.id, type, reason.trim(), by, incidentId))
+        const done = await run(() => operateTrip(trip.id, type, reason.trim(), incidentId))
         if (done) onDone()
       }}
     >
@@ -79,19 +66,19 @@ export default function OperationForm({
           aria-invalid={showError && !reason.trim()}
         />
         {showError && !reason.trim() && (
-          <p role="alert" className="mt-1 text-[11px] text-coral-glow">
+          <p role="alert" className="mt-1 text-2xs text-coral-glow">
             {t('Give a reason, it is kept in the log.')}
           </p>
         )}
       </div>
       {error && <Notice tone="error">{error}</Notice>}
       <div className="flex justify-end gap-2 pt-1">
-        <ActionButton tone="secondary" onClick={onCancel}>
+        <Button size="sm" variant="neutral" onClick={onCancel}>
           {t('Back')}
-        </ActionButton>
-        <ActionButton type="submit" tone={type === 'Cancel' || type === 'Terminate' ? 'danger' : 'primary'} disabled={busy}>
+        </Button>
+        <Button size="sm" type="submit" variant={type === 'Cancel' || type === 'Terminate' ? 'danger' : 'primary'} disabled={busy}>
           {busy ? t('Working…') : t(OPERATION_LABEL[type])}
-        </ActionButton>
+        </Button>
       </div>
     </form>
   )

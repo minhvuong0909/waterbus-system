@@ -1,25 +1,17 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { ErrorState, PageLoader } from '../../components/ui'
-import {
-  ActionButton,
-  DataTable,
-  Modal,
-  Notice,
-  PageHeader,
-  TextField,
-} from '../../features/admin/components/AdminUi'
-import type { Column } from '../../features/admin/components/AdminUi'
+import { Button, DataTable, ErrorState, Modal, Notice, PageHeader, PageLoader, TextField } from '../../components/ui'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import {
   createStation,
   deleteStation,
   getStations,
   updateStation,
-} from '../../features/admin/services/adminService'
+} from '../../features/admin/services/stationService'
 import type { AdminStation, NewStation } from '../../features/admin/types'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
+import type { Column } from '../../components/ui'
 
 type Dialog = { kind: 'form'; station?: AdminStation } | { kind: 'delete'; station: AdminStation } | null
 
@@ -111,12 +103,12 @@ function StationForm({
       </div>
       {error && <Notice tone="error">{error}</Notice>}
       <div className="flex justify-end gap-2 pt-1">
-        <ActionButton tone="secondary" onClick={onCancel}>
+        <Button size="sm" variant="neutral" onClick={onCancel}>
           {t('Cancel')}
-        </ActionButton>
-        <ActionButton type="submit" disabled={busy}>
+        </Button>
+        <Button size="sm" type="submit" disabled={busy}>
           {busy ? t('Saving…') : t('Save station')}
-        </ActionButton>
+        </Button>
       </div>
     </form>
   )
@@ -143,12 +135,12 @@ export default function StationsPage() {
       className: 'text-right',
       render: (s) => (
         <span className="inline-flex gap-1">
-          <ActionButton tone="secondary" icon="edit" onClick={() => setDialog({ kind: 'form', station: s })}>
+          <Button size="sm" variant="neutral" icon="edit" onClick={() => setDialog({ kind: 'form', station: s })}>
             {t('Edit')}
-          </ActionButton>
-          <ActionButton tone="secondary" icon="delete" onClick={() => { remove.clearError(); setDialog({ kind: 'delete', station: s }) }}>
+          </Button>
+          <Button size="sm" variant="neutral" icon="delete" onClick={() => { remove.clearError(); setDialog({ kind: 'delete', station: s }) }}>
             {t('Deactivate')}
-          </ActionButton>
+          </Button>
         </span>
       ),
     },
@@ -165,9 +157,9 @@ export default function StationsPage() {
         title="Stations"
         description="Piers along the Saigon River. Passengers pick from these when searching for a trip."
         actions={
-          <ActionButton icon="add" onClick={() => setDialog({ kind: 'form' })}>
+          <Button size="sm" icon="add" onClick={() => setDialog({ kind: 'form' })}>
             {t('Add station')}
-          </ActionButton>
+          </Button>
         }
       />
       <DataTable columns={columns} rows={stations.data} rowKey={(s) => s.id} />
@@ -189,11 +181,11 @@ export default function StationsPage() {
             </div>
           )}
           <div className="mt-4 flex justify-end gap-2">
-            <ActionButton tone="secondary" onClick={() => setDialog(null)}>
+            <Button size="sm" variant="neutral" onClick={() => setDialog(null)}>
               {t('Cancel')}
-            </ActionButton>
-            <ActionButton
-              tone="danger"
+            </Button>
+            <Button size="sm"
+              variant="danger"
               disabled={remove.busy}
               onClick={async () => {
                 const done = await remove.run(async () => {
@@ -204,7 +196,7 @@ export default function StationsPage() {
               }}
             >
               {t('Deactivate')}
-            </ActionButton>
+            </Button>
           </div>
         </Modal>
       )}

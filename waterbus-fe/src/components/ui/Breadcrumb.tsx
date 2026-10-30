@@ -35,7 +35,7 @@ export default function Breadcrumb({ items, className = '' }: BreadcrumbProps) {
                 {t(item.label)}
               </span>
             )}
-            {!last && <Icon name="chevron_right" className="text-[14px] text-outline" />}
+            {!last && <Icon name="chevron_right" className="text-sm text-outline" />}
           </span>
         )
       })}

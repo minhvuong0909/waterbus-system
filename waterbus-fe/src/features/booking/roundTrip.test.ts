@@ -113,10 +113,8 @@ describe('round trip requests', () => {
   })
 
   it('adds the totals of both legs', () => {
-    const leg = { seatCount: 2, fareVnd: 40000, seatFeeVnd: 0, totalVnd: 40000 }
-    expect(addTotals(leg, { seatCount: 1, fareVnd: 20000, seatFeeVnd: 0, totalVnd: 20000 })).toEqual({
-      seatCount: 3, fareVnd: 60000, seatFeeVnd: 0, totalVnd: 60000,
-    })
+    const leg = { seatCount: 2, totalVnd: 40000 }
+    expect(addTotals(leg, { seatCount: 1, totalVnd: 20000 })).toEqual({ seatCount: 3, totalVnd: 60000 })
     expect(addTotals(leg)).toBe(leg)
   })
 })
@@ -131,7 +129,7 @@ describe('round trip rules', () => {
   })
 
   it('recognises own seats per trip when both legs use the same boat', () => {
-    const seat = (id: string) => ({ id, code: id, category: 'standard' as const, row: 1, column: 'A' as const, priceMultiplier: 1, status: 'held' as const, window: false })
+    const seat = (id: string) => ({ id, code: id, category: 'standard' as const, row: 1, column: 'A' as const, status: 'held' as const, window: false })
     const map = { vesselName: 'SWB-01', seats: [seat('x'), seat('y')] }
     const order = { heldUntil: 2_000, legs: [{ tripId: 't1', seatIds: ['x'] }, { tripId: 't2', seatIds: ['y'] }] }
     expect(withOwnHold(map, order, 't1', 1_000).seats.map((s) => s.status)).toEqual(['available', 'held'])

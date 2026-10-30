@@ -1,7 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import { loadSession } from '../../services/authStorage'
-import type { AuthSession, AuthUser } from './authenticationTypes'
+import type { AuthSession, AuthUser } from '../../services/authStorage'
 
 export interface AuthenticationState {
   user: AuthUser | null

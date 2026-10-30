@@ -1,52 +1,33 @@
-export type TrackingMode = 'sightseeing' | 'transit'
+import type { TripStatus } from '../trips/types'
 
-export type PoiState = 'passed' | 'active' | 'next' | 'terminal'
-
-export interface AudioEpisode {
-  id: string
-  title: string
-  durationSec: number
-  /** Seconds already played when the page first opens. */
-  startAtSec: number
+/** A stop of the tracked trip, placed at its station's coordinates. */
+export interface TrackedStop {
+  callId: string
+  stationName: string
+  visitOrder: number
+  latitude: number
+  longitude: number
+  /** `TripStopCall` status from the backend (e.g. "Scheduled", "Departed"). */
+  status: string
+  estimatedArrivalTime: string | null
+  estimatedDepartureTime: string | null
 }
 
-export interface TrackingPoi {
-  id: string
-  state: PoiState
-  /** Position on the 920x660 map canvas. */
-  x: number
-  y: number
-  /** Material Symbols name used on the map pin and itinerary card. */
-  icon: string
-  /** Map label, e.g. "Customs House". */
-  mapTitle: string
-  mapNote: string
-  /** Itinerary card. */
-  title: string
-  tag: string
-  description: string
-  footer: string
-  /** Story panel shown when this POI is active. */
-  storyBadge: string
-  storyTitle: string
-  storyText: string
-  storyMeta: string
-  audio?: AudioEpisode
-}
-
-export interface TrackingTrip {
-  code: string
-  vesselType: string
-  statusLabel: string
-  seatLabel: string
+/** The trip a traveler follows: `GET /trips/{id}` with the stops on the map. */
+export interface TrackedTrip {
+  tripId: string
+  routeName: string
+  status: TripStatus
+  boat: { boatId: string; code: string; name: string } | null
+  departureTime: string
   arrivalTime: string
-  remainingLabel: string
-  remainingDetail: string
+  stops: TrackedStop[]
 }
 
-export interface TrackingData {
-  trip: TrackingTrip
-  pois: TrackingPoi[]
-  languages: string[]
-  activePoiId: string
+/** Last position the boat reported through the boat-tracking hub. */
+export interface BoatFix {
+  latitude: number
+  longitude: number
+  speedKnots: number | null
+  observedAt: string
 }

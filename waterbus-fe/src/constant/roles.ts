@@ -7,3 +7,9 @@ export const ROLES = {
 } as const
 
 export type Role = (typeof ROLES)[keyof typeof ROLES]
+
+/** Roles allowed in the captain's portal. */
+export const CAPTAIN_ROLES = [ROLES.captain, ROLES.admin] as const
+
+/** Roles that work in the operations area at all. */
+export const STAFF_ROLES = [ROLES.admin, ROLES.captain] as const

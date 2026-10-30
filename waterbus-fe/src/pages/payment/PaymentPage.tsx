@@ -2,7 +2,7 @@ import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
 import BookingProgress from '../../features/booking/components/BookingProgress'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import type { BookingStep } from '../../features/booking/types'
-import { addTotals, bookingReference, seatCodes } from '../../features/booking/utils'
+import { addTotals, seatCodes } from '../../features/booking/utils'
 import { isRoundTrip } from '../../features/booking/legs'
 import PaymentMethodPanel from '../../features/payment/components/PaymentMethodPanel'
 import HoldCountdown from '../../features/booking/components/HoldCountdown'
@@ -70,7 +70,7 @@ export default function PaymentPage() {
 
       <div className="mt-space-lg flex flex-col justify-between gap-space-md md:flex-row md:items-end">
         <div>
-          <h1 className="font-headline-xl text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-lg">
+          <h1 className="font-display text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-lg">
             {t('Complete Your Payment')}
           </h1>
           <p className="text-body-md text-on-surface-variant">
@@ -83,7 +83,7 @@ export default function PaymentPage() {
           <HoldCountdown
             fallback={
               <span className="inline-flex items-center gap-2 rounded-xl bg-surface-container px-space-md py-2 text-xs text-on-surface-variant">
-                <Icon name="event_seat" className="text-[16px] text-teal-flow" />
+                <Icon name="event_seat" className="text-base text-teal-flow" />
                 {t('Your selected seat remains reserved while you complete payment.')}
               </span>
             }
@@ -95,7 +95,7 @@ export default function PaymentPage() {
         <div className="lg:col-span-8">
           <PaymentMethodPanel
             amountVnd={totals.totalVnd}
-            reference={hold?.bookingCodes.join(', ') || bookingReference(seats)}
+            reference={hold?.bookingCodes.join(', ') ?? ''}
           />
         </div>
         <div className="lg:col-span-4 lg:self-stretch">

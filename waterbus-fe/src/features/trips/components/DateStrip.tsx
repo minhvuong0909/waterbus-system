@@ -30,32 +30,32 @@ export default function DateStrip({ dates, selectedId, tripCount, counts, onSele
             }`}
           >
             <span
-              className={`text-[11px] uppercase ${
+              className={`text-2xs uppercase ${
                 selected ? 'font-bold tracking-wide text-sky-aqua' : 'font-semibold text-outline'
               }`}
             >
               {date.isToday ? t('Today • {weekday}', { weekday: date.weekday }) : date.weekday}
             </span>
             <span
-              className={`font-headline-sm text-sm font-bold ${
+              className={`font-display text-sm font-bold ${
                 selected ? 'text-on-primary' : 'text-deep-river'
               }`}
             >
               {date.label}
             </span>
             {selected ? (
-              <span className="mt-0.5 inline-flex items-center rounded-full bg-teal-flow px-2 py-0.5 text-[11px] font-semibold text-white">
+              <span className="mt-0.5 inline-flex items-center rounded-full bg-teal-flow px-2 py-0.5 text-2xs font-semibold text-white">
                 {count === 0 ? t('No trips') : t('{tripCount} Trips', { tripCount: count ?? tripCount })}
               </span>
             ) : count !== undefined ? (
               <span
-                className={`text-[11px] font-medium ${count === 0 ? 'text-outline' : 'text-teal-flow'}`}
+                className={`text-2xs font-medium ${count === 0 ? 'text-outline' : 'text-teal-flow'}`}
               >
                 {count === 0 ? t('No trips') : t('{tripCount} Trips', { tripCount: count })}
               </span>
             ) : (
               date.fromFareVnd !== undefined && (
-                <span className="text-[11px] font-medium text-teal-flow">
+                <span className="text-2xs font-medium text-teal-flow">
                   {t('From {price}', { price: formatVndSuffix(date.fromFareVnd) })}
                 </span>
               )
