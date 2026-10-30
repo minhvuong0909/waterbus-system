@@ -20,6 +20,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { to: ROUTES.adminBoats, label: 'Boats', icon: 'sailing', roles: [admin] },
   { to: ROUTES.adminFares, label: 'Fares', icon: 'payments', roles: [admin] },
   { to: ROUTES.adminIncidents, label: 'Incidents', icon: 'warning', roles: [admin] },
+  { to: ROUTES.adminCheckIn, label: 'Check-in', icon: 'how_to_reg', roles: [admin] },
   { to: ROUTES.adminAudioGuides, label: 'Audio guides', icon: 'campaign', roles: [admin] },
   ...(import.meta.env.DEV
     ? [{ to: ROUTES.adminApi, label: 'Test API', icon: 'api', roles: [admin] }]

@@ -125,7 +125,7 @@ export default function BoatsPage() {
     <>
       <PageHeader
         title="Boats"
-        description="The fleet and the seat layout each boat is created with."
+        description="The active boats of the fleet and their number of seats."
         actions={
           <Button size="sm" icon="add" onClick={() => setDialog({ kind: 'form' })}>
             {t('Add boat')}

@@ -23,6 +23,10 @@ export const API_ENDPOINTS = {
     /** Admin: links a generated MP3 to a POI and publishes it. */
     publish: '/api/v1/audioguides/publish',
   },
+  checkIns: {
+    /** Admin: the check-in window of one stop (`TripStopCall`). */
+    window: (tripStopCallId: string) => `/api/v1/checkins/windows/${tripStopCallId}`,
+  },
   checkouts: {
     /** Holds seats first (Draft); the buyer is submitted later. */
     holds: '/api/v1/checkouts/holds',

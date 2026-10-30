@@ -36,3 +36,23 @@ export function formatClockWithSeconds(iso: string): string {
     second: '2-digit',
   })
 }
+
+/** Value of an `<input type="datetime-local">` (`YYYY-MM-DDTHH:mm`) showing `iso` in Vietnam time. */
+export function toVietnamDateTimeInput(iso: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(iso))
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? ''
+  return `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`
+}
+
+/** UTC ISO instant of a `datetime-local` value read as Vietnam time (UTC+7, no daylight saving). */
+export function fromVietnamDateTimeInput(value: string): string {
+  return new Date(`${value}:00+07:00`).toISOString()
+}

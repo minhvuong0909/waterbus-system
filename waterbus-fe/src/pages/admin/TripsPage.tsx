@@ -56,7 +56,7 @@ export default function TripsPage() {
     <>
       <PageHeader
         title="Trips"
-        description="Real runs of the boats, generated from the schedules."
+        description="Trips from 12 hours ago to 7 days ahead, with their boat and status."
         actions={
           <label className="flex items-center gap-2 text-sm text-on-surface-variant">
             {t('Status')}
