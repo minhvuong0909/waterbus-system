@@ -51,7 +51,7 @@ public class AuthServiceTests
 
         var signInManagerMock = CreateSignInManagerMock(userManagerMock.Object);
         signInManagerMock
-            .Setup(m => m.CheckPasswordSignInAsync(user, "Secret123", false))
+            .Setup(m => m.CheckPasswordSignInAsync(user, "Secret123", true))
             .ReturnsAsync(SignInResult.Success);
 
         var jwtGeneratorMock = new Mock<IJwtTokenGenerator>();
@@ -77,7 +77,7 @@ public class AuthServiceTests
 
         var signInManagerMock = CreateSignInManagerMock(userManagerMock.Object);
         signInManagerMock
-            .Setup(m => m.CheckPasswordSignInAsync(user, "WrongPassword", false))
+            .Setup(m => m.CheckPasswordSignInAsync(user, "WrongPassword", true))
             .ReturnsAsync(SignInResult.Failed);
 
         var sut = new AuthService(userManagerMock.Object, signInManagerMock.Object, Mock.Of<IJwtTokenGenerator>());
@@ -85,6 +85,26 @@ public class AuthServiceTests
         var act = () => sut.LoginAsync(new LoginRequest(user.Email!, "WrongPassword"));
 
         await act.Should().ThrowAsync<AuthenticationException>();
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenAccountIsLockedOut_ShouldThrowAuthenticationExceptionWithLockoutMessage()
+    {
+        var user = ActiveUser("staff@waterbus.vn");
+        var userManagerMock = CreateUserManagerMock();
+        userManagerMock.Setup(m => m.FindByEmailAsync(user.Email!)).ReturnsAsync(user);
+
+        var signInManagerMock = CreateSignInManagerMock(userManagerMock.Object);
+        signInManagerMock
+            .Setup(m => m.CheckPasswordSignInAsync(user, "WrongPassword", true))
+            .ReturnsAsync(SignInResult.LockedOut);
+
+        var sut = new AuthService(userManagerMock.Object, signInManagerMock.Object, Mock.Of<IJwtTokenGenerator>());
+
+        var act = () => sut.LoginAsync(new LoginRequest(user.Email!, "WrongPassword"));
+
+        (await act.Should().ThrowAsync<AuthenticationException>())
+            .WithMessage("*tạm khóa*");
     }
 
     [Fact]

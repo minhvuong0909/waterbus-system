@@ -125,4 +125,47 @@ public class SearchTripsQueryHandlerTests
 
         (await Search(new DateTime(2026, 10, 22))).Single().BasePrice.Should().Be(0);
     }
+
+    // ---- H05: bến lên/bến xuống phải theo điểm dừng thực tế (TripStopCall), không theo
+    // Route.DepartureStationId/ArrivalStationId + Station.OrderIndex toàn hệ thống ----
+
+    [Fact]
+    public async Task SearchByMidRouteStation_ShouldFindTripBoardingThere()
+    {
+        var found = await Handler().Handle(
+            new SearchTripsQuery(_seed.StationB.Id, null, null, null), CancellationToken.None);
+
+        found.Should().ContainSingle();
+        found.Single().DepartureStationName.Should().Be(_seed.StationB.Name);
+    }
+
+    [Fact]
+    public async Task SearchBoardingAfterDisembarking_ShouldNotMatch()
+    {
+        // Bến B (VisitOrder 2) sau bến A (VisitOrder 1) theo chiều chuyến -> không phải hành trình hợp lệ.
+        var found = await Handler().Handle(
+            new SearchTripsQuery(_seed.StationB.Id, _seed.StationA.Id, null, null), CancellationToken.None);
+
+        found.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SeatBookedOnlyForEarlierSegment_ShouldStayAvailableForLaterSegment()
+    {
+        var booking = TestDbContextFactory.SeedBooking(_context, _seed, from: 1, to: 2);
+        _context.SeatReservations.Add(new SeatReservation
+        {
+            Booking = booking, BookingId = booking.Id, TripId = _seed.Trip.Id, SeatId = _seed.Seat1.Id,
+            BoardingStopOrder = 1, DisembarkingStopOrder = 2
+        });
+        await _context.SaveChangesAsync();
+
+        var laterSegment = await Handler().Handle(
+            new SearchTripsQuery(_seed.StationB.Id, _seed.StationC.Id, null, null), CancellationToken.None);
+        laterSegment.Single().AvailableSeatsCount.Should().Be(2);
+
+        var wholeTrip = await Handler().Handle(
+            new SearchTripsQuery(null, null, null, null), CancellationToken.None);
+        wholeTrip.Single().AvailableSeatsCount.Should().Be(1);
+    }
 }

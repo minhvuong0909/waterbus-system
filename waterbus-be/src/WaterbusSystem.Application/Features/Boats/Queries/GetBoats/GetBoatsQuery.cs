@@ -1,3 +1,4 @@
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using WaterbusSystem.Application.Common.Interfaces;
@@ -20,6 +21,19 @@ public record GetBoatsQuery(
     int PageNumber = 1,
     int PageSize = 10,
     bool? IsActiveOnly = null) : IRequest<PaginatedList<BoatDto>>;
+
+/// <summary>M14: chặn PageNumber/PageSize âm, bằng 0 hoặc quá lớn trước khi vào Skip/Take.</summary>
+public class GetBoatsQueryValidator : AbstractValidator<GetBoatsQuery>
+{
+    public GetBoatsQueryValidator()
+    {
+        RuleFor(x => x.PageNumber)
+            .GreaterThanOrEqualTo(1).WithMessage("PageNumber phải lớn hơn hoặc bằng 1.");
+
+        RuleFor(x => x.PageSize)
+            .InclusiveBetween(1, 100).WithMessage("PageSize phải trong khoảng 1-100.");
+    }
+}
 
 public class GetBoatsQueryHandler : IRequestHandler<GetBoatsQuery, PaginatedList<BoatDto>>
 {

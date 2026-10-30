@@ -15,6 +15,9 @@ public record NoShowFinalizationResult(int StopCallsEligible, int StopCallsDefer
 /// và dữ liệu offline liên quan đã được đối soát hợp lý."
 /// BR-OFF-04: không coi offline là tuyệt đối trước khi backend reconciliation - trì hoãn finalize
 /// cho bất kỳ điểm dừng nào còn CheckInEvent chưa giải quyết (SyncStatus Pending/Conflict).
+/// BR-RF-06: loại khỏi diện xét NoShow mọi điểm dừng thuộc Trip đã Cancelled/Terminated - hành khách
+/// chưa từng có cơ hội lên tàu thì không thể "không đến", tránh mất quyền hoàn tiền sai
+/// (xem RefundEligibilityEvaluator.cs).
 /// Idempotent: chỉ xét Ticket còn NotCheckedIn, chạy lại không ảnh hưởng Ticket đã finalize.
 /// </summary>
 public record RunNoShowFinalizationCommand : IRequest<NoShowFinalizationResult>;
@@ -44,8 +47,11 @@ public class RunNoShowFinalizationCommandHandler : IRequestHandler<RunNoShowFina
         var deadline = now.AddMinutes(-_options.GraceMinutes);
 
         // Điểm dừng đã đóng cửa sổ check-in (+ thời gian chờ đối soát) từ trước deadline.
+        // BR-RF-06: bỏ qua điểm dừng của Trip đã Cancelled/Terminated - chuyến hủy/chấm dứt trước khi
+        // phục vụ bến lên nghĩa là khách chưa từng có cơ hội check-in, không phải NoShow.
         var closedStopCallIds = await _context.TripStopCalls.AsNoTracking()
-            .Where(c => !c.IsDeleted && c.CheckInCloseAt != null && c.CheckInCloseAt <= deadline)
+            .Where(c => !c.IsDeleted && c.CheckInCloseAt != null && c.CheckInCloseAt <= deadline
+                        && c.Trip!.Status != TripStatus.Cancelled && c.Trip!.Status != TripStatus.Terminated)
             .Select(c => c.Id)
             .ToListAsync(cancellationToken);
 
