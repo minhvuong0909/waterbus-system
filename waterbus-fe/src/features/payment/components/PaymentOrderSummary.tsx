@@ -1,12 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
-import {
-  BookingCard,
-  SeatFeeRow,
-  SummaryRow,
-  TotalRow,
-} from '../../booking/components/SummaryParts'
+import BookingCard from '../../booking/components/BookingCard'
+import SeatFeeRow from '../../booking/components/SeatFeeRow'
+import SummaryRow from '../../booking/components/SummaryRow'
+import TotalRow from '../../booking/components/TotalRow'
 import { selectedSeatsLabel } from '../../booking/utils'
 import type { BookingTotals } from '../../booking/utils'
 import type { PurchaserForm, Seat } from '../../booking/types'

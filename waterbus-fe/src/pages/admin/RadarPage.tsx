@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import FleetMap from '../../components/map/FleetMap'
 import { ErrorState, PageHeader, PageLoader, Panel } from '../../components/ui'
-import { AlertBanner } from '../../features/admin/components/AlertParts'
+import AlertBanner from '../../features/admin/components/AlertBanner'
 import { sortAlerts } from '../../features/admin/alertUtils'
 import { useNow, useReload } from '../../features/admin/hooks/useAdmin'
 import { useLiveFleet } from '../../features/admin/hooks/useFleetHub'

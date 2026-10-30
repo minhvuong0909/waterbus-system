@@ -1,6 +1,7 @@
 import { t } from '../../i18n'
 import type { OperationType, WeatherAlert } from './types'
 import { formatDateTime } from '../../utils/time'
+import { weatherAlertTitle } from './utils'
 
 export interface AlertMetrics {
   /** Sky condition as the weather service words it, e.g. "mưa nhẹ". */
@@ -87,4 +88,13 @@ export function alertTone(alert: WeatherAlert): {
   return alert.level === 2
     ? { label: t('High risk'), icon: 'storm', accent: 'border-l-coral-glow', badge: 'bg-coral-glow/15 text-coral-glow' }
     : { label: t('Warning'), icon: 'air', accent: 'border-l-signal-amber', badge: 'bg-signal-amber/20 text-deep-river' }
+}
+
+/** "43,2 km/h". */
+export const formatKmh = (value: number) => t('{speed} km/h', { speed: value.toLocaleString('vi-VN') })
+
+/** "Weather alert on route RT01", the captain's report, or the alert level. */
+export function titleOf(alert: WeatherAlert): string {
+  if (isCaptainReport(alert)) return t('Captain emergency report')
+  return alert.routeCode ? t('Weather alert on route {route}', { route: alert.routeCode }) : weatherAlertTitle(alert)
 }

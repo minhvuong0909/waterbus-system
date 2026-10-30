@@ -1,12 +1,10 @@
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import HoldCountdown from '../../features/booking/components/HoldCountdown'
 import BookingProgress from '../../features/booking/components/BookingProgress'
-import {
-  JourneyDetailsCard,
-  OrderSummary,
-  PassengerInfoCard,
-  TermsConfirm,
-} from '../../features/booking/components/CheckoutParts'
+import JourneyDetailsCard from '../../features/booking/components/JourneyDetailsCard'
+import OrderSummary from '../../features/booking/components/OrderSummary'
+import PassengerInfoCard from '../../features/booking/components/PassengerInfoCard'
+import TermsConfirm from '../../features/booking/components/TermsConfirm'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import { useSubmitCheckout } from '../../features/booking/hooks/useCheckout'
 import { isRoundTrip } from '../../features/booking/legs'

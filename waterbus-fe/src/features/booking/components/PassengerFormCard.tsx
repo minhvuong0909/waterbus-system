@@ -5,7 +5,7 @@ import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import type { PurchaserForm, Seat, SeatPassengerForm } from '../types'
 import { purchaserErrors, seatPassengerErrors, seatTags } from '../utils'
-import { BookingCard } from './SummaryParts'
+import BookingCard from './BookingCard'
 import { t } from '../../../i18n'
 
 interface PassengerFormCardProps {

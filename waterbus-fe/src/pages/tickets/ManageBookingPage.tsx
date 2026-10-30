@@ -1,10 +1,8 @@
 import { useParams } from 'react-router-dom'
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
-import {
-  BookingSummaryCard,
-  OperatingBanner,
-  RefundPolicyCard,
-} from '../../features/tickets/components/ManageParts'
+import BookingSummaryCard from '../../features/tickets/components/BookingSummaryCard'
+import OperatingBanner from '../../features/tickets/components/OperatingBanner'
+import RefundPolicyCard from '../../features/tickets/components/RefundPolicyCard'
 import { useManageBooking } from '../../features/tickets/hooks/useTickets'
 import { useDocumentTitle } from '../../hooks'
 import { ApiError } from '../../services/apiClient'

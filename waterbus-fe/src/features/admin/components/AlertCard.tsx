@@ -1,24 +1,13 @@
-import { Link } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
 import { t } from '../../../i18n'
-import { ROUTES } from '../../../routes/routes'
-import { alertMetrics, alertNote, alertTone, decisionOperation, isCaptainReport, pendingCountOf, timeAgo } from '../alertUtils'
+import { alertMetrics, alertNote, alertTone, decisionOperation, formatKmh, isCaptainReport, pendingCountOf, timeAgo, titleOf } from '../alertUtils'
 import type { AdminTrip, OperationType, WeatherAlert } from '../types'
 import { formatDateTime } from '../../../utils/time'
-import { weatherAlertTitle } from '../utils'
 import { OPERATION_LABEL } from './OperationForm'
 import TripStatusBadge from '../../trips/components/TripStatusBadge'
 
 /** Decisions that answer an alert for one trip (Resume and Close are routine trip operations). */
 const ALERT_DECISIONS: OperationType[] = ['Suspend', 'Cancel', 'Terminate']
-
-const formatKmh = (value: number) => t('{speed} km/h', { speed: value.toLocaleString('vi-VN') })
-
-/** "Weather alert on route RT01", the captain's report, or the level and wind of a mock alert. */
-function titleOf(alert: WeatherAlert): string {
-  if (isCaptainReport(alert)) return t('Captain emergency report')
-  return alert.routeCode ? t('Weather alert on route {route}', { route: alert.routeCode }) : weatherAlertTitle(alert)
-}
 
 function Metric({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
@@ -73,7 +62,7 @@ function DecisionProgress({ alert }: { alert: WeatherAlert }) {
  * One open alert: how serious it is, the measured weather, and every affected trip with the
  * admin's decision, or the buttons to make it. The alert never changes a trip by itself.
  */
-export function AlertCard({
+export default function AlertCard({
   alert,
   trips,
   onDecide,
@@ -187,68 +176,5 @@ export function AlertCard({
         </ul>
       )}
     </article>
-  )
-}
-
-/** Shown when no alert is open. */
-export function AlertsEmpty() {
-  return (
-    <div className="flex items-center gap-3 rounded-2xl border border-dashed border-outline-variant bg-white p-4">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-flow/10 text-teal-flow">
-        <Icon name="check_circle" className="text-[22px]" />
-      </span>
-      <div>
-        <p className="font-semibold text-deep-river">{t('No weather warning right now.')}</p>
-        <p className="text-sm text-on-surface-variant">
-          {t('New alerts from the weather check or a captain appear here by themselves.')}
-        </p>
-      </div>
-    </div>
-  )
-}
-
-/** Compact strip for the live radar: how serious, where, and how many trips still need a decision. */
-export function AlertBanner({ alert }: { alert: WeatherAlert }) {
-  const tone = alertTone(alert)
-  const { windKmh, gustKmh } = alertMetrics(alert)
-  const pending = pendingCountOf(alert)
-  return (
-    <div
-      role="alert"
-      className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-l-4 border-outline-variant/40 bg-white px-4 py-3 text-sm shadow-sm ${tone.accent}`}
-    >
-      <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${tone.badge}`}>
-        <Icon name={tone.icon} className="text-[18px]" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${tone.badge}`}>
-            {tone.label}
-          </span>
-          <span className="font-semibold text-deep-river">{titleOf(alert)}</span>
-        </div>
-        <div className="mt-0.5 text-xs text-on-surface-variant">
-          {[
-            windKmh !== undefined ? `${t('Wind')} ${formatKmh(windKmh)}` : null,
-            gustKmh !== undefined ? `${t('Gusts')} ${formatKmh(gustKmh)}` : null,
-            timeAgo(alert.issuedAt),
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </div>
-      </div>
-      {pending > 0 && (
-        <span className="rounded-full bg-coral-glow/15 px-2.5 py-1 text-xs font-semibold text-coral-glow">
-          {t('{count} trips need a decision', { count: pending })}
-        </span>
-      )}
-      <Link
-        to={ROUTES.adminIncidents}
-        className="inline-flex min-h-[36px] items-center gap-1 rounded-full bg-deep-river px-3 text-xs font-semibold text-white hover:opacity-90"
-      >
-        {t('Review alert')}
-        <Icon name="arrow_forward" className="text-[16px]" />
-      </Link>
-    </div>
   )
 }

@@ -9,7 +9,8 @@ import {
   passengersLabel,
   seatCodes,
 } from '../../features/booking/utils'
-import { ConfirmationHero, ConfirmationSteps } from '../../features/payment/components/ConfirmationParts'
+import ConfirmationHero from '../../features/payment/components/ConfirmationHero'
+import ConfirmationSteps from '../../features/payment/components/ConfirmationSteps'
 import { getBookingQr } from '../../features/booking/services/bookingService'
 import { useOrderConfirmation } from '../../features/payment/hooks/useOrderConfirmation'
 import BoardingPassCard from '../../features/tickets/components/BoardingPassCard'

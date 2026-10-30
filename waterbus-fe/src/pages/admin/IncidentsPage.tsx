@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button, DataTable, ErrorState, Modal, Notice, PageHeader, PageLoader } from '../../components/ui'
-import { AlertCard, AlertsEmpty } from '../../features/admin/components/AlertParts'
+import AlertCard from '../../features/admin/components/AlertCard'
+import AlertsEmpty from '../../features/admin/components/AlertsEmpty'
 import { pendingCountOf, sortAlerts } from '../../features/admin/alertUtils'
 import type { WeatherAlert } from '../../features/admin/types'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'

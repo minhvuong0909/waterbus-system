@@ -1,12 +1,10 @@
 import { useState } from 'react'
 import { Breadcrumb, CopyButton, ErrorState, PageLoader } from '../../components/ui'
-import {
-  BoardingGuidance,
-  QrModal,
-  TicketActions,
-  TicketBoardingPass,
-  TicketCorridorCard,
-} from '../../features/tickets/components/TicketDetailParts'
+import BoardingGuidance from '../../features/tickets/components/BoardingGuidance'
+import QrModal from '../../features/tickets/components/QrModal'
+import TicketActions from '../../features/tickets/components/TicketActions'
+import TicketBoardingPass from '../../features/tickets/components/TicketBoardingPass'
+import TicketCorridorCard from '../../features/tickets/components/TicketCorridorCard'
 import { useTicketDetail } from '../../features/tickets/hooks/useTickets'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'

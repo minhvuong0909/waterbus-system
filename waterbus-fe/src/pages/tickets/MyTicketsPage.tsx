@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Breadcrumb, Button, ErrorState, Icon, PageLoader } from '../../components/ui'
-import {
-  NextDepartureCard,
-  PastJourneyRow,
-  UpcomingTripCard,
-} from '../../features/tickets/components/WalletParts'
+import NextDepartureCard from '../../features/tickets/components/NextDepartureCard'
+import PastJourneyRow from '../../features/tickets/components/PastJourneyRow'
+import UpcomingTripCard from '../../features/tickets/components/UpcomingTripCard'
 import { useTicketWallet } from '../../features/tickets/hooks/useTickets'
 import { groupByBooking, isTicketToday } from '../../features/tickets/utils'
 import { useDocumentTitle } from '../../hooks'
