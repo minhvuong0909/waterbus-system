@@ -1,8 +1,9 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using WaterbusSystem.Application.Common.Exceptions;
-using WaterbusSystem.Application.Features.Tracking.Commands.RecordBoatPosition;
+using WaterbusSystem.Application.DTOs.Requests.Tracking;
+using WaterbusSystem.Application.Features.Tracking;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.WebApi.Realtime;
 
@@ -10,18 +11,11 @@ namespace WaterbusSystem.WebApi.Hubs;
 
 /// <summary>
 /// Hub theo dõi vị trí tàu (/hubs/boat-tracking). Bắt buộc đăng nhập.
-/// Client join/leave group để nhận dữ liệu; Captain gửi GPS qua SendPosition (logic nằm ở RecordBoatPositionCommand).
+/// Client join/leave group để nhận dữ liệu; Captain gửi GPS qua SendPosition (logic nằm ở IBoatTrackingService).
 /// </summary>
 [Authorize]
-public class BoatTrackingHub : Hub
+public class BoatTrackingHub(IBoatTrackingService tracking) : Hub
 {
-    private readonly ISender _mediator;
-
-    public BoatTrackingHub(ISender mediator)
-    {
-        _mediator = mediator;
-    }
-
     /// <summary>Radar toàn đội tàu + cảnh báo vận hành: chỉ Admin.</summary>
     [Authorize(Policy = "AdminOnly")]
     public Task JoinFleet() =>
@@ -48,7 +42,7 @@ public class BoatTrackingHub : Hub
 
         try
         {
-            var result = await _mediator.Send(new RecordBoatPositionCommand(
+            var result = await tracking.RecordPositionAsync(new RecordBoatPositionRequest(
                 boatId, latitude, longitude, speedKnots, observedAt, BoatPositionSources.Gps, captainId));
             return result.Accepted;
         }

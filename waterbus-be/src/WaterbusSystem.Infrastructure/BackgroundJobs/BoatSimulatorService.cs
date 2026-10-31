@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -6,7 +5,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Tracking;
-using WaterbusSystem.Application.Features.Tracking.Commands.RecordBoatPosition;
+using WaterbusSystem.Application.DTOs.Requests.Tracking;
+using WaterbusSystem.Application.Features.Tracking;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.Infrastructure.Services.Tracking;
@@ -15,7 +16,7 @@ namespace WaterbusSystem.Infrastructure.BackgroundJobs;
 
 /// <summary>
 /// Giả lập GPS cho demo (BR-TRK-01). Mỗi chu kỳ, với mỗi Trip đang chạy có Boat, tính vị trí dọc các bến
-/// theo VisitOrder và gửi qua CHÍNH RecordBoatPositionCommand với Source = "Simulated" (cùng luồng với GPS thật).
+/// theo VisitOrder và gửi qua CHÍNH IBoatTrackingService.RecordPositionAsync với Source = "Simulated" (cùng luồng với GPS thật).
 /// Thời gian chuyến được lặp vòng để demo không phụ thuộc giờ khởi hành thật.
 /// Trip Suspended: tàu đứng yên, vẫn phát lại vị trí cuối (BR-INC-05).
 /// </summary>
@@ -68,7 +69,7 @@ public class BoatSimulatorService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var cache = scope.ServiceProvider.GetRequiredService<IBoatPositionCache>();
-        var mediator = scope.ServiceProvider.GetRequiredService<ISender>();
+        var tracking = scope.ServiceProvider.GetRequiredService<IBoatTrackingService>();
         var now = scope.ServiceProvider.GetRequiredService<IDateTimeService>().Now;
 
         var statuses = simulator.IncludeScheduledTrips
@@ -123,7 +124,7 @@ public class BoatSimulatorService : BackgroundService
                 speed = Math.Round((decimal)RoutePathInterpolator.AverageSpeedKnots(path, duration), 2);
             }
 
-            await mediator.Send(new RecordBoatPositionCommand(
+            await tracking.RecordPositionAsync(new RecordBoatPositionRequest(
                 trip.BoatId, lat, lng, speed, now, BoatPositionSources.Simulated, ReportedByCaptainId: null),
                 cancellationToken);
         }

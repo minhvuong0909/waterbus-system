@@ -11,4 +11,10 @@ public interface ITripRepository
     /// </summary>
     Task<List<ActiveTripRef>> ListActiveInWindowAsync(
         IReadOnlyCollection<TripStatus> statuses, DateTimeOffset now, DateTimeOffset horizon, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Chuyến mới nhất (theo giờ khởi hành) của tàu có trạng thái trong <paramref name="statuses"/>; null nếu không có.
+    /// </summary>
+    Task<Guid?> FindLatestTripIdByBoatAsync(
+        Guid boatId, IReadOnlyCollection<TripStatus> statuses, CancellationToken cancellationToken = default);
 }

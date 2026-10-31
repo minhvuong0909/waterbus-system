@@ -1,7 +1,17 @@
 using FluentAssertions;
 using WaterbusSystem.Application.Common.Interfaces;
-using WaterbusSystem.Application.Features.Tracking.Queries.GetBoatPositionHistory;
-using WaterbusSystem.Application.Features.Tracking.Queries.GetLatestBoatPositions;
+using FluentValidation;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Moq;
+using WaterbusSystem.Application.DTOs.Requests.Tracking;
+using WaterbusSystem.Application.Features.SightseeingAudio;
+using WaterbusSystem.Application.Features.Tracking;
+using WaterbusSystem.Application.Features.Tracking.Services;
+using WaterbusSystem.Application.Interfaces.Services;
+using WaterbusSystem.Application.Validators.Tracking;
+using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.Infrastructure.Services.Tracking;
@@ -12,6 +22,13 @@ namespace WaterbusSystem.UnitTests.Tracking;
 
 public class TrackingQueriesTests
 {
+    private static BoatTrackingService CreateService(ApplicationDbContext context, IBoatPositionCache cache) =>
+        new(new BoatRepository(context), new BoatPositionRepository(context), new TripRepository(context),
+            new EfUnitOfWork(context), cache, Mock.Of<IBoatTrackingPublisher>(), Mock.Of<ITrackingAudioTriggerEvaluator>(),
+            Mock.Of<IValidator<RecordBoatPositionRequest>>(), new GetBoatPositionHistoryRequestValidator(),
+            Options.Create(new TrackingOptions()), Options.Create(new SightseeingAudioOptions()),
+            NullLogger<BoatTrackingService>.Instance);
+
     private static readonly DateTimeOffset Now = new(2026, 10, 12, 8, 0, 0, TimeSpan.Zero);
 
     [Fact]
@@ -27,8 +44,7 @@ public class TrackingQueriesTests
             new BoatPositionEvent { BoatId = seed.OtherBoat.Id, Latitude = 3m, Longitude = 3m, ObservedAt = Now.AddMinutes(-1) });
         context.SaveChanges();
 
-        var result = await new GetLatestBoatPositionsQueryHandler(context, cache)
-            .Handle(new GetLatestBoatPositionsQuery(), CancellationToken.None);
+        var result = await CreateService(context, cache).GetLatestPositionsAsync();
 
         result.Should().HaveCount(2);
         result.Single(r => r.BoatId == seed.Boat.Id).Latitude.Should().Be(10.1m);      // từ cache
@@ -41,8 +57,7 @@ public class TrackingQueriesTests
         using var context = TestDbContextFactory.CreateDbContext();
         TestDbContextFactory.SeedTrip(context);
 
-        var result = await new GetLatestBoatPositionsQueryHandler(context, new InMemoryBoatPositionCache())
-            .Handle(new GetLatestBoatPositionsQuery(), CancellationToken.None);
+        var result = await CreateService(context, new InMemoryBoatPositionCache()).GetLatestPositionsAsync();
 
         result.Should().BeEmpty();
     }
@@ -59,8 +74,8 @@ public class TrackingQueriesTests
         }
         context.SaveChanges();
 
-        var page = await new GetBoatPositionHistoryQueryHandler(context)
-            .Handle(new GetBoatPositionHistoryQuery(seed.Boat.Id, Now.AddMinutes(-25), Now), CancellationToken.None);
+        var page = await CreateService(context, new InMemoryBoatPositionCache())
+            .GetPositionHistoryAsync(new GetBoatPositionHistoryRequest(seed.Boat.Id, Now.AddMinutes(-25), Now));
 
         page.Items.Select(i => i.Latitude).Should().Equal(-20m, -5m);
     }
@@ -70,8 +85,8 @@ public class TrackingQueriesTests
     {
         using var context = TestDbContextFactory.CreateDbContext();
 
-        var act = () => new GetBoatPositionHistoryQueryHandler(context)
-            .Handle(new GetBoatPositionHistoryQuery(Guid.NewGuid(), Now.AddHours(-1), Now), CancellationToken.None);
+        var act = () => CreateService(context, new InMemoryBoatPositionCache())
+            .GetPositionHistoryAsync(new GetBoatPositionHistoryRequest(Guid.NewGuid(), Now.AddHours(-1), Now));
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -82,7 +97,7 @@ public class TrackingQueriesTests
     [InlineData(60 * 24 * 8, false)] // quá 7 ngày
     [InlineData(60, true)]
     public void HistoryValidator_ShouldCheckRange(int minutesAfterFrom, bool expectedValid) =>
-        new GetBoatPositionHistoryQueryValidator()
-            .Validate(new GetBoatPositionHistoryQuery(Guid.NewGuid(), Now, Now.AddMinutes(minutesAfterFrom)))
+        new GetBoatPositionHistoryRequestValidator()
+            .Validate(new GetBoatPositionHistoryRequest(Guid.NewGuid(), Now, Now.AddMinutes(minutesAfterFrom)))
             .IsValid.Should().Be(expectedValid);
 }
