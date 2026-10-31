@@ -45,7 +45,9 @@ beforeEach(() => {
   fake.onclose = undefined
   fake.onreconnected = undefined
 })
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('connectHub recovery refresh', () => {
   it('does not refresh on the first successful connection', async () => {
