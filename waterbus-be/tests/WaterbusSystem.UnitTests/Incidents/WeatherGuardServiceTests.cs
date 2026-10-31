@@ -4,7 +4,8 @@ using Microsoft.Extensions.Options;
 using Moq;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Incidents;
-using WaterbusSystem.Application.Features.Incidents.Commands.RunWeatherGuard;
+using WaterbusSystem.Application.Features.Incidents.Services;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Infrastructure.Persistence;
@@ -13,7 +14,7 @@ using Xunit;
 
 namespace WaterbusSystem.UnitTests.Incidents;
 
-public class RunWeatherGuardCommandHandlerTests
+public class WeatherGuardServiceTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 12, 8, 0, 0, TimeSpan.Zero);
 
@@ -24,7 +25,7 @@ public class RunWeatherGuardCommandHandlerTests
     private readonly Mock<IDateTimeService> _clock = new();
     private readonly WeatherOptions _options = new() { WindSpeedThresholdMs = 10.6, GustThresholdMs = 17.2, LookaheadHours = 3, AlertWindowHours = 3 };
 
-    public RunWeatherGuardCommandHandlerTests()
+    public WeatherGuardServiceTests()
     {
         _clock.Setup(c => c.Now).Returns(() => Now);
         _seed = TestDbContextFactory.SeedTrip(_context);
@@ -34,9 +35,10 @@ public class RunWeatherGuardCommandHandlerTests
         _context.SaveChanges();
     }
 
-    private RunWeatherGuardCommandHandler CreateHandler() =>
-        new(_context, _weather.Object, _alerts.Object, _clock.Object, Options.Create(_options),
-            NullLogger<RunWeatherGuardCommandHandler>.Instance);
+    private WeatherGuardService CreateHandler() =>
+        new(new TripRepository(_context), new RouteRepository(_context), new IncidentRepository(_context),
+            new EfUnitOfWork(_context), _weather.Object, _alerts.Object, _clock.Object, Options.Create(_options),
+            NullLogger<WeatherGuardService>.Instance);
 
     private void WeatherIs(double wind, double? gust = null, int code = 800) =>
         _weather.Setup(w => w.GetCurrentAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<CancellationToken>()))
@@ -59,7 +61,7 @@ public class RunWeatherGuardCommandHandlerTests
     {
         WeatherIs(wind: 12);
 
-        var result = await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        var result = await CreateHandler().RunAsync();
 
         result.IncidentsCreated.Should().Be(1);
         var incident = _context.Incidents.Single();
@@ -81,7 +83,7 @@ public class RunWeatherGuardCommandHandlerTests
         WeatherIs(wind: 30, gust: 40, code: 211);
         var enRoute = AddTrip(Now.AddMinutes(-10), TripStatus.EnRoute);
 
-        await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        await CreateHandler().RunAsync();
 
         _context.Trips.Find(_seed.Trip.Id)!.Status.Should().Be(TripStatus.Scheduled);
         _context.Trips.Find(enRoute.Id)!.Status.Should().Be(TripStatus.EnRoute);
@@ -94,8 +96,8 @@ public class RunWeatherGuardCommandHandlerTests
         WeatherIs(wind: 12);
         var handler = CreateHandler();
 
-        await handler.Handle(new RunWeatherGuardCommand(), CancellationToken.None);
-        var second = await handler.Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        await handler.RunAsync();
+        var second = await handler.RunAsync();
 
         second.IncidentsCreated.Should().Be(0);
         second.IncidentsUpdated.Should().Be(1);
@@ -109,11 +111,11 @@ public class RunWeatherGuardCommandHandlerTests
     {
         WeatherIs(wind: 12);
         var handler = CreateHandler();
-        await handler.Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        await handler.RunAsync();
 
         var laterTrip = AddTrip(Now.AddHours(2));
         WeatherIs(wind: 12, code: 202); // dông -> High
-        await handler.Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        await handler.RunAsync();
 
         _context.Incidents.Single().Severity.Should().Be("High");
         _context.IncidentTrips.Select(t => t.TripId).Should().BeEquivalentTo([_seed.Trip.Id, laterTrip.Id]);
@@ -131,7 +133,7 @@ public class RunWeatherGuardCommandHandlerTests
         _context.SaveChanges();
         WeatherIs(wind: 12);
 
-        var result = await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        var result = await CreateHandler().RunAsync();
 
         result.IncidentsCreated.Should().Be(1);
         _context.Incidents.Should().HaveCount(2);
@@ -142,7 +144,7 @@ public class RunWeatherGuardCommandHandlerTests
     {
         WeatherIs(wind: 3);
 
-        var result = await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        var result = await CreateHandler().RunAsync();
 
         result.RoutesChecked.Should().Be(1);
         _context.Incidents.Should().BeEmpty();
@@ -155,7 +157,7 @@ public class RunWeatherGuardCommandHandlerTests
         _weather.Setup(w => w.GetCurrentAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("network down"));
 
-        var result = await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        var result = await CreateHandler().RunAsync();
 
         result.ObservationFailures.Should().BeGreaterThan(0);
         _context.Incidents.Should().BeEmpty();
@@ -168,7 +170,7 @@ public class RunWeatherGuardCommandHandlerTests
         _seed.Trip.ArrivalTime = Now.AddHours(5).AddMinutes(30);
         _context.SaveChanges();
 
-        var result = await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        var result = await CreateHandler().RunAsync();
 
         result.RoutesChecked.Should().Be(0);
         _weather.VerifyNoOtherCalls();
@@ -181,7 +183,7 @@ public class RunWeatherGuardCommandHandlerTests
         AddTrip(Now.AddMinutes(30), TripStatus.Cancelled);
         AddTrip(Now.AddMinutes(-10), TripStatus.Completed);
 
-        await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        await CreateHandler().RunAsync();
 
         _context.IncidentTrips.Select(t => t.TripId).Should().BeEquivalentTo([_seed.Trip.Id]);
     }
@@ -191,7 +193,7 @@ public class RunWeatherGuardCommandHandlerTests
     {
         WeatherIs(wind: 3); // 3 bến seed cùng toạ độ (0,0)
 
-        await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        await CreateHandler().RunAsync();
 
         _weather.Verify(w => w.GetCurrentAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -214,7 +216,7 @@ public class RunWeatherGuardCommandHandlerTests
         var incident = AddOpenWeatherIncident(Now.AddMinutes(-30));
         WeatherIs(wind: 3);
 
-        var result = await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        var result = await CreateHandler().RunAsync();
 
         result.IncidentsResolved.Should().Be(1);
         _context.Entry(incident).Reload();
@@ -230,7 +232,7 @@ public class RunWeatherGuardCommandHandlerTests
         _weather.Setup(w => w.GetCurrentAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("network down"));
 
-        var result = await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        var result = await CreateHandler().RunAsync();
 
         result.IncidentsResolved.Should().Be(0);
         _context.Entry(incident).Reload();
@@ -244,7 +246,7 @@ public class RunWeatherGuardCommandHandlerTests
         _seed.Trip.Status = TripStatus.Completed;
         _context.SaveChanges();
 
-        var result = await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        var result = await CreateHandler().RunAsync();
 
         result.IncidentsResolved.Should().Be(1);
         _context.Entry(incident).Reload();
@@ -258,7 +260,7 @@ public class RunWeatherGuardCommandHandlerTests
         var stale = AddOpenWeatherIncident(Now.AddHours(-4));
         WeatherIs(wind: 12);
 
-        await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        await CreateHandler().RunAsync();
 
         _context.Entry(stale).Reload();
         stale.Status.Should().Be("Resolved");
@@ -276,7 +278,7 @@ public class RunWeatherGuardCommandHandlerTests
         _context.SaveChanges();
         WeatherIs(wind: 3);
 
-        await CreateHandler().Handle(new RunWeatherGuardCommand(), CancellationToken.None);
+        await CreateHandler().RunAsync();
 
         _context.Entry(sos).Reload();
         sos.Status.Should().Be("Open");
