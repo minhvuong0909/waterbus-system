@@ -70,6 +70,15 @@ public static class DependencyInjection
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        services.AddScoped<IIncidentRepository, IncidentRepository>();
+        services.AddScoped<IRouteRepository, RouteRepository>();
+        services.AddScoped<ITripRepository, TripRepository>();
+        services.AddScoped<IBoatRepository, BoatRepository>();
+        services.AddScoped<IBoatPositionRepository, BoatPositionRepository>();
+        services.AddScoped<IBoatTrackingService, WaterbusSystem.Application.Features.Tracking.Services.BoatTrackingService>();
+        services.AddScoped<IIncidentService, WaterbusSystem.Application.Features.Incidents.Services.IncidentService>();
+        services.AddScoped<IWeatherStatusService, WaterbusSystem.Application.Features.Incidents.Services.WeatherStatusService>();
+        services.AddScoped<IWeatherGuardService, WaterbusSystem.Application.Features.Incidents.Services.WeatherGuardService>();
         services.AddScoped<IBookingReferenceRepository, BookingReferenceRepository>();
         services.AddScoped<ICheckoutService, CheckoutService>();
         services.AddScoped<ICheckoutSeatChangeService, CheckoutSeatChangeService>();
