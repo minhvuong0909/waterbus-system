@@ -113,8 +113,8 @@ services:
     volumes:
       - dataprotection_keys:/home/app/.aspnet/DataProtection-Keys
     healthcheck:
-      # Image aspnet không có curl; kiểm tra cổng bằng bash
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/8080'"]
+      # Image aspnet không có curl: gọi /health/ready (SQL kết nối được và đã áp dụng đủ migration) bằng bash thuần
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf \"GET /health/ready HTTP/1.0\\r\\n\\r\\n\" >&3 && head -n1 <&3 | grep -q \" 200 \"'"]
       interval: 15s
       timeout: 5s
       retries: 5
