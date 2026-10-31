@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.Interfaces.Services;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -6,7 +7,6 @@ using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.SightseeingAudio;
-using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
 using WaterbusSystem.Application.Features.SightseeingAudio.Models;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;

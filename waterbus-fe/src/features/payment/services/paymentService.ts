@@ -1,7 +1,4 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
-import { USE_MOCK } from '../../../constant/env'
-import { withDelay } from '../../../mocks/delay'
-import { ROUTES } from '../../../routes/routes'
 import { apiRequest } from '../../../services/apiClient'
 import { guestHeaders } from '../../booking/services/bookingService'
 import type { VnPayReturnResult } from '../types'
@@ -24,17 +21,11 @@ export interface PaymentRedirect {
  * `POST /payments/create-vnpay-url` (BR-PAY-04: pay per order). Returns the VNPay URL to send the
  * traveler to and the payment deadline the backend set on the order. Paying is confirmed by the
  * backend from VNPay's IPN, never by this response.
- *
- * MOCK (a mock order has no token): the "gateway" is the app's own callback page, reporting success.
  */
 export async function createPaymentUrl(
   orderId: string,
   accessToken: string | null,
 ): Promise<PaymentRedirect> {
-  if (USE_MOCK) {
-    const query = new URLSearchParams({ vnp_ResponseCode: '00', vnp_TxnRef: 'MOCK', mock: '1' })
-    return { url: `${ROUTES.paymentCallback}?${query.toString()}`, expiresAt: null }
-  }
   const response = await apiRequest<VnPayUrlResponse>(API_ENDPOINTS.payments.createVnPayUrl, {
     method: 'POST',
     body: { orderId },
@@ -51,16 +42,6 @@ export async function createPaymentUrl(
  */
 export function verifyVnPayReturn(search: string): Promise<VnPayReturnResult> {
   const params = Object.fromEntries(new URLSearchParams(search))
-  if (USE_MOCK) {
-    const success = params.vnp_ResponseCode === '00'
-    return withDelay({
-      success,
-      merchantReference: params.vnp_TxnRef ?? '',
-      bookingCode: params.vnp_TxnRef ?? '',
-      responseCode: params.vnp_ResponseCode ?? '',
-      message: success ? 'Thanh toán thành công' : 'Giao dịch không thành công hoặc bị hủy',
-    })
-  }
   return apiRequest<VnPayReturnResult>(API_ENDPOINTS.payments.vnPayReturn, { query: params })
 }
 

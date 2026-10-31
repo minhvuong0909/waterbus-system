@@ -51,7 +51,7 @@ export function useSeatHold() {
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<BookingFailure | null>(null)
 
-  const submit = async (leg: Leg, tripId: string, totalVnd: number, journey: Journey | undefined) => {
+  const submit = async (leg: Leg, tripId: string, journey: Journey | undefined) => {
     const roundTrip = isRoundTrip(query)
     if (roundTrip && leg === 'outbound') {
       if (journey) dispatch(setJourney({ leg: 'outbound', journey }))
@@ -92,7 +92,7 @@ export function useSeatHold() {
       dispatch(orderReleased())
     }
     try {
-      const checkout = await createHold(buildHoldRequest(legs), totalVnd)
+      const checkout = await createHold(buildHoldRequest(legs))
       const first = checkout.bookings[0]
       dispatch(
         holdStarted({

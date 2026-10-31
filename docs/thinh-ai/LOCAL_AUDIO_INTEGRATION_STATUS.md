@@ -36,17 +36,29 @@ Web Admin có trang **Thuyết minh** (`/admin/audio-guides`): bản đồ các 
 |---|---|
 | `POST /api/v1/texttospeech/generate` body `{ text, voiceName }` | Có sẵn. Sinh MP3, lưu Blob private, trả `assetKey`, `durationSeconds`, `voiceName`... |
 | `GET /api/v1/texttospeech/audio?assetKey=audio-assets/...mp3` | **Mới.** Backend đọc MP3 từ Blob private và trả `audio/mpeg` để Admin nghe thử. 400 khi khóa ngoài `audio-assets/` hoặc không phải `.mp3`, 404 khi không có tệp. |
+| `GET /api/v1/audioguides/pois?page=1&pageSize=20` | Liệt kê POI active từ DB, `PoiId`, RoutePoi hợp lệ và trạng thái AudioGuide `vi`; không dùng danh mục giả của FE. |
+| `POST /api/v1/audioguides/publish` | Admin gắn URI MP3 đã tồn tại trong đúng container Blob với `PoiId`, tạo/cập nhật `AudioGuide` `vi` và publish. Không tạo POI, không chấp nhận URL có SAS hoặc URI ngoài Blob đã cấu hình. |
 
 Giọng: nữ `vi-VN-HoaiMyNeural`, nam `vi-VN-NamMinhNeural`.
 
 Giới hạn hiện tại:
-- Danh sách địa danh và tọa độ (gần đúng) nằm ở FE `features/admin/audioGuide.ts`, lấy tên từ nội dung trang Khám phá, vì backend **chưa có API POI**.
-- Lời thuyết minh và MP3 **chưa được lưu vào `AudioGuide`** (entity chưa có cột kịch bản), chỉ giữ trong phiên của trang.
+- Trang FE vẫn dùng danh sách địa danh/tọa độ gần đúng ở `features/admin/audioGuide.ts`; chưa được nối với API POI thật. Để test không mock, dùng POI từ `GET /audioguides/pois` trên Swagger.
+- URI MP3 có thể publish vào `AudioGuide` qua Swagger, nhưng **kịch bản text chưa được lưu** (entity chưa có cột kịch bản); trang FE hiện chỉ giữ bản nháp trong phiên, không tự gọi API publish.
 - Đây là nghe thử cho Admin qua stream có xác thực, **không** phải URL công khai hay player cho hành khách. Phát tự động trên loa tàu vẫn cần các mục dưới đây.
+
+### Kiểm tra luồng thật bằng Swagger (local Development)
+
+1. Cấu hình Azure Speech + Azure Blob bằng WebApi User Secrets, SQL Server local có dữ liệu POI/RoutePoi, đăng nhập Admin và bấm **Authorize** trong Swagger. Không đưa key vào request hay commit.
+2. `GET /api/v1/audioguides/pois`: chọn một `poiId` từ DB có `hasActiveRoutePoi=true`. URI `/audio/poi-XX.mp3` trong seed là dữ liệu demo, **không** phải MP3 Azure thật.
+3. `POST /api/v1/texttospeech/generate` với `{ "text": "Đây là lời thuyết minh thử cho địa danh.", "voiceName": "vi-VN-HoaiMyNeural" }`; giữ `audioUrl`, `assetKey`, `durationSeconds` trả về. Azure Speech/Blob được gọi thật.
+4. `GET /api/v1/texttospeech/audio?assetKey=...` để tải/nghe chính MP3 đó. Sau khi nghe và duyệt, `POST /api/v1/audioguides/publish` với `{ "poiId": "<GUID từ bước 2>", "audioAssetUri": "<audioUrl từ bước 3>", "durationSeconds": <số từ bước 3> }`.
+5. Gọi lại `GET /api/v1/audioguides/pois` và kiểm tra POI đó có `isPublished=true`, `audioAssetUri` đúng URL Blob. Bước này xác nhận MP3 thật đã gắn POI trong SQL; **chưa** chứng minh loa tàu phát. Geofence chỉ đánh giá khi có Trip Sightseeing `EnRoute`, GPS hợp lệ và `SightseeingAudio:EnableGpsTriggerEvaluation=true`.
+
+Đã kiểm chứng local ngày 27/10/2026 bằng API Development và SQL Server Docker: đăng nhập Admin, đọc 5 POI từ DB, tạo MP3 thật qua Azure Speech/Blob (30.096 byte), tải lại qua API (30.096 byte), publish cho POI **Bán đảo Thanh Đa & Bình Quới**, rồi đọc lại DB qua API thấy `isPublished=true` và URI khớp. Đây là kiểm chứng luồng tạo/lưu/gắn audio; chưa có xác nhận phát loa tàu.
 
 ## Còn thiếu để chạy thật
 
-1. Owner POI/Admin cung cấp luồng kịch bản đã duyệt → TTS → tạo/publish `AudioGuide` và dữ liệu RoutePoi hợp lệ. Hiện repo chưa có API/UI quản lý phần này; unit fixture tự tạo dữ liệu.
+1. API Admin đã nối MP3 thật với `AudioGuide` qua POI từ DB. Vẫn cần owner POI/Admin chốt lưu/version kịch bản, quy trình duyệt, dữ liệu RoutePoi và nối trang FE với API này; chưa có CRUD POI hoặc tự động publish từ UI.
 2. Owner tracking xác nhận nguồn tiến độ `NextRoutePoiDisplayOrder` và `VisitId` ổn định nếu tuyến có vùng POI chồng nhau/vòng lặp. Adapter hiện để null; core từ chối vùng chồng, không đoán POI gần nhất.
 3. Owner Onboard Player chốt giao thức gửi lệnh, cấp quyền đọc Blob private (SAS ngắn hạn hoặc stream có xác thực), ACK đúng `RequestId`, hành vi dừng/nhường ưu tiên khi Captain override/thông báo an toàn. SOS Safety Open đã chặn lệnh mới ở backend nhưng **chưa** có tín hiệu override/audio đang phát từ thiết bị.
 4. Thay dispatcher log-only và dedup in-memory bằng adapter production (idempotency qua nhiều instance/restart); kiểm thử loa tàu thật. Chưa có kiểm chứng playback end-to-end.

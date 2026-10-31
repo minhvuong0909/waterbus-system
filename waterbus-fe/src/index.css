@@ -20,7 +20,7 @@
     padding: 0;
   }
   body {
-    @apply bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-secondary-container selection:text-on-secondary-container;
+    @apply bg-surface font-sans text-body-md text-on-surface antialiased selection:bg-secondary-container selection:text-on-secondary-container;
     overscroll-behavior: none;
   }
   /* Keyboard users get a clear ring; mouse clicks do not. */

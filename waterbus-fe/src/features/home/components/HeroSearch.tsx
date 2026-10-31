@@ -1,5 +1,5 @@
-import SearchForm from '../../trips/components/SearchForm'
-import { useSearchForm } from '../../trips/hooks/useTripSearch'
+import SearchForm from '../../booking/components/SearchForm'
+import { useSearchForm } from '../../booking/hooks/useTripSearch'
 
 /**
  * Form tìm chuyến ngay trong hero trang chủ. Nếu danh sách bến chưa tải xong hoặc lỗi, chỉ giữ chỗ

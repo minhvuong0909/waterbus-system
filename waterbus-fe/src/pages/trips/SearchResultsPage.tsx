@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ErrorState, PageLoader } from '../../components/ui'
 import { CONTACT } from '../../constant/contact'
 import CorridorSidebar from '../../features/trips/components/CorridorSidebar'
-import ReturnLegBar from '../../features/trips/components/ReturnLegBar'
+import ReturnLegBar from '../../features/booking/components/ReturnLegBar'
 import { isRoundTrip, leavesAfterArrival } from '../../features/booking/legs'
 import type { Leg } from '../../features/booking/legs'
 import { ROUTES } from '../../routes/routes'
@@ -11,10 +11,10 @@ import { useAppSelector } from '../../store/hooks'
 import DateStrip from '../../features/trips/components/DateStrip'
 import ResultFilters from '../../features/trips/components/ResultFilters'
 import type { KindFilter, SortKey, TimeFilter } from '../../features/trips/components/ResultFilters'
-import SearchForm from '../../features/trips/components/SearchForm'
+import SearchForm from '../../features/booking/components/SearchForm'
 import TripCard from '../../features/trips/components/TripCard'
 import { formatDateLabel, isDeparted } from '../../features/trips/utils'
-import { useSearchResults } from '../../features/trips/hooks/useTripSearch'
+import { useSearchResults } from '../../features/booking/hooks/useTripSearch'
 import { useDocumentTitle } from '../../hooks'
 import { t } from '../../i18n'
 
@@ -120,7 +120,7 @@ export default function SearchResultsPage() {
                   {leg === 'return' ? t('Return trip · step 2 of 2') : t('Outbound trip · step 1 of 2')}
                 </span>
               )}
-              <h1 className="font-headline-lg text-2xl font-bold leading-tight tracking-tight text-deep-river md:text-3xl lg:text-[34px]">
+              <h1 className="font-display text-2xl font-bold leading-tight tracking-tight text-deep-river md:text-3xl lg:text-4xl">
                 {leg === 'return' ? t('Choose your return trip') : t('Available Departures')}
               </h1>
               <p className="mt-1 text-sm text-on-surface-variant">

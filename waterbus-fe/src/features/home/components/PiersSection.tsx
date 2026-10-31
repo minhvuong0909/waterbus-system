@@ -4,14 +4,14 @@ import { Link } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
 import { usePrefersReducedMotion } from '../../../hooks'
 import { ROUTES } from '../../../routes/routes'
-import { useSearchQuery } from '../../trips/hooks/useTripSearch'
-import { pierPhotos } from '../../trips/pierImages'
+import { useSearchQuery } from '../../booking/hooks/useTripSearch'
+import { pierPhotos } from '../../../content/pierImages'
 import ecoPhoto from '../../../assets/images/home/story-eco.jpg'
 import heritagePhoto from '../../../assets/images/home/story-heritage.jpg'
 import sunsetPhoto from '../../../assets/images/home/story-sunset.jpg'
 import vesselPhoto from '../../../assets/images/vessel.jpg'
 import waterwayPhoto from '../../../assets/images/waterway.jpg'
-import { PIER_INFO } from '../pierInfo'
+import { PIER_INFO } from '../../../content/piers'
 import PierGallery from './PierGallery'
 import type { GallerySlide } from './PierGallery'
 import type { Pier } from '../../trips/types'
@@ -107,7 +107,7 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
     <section id="piers" className="w-full scroll-mt-20 bg-surface-container-lowest py-10 sm:py-14">
       <div className="mx-auto max-w-7xl space-y-8 px-5 sm:px-8">
         <div data-reveal className="max-w-2xl space-y-space-xs">
-          <h2 className="font-headline-lg text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-[36px]">
+          <h2 className="font-display text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-4xl">
             {t('Pier network')}
           </h2>
           <p className="text-sm text-on-surface-variant sm:text-base">
@@ -158,7 +158,7 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
                   className="group relative flex min-w-[112px] flex-1 flex-col items-center gap-2 px-2 pb-1 text-center focus:outline-none"
                 >
                   <span
-                    className={`flex h-10 w-10 items-center justify-center rounded-full border-2 font-numeric-md text-sm font-bold transition-all duration-300 group-focus-visible:ring-4 group-focus-visible:ring-teal-flow/30 ${
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-sm font-bold transition-all duration-300 group-focus-visible:ring-4 group-focus-visible:ring-teal-flow/30 ${
                       selected
                         ? 'scale-110 border-teal-flow bg-teal-flow text-on-primary shadow-md'
                         : i < active
@@ -211,19 +211,19 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
                 >
                   <div className="space-y-5">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container">
-                      <Icon name="anchor" className="text-[15px]" />
+                      <Icon name="anchor" className="text-sm" />
                       {t('Pier {n} of {total}', { n: i + 1, total: piers.length })} · {role}
                     </span>
                     <div className="space-y-1.5">
-                      <h3 className="font-headline-md text-2xl font-bold text-deep-river sm:text-3xl">
+                      <h3 className="font-display text-2xl font-bold text-deep-river sm:text-3xl">
                         {pier.name}
                       </h3>
                       <p className="flex items-center gap-1.5 text-sm font-medium text-teal-flow">
-                        <Icon name="location_city" className="text-[17px]" />
+                        <Icon name="location_city" className="text-lg" />
                         {pier.subtitle}
                       </p>
                       <p className="flex items-start gap-1.5 text-sm text-on-surface-variant">
-                        <Icon name="pin_drop" className="mt-0.5 text-[17px] text-teal-flow" />
+                        <Icon name="pin_drop" className="mt-0.5 text-lg text-teal-flow" />
                         {pier.address}
                       </p>
                     </div>
@@ -247,7 +247,7 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
                               </li>
                             ))}
                           </ul>
-                          <p className="text-[11px] text-on-surface-variant">
+                          <p className="text-2xs text-on-surface-variant">
                             {t('Distances are approximate.')}
                           </p>
                         </div>
@@ -262,7 +262,7 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
                         className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-teal-flow px-6 py-2.5 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-secondary"
                       >
                         {t('Plan a trip from here')}
-                        <Icon name="arrow_forward" className="text-[18px]" />
+                        <Icon name="arrow_forward" className="text-lg" />
                       </Link>
                       <a
                         href={`https://www.google.com/maps/dir/?api=1&destination=${pier.latitude},${pier.longitude}`}
@@ -271,7 +271,7 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
                         tabIndex={selected ? 0 : -1}
                         className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-teal-flow px-5 py-2.5 text-sm font-semibold text-teal-flow transition-colors hover:bg-sand-light"
                       >
-                        <Icon name="directions" className="text-[18px]" />
+                        <Icon name="directions" className="text-lg" />
                         {t('Get directions')}
                       </a>
                     </div>
@@ -284,7 +284,7 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
                           onClick={() => go(i - 1)}
                           className="tap-area inline-flex items-center gap-1 font-medium text-on-surface-variant hover:text-teal-flow"
                         >
-                          <Icon name="arrow_back" className="text-[16px]" />
+                          <Icon name="arrow_back" className="text-base" />
                           {t('Previous pier')}: {previous.name.replace(/^Bến\s+/i, '')}
                         </button>
                       )}
@@ -296,7 +296,7 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
                           className="tap-area inline-flex items-center gap-1 font-medium text-on-surface-variant hover:text-teal-flow"
                         >
                           {t('Next pier')}: {next.name.replace(/^Bến\s+/i, '')}
-                          <Icon name="arrow_forward" className="text-[16px]" />
+                          <Icon name="arrow_forward" className="text-base" />
                         </button>
                       )}
                     </div>

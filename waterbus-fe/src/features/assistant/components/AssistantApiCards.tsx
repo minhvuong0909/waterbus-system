@@ -58,12 +58,12 @@ export default function AssistantApiCards({
                   {letter}
                 </span>
                 <div>
-                  <div className="font-headline-sm text-lg font-bold leading-none text-deep-river">{time}</div>
+                  <div className="font-display text-lg font-bold leading-none text-deep-river">{time}</div>
                   <div className="mt-1 text-xs text-on-surface-variant">{date}</div>
                 </div>
               </div>
               <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                className={`shrink-0 rounded-full px-2 py-0.5 text-2xs font-semibold ${
                   soldOut ? 'bg-surface-container text-on-surface-variant' : 'bg-teal-flow/10 text-teal-flow'
                 }`}
               >
@@ -73,7 +73,7 @@ export default function AssistantApiCards({
 
             <p className="mt-2 flex flex-wrap items-center gap-1 text-sm font-semibold text-deep-river">
               <span>{card.departureStationName}</span>
-              <Icon name="arrow_forward" className="text-[16px] text-teal-flow" />
+              <Icon name="arrow_forward" className="text-base text-teal-flow" />
               <span>{card.arrivalStationName}</span>
             </p>
             <p className="text-xs text-on-surface-variant">{card.routeName}</p>
@@ -93,7 +93,7 @@ export default function AssistantApiCards({
                       : 'border border-teal-flow text-teal-flow hover:bg-teal-flow hover:text-white'
                   }`}
                 >
-                  {selected && <Icon name="check" className="text-[16px]" />}
+                  {selected && <Icon name="check" className="text-base" />}
                   {t('Choose trip {letter}', { letter })}
                 </button>
               ) : (

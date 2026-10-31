@@ -1,10 +1,10 @@
+using WaterbusSystem.Application.Interfaces.Services;
 using System.Reflection;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using WaterbusSystem.Application.Common.Behaviors;
-using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
-using WaterbusSystem.Application.Features.SightseeingAudio.Services;
+using WaterbusSystem.Application.Services.SightseeingAudio;
 
 namespace WaterbusSystem.Application;
 
@@ -26,6 +26,9 @@ public static class DependencyInjection
         // Đăng ký toàn bộ Validators của FluentValidation
         services.AddValidatorsFromAssembly(assembly);
         services.AddScoped<IAudioAssetGenerationService, AudioAssetGenerationService>();
+        services.AddScoped<IAudioSynthesisService, AudioSynthesisService>();
+        services.AddScoped<IAudioAssetService, AudioAssetService>();
+        services.AddScoped<IAudioGuideService, AudioGuideService>();
 
         return services;
     }

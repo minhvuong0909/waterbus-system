@@ -33,7 +33,7 @@ export default function CopyButton({ value, className = '' }: CopyButtonProps) {
       aria-label={t('Copy {value}', { value })}
       className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-semibold text-teal-flow transition-colors hover:text-deep-river ${className}`.trim()}
     >
-      <Icon name={copied ? 'check' : 'content_copy'} className="text-[14px]" />
+      <Icon name={copied ? 'check' : 'content_copy'} className="text-sm" />
       {copied ? t('Copied') : t('Copy')}
     </button>
   )

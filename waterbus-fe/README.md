@@ -68,7 +68,6 @@ Sao chép `.env.example` thành `.env`:
 |---|---|---|
 | `VITE_API_BASE_URL` | `/api/v1` (hoặc `http://localhost:5000`) | Đường dẫn gốc API Backend |
 | `VITE_SIGNALR_URL` | `/hubs` (hoặc `http://localhost:5000/hubs`) | Endpoint kết nối SignalR Hubs |
-| `VITE_USE_MOCK` | `false` | `true`: dùng mock data cho dev độc lập; `false`: kết nối BE thật |
 
 ---
 

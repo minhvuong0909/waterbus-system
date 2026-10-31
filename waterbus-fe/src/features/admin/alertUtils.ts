@@ -1,6 +1,7 @@
 import { t } from '../../i18n'
 import type { OperationType, WeatherAlert } from './types'
-import { formatDateTime } from './utils'
+import { formatDateTime } from '../../utils/time'
+import { weatherAlertTitle } from './utils'
 
 export interface AlertMetrics {
   /** Sky condition as the weather service words it, e.g. "mưa nhẹ". */
@@ -19,11 +20,11 @@ const toNumber = (text: string | undefined) => {
   return Number.isFinite(value) ? value : undefined
 }
 
-/** Wind, gust and sky of a weather alert, when its text or the mock data gives them. */
-export function alertMetrics(alert: Pick<WeatherAlert, 'message' | 'windSpeedKmh'>): AlertMetrics {
+/** Wind, gust and sky of a weather alert, read from the text the weather guard writes. */
+export function alertMetrics(alert: Pick<WeatherAlert, 'message'>): AlertMetrics {
   const match = alert.message.match(DESCRIPTION)
   if (match) return { condition: match[1].trim(), windKmh: toNumber(match[2]), gustKmh: toNumber(match[3]) }
-  return alert.windSpeedKmh != null ? { windKmh: alert.windSpeedKmh } : {}
+  return {}
 }
 
 /** The part of the message after the measurements (the advice to the admin), or the whole message. */
@@ -87,4 +88,13 @@ export function alertTone(alert: WeatherAlert): {
   return alert.level === 2
     ? { label: t('High risk'), icon: 'storm', accent: 'border-l-coral-glow', badge: 'bg-coral-glow/15 text-coral-glow' }
     : { label: t('Warning'), icon: 'air', accent: 'border-l-signal-amber', badge: 'bg-signal-amber/20 text-deep-river' }
+}
+
+/** "43,2 km/h". */
+export const formatKmh = (value: number) => t('{speed} km/h', { speed: value.toLocaleString('vi-VN') })
+
+/** "Weather alert on route RT01", the captain's report, or the alert level. */
+export function titleOf(alert: WeatherAlert): string {
+  if (isCaptainReport(alert)) return t('Captain emergency report')
+  return alert.routeCode ? t('Weather alert on route {route}', { route: alert.routeCode }) : weatherAlertTitle(alert)
 }

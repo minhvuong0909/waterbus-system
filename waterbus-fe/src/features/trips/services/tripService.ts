@@ -1,17 +1,10 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
-import { USE_MOCK } from '../../../constant/env'
-import { withDelay } from '../../../mocks/delay'
-import {
-  BOARDING_STEPS,
-  DEFAULT_SEARCH_QUERY,
-  NETWORK_ROUTE_SEEDS,
-  ONBOARD_AMENITIES,
-  PIER_OPTIONS,
-  buildTrips,
-} from '../../../mocks/tripSearch'
+import { BOARDING_STEPS, ONBOARD_AMENITIES } from '../../../content/tripDetail'
+import { DEFAULT_SEARCH_QUERY } from '../searchDefaults'
 import { localize, t } from '../../../i18n'
 import { ApiError, apiRequest } from '../../../services/apiClient'
-import { addMinutes, formatClock, toVietnamDate } from '../../../utils/time'
+import { createRequestCache } from '../../../services/requestCache'
+import { formatClock, toVietnamDate } from '../../../utils/time'
 import { getLowestFares } from './fareService'
 import type {
   DateOption,
@@ -32,50 +25,48 @@ import {
   toTrip,
   isDeparted,
 } from '../utils'
-import type { TripDetailDto, TripSeatMapDto } from '../../booking/types'
-import { pickJourney } from '../../booking/utils'
+import type { TripDetailDto, TripSeatMapDto } from '../types'
+import { pickJourney } from '../utils'
 
-/** The piers change rarely and one page asks for them several times, so they are kept this long. */
-const PIER_CACHE_MS = 60_000
-let pierCache: { piers: Promise<PierOption[]>; at: number } | undefined
+/** The piers change rarely and one page asks for them several times. */
+const pierCache = createRequestCache<PierOption[]>(60_000)
+/** A page asks for the same day from several places (list, day strip, home); seats change, so briefly. */
+const tripSearchCache = createRequestCache<Trip[]>(15_000)
 
 /** Forgets the cached piers, e.g. after an Admin changed a station. */
 export function clearPierCache() {
-  pierCache = undefined
+  pierCache.clear()
 }
 
-/** `GET /stations`: the active piers in river order. Requests in flight and recent results are shared. */
+/** `GET /stations`: the active piers in river order. */
 export function getPierOptions(): Promise<PierOption[]> {
-  if (USE_MOCK) return withDelay(PIER_OPTIONS)
-  if (pierCache && Date.now() - pierCache.at < PIER_CACHE_MS) return pierCache.piers
-  const piers = apiRequest<StationDto[]>(API_ENDPOINTS.stations).then((stations) => stations.map(toPierOption))
-  const entry = { piers, at: Date.now() }
-  pierCache = entry
-  // A failure is not kept: the next call asks again.
-  piers.catch(() => {
-    if (pierCache === entry) pierCache = undefined
-  })
-  return piers
+  return pierCache.get('all', () =>
+    apiRequest<StationDto[]>(API_ENDPOINTS.stations).then((stations) => stations.map(toPierOption)),
+  )
 }
 
-// The backend has no route list endpoint yet, so the corridors are seeds matched to the real
-// stations by code (a route is only offered when both of its piers exist). With the real backend the
-// fare comes from `GET /fares` and the summary carries no invented duration or distance.
+/**
+ * The backend has no route list endpoint yet, so the corridor is derived from the real stations:
+ * the first and the last pier in river order, offered in both directions, with the lowest
+ * Commuter fare from `GET /fares`. No duration or distance is shown, which no API provides.
+ */
 export async function getNetworkRoutes(): Promise<NetworkRoute[]> {
   const [piers, fares] = await Promise.all([
     getPierOptions(),
-    USE_MOCK ? Promise.resolve(undefined) : getLowestFares().catch(() => undefined),
+    getLowestFares().catch(() => undefined),
   ])
-  const idOf = (code: string) => piers.find((p) => p.code === code)?.id
-  const routes = NETWORK_ROUTE_SEEDS.flatMap(({ originCode, destinationCode, ...route }) => {
-    const originId = idOf(originCode)
-    const destinationId = idOf(destinationCode)
-    if (!originId || !destinationId) return []
-    return [USE_MOCK
-      ? { ...route, originId, destinationId }
-      : { ...route, originId, destinationId, summary: route.liveSummary, fromFareVnd: fares?.Commuter }]
+  if (piers.length < 2) return []
+  const first = piers[0]
+  const last = piers[piers.length - 1]
+  const corridor = (from: PierOption, to: PierOption, badge: string): NetworkRoute => ({
+    id: `${from.code}-${to.code}`,
+    originId: from.id,
+    destinationId: to.id,
+    badge,
+    summary: t('River route between {from} and {to}', { from: from.shortName, to: to.shortName }),
+    fromFareVnd: fares?.Commuter,
   })
-  return withDelay(routes, 0)
+  return localize([corridor(first, last, 'Main Corridor'), corridor(last, first, 'Return')])
 }
 
 /** Today and the following days. The backend has no per-day summary (fares, trip counts). */
@@ -84,16 +75,18 @@ export function getDateOptions(): Promise<DateOption[]> {
 }
 
 /** `GET /trips/search` for the selected piers and day. */
-export async function getTrips(query: SearchQuery): Promise<Trip[]> {
-  if (USE_MOCK) return withDelay(buildTrips(query))
-  const dtos = await apiRequest<TripDto[]>(API_ENDPOINTS.trips.search, {
-    query: {
-      departureStationId: query.originId,
-      arrivalStationId: query.destinationId,
-      departureDate: query.dateId,
-    },
+export function getTrips(query: SearchQuery): Promise<Trip[]> {
+  const key = `${query.originId}|${query.destinationId}|${query.dateId}`
+  return tripSearchCache.get(key, async () => {
+    const dtos = await apiRequest<TripDto[]>(API_ENDPOINTS.trips.search, {
+      query: {
+        departureStationId: query.originId,
+        arrivalStationId: query.destinationId,
+        departureDate: query.dateId,
+      },
+    })
+    return dtos.map(toTrip)
   })
-  return dtos.map(toTrip)
 }
 
 /**
@@ -158,21 +151,18 @@ export async function getUpcomingTrips(
 }
 
 /**
- * Detail page data. The backend has no trip detail endpoint yet (roadmap P1-BE-05), so it is built
- * from the trip chosen in the results list, plus static content. A trip that was not chosen in
- * this session (for example after a page reload) is only possible with mock data; with the real
- * backend it is reported as not found.
+ * Detail page data from `GET /trips/{id}` and `GET /trips/{id}/seats`, plus static content. Without
+ * a backend trip id the trip can only come from the search results; otherwise it is not found.
  */
 export async function getTripDetail(
   selectedTrip: Trip | null,
   tripId: string | null,
   query: SearchQuery,
 ): Promise<TripDetail> {
-  const mockTrips = USE_MOCK ? buildTrips() : []
-  let trip = selectedTrip ?? mockTrips.find((item) => item.id === tripId) ?? mockTrips[0]
+  let trip = selectedTrip
   // Check-in window of the boarding stop from the backend; null while operations has not set it.
   let checkIn: { openAt: string | null; closeAt: string | null } | null = null
-  if (!USE_MOCK && tripId) {
+  if (tripId) {
     const raw = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
     const journey = pickJourney(raw.stops, query.originId, query.destinationId)
     if (!journey) throw new ApiError(409, 'Chuyến không phục vụ đoạn bến đã chọn. Hãy tìm chuyến lại.')
@@ -192,12 +182,11 @@ export async function getTripDetail(
     trip.vesselName = raw.boat?.name ?? raw.routeName
     query = { ...query, dateId: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(departureTime)) }
   }
-  // Without the backend's trip detail endpoint, a real trip can only come from the search results.
   if (!trip) throw new ApiError(404, t('This trip is no longer available. Please search again.'))
   const piers = await getPierOptions()
   const picked = pickPiers(piers, query)
   const find = (id: string) => piers.find((p) => p.id === id) ?? piers[0]
-  // Translate the pieces used to build sentences below; the rest is translated by `withDelay`.
+  // Translate the pieces used to build sentences below; the rest is translated by `localize` at the end.
   const origin = localize(find(picked.originId))
   const destination = localize(find(picked.destinationId))
   const date = describeDate(query.dateId)
@@ -217,41 +206,23 @@ export async function getTripDetail(
     dateFull: date.fullLabel,
     dateShort: date.label,
     timeline: [
-      // Mock: example times. Real backend: the boarding stop's check-in window, or no row at all
-      // while it is not configured (no invented "15 minutes before").
-      ...(USE_MOCK
-        ? [
-            {
-              time: addMinutes(trip.departTime, -15),
-              title: t('Arrive at {pier}', { pier: origin.pierName }),
-              description: t('Plan to arrive at the terminal pier a few minutes before scheduled departure.'),
-              tone: 'teal' as const,
-            },
-            {
-              time: addMinutes(trip.departTime, -5),
-              title: t('Boarding'),
-              description: t('Vessel boarding begins for ticketed passengers.'),
-              tone: 'amber' as const,
-            },
-          ]
-        : [
-            ...(checkIn?.openAt
-              ? [{
-                  time: formatClock(new Date(checkIn.openAt)),
-                  title: t('Check-in opens at {pier}', { pier: origin.pierName }),
-                  description: t('Show your QR ticket to the staff at the pier.'),
-                  tone: 'teal' as const,
-                }]
-              : []),
-            ...(checkIn?.closeAt
-              ? [{
-                  time: formatClock(new Date(checkIn.closeAt)),
-                  title: t('Check-in closes'),
-                  description: t('Passengers who have not checked in by now cannot board.'),
-                  tone: 'amber' as const,
-                }]
-              : []),
-          ]),
+      // The boarding stop's check-in window; no row at all while it is not configured.
+      ...(checkIn?.openAt
+        ? [{
+            time: formatClock(new Date(checkIn.openAt)),
+            title: t('Check-in opens at {pier}', { pier: origin.pierName }),
+            description: t('Show your QR ticket to the staff at the pier.'),
+            tone: 'teal' as const,
+          }]
+        : []),
+      ...(checkIn?.closeAt
+        ? [{
+            time: formatClock(new Date(checkIn.closeAt)),
+            title: t('Check-in closes'),
+            description: t('Passengers who have not checked in by now cannot board.'),
+            tone: 'amber' as const,
+          }]
+        : []),
       {
         time: trip.departTime,
         title: t('Departure'),
@@ -275,5 +246,5 @@ export async function getTripDetail(
       description: t(step.description, { origin: origin.pierName }),
     })),
   }
-  return withDelay(detail)
+  return localize(detail)
 }

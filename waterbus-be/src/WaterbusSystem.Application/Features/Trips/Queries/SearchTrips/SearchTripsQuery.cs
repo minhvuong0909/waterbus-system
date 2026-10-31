@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 
 namespace WaterbusSystem.Application.Features.Trips.Queries.SearchTrips;
@@ -53,22 +54,11 @@ public class SearchTripsQueryHandler : IRequestHandler<SearchTripsQuery, List<Tr
         var query = _context.Trips
             .AsNoTracking()
             .Include(t => t.Route)
-                .ThenInclude(r => r!.DepartureStation)
-            .Include(t => t.Route)
-                .ThenInclude(r => r!.ArrivalStation)
             .Include(t => t.Boat)
-            .Include(t => t.Bookings).ThenInclude(b => b.SeatReservations)
+            .Include(t => t.TripStopCalls)
+                .ThenInclude(c => c.RouteStop)
+                    .ThenInclude(rs => rs!.Station)
             .Where(t => !t.IsDeleted && t.Status == TripStatus.Scheduled);
-
-        if (request.DepartureStationId.HasValue)
-        {
-            query = query.Where(t => t.Route!.DepartureStationId == request.DepartureStationId.Value);
-        }
-
-        if (request.ArrivalStationId.HasValue)
-        {
-            query = query.Where(t => t.Route!.ArrivalStationId == request.ArrivalStationId.Value);
-        }
 
         if (request.DepartureDate.HasValue)
         {
@@ -86,14 +76,55 @@ public class SearchTripsQueryHandler : IRequestHandler<SearchTripsQuery, List<Tr
 
         var trips = await query.OrderBy(t => t.DepartureTime).ToListAsync(cancellationToken);
 
-        // Nạp toàn bộ bến đang hoạt động 1 lần duy nhất để suy ra danh sách bến dừng hợp lệ của từng chuyến.
-        // GIẢ ĐỊNH: mọi Trip dừng tuần tự ở mọi bến có OrderIndex nằm giữa Departure và Arrival của Route
-        // (xem ghi chú chi tiết tại CreateBookingCommandHandler).
-        var allStations = await _context.Stations
+        // H05: bến lên/bến xuống hợp lệ của một Trip là các điểm dừng THỰC TẾ của chuyến (TripStopCall →
+        // RouteStop), không suy diễn từ Route.DepartureStationId/ArrivalStationId + Station.OrderIndex
+        // toàn hệ thống như trước - cách cũ bỏ sót chuyến có khách lên ở bến giữa. Cùng cơ chế resolve với
+        // BookingCreationService.ResolveJourneyCalls để kết quả search luôn đặt được vé.
+        var matched = new List<(Trip Trip, List<TripStopCall> Calls, TripStopCall Boarding, TripStopCall Disembarking)>();
+        foreach (var trip in trips)
+        {
+            var calls = trip.TripStopCalls
+                .Where(c => c.RouteStop != null && c.Status != "Skipped")
+                .OrderBy(c => c.VisitOrder)
+                .ToList();
+            if (calls.Count < 2)
+            {
+                continue;
+            }
+
+            var boardingCall = request.DepartureStationId.HasValue
+                ? calls.FirstOrDefault(c => c.RouteStop!.StationId == request.DepartureStationId.Value && c.RouteStop.CanBoard)
+                : calls[0];
+            if (boardingCall == null)
+            {
+                continue;
+            }
+
+            var disembarkingCall = request.ArrivalStationId.HasValue
+                ? calls.LastOrDefault(c => c.RouteStop!.StationId == request.ArrivalStationId.Value && c.RouteStop.CanAlight)
+                : calls[^1];
+            if (disembarkingCall == null || boardingCall.VisitOrder >= disembarkingCall.VisitOrder)
+            {
+                continue;
+            }
+
+            matched.Add((trip, calls, boardingCall, disembarkingCall));
+        }
+
+        if (matched.Count == 0)
+        {
+            return [];
+        }
+
+        // H05: đếm ghế bận theo đúng chặng tìm kiếm bằng Segment Overlap Algorithm - cùng công thức đang
+        // dùng ở SeatAvailabilityService, thay vì đếm ghế bận trên toàn bộ Trip bất kể đoạn nào.
+        var tripIds = matched.Select(m => m.Trip.Id).ToList();
+        var reservations = await _context.SeatReservations
             .AsNoTracking()
-            .Where(s => !s.IsDeleted && s.IsActive)
-            .Select(s => new TripStopDto(s.Id, s.Name, s.OrderIndex))
+            .Where(r => tripIds.Contains(r.TripId) && r.Status != ReservationStatus.Cancelled)
+            .Select(r => new { r.TripId, r.SeatId, r.BoardingStopOrder, r.DisembarkingStopOrder })
             .ToListAsync(cancellationToken);
+        var reservationsByTrip = reservations.ToLookup(r => r.TripId);
 
         // BR-FARE-01/02: giá chỉ phụ thuộc TripType và SeatClass. Thẻ chuyến hiển thị giá thấp nhất ("từ ...")
         // trong các bảng giá đang hiệu lực; giá từng hạng ghế nằm ở sơ đồ ghế.
@@ -106,36 +137,33 @@ public class SearchTripsQueryHandler : IRequestHandler<SearchTripsQuery, List<Tr
             .GroupBy(f => f.TripType)
             .ToDictionary(g => g.Key, g => g.Min(f => f.Price));
 
-        return trips.Select(t =>
+        return matched.Select(m =>
         {
-            var totalBoatSeats = t.Boat?.TotalSeats ?? 60;
-            var bookedSeatsCount = t.Bookings.SelectMany(b => b.SeatReservations)
-                .Where(r => r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed)
-                .Select(r => r.SeatId).Distinct().Count();
+            var trip = m.Trip;
+            var totalBoatSeats = trip.Boat?.TotalSeats ?? 60;
+
+            var bookedSeatsCount = reservationsByTrip[trip.Id]
+                .Where(r => m.Boarding.VisitOrder < r.DisembarkingStopOrder && m.Disembarking.VisitOrder > r.BoardingStopOrder)
+                .Select(r => r.SeatId)
+                .Distinct()
+                .Count();
 
             var availableSeats = Math.Max(0, totalBoatSeats - bookedSeatsCount);
 
-            var depOrder = t.Route?.DepartureStation?.OrderIndex ?? 0;
-            var arrOrder = t.Route?.ArrivalStation?.OrderIndex ?? 0;
-            var minOrder = Math.Min(depOrder, arrOrder);
-            var maxOrder = Math.Max(depOrder, arrOrder);
-            var ascending = arrOrder >= depOrder;
-
-            var stops = allStations
-                .Where(s => s.OrderIndex >= minOrder && s.OrderIndex <= maxOrder)
-                .OrderBy(s => ascending ? s.OrderIndex : -s.OrderIndex)
+            var stops = m.Calls
+                .Select(c => new TripStopDto(c.RouteStop!.StationId, c.RouteStop.Station?.Name ?? "", c.RouteStop.Station?.OrderIndex ?? c.VisitOrder))
                 .ToList();
 
             return new TripDto(
-                t.Id,
-                t.Route?.Name ?? "Tuyến Buýt Đường Sông",
-                t.Route?.DepartureStation?.Name ?? "",
-                t.Route?.ArrivalStation?.Name ?? "",
-                t.DepartureTime,
-                t.ArrivalTime,
-                t.Route?.EstimatedDurationMinutes ?? 45,
-                t.TripType.ToString(),
-                fromPriceByType.GetValueOrDefault(t.TripType.ToString(), 0m),
+                trip.Id,
+                trip.Route?.Name ?? "Tuyến Buýt Đường Sông",
+                m.Boarding.RouteStop!.Station?.Name ?? "",
+                m.Disembarking.RouteStop!.Station?.Name ?? "",
+                trip.DepartureTime,
+                trip.ArrivalTime,
+                trip.Route?.EstimatedDurationMinutes ?? 45,
+                trip.TripType.ToString(),
+                fromPriceByType.GetValueOrDefault(trip.TripType.ToString(), 0m),
                 availableSeats,
                 stops);
         }).ToList();

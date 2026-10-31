@@ -20,7 +20,7 @@ export default function BookingProgress({
 }: BookingProgressProps) {
   if (variant === 'bars') {
     return (
-      <div className="grid grid-cols-2 gap-space-md rounded-2xl bg-surface-container-lowest p-space-md shadow-[0_2px_16px_rgba(13,37,56,0.05)] md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-space-md rounded-2xl bg-surface-container-lowest p-space-md shadow-card md:grid-cols-5">
         {steps.map((step, i) => {
           const done = i < current
           const active = i === current
@@ -30,11 +30,11 @@ export default function BookingProgress({
                 <span className={done || active ? 'text-teal-flow' : 'text-outline'}>
                   {String(i + 1).padStart(2, '0')} {t(step.label)}
                 </span>
-                {done && <Icon name="check_circle" className="text-[16px] text-teal-flow" />}
+                {done && <Icon name="check_circle" className="text-base text-teal-flow" />}
                 {active && (
-                  <Icon name="radio_button_checked" className="text-[16px] text-teal-flow" />
+                  <Icon name="radio_button_checked" className="text-base text-teal-flow" />
                 )}
-                {!done && !active && <Icon name="schedule" className="text-[16px] text-outline" />}
+                {!done && !active && <Icon name="schedule" className="text-base text-outline" />}
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-surface-container">
                 <div
@@ -52,7 +52,7 @@ export default function BookingProgress({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-space-md rounded-2xl bg-surface-container-lowest p-space-md shadow-[0_2px_16px_rgba(13,37,56,0.05)] md:grid-cols-5">
+    <div className="grid grid-cols-2 gap-space-md rounded-2xl bg-surface-container-lowest p-space-md shadow-card md:grid-cols-5">
       {steps.map((step, i) => {
         const done = i < current
         const active = i === current
@@ -67,11 +67,11 @@ export default function BookingProgress({
                   : 'bg-surface-container text-outline'
               }`}
             >
-              {done ? <Icon name="check" className="text-[18px]" /> : i + 1}
+              {done ? <Icon name="check" className="text-lg" /> : i + 1}
             </span>
             <div className="min-w-0">
               <div
-                className={`flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider ${
+                className={`flex items-center gap-1 text-2xs font-semibold uppercase tracking-wider ${
                   active ? 'text-teal-flow' : 'text-on-surface-variant'
                 }`}
               >

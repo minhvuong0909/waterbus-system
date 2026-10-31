@@ -1,22 +1,17 @@
 import { Link } from 'react-router-dom'
-import { ErrorState, Icon, PageLoader } from '../../components/ui'
-import { PageHeader, Panel, StatusBadge } from '../../features/admin/components/AdminUi'
+import { ErrorState, Icon, PageHeader, PageLoader, Panel } from '../../components/ui'
 import { useReload } from '../../features/admin/hooks/useAdmin'
 import { useFleetHub } from '../../features/admin/hooks/useFleetHub'
-import {
-  getBoats,
-  getOperationTrips,
-  getRoutes,
-  getStations,
-  getWeatherAlerts,
-} from '../../features/admin/services/adminService'
-import { formatDateTime, isFinished, tripRouteName } from '../../features/admin/utils'
-import { USE_MOCK } from '../../constant/env'
+import { getBoats } from '../../features/admin/services/boatService'
+import { getOpenIncidents, getOperationTrips } from '../../features/admin/services/operationsService'
+import { isFinished } from '../../features/admin/utils'
+import { formatDateTime } from '../../utils/time'
 import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 import OverviewMotion from '../../features/admin/components/OverviewMotion'
 import CurrentWeatherPanel from '../../features/admin/components/CurrentWeatherPanel'
+import TripStatusBadge from '../../features/trips/components/TripStatusBadge'
 
 function Kpi({
   icon,
@@ -33,10 +28,10 @@ function Kpi({
     <Link
       to={to}
       data-admin-enter
-      className="hover-lift flex min-w-0 items-center gap-3 rounded-2xl border border-outline-variant/30 bg-white p-4 shadow-[0_2px_8px_rgba(13,37,56,0.025)] hover:border-teal-flow/40 sm:gap-4 sm:p-5"
+      className="hover-lift flex min-w-0 items-center gap-3 rounded-2xl border border-outline-variant/30 bg-white p-4 shadow-card hover:border-teal-flow/40 sm:gap-4 sm:p-5"
     >
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-flow/10 text-teal-flow sm:h-12 sm:w-12 sm:rounded-2xl">
-        <Icon name={icon} className="text-[24px]" />
+        <Icon name={icon} className="text-2xl" />
       </span>
       <span className="min-w-0">
         <span className="mb-1 block text-3xl font-bold leading-none tabular-nums tracking-tight text-deep-river">
@@ -53,24 +48,19 @@ export default function OverviewPage() {
   const [version, reload] = useReload()
   const trips = useFetch(getOperationTrips, [version])
   const boats = useFetch(getBoats)
-  const stations = useFetch(getStations)
-  const routes = useFetch(getRoutes)
-  const alerts = useFetch(getWeatherAlerts, [version])
+  const alerts = useFetch(() => getOpenIncidents(), [version])
   // Counts and the next trips follow status changes and new alerts as they happen.
   useFleetHub(
     { onTripStatus: reload, onAlert: reload, onIncident: reload, onReconnected: reload },
-    !USE_MOCK,
   )
-  const state = combineFetches(trips, boats, stations, routes, alerts)
+  const state = combineFetches(trips, boats, alerts)
 
   if (state.error) return <ErrorState onRetry={state.retry} />
-  if (state.loading || !trips.data || !boats.data || !stations.data || !routes.data || !alerts.data)
-    return <PageLoader />
+  if (state.loading || !trips.data || !boats.data || !alerts.data) return <PageLoader />
 
   const today = new Date().toDateString()
   const todays = trips.data.filter((x) => new Date(x.departureTime).toDateString() === today)
   const upcoming = trips.data.filter((x) => !isFinished(x.status)).slice(0, 5)
-  const routeName = (id: string) => routes.data?.find((r) => r.id === id)?.name ?? '—'
 
   return (
     <OverviewMotion>
@@ -108,9 +98,9 @@ export default function OverviewPage() {
                   {formatDateTime(x.departureTime)}
                 </span>
                 <span className="flex-1 truncate text-on-surface-variant">
-                  {tripRouteName(x, routeName)}
+                  {x.routeName}
                 </span>
-                <StatusBadge status={x.status} />
+                <TripStatusBadge status={x.status} />
               </li>
             ))}
           </ul>

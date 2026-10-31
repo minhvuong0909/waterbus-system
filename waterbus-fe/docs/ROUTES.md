@@ -39,13 +39,4 @@ Operations area (sign in required, roles in `src/features/admin/navigation.ts`):
 | `/admin/incidents` | Weather alerts, suspend / cancel / terminate a trip | Admin, Dispatcher |
 | `/captain` | Captain portal (Start, Arrived, SOS, narration) | Captain, Admin |
 
-In mock mode (`VITE_USE_MOCK=true`) sign in with `admin@...`, `dispatcher@...` or `captain@...` (any password) to get that role.
-
 Unknown paths redirect to `/`.
-
-## Trying the error screens
-
-All data comes from mock services, so nothing fails on its own. Add `?mockError=1` to the URL of the
-page you load (e.g. `/tickets?mockError=1`): every mock request in the first 2 seconds fails and the
-page shows the error screen. Wait a moment, then click "Try again" and it loads normally.
-Use `?mockError=5` to keep failing for 5 seconds.

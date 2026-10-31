@@ -1,3 +1,6 @@
+using WaterbusSystem.Application.Interfaces.Services;
+using WaterbusSystem.Application.DTOs.Responses.AiBooking;
+using WaterbusSystem.Application.DTOs.Requests.AiBooking;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;

@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.DTOs.Requests.AiBooking;
 using System.Net;
 using FluentAssertions;
 using FluentValidation;
@@ -9,7 +10,7 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Moq;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.AiBooking.Models;
-using WaterbusSystem.Application.Features.AiBooking.Validators;
+using WaterbusSystem.Application.Validators.AiBooking;
 using WaterbusSystem.Infrastructure.Services.AiBooking;
 using Xunit;
 

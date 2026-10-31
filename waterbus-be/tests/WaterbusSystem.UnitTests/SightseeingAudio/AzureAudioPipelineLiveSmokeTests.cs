@@ -5,9 +5,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Common.Models;
-using WaterbusSystem.Application.Common.Validators;
+using WaterbusSystem.Application.Validators.SightseeingAudio;
 using WaterbusSystem.Application.Features.SightseeingAudio.Models;
-using WaterbusSystem.Application.Features.SightseeingAudio.Services;
+using WaterbusSystem.Application.Services.SightseeingAudio;
 using WaterbusSystem.Infrastructure.Services.AudioStorage;
 using WaterbusSystem.Infrastructure.Services.Tts;
 using WaterbusSystem.WebApi.Controllers;
@@ -53,7 +53,7 @@ public sealed class AzureAudioPipelineLiveSmokeTests(ITestOutputHelper output)
         var capturedSpeech = new CapturingTextToSpeechService(actualSpeech);
         var storage = new AzureBlobAudioStorageService(
             container,
-            new StoreAudioCommandValidator(),
+            new StoreAudioRequestValidator(),
             NullLogger<AzureBlobAudioStorageService>.Instance);
         var pipeline = new AudioAssetGenerationService(capturedSpeech, storage);
 

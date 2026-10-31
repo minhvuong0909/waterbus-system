@@ -3,9 +3,10 @@ import { usePrefersReducedMotion } from '../../hooks'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { Logo } from '../../components/brand'
 import { Button, Icon } from '../../components/ui'
-import { landingRouteFor, STAFF_ROLES } from '../../features/admin/navigation'
-import { hasAnyRole } from '../../features/authentication/authenticationUtils'
-import { useAuth } from '../../features/authentication/hook/authenticationHook'
+import { STAFF_ROLES } from '../../constant/roles'
+import { landingRouteFor } from '../../routes/landingRoute'
+import { hasAnyRole } from '../../features/authentication/utils'
+import { useAuth } from '../../features/authentication/hooks/useAuth'
 import LanguageSwitcher from './LanguageSwitcher'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -13,7 +14,6 @@ import { t } from '../../i18n'
 const NAV_ITEMS = [
   { label: 'Timetable', to: ROUTES.searchResults },
   { label: 'Explore', to: ROUTES.explore },
-  { label: 'Live Tracking', to: ROUTES.liveTracking },
   { label: 'My Tickets', to: ROUTES.myTickets },
   { label: 'Help', to: ROUTES.help },
 ]
@@ -44,7 +44,7 @@ export default function Header() {
   const staffArea = hasAnyRole(user, STAFF_ROLES) && user ? landingRouteFor(user.roles) : null
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 print:hidden border-b border-surface-container/60 bg-mist/90 shadow-[0_2px_12px_rgba(13,37,56,0.03)] backdrop-blur-xl">
+    <header className="fixed inset-x-0 top-0 z-50 print:hidden border-b border-surface-container/60 bg-mist/90 shadow-card backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-20 sm:px-6">
         <div className="flex min-w-0 items-center gap-6">
           <Link

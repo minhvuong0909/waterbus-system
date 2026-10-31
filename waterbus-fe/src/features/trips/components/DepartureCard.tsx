@@ -25,7 +25,7 @@ export default function DepartureCard({ departure, onSelect }: DepartureCardProp
       className={`group flex items-center justify-between gap-3 rounded-2xl border p-4 shadow-sm transition-all hover:shadow-md ${
         sightseeing
           ? 'border-coral-glow/30 bg-gradient-to-r from-surface to-mist'
-          : 'border-[#E2E8F0] bg-surface hover:border-teal-flow/40'
+          : 'border-outline-variant/50 bg-surface hover:border-teal-flow/40'
       }`}
     >
       <div className="flex items-center gap-3.5">
@@ -36,15 +36,15 @@ export default function DepartureCard({ departure, onSelect }: DepartureCardProp
               : 'border-outline-variant/30 bg-mist text-deep-river'
           }`}
         >
-          <span className="font-headline-sm text-sm font-bold">{departure.time}</span>
-          <span className={`text-[10px] ${statusClass}`}>{departure.status}</span>
+          <span className="font-display text-sm font-bold">{departure.time}</span>
+          <span className={`text-2xs ${statusClass}`}>{departure.status}</span>
         </div>
         <div>
-          <div className="flex items-center gap-1.5 font-headline-sm text-sm font-bold text-deep-river">
+          <div className="flex items-center gap-1.5 font-display text-sm font-bold text-deep-river">
             <span>{departure.from}</span>
             {departure.to && (
               <>
-                <Icon name="arrow_forward" className="text-[15px] text-teal-flow" />
+                <Icon name="arrow_forward" className="text-sm text-teal-flow" />
                 <span>{departure.to}</span>
               </>
             )}
@@ -70,7 +70,7 @@ export default function DepartureCard({ departure, onSelect }: DepartureCardProp
         </div>
       </div>
       <div className="flex flex-col items-end text-right">
-        <span className="max-w-[9rem] font-numeric-md text-sm font-bold text-deep-river">
+        <span className="max-w-[9rem] font-display text-sm font-bold text-deep-river">
           {hasFare(departure.priceVnd) ? formatVnd(departure.priceVnd) : t('Price shown when you choose a seat')}
         </span>
         <Link

@@ -128,7 +128,7 @@ export default function PierGallery({
             onClick={() => go(index - 1)}
             className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-deep-river opacity-0 shadow transition-opacity hover:bg-white focus-visible:opacity-100 group-hover/gallery:opacity-100"
           >
-            <Icon name="chevron_left" className="text-[22px]" />
+            <Icon name="chevron_left" className="text-2xl" />
           </button>
           <button
             type="button"
@@ -136,7 +136,7 @@ export default function PierGallery({
             onClick={() => go(index + 1)}
             className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-deep-river opacity-0 shadow transition-opacity hover:bg-white focus-visible:opacity-100 group-hover/gallery:opacity-100"
           >
-            <Icon name="chevron_right" className="text-[22px]" />
+            <Icon name="chevron_right" className="text-2xl" />
           </button>
 
           <div className="absolute inset-x-0 bottom-3 flex items-center justify-center gap-2">
@@ -161,7 +161,7 @@ export default function PierGallery({
                   onClick={() => setPaused((v) => !v)}
                   className="relative ml-1 flex h-5 w-5 items-center justify-center rounded-full text-white before:absolute before:-inset-2 before:content-[''] hover:bg-white/20"
                 >
-                  <Icon name={paused ? 'play_arrow' : 'pause'} className="text-[16px]" />
+                  <Icon name={paused ? 'play_arrow' : 'pause'} className="text-base" />
                 </button>
               )}
             </div>

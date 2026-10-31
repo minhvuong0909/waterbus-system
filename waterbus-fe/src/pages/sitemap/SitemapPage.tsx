@@ -9,7 +9,7 @@ export default function SitemapPage() {
 
   return (
     <section className="mx-auto max-w-4xl px-margin py-space-2xl">
-      <h1 className="font-headline-lg text-headline-lg text-deep-river">{t('All routes')}</h1>
+      <h1 className="font-display text-headline-lg text-deep-river">{t('All routes')}</h1>
       <p className="mt-space-sm text-body-lg text-on-surface-variant">
         {t('Every page is reachable directly by URL, with no login or earlier step required.')}
       </p>
@@ -21,7 +21,7 @@ export default function SitemapPage() {
                 to={entry.path}
                 className="flex items-center justify-between gap-space-sm px-space-lg py-space-md transition-colors hover:bg-mist"
               >
-                <span className="font-headline-sm text-body-lg font-semibold text-deep-river">
+                <span className="font-display text-body-lg font-semibold text-deep-river">
                   {entry.title}
                 </span>
                 <code className="text-body-sm text-on-surface-variant">{entry.path}</code>

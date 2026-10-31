@@ -33,18 +33,8 @@ export interface Pier {
   longitude: number
 }
 
-export interface Vessel {
-  code: string
-  status: string
-  speedKmh: number
-  nextPier: string
-  latitude: number
-  longitude: number
-}
-
 export interface CorridorMap {
   piers: Pier[]
-  vessel: Vessel | null
 }
 
 // ---- Trip search -----------------------------------------------------------
@@ -215,4 +205,79 @@ export interface TripDto {
   tripType: string
   basePrice: number
   availableSeatsCount: number
+}
+
+/** BE `TripType`. */
+export type TripType = 'Commuter' | 'Sightseeing'
+
+/** BE `TripStatus` (BR-OPS-01). */
+export type TripStatus =
+  | 'Scheduled'
+  | 'Boarding'
+  | 'EnRoute'
+  | 'Suspended'
+  | 'Arrived'
+  | 'Completed'
+  | 'Cancelled'
+  | 'Terminated'
+
+// ---- Trip detail and seat map (`GET /trips/{id}`, `GET /trips/{id}/seats`) ----
+
+export interface TripSeatDto {
+  seatId: string
+  seatCode: string
+  rowNumber: number
+  columnNumber: number
+  seatClassId: string
+  seatClassName: string | null
+  price: number | null
+  currency: string
+  /** available | held | sold | unavailable */
+  status: string
+  unavailableReason: string | null
+  holdExpiresAt: string | null
+}
+
+export interface TripSeatMapDto {
+  tripId: string
+  boatId: string
+  boardingCallId: string
+  disembarkingCallId: string
+  boardingVisitOrder: number
+  disembarkingVisitOrder: number
+  canBook: boolean
+  salesState: string
+  availableSeatsCount: number
+  asOf: string
+  seats: TripSeatDto[]
+}
+
+export interface TripStopDto {
+  callId: string
+  stationId: string
+  stationName: string
+  visitOrder: number
+  canBoard: boolean
+  canAlight: boolean
+  status: string
+  estimatedArrivalTime?: string | null
+  estimatedDepartureTime?: string | null
+  /** Check-in window of this stop, set by operations (null while not configured). */
+  checkInOpenAt?: string | null
+  checkInCloseAt?: string | null
+}
+
+/** `GET /trips/{tripId}` (TripDetailDto), the parts used to pick the journey. */
+export interface TripDetailDto {
+  tripId: string
+  routeId: string
+  routeName: string
+  tripType: string
+  status: string
+  departureTime: string
+  arrivalTime: string
+  canBook: boolean
+  salesState: string
+  boat: { boatId: string; code: string; name: string } | null
+  stops: TripStopDto[]
 }

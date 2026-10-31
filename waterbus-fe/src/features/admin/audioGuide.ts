@@ -1,30 +1,12 @@
-import { EXPLORE_DATA } from '../../mocks/explore'
-
-/** A landmark the boat passes, where its narration is played on board. */
+/** A landmark of the database (`GET /audioguides/pois`, BE `AudioGuidePoiResponse`). */
 export interface NarrationPoi {
-  id: string
-  title: string
-  description: string
-  latitude: number
-  longitude: number
+  poiId: string
+  name: string
+  hasActiveRoutePoi: boolean
+  audioGuideId: string | null
+  audioAssetUri: string | null
+  isPublished: boolean
 }
-
-/**
- * Approximate positions of the Explore landmarks along the Saigon River, in river order from
- * Bach Dang pier. The backend has no POI API yet, so the catalog lives here for the admin screen;
- * names and descriptions come from the Explore content so both pages stay the same.
- */
-const POSITIONS: Record<string, [latitude: number, longitude: number]> = {
-  'customs-house': [10.7716, 106.7063],
-  'thu-thiem': [10.7752, 106.7134],
-  'ba-son': [10.7835, 106.7086],
-  'landmark-park': [10.7946, 106.7224],
-}
-
-export const NARRATION_POIS: NarrationPoi[] = Object.entries(POSITIONS).flatMap(([id, [latitude, longitude]]) => {
-  const landmark = EXPLORE_DATA.landmarks.find((l) => l.id === id)
-  return landmark ? [{ id, title: landmark.title, description: landmark.description, latitude, longitude }] : []
-})
 
 /** Azure neural voices for Vietnamese (`AzureSpeech` voice names). */
 export const NARRATION_VOICES = [

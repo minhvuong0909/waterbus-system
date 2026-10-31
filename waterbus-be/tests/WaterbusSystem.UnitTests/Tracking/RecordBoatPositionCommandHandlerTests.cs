@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.Interfaces.Services;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -7,7 +8,6 @@ using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Tracking;
 using WaterbusSystem.Application.Features.Tracking.Commands.RecordBoatPosition;
 using WaterbusSystem.Application.Features.SightseeingAudio;
-using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
 using WaterbusSystem.Application.Features.SightseeingAudio.Models;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;

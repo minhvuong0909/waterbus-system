@@ -4,8 +4,8 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import { Logo } from '../../components/brand'
 import { Icon } from '../../components/ui'
 import { ADMIN_NAV } from '../../features/admin/navigation'
-import { hasAnyRole } from '../../features/authentication/authenticationUtils'
-import { useAuth } from '../../features/authentication/hook/authenticationHook'
+import { hasAnyRole } from '../../features/authentication/utils'
+import { useAuth } from '../../features/authentication/hooks/useAuth'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 import LanguageSwitcher from '../header/LanguageSwitcher'
@@ -39,7 +39,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }, [menuOpen])
 
   return (
-    <div className="min-h-screen bg-[#F4F7FA] lg:flex">
+    <div className="min-h-screen bg-mist lg:flex">
       <a
         href="#admin-content"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-white focus:px-4 focus:py-3 focus:text-deep-river"
@@ -83,7 +83,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               onClick={() => setMenuPath(null)}
               className={linkClass}
             >
-              <Icon name={item.icon} className="shrink-0 text-[20px]" />
+              <Icon name={item.icon} className="shrink-0 text-xl" />
               <span className="min-w-0 whitespace-normal leading-snug lg:truncate lg:whitespace-nowrap">
                 {t(item.label)}
               </span>
@@ -112,7 +112,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <div className="min-w-0 flex-1 lg:ml-60">
         <header className="flex min-h-[68px] items-center justify-between gap-3 border-b border-outline-variant/30 bg-white px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-2 text-sm">
-            <Icon name={current?.icon ?? 'dashboard'} className="text-[20px] text-teal-flow" />
+            <Icon name={current?.icon ?? 'dashboard'} className="text-xl text-teal-flow" />
             <span className="hidden text-on-surface-variant sm:inline">{t('Operations')}</span>
             <span className="hidden text-outline-variant sm:inline">/</span>
             <span className="truncate font-semibold text-deep-river">
@@ -127,7 +127,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               title={t('Passenger site')}
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-outline-variant/40 text-on-surface-variant transition-colors hover:bg-mist"
             >
-              <Icon name="open_in_new" className="text-[18px]" />
+              <Icon name="open_in_new" className="text-lg" />
             </Link>
             <button
               type="button"
@@ -136,7 +136,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               onClick={signOut}
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-outline-variant/40 text-on-surface-variant hover:bg-mist lg:hidden"
             >
-              <Icon name="logout" className="text-[18px]" />
+              <Icon name="logout" className="text-lg" />
             </button>
           </div>
         </header>

@@ -1,12 +1,10 @@
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import TripAside from '../../features/trips/components/TripAside'
-import {
-  BoardingSteps,
-  JourneyTimeline,
-  OnboardAmenities,
-} from '../../features/trips/components/TripInfoSections'
+import BoardingSteps from '../../features/trips/components/BoardingSteps'
+import JourneyTimeline from '../../features/trips/components/JourneyTimeline'
+import OnboardAmenities from '../../features/trips/components/OnboardAmenities'
 import TripRouteCard from '../../features/trips/components/TripRouteCard'
-import { useTripDetail } from '../../features/trips/hooks/useTripSearch'
+import { useTripDetail } from '../../features/booking/hooks/useTripSearch'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -33,7 +31,7 @@ export default function TripDetailPage() {
             ]}
           />
           <div className="flex items-center gap-space-sm pt-space-xs">
-            <h1 className="font-headline-lg text-headline-lg tracking-tight text-deep-river">
+            <h1 className="font-display text-headline-lg tracking-tight text-deep-river">
               {t('Review Your Journey')}
             </h1>
           </div>

@@ -14,15 +14,15 @@ interface PaymentMethodPanelProps {
  */
 export default function PaymentMethodPanel({ amountVnd, reference }: PaymentMethodPanelProps) {
   return (
-    <div className="rounded-2xl bg-surface-container-lowest p-space-lg shadow-[0_2px_16px_rgba(13,37,56,0.05)] md:p-space-xl">
-      <h2 className="font-headline-lg text-headline-md text-deep-river">{t('Payment Method')}</h2>
+    <div className="rounded-2xl bg-surface-container-lowest p-space-lg shadow-card md:p-space-xl">
+      <h2 className="font-display text-headline-md text-deep-river">{t('Payment Method')}</h2>
 
       <div className="mt-space-md flex items-start gap-space-md rounded-2xl border-2 border-teal-flow bg-sand-light/50 p-space-lg">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-teal-flow">
-          <Icon name="account_balance" className="text-[26px]" />
+          <Icon name="account_balance" className="text-2xl" />
         </span>
         <div>
-          <h3 className="font-headline-sm text-xl font-bold text-deep-river">VNPay</h3>
+          <h3 className="font-display text-xl font-bold text-deep-river">VNPay</h3>
           <p className="text-sm text-on-surface-variant">
             {t('Pay by QR code, bank card or e-wallet on the secure VNPay page.')}
           </p>

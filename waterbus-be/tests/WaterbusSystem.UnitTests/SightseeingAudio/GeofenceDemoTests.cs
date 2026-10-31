@@ -1,6 +1,6 @@
 using FluentAssertions;
 using WaterbusSystem.Application.Features.SightseeingAudio.Models;
-using WaterbusSystem.Application.Features.SightseeingAudio.Services;
+using WaterbusSystem.Application.Services.SightseeingAudio;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Infrastructure.Services;
 using WaterbusSystem.UnitTests.SightseeingAudio.Fakes;

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { AuthSession } from '../features/authentication/authenticationTypes'
+import type { AuthSession } from './authStorage'
 import { clearSession, getToken, loadSession, saveSession } from './authStorage'
 
 const future = Math.floor(Date.now() / 1000) + 3600

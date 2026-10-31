@@ -1,9 +1,11 @@
+using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
 using WaterbusSystem.Application.Features.Payments.Services;
 using System.Text;
 using Azure.Storage.Blobs;
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -22,7 +24,7 @@ using WaterbusSystem.Application.Features.Incidents;
 using WaterbusSystem.Application.Features.Tracking;
 using WaterbusSystem.Application.Features.SightseeingAudio;
 using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
-using WaterbusSystem.Application.Features.SightseeingAudio.Services;
+using WaterbusSystem.Application.Services.SightseeingAudio;
 using WaterbusSystem.Infrastructure.BackgroundJobs;
 using WaterbusSystem.Infrastructure.Identity;
 using WaterbusSystem.Infrastructure.Locking;
@@ -88,6 +90,11 @@ public static class DependencyInjection
             options.Password.RequireNonAlphanumeric = false;
             options.Password.RequiredLength = 6;
             options.User.RequireUniqueEmail = true;
+
+            // M11: khóa tài khoản sau 5 lần sai mật khẩu liên tiếp, mở lại sau 5 phút.
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+            options.Lockout.AllowedForNewUsers = true;
         })
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
@@ -122,9 +129,13 @@ public static class DependencyInjection
             };
 
             // SignalR: đọc JWT từ query access_token cho đường dẫn /hubs
+            // M10: chuẩn hóa 401/403 của JWT challenge/forbid về cùng hình dạng ProblemDetails + traceId
+            // mà GlobalExceptionHandlingMiddleware đang dùng cho các lỗi khác (JwtProblemDetailsEvents.cs).
             options.Events = new JwtBearerEvents
             {
-                OnMessageReceived = SignalRTokenReader.OnMessageReceived
+                OnMessageReceived = SignalRTokenReader.OnMessageReceived,
+                OnChallenge = JwtProblemDetailsEvents.OnChallenge,
+                OnForbidden = JwtProblemDetailsEvents.OnForbidden
             };
         });
 
@@ -207,6 +218,7 @@ public static class DependencyInjection
         services.AddScoped<IOnboardAudioTriggerDispatcher, LogOnlyAudioTriggerDispatcher>();
         services.AddScoped<IPoiAudioTriggerDecisionService, PoiAudioTriggerDecisionService>();
         services.AddScoped<ITrackingAudioTriggerEvaluator, TrackingAudioTriggerEvaluator>();
+        services.AddScoped<ISightseeingAudioRepository, SightseeingAudioRepository>();
 
         // 8. Azure AI Speech Text-to-Speech (Neural Voice MP3 tiếng Việt)
         services.Configure<AzureSpeechOptions>(configuration.GetSection(AzureSpeechOptions.SectionName));
@@ -218,14 +230,16 @@ public static class DependencyInjection
         services.Configure<AzureBlobAudioStorageOptions>(configuration.GetSection(AzureBlobAudioStorageOptions.SectionName));
         services.AddScoped<IAudioStorageService>(provider =>
         {
-            var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AzureBlobAudioStorageOptions>>().Value;
-            if (string.IsNullOrWhiteSpace(options.ConnectionString) || string.IsNullOrWhiteSpace(options.ContainerName))
-                throw new InvalidOperationException("Thiếu AzureBlobAudioStorage:ConnectionString hoặc ContainerName. Cấu hình secret ngoài Git trước khi lưu MP3.");
-
-            var container = new BlobContainerClient(options.ConnectionString, options.ContainerName);
+            var container = new Lazy<BlobContainerClient>(() =>
+            {
+                var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AzureBlobAudioStorageOptions>>().Value;
+                if (string.IsNullOrWhiteSpace(options.ConnectionString) || string.IsNullOrWhiteSpace(options.ContainerName))
+                    throw new InvalidOperationException("Thiếu AzureBlobAudioStorage:ConnectionString hoặc ContainerName. Cấu hình secret ngoài Git trước khi lưu MP3.");
+                return new BlobContainerClient(options.ConnectionString, options.ContainerName);
+            });
             return new AzureBlobAudioStorageService(
                 container,
-                provider.GetRequiredService<FluentValidation.IValidator<WaterbusSystem.Application.Common.Models.StoreAudioCommand>>(),
+                provider.GetRequiredService<FluentValidation.IValidator<WaterbusSystem.Application.DTOs.Requests.SightseeingAudio.StoreAudioRequest>>(),
                 provider.GetRequiredService<ILogger<AzureBlobAudioStorageService>>());
         });
 

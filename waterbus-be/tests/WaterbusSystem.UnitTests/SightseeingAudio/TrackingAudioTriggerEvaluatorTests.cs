@@ -4,7 +4,7 @@ using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
 using WaterbusSystem.Application.Features.Incidents;
 using WaterbusSystem.Application.Features.SightseeingAudio.Models;
-using WaterbusSystem.Application.Features.SightseeingAudio.Services;
+using WaterbusSystem.Application.Services.SightseeingAudio;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Infrastructure.Services;
@@ -47,7 +47,7 @@ public class TrackingAudioTriggerEvaluatorTests
 
     private TrackingAudioTriggerEvaluator CreateEvaluator(IOnboardAudioTriggerDispatcher? dispatcher = null,
         IPoiTriggerDeduplicationService? deduplication = null) => new(
-        _context,
+        new WaterbusSystem.Infrastructure.Repositories.SightseeingAudioRepository(_context),
         new PoiAudioTriggerDecisionService(new NtsGeoDistanceCalculator(),
             deduplication ?? _deduplication, dispatcher ?? _dispatcher,
             NullLogger<PoiAudioTriggerDecisionService>.Instance));

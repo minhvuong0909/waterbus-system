@@ -1,6 +1,7 @@
 import { numberLocale, t } from '../../i18n'
 import { formatClock, toVietnamDate } from '../../utils/time'
 import type {
+  CorridorMap,
   DateOption,
   PierOption,
   SearchQuery,
@@ -8,6 +9,7 @@ import type {
   TimeBand,
   Trip,
   TripDto,
+  TripStopDto,
 } from './types'
 
 /** At or below this many free seats a trip is shown as "Limited". */
@@ -151,4 +153,47 @@ export function isDeparted(trip: Pick<Trip, 'departTime'>, dateId: string, now =
   if (dateId !== today) return dateId < today
   const [hours, minutes] = trip.departTime.split(':').map(Number)
   return hours * 60 + minutes <= now.getHours() * 60 + now.getMinutes()
+}
+
+/**
+ * The boarding and alighting stops for the chosen piers: the first stop at the origin pier that
+ * allows boarding, followed later in the trip by a stop at the destination that allows alighting.
+ * Uses the trip's real stops, never the pier order (a loop trip can call at one pier twice).
+ */
+export function pickJourney(
+  stops: TripStopDto[],
+  originId: string,
+  destinationId: string,
+): { boarding: TripStopDto; disembarking: TripStopDto } | null {
+  const usable = stops.filter((stop) => stop.status !== 'Skipped')
+  const sameStation = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+  const boardings = usable
+    .filter((stop) => stop.canBoard && sameStation(stop.stationId, originId))
+    .sort((a, b) => a.visitOrder - b.visitOrder)
+  for (const boarding of boardings) {
+    const disembarking = usable
+      .filter(
+        (stop) =>
+          stop.canAlight &&
+          sameStation(stop.stationId, destinationId) &&
+          stop.visitOrder > boarding.visitOrder,
+      )
+      .sort((a, b) => a.visitOrder - b.visitOrder)[0]
+    if (disembarking) return { boarding, disembarking }
+  }
+  return null
+}
+
+/** The corridor shown on the maps: the piers at their coordinates. */
+export function buildCorridorMap(piers: PierOption[]): CorridorMap {
+  const placed = piers.map((pier) => ({
+    id: pier.id,
+    name: pier.name,
+    subtitle: pier.district,
+    code: pier.code,
+    address: pier.subtitle,
+    latitude: pier.latitude,
+    longitude: pier.longitude,
+  }))
+  return { piers: placed }
 }

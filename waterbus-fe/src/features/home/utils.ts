@@ -1,6 +1,5 @@
 import { t } from '../../i18n'
-import { positionAlong } from '../admin/utils'
-import type { CorridorMap, Departure, PierOption, Trip } from '../trips/types'
+import type { Departure, PierOption, Trip } from '../trips/types'
 import { seatsLabel } from '../trips/utils'
 
 /** A departure leaves within this many minutes -> shown as "Boarding". */
@@ -33,40 +32,3 @@ export function toDeparture(
   }
 }
 
-/** Where the demo vessel is on the corridor (0-1). Mock until the tracking API exists. */
-const MOCK_VESSEL_PROGRESS = 0.45
-/** Route RT01 is 10.8 km and takes 45 minutes. */
-const MOCK_VESSEL_SPEED_KMH = 14.4
-
-/**
- * The corridor shown on the maps: the piers at their coordinates and a mock vessel sailing part-way
- * along the line that joins them in river order.
- */
-export function buildCorridorMap(piers: PierOption[]): CorridorMap {
-  const placed = piers.map((pier) => ({
-    id: pier.id,
-    name: pier.name,
-    subtitle: pier.district,
-    code: pier.code,
-    address: pier.subtitle,
-    latitude: pier.latitude,
-    longitude: pier.longitude,
-  }))
-  const [latitude, longitude] = positionAlong(
-    piers.map((p): [number, number] => [p.latitude, p.longitude]),
-    MOCK_VESSEL_PROGRESS,
-  )
-  const next = piers[Math.min(Math.ceil(MOCK_VESSEL_PROGRESS * (piers.length - 1)), piers.length - 1)]
-
-  return {
-    piers: placed,
-    vessel: {
-      code: 'SWB-01',
-      status: t('On time'),
-      speedKmh: MOCK_VESSEL_SPEED_KMH,
-      nextPier: next?.shortName ?? '',
-      latitude,
-      longitude,
-    },
-  }
-}

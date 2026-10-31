@@ -112,4 +112,26 @@ public class RunNoShowFinalizationCommandHandlerTests
         result.StopCallsDeferred.Should().Be(1);
         context.Tickets.Single(t => t.Id == ticket.Id).BoardingStatus.Should().Be(BoardingStatus.NotCheckedIn);
     }
+
+    [Theory]
+    [InlineData(TripStatus.Cancelled)]
+    [InlineData(TripStatus.Terminated)]
+    public async Task Handle_WhenTripCancelledOrTerminatedBeforeBoarding_ShouldNotFinalizeAsNoShow(TripStatus tripStatus)
+    {
+        // H02/BR-RF-06: chuyến hủy/chấm dứt trước khi khách có cơ hội lên tàu không được kết luận
+        // NoShow, nếu không khách sẽ mất quyền hoàn tiền (RefundEligibilityEvaluator từ chối NoShow).
+        using var context = TestDbContextFactory.CreateDbContext();
+        var staffId = Guid.NewGuid();
+        var (seed, _, ticket, boardingCall, _) = SeedCheckInScenario(context, staffId, withAssignment: false);
+        seed.Trip.Status = tripStatus;
+        context.SaveChanges();
+
+        var now = boardingCall.CheckInCloseAt!.Value.AddMinutes(16);
+        var handler = CreateHandler(context, now);
+
+        var result = await handler.Handle(new RunNoShowFinalizationCommand(), CancellationToken.None);
+
+        result.TicketsFinalized.Should().Be(0);
+        context.Tickets.Single(t => t.Id == ticket.Id).BoardingStatus.Should().Be(BoardingStatus.NotCheckedIn);
+    }
 }

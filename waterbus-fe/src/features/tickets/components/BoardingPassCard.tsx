@@ -26,19 +26,19 @@ export interface BoardingPassData {
 /** Boarding pass: dark header, journey + facts on the left, QR on the right. */
 export default function BoardingPassCard({ pass }: { pass: BoardingPassData }) {
   return (
-    <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-[0_4px_24px_rgba(13,37,56,0.08)]">
+    <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-raised">
       <div className="flex items-center justify-between bg-deep-river px-space-lg py-space-md text-on-primary">
         <div className="flex items-center gap-3">
-          <Icon name="directions_boat" className="text-[22px]" />
+          <Icon name="directions_boat" className="text-2xl" />
           <div>
-            <div className="font-headline-sm text-sm font-bold">
+            <div className="font-display text-sm font-bold">
               {t('Trip {tripCode}', { tripCode: pass.tripCode })}
             </div>
-            <div className="text-[11px] text-sand-light/80">{pass.lineName}</div>
+            <div className="text-2xs text-sand-light/80">{pass.lineName}</div>
           </div>
         </div>
         <span className="inline-flex items-center gap-1 rounded-full bg-teal-flow px-3 py-1 text-xs font-semibold">
-          <Icon name="check_circle" className="text-[14px]" />
+          <Icon name="check_circle" className="text-sm" />
           {pass.status}
         </span>
       </div>
@@ -53,28 +53,28 @@ export default function BoardingPassCard({ pass }: { pass: BoardingPassData }) {
             </div>
             <div className="space-y-space-md">
               <div>
-                <span className="font-headline-sm text-3xl font-bold text-deep-river">
+                <span className="font-display text-3xl font-bold text-deep-river">
                   {pass.departTime}
                 </span>
-                <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">
+                <span className="ml-2 text-2xs font-semibold uppercase tracking-wider text-on-surface-variant">
                   {t('Departure')}
                 </span>
-                <div className="font-headline-sm text-lg font-semibold text-deep-river">
+                <div className="font-display text-lg font-semibold text-deep-river">
                   {pass.departPier}
                 </div>
-                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-secondary-container/60 px-2.5 py-0.5 text-[11px] text-teal-flow">
-                  <Icon name="schedule" className="text-[13px]" />
+                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-secondary-container/60 px-2.5 py-0.5 text-2xs text-teal-flow">
+                  <Icon name="schedule" className="text-xs" />
                   {t('{durationMins} min river crossing', { durationMins: pass.durationMins })}
                 </span>
               </div>
               <div>
-                <span className="font-headline-sm text-3xl font-bold text-deep-river">
+                <span className="font-display text-3xl font-bold text-deep-river">
                   {pass.arriveTime}
                 </span>
-                <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">
+                <span className="ml-2 text-2xs font-semibold uppercase tracking-wider text-on-surface-variant">
                   {t('Arrival')}
                 </span>
-                <div className="font-headline-sm text-lg font-semibold text-deep-river">
+                <div className="font-display text-lg font-semibold text-deep-river">
                   {pass.arrivePier}
                 </div>
               </div>
@@ -83,35 +83,35 @@ export default function BoardingPassCard({ pass }: { pass: BoardingPassData }) {
 
           <dl className="mt-space-md grid grid-cols-2 gap-space-sm rounded-xl bg-mist/70 p-space-md text-sm">
             <div>
-              <dt className="text-[11px] text-on-surface-variant">{t('Seat')}</dt>
+              <dt className="text-2xs text-on-surface-variant">{t('Seat')}</dt>
               <dd className="font-semibold text-teal-flow">{pass.seat}</dd>
             </div>
             <div>
-              <dt className="text-[11px] text-on-surface-variant">{t('Passenger')}</dt>
+              <dt className="text-2xs text-on-surface-variant">{t('Passenger')}</dt>
               <dd className="truncate font-semibold text-deep-river">{pass.passenger}</dd>
             </div>
             <div>
-              <dt className="text-[11px] text-on-surface-variant">{t('Status')}</dt>
+              <dt className="text-2xs text-on-surface-variant">{t('Status')}</dt>
               <dd className="font-semibold text-teal-flow">{pass.status}</dd>
             </div>
             <div>
-              <dt className="text-[11px] text-on-surface-variant">{t('Total Fare')}</dt>
+              <dt className="text-2xs text-on-surface-variant">{t('Total Fare')}</dt>
               <dd className="font-semibold text-deep-river">{formatVndSuffix(pass.totalVnd)}</dd>
             </div>
           </dl>
         </div>
 
         <div className="flex flex-col items-center justify-center rounded-xl bg-mist/70 p-space-md text-center md:col-span-2">
-          <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">
+          <div className="mb-2 text-2xs font-bold uppercase tracking-wider text-on-surface-variant">
             {t('Boarding QR')}
           </div>
           <div className="rounded-xl bg-white p-2 shadow-sm">
             <QrCode value={pass.qrValue ?? pass.reference} size={132} />
           </div>
-          <div className="mt-2 font-mono text-[11px] font-semibold text-deep-river">
+          <div className="mt-2 font-mono text-2xs font-semibold text-deep-river">
             {pass.reference}
           </div>
-          <div className="text-[11px] text-on-surface-variant">{pass.seatNote}</div>
+          <div className="text-2xs text-on-surface-variant">{pass.seatNote}</div>
         </div>
       </div>
 
@@ -124,14 +124,14 @@ export default function BoardingPassCard({ pass }: { pass: BoardingPassData }) {
               to={ROUTES.ticketDetail}
               className="inline-flex items-center gap-2 rounded-lg bg-surface-container px-4 py-2 text-xs font-semibold text-deep-river transition-colors hover:bg-surface-container-high"
             >
-              <Icon name="qr_code_2" className="text-[16px]" />
+              <Icon name="qr_code_2" className="text-base" />
               {t('Access QR Ticket')}
             </Link>
             <Link
               to={ROUTES.myTickets}
               className="inline-flex items-center gap-2 rounded-lg bg-teal-flow px-4 py-2 text-xs font-semibold text-on-primary transition-colors hover:bg-secondary"
             >
-              <Icon name="confirmation_number" className="text-[16px]" />
+              <Icon name="confirmation_number" className="text-base" />
               {t('View My Ticket')}
             </Link>
           </div>

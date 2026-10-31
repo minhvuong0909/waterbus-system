@@ -105,25 +105,54 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 
+    // M11: Chặn brute-force đăng nhập. Luôn theo IP (Login luôn là anonymous request nên không có
+    // User.Identity để partition theo tài khoản).
+    options.AddPolicy("AuthPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        // LƯU Ý: WriteAsJsonAsync(value, token) tự ghi đè ContentType về "application/json; charset=utf-8"
+        // nếu không truyền contentType qua tham số - set Response.ContentType trước đó sẽ bị bỏ qua lặng lẽ.
         if (context.HttpContext.Request.Path.StartsWithSegments("/api/v1/AiAssistant"))
         {
-            context.HttpContext.Response.ContentType = "application/problem+json";
-            await context.HttpContext.Response.WriteAsJsonAsync(new ProblemDetails
-            {
-                Status = StatusCodes.Status429TooManyRequests,
-                Title = "Quá nhiều yêu cầu tới trợ lý AI.",
-                Detail = "Vui lòng thử lại sau một phút.",
-                Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
-            }, token);
+            await context.HttpContext.Response.WriteAsJsonAsync(
+                new ProblemDetails
+                {
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Title = "Quá nhiều yêu cầu tới trợ lý AI.",
+                    Detail = "Vui lòng thử lại sau một phút.",
+                    Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
+                },
+                options: null, contentType: "application/problem+json", cancellationToken: token);
+            return;
+        }
+        if (context.HttpContext.Request.Path.StartsWithSegments("/api/v1/Auth"))
+        {
+            await context.HttpContext.Response.WriteAsJsonAsync(
+                new ProblemDetails
+                {
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Title = "Quá nhiều yêu cầu đăng nhập.",
+                    Detail = "Vui lòng thử lại sau một phút.",
+                    Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
+                },
+                options: null, contentType: "application/problem+json", cancellationToken: token);
             return;
         }
         await context.HttpContext.Response.WriteAsJsonAsync(new
         {
             success = false,
-            message = "Quá nhiều yêu cầu đặt vé. Vui lòng thử lại sau 1 phút.",
+            message = "Quá nhiều yêu cầu. Vui lòng thử lại sau 1 phút.",
             statusCode = 429
         }, token);
     };
@@ -138,7 +167,13 @@ using (var scope = app.Services.CreateScope())
     try
     {
         await initializer.InitialiseAsync();
-        await initializer.SeedAsync();
+
+        // C01: Seed dữ liệu mẫu (gồm tài khoản Admin/Captain/Staff mật khẩu cố định) chỉ chạy ở
+        // Development, tránh tự tạo lại các tài khoản đặc quyền mặc định trên CSDL Production.
+        if (app.Environment.IsDevelopment())
+        {
+            await initializer.SeedAsync();
+        }
     }
     catch (Exception ex)
     {
@@ -164,10 +199,13 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AppCorsPolicy");
 
-app.UseRateLimiter();
-app.UseMiddleware<GuestAccessMiddleware>();
+// M15: UseAuthentication phải đứng trước UseRateLimiter, vì BookingPolicy/AuthPolicy partition
+// theo HttpContext.User.Identity.IsAuthenticated (Program.cs) - nếu không, User luôn rỗng lúc
+// limiter chạy và mọi request bị gom theo IP thay vì theo tài khoản đã đăng nhập.
 app.UseAuthentication();
+app.UseMiddleware<GuestAccessMiddleware>();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 
 app.MapControllers();

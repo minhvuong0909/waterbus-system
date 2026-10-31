@@ -122,11 +122,11 @@ public sealed class BookingCreationService
                     $"Ghế '{string.Join(", ", wrongBoatSeats.Select(s => s.SeatCode))}' không thuộc tàu vận hành chuyến này.");
             }
 
-            var seatsWithoutClass = seats.Where(s => s.SeatClass == null).ToList();
+            var seatsWithoutClass = seats.Where(s => s.SeatClass is not { IsActive: true, IsDeleted: false }).ToList();
             if (seatsWithoutClass.Count != 0)
             {
                 throw Validation(
-                    $"Ghế '{string.Join(", ", seatsWithoutClass.Select(s => s.SeatCode))}' chưa được gán hạng ghế nên chưa thể tính giá.");
+                    $"Ghế '{string.Join(", ", seatsWithoutClass.Select(s => s.SeatCode))}' chưa có hạng ghế đang hoạt động nên chưa thể tính giá.");
             }
 
             var fares = await _references.GetEffectiveFaresAsync(
@@ -144,6 +144,10 @@ public sealed class BookingCreationService
                     $"Chưa cấu hình giá vé cho hạng ghế '{missingFare.SeatClass!.Name}' trên chuyến {trip.TripType}. " +
                     "Vui lòng liên hệ quản trị viên.");
             }
+
+            if (seats.Any(s => fareBySeatClassId[s.SeatClassId].Currency != "VND" ||
+                fareBySeatClassId[s.SeatClassId].Price < 0))
+                throw Validation("Giá vé phải không âm và sử dụng đơn vị VND.");
 
             var availableSeatIds = await _seatAvailabilityService.GetAvailableSeatsAsync(
                 trip.Id, requestedSeatIds, boardingStopOrder, disembarkingStopOrder, cancellationToken);
@@ -272,6 +276,9 @@ public sealed class BookingCreationService
         {
             throw Validation("Chuyến tàu chưa được phân công tàu nên chưa mở bán.");
         }
+
+        if (trip.Boat is not { IsActive: true, IsDeleted: false })
+            throw Validation("Tàu không còn hoạt động nên chưa thể đặt vé.");
 
         if (trip.SalesCloseAt.HasValue && trip.SalesCloseAt.Value <= now)
         {

@@ -1,22 +1,16 @@
 import { useState } from 'react'
-import { ErrorState, Icon, PageLoader } from '../../components/ui'
-import { ActionButton, Modal, Notice, StatusBadge } from '../../features/admin/components/AdminUi'
-import GpsSharePanel from '../../features/admin/components/GpsSharePanel'
-import { USE_MOCK } from '../../constant/env'
+import { Button, ErrorState, Icon, Modal, Notice, PageLoader } from '../../components/ui'
+import GpsSharePanel from '../../features/captain/components/GpsSharePanel'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import { useFleetHub } from '../../features/admin/hooks/useFleetHub'
-import { getBoats, getOperationTrips, getRoutes, operateTrip } from '../../features/admin/services/adminService'
+import { getOperationTrips, operateTrip } from '../../features/admin/services/operationsService'
 import type { AdminTrip, OperationType } from '../../features/admin/types'
-import {
-  allowedOperationsOf,
-  formatClockTime,
-  formatDateTime,
-  isUpcomingOrRunning,
-  tripRouteName,
-} from '../../features/admin/utils'
-import { useAuth } from '../../features/authentication/hook/authenticationHook'
-import { combineFetches, useDocumentTitle, useFetch } from '../../hooks'
+import { isUpcomingOrRunning } from '../../features/admin/utils'
+import { useAuth } from '../../features/authentication/hooks/useAuth'
+import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
+import { formatClock, formatDateTime } from '../../utils/time'
+import TripStatusBadge from '../../features/trips/components/TripStatusBadge'
 
 /** Large touch target for use on board. */
 function BigButton({
@@ -44,7 +38,7 @@ function BigButton({
       onClick={onClick}
       className={`flex min-h-[5.5rem] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-4 py-3 text-lg font-bold shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${tones[tone]}`}
     >
-      <Icon name={icon} className="text-[32px]" />
+      <Icon name={icon} className="text-3xl" />
       {label}
     </button>
   )
@@ -55,8 +49,6 @@ export default function CaptainPortalPage() {
   const { user } = useAuth()
   const [version, reload] = useReload()
   const trips = useFetch(getOperationTrips, [version])
-  const routes = useFetch(getRoutes)
-  const boats = useFetch(getBoats)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sosOpen, setSosOpen] = useState(false)
   const [note, setNote] = useState('')
@@ -66,20 +58,16 @@ export default function CaptainPortalPage() {
   const action = useSubmit()
   // The captain follows their own boat: a status change by the admin shows up at once.
   const boatIds = [...new Set((trips.data ?? []).map((x) => x.boatId).filter(Boolean))]
-  useFleetHub({ onTripStatus: reload, onReconnected: reload }, !USE_MOCK && boatIds.length > 0, boatIds)
-  const state = combineFetches(trips, routes, boats)
+  useFleetHub({ onTripStatus: reload, onReconnected: reload }, boatIds.length > 0, boatIds)
 
-  if (state.error) return <ErrorState onRetry={state.retry} />
-  if (state.loading || !trips.data || !routes.data || !boats.data) return <PageLoader />
+  if (trips.error) return <ErrorState onRetry={trips.retry} />
+  if (!trips.data) return <PageLoader />
 
   const open = trips.data.filter((x) => isUpcomingOrRunning(x.status))
   // Default to the trip on the river, otherwise the next one.
   const trip: AdminTrip | undefined =
     open.find((x) => x.id === selectedId) ?? open.find((x) => x.status === 'EnRoute') ?? open[0]
 
-  const routeName = (id: string) => routes.data?.find((r) => r.id === id)?.name ?? '—'
-  const boatName = (id: string) => boats.data?.find((b) => b.id === id)?.name ?? '—'
-  const by = user?.fullName ?? ''
 
   if (!trip) {
     return (
@@ -89,9 +77,9 @@ export default function CaptainPortalPage() {
     )
   }
 
-  const can = (op: OperationType) => allowedOperationsOf(trip).includes(op)
+  const can = (op: OperationType) => trip.allowedOperations.includes(op)
   const perform = async (type: OperationType, reason: string) => {
-    const done = await action.run(() => operateTrip(trip.id, type, reason, by))
+    const done = await action.run(() => operateTrip(trip.id, type, reason))
     if (done) reload()
     return Boolean(done)
   }
@@ -115,24 +103,24 @@ export default function CaptainPortalPage() {
         >
           {open.map((x) => (
             <option key={x.id} value={x.id}>
-              {formatDateTime(x.departureTime)} • {tripRouteName(x, routeName)}
+              {formatDateTime(x.departureTime)} • {x.routeName}
             </option>
           ))}
         </select>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="font-headline-md text-3xl font-bold text-deep-river">
-              {formatClockTime(trip.departureTime)} → {formatClockTime(trip.arrivalTime)}
+            <div className="font-display text-3xl font-bold text-deep-river">
+              {formatClock(new Date(trip.departureTime))} → {formatClock(new Date(trip.arrivalTime))}
             </div>
             <div className="text-sm text-on-surface-variant">
-              {formatDateTime(trip.departureTime)} • {tripRouteName(trip, routeName)} • {trip.boatCode ?? boatName(trip.boatId)} • {t(trip.tripType === 'Commuter' ? 'Regular' : 'Sightseeing')}
+              {formatDateTime(trip.departureTime)} • {trip.routeName} • {trip.boatCode ?? '—'} • {t(trip.tripType === 'Commuter' ? 'Regular' : 'Sightseeing')}
             </div>
           </div>
-          <StatusBadge status={trip.status} />
+          <TripStatusBadge status={trip.status} />
         </div>
       </div>
 
-      {!USE_MOCK && user && <GpsSharePanel userId={user.id} />}
+      {user && <GpsSharePanel userId={user.id} />}
 
       <div className="flex gap-3">
         <BigButton icon="play_arrow" label={t('Start trip')} tone="teal" disabled={!can('Start') || action.busy} onClick={() => perform('Start', t('Started by the captain.'))} />
@@ -176,11 +164,11 @@ export default function CaptainPortalPage() {
             className="w-full rounded-lg border border-outline-variant px-3 py-2 text-sm text-deep-river"
           />
           <div className="mt-4 flex justify-end gap-2">
-            <ActionButton tone="secondary" onClick={() => setSosOpen(false)}>
+            <Button size="sm" variant="neutral" onClick={() => setSosOpen(false)}>
               {t('Cancel')}
-            </ActionButton>
-            <ActionButton
-              tone="danger"
+            </Button>
+            <Button size="sm"
+              variant="danger"
               disabled={action.busy}
               onClick={async () => {
                 if (await perform('SOS', note.trim() || t('Emergency reported by the captain.'))) {
@@ -191,7 +179,7 @@ export default function CaptainPortalPage() {
               }}
             >
               {t('Send SOS')}
-            </ActionButton>
+            </Button>
           </div>
         </Modal>
       )}

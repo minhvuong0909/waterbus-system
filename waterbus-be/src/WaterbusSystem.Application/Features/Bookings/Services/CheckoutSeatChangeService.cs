@@ -69,7 +69,7 @@ public sealed class CheckoutSeatChangeService(
                 ?? throw new NotFoundException(
                     nameof(Trip), booking.TripId);
 
-            if (trip.Status is not (
+            if (trip.Boat is not { IsActive: true, IsDeleted: false } || trip.Status is not (
                     TripStatus.Scheduled or TripStatus.Boarding) ||
                 (trip.SalesCloseAt is { } salesCloseAt &&
                  salesCloseAt <= now) ||
@@ -84,11 +84,23 @@ public sealed class CheckoutSeatChangeService(
 
             if (trip.BoatId is null ||
                 seats.Count != request.SeatIds.Count ||
-                seats.Any(s => s.BoatId != trip.BoatId))
+                seats.Any(s => s.BoatId != trip.BoatId || s.SeatClass is not { IsActive: true, IsDeleted: false }))
             {
                 throw new ConcurrencyException(
                     "Ghế không hợp lệ cho tàu này.");
             }
+
+            var fares = await references.GetEffectiveFaresAsync(
+                trip.TripType, now, cancellationToken);
+
+            if (fares.GroupBy(f => f.SeatClassId).Any(g => g.Count() > 1))
+                throw new ConcurrencyException("Có nhiều bảng giá đang hiệu lực cho cùng hạng ghế.");
+
+            var seatById = seats.ToDictionary(s => s.Id);
+            var fareByClass = fares.ToDictionary(f => f.SeatClassId);
+            if (seats.Any(s => !fareByClass.TryGetValue(s.SeatClassId, out var fare) ||
+                fare.Currency != "VND" || fare.Price < 0))
+                throw new ConcurrencyException("Chưa có giá vé không âm bằng VND hợp lệ cho ghế.");
 
             var old = booking.SeatReservations
                 .Where(r => r.Status == ReservationStatus.Pending)
@@ -118,32 +130,13 @@ public sealed class CheckoutSeatChangeService(
                 throw new ConcurrencyException(
                     "Ghế đã được giữ hoặc bán trên đoạn chặng này.");
 
-            var fares = await references.GetEffectiveFaresAsync(
-                trip.TripType, now, cancellationToken);
-
-            if (fares.GroupBy(f => f.SeatClassId)
-                     .Any(g => g.Count() > 1))
-            {
-                throw new ConcurrencyException(
-                    "Có nhiều bảng giá đang hiệu lực cho cùng hạng ghế.");
-            }
-
-            var seatById = seats.ToDictionary(s => s.Id);
-            var fareByClass = fares.ToDictionary(
-                f => f.SeatClassId);
-
             var added = new List<SeatReservation>();
 
             for (var i = 0; i < request.SeatIds.Count; i++)
             {
                 var seat = seatById[request.SeatIds[i]];
 
-                if (!fareByClass.TryGetValue(
-                        seat.SeatClassId, out var fare))
-                {
-                    throw new ConcurrencyException(
-                        "Chưa có giá hợp lệ cho ghế.");
-                }
+                var fare = fareByClass[seat.SeatClassId];
 
                 var passenger = request.Passengers[i];
 

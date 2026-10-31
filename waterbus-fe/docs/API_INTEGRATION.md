@@ -1,17 +1,12 @@
 # API Integration — Smart Waterbus FE ⇄ BE
 
 Tài liệu này liệt kê **từng màn hình FE cần API nào**, BE (`waterbus-be`) hiện đã có gì, và **còn thiếu / lệch gì** để hai bên nối được với nhau.
-Nội dung được đối chiếu trực tiếp với code BE (controllers, DTO, entities) và code FE (`src/features/*/services`, `types.ts`, `src/mocks`).
+Nội dung được đối chiếu trực tiếp với code BE (controllers, DTO, entities) và code FE (`src/features/*/services`, `types.ts`).
 
-> **Hiện trạng:** FE đã có HTTP client (`src/services/apiClient.ts`), cấu hình qua `.env.local` (xem `.env.example`: `VITE_API_BASE_URL`, `VITE_USE_MOCK`).
-> Đã nối API thật: **đăng nhập** (`POST /auth/login`, lưu JWT, đăng xuất, tự đăng xuất khi 401), **danh sách bến** (`GET /stations`), **tìm chuyến** (`GET /trips/search`, gọi lại khi đổi bến/ngày).
-> Còn lại (BE chưa có endpoint) vẫn là mock trong `src/mocks/*`: đăng ký, Google, chi tiết chuyến, sơ đồ ghế, đặt vé, thanh toán, vé của tôi, tracking.
-> Giai đoạn B (đặt vé): sơ đồ ghế theo bố cục tàu của BE (mock, `Seat`/`SeatMap`), sự kiện ghế realtime mô phỏng thay SignalR (`seatEvents.ts`). **Đặt vé đã bám API Checkout theo BR v2.0** (`POST /checkouts`, `create-vnpay-url`, xác nhận bằng `GET /checkouts/{id}`), xem 2.6–2.8a. `/manage/:token` và chatbot vẫn là mock.
-> Giai đoạn C (khu vận hành `/admin/*`, `/captain`): BE chưa có endpoint admin nào, nên toàn bộ chạy trên dữ liệu giả lưu trong bộ nhớ (`features/admin/services/adminService.ts`, mất khi tải lại trang). Chỉ danh sách bến lấy từ `GET /stations`. Mỗi hàm bám contract đã lên kế hoạch ở `BACKEND_TASK_BREAKDOWN.md` (P1-BE-01..04, P3-BE-01) để sau này thay bằng `apiRequest`. Phân quyền theo role nằm ở `features/admin/navigation.ts`.
-> Đặt nhiều ghế: một đơn tối đa 10 ghế (`MAX_SEATS_PER_BOOKING`). **Mỗi ghế có hành khách riêng** (tên bắt buộc, email/SĐT tuỳ chọn); người mua có họ tên + email bắt buộc, SĐT tuỳ chọn. Tổng tiền hiển thị = giá chuyến × số ghế + phụ thu khoang (FE tính để hiển thị; số tiền chính thức là `quotedTotal` của BE).
-> Giai đoạn D (realtime vận hành, nối BE thật): `/admin/radar` lấy tàu (`GET /boats`), vị trí mới nhất (`GET /tracking/boats`) rồi cập nhật trực tiếp qua hub `/hubs/boat-tracking` (`boatPosition`); cảnh báo thời tiết ở Overview/Radar/Incidents lấy từ `GET /incidents?status=Open&incidentType=Weather`, nhận `weatherAlert` trực tiếp, Incidents có nút chạy `POST /incidents/weather-check`; Captain Portal có khung chia sẻ GPS (`SendPosition`, chỉ thuyền trưởng được gán tàu). Sự kiện ghế dùng hub `/hubs/seat-sync` khi chuyến và ghế có id Guid (sơ đồ ghế mock dùng mã ghế nên vẫn mock). Danh sách chuyến và các thao tác Suspend/Cancel/Start... vẫn là mock vì BE chưa có endpoint. Hợp đồng: `docs/REALTIME_CONTRACT.md` ở gốc repo.
-> Giai đoạn E (vận hành chuyến, nối BE thật): Incidents, Captain Portal và Overview lấy chuyến từ `GET /trips/operations` (kèm `allowedOperations` do BE quyết định) và đổi trạng thái bằng `POST /trips/{id}/status`; nhật ký từ `GET /trips/operations/events`; SOS của thuyền trưởng là `POST /trips/{id}/sos` (tạo sự cố, không đổi trạng thái chuyến). Quyết định của Admin cho từng chuyến của một cảnh báo (Suspend/Cancel/Terminate/Không cần xử lý) được ghi vào `IncidentTrip` khi bấm từ trang Incidents. Trạng thái chuyến của FE giờ trùng BE (`Scheduled, Boarding, EnRoute, Suspended, Arrived, Completed, Cancelled, Terminated`). Trang Trips/Schedules/Boats/Fares vẫn là mock (BE chưa có CRUD).
-> Đặt `VITE_USE_MOCK=true` để chạy toàn bộ bằng mock khi không có BE.
+> **Hiện trạng (sau khi gỡ mock):** FE không còn chế độ mock (`VITE_USE_MOCK`, `src/mocks` đã xoá); mọi màn gọi BE thật qua `src/services/apiClient.ts` (`VITE_API_BASE_URL`). Nội dung biên tập không có API (hero/câu chuyện trang chủ, Explore, giới thiệu màn đăng nhập, tiện ích/các bước lên tàu) nằm ở `src/content/`.
+> Đã nối: đăng nhập, bến, tìm chuyến, chi tiết chuyến, sơ đồ ghế, giữ ghế + submit + VNPay + QR (Checkout), vé theo đơn (`GET /checkouts/{id}`), vận hành chuyến/sự cố/thời tiết/GPS (Admin, Captain), TTS và **Audio guides** (`GET /audioguides/pois`, `POST /audioguides/publish`), trợ lý AI, bến/tàu (CRUD Admin).
+> BE chưa có endpoint nên FE báo 501/giữ trạng thái đọc: đăng ký, đăng nhập Google, theo dõi chuyến cho Passenger/Guest, bảng giá Admin (chỉ `GET /fares` đọc), lịch chạy/sinh chuyến, đổi tàu cho chuyến, danh sách tuyến.
+> BE đã có nhưng FE chưa có giao diện: hoàn tiền Admin (`/refunds/*`), cửa sổ check-in và phân công Staff (`/checkins/windows`, `/checkins/assignments*`), lịch sử GPS (`GET /tracking/boats/{id}/history`), tạo đơn một lần (`POST /checkouts`), đổi ghế (`PUT /checkouts/{id}/bookings/{id}/seats`), `GET /stations/paged`. Staff Scanner (`/checkins`, `/sync`, `/manifest`) thuộc app mobile.
 
 Ký hiệu: ✅ BE đã có · ⚠️ BE có nhưng lệch với FE · ❌ BE chưa có
 
@@ -155,10 +150,9 @@ Luồng (BR-PAY-01: chỉ IPN đã xác minh mới là bằng chứng thanh toá
 2. VNPAY chuyển về `/payment/callback?...`. Trang gọi `vnpay-return` rồi **poll `GET /checkouts/{orderId}` mỗi 3 giây (tối đa ~2 phút)** tới khi `status` là `Confirmed` → `/payment/success`; `Expired`/`Cancelled` → báo ghế đã nhả; hết thời gian chờ → **Check again** / **Verify with the bank** (`reconcile`).
 3. `/payment/success` chỉ hiển thị khi `Confirmed`: tên hành khách lấy từ `tickets[].passengerName`, mã đặt chỗ từ `bookingCode`, và **QR thật** = `payload` của `GET …/qr` (component `QrCode` dùng thư viện `qrcode`, quét được; Staff Scanner verify offline bằng public key).
 
-### 2.8a Chạy thật hay mock
+### 2.8a Luồng Checkout
 
-- `VITE_USE_MOCK=false` **và** trip + hai bến đều là Guid (`isLiveTrip`) → toàn bộ luồng gọi backend thật: trip detail, seat map, holds, submit, create-vnpay-url, poll, QR.
-- Mock mode hoặc id không phải Guid → chuyến, sơ đồ ghế, giữ ghế, thanh toán đều mock: đơn không có `accessToken`, "cổng thanh toán" là chính trang callback với `mock=1`, `getCheckout` trả `Confirmed`, QR là chuỗi giả.
+- Chuyến và hai bến phải là Guid từ API tìm chuyến (`isLiveTrip`); nếu không FE từ chối (400) thay vì giả lập: trip detail, seat map, holds, submit, create-vnpay-url, poll, QR đều gọi backend thật.
 - **Chưa nghiệm thu E2E với VNPay sandbox** (cần BE chạy với `VnPay__*`/`Qr__PrivateKeyPem` và URL IPN công khai); đã kiểm bằng unit test (mock `fetch`) và chạy thử luồng mock trên trình duyệt.
 - Còn lệch phía tìm chuyến: `TripDto.basePrice` hiện là 0 (placeholder) nên giá ở danh sách chuyến chưa đúng; giá chuẩn lấy từ seat map (xem `docs/KNOWN_ISSUES.md`).
 
