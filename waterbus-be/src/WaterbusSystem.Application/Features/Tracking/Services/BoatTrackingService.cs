@@ -17,9 +17,6 @@ using ValidationException = WaterbusSystem.Application.Common.Exceptions.Validat
 
 namespace WaterbusSystem.Application.Features.Tracking.Services;
 
-/// <summary>
-/// Theo dõi vị trí tàu. GPS của Captain, bản giả lập và radar Admin đều đi qua đây (BR-TRK-01).
-/// </summary>
 public sealed class BoatTrackingService(
     IBoatRepository boats,
     IBoatPositionRepository positions,
@@ -120,9 +117,6 @@ public sealed class BoatTrackingService(
         return await positions.GetHistoryPageAsync(request, cancellationToken);
     }
 
-    /// <summary>
-    /// Ghi SQL thưa (mỗi PersistIntervalSeconds) để lưu lịch sử mà không ghi mọi tick GPS.
-    /// </summary>
     private async Task<bool> PersistIfDueAsync(RecordBoatPositionRequest request, Guid? tripId, CancellationToken cancellationToken)
     {
         var lastPersistedAt = await positions.GetLastPersistedAtAsync(request.BoatId, cancellationToken);
