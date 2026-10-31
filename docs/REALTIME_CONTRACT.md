@@ -102,7 +102,7 @@ Job Hangfire `weather-guard` (mặc định mỗi 15 phút) lấy thời tiết 
 |---|---|
 | `GET /api/v1/incidents?status=Open&incidentType=Weather&pageNumber=&pageSize=` | Danh sách sự cố, có `affectedTripCount`, `pendingDecisionCount` |
 | `GET /api/v1/incidents/{id}` | Chi tiết + `affectedTrips[]` (giờ khởi hành, trạng thái chuyến, quyết định) |
-| `POST /api/v1/incidents/weather-check` | Chạy Weather Guard ngay (demo), trả `{ routesChecked, incidentsCreated, incidentsUpdated, observationFailures, incidentsResolved }` |
+| `POST /api/v1/incidents/weather-check` | Chạy Weather Guard ngay (demo), trả `{ routesChecked, incidentsCreated, incidentsUpdated, observationFailures, incidentsResolved }`. Các lượt quét (thủ công và Hangfire) chạy lần lượt nhờ SQL application lock; nếu lượt khác chưa xong sau 30 giây thì trả **409** |
 | `POST /api/v1/incidents/{id}/resolve` | Admin đóng sự cố đang mở (`Status=Resolved`, ghi `ResolvedAt`, `HandledByAdminId`); không đổi `Trip.Status`; 409 nếu đã đóng, 404 nếu không có |
 
 Demo không cần API key: `WEATHER_PROVIDER=Fake` + `WEATHER_FAKE_WIND_MS=15` (hoặc `WEATHER_FAKE_CONDITION_CODE=211`) rồi gọi `weather-check`.
