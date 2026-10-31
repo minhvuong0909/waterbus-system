@@ -6,6 +6,7 @@ using WaterbusSystem.Infrastructure;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.WebApi.BackgroundJobs;
 using WaterbusSystem.WebApi.Filters;
+using WaterbusSystem.WebApi.Health;
 using WaterbusSystem.WebApi.Middlewares;
 using WaterbusSystem.WebApi.Realtime;
 
@@ -164,21 +165,25 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var initializer = scope.ServiceProvider.GetRequiredService<ApplicationDbContextInitializer>();
-    try
-    {
-        await initializer.InitialiseAsync();
 
-        // C01: Seed dữ liệu mẫu (gồm tài khoản Admin/Captain/Staff mật khẩu cố định) chỉ chạy ở
-        // Development, tránh tự tạo lại các tài khoản đặc quyền mặc định trên CSDL Production.
-        if (app.Environment.IsDevelopment())
+    // M07: migration lỗi (không kết nối được, hoặc bị từ chối vì dữ liệu cũ) PHẢI dừng ứng dụng,
+    // không được nuốt lỗi rồi phục vụ trên schema cũ. Compose sẽ khởi động lại container sau khi SQL sẵn sàng.
+    await initializer.InitialiseAsync();
+
+    // C01: Seed dữ liệu mẫu (gồm tài khoản Admin/Captain/Staff mật khẩu cố định) chỉ chạy ở
+    // Development, tránh tự tạo lại các tài khoản đặc quyền mặc định trên CSDL Production.
+    // Seed chỉ là dữ liệu demo nên lỗi seed không làm dừng API.
+    if (app.Environment.IsDevelopment())
+    {
+        try
         {
             await initializer.SeedAsync();
         }
-    }
-    catch (Exception ex)
-    {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogWarning(ex, "Chưa thể kết nối SQL Server để chạy Seed Data. Hãy chắc chắn SQL Server container đang chạy!");
+        catch (Exception ex)
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogWarning(ex, "Không nạp được dữ liệu mẫu (Seed Data); API vẫn chạy.");
+        }
     }
 }
 
@@ -210,6 +215,15 @@ app.UseRateLimiter();
 
 app.MapControllers();
 app.MapRealtimeHubs();
+
+// M07: readiness thật (SQL + schema); healthcheck của Docker dùng endpoint này thay vì chỉ kiểm cổng TCP.
+app.MapGet("/health/ready", async (ApplicationDbContext context, CancellationToken cancellationToken) =>
+{
+    var result = await ReadinessCheck.RunAsync(context, cancellationToken);
+    return result.IsReady
+        ? Results.Ok(new { status = "Ready" })
+        : Results.Json(new { status = "NotReady", reason = result.Reason }, statusCode: StatusCodes.Status503ServiceUnavailable);
+}).AllowAnonymous();
 app.UseBackgroundJobs();
 
 app.Run();
