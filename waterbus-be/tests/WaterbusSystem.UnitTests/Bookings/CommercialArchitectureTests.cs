@@ -18,7 +18,8 @@ public sealed class CommercialArchitectureTests
     {
         var assembly = typeof(BookingService).Assembly;
         var ownedTypes = assembly.GetTypes().Where(t => t.Namespace?.StartsWith("WaterbusSystem.Application.Features.") == true &&
-            (t.Namespace.Contains(".Bookings.") || t.Namespace.Contains(".Payments.") || t.Namespace.Contains(".Refunds."))).ToList();
+            (t.Namespace.Contains(".Bookings.") || t.Namespace.Contains(".Payments.") || t.Namespace.Contains(".Refunds.") ||
+                t.Namespace.Contains(".Incidents.") || t.Namespace.Contains(".Tracking."))).ToList();
         ownedTypes.Should().NotBeEmpty();
         foreach (var type in ownedTypes)
         {

@@ -18,5 +18,12 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
                         && t.ArrivalTime >= now)
             .Select(t => new ActiveTripRef(t.Id, t.RouteId))
             .ToListAsync(cancellationToken);
-}
 
+    public Task<Guid?> FindLatestTripIdByBoatAsync(
+        Guid boatId, IReadOnlyCollection<TripStatus> statuses, CancellationToken cancellationToken = default) =>
+        context.Trips.AsNoTracking()
+            .Where(t => t.BoatId == boatId && !t.IsDeleted && statuses.Contains(t.Status))
+            .OrderByDescending(t => t.DepartureTime)
+            .Select(t => (Guid?)t.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+}

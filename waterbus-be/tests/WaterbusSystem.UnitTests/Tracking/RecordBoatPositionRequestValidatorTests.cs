@@ -3,27 +3,28 @@ using Microsoft.Extensions.Options;
 using Moq;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Tracking;
-using WaterbusSystem.Application.Features.Tracking.Commands.RecordBoatPosition;
+using WaterbusSystem.Application.DTOs.Requests.Tracking;
+using WaterbusSystem.Application.Validators.Tracking;
 using Xunit;
 
 namespace WaterbusSystem.UnitTests.Tracking;
 
-public class RecordBoatPositionCommandValidatorTests
+public class RecordBoatPositionRequestValidatorTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 12, 8, 0, 0, TimeSpan.Zero);
 
-    private static RecordBoatPositionCommandValidator CreateValidator()
+    private static RecordBoatPositionRequestValidator CreateValidator()
     {
         var clock = new Mock<IDateTimeService>();
         clock.Setup(c => c.Now).Returns(Now);
-        return new RecordBoatPositionCommandValidator(clock.Object, Options.Create(new TrackingOptions { MaxPositionAgeMinutes = 60 }));
+        return new RecordBoatPositionRequestValidator(clock.Object, Options.Create(new TrackingOptions { MaxPositionAgeMinutes = 60 }));
     }
 
-    private static RecordBoatPositionCommand Valid() =>
+    private static RecordBoatPositionRequest Valid() =>
         new(Guid.NewGuid(), 10.7769m, 106.7009m, 8m, Now, BoatPositionSources.Gps, Guid.NewGuid());
 
     [Fact]
-    public void ValidCommand_ShouldPass() =>
+    public void ValidRequest_ShouldPass() =>
         CreateValidator().Validate(Valid()).IsValid.Should().BeTrue();
 
     [Theory]
