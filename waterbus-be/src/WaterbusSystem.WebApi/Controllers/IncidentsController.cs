@@ -38,6 +38,7 @@ public class IncidentsController(
 
     [HttpPost("weather-check")]
     [ProducesResponseType(typeof(WeatherGuardResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<WeatherGuardResponse>> RunWeatherCheck() =>
         Ok(await weatherGuardService.RunAsync(HttpContext.RequestAborted));
 
