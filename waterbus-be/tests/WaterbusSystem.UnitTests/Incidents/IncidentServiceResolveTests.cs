@@ -2,7 +2,8 @@ using FluentAssertions;
 using Moq;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
-using WaterbusSystem.Application.Features.Incidents.Commands.ResolveIncident;
+using WaterbusSystem.Application.Features.Incidents.Services;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
@@ -12,7 +13,7 @@ using Xunit;
 
 namespace WaterbusSystem.UnitTests.Incidents;
 
-public class ResolveIncidentCommandHandlerTests
+public class IncidentServiceResolveTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 18, 9, 0, 0, TimeSpan.Zero);
 
@@ -21,7 +22,7 @@ public class ResolveIncidentCommandHandlerTests
     private readonly Mock<IDateTimeService> _clock = new();
     private readonly Guid _adminId = Guid.NewGuid();
 
-    public ResolveIncidentCommandHandlerTests()
+    public IncidentServiceResolveTests()
     {
         _clock.Setup(c => c.Now).Returns(() => Now);
         As("Admin");
@@ -33,7 +34,8 @@ public class ResolveIncidentCommandHandlerTests
         _user.Setup(u => u.UserRole).Returns(role);
     }
 
-    private ResolveIncidentCommandHandler Handler() => new(_context, _user.Object, _clock.Object);
+    private IncidentService Handler() =>
+        new(new IncidentRepository(_context), new EfUnitOfWork(_context), _user.Object, _clock.Object);
 
     private Incident AddIncident(string status = "Open")
     {
@@ -51,7 +53,7 @@ public class ResolveIncidentCommandHandlerTests
         _context.IncidentTrips.Add(new IncidentTrip { IncidentId = incident.Id, TripId = seed.Trip.Id });
         _context.SaveChanges();
 
-        var result = await Handler().Handle(new ResolveIncidentCommand(incident.Id), CancellationToken.None);
+        var result = await Handler().ResolveAsync(incident.Id);
 
         result.Status.Should().Be("Resolved");
         incident.ResolvedAt.Should().Be(Now);
@@ -65,7 +67,7 @@ public class ResolveIncidentCommandHandlerTests
     {
         var incident = AddIncident("Resolved");
 
-        var act = () => Handler().Handle(new ResolveIncidentCommand(incident.Id), CancellationToken.None);
+        var act = () => Handler().ResolveAsync(incident.Id);
 
         await act.Should().ThrowAsync<ConflictException>();
     }
@@ -73,7 +75,7 @@ public class ResolveIncidentCommandHandlerTests
     [Fact]
     public async Task UnknownIncident_ShouldThrowNotFound()
     {
-        var act = () => Handler().Handle(new ResolveIncidentCommand(Guid.NewGuid()), CancellationToken.None);
+        var act = () => Handler().ResolveAsync(Guid.NewGuid());
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -86,7 +88,7 @@ public class ResolveIncidentCommandHandlerTests
         As(role);
         var incident = AddIncident();
 
-        var act = () => Handler().Handle(new ResolveIncidentCommand(incident.Id), CancellationToken.None);
+        var act = () => Handler().ResolveAsync(incident.Id);
 
         await act.Should().ThrowAsync<ForbiddenAccessException>();
         incident.Status.Should().Be("Open");

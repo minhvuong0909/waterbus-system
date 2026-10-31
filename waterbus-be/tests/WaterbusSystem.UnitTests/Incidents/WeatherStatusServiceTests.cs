@@ -4,14 +4,16 @@ using Microsoft.Extensions.Options;
 using Moq;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Incidents;
-using WaterbusSystem.Application.Features.Incidents.Queries.GetCurrentWeather;
+using WaterbusSystem.Application.DTOs.Responses.Incidents;
+using WaterbusSystem.Application.Features.Incidents.Services;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.UnitTests.TestHelpers;
 using Xunit;
 
 namespace WaterbusSystem.UnitTests.Incidents;
 
-public class GetCurrentWeatherQueryHandlerTests
+public class WeatherStatusServiceTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 24, 8, 0, 0, TimeSpan.Zero);
 
@@ -20,13 +22,13 @@ public class GetCurrentWeatherQueryHandlerTests
     private readonly Mock<IWeatherProvider> _weather = new();
     private readonly WeatherOptions _options = new() { WindSpeedThresholdMs = 10.6, GustThresholdMs = 17.2 };
 
-    public GetCurrentWeatherQueryHandlerTests()
+    public WeatherStatusServiceTests()
     {
         _seed = TestDbContextFactory.SeedTrip(_context);
     }
 
-    private GetCurrentWeatherQueryHandler CreateHandler() =>
-        new(_context, _weather.Object, Options.Create(_options), NullLogger<GetCurrentWeatherQueryHandler>.Instance);
+    private WeatherStatusService CreateHandler() =>
+        new(new RouteRepository(_context), _weather.Object, Options.Create(_options), NullLogger<WeatherStatusService>.Instance);
 
     private void WeatherIs(double wind, double? gust = null, int code = 800, string description = "trời quang") =>
         _weather.Setup(w => w.GetCurrentAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<CancellationToken>()))
@@ -37,7 +39,7 @@ public class GetCurrentWeatherQueryHandlerTests
     {
         WeatherIs(wind: 3, gust: 5, description: "mây rải rác");
 
-        var result = await CreateHandler().Handle(new GetCurrentWeatherQuery(), CancellationToken.None);
+        var result = await CreateHandler().GetCurrentAsync();
 
         var route = result.Should().ContainSingle().Subject;
         route.RouteCode.Should().Be(_seed.Route.Code);
@@ -59,7 +61,7 @@ public class GetCurrentWeatherQueryHandlerTests
     {
         WeatherIs(wind, gust, code);
 
-        var result = await CreateHandler().Handle(new GetCurrentWeatherQuery(), CancellationToken.None);
+        var result = await CreateHandler().GetCurrentAsync();
 
         result.Single().Status.Should().Be(expected);
     }
@@ -70,7 +72,7 @@ public class GetCurrentWeatherQueryHandlerTests
         _weather.Setup(w => w.GetCurrentAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("OpenWeatherMap unreachable"));
 
-        var result = await CreateHandler().Handle(new GetCurrentWeatherQuery(), CancellationToken.None);
+        var result = await CreateHandler().GetCurrentAsync();
 
         var route = result.Single();
         route.Status.Should().Be(RouteWeatherStatus.Unknown);
@@ -85,7 +87,7 @@ public class GetCurrentWeatherQueryHandlerTests
         _seed.Route.IsActive = false;
         await _context.SaveChangesAsync();
 
-        var result = await CreateHandler().Handle(new GetCurrentWeatherQuery(), CancellationToken.None);
+        var result = await CreateHandler().GetCurrentAsync();
 
         result.Should().BeEmpty();
     }
