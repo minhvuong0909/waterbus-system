@@ -1,9 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { getTicket, getTicketWallet } from './ticketService'
+import { getManageBooking, getTicket, getTicketWallet, hasOrderToManage } from './ticketService'
+import { loadSavedOrders, saveOrder } from '../savedOrders'
 
 const fetchMock = vi.fn()
-beforeEach(() => { window.sessionStorage.clear(); vi.stubGlobal('fetch', fetchMock) })
-afterEach(() => { fetchMock.mockReset(); vi.unstubAllGlobals(); window.sessionStorage.clear() })
+beforeEach(() => { window.sessionStorage.clear(); window.localStorage.clear(); vi.stubGlobal('fetch', fetchMock) })
+afterEach(() => {
+  fetchMock.mockReset(); vi.unstubAllGlobals(); window.sessionStorage.clear(); window.localStorage.clear()
+  window.history.replaceState(null, '', '/')
+})
 
 describe('live ticket wallet', () => {
   it('shows an empty wallet when no order is known instead of sample paid tickets', async () => {
@@ -50,5 +54,44 @@ describe('live ticket detail', () => {
 
   it('still reports a missing ticket when the session has no order', async () => {
     await expect(getTicket('anything')).rejects.toMatchObject({ status: 404 })
+  })
+
+  const serve = () =>
+    fetchMock.mockImplementation(async (url: string) => {
+      if (/\/checkouts\/gone-order$/.test(String(url))) return new Response('{}', { status: 403 })
+      const hit = routes.find(([pattern]) => pattern.test(String(url)))
+      return new Response(JSON.stringify(hit ? hit[1] : {}), { status: hit ? 200 : 404 })
+    })
+
+  it('remembers a paid session order so My Tickets keeps it after the tab closes', async () => {
+    window.sessionStorage.setItem('waterbus.booking', JSON.stringify({ order: { orderId: 'order-1', accessToken: 'guest-token' } }))
+    serve()
+    const wallet = await getTicketWallet()
+    expect(wallet.next).toMatchObject({ id: 'ticket-guid', manageLink: '/manage/guest-token?orderId=order-1' })
+    expect(loadSavedOrders().map((x) => x.orderId)).toEqual(['order-1'])
+
+    window.sessionStorage.clear()
+    expect((await getTicketWallet()).next?.id).toBe('ticket-guid')
+  })
+
+  it('drops an order the backend no longer opens instead of failing the whole wallet', async () => {
+    saveOrder('order-1', 'guest-token')
+    saveOrder('gone-order', 'old-token')
+    serve()
+    expect((await getTicketWallet()).next?.id).toBe('ticket-guid')
+    expect(loadSavedOrders().map((x) => x.orderId)).toEqual(['order-1'])
+  })
+
+  it('opens the order behind a secure link and needs its order id', async () => {
+    serve()
+    expect(hasOrderToManage('guest-token')).toBe(false)
+    await expect(getManageBooking('guest-token')).rejects.toMatchObject({ status: 404 })
+
+    window.history.replaceState(null, '', '/manage/guest-token?orderId=order-1')
+    expect(hasOrderToManage('guest-token')).toBe(true)
+    const manage = await getManageBooking('guest-token')
+    expect(manage).toMatchObject({ bookingCode: 'WB1', orderId: 'order-1' })
+    expect(manage.manageUrl).toMatch(/\/manage\/guest-token\?orderId=order-1$/)
+    expect(fetchMock.mock.calls.some(([, init]) => (init as RequestInit)?.headers && JSON.stringify((init as RequestInit).headers).includes('guest-token'))).toBe(true)
   })
 })

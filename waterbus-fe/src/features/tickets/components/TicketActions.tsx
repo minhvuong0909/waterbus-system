@@ -3,7 +3,7 @@ import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { t } from '../../../i18n'
 
-export default function TicketActions({ tripId }: { tripId: string }) {
+export default function TicketActions({ tripId, manageLink }: { tripId: string; manageLink?: string }) {
   return (
     <div className="space-y-space-sm rounded-2xl bg-surface-container-lowest p-space-lg shadow-card">
       <Link
@@ -21,7 +21,7 @@ export default function TicketActions({ tripId }: { tripId: string }) {
           <Icon name="arrow_back" className="text-base" />
           {t('Back to My Tickets')}
         </Link>
-        <Link to={ROUTES.manageBooking} className="font-semibold text-teal-flow hover:underline">
+        <Link to={manageLink ?? ROUTES.manageBooking} className="font-semibold text-teal-flow hover:underline">
           {t('View Booking Details')}
         </Link>
       </div>

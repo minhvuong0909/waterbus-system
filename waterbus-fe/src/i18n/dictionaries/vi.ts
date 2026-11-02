@@ -1234,4 +1234,25 @@ export const vi: Record<string, string> = {
   Processing: 'Đang xử lý',
   Succeeded: 'Thành công',
   Failed: 'Thất bại',
+  // Vé của tôi / link quản lý vé (BR-ID-02)
+  'Booking link': 'Link quản lý vé',
+  'The link shown on the confirmation page after payment.': 'Link hiện ở trang xác nhận sau khi thanh toán.',
+  'Paste your booking link': 'Dán link quản lý vé của bạn',
+  'This is not a Smart Waterbus booking link.': 'Đây không phải link quản lý vé của Smart Waterbus.',
+  'Open booking': 'Mở đơn',
+  'Save your booking link': 'Lưu link quản lý vé',
+  'Your tickets stay in My Tickets on this device. To open them on another device, keep this link — anyone who has it can see this booking.':
+    'Vé đã nằm trong "Vé của tôi" trên thiết bị này. Muốn mở trên máy khác, hãy lưu link này — ai có link đều xem được đơn, nên đừng chia sẻ công khai.',
+  'Go to My Tickets': 'Đến Vé của tôi',
+  'No tickets on this device yet': 'Chưa có vé nào trên thiết bị này',
+  'Tickets you buy in this browser appear here once payment is confirmed — no account needed.':
+    'Vé bạn mua trên trình duyệt này sẽ tự hiện ở đây khi thanh toán thành công — không cần tài khoản.',
+  'Bought on another device?': 'Mua vé trên thiết bị khác?',
+  'Open your booking with the link you saved after payment.': 'Mở đơn bằng link quản lý vé bạn đã lưu sau khi thanh toán.',
+  'Open your booking': 'Mở đơn đặt vé',
+  'Paste the booking link you saved after payment. Tickets bought in this browser are already in My Tickets.':
+    'Dán link quản lý vé bạn đã lưu sau khi thanh toán. Vé mua trên trình duyệt này đã có sẵn trong "Vé của tôi".',
+  'Check that you copied the whole link, or call the hotline with your booking code.':
+    'Hãy kiểm tra bạn đã sao chép đủ cả link, hoặc gọi hotline kèm mã đặt chỗ.',
+  'Remove from this device': 'Xoá khỏi thiết bị này',
 }

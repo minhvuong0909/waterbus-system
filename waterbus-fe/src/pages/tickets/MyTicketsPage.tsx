@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import OpenBookingLinkForm from '../../features/tickets/components/OpenBookingLinkForm'
 import { Breadcrumb, Button, ErrorState, Icon, PageLoader } from '../../components/ui'
 import NextDepartureCard from '../../features/tickets/components/NextDepartureCard'
 import PastJourneyRow from '../../features/tickets/components/PastJourneyRow'
@@ -21,31 +22,37 @@ export default function MyTicketsPage() {
 
   if (loading || !wallet) return <PageLoader />
 
-  if (!wallet.next && wallet.past.length === 0) return (
-    <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
-      <Breadcrumb items={[{ label: 'Home', to: ROUTES.home }, { label: 'My Tickets' }]} />
-      <div className="mx-auto mt-space-xl flex max-w-md flex-col items-center rounded-2xl border border-outline-variant/40 bg-white p-space-xl text-center shadow-sm">
-        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary-container text-on-secondary-container">
-          <Icon name="confirmation_number" className="text-3xl" />
-        </span>
-        <h1 className="mt-space-md font-display text-headline-md text-deep-river">
-          {t('You have no tickets yet')}
-        </h1>
-        <p className="mt-space-xs text-body-md text-on-surface-variant">
-          {t('Your tickets appear here as soon as your payment is confirmed.')}
-        </p>
-        <Button to={ROUTES.search} className="mt-space-lg w-full sm:w-auto">
-          {t('Find a trip')}
-        </Button>
-        <Link
-          to={ROUTES.manageBooking}
-          className="tap-area mt-space-sm text-sm font-semibold text-teal-flow underline-offset-4 hover:underline"
-        >
-          {t('Look up a booking without signing in')}
-        </Link>
+  if (!wallet.next && wallet.past.length === 0)
+    return (
+      <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
+        <Breadcrumb items={[{ label: 'Home', to: ROUTES.home }, { label: 'My Tickets' }]} />
+        <div className="mx-auto mt-space-xl flex max-w-lg flex-col items-center rounded-2xl border border-outline-variant/40 bg-white p-space-xl text-center shadow-sm">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary-container text-on-secondary-container">
+            <Icon name="confirmation_number" className="text-3xl" />
+          </span>
+          <h1 className="mt-space-md font-display text-headline-md text-deep-river">
+            {t('No tickets on this device yet')}
+          </h1>
+          <p className="mt-space-xs text-body-md text-on-surface-variant">
+            {t(
+              'Tickets you buy in this browser appear here once payment is confirmed — no account needed.',
+            )}
+          </p>
+          <Button to={ROUTES.search} className="mt-space-lg w-full sm:w-auto">
+            {t('Find a trip')}
+          </Button>
+          <div className="mt-space-xl w-full border-t border-outline-variant/40 pt-space-lg">
+            <h2 className="text-sm font-semibold text-deep-river">
+              {t('Bought on another device?')}
+            </h2>
+            <p className="mb-space-sm mt-1 text-xs text-on-surface-variant">
+              {t('Open your booking with the link you saved after payment.')}
+            </p>
+            <OpenBookingLinkForm />
+          </div>
+        </div>
       </div>
-    </div>
-  )
+    )
 
   const upcomingCount = (wallet.next ? 1 : 0) + wallet.later.length
   const tabClass = (active: boolean) =>
@@ -112,7 +119,8 @@ export default function MyTicketsPage() {
         <>
           <div className="mt-space-lg flex items-center justify-between text-2xs font-bold uppercase tracking-wider">
             <span className="flex items-center gap-2 text-teal-flow">
-              <span className="h-2 w-2 rounded-full bg-teal-flow" /> {isTicketToday(wallet.next) ? t('Next Departure • Today') : t('Next Departure')}
+              <span className="h-2 w-2 rounded-full bg-teal-flow" />{' '}
+              {isTicketToday(wallet.next) ? t('Next Departure • Today') : t('Next Departure')}
             </span>
             <span className="font-medium normal-case tracking-normal text-on-surface-variant">
               {t('Boarding Pier {gate}', { gate: wallet.next.gate })}
@@ -163,29 +171,42 @@ export default function MyTicketsPage() {
         </>
       ) : null}
 
-      <div className="mt-space-2xl flex items-end justify-between">
-        <div>
-          <h2 className="font-display text-headline-md text-deep-river">
-            {t('Recent Past Journeys')}
-          </h2>
-          <p className="text-xs text-on-surface-variant">{t('Completed river transit records')}</p>
-        </div>
-        {tab === 'upcoming' && (
-          <button
-            type="button"
-            onClick={() => setTab('past')}
-            className="text-xs font-semibold text-teal-flow hover:underline"
-          >
-            {t('View all past trips ({length}) →', { length: wallet.past.length })}
-          </button>
-        )}
-      </div>
-      <div className="mt-space-sm grid grid-cols-1 gap-space-md md:grid-cols-2">
-        {wallet.past.map((ticket) => (
-          <PastJourneyRow key={ticket.id} ticket={ticket} onOpen={openTicket} />
-        ))}
-      </div>
+      {wallet.past.length > 0 && (
+        <>
+          <div className="mt-space-2xl flex items-end justify-between">
+            <div>
+              <h2 className="font-display text-headline-md text-deep-river">
+                {t('Recent Past Journeys')}
+              </h2>
+              <p className="text-xs text-on-surface-variant">
+                {t('Completed river transit records')}
+              </p>
+            </div>
+            {tab === 'upcoming' && (
+              <button
+                type="button"
+                onClick={() => setTab('past')}
+                className="text-xs font-semibold text-teal-flow hover:underline"
+              >
+                {t('View all past trips ({length}) →', { length: wallet.past.length })}
+              </button>
+            )}
+          </div>
+          <div className="mt-space-sm grid grid-cols-1 gap-space-md md:grid-cols-2">
+            {wallet.past.map((ticket) => (
+              <PastJourneyRow key={ticket.id} ticket={ticket} onOpen={openTicket} />
+            ))}
+          </div>
+        </>
+      )}
 
+      <section className="mt-space-2xl rounded-2xl border border-outline-variant/40 bg-white p-space-md shadow-sm">
+        <h2 className="text-sm font-semibold text-deep-river">{t('Bought on another device?')}</h2>
+        <p className="mb-space-sm mt-1 text-xs text-on-surface-variant">
+          {t('Open your booking with the link you saved after payment.')}
+        </p>
+        <OpenBookingLinkForm />
+      </section>
     </div>
   )
 }

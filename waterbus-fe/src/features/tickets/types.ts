@@ -44,6 +44,8 @@ export interface Ticket {
   fareVnd: number
   vesselNote: string
   gate: string
+  /** Đường dẫn Manage Order secure link của đơn chứa vé này (BR-ID-02). */
+  manageLink?: string
 }
 
 export interface TicketWallet {
@@ -55,4 +57,7 @@ export interface TicketWallet {
 export interface ManageBooking {
   bookingCode: string
   ticket: Ticket
+  orderId: string
+  /** Link quản lý vé để khách lưu lại; không có khi đơn không có token Guest. */
+  manageUrl?: string
 }

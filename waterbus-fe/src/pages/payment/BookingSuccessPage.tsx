@@ -1,18 +1,17 @@
+import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Breadcrumb, Button, ErrorState, PageLoader } from '../../components/ui'
 import { useSearchQuery } from '../../features/booking/hooks/useTripSearch'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import { isRoundTrip } from '../../features/booking/legs'
-import {
-  cabinsLabel,
-  passengersLabel,
-  seatCodes,
-} from '../../features/booking/utils'
+import { cabinsLabel, passengersLabel, seatCodes } from '../../features/booking/utils'
 import ConfirmationHero from '../../features/payment/components/ConfirmationHero'
 import ConfirmationSteps from '../../features/payment/components/ConfirmationSteps'
 import { getBookingQr } from '../../features/booking/services/bookingService'
 import { useOrderConfirmation } from '../../features/payment/hooks/useOrderConfirmation'
 import BoardingPassCard from '../../features/tickets/components/BoardingPassCard'
+import ManageLinkCard from '../../features/tickets/components/ManageLinkCard'
+import { manageLinkUrl, saveOrder } from '../../features/tickets/savedOrders'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { useAppSelector } from '../../store/hooks'
@@ -50,6 +49,11 @@ export default function BookingSuccessPage() {
     [confirmed, returnBookingId],
   )
   const failure = error ?? back.error ?? qr.error ?? returnQr.error
+  // Đơn đã thanh toán được ghi nhớ trên thiết bị để "Vé của tôi" còn thấy sau khi đóng tab (BR-ID-01).
+  const accessToken = order?.accessToken ?? null
+  useEffect(() => {
+    if (confirmed && order && accessToken) saveOrder(order.orderId, accessToken)
+  }, [confirmed, order, accessToken])
 
   if (noTrip) return <NoTripSelected />
   if (failure) {
@@ -89,8 +93,9 @@ export default function BookingSuccessPage() {
     return <PageLoader />
   }
 
-  const orderedSeats = (roundTrip ? detail?.bookings.slice(0, 1) : detail?.bookings)?.flatMap((b) => b.tickets) ?? []
-  const returnTickets = roundTrip ? (detail?.bookings[1]?.tickets ?? []) : []
+  const orderedSeats =
+    (roundTrip ? detail?.bookings.slice(0, 1) : detail?.bookings)?.flatMap((b) => b.tickets) ?? []
+  const returnTickets = roundTrip ? detail?.bookings[1]?.tickets ?? [] : []
   const returnReference = roundTrip ? detail?.bookings[1]?.bookingCode : undefined
   const reference = detail?.bookings[0]?.bookingCode ?? ''
   // Names as the backend issued them; the typed names stand in until the tickets are listed.
@@ -125,7 +130,9 @@ export default function BookingSuccessPage() {
         <div className="mt-space-2xl grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
           <div className="space-y-space-lg lg:col-span-7">
             {roundTrip && (
-              <h2 className="font-display text-lg font-bold text-deep-river">{t('Outbound trip')}</h2>
+              <h2 className="font-display text-lg font-bold text-deep-river">
+                {t('Outbound trip')}
+              </h2>
             )}
             <BoardingPassCard
               pass={{
@@ -153,7 +160,9 @@ export default function BookingSuccessPage() {
             />
             {roundTrip && back.trip && back.totals && (
               <>
-                <h2 className="font-display text-lg font-bold text-deep-river">{t('Return trip')}</h2>
+                <h2 className="font-display text-lg font-bold text-deep-river">
+                  {t('Return trip')}
+                </h2>
                 <BoardingPassCard
                   pass={{
                     tripCode: back.trip.vesselCode,
@@ -182,6 +191,17 @@ export default function BookingSuccessPage() {
             )}
           </div>
           <div className="space-y-space-md lg:col-span-5">
+            {order && accessToken && (
+              <ManageLinkCard url={manageLinkUrl(order.orderId, accessToken)} />
+            )}
+            <Button
+              to={ROUTES.myTickets}
+              variant="neutral"
+              icon="confirmation_number"
+              className="w-full"
+            >
+              {t('Go to My Tickets')}
+            </Button>
             {!roundTrip && (
               <Button
                 variant="secondary"
