@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import OpenBookingLinkForm from '../../features/tickets/components/OpenBookingLinkForm'
+import OtherDeviceLookup from '../../features/tickets/components/OtherDeviceLookup'
 import { Breadcrumb, Button, ErrorState, Icon, PageLoader } from '../../components/ui'
 import NextDepartureCard from '../../features/tickets/components/NextDepartureCard'
 import PastJourneyRow from '../../features/tickets/components/PastJourneyRow'
@@ -42,13 +42,7 @@ export default function MyTicketsPage() {
             {t('Find a trip')}
           </Button>
           <div className="mt-space-xl w-full border-t border-outline-variant/40 pt-space-lg">
-            <h2 className="text-sm font-semibold text-deep-river">
-              {t('Bought on another device?')}
-            </h2>
-            <p className="mb-space-sm mt-1 text-xs text-on-surface-variant">
-              {t('Open your booking with the link you saved after payment.')}
-            </p>
-            <OpenBookingLinkForm />
+            <OtherDeviceLookup />
           </div>
         </div>
       </div>
@@ -201,11 +195,7 @@ export default function MyTicketsPage() {
       )}
 
       <section className="mt-space-2xl rounded-2xl border border-outline-variant/40 bg-white p-space-md shadow-sm">
-        <h2 className="text-sm font-semibold text-deep-river">{t('Bought on another device?')}</h2>
-        <p className="mb-space-sm mt-1 text-xs text-on-surface-variant">
-          {t('Open your booking with the link you saved after payment.')}
-        </p>
-        <OpenBookingLinkForm />
+        <OtherDeviceLookup />
       </section>
     </div>
   )

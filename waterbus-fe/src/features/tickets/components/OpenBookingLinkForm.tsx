@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, TextField } from '../../../components/ui'
 import { t } from '../../../i18n'
-import { manageLinkPath, parseManageLink } from '../savedOrders'
+import { manageLinkPath, parseManageLink } from '../utils'
 
 /**
  * Mở một đơn mua trên thiết bị khác bằng link quản lý vé khách đã lưu (BR-ID-02). Chưa có API tra

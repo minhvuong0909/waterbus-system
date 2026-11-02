@@ -10,8 +10,8 @@ import type { PurchaserForm, Seat } from '../../booking/types'
 import type { TripDetail } from '../../trips/types'
 import { ROUTES } from '../../../routes/routes'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
-import { holdCleared, holdExtended, orderReleased } from '../../booking/bookingSlice'
-import { cancelCheckout } from '../../booking/services/bookingService'
+import { holdExtended } from '../../booking/bookingSlice'
+import { useCancelCheckout } from '../../booking/hooks/useCheckout'
 import { useHoldCountdown } from '../../booking/hooks/useHoldCountdown'
 import { formatVnd } from '../../../utils/format'
 import { createPaymentUrl } from '../services/paymentService'
@@ -65,17 +65,7 @@ export default function PaymentOrderSummary({
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
-  const [cancelling, setCancelling] = useState(false)
-
-  // BR-HOLD-03: khách bỏ đơn thì nhả ghế ngay cho người khác, không bắt chờ hết thời gian giữ.
-  const cancelHold = async () => {
-    if (!hold) return
-    setCancelling(true)
-    await cancelCheckout(hold.orderId, order?.accessToken ?? hold.accessToken)
-    dispatch(orderReleased())
-    dispatch(holdCleared())
-    navigate(ROUTES.searchResults)
-  }
+  const cancelling = useCancelCheckout()
 
   // BR-PAY-01: paying only sends the traveler to the gateway. The ticket is issued when the
   // backend verifies the payment, and the callback page waits for that; there is no "I have paid".
@@ -181,11 +171,11 @@ export default function PaymentOrderSummary({
             {t('Your held seats are released for other travelers. Nothing has been charged.')}
           </p>
           <div className="mt-space-md flex flex-wrap justify-end gap-space-sm">
-            <Button variant="neutral" onClick={() => setConfirmCancel(false)} disabled={cancelling}>
+            <Button variant="neutral" onClick={() => setConfirmCancel(false)} disabled={cancelling.busy}>
               {t('Keep my seats')}
             </Button>
-            <Button variant="danger" onClick={cancelHold} disabled={cancelling}>
-              {cancelling ? t('Releasing…') : t('Cancel booking')}
+            <Button variant="danger" onClick={cancelling.cancel} disabled={cancelling.busy}>
+              {cancelling.busy ? t('Releasing…') : t('Cancel booking')}
             </Button>
           </div>
         </Modal>

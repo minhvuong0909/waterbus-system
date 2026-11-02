@@ -61,3 +61,11 @@ export interface ManageBooking {
   /** Link quản lý vé để khách lưu lại; không có khi đơn không có token Guest. */
   manageUrl?: string
 }
+
+/** Một đơn đã mua trên thiết bị này, kèm token Guest để mở lại (BR-ID-02). */
+export interface SavedOrder {
+  orderId: string
+  accessToken: string
+  /** ms since epoch, đơn mới nhất đứng đầu. */
+  savedAt: number
+}

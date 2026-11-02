@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import FleetMap from '../../components/map/FleetMap'
 import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
-import { isGuid } from '../../features/booking/utils'
+import { isGuid } from '../../utils/guid'
 import StopTimeline from '../../features/tracking/components/StopTimeline'
 import { useTripTracking } from '../../features/tracking/hooks/useTripTracking'
 import { useDocumentTitle } from '../../hooks'

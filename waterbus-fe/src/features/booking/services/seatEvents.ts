@@ -1,7 +1,7 @@
 import { HUBS, HUB_EVENTS } from '../../../constant/apiEndpoints'
 import { connectHub } from '../../../services/realtime'
 import type { SeatEvent } from '../types'
-import { isGuid } from '../utils'
+import { isGuid } from '../../../utils/guid'
 
 export type SeatEventListener = (event: SeatEvent) => void
 

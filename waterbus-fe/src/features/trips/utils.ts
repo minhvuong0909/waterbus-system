@@ -7,6 +7,7 @@ import type {
   SearchQuery,
   StationDto,
   TimeBand,
+  TimelineStep,
   Trip,
   TripDto,
   TripStopDto,
@@ -196,4 +197,14 @@ export function buildCorridorMap(piers: PierOption[]): CorridorMap {
     longitude: pier.longitude,
   }))
   return { piers: placed }
+}
+
+/**
+ * Xếp các mốc lộ trình theo thời gian thật, để một khung check-in đóng sau giờ tàu chạy (dữ liệu
+ * cấu hình sai) không hiện lẫn thứ tự. Mốc không có thời gian (NaN) giữ nguyên vị trí tương đối.
+ */
+export function chronological(steps: (TimelineStep & { at: number })[]): TimelineStep[] {
+  const known = steps.every((step) => Number.isFinite(step.at))
+  const ordered = known ? [...steps].sort((a, b) => a.at - b.at) : steps
+  return ordered.map(({ time, title, description, tone }) => ({ time, title, description, tone }))
 }

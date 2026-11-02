@@ -1,11 +1,11 @@
 import { useNavigate, useParams } from 'react-router-dom'
-import { Breadcrumb, Button, ErrorState, Icon, PageLoader } from '../../components/ui'
+import { Breadcrumb, Button, ErrorState, PageLoader } from '../../components/ui'
 import BookingSummaryCard from '../../features/tickets/components/BookingSummaryCard'
 import ManageLinkCard from '../../features/tickets/components/ManageLinkCard'
-import OpenBookingLinkForm from '../../features/tickets/components/OpenBookingLinkForm'
+import BookingLinkPrompt from '../../features/tickets/components/BookingLinkPrompt'
 import RefundPolicyCard from '../../features/tickets/components/RefundPolicyCard'
 import { useManageBooking } from '../../features/tickets/hooks/useTickets'
-import { forgetOrder } from '../../features/tickets/savedOrders'
+import { forgetOrder } from '../../features/tickets/orderStorage'
 import { hasOrderToManage } from '../../features/tickets/services/ticketService'
 import { useDocumentTitle } from '../../hooks'
 import { ApiError } from '../../services/apiClient'
@@ -21,7 +21,7 @@ export default function ManageBookingPage() {
   // Không có link và tab này chưa đặt đơn nào: cho khách dán link đã lưu thay vì báo lỗi.
   if (!hasOrderToManage(token)) {
     return (
-      <LinkPrompt
+      <BookingLinkPrompt
         title={t('Open your booking')}
         message={t(
           'Paste the booking link you saved after payment. Tickets bought in this browser are already in My Tickets.',
@@ -33,7 +33,7 @@ export default function ManageBookingPage() {
   // 403: the backend rejects a wrong or expired guest token the same way as an unknown booking.
   if (error instanceof ApiError && (error.status === 404 || error.status === 403)) {
     return (
-      <LinkPrompt
+      <BookingLinkPrompt
         title={t('This link is invalid or has expired')}
         message={t(
           'Check that you copied the whole link, or call the hotline with your booking code.',
@@ -103,46 +103,6 @@ export default function ManageBookingPage() {
           }}
         >
           {t('Remove from this device')}
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-/** Trang mở đơn bằng link quản lý vé, dùng khi chưa có link hoặc link không hợp lệ. */
-function LinkPrompt({
-  title,
-  message,
-  warning = false,
-}: {
-  title: string
-  message: string
-  warning?: boolean
-}) {
-  return (
-    <div className="mx-auto w-full max-w-lg px-margin pb-space-3xl pt-space-md">
-      <Breadcrumb
-        items={[
-          { label: 'Home', to: ROUTES.home },
-          { label: 'My Tickets', to: ROUTES.myTickets },
-          { label: 'Manage Booking' },
-        ]}
-      />
-      <div className="mt-space-xl flex flex-col items-center rounded-2xl border border-outline-variant/40 bg-white p-space-xl text-center shadow-sm">
-        <span
-          className={`flex h-16 w-16 items-center justify-center rounded-full ${
-            warning
-              ? 'bg-coral-glow/10 text-coral-glow'
-              : 'bg-secondary-container text-on-secondary-container'
-          }`}
-        >
-          <Icon name={warning ? 'error' : 'lock'} className="text-3xl" />
-        </span>
-        <h1 className="mt-space-md font-display text-headline-md text-deep-river">{title}</h1>
-        <p className="mb-space-lg mt-space-xs text-body-md text-on-surface-variant">{message}</p>
-        <OpenBookingLinkForm />
-        <Button to={ROUTES.myTickets} variant="text" size="sm" className="mt-space-sm">
-          {t('Go to My Tickets')}
         </Button>
       </div>
     </div>

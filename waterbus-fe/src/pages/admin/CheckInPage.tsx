@@ -3,14 +3,10 @@ import { ErrorState, PageHeader, PageLoader, Panel, SelectField } from '../../co
 import CheckInWindowRow from '../../features/admin/components/CheckInWindowRow'
 import { getTripStops } from '../../features/admin/services/checkInService'
 import { getOperationTrips } from '../../features/admin/services/operationsService'
-import { isFinished } from '../../features/admin/utils'
+import { isBoardingStop, isFinished } from '../../features/admin/utils'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
 import { formatDateTime } from '../../utils/time'
-import type { TripStopDto } from '../../features/trips/types'
-
-/** Chỉ bến có khách lên và có giờ tàu rời mới có cửa sổ check-in; bến cuối chỉ cho xuống. */
-const isBoardingStop = (stop: TripStopDto) => stop.canBoard && Boolean(stop.estimatedDepartureTime)
 
 /** Admin sets, per stop of a trip, when staff may check passengers in (BR-BOARD-05). */
 export default function CheckInPage() {

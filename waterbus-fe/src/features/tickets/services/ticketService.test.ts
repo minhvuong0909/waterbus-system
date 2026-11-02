@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getManageBooking, getTicket, getTicketWallet, hasOrderToManage } from './ticketService'
-import { loadSavedOrders, saveOrder } from '../savedOrders'
+import { loadSavedOrders, saveOrder } from '../orderStorage'
 
 const fetchMock = vi.fn()
 beforeEach(() => { window.sessionStorage.clear(); window.localStorage.clear(); vi.stubGlobal('fetch', fetchMock) })
