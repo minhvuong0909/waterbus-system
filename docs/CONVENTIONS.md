@@ -57,7 +57,8 @@ Quyết định của nhóm: bỏ CQRS/MediatR, chuyển về Service layer thu�
 | SightseeingAudio, AiBooking | ✅ Đã migrate — Controller → IService; SQL audio qua repository; provider Azure/Semantic Kernel và adapter gọi Trips/Stations nằm ở Infrastructure. Xem `docs/thinh-ai/AI_SERVICE_MIGRATION.md` |
 | Incidents (Weather Guard), Tracking (GPS) | ✅ Đã migrate — Controller → IService → Service → IRepository → Repository; hub `BoatTrackingHub` và `BoatSimulatorService` gọi `IBoatTrackingService`; Hangfire job gọi `IWeatherGuardService` |
 | Fares | ✅ Đã migrate — `IFareService`/`FareService` (chỉ cần `IApplicationDbContext`), không có Request (GET không tham số) |
-| Boats, CheckIns, Stations, Trips | ⏳ Chưa migrate — vẫn CQRS/MediatR |
+| Boats | ✅ Đã migrate — `IBoatService`/`BoatService`; `UpdateBoatRequest` bỏ field `Id` (lấy từ route), xoá luôn code so khớp Id route/body cũ (M10) |
+| CheckIns, Stations, Trips | ⏳ Chưa migrate — vẫn CQRS/MediatR |
 
 **Quy tắc migrate**: KHÔNG trộn 2 pattern trong cùng 1 feature. KHÔNG tự migrate feature chưa được giao — báo trong nhóm trước khi bắt đầu, tránh 2 người cùng đổi 1 feature cùng lúc (xung đột lớn, khó merge). Cập nhật lại bảng trên (đổi ⏳ → ✅) trong PR migrate feature đó.
 
