@@ -3,35 +3,39 @@ using System.Text;
 using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using WaterbusSystem.Application.DTOs.Responses.Stations;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.AiBooking.Models;
-using WaterbusSystem.Application.Features.Stations.Queries.GetStations;
 using WaterbusSystem.Application.Features.Trips.Queries.SearchTrips;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Domain.Enums;
 
 namespace WaterbusSystem.Infrastructure.Services.AiBooking;
 
 /// <summary>
 /// Adapter AI dùng cùng query với GET /api/v1/trips/search; không sửa Trip Search của teammate.
+/// Stations đã migrate sang Service layer (IStationService); Trips chưa migrate, vẫn qua ISender.
 /// Chỉ phát Trip Card sau khi owner xác nhận contract bến/giá và kết quả qua kiểm tra an toàn.
 /// </summary>
 public sealed class MediatRTripSearchTool : ITripSearchTool
 {
     private readonly ISender _sender;
+    private readonly IStationService _stationService;
     private readonly IOptions<AiBookingIntegrationOptions> _options;
     private readonly IHostEnvironment _environment;
 
     public MediatRTripSearchTool(
-        ISender sender, IOptions<AiBookingIntegrationOptions> options, IHostEnvironment environment)
+        ISender sender, IStationService stationService, IOptions<AiBookingIntegrationOptions> options, IHostEnvironment environment)
     {
         _sender = sender;
+        _stationService = stationService;
         _options = options;
         _environment = environment;
     }
 
     public async Task<IReadOnlyList<string>> ListActiveStationsAsync(CancellationToken cancellationToken = default)
     {
-        var stations = await _sender.Send(new GetStationsQuery(), cancellationToken);
+        var stations = await _stationService.GetActiveStationsAsync(cancellationToken);
         return stations.Select(s => s.Name).ToList();
     }
 
@@ -48,7 +52,7 @@ public sealed class MediatRTripSearchTool : ITripSearchTool
         if (!_options.Value.IsTripSearchContractVerified && !developmentPreview)
             return new([], false, "Hợp đồng Trip Search chưa được xác nhận.");
 
-        var stations = await _sender.Send(new GetStationsQuery(), cancellationToken);
+        var stations = await _stationService.GetActiveStationsAsync(cancellationToken);
         var departureId = hasDeparture
             ? ResolveStationId(stations, criteria.DepartureStationId, criteria.DepartureStationName) : null;
         var arrivalId = hasArrival
@@ -139,7 +143,7 @@ public sealed class MediatRTripSearchTool : ITripSearchTool
     }
 
     private static Guid? ResolveStationId(
-        IReadOnlyList<StationDto> stations, Guid? id, string? name)
+        IReadOnlyList<StationResponse> stations, Guid? id, string? name)
     {
         if (id.HasValue)
             return stations.Any(s => s.Id == id.Value) ? id : null;
@@ -156,7 +160,7 @@ public sealed class MediatRTripSearchTool : ITripSearchTool
         return normalized;
     }
 
-    private static IReadOnlyList<string> FindStationSuggestions(IReadOnlyList<StationDto> stations, string? keyword)
+    private static IReadOnlyList<string> FindStationSuggestions(IReadOnlyList<StationResponse> stations, string? keyword)
     {
         var normalized = RemoveDiacritics(NormalizeStationName(keyword));
         foreach (var prefix in new[] { "khu vuc ", "quan ", "thanh pho ", "tp ", "o gan " })

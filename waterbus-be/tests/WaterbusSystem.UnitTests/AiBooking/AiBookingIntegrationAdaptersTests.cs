@@ -3,9 +3,10 @@ using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Moq;
+using WaterbusSystem.Application.DTOs.Responses.Stations;
 using WaterbusSystem.Application.Features.AiBooking.Models;
-using WaterbusSystem.Application.Features.Stations.Queries.GetStations;
 using WaterbusSystem.Application.Features.Trips.Queries.SearchTrips;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Infrastructure.Services.AiBooking;
 using Xunit;
 
@@ -28,20 +29,22 @@ public sealed class AiBookingIntegrationAdaptersTests
     public async Task SearchTool_ContractNotVerified_DoesNotCallTripSearch()
     {
         var sender = new Mock<ISender>();
-        var tool = new MediatRTripSearchTool(sender.Object, Options.Create(new AiBookingIntegrationOptions()), Environment("Development"));
+        var stations = new Mock<IStationService>();
+        var tool = new MediatRTripSearchTool(sender.Object, stations.Object, Options.Create(new AiBookingIntegrationOptions()), Environment("Development"));
 
         var result = await tool.SearchTripsAsync(Criteria());
 
         result.IsSuccess.Should().BeFalse();
         result.Trips.Should().BeEmpty();
         sender.VerifyNoOtherCalls();
+        stations.VerifyNoOtherCalls();
     }
 
     [Fact]
     public async Task SearchTool_ZeroFare_DoesNotExposeUnverifiedTripCard()
     {
         var sender = MockSender(0m);
-        var tool = VerifiedSearchTool(sender.Object);
+        var tool = VerifiedSearchTool(sender.Object, MockStationService().Object);
 
         var result = await tool.SearchTripsAsync(Criteria());
 
@@ -53,7 +56,7 @@ public sealed class AiBookingIntegrationAdaptersTests
     public async Task SearchTool_DevelopmentPreview_ExposesZeroFareAndRequestedStationIds()
     {
         var sender = MockSender(0m);
-        var tool = new MediatRTripSearchTool(sender.Object,
+        var tool = new MediatRTripSearchTool(sender.Object, MockStationService().Object,
             Options.Create(new AiBookingIntegrationOptions { EnableUnverifiedTripCardsForDevelopment = true }),
             Environment("Development"));
 
@@ -73,7 +76,8 @@ public sealed class AiBookingIntegrationAdaptersTests
     public async Task SearchTool_Production_IgnoresDevelopmentPreviewFlag()
     {
         var sender = MockSender(0m);
-        var tool = new MediatRTripSearchTool(sender.Object,
+        var stations = new Mock<IStationService>();
+        var tool = new MediatRTripSearchTool(sender.Object, stations.Object,
             Options.Create(new AiBookingIntegrationOptions { EnableUnverifiedTripCardsForDevelopment = true }),
             Environment("Production"));
 
@@ -82,13 +86,14 @@ public sealed class AiBookingIntegrationAdaptersTests
         result.IsSuccess.Should().BeFalse();
         result.Trips.Should().BeEmpty();
         sender.VerifyNoOtherCalls();
+        stations.VerifyNoOtherCalls();
     }
 
     [Fact]
     public async Task SearchTool_VerifiedData_MapsCardWithoutInventingBookingLink()
     {
         var sender = MockSender(20000m);
-        var tool = VerifiedSearchTool(sender.Object);
+        var tool = VerifiedSearchTool(sender.Object, MockStationService().Object);
 
         var result = await tool.SearchTripsAsync(Criteria());
 
@@ -105,7 +110,7 @@ public sealed class AiBookingIntegrationAdaptersTests
     public async Task SearchTool_OneStation_SearchesBothDirectionsAndDeduplicates()
     {
         var sender = MockSender(20000m);
-        var tool = VerifiedSearchTool(sender.Object);
+        var tool = VerifiedSearchTool(sender.Object, MockStationService().Object);
         var criteria = new TripSearchCriteria { DepartureStationName = "Bạch Đằng" };
 
         var result = await tool.SearchTripsAsync(criteria);
@@ -126,7 +131,7 @@ public sealed class AiBookingIntegrationAdaptersTests
     public async Task SearchTool_NoStation_SearchesAllUpcomingTrips()
     {
         var sender = MockSender(20000m);
-        var tool = VerifiedSearchTool(sender.Object);
+        var tool = VerifiedSearchTool(sender.Object, MockStationService().Object);
 
         var result = await tool.SearchTripsAsync(new TripSearchCriteria());
 
@@ -141,7 +146,7 @@ public sealed class AiBookingIntegrationAdaptersTests
     public async Task SearchTool_OnlyArrival_ReturnsTripEndingAtStation()
     {
         var sender = MockSender(20000m);
-        var tool = VerifiedSearchTool(sender.Object);
+        var tool = VerifiedSearchTool(sender.Object, MockStationService().Object);
 
         var result = await tool.SearchTripsAsync(new TripSearchCriteria
         {
@@ -164,7 +169,7 @@ public sealed class AiBookingIntegrationAdaptersTests
     public async Task SearchTool_ExplicitDeparture_DoesNotSearchArrivals()
     {
         var sender = MockSender(20000m);
-        var tool = VerifiedSearchTool(sender.Object);
+        var tool = VerifiedSearchTool(sender.Object, MockStationService().Object);
 
         await tool.SearchTripsAsync(new TripSearchCriteria
         {
@@ -195,7 +200,7 @@ public sealed class AiBookingIntegrationAdaptersTests
                 q.DepartureStationId == DepartureId ? new List<TripDto> { departureTrip }
                 : q.ArrivalStationId == DepartureId ? new List<TripDto> { arrivalTrip }
                 : new List<TripDto>());
-        var tool = VerifiedSearchTool(sender.Object);
+        var tool = VerifiedSearchTool(sender.Object, MockStationService().Object);
 
         var result = await tool.SearchTripsAsync(new TripSearchCriteria { DepartureStationName = "Bạch Đằng" });
 
@@ -209,12 +214,13 @@ public sealed class AiBookingIntegrationAdaptersTests
     public async Task StationTool_ReturnsActiveStationNames()
     {
         var sender = MockSender(20000m);
-        var tool = VerifiedSearchTool(sender.Object);
+        var stations = MockStationService();
+        var tool = VerifiedSearchTool(sender.Object, stations.Object);
 
         var names = await tool.ListActiveStationsAsync();
 
         names.Should().ContainInOrder("Bến Bạch Đằng", "Bình An");
-        sender.Verify(s => s.Send(It.IsAny<GetStationsQuery>(), It.IsAny<CancellationToken>()), Times.Once);
+        stations.Verify(s => s.GetActiveStationsAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -233,7 +239,7 @@ public sealed class AiBookingIntegrationAdaptersTests
                         new(ArrivalId, "Bình An", 2)
                     })
             });
-        var tool = VerifiedSearchTool(sender.Object);
+        var tool = VerifiedSearchTool(sender.Object, MockStationService().Object);
 
         var result = await tool.SearchTripsAsync(new TripSearchCriteria { DepartureStationName = "Bạch Đằng" });
 
@@ -257,7 +263,7 @@ public sealed class AiBookingIntegrationAdaptersTests
         }).ToList();
         sender.Setup(s => s.Send(It.IsAny<SearchTripsQuery>(), It.IsAny<CancellationToken>())).ReturnsAsync(trips);
 
-        var result = await VerifiedSearchTool(sender.Object).SearchTripsAsync(new TripSearchCriteria
+        var result = await VerifiedSearchTool(sender.Object, MockStationService().Object).SearchTripsAsync(new TripSearchCriteria
         {
             EarliestDepartureTime = new TimeOnly(16, 0),
             LatestDepartureTime = new TimeOnly(17, 0),
@@ -281,7 +287,7 @@ public sealed class AiBookingIntegrationAdaptersTests
             new List<TripStopDto> { new(DepartureId, "Bạch Đằng", 1), new(ArrivalId, "Bình An", 2) })).ToList();
         sender.Setup(s => s.Send(It.IsAny<SearchTripsQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(trips);
-        var tool = new MediatRTripSearchTool(sender.Object,
+        var tool = new MediatRTripSearchTool(sender.Object, MockStationService().Object,
             Options.Create(new AiBookingIntegrationOptions { EnableUnverifiedTripCardsForDevelopment = true }),
             Environment("Development"));
 
@@ -305,7 +311,7 @@ public sealed class AiBookingIntegrationAdaptersTests
         sender.Setup(s => s.Send(It.IsAny<SearchTripsQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(trips);
 
-        var result = await VerifiedSearchTool(sender.Object).SearchTripsAsync(new TripSearchCriteria());
+        var result = await VerifiedSearchTool(sender.Object, MockStationService().Object).SearchTripsAsync(new TripSearchCriteria());
 
         result.Trips.Should().HaveCount(12);
     }
@@ -314,14 +320,15 @@ public sealed class AiBookingIntegrationAdaptersTests
     public async Task SearchTool_AreaName_SuggestsStationWithoutGuessing()
     {
         var sender = MockSender(20000m);
-        sender.Setup(s => s.Send(It.IsAny<GetStationsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<StationDto>
+        var stations = new Mock<IStationService>();
+        stations.Setup(s => s.GetActiveStationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<StationResponse>
             {
                 new(DepartureId, "BD", "Bến Bạch Đằng", "Quận 1", 10, 106, 1, true),
                 new(ArrivalId, "LA", "Bến Linh Đông", "Thủ Đức", 10, 106, 2, true)
             });
 
-        var result = await VerifiedSearchTool(sender.Object).SearchTripsAsync(
+        var result = await VerifiedSearchTool(sender.Object, stations.Object).SearchTripsAsync(
             new TripSearchCriteria { ArrivalStationName = "khu vực Thủ Đức" });
 
         result.RequiresMoreClarification.Should().BeTrue();
@@ -397,8 +404,8 @@ public sealed class AiBookingIntegrationAdaptersTests
         result.IsValid.Should().BeFalse();
     }
 
-    private static MediatRTripSearchTool VerifiedSearchTool(ISender sender) =>
-        new(sender, Options.Create(new AiBookingIntegrationOptions { IsTripSearchContractVerified = true }),
+    private static MediatRTripSearchTool VerifiedSearchTool(ISender sender, IStationService stationService) =>
+        new(sender, stationService, Options.Create(new AiBookingIntegrationOptions { IsTripSearchContractVerified = true }),
             Environment("Production"));
 
     private static IHostEnvironment Environment(string name)
@@ -411,12 +418,6 @@ public sealed class AiBookingIntegrationAdaptersTests
     private static Mock<ISender> MockSender(decimal price)
     {
         var sender = new Mock<ISender>();
-        sender.Setup(s => s.Send(It.IsAny<GetStationsQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<StationDto>
-            {
-                new(DepartureId, "BD", "Bến Bạch Đằng", "", 10, 106, 1, true),
-                new(ArrivalId, "BA", "Bình An", "", 10, 106, 2, true)
-            });
         sender.Setup(s => s.Send(It.IsAny<SearchTripsQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<TripDto>
             {
@@ -430,5 +431,17 @@ public sealed class AiBookingIntegrationAdaptersTests
                     })
             });
         return sender;
+    }
+
+    private static Mock<IStationService> MockStationService()
+    {
+        var stations = new Mock<IStationService>();
+        stations.Setup(s => s.GetActiveStationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<StationResponse>
+            {
+                new(DepartureId, "BD", "Bến Bạch Đằng", "", 10, 106, 1, true),
+                new(ArrivalId, "BA", "Bình An", "", 10, 106, 2, true)
+            });
+        return stations;
     }
 }
