@@ -80,6 +80,7 @@ public static class DependencyInjection
         services.AddScoped<IIncidentService, WaterbusSystem.Application.Features.Incidents.Services.IncidentService>();
         services.AddScoped<IWeatherStatusService, WaterbusSystem.Application.Features.Incidents.Services.WeatherStatusService>();
         services.AddScoped<IWeatherGuardService, WaterbusSystem.Application.Features.Incidents.Services.WeatherGuardService>();
+        services.AddScoped<IFareService, WaterbusSystem.Application.Features.Fares.Services.FareService>();
         services.AddScoped<IBookingReferenceRepository, BookingReferenceRepository>();
         services.AddScoped<ICheckoutService, CheckoutService>();
         services.AddScoped<ICheckoutSeatChangeService, CheckoutSeatChangeService>();

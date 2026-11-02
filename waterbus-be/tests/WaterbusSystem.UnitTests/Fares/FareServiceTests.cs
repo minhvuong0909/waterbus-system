@@ -1,29 +1,29 @@
 using FluentAssertions;
 using Moq;
 using WaterbusSystem.Application.Common.Interfaces;
-using WaterbusSystem.Application.Features.Fares.Queries.GetFares;
+using WaterbusSystem.Application.Features.Fares.Services;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.UnitTests.TestHelpers;
 using Xunit;
 
 namespace WaterbusSystem.UnitTests.Fares;
 
-public class GetFaresQueryHandlerTests
+public class FareServiceTests
 {
-    private static GetFaresQueryHandler CreateHandler(Infrastructure.Persistence.ApplicationDbContext context)
+    private static FareService CreateService(Infrastructure.Persistence.ApplicationDbContext context)
     {
         var dateTime = new Mock<IDateTimeService>();
         dateTime.Setup(d => d.Now).Returns(DateTimeOffset.UtcNow);
-        return new GetFaresQueryHandler(context, dateTime.Object);
+        return new FareService(context, dateTime.Object);
     }
 
     [Fact]
-    public async Task Handle_ActiveFares_ReturnsEachTripTypeAndSeatClassSortedByPrice()
+    public async Task GetActiveFaresAsync_ActiveFares_ReturnsEachTripTypeAndSeatClassSortedByPrice()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         TestDbContextFactory.SeedTrip(context);
 
-        var fares = await CreateHandler(context).Handle(new GetFaresQuery(), CancellationToken.None);
+        var fares = await CreateService(context).GetActiveFaresAsync(CancellationToken.None);
 
         fares.Select(f => (f.TripType, f.Price)).Should().Equal(
             ("Commuter", TestDbContextFactory.StandardCommuterFare),
@@ -34,7 +34,7 @@ public class GetFaresQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_InactiveExpiredFutureOrDeletedFares_AreNotReturned()
+    public async Task GetActiveFaresAsync_InactiveExpiredFutureOrDeletedFares_AreNotReturned()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var seed = TestDbContextFactory.SeedTrip(context);
@@ -48,18 +48,18 @@ public class GetFaresQueryHandlerTests
         context.FareRules.AddRange(inactive, expired, future, deleted);
         await context.SaveChangesAsync();
 
-        var fares = await CreateHandler(context).Handle(new GetFaresQuery(), CancellationToken.None);
+        var fares = await CreateService(context).GetActiveFaresAsync(CancellationToken.None);
 
         fares.Should().NotContain(f => f.Price < 10m);
         fares.Should().HaveCount(3);
     }
 
     [Fact]
-    public async Task Handle_NoFareRules_ReturnsEmptyList()
+    public async Task GetActiveFaresAsync_NoFareRules_ReturnsEmptyList()
     {
         using var context = TestDbContextFactory.CreateDbContext();
 
-        var fares = await CreateHandler(context).Handle(new GetFaresQuery(), CancellationToken.None);
+        var fares = await CreateService(context).GetActiveFaresAsync(CancellationToken.None);
 
         fares.Should().BeEmpty();
     }
