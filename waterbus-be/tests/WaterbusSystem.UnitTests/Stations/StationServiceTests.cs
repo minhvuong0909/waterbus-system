@@ -2,6 +2,8 @@ using FluentAssertions;
 using WaterbusSystem.Application.DTOs.Requests.Stations;
 using WaterbusSystem.Application.Features.Stations.Services;
 using WaterbusSystem.Domain.Exceptions;
+using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.UnitTests.TestHelpers;
 using ValidationException = WaterbusSystem.Application.Common.Exceptions.ValidationException;
 using Xunit;
@@ -10,6 +12,9 @@ namespace WaterbusSystem.UnitTests.Stations;
 
 public class StationServiceTests
 {
+    private static StationService CreateService(ApplicationDbContext context) =>
+        new(new StationRepository(context), new EfUnitOfWork(context));
+
     private static CreateStationRequest NewStationRequest(string code = "ST-99") => new(
         Code: code,
         Name: "Ben Test",
@@ -22,7 +27,7 @@ public class StationServiceTests
     public async Task CreateAsync_WithNewCode_CreatesStationAndReturnsId()
     {
         using var context = TestDbContextFactory.CreateDbContext();
-        var service = new StationService(context);
+        var service = CreateService(context);
 
         var id = await service.CreateAsync(NewStationRequest(), CancellationToken.None);
 
@@ -35,7 +40,7 @@ public class StationServiceTests
     public async Task CreateAsync_WhenCodeAlreadyExists_ThrowsValidationException()
     {
         using var context = TestDbContextFactory.CreateDbContext();
-        var service = new StationService(context);
+        var service = CreateService(context);
         await service.CreateAsync(NewStationRequest("ST-DUP"), CancellationToken.None);
 
         var act = () => service.CreateAsync(NewStationRequest("ST-DUP"), CancellationToken.None);
@@ -47,7 +52,7 @@ public class StationServiceTests
     public async Task UpdateAsync_WhenStationExists_UpdatesFields()
     {
         using var context = TestDbContextFactory.CreateDbContext();
-        var service = new StationService(context);
+        var service = CreateService(context);
         var id = await service.CreateAsync(NewStationRequest(), CancellationToken.None);
 
         await service.UpdateAsync(id, new UpdateStationRequest(
@@ -68,7 +73,7 @@ public class StationServiceTests
     public async Task UpdateAsync_WhenStationDoesNotExist_ThrowsNotFoundException()
     {
         using var context = TestDbContextFactory.CreateDbContext();
-        var service = new StationService(context);
+        var service = CreateService(context);
 
         var act = () => service.UpdateAsync(Guid.NewGuid(), new UpdateStationRequest(
             "X", "Y", 1, 1, 0, true), CancellationToken.None);
@@ -80,7 +85,7 @@ public class StationServiceTests
     public async Task GetByIdAsync_WhenStationDoesNotExist_ThrowsNotFoundException()
     {
         using var context = TestDbContextFactory.CreateDbContext();
-        var service = new StationService(context);
+        var service = CreateService(context);
 
         var act = () => service.GetByIdAsync(Guid.NewGuid(), CancellationToken.None);
 
@@ -91,7 +96,7 @@ public class StationServiceTests
     public async Task GetActiveStationsAsync_OnlyReturnsActiveStationsOrderedByOrderIndex()
     {
         using var context = TestDbContextFactory.CreateDbContext();
-        var service = new StationService(context);
+        var service = CreateService(context);
         var secondId = await service.CreateAsync(NewStationRequest("ST-2") with { OrderIndex = 2 }, CancellationToken.None);
         var firstId = await service.CreateAsync(NewStationRequest("ST-1") with { OrderIndex = 1 }, CancellationToken.None);
         var inactiveId = await service.CreateAsync(NewStationRequest("ST-OFF") with { OrderIndex = 0 }, CancellationToken.None);
@@ -107,7 +112,7 @@ public class StationServiceTests
     public async Task GetPageAsync_WithIsActiveOnlyFilter_ReturnsOnlyActiveStations()
     {
         using var context = TestDbContextFactory.CreateDbContext();
-        var service = new StationService(context);
+        var service = CreateService(context);
         var activeId = await service.CreateAsync(NewStationRequest("ST-ACTIVE"), CancellationToken.None);
         var inactiveId = await service.CreateAsync(NewStationRequest("ST-INACTIVE"), CancellationToken.None);
         await service.UpdateAsync(inactiveId, new UpdateStationRequest("Inactive", "", 0, 0, 0, false), CancellationToken.None);
@@ -115,5 +120,26 @@ public class StationServiceTests
         var page = await service.GetPageAsync(new GetStationsPagedRequest(IsActiveOnly: true), CancellationToken.None);
 
         page.Items.Select(s => s.Id).Should().Contain(activeId).And.NotContain(inactiveId);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenBodyContainsMismatchedId_IdFromRouteIsAuthoritative()
+    {
+        // UpdateStationRequest không có field Id. Nếu client (cũ) vẫn gửi "id" lệch trong JSON body,
+        // System.Text.Json bỏ qua field không khớp property nào — route id vẫn là nguồn duy nhất.
+        using var context = TestDbContextFactory.CreateDbContext();
+        var service = CreateService(context);
+        var routeId = await service.CreateAsync(NewStationRequest("ST-ROUTE-ID"), CancellationToken.None);
+
+        var json = $$"""
+            {"id":"{{Guid.NewGuid()}}","name":"Updated","address":"456","latitude":11.0,"longitude":107.0,"orderIndex":5,"isActive":true}
+            """;
+        var request = System.Text.Json.JsonSerializer.Deserialize<UpdateStationRequest>(json,
+            new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase })!;
+
+        await service.UpdateAsync(routeId, request, CancellationToken.None);
+
+        var station = await service.GetByIdAsync(routeId, CancellationToken.None);
+        station.Name.Should().Be("Updated");
     }
 }

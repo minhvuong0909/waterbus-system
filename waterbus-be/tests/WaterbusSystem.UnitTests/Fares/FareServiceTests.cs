@@ -3,6 +3,7 @@ using Moq;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Fares.Services;
 using WaterbusSystem.Domain.Entities;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.UnitTests.TestHelpers;
 using Xunit;
 
@@ -14,7 +15,7 @@ public class FareServiceTests
     {
         var dateTime = new Mock<IDateTimeService>();
         dateTime.Setup(d => d.Now).Returns(DateTimeOffset.UtcNow);
-        return new FareService(context, dateTime.Object);
+        return new FareService(new FareRuleRepository(context), dateTime.Object);
     }
 
     [Fact]

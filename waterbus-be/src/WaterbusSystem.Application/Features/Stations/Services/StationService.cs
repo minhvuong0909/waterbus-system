@@ -1,23 +1,19 @@
-using Microsoft.EntityFrameworkCore;
 using ValidationException = WaterbusSystem.Application.Common.Exceptions.ValidationException;
-using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Common.Models;
 using WaterbusSystem.Application.DTOs.Requests.Stations;
 using WaterbusSystem.Application.DTOs.Responses.Stations;
+using WaterbusSystem.Application.Interfaces.Persistence;
+using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Domain.Entities;
-using WaterbusSystem.Domain.Exceptions;
 
 namespace WaterbusSystem.Application.Features.Stations.Services;
 
-public sealed class StationService(IApplicationDbContext context) : IStationService
+public sealed class StationService(IStationRepository stations, IUnitOfWork unitOfWork) : IStationService
 {
     public async Task<Guid> CreateAsync(CreateStationRequest request, CancellationToken cancellationToken = default)
     {
-        var codeExists = await context.Stations
-            .AnyAsync(s => s.Code == request.Code && !s.IsDeleted, cancellationToken);
-
-        if (codeExists)
+        if (await stations.ExistsByCodeAsync(request.Code, cancellationToken))
         {
             throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
             {
@@ -36,17 +32,15 @@ public sealed class StationService(IApplicationDbContext context) : IStationServ
             IsActive = true
         };
 
-        context.Stations.Add(station);
-        await context.SaveChangesAsync(cancellationToken);
+        stations.Add(station);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return station.Id;
     }
 
     public async Task UpdateAsync(Guid id, UpdateStationRequest request, CancellationToken cancellationToken = default)
     {
-        var station = await context.Stations
-            .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted, cancellationToken)
-            ?? throw new NotFoundException(nameof(Station), id);
+        var station = await stations.GetRequiredByIdAsync(id, cancellationToken);
 
         station.Name = request.Name;
         station.Address = request.Address;
@@ -56,40 +50,15 @@ public sealed class StationService(IApplicationDbContext context) : IStationServ
         station.IsActive = request.IsActive;
         station.UpdatedAt = DateTimeOffset.UtcNow;
 
-        await context.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<StationResponse> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
-        await context.Stations
-            .AsNoTracking()
-            .Where(s => s.Id == id && !s.IsDeleted)
-            .Select(s => new StationResponse(s.Id, s.Code, s.Name, s.Address, s.Latitude, s.Longitude, s.OrderIndex, s.IsActive))
-            .FirstOrDefaultAsync(cancellationToken)
-        ?? throw new NotFoundException(nameof(Station), id);
+    public Task<StationResponse> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        stations.GetDetailAsync(id, cancellationToken);
 
     public Task<List<StationResponse>> GetActiveStationsAsync(CancellationToken cancellationToken = default) =>
-        context.Stations
-            .AsNoTracking()
-            .Where(s => !s.IsDeleted && s.IsActive)
-            .OrderBy(s => s.OrderIndex)
-            .Select(s => new StationResponse(s.Id, s.Code, s.Name, s.Address, s.Latitude, s.Longitude, s.OrderIndex, s.IsActive))
-            .ToListAsync(cancellationToken);
+        stations.ListActiveAsync(cancellationToken);
 
-    public async Task<PaginatedList<StationResponse>> GetPageAsync(GetStationsPagedRequest request, CancellationToken cancellationToken = default)
-    {
-        var query = context.Stations
-            .AsNoTracking()
-            .Where(s => !s.IsDeleted);
-
-        if (request.IsActiveOnly.HasValue)
-        {
-            query = query.Where(s => s.IsActive == request.IsActiveOnly.Value);
-        }
-
-        var source = query
-            .OrderBy(s => s.OrderIndex)
-            .Select(s => new StationResponse(s.Id, s.Code, s.Name, s.Address, s.Latitude, s.Longitude, s.OrderIndex, s.IsActive));
-
-        return await PaginatedList<StationResponse>.CreateAsync(source, request.PageNumber, request.PageSize, cancellationToken);
-    }
+    public Task<PaginatedList<StationResponse>> GetPageAsync(GetStationsPagedRequest request, CancellationToken cancellationToken = default) =>
+        stations.GetPageAsync(request, cancellationToken);
 }

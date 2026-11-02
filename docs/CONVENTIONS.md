@@ -56,9 +56,9 @@ Quyết định của nhóm: bỏ CQRS/MediatR, chuyển về Service layer thu�
 | Bookings / Checkout / Guest Access, Payments / VNPay, Refunds, QR | ✅ Đã migrate — Controller → IService → Service → IRepository → Repository → EF Core; xem `waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md` |
 | SightseeingAudio, AiBooking | ✅ Đã migrate — Controller → IService; SQL audio qua repository; provider Azure/Semantic Kernel và adapter gọi Trips/Stations nằm ở Infrastructure. Xem `docs/thinh-ai/AI_SERVICE_MIGRATION.md` |
 | Incidents (Weather Guard), Tracking (GPS) | ✅ Đã migrate — Controller → IService → Service → IRepository → Repository; hub `BoatTrackingHub` và `BoatSimulatorService` gọi `IBoatTrackingService`; Hangfire job gọi `IWeatherGuardService` |
-| Fares | ✅ Đã migrate — `IFareService`/`FareService` (chỉ cần `IApplicationDbContext`), không có Request (GET không tham số) |
-| Boats | ✅ Đã migrate — `IBoatService`/`BoatService`; `UpdateBoatRequest` bỏ field `Id` (lấy từ route), xoá luôn code so khớp Id route/body cũ (M10) |
-| Stations | ✅ Đã migrate — `IStationService`/`StationService`; `UpdateStationRequest` bỏ field `Id` tương tự Boats. Adapter AI (`MediatRTripSearchTool`) đổi sang gọi `IStationService` thay vì `Mediator.Send(GetStationsQuery)` |
+| Fares | ✅ Đã migrate — `IFareService`/`FareService` → `IFareRuleRepository`/`FareRuleRepository`, không có Request (GET không tham số) |
+| Boats | ✅ Đã migrate — `IBoatService`/`BoatService` → `IBoatRepository`/`BoatRepository` + `IUnitOfWork`; `UpdateBoatRequest` bỏ field `Id` (lấy từ route), xoá luôn code so khớp Id route/body cũ (M10) |
+| Stations | ✅ Đã migrate — `IStationService`/`StationService` → `IStationRepository`/`StationRepository` + `IUnitOfWork`; `UpdateStationRequest` bỏ field `Id` tương tự Boats. Adapter AI (`MediatRTripSearchTool`) đổi sang gọi `IStationService` thay vì `Mediator.Send(GetStationsQuery)` |
 | CheckIns, Trips | ⏳ Chưa migrate — vẫn CQRS/MediatR |
 
 **Quy tắc migrate**: KHÔNG trộn 2 pattern trong cùng 1 feature. KHÔNG tự migrate feature chưa được giao — báo trong nhóm trước khi bắt đầu, tránh 2 người cùng đổi 1 feature cùng lúc (xung đột lớn, khó merge). Cập nhật lại bảng trên (đổi ⏳ → ✅) trong PR migrate feature đó.
@@ -76,8 +76,13 @@ Application/
     Responses/{Feature}/{Name}Response.cs
   Validators/{Feature}/{Name}RequestValidator.cs
   Interfaces/Services/I{Feature}Service.cs
-  Features/{Feature}/Services/{Name}Service.cs   # implementation, nếu chỉ cần interface hạ tầng sẵn có (IApplicationDbContext, IRepository...)
+  Interfaces/Repositories/I{Feature}Repository.cs   # contract persistence — Service KHÔNG gọi EF Core/IApplicationDbContext trực tiếp
+  Features/{Feature}/Services/{Name}Service.cs      # implementation, inject I{Feature}Repository + IUnitOfWork (ghi)
+
+Infrastructure/
+  Repositories/{Feature}Repository.cs   # implement I{Feature}Repository bằng ApplicationDbContext (AsNoTracking cho đọc, NotFoundException khi thiếu)
 ```
+- **Service không được inject `IApplicationDbContext` hay gọi EF Core trực tiếp.** Mọi đọc/ghi dữ liệu đi qua `I{Feature}Repository` (Application) → `{Feature}Repository` (Infrastructure); ghi dữ liệu xong gọi `IUnitOfWork.SaveChangesAsync`. Đây là bài học rút ra sau review PR Fares/Boats/Stations/Trips/CheckIns (lần đầu các feature này migrate có Service gọi `IApplicationDbContext` trực tiếp — đã bị yêu cầu sửa lại, xem lịch sử PR #51/#52/#53) — feature migrate sau không được lặp lại.
 - Implementation của Service đặt tại `Application/Features/{Feature}/Services/{Name}Service.cs` (không phải `Application/Services/` phẳng) — đúng vị trí thực tế đang dùng cho `Bookings`, `Incidents`, `Payments`, `Refunds`, `Tracking`, `Fares`, `Boats`, `Stations`. Ngoại lệ: `SightseeingAudio` đặt ở `Application/Services/SightseeingAudio/` (do nhóm AI làm trước khi chốt convention này — không bắt buộc đổi lại nếu không chạm tới feature đó). Lưu ý: `Features/CheckIns/Services/CheckInProcessor.cs` đã tồn tại từ trước nhưng chỉ là helper cho Handler CQRS hiện tại — CheckIns với tư cách module chưa thật sự migrate (còn `⏳` ở bảng trên).
 - Implementation **PHẢI** đặt ở `Infrastructure/...` (không phải `Application/Features/.../Services/`) nếu cần dùng type cụ thể của hạ tầng mà Application không được phép biết (ví dụ `UserManager<T>`/`SignInManager<T>` của ASP.NET Identity) — xem `Infrastructure/Identity/AuthService.cs` làm mẫu. Lý do: Application không được tham chiếu Infrastructure; Service nào cần type hạ tầng cụ thể thì chính nó phải sống ở Infrastructure, chỉ để lại interface (`IAuthService`) ở Application.
 - Dù Service nằm ở Application hay Infrastructure, đăng ký DI đều đặt chung ở `Infrastructure/DependencyInjection.cs` (theo đúng cách các service đã migrate hiện tại đang làm, vd `services.AddScoped<IFareService, WaterbusSystem.Application.Features.Fares.Services.FareService>();`).
