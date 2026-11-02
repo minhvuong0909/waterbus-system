@@ -7,6 +7,7 @@ using WaterbusSystem.Application.DTOs.Requests.CheckIns;
 using WaterbusSystem.Application.Features.CheckIns;
 using WaterbusSystem.Application.Features.CheckIns.Services;
 using WaterbusSystem.Domain.Exceptions;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.UnitTests.TestHelpers;
 using Xunit;
 
@@ -18,7 +19,8 @@ namespace WaterbusSystem.UnitTests.CheckIns;
 public class CheckInServiceSetCheckInWindowTests
 {
     private static CheckInService CreateService(WaterbusSystem.Infrastructure.Persistence.ApplicationDbContext context) => new(
-        context, Mock.Of<ICurrentUserService>(), Mock.Of<IDateTimeService>(), new CheckInProcessor(context),
+        new CheckInRepository(context), new WaterbusSystem.Infrastructure.Persistence.EfUnitOfWork(context),
+        Mock.Of<ICurrentUserService>(), Mock.Of<IDateTimeService>(), new CheckInProcessor(new CheckInRepository(context)),
         Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
 
     [Fact]

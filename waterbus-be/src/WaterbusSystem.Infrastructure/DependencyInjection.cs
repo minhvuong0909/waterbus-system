@@ -174,6 +174,7 @@ public static class DependencyInjection
         services.AddScoped<WaterbusSystem.Application.Features.Payments.Services.PaymentConfirmationService>();
         services.AddScoped<CheckoutAccessService>();
         services.AddScoped<IBookingQrSigner, RsaBookingQrSigner>();
+        services.AddScoped<ICheckInRepository, CheckInRepository>();
         services.AddScoped<CheckInProcessor>();
         services.AddScoped<ICheckInService, CheckInService>();
         services.AddSingleton(new CheckoutOptions

@@ -1,10 +1,11 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.DTOs.Requests.CheckIns;
 using WaterbusSystem.Application.DTOs.Responses.CheckIns;
+using WaterbusSystem.Application.Interfaces.Persistence;
+using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
@@ -17,7 +18,8 @@ namespace WaterbusSystem.Application.Features.CheckIns.Services;
 /// BR-OFF-01..05, BR-CFG-01).
 /// </summary>
 public sealed class CheckInService(
-    IApplicationDbContext context,
+    ICheckInRepository checkIns,
+    IUnitOfWork unitOfWork,
     ICurrentUserService currentUser,
     IDateTimeService dateTime,
     CheckInProcessor processor,
@@ -28,31 +30,22 @@ public sealed class CheckInService(
 
     public async Task<AssignScannerResponse> AssignScannerAsync(AssignScannerRequest request, CancellationToken cancellationToken = default)
     {
-        var device = await context.ScannerDevices
-            .FirstOrDefaultAsync(d => d.Id == request.DeviceId && !d.IsDeleted, cancellationToken)
-            ?? throw new NotFoundException(nameof(ScannerDevice), request.DeviceId);
+        var device = await checkIns.GetRequiredDeviceAsync(request.DeviceId, cancellationToken);
 
         if (!device.IsActive)
         {
             throw new ConflictException("Thiết bị đã bị ngưng hoạt động, không thể phân công.");
         }
 
-        var stopCall = await context.TripStopCalls
-            .FirstOrDefaultAsync(c => c.Id == request.TripStopCallId && !c.IsDeleted, cancellationToken)
-            ?? throw new NotFoundException(nameof(TripStopCall), request.TripStopCallId);
+        var stopCall = await checkIns.GetRequiredStopCallAsync(request.TripStopCallId, cancellationToken);
 
         if (request.IsPrimaryOffline)
         {
             var requestedEnd = request.ActiveUntil ?? DateTimeOffset.MaxValue;
 
             // BR-OFF-02: chỉ 1 Primary Offline Scanner hoạt động cùng lúc cho cùng điểm dừng.
-            var hasOverlappingPrimary = await context.ScannerAssignments.AsNoTracking().AnyAsync(a =>
-                    !a.IsDeleted &&
-                    a.TripStopCallId == request.TripStopCallId &&
-                    a.IsPrimaryOffline &&
-                    a.ActiveFrom < requestedEnd &&
-                    (a.ActiveUntil ?? DateTimeOffset.MaxValue) > request.ActiveFrom,
-                cancellationToken);
+            var hasOverlappingPrimary = await checkIns.HasOverlappingPrimaryAssignmentAsync(
+                request.TripStopCallId, request.ActiveFrom, requestedEnd, cancellationToken);
 
             if (hasOverlappingPrimary)
             {
@@ -73,9 +66,9 @@ public sealed class CheckInService(
             ActiveFrom = request.ActiveFrom,
             ActiveUntil = request.ActiveUntil
         };
-        context.ScannerAssignments.Add(assignment);
+        checkIns.AddAssignment(assignment);
 
-        await context.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new AssignScannerResponse(
             assignment.Id, assignment.DeviceId, assignment.StaffAccountId, assignment.TripStopCallId,
@@ -86,9 +79,7 @@ public sealed class CheckInService(
 
     public async Task<RevokeScannerAssignmentResponse> RevokeScannerAssignmentAsync(Guid assignmentId, CancellationToken cancellationToken = default)
     {
-        var assignment = await context.ScannerAssignments
-            .FirstOrDefaultAsync(a => a.Id == assignmentId && !a.IsDeleted, cancellationToken)
-            ?? throw new NotFoundException(nameof(ScannerAssignment), assignmentId);
+        var assignment = await checkIns.GetRequiredAssignmentAsync(assignmentId, cancellationToken);
 
         var now = dateTime.Now;
 
@@ -105,14 +96,7 @@ public sealed class CheckInService(
 
         assignment.UpdatedAt = now;
 
-        try
-        {
-            await context.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException ex)
-        {
-            throw new ConcurrencyException("Phân công vừa được cập nhật bởi người khác. Vui lòng tải lại.", ex);
-        }
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new RevokeScannerAssignmentResponse(assignment.Id, assignment.ActiveUntil!.Value);
     }
@@ -121,9 +105,7 @@ public sealed class CheckInService(
 
     public async Task<SetCheckInWindowResponse> SetCheckInWindowAsync(Guid tripStopCallId, SetCheckInWindowRequest request, CancellationToken cancellationToken = default)
     {
-        var stopCall = await context.TripStopCalls
-            .FirstOrDefaultAsync(c => c.Id == tripStopCallId && !c.IsDeleted, cancellationToken)
-            ?? throw new NotFoundException(nameof(TripStopCall), tripStopCallId);
+        var stopCall = await checkIns.GetRequiredStopCallAsync(tripStopCallId, cancellationToken);
 
         // Điểm dừng đã khởi hành/bị bỏ qua thì không còn ý nghĩa để cấu hình cửa sổ check-in.
         if (stopCall.Status is "Departed" or "Skipped")
@@ -135,14 +117,7 @@ public sealed class CheckInService(
         stopCall.CheckInCloseAt = request.CheckInCloseAt;
         stopCall.UpdatedAt = DateTimeOffset.UtcNow;
 
-        try
-        {
-            await context.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException ex)
-        {
-            throw new ConcurrencyException("Điểm dừng vừa được cập nhật bởi người khác. Vui lòng tải lại.", ex);
-        }
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new SetCheckInWindowResponse(stopCall.Id, request.CheckInOpenAt, request.CheckInCloseAt);
     }
@@ -164,14 +139,7 @@ public sealed class CheckInService(
             staffId, request.TicketId, request.TripStopCallId, request.ClientEventId,
             request.OccurredAtDevice, request.Note, now, cancellationToken);
 
-        try
-        {
-            await context.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException ex)
-        {
-            throw new ConcurrencyException("Vé vừa được cập nhật bởi người khác. Vui lòng quét lại.", ex);
-        }
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new CheckInResultResponse(outcome.Outcome, outcome.CheckedInAt, outcome.TicketCode, outcome.PassengerName);
     }
@@ -197,7 +165,7 @@ public sealed class CheckInService(
                     staffId, evt.TicketId, evt.TripStopCallId, evt.ClientEventId,
                     evt.OccurredAtDevice, evt.Note, now, cancellationToken);
 
-                await context.SaveChangesAsync(cancellationToken);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
 
                 results.Add(new CheckInEventSyncResultResponse(evt.ClientEventId, outcome.Outcome, wasAlreadySynced, null));
             }
@@ -205,13 +173,13 @@ public sealed class CheckInService(
             {
                 // Vé/điểm dừng không tồn tại (dữ liệu offline đã cũ) - không làm fail cả lô,
                 // chỉ báo lỗi cho đúng event này để client biết cần preload lại manifest.
-                // Dọn entity dở dang (nếu có) để không lẫn vào lần SaveChangesAsync của event kế tiếp.
-                context.DiscardTrackedChanges();
+                // Dọn entity dở dang (nếu có) để không lẫn vào lần lưu của event kế tiếp.
+                unitOfWork.DiscardTrackedChanges();
                 results.Add(new CheckInEventSyncResultResponse(evt.ClientEventId, "Error", false, ex.Message));
             }
-            catch (DbUpdateConcurrencyException)
+            catch (ConcurrencyException)
             {
-                context.DiscardTrackedChanges();
+                unitOfWork.DiscardTrackedChanges();
                 results.Add(new CheckInEventSyncResultResponse(evt.ClientEventId, "Error", false,
                     "Vé vừa được cập nhật bởi người khác. Vui lòng đồng bộ lại."));
             }
@@ -232,27 +200,7 @@ public sealed class CheckInService(
 
         var now = dateTime.Now;
 
-        return await context.ScannerAssignments.AsNoTracking()
-            .Where(a => !a.IsDeleted && a.StaffAccountId == staffId &&
-                        (a.ActiveUntil == null || a.ActiveUntil >= now))
-            .OrderBy(a => a.ActiveFrom)
-            .Select(a => new MyScannerAssignmentResponse(
-                a.Id,
-                a.TripStopCallId,
-                a.TripStopCall!.TripId,
-                a.TripStopCall.Trip!.Route!.Name,
-                a.TripStopCall.RouteStop!.Station!.Name,
-                a.TripStopCall.VisitOrder,
-                a.TripStopCall.Trip.Status.ToString(),
-                a.TripStopCall.EstimatedArrivalTime,
-                a.DeviceId,
-                a.Device!.DeviceCode,
-                a.IsPrimaryOffline,
-                a.ActiveFrom,
-                a.ActiveUntil,
-                a.TripStopCall.CheckInOpenAt,
-                a.TripStopCall.CheckInCloseAt))
-            .ToListAsync(cancellationToken);
+        return await checkIns.ListMyAssignmentsAsync(staffId, now, cancellationToken);
     }
 
     // ---------------- GetScannerManifest ----------------
@@ -267,21 +215,10 @@ public sealed class CheckInService(
 
         var now = dateTime.Now;
 
-        var stopCall = await context.TripStopCalls.AsNoTracking()
-            .Include(c => c.RouteStop!).ThenInclude(rs => rs!.Station)
-            .Include(c => c.Trip!).ThenInclude(t => t!.Route!).ThenInclude(r => r!.DepartureStation)
-            .Include(c => c.Trip!).ThenInclude(t => t!.Route!).ThenInclude(r => r!.ArrivalStation)
-            .Include(c => c.Trip!).ThenInclude(t => t!.Boat)
-            .FirstOrDefaultAsync(c => c.Id == tripStopCallId && !c.IsDeleted, cancellationToken)
-            ?? throw new NotFoundException(nameof(TripStopCall), tripStopCallId);
+        var stopCall = await checkIns.GetStopCallForManifestAsync(tripStopCallId, cancellationToken);
 
         // BR-BOARD-03: không trả manifest cho điểm dừng mà Staff không được phân công.
-        var hasAssignment = await context.ScannerAssignments.AsNoTracking().AnyAsync(a =>
-                a.StaffAccountId == staffId &&
-                a.TripStopCallId == tripStopCallId &&
-                a.ActiveFrom <= now &&
-                (a.ActiveUntil == null || a.ActiveUntil >= now),
-            cancellationToken);
+        var hasAssignment = await checkIns.HasActiveAssignmentAsync(staffId, tripStopCallId, now, cancellationToken);
         if (!hasAssignment)
         {
             throw new ForbiddenAccessException("Bạn không được phân công cho điểm dừng này.");
@@ -306,11 +243,7 @@ public sealed class CheckInService(
 
         // Chỉ các Ticket có bến lên (BoardingCallId) đúng điểm dừng này mới thuộc manifest của bến này
         // (BR-BOARD-03: Staff không check-in Ticket của bến khác dù khách đứng cùng khu vực).
-        var tickets = await context.Tickets.AsNoTracking()
-            .Include(t => t.SeatReservation!).ThenInclude(r => r!.Booking)
-            .Where(t => !t.IsDeleted && t.Status == TicketStatus.Valid &&
-                        t.SeatReservation!.Booking!.BoardingCallId == tripStopCallId)
-            .ToListAsync(cancellationToken);
+        var tickets = await checkIns.ListTicketsForManifestAsync(tripStopCallId, cancellationToken);
 
         var bookings = tickets
             .GroupBy(t => t.SeatReservation!.BookingId)
@@ -354,11 +287,7 @@ public sealed class CheckInService(
         // Điểm dừng đã đóng cửa sổ check-in (+ thời gian chờ đối soát) từ trước deadline.
         // BR-RF-06: bỏ qua điểm dừng của Trip đã Cancelled/Terminated - chuyến hủy/chấm dứt trước khi
         // phục vụ bến lên nghĩa là khách chưa từng có cơ hội check-in, không phải NoShow.
-        var closedStopCallIds = await context.TripStopCalls.AsNoTracking()
-            .Where(c => !c.IsDeleted && c.CheckInCloseAt != null && c.CheckInCloseAt <= deadline
-                        && c.Trip!.Status != TripStatus.Cancelled && c.Trip!.Status != TripStatus.Terminated)
-            .Select(c => c.Id)
-            .ToListAsync(cancellationToken);
+        var closedStopCallIds = await checkIns.ListClosedStopCallIdsAsync(deadline, cancellationToken);
 
         if (closedStopCallIds.Count == 0)
         {
@@ -366,12 +295,7 @@ public sealed class CheckInService(
         }
 
         // BR-OFF-04: trì hoãn các điểm dừng còn CheckInEvent chưa giải quyết (đồng bộ offline đang dở).
-        var unresolvedStopCallIds = await context.CheckInEvents.AsNoTracking()
-            .Where(e => closedStopCallIds.Contains(e.TripStopCallId) &&
-                        (e.SyncStatus == "Pending" || e.SyncStatus == "Conflict"))
-            .Select(e => e.TripStopCallId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        var unresolvedStopCallIds = await checkIns.ListUnresolvedStopCallIdsAsync(closedStopCallIds, cancellationToken);
 
         var eligibleStopCallIds = closedStopCallIds.Except(unresolvedStopCallIds).ToList();
         if (eligibleStopCallIds.Count == 0)
@@ -382,12 +306,7 @@ public sealed class CheckInService(
             return new NoShowFinalizationResultResponse(0, closedStopCallIds.Count, 0);
         }
 
-        var tickets = await context.Tickets
-            .Where(t => !t.IsDeleted &&
-                        t.Status == TicketStatus.Valid &&
-                        t.BoardingStatus == BoardingStatus.NotCheckedIn &&
-                        eligibleStopCallIds.Contains(t.SeatReservation!.Booking!.BoardingCallId))
-            .ToListAsync(cancellationToken);
+        var tickets = await checkIns.ListNoShowCandidateTicketsAsync(eligibleStopCallIds, cancellationToken);
 
         foreach (var ticket in tickets)
         {
@@ -397,7 +316,7 @@ public sealed class CheckInService(
 
         if (tickets.Count > 0)
         {
-            await context.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         logger.LogInformation(

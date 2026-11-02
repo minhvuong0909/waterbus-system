@@ -8,6 +8,7 @@ using WaterbusSystem.Application.DTOs.Requests.CheckIns;
 using WaterbusSystem.Application.Features.CheckIns;
 using WaterbusSystem.Application.Features.CheckIns.Services;
 using WaterbusSystem.Domain.Entities;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.UnitTests.TestHelpers;
 using Xunit;
 
@@ -29,7 +30,8 @@ public class CheckInServiceMyScannerAssignmentsTests
         var clock = new Mock<IDateTimeService>();
         clock.Setup(x => x.Now).Returns(now);
 
-        return new CheckInService(context, user.Object, clock.Object, new CheckInProcessor(context),
+        return new CheckInService(new CheckInRepository(context), new WaterbusSystem.Infrastructure.Persistence.EfUnitOfWork(context),
+            user.Object, clock.Object, new CheckInProcessor(new CheckInRepository(context)),
             Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
     }
 
