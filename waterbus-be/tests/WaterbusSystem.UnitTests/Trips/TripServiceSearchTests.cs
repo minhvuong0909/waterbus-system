@@ -1,7 +1,9 @@
 using FluentAssertions;
 using Moq;
 using WaterbusSystem.Application.Common.Interfaces;
-using WaterbusSystem.Application.Features.Trips.Queries.SearchTrips;
+using WaterbusSystem.Application.DTOs.Requests.Trips;
+using WaterbusSystem.Application.DTOs.Responses.Trips;
+using WaterbusSystem.Application.Features.Trips.Services;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Infrastructure.Persistence;
@@ -10,7 +12,7 @@ using Xunit;
 
 namespace WaterbusSystem.UnitTests.Trips;
 
-public class SearchTripsQueryHandlerTests
+public class TripServiceSearchTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 21, 5, 0, 0, TimeSpan.Zero);
 
@@ -18,7 +20,7 @@ public class SearchTripsQueryHandlerTests
     private readonly TestDbContextFactory.TripSeedData _seed;
     private readonly Mock<IDateTimeService> _clock = new();
 
-    public SearchTripsQueryHandlerTests()
+    public TripServiceSearchTests()
     {
         _clock.Setup(c => c.Now).Returns(() => Now);
         _seed = TestDbContextFactory.SeedTrip(_context);
@@ -27,7 +29,7 @@ public class SearchTripsQueryHandlerTests
         _context.SaveChanges();
     }
 
-    private SearchTripsQueryHandler Handler() => new(_context, _clock.Object);
+    private TripService Service() => new(_context, Mock.Of<ICurrentUserService>(), _clock.Object, Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>());
 
     private Trip SetDeparture(DateTimeOffset departure)
     {
@@ -38,8 +40,8 @@ public class SearchTripsQueryHandlerTests
         return _seed.Trip;
     }
 
-    private Task<List<TripDto>> Search(DateTime date) =>
-        Handler().Handle(new SearchTripsQuery(null, null, date, null), CancellationToken.None);
+    private Task<List<TripSearchResponse>> Search(DateTime date) =>
+        Service().SearchAsync(new SearchTripsRequest(null, null, date, null), CancellationToken.None);
 
     // ---- Ngày tìm kiếm là ngày giờ Việt Nam ----
 
@@ -132,8 +134,8 @@ public class SearchTripsQueryHandlerTests
     [Fact]
     public async Task SearchByMidRouteStation_ShouldFindTripBoardingThere()
     {
-        var found = await Handler().Handle(
-            new SearchTripsQuery(_seed.StationB.Id, null, null, null), CancellationToken.None);
+        var found = await Service().SearchAsync(
+            new SearchTripsRequest(_seed.StationB.Id, null, null, null), CancellationToken.None);
 
         found.Should().ContainSingle();
         found.Single().DepartureStationName.Should().Be(_seed.StationB.Name);
@@ -143,8 +145,8 @@ public class SearchTripsQueryHandlerTests
     public async Task SearchBoardingAfterDisembarking_ShouldNotMatch()
     {
         // Bến B (VisitOrder 2) sau bến A (VisitOrder 1) theo chiều chuyến -> không phải hành trình hợp lệ.
-        var found = await Handler().Handle(
-            new SearchTripsQuery(_seed.StationB.Id, _seed.StationA.Id, null, null), CancellationToken.None);
+        var found = await Service().SearchAsync(
+            new SearchTripsRequest(_seed.StationB.Id, _seed.StationA.Id, null, null), CancellationToken.None);
 
         found.Should().BeEmpty();
     }
@@ -160,12 +162,12 @@ public class SearchTripsQueryHandlerTests
         });
         await _context.SaveChangesAsync();
 
-        var laterSegment = await Handler().Handle(
-            new SearchTripsQuery(_seed.StationB.Id, _seed.StationC.Id, null, null), CancellationToken.None);
+        var laterSegment = await Service().SearchAsync(
+            new SearchTripsRequest(_seed.StationB.Id, _seed.StationC.Id, null, null), CancellationToken.None);
         laterSegment.Single().AvailableSeatsCount.Should().Be(2);
 
-        var wholeTrip = await Handler().Handle(
-            new SearchTripsQuery(null, null, null, null), CancellationToken.None);
+        var wholeTrip = await Service().SearchAsync(
+            new SearchTripsRequest(null, null, null, null), CancellationToken.None);
         wholeTrip.Single().AvailableSeatsCount.Should().Be(1);
     }
 }
