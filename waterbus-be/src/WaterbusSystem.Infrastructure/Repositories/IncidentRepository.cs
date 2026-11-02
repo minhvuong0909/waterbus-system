@@ -16,6 +16,11 @@ public sealed class IncidentRepository(ApplicationDbContext context) : IIncident
         await context.Incidents.FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted, cancellationToken)
         ?? throw new NotFoundException(nameof(Incident), id);
 
+    public async Task<Incident> GetRequiredWithAffectedTripsAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await context.Incidents.Include(i => i.AffectedTrips)
+            .FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted, cancellationToken)
+        ?? throw new NotFoundException(nameof(Incident), id);
+
     public async Task<IncidentDetailResponse>  GetDetailAsync(Guid id, CancellationToken cancellationToken = default) =>
         await context.Incidents.AsNoTracking()
             .Where(i => i.Id == id && !i.IsDeleted)

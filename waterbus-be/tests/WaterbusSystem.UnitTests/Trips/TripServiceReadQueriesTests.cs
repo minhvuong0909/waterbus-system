@@ -7,6 +7,8 @@ using WaterbusSystem.Application.Validators.Trips;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
+using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.UnitTests.TestHelpers;
 using Xunit;
 using ValidationException = WaterbusSystem.Application.Common.Exceptions.ValidationException;
@@ -18,8 +20,9 @@ public class TripServiceReadQueriesTests
     private sealed class Clock : IDateTimeService { public DateTimeOffset Now { get; } = DateTimeOffset.UtcNow; }
     private readonly Clock _clock = new();
 
-    private static TripService Service(Infrastructure.Persistence.ApplicationDbContext context, IDateTimeService clock) =>
-        new(context, Mock.Of<ICurrentUserService>(), clock, Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>());
+    private static TripService Service(ApplicationDbContext context, IDateTimeService clock) =>
+        new(new TripRepository(context), new IncidentRepository(context), new EfUnitOfWork(context),
+            Mock.Of<ICurrentUserService>(), clock, Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>());
 
     private static GetTripSeatMapRequest Req(TestDbContextFactory.TripSeedData seed, int from = 1, int to = 3) =>
         new(seed.Trip.TripStopCalls.Single(c => c.VisitOrder == from).Id,

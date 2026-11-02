@@ -31,9 +31,8 @@ public class TripsController(ITripService tripService) : BaseApiController
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<TripSeatMapResponse>> GetSeats(Guid tripId,
-        [FromQuery] Guid boardingCallId, [FromQuery] Guid disembarkingCallId) =>
-        Ok(await tripService.GetSeatMapAsync(tripId, new GetTripSeatMapRequest(boardingCallId, disembarkingCallId), HttpContext.RequestAborted));
+    public async Task<ActionResult<TripSeatMapResponse>> GetSeats(Guid tripId, [FromQuery] GetTripSeatMapRequest request) =>
+        Ok(await tripService.GetSeatMapAsync(tripId, request, HttpContext.RequestAborted));
 
     /// <summary>
     /// Chuyến cho màn hình vận hành: Admin xem mọi chuyến, thuyền trưởng chỉ chuyến của tàu mình.
@@ -44,18 +43,16 @@ public class TripsController(ITripService tripService) : BaseApiController
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType(typeof(List<TripOperationItemResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<List<TripOperationItemResponse>>> GetOperations(
-        [FromQuery] DateTimeOffset? from, [FromQuery] DateTimeOffset? to, [FromQuery] TripStatus[]? status) =>
-        Ok(await tripService.GetOperationsAsync(new GetTripOperationsRequest(from, to, status), HttpContext.RequestAborted));
+    public async Task<ActionResult<List<TripOperationItemResponse>>> GetOperations([FromQuery] GetTripOperationsRequest request) =>
+        Ok(await tripService.GetOperationsAsync(request, HttpContext.RequestAborted));
 
     /// <summary>Nhật ký thao tác vận hành (ai đổi trạng thái chuyến nào, lúc nào, vì sao), mới nhất trước. Chỉ Admin.</summary>
     [HttpGet("operations/events")]
     [Authorize(Policy = "AdminOnly")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType(typeof(List<TripOperationEventResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<TripOperationEventResponse>>> GetOperationEvents(
-        [FromQuery] Guid? tripId, [FromQuery] int take = 50) =>
-        Ok(await tripService.GetOperationEventsAsync(new GetTripOperationEventsRequest(tripId, take), HttpContext.RequestAborted));
+    public async Task<ActionResult<List<TripOperationEventResponse>>> GetOperationEvents([FromQuery] GetTripOperationEventsRequest request) =>
+        Ok(await tripService.GetOperationEventsAsync(request, HttpContext.RequestAborted));
 
     /// <summary>
     /// Đổi trạng thái chuyến. Thuyền trưởng chỉ OpenBoarding/Start/Arrive trên chuyến của tàu mình;

@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using ValidationException = WaterbusSystem.Application.Common.Exceptions.ValidationException;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
@@ -6,6 +5,8 @@ using WaterbusSystem.Application.DTOs.Requests.Trips;
 using WaterbusSystem.Application.DTOs.Responses.Trips;
 using WaterbusSystem.Application.Features.Bookings.Services;
 using WaterbusSystem.Application.Features.Incidents;
+using WaterbusSystem.Application.Interfaces.Persistence;
+using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
@@ -20,7 +21,9 @@ namespace WaterbusSystem.Application.Features.Trips.Services;
 /// trên chuyến của tàu mình. Incident không tự đổi Trip.Status (BR-INC-03).
 /// </summary>
 public sealed class TripService(
-    IApplicationDbContext context,
+    ITripRepository tripRepository,
+    IIncidentRepository incidentRepository,
+    IUnitOfWork unitOfWork,
     ICurrentUserService currentUser,
     IDateTimeService dateTime,
     IOperationsAlertPublisher publisher,
@@ -32,7 +35,7 @@ public sealed class TripService(
 
     public async Task<TripDetailResponse> GetDetailAsync(Guid tripId, CancellationToken cancellationToken = default)
     {
-        var trip = await TripReadRules.LoadAsync(context, tripId, cancellationToken);
+        var trip = await tripRepository.GetDetailGraphAsync(tripId, cancellationToken);
         var salesState = TripReadRules.SalesState(trip, dateTime.Now);
         return new(trip.Id, trip.RouteId, trip.Route?.Name ?? "", trip.TripType.ToString(),
             trip.Status.ToString(), trip.DepartureTime, trip.ArrivalTime, trip.SalesCloseAt,
@@ -48,7 +51,7 @@ public sealed class TripService(
 
     public async Task<TripSeatMapResponse> GetSeatMapAsync(Guid tripId, GetTripSeatMapRequest request, CancellationToken cancellationToken = default)
     {
-        var trip = await TripReadRules.LoadAsync(context, tripId, cancellationToken);
+        var trip = await tripRepository.GetDetailGraphAsync(tripId, cancellationToken);
         var boarding = trip.TripStopCalls.SingleOrDefault(c => c.Id == request.BoardingCallId);
         var disembarking = trip.TripStopCalls.SingleOrDefault(c => c.Id == request.DisembarkingCallId);
         if (boarding is null || disembarking is null)
@@ -60,19 +63,13 @@ public sealed class TripService(
 
         var now = dateTime.Now;
         var salesState = TripReadRules.SalesState(trip, now);
-        var seats = await context.Seats.AsNoTracking().Include(s => s.SeatClass)
-            .Where(s => s.BoatId == trip.Boat.Id).OrderBy(s => s.RowNumber).ThenBy(s => s.ColumnNumber)
-            .ThenBy(s => s.SeatCode).ToListAsync(cancellationToken);
+        var seats = await tripRepository.ListSeatsForBoatAsync(trip.Boat.Id, cancellationToken);
         var type = trip.TripType.ToString();
-        var fares = await context.FareRules.AsNoTracking().Where(f => f.TripType == type && f.IsActive
-            && f.EffectiveFrom <= now && (f.EffectiveTo == null || f.EffectiveTo > now)).ToListAsync(cancellationToken);
+        var fares = await tripRepository.ListActiveFaresForTypeAsync(type, now, cancellationToken);
         if (fares.GroupBy(f => f.SeatClassId).Any(g => g.Count() > 1))
             throw new ConcurrencyException("Có nhiều bảng giá cùng hiệu lực; cần Admin kiểm tra trước khi bán.");
         var priceByClass = fares.ToDictionary(f => f.SeatClassId);
-        var overlaps = await context.SeatReservations.AsNoTracking()
-            .Where(r => r.TripId == trip.Id && r.Status != ReservationStatus.Cancelled
-                && boarding.VisitOrder < r.DisembarkingStopOrder && disembarking.VisitOrder > r.BoardingStopOrder)
-            .Select(r => new { r.SeatId, r.Status, ExpiresAt = r.Booking!.Order!.ExpiresAt }).ToListAsync(cancellationToken);
+        var overlaps = await tripRepository.ListOverlappingReservationsAsync(trip.Id, boarding.VisitOrder, disembarking.VisitOrder, cancellationToken);
         var bySeat = overlaps.ToLookup(r => r.SeatId);
 
         var result = seats.Select(seat =>
@@ -110,38 +107,15 @@ public sealed class TripService(
         var now = dateTime.Now;
         var from = request.From ?? now.AddHours(-12);
         var to = request.To ?? from.AddDays(7);
+        Guid? captainId = isAdmin ? null : Guid.Parse(currentUser.UserId!);
 
-        var query = context.Trips.AsNoTracking()
-            .Where(t => !t.IsDeleted && t.DepartureTime >= from && t.DepartureTime < to);
+        var rows = await tripRepository.ListForOperationsAsync(from, to, captainId, request.Statuses, MaxOperationsItems, cancellationToken);
 
-        if (!isAdmin)
-        {
-            var captainId = Guid.Parse(currentUser.UserId!);
-            query = query.Where(t => t.Boat != null && t.Boat.CaptainUserId == captainId);
-        }
-        if (request.Statuses is { Count: > 0 })
-        {
-            var statuses = request.Statuses;
-            query = query.Where(t => statuses.Contains(t.Status));
-        }
-
-        var rows = await query
-            .OrderBy(t => t.DepartureTime)
-            .Take(MaxOperationsItems)
-            .Select(t => new
-            {
-                Trip = t,
-                RouteCode = t.Route!.Code,
-                RouteName = t.Route.Name,
-                BoatCode = t.Boat != null ? t.Boat.Code : null
-            })
-            .ToListAsync(cancellationToken);
-
-        return rows.Select(r => new TripOperationItemResponse(
-                r.Trip.Id, r.Trip.ScheduleId, r.Trip.RouteId, r.RouteCode, r.RouteName, r.Trip.BoatId, r.BoatCode,
-                r.Trip.TripType.ToString(), r.Trip.Status.ToString(), r.Trip.DepartureTime, r.Trip.ArrivalTime,
-                r.Trip.ActualDepartureTime, r.Trip.ActualArrivalTime, r.Trip.IsDelayed,
-                TripLifecycle.AllowedOperations(r.Trip).Select(o => o.ToString()).ToList()))
+        return rows.Select(t => new TripOperationItemResponse(
+                t.Id, t.ScheduleId, t.RouteId, t.Route!.Code, t.Route.Name, t.BoatId, t.Boat?.Code,
+                t.TripType.ToString(), t.Status.ToString(), t.DepartureTime, t.ArrivalTime,
+                t.ActualDepartureTime, t.ActualArrivalTime, t.IsDelayed,
+                TripLifecycle.AllowedOperations(t).Select(o => o.ToString()).ToList()))
             .ToList();
     }
 
@@ -149,13 +123,7 @@ public sealed class TripService(
 
     public async Task<List<TripOperationEventResponse>> GetOperationEventsAsync(GetTripOperationEventsRequest request, CancellationToken cancellationToken = default)
     {
-        var query = context.TripOperationEvents.AsNoTracking().Where(e => !e.IsDeleted);
-        if (request.TripId is { } tripId) query = query.Where(e => e.TripId == tripId);
-
-        var events = await query
-            .OrderByDescending(e => e.OccurredAt)
-            .Take(request.Take)
-            .ToListAsync(cancellationToken);
+        var events = await tripRepository.ListOperationEventsAsync(request.TripId, request.Take, cancellationToken);
 
         var actorIds = events
             .Select(e => e.ActedByAdminId ?? e.ActedByCaptainId)
@@ -185,10 +153,7 @@ public sealed class TripService(
             throw new ForbiddenAccessException("Chỉ Admin hoặc thuyền trưởng mới được đổi trạng thái chuyến.");
         }
 
-        var trip = await context.Trips
-            .Include(t => t.Boat)
-            .FirstOrDefaultAsync(t => t.Id == tripId && !t.IsDeleted, cancellationToken)
-            ?? throw new NotFoundException(nameof(Trip), tripId);
+        var trip = await tripRepository.GetTrackedWithBoatAsync(tripId, cancellationToken);
 
         if (!isAdmin)
         {
@@ -214,7 +179,7 @@ public sealed class TripService(
         if (request.Operation == TripOperation.NoAction)
         {
             RecordDecision(decision!, request.Operation, userId.Value, now);
-            await SaveAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
             return ToResult(trip, previous, request.Operation);
         }
 
@@ -236,7 +201,7 @@ public sealed class TripService(
         }
         if (request.Operation == TripOperation.Arrive) trip.ActualArrivalTime = now;
 
-        context.TripOperationEvents.Add(new TripOperationEvent
+        tripRepository.AddOperationEvent(new TripOperationEvent
         {
             TripId = trip.Id,
             IncidentId = request.IncidentId,
@@ -254,7 +219,7 @@ public sealed class TripService(
             RecordDecision(decision, request.Operation, userId.Value, now);
         }
 
-        await SaveAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Chỉ phát sau khi đã lưu thành công
         await publisher.PublishTripStatusChangedAsync(
@@ -284,17 +249,14 @@ public sealed class TripService(
     {
         if (incidentId is not { } id) return null;
 
-        var incident = await context.Incidents
-            .Include(i => i.AffectedTrips)
-            .FirstOrDefaultAsync(i => i.Id == id && !i.IsDeleted, cancellationToken)
-            ?? throw new NotFoundException(nameof(Incident), id);
+        var incident = await incidentRepository.GetRequiredWithAffectedTripsAsync(id, cancellationToken);
 
         var link = incident.AffectedTrips.FirstOrDefault(t => t.TripId == tripId);
         if (link is null)
         {
             // Admin có thể xử lý một chuyến mà job chưa liên kết (vd chuyến mới sinh sau lượt quét)
             link = new IncidentTrip { IncidentId = id, TripId = tripId };
-            context.IncidentTrips.Add(link);
+            incidentRepository.AddTripLink(link);
         }
 
         return new IncidentDecision(incident, link);
@@ -306,19 +268,6 @@ public sealed class TripService(
         decision.Link.DecisionByAdminId = adminId;
         decision.Link.DecisionAt = now;
         decision.Incident.HandledByAdminId = adminId;
-    }
-
-    private async Task SaveAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await context.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException ex)
-        {
-            // Người khác vừa đổi trạng thái chuyến: để người dùng tải lại rồi quyết định lại
-            throw new ConcurrencyException("Trạng thái chuyến vừa được thay đổi bởi người khác. Vui lòng tải lại.", ex);
-        }
     }
 
     private static TripOperationResultResponse ToResult(Trip trip, TripStatus previous, TripOperation operation) =>
@@ -336,10 +285,7 @@ public sealed class TripService(
             throw new ForbiddenAccessException("Chỉ thuyền trưởng mới được báo SOS.");
         }
 
-        var trip = await context.Trips.AsNoTracking()
-            .Include(t => t.Boat)
-            .FirstOrDefaultAsync(t => t.Id == tripId && !t.IsDeleted, cancellationToken)
-            ?? throw new NotFoundException(nameof(Trip), tripId);
+        var trip = await tripRepository.GetWithBoatAsync(tripId, cancellationToken);
 
         if (trip.Boat?.CaptainUserId != captainId)
         {
@@ -362,10 +308,10 @@ public sealed class TripService(
             Description = note,
             OccurredAt = now
         };
-        context.Incidents.Add(incident);
+        incidentRepository.Add(incident);
         // Admin quyết định hành động cho chuyến này sau (OperationDecision để trống)
-        context.IncidentTrips.Add(new IncidentTrip { IncidentId = incident.Id, TripId = trip.Id });
-        await context.SaveChangesAsync(cancellationToken);
+        incidentRepository.AddTripLink(new IncidentTrip { IncidentId = incident.Id, TripId = trip.Id });
+        await unitOfWork.SaveChangesAsync(cancellationToken);
 
         await publisher.PublishIncidentRaisedAsync(
             new IncidentRaisedMessage(incident.Id, incident.IncidentType, incident.Severity, trip.Id, trip.BoatId, note, now),
@@ -378,37 +324,24 @@ public sealed class TripService(
 
     public async Task<List<TripSearchResponse>> SearchAsync(SearchTripsRequest request, CancellationToken cancellationToken = default)
     {
-        var query = context.Trips
-            .AsNoTracking()
-            .Include(t => t.Route)
-            .Include(t => t.Boat)
-            .Include(t => t.TripStopCalls)
-                .ThenInclude(c => c.RouteStop)
-                    .ThenInclude(rs => rs!.Station)
-            .Where(t => !t.IsDeleted && t.Status == TripStatus.Scheduled);
-
+        DateTimeOffset? dayStart = null;
+        DateTimeOffset? dayEnd = null;
         if (request.DepartureDate.HasValue)
         {
             // Ngày khách chọn là ngày giờ Việt Nam (UTC+7); DepartureTime lưu UTC nên so theo khoảng [00:00, 24:00) giờ VN
             var date = request.DepartureDate.Value.Date;
-            var dayStart = new DateTimeOffset(date, VietnamOffset);
-            var dayEnd = dayStart.AddDays(1);
-            query = query.Where(t => t.DepartureTime >= dayStart && t.DepartureTime < dayEnd);
+            dayStart = new DateTimeOffset(date, VietnamOffset);
+            dayEnd = dayStart.Value.AddDays(1);
         }
 
-        if (request.TripType.HasValue)
-        {
-            query = query.Where(t => t.TripType == request.TripType.Value);
-        }
-
-        var trips = await query.OrderBy(t => t.DepartureTime).ToListAsync(cancellationToken);
+        var scheduledTrips = await tripRepository.SearchScheduledAsync(dayStart, dayEnd, request.TripType, cancellationToken);
 
         // H05: bến lên/bến xuống hợp lệ của một Trip là các điểm dừng THỰC TẾ của chuyến (TripStopCall →
         // RouteStop), không suy diễn từ Route.DepartureStationId/ArrivalStationId + Station.OrderIndex
         // toàn hệ thống như trước - cách cũ bỏ sót chuyến có khách lên ở bến giữa. Cùng cơ chế resolve với
         // BookingCreationService.ResolveJourneyCalls để kết quả search luôn đặt được vé.
         var matched = new List<(Trip Trip, List<TripStopCall> Calls, TripStopCall Boarding, TripStopCall Disembarking)>();
-        foreach (var trip in trips)
+        foreach (var trip in scheduledTrips)
         {
             var calls = trip.TripStopCalls
                 .Where(c => c.RouteStop != null && c.Status != "Skipped")
@@ -446,23 +379,13 @@ public sealed class TripService(
         // H05: đếm ghế bận theo đúng chặng tìm kiếm bằng Segment Overlap Algorithm - cùng công thức đang
         // dùng ở SeatAvailabilityService, thay vì đếm ghế bận trên toàn bộ Trip bất kể đoạn nào.
         var tripIds = matched.Select(m => m.Trip.Id).ToList();
-        var reservations = await context.SeatReservations
-            .AsNoTracking()
-            .Where(r => tripIds.Contains(r.TripId) && r.Status != ReservationStatus.Cancelled)
-            .Select(r => new { r.TripId, r.SeatId, r.BoardingStopOrder, r.DisembarkingStopOrder })
-            .ToListAsync(cancellationToken);
-        var reservationsByTrip = reservations.ToLookup(r => r.TripId);
+        var reservationSegments = await tripRepository.ListReservationSegmentsAsync(tripIds, cancellationToken);
+        var reservationsByTrip = reservationSegments.ToLookup(r => r.TripId);
 
         // BR-FARE-01/02: giá chỉ phụ thuộc TripType và SeatClass. Thẻ chuyến hiển thị giá thấp nhất ("từ ...")
         // trong các bảng giá đang hiệu lực; giá từng hạng ghế nằm ở sơ đồ ghế.
         var now = dateTime.Now;
-        var fromPriceByType = (await context.FareRules
-                .AsNoTracking()
-                .Where(f => f.IsActive && f.EffectiveFrom <= now && (f.EffectiveTo == null || f.EffectiveTo > now))
-                .Select(f => new { f.TripType, f.Price })
-                .ToListAsync(cancellationToken))
-            .GroupBy(f => f.TripType)
-            .ToDictionary(g => g.Key, g => g.Min(f => f.Price));
+        var fromPriceByType = await tripRepository.GetMinActivePriceByTripTypeAsync(now, cancellationToken);
 
         return matched.Select(m =>
         {

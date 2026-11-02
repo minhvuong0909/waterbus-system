@@ -9,6 +9,7 @@ using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.UnitTests.TestHelpers;
 using Xunit;
 
@@ -34,7 +35,8 @@ public class TripServiceChangeStatusTests
         _context.SaveChanges();
     }
 
-    private TripService Service() => new(_context, _user.Object, _clock.Object, _publisher.Object, Mock.Of<IUserDirectory>());
+    private TripService Service() => new(new TripRepository(_context), new IncidentRepository(_context), new EfUnitOfWork(_context),
+        _user.Object, _clock.Object, _publisher.Object, Mock.Of<IUserDirectory>());
 
     private void AsAdmin() { _user.Setup(u => u.UserId).Returns(_adminId.ToString()); _user.Setup(u => u.UserRole).Returns("Admin"); }
     private void AsCaptain(Guid? id = null) { _user.Setup(u => u.UserId).Returns((id ?? _captainId).ToString()); _user.Setup(u => u.UserRole).Returns("Captain"); }

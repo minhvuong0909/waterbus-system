@@ -10,6 +10,7 @@ using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.UnitTests.TestHelpers;
 using Xunit;
 
@@ -51,7 +52,8 @@ public class TripServiceOperationsAndSosTests
         return trip;
     }
 
-    private TripService Service() => new(_context, _user.Object, _clock.Object, _publisher.Object, _users.Object);
+    private TripService Service() => new(new TripRepository(_context), new IncidentRepository(_context), new EfUnitOfWork(_context),
+        _user.Object, _clock.Object, _publisher.Object, _users.Object);
 
     // ---- GetTripOperations ----
 
