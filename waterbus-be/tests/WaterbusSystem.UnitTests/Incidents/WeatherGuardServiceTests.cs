@@ -4,10 +4,12 @@ using Microsoft.Extensions.Options;
 using Moq;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Incidents;
+using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Application.Features.Incidents.Services;
 using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
+using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.UnitTests.TestHelpers;
 using Xunit;
@@ -37,7 +39,7 @@ public class WeatherGuardServiceTests
 
     private WeatherGuardService CreateHandler() =>
         new(new TripRepository(_context), new RouteRepository(_context), new IncidentRepository(_context),
-            new EfUnitOfWork(_context), _weather.Object, _alerts.Object, _clock.Object, Options.Create(_options),
+            new EfUnitOfWork(_context), new SqlWeatherGuardRunLock(_context), _weather.Object, _alerts.Object, _clock.Object, Options.Create(_options),
             NullLogger<WeatherGuardService>.Instance);
 
     private void WeatherIs(double wind, double? gust = null, int code = 800) =>
@@ -282,5 +284,24 @@ public class WeatherGuardServiceTests
 
         _context.Entry(sos).Reload();
         sos.Status.Should().Be("Open");
+    }
+
+    [Fact]
+    public async Task RunWhileAnotherRunHoldsTheLock_ShouldThrowConflictAndTouchNothing()
+    {
+        var busy = new Mock<IWeatherGuardRunLock>();
+        busy.Setup(l => l.TryAcquireAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IAsyncDisposable?)null);
+        var service = new WeatherGuardService(
+            new TripRepository(_context), new RouteRepository(_context), new IncidentRepository(_context),
+            new EfUnitOfWork(_context), busy.Object, _weather.Object, _alerts.Object, _clock.Object,
+            Options.Create(_options), NullLogger<WeatherGuardService>.Instance);
+
+        var act = () => service.RunAsync();
+
+        await act.Should().ThrowAsync<ConflictException>();
+        _weather.VerifyNoOtherCalls();
+        _alerts.VerifyNoOtherCalls();
+        _context.Incidents.Should().BeEmpty();
     }
 }

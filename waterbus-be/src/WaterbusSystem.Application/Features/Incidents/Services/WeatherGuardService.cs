@@ -8,6 +8,7 @@ using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
+using WaterbusSystem.Domain.Exceptions;
 
 namespace WaterbusSystem.Application.Features.Incidents.Services;
 
@@ -16,6 +17,7 @@ public sealed class WeatherGuardService(
     IRouteRepository routes,
     IIncidentRepository incidents,
     IUnitOfWork unitOfWork,
+    IWeatherGuardRunLock runLock,
     IWeatherProvider weather,
     IOperationsAlertPublisher alerts,
     IDateTimeService dateTime,
@@ -30,8 +32,15 @@ public sealed class WeatherGuardService(
     /// <summary>Kết quả đánh giá một tuyến: quan sát tệ nhất và số lần lấy thời tiết thất bại.</summary>
     private sealed record RouteAssessment(WeatherObservation? Worst, string? Severity, bool ObservedAll, int NewFailures);
 
+    /// <summary>Thời gian chờ lượt khác xong; lâu hơn thì báo bận thay vì chạy chồng.</summary>
+    private static readonly TimeSpan LockWait = TimeSpan.FromSeconds(30);
+
     public async Task<WeatherGuardResponse> RunAsync(CancellationToken cancellationToken = default)
     {
+        // Audit M09: lượt thủ công và lượt Hangfire không được chạy chồng nhau (Incident tạo trùng cho cùng tuyến)
+        await using var gate = await runLock.TryAcquireAsync(LockWait, cancellationToken)
+            ?? throw new ConflictException("Đang có một lượt kiểm tra thời tiết khác chạy. Vui lòng thử lại sau ít phút.");
+
         var now = dateTime.Now;
 
         var activeTrips = await trips.ListActiveInWindowAsync(
