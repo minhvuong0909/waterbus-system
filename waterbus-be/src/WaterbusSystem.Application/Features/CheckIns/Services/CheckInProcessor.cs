@@ -9,8 +9,8 @@ namespace WaterbusSystem.Application.Features.CheckIns.Services;
 public record CheckInOutcome(string Outcome, DateTimeOffset? CheckedInAt, string? TicketCode, string? PassengerName);
 
 /// <summary>
-/// Logic xử lý 1 lần quét check-in, dùng chung cho luồng trực tuyến (SubmitCheckInCommand) và đồng bộ
-/// theo lô từ offline scanner (SyncCheckInEventsCommand) - BR-QR-03, BR-BOARD-03/05, BR-OFF-03/05.
+/// Logic xử lý 1 lần quét check-in, dùng chung cho luồng trực tuyến (CheckInService.SubmitCheckInAsync)
+/// và đồng bộ theo lô từ offline scanner (CheckInService.SyncCheckInEventsAsync) - BR-QR-03, BR-BOARD-03/05, BR-OFF-03/05.
 /// KHÔNG tự gọi SaveChangesAsync: caller quyết định lưu từng lần (để 1 event lỗi trong batch không
 /// làm rollback các event khác đã xử lý thành công - BR-OFF-03).
 /// </summary>

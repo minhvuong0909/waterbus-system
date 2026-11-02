@@ -56,7 +56,8 @@ Quyết định của nhóm: bỏ CQRS/MediatR, chuyển về Service layer thu�
 | Bookings / Checkout / Guest Access, Payments / VNPay, Refunds, QR | ✅ Đã migrate — Controller → IService → Service → IRepository → Repository → EF Core; xem `waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md` |
 | SightseeingAudio, AiBooking | ✅ Đã migrate — Controller → IService; SQL audio qua repository; provider Azure/Semantic Kernel và adapter gọi Trips/Stations nằm ở Infrastructure. Xem `docs/thinh-ai/AI_SERVICE_MIGRATION.md` |
 | Incidents (Weather Guard), Tracking (GPS) | ✅ Đã migrate — Controller → IService → Service → IRepository → Repository; hub `BoatTrackingHub` và `BoatSimulatorService` gọi `IBoatTrackingService`; Hangfire job gọi `IWeatherGuardService` |
-| Boats, CheckIns, Fares, Stations, Trips | ⏳ Chưa migrate — vẫn CQRS/MediatR |
+| CheckIns | ✅ Đã migrate — `ICheckInService`/`CheckInService` (8 use case: AssignScanner, RevokeScannerAssignment, SetCheckInWindow, SubmitCheckIn, SyncCheckInEvents, GetMyScannerAssignments, GetScannerManifest, RunNoShowFinalization). `CheckInProcessor` (helper dùng chung Submit/Sync) giữ nguyên, chỉ đổi caller. Hangfire job `NoShowFinalizationJob` đổi sang gọi `ICheckInService` thay vì `Mediator.Send` |
+| Boats, Fares, Stations, Trips | ⏳ Chưa migrate trên nhánh này — đã có PR riêng từ nhánh khác, xem lịch sử PR thay vì bảng này nếu nghi ngờ (mỗi feature migrate trên 1 branch độc lập xuất phát từ `main`, bảng này phản ánh đúng trạng thái `main` tại thời điểm tạo nhánh `CheckIns`, có thể lệch tạm thời với PR khác chưa merge) |
 
 **Quy tắc migrate**: KHÔNG trộn 2 pattern trong cùng 1 feature. KHÔNG tự migrate feature chưa được giao — báo trong nhóm trước khi bắt đầu, tránh 2 người cùng đổi 1 feature cùng lúc (xung đột lớn, khó merge). Cập nhật lại bảng trên (đổi ⏳ → ✅) trong PR migrate feature đó.
 

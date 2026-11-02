@@ -1,9 +1,12 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
-using WaterbusSystem.Application.Features.CheckIns.Commands.AssignScanner;
-using WaterbusSystem.Application.Features.CheckIns.Queries.GetMyScannerAssignments;
+using WaterbusSystem.Application.DTOs.Requests.CheckIns;
+using WaterbusSystem.Application.Features.CheckIns;
+using WaterbusSystem.Application.Features.CheckIns.Services;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.UnitTests.TestHelpers;
 using Xunit;
@@ -11,12 +14,12 @@ using Xunit;
 namespace WaterbusSystem.UnitTests.CheckIns;
 
 /// <summary>
-/// Test GetMyScannerAssignmentsQueryHandler - Staff chỉ thấy phân công của chính mình, đúng
+/// Test CheckInService.GetMyScannerAssignmentsAsync - Staff chỉ thấy phân công của chính mình, đúng
 /// phục vụ BR-OFF-01 (biết điểm dừng nào để preload manifest).
 /// </summary>
-public class GetMyScannerAssignmentsQueryHandlerTests
+public class CheckInServiceMyScannerAssignmentsTests
 {
-    private static GetMyScannerAssignmentsQueryHandler CreateHandler(
+    private static CheckInService CreateService(
         WaterbusSystem.Infrastructure.Persistence.ApplicationDbContext context, Guid staffId, DateTimeOffset now, string? role = "Staff")
     {
         var user = new Mock<ICurrentUserService>();
@@ -26,11 +29,12 @@ public class GetMyScannerAssignmentsQueryHandlerTests
         var clock = new Mock<IDateTimeService>();
         clock.Setup(x => x.Now).Returns(now);
 
-        return new GetMyScannerAssignmentsQueryHandler(context, user.Object, clock.Object);
+        return new CheckInService(context, user.Object, clock.Object, new CheckInProcessor(context),
+            Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
     }
 
     [Fact]
-    public async Task Handle_ShouldReturnOnlyAssignmentsOfCallingStaff()
+    public async Task GetMyScannerAssignmentsAsync_ShouldReturnOnlyAssignmentsOfCallingStaff()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var seed = TestDbContextFactory.SeedTrip(context);
@@ -43,20 +47,20 @@ public class GetMyScannerAssignmentsQueryHandlerTests
         var myStaffId = Guid.NewGuid();
         var otherStaffId = Guid.NewGuid();
 
-        var assignHandler = new AssignScannerCommandHandler(context);
-        await assignHandler.Handle(
-            new AssignScannerCommand(device.Id, myStaffId, stopCall.Id, true, now.AddHours(-1), now.AddHours(2)),
+        var assignService = CreateService(context, myStaffId, now);
+        await assignService.AssignScannerAsync(
+            new AssignScannerRequest(device.Id, myStaffId, stopCall.Id, true, now.AddHours(-1), now.AddHours(2)),
             CancellationToken.None);
 
         var device2 = new ScannerDevice { DeviceCode = "DEV-02", IsActive = true };
         context.ScannerDevices.Add(device2);
         context.SaveChanges();
-        await assignHandler.Handle(
-            new AssignScannerCommand(device2.Id, otherStaffId, stopCall.Id, false, now.AddHours(-1), now.AddHours(2)),
+        await assignService.AssignScannerAsync(
+            new AssignScannerRequest(device2.Id, otherStaffId, stopCall.Id, false, now.AddHours(-1), now.AddHours(2)),
             CancellationToken.None);
 
-        var handler = CreateHandler(context, myStaffId, now);
-        var result = await handler.Handle(new GetMyScannerAssignmentsQuery(), CancellationToken.None);
+        var service = CreateService(context, myStaffId, now);
+        var result = await service.GetMyScannerAssignmentsAsync(CancellationToken.None);
 
         result.Should().ContainSingle();
         result[0].TripStopCallId.Should().Be(stopCall.Id);
@@ -66,7 +70,7 @@ public class GetMyScannerAssignmentsQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenAssignmentAlreadyEnded_ShouldNotBeReturned()
+    public async Task GetMyScannerAssignmentsAsync_WhenAssignmentAlreadyEnded_ShouldNotBeReturned()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var seed = TestDbContextFactory.SeedTrip(context);
@@ -78,24 +82,24 @@ public class GetMyScannerAssignmentsQueryHandlerTests
         var now = DateTimeOffset.UtcNow;
         var staffId = Guid.NewGuid();
 
-        var assignHandler = new AssignScannerCommandHandler(context);
-        await assignHandler.Handle(
-            new AssignScannerCommand(device.Id, staffId, stopCall.Id, true, now.AddHours(-3), now.AddHours(-1)),
+        var assignService = CreateService(context, staffId, now);
+        await assignService.AssignScannerAsync(
+            new AssignScannerRequest(device.Id, staffId, stopCall.Id, true, now.AddHours(-3), now.AddHours(-1)),
             CancellationToken.None);
 
-        var handler = CreateHandler(context, staffId, now);
-        var result = await handler.Handle(new GetMyScannerAssignmentsQuery(), CancellationToken.None);
+        var service = CreateService(context, staffId, now);
+        var result = await service.GetMyScannerAssignmentsAsync(CancellationToken.None);
 
         result.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task Handle_WhenCallerIsNotStaff_ShouldThrowForbiddenAccessException()
+    public async Task GetMyScannerAssignmentsAsync_WhenCallerIsNotStaff_ShouldThrowForbiddenAccessException()
     {
         using var context = TestDbContextFactory.CreateDbContext();
-        var handler = CreateHandler(context, Guid.NewGuid(), DateTimeOffset.UtcNow, role: "Admin");
+        var service = CreateService(context, Guid.NewGuid(), DateTimeOffset.UtcNow, role: "Admin");
 
-        var act = () => handler.Handle(new GetMyScannerAssignmentsQuery(), CancellationToken.None);
+        var act = () => service.GetMyScannerAssignmentsAsync(CancellationToken.None);
 
         await act.Should().ThrowAsync<ForbiddenAccessException>();
     }

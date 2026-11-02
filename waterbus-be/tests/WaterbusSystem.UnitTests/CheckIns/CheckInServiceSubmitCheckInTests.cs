@@ -1,8 +1,11 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
-using WaterbusSystem.Application.Features.CheckIns.Commands.SubmitCheckIn;
+using WaterbusSystem.Application.DTOs.Requests.CheckIns;
+using WaterbusSystem.Application.Features.CheckIns;
 using WaterbusSystem.Application.Features.CheckIns.Services;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
@@ -14,13 +17,13 @@ using static WaterbusSystem.UnitTests.TestHelpers.CheckInScenarioFactory;
 namespace WaterbusSystem.UnitTests.CheckIns;
 
 /// <summary>
-/// Test SubmitCheckInCommandHandler đối chiếu BR-QR-03, BR-BOARD-03/05, BR-OFF-03.
+/// Test CheckInService.SubmitCheckInAsync đối chiếu BR-QR-03, BR-BOARD-03/05, BR-OFF-03.
 /// </summary>
-public class SubmitCheckInCommandHandlerTests
+public class CheckInServiceSubmitCheckInTests
 {
     private readonly Guid _staffId = Guid.NewGuid();
 
-    private SubmitCheckInCommandHandler CreateHandler(ApplicationDbContext context, DateTimeOffset now, string? role = "Staff")
+    private CheckInService CreateService(ApplicationDbContext context, DateTimeOffset now, string? role = "Staff")
     {
         var user = new Mock<ICurrentUserService>();
         user.Setup(x => x.UserId).Returns(_staffId.ToString());
@@ -29,19 +32,20 @@ public class SubmitCheckInCommandHandlerTests
         var clock = new Mock<IDateTimeService>();
         clock.Setup(x => x.Now).Returns(now);
 
-        return new SubmitCheckInCommandHandler(context, user.Object, clock.Object, new CheckInProcessor(context));
+        return new CheckInService(context, user.Object, clock.Object, new CheckInProcessor(context),
+            Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
     }
 
     [Fact]
-    public async Task Handle_WhenValidRequest_ShouldCheckInSuccessfully()
+    public async Task SubmitCheckInAsync_WhenValidRequest_ShouldCheckInSuccessfully()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var (_, _, ticket, boardingCall, now) = SeedCheckInScenario(context, _staffId);
 
-        var handler = CreateHandler(context, now);
-        var command = new SubmitCheckInCommand(ticket.Id, boardingCall.Id, "evt-1", now, null);
+        var service = CreateService(context, now);
+        var request = new SubmitCheckInRequest(ticket.Id, boardingCall.Id, "evt-1", now, null);
 
-        var result = await handler.Handle(command, CancellationToken.None);
+        var result = await service.SubmitCheckInAsync(request, CancellationToken.None);
 
         result.Outcome.Should().Be("Success");
         result.CheckedInAt.Should().Be(now);
@@ -52,7 +56,7 @@ public class SubmitCheckInCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenScannedAtWrongStop_ShouldReturnInvalidStopAndNotMutateTicket()
+    public async Task SubmitCheckInAsync_WhenScannedAtWrongStop_ShouldReturnInvalidStopAndNotMutateTicket()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var (seed, _, ticket, _, now) = SeedCheckInScenario(context, _staffId);
@@ -70,69 +74,69 @@ public class SubmitCheckInCommandHandlerTests
         });
         context.SaveChanges();
 
-        var handler = CreateHandler(context, now);
-        var result = await handler.Handle(
-            new SubmitCheckInCommand(ticket.Id, wrongStop.Id, "evt-2", now, null), CancellationToken.None);
+        var service = CreateService(context, now);
+        var result = await service.SubmitCheckInAsync(
+            new SubmitCheckInRequest(ticket.Id, wrongStop.Id, "evt-2", now, null), CancellationToken.None);
 
         result.Outcome.Should().Be("InvalidStop");
         context.Tickets.Single(t => t.Id == ticket.Id).BoardingStatus.Should().Be(BoardingStatus.NotCheckedIn);
     }
 
     [Fact]
-    public async Task Handle_WhenAlreadyCheckedIn_ShouldReturnAlreadyCheckedInWithoutThrowing()
+    public async Task SubmitCheckInAsync_WhenAlreadyCheckedIn_ShouldReturnAlreadyCheckedInWithoutThrowing()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var (_, _, ticket, boardingCall, now) = SeedCheckInScenario(context, _staffId);
 
-        var handler = CreateHandler(context, now);
-        await handler.Handle(new SubmitCheckInCommand(ticket.Id, boardingCall.Id, "evt-first", now, null), CancellationToken.None);
+        var service = CreateService(context, now);
+        await service.SubmitCheckInAsync(new SubmitCheckInRequest(ticket.Id, boardingCall.Id, "evt-first", now, null), CancellationToken.None);
 
         // Quét lại (BR-QR-03 cho phép) với ClientEventId khác (lần quét mới, không phải retry mạng).
-        var result = await handler.Handle(
-            new SubmitCheckInCommand(ticket.Id, boardingCall.Id, "evt-second", now.AddMinutes(1), null), CancellationToken.None);
+        var result = await service.SubmitCheckInAsync(
+            new SubmitCheckInRequest(ticket.Id, boardingCall.Id, "evt-second", now.AddMinutes(1), null), CancellationToken.None);
 
         result.Outcome.Should().Be("AlreadyCheckedIn");
     }
 
     [Fact]
-    public async Task Handle_WhenStaffHasNoAssignmentForStop_ShouldReturnNotAssigned()
+    public async Task SubmitCheckInAsync_WhenStaffHasNoAssignmentForStop_ShouldReturnNotAssigned()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var (_, _, ticket, boardingCall, now) = SeedCheckInScenario(context, _staffId, withAssignment: false);
 
-        var handler = CreateHandler(context, now);
-        var result = await handler.Handle(
-            new SubmitCheckInCommand(ticket.Id, boardingCall.Id, "evt-3", now, null), CancellationToken.None);
+        var service = CreateService(context, now);
+        var result = await service.SubmitCheckInAsync(
+            new SubmitCheckInRequest(ticket.Id, boardingCall.Id, "evt-3", now, null), CancellationToken.None);
 
         result.Outcome.Should().Be("NotAssigned");
         context.Tickets.Single(t => t.Id == ticket.Id).BoardingStatus.Should().Be(BoardingStatus.NotCheckedIn);
     }
 
     [Fact]
-    public async Task Handle_WhenSameClientEventIdSentTwice_ShouldBeIdempotentAndNotDuplicateEvent()
+    public async Task SubmitCheckInAsync_WhenSameClientEventIdSentTwice_ShouldBeIdempotentAndNotDuplicateEvent()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var (_, _, ticket, boardingCall, now) = SeedCheckInScenario(context, _staffId);
 
-        var handler = CreateHandler(context, now);
-        var command = new SubmitCheckInCommand(ticket.Id, boardingCall.Id, "evt-retry", now, null);
+        var service = CreateService(context, now);
+        var request = new SubmitCheckInRequest(ticket.Id, boardingCall.Id, "evt-retry", now, null);
 
-        var first = await handler.Handle(command, CancellationToken.None);
-        var second = await handler.Handle(command, CancellationToken.None);
+        var first = await service.SubmitCheckInAsync(request, CancellationToken.None);
+        var second = await service.SubmitCheckInAsync(request, CancellationToken.None);
 
         second.Outcome.Should().Be(first.Outcome);
         context.CheckInEvents.Count(e => e.ClientEventId == "evt-retry").Should().Be(1);
     }
 
     [Fact]
-    public async Task Handle_WhenCallerIsNotStaff_ShouldThrowForbiddenAccessException()
+    public async Task SubmitCheckInAsync_WhenCallerIsNotStaff_ShouldThrowForbiddenAccessException()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var (_, _, ticket, boardingCall, now) = SeedCheckInScenario(context, _staffId);
 
-        var handler = CreateHandler(context, now, role: "Admin");
-        var act = () => handler.Handle(
-            new SubmitCheckInCommand(ticket.Id, boardingCall.Id, "evt-4", now, null), CancellationToken.None);
+        var service = CreateService(context, now, role: "Admin");
+        var act = () => service.SubmitCheckInAsync(
+            new SubmitCheckInRequest(ticket.Id, boardingCall.Id, "evt-4", now, null), CancellationToken.None);
 
         await act.Should().ThrowAsync<ForbiddenAccessException>();
     }

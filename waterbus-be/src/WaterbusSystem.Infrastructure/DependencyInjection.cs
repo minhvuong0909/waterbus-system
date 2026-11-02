@@ -175,6 +175,7 @@ public static class DependencyInjection
         services.AddScoped<CheckoutAccessService>();
         services.AddScoped<IBookingQrSigner, RsaBookingQrSigner>();
         services.AddScoped<CheckInProcessor>();
+        services.AddScoped<ICheckInService, CheckInService>();
         services.AddSingleton(new CheckoutOptions
         {
             SessionTtlMinutes = configuration.GetValue("Checkout:SessionTtlMinutes", 10),

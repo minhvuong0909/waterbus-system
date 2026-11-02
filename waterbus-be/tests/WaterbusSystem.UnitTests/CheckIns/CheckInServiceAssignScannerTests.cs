@@ -1,5 +1,11 @@
 using FluentAssertions;
-using WaterbusSystem.Application.Features.CheckIns.Commands.AssignScanner;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using Moq;
+using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Application.DTOs.Requests.CheckIns;
+using WaterbusSystem.Application.Features.CheckIns;
+using WaterbusSystem.Application.Features.CheckIns.Services;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.UnitTests.TestHelpers;
@@ -8,11 +14,15 @@ using Xunit;
 namespace WaterbusSystem.UnitTests.CheckIns;
 
 /// <summary>
-/// Test AssignScannerCommandHandler đối chiếu BR-OFF-02: chỉ 1 Primary Offline Scanner hoạt động
+/// Test CheckInService.AssignScannerAsync đối chiếu BR-OFF-02: chỉ 1 Primary Offline Scanner hoạt động
 /// cùng lúc cho cùng điểm dừng.
 /// </summary>
-public class AssignScannerCommandHandlerTests
+public class CheckInServiceAssignScannerTests
 {
+    private static CheckInService CreateService(WaterbusSystem.Infrastructure.Persistence.ApplicationDbContext context) => new(
+        context, Mock.Of<ICurrentUserService>(), Mock.Of<IDateTimeService>(), new CheckInProcessor(context),
+        Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
+
     private static (TestDbContextFactory.TripSeedData Seed, TripStopCall StopCall, ScannerDevice Device) SeedDeviceAndStop(
         WaterbusSystem.Infrastructure.Persistence.ApplicationDbContext context)
     {
@@ -25,15 +35,15 @@ public class AssignScannerCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenNoExistingAssignment_ShouldCreatePrimary()
+    public async Task AssignScannerAsync_WhenNoExistingAssignment_ShouldCreatePrimary()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var (_, stopCall, device) = SeedDeviceAndStop(context);
-        var handler = new AssignScannerCommandHandler(context);
+        var service = CreateService(context);
 
         var now = DateTimeOffset.UtcNow;
-        var result = await handler.Handle(
-            new AssignScannerCommand(device.Id, Guid.NewGuid(), stopCall.Id, true, now, now.AddHours(2)),
+        var result = await service.AssignScannerAsync(
+            new AssignScannerRequest(device.Id, Guid.NewGuid(), stopCall.Id, true, now, now.AddHours(2)),
             CancellationToken.None);
 
         result.IsPrimaryOffline.Should().BeTrue();
@@ -41,38 +51,38 @@ public class AssignScannerCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenAnotherPrimaryOverlapsSameStop_ShouldThrowConflictException()
+    public async Task AssignScannerAsync_WhenAnotherPrimaryOverlapsSameStop_ShouldThrowConflictException()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var (_, stopCall, device) = SeedDeviceAndStop(context);
-        var handler = new AssignScannerCommandHandler(context);
+        var service = CreateService(context);
 
         var now = DateTimeOffset.UtcNow;
-        await handler.Handle(
-            new AssignScannerCommand(device.Id, Guid.NewGuid(), stopCall.Id, true, now, now.AddHours(2)),
+        await service.AssignScannerAsync(
+            new AssignScannerRequest(device.Id, Guid.NewGuid(), stopCall.Id, true, now, now.AddHours(2)),
             CancellationToken.None);
 
         var device2 = new ScannerDevice { DeviceCode = "DEV-02", IsActive = true };
         context.ScannerDevices.Add(device2);
         context.SaveChanges();
 
-        var act = () => handler.Handle(
-            new AssignScannerCommand(device2.Id, Guid.NewGuid(), stopCall.Id, true, now.AddMinutes(30), now.AddHours(3)),
+        var act = () => service.AssignScannerAsync(
+            new AssignScannerRequest(device2.Id, Guid.NewGuid(), stopCall.Id, true, now.AddMinutes(30), now.AddHours(3)),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
     }
 
     [Fact]
-    public async Task Handle_WhenAnotherPrimaryDoesNotOverlapInTime_ShouldSucceed()
+    public async Task AssignScannerAsync_WhenAnotherPrimaryDoesNotOverlapInTime_ShouldSucceed()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var (_, stopCall, device) = SeedDeviceAndStop(context);
-        var handler = new AssignScannerCommandHandler(context);
+        var service = CreateService(context);
 
         var now = DateTimeOffset.UtcNow;
-        await handler.Handle(
-            new AssignScannerCommand(device.Id, Guid.NewGuid(), stopCall.Id, true, now, now.AddHours(1)),
+        await service.AssignScannerAsync(
+            new AssignScannerRequest(device.Id, Guid.NewGuid(), stopCall.Id, true, now, now.AddHours(1)),
             CancellationToken.None);
 
         var device2 = new ScannerDevice { DeviceCode = "DEV-02", IsActive = true };
@@ -80,8 +90,8 @@ public class AssignScannerCommandHandlerTests
         context.SaveChanges();
 
         // Ca sau, không chồng thời gian với ca trước.
-        var result = await handler.Handle(
-            new AssignScannerCommand(device2.Id, Guid.NewGuid(), stopCall.Id, true, now.AddHours(1), now.AddHours(2)),
+        var result = await service.AssignScannerAsync(
+            new AssignScannerRequest(device2.Id, Guid.NewGuid(), stopCall.Id, true, now.AddHours(1), now.AddHours(2)),
             CancellationToken.None);
 
         result.Should().NotBeNull();
@@ -89,39 +99,39 @@ public class AssignScannerCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenMultipleNonPrimaryAssignmentsOverlap_ShouldAllSucceed()
+    public async Task AssignScannerAsync_WhenMultipleNonPrimaryAssignmentsOverlap_ShouldAllSucceed()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var (_, stopCall, device) = SeedDeviceAndStop(context);
-        var handler = new AssignScannerCommandHandler(context);
+        var service = CreateService(context);
 
         var now = DateTimeOffset.UtcNow;
-        await handler.Handle(
-            new AssignScannerCommand(device.Id, Guid.NewGuid(), stopCall.Id, false, now, now.AddHours(2)),
+        await service.AssignScannerAsync(
+            new AssignScannerRequest(device.Id, Guid.NewGuid(), stopCall.Id, false, now, now.AddHours(2)),
             CancellationToken.None);
 
         var device2 = new ScannerDevice { DeviceCode = "DEV-02", IsActive = true };
         context.ScannerDevices.Add(device2);
         context.SaveChanges();
 
-        var act = () => handler.Handle(
-            new AssignScannerCommand(device2.Id, Guid.NewGuid(), stopCall.Id, false, now, now.AddHours(2)),
+        var act = () => service.AssignScannerAsync(
+            new AssignScannerRequest(device2.Id, Guid.NewGuid(), stopCall.Id, false, now, now.AddHours(2)),
             CancellationToken.None);
 
         await act.Should().NotThrowAsync();
     }
 
     [Fact]
-    public async Task Handle_WhenDeviceIsInactive_ShouldThrowConflictException()
+    public async Task AssignScannerAsync_WhenDeviceIsInactive_ShouldThrowConflictException()
     {
         using var context = TestDbContextFactory.CreateDbContext();
         var (_, stopCall, device) = SeedDeviceAndStop(context);
         device.IsActive = false;
         context.SaveChanges();
 
-        var handler = new AssignScannerCommandHandler(context);
-        var act = () => handler.Handle(
-            new AssignScannerCommand(device.Id, Guid.NewGuid(), stopCall.Id, true, DateTimeOffset.UtcNow, null),
+        var service = CreateService(context);
+        var act = () => service.AssignScannerAsync(
+            new AssignScannerRequest(device.Id, Guid.NewGuid(), stopCall.Id, true, DateTimeOffset.UtcNow, null),
             CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();

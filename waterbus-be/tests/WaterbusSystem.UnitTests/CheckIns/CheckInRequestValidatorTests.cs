@@ -1,19 +1,18 @@
 using FluentAssertions;
-using WaterbusSystem.Application.Features.CheckIns.Commands.SetCheckInWindow;
-using WaterbusSystem.Application.Features.CheckIns.Commands.SubmitCheckIn;
-using WaterbusSystem.Application.Features.CheckIns.Commands.SyncCheckInEvents;
+using WaterbusSystem.Application.DTOs.Requests.CheckIns;
+using WaterbusSystem.Application.Validators.CheckIns;
 using Xunit;
 
 namespace WaterbusSystem.UnitTests.CheckIns;
 
-public class CheckInValidatorTests
+public class CheckInRequestValidatorTests
 {
     [Fact]
     public void SyncCheckInEvents_WhenBatchIsEmpty_ShouldFailValidation()
     {
-        var validator = new SyncCheckInEventsCommandValidator();
+        var validator = new SyncCheckInEventsRequestValidator();
 
-        var result = validator.Validate(new SyncCheckInEventsCommand(Array.Empty<CheckInEventInput>()));
+        var result = validator.Validate(new SyncCheckInEventsRequest(Array.Empty<CheckInEventInput>()));
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName == "Events");
@@ -22,10 +21,10 @@ public class CheckInValidatorTests
     [Fact]
     public void SyncCheckInEvents_WhenAnEventIsMissingClientEventId_ShouldFailValidation()
     {
-        var validator = new SyncCheckInEventsCommandValidator();
+        var validator = new SyncCheckInEventsRequestValidator();
         var events = new[] { new CheckInEventInput(Guid.NewGuid(), Guid.NewGuid(), "", DateTimeOffset.UtcNow, null) };
 
-        var result = validator.Validate(new SyncCheckInEventsCommand(events));
+        var result = validator.Validate(new SyncCheckInEventsRequest(events));
 
         result.IsValid.Should().BeFalse();
     }
@@ -34,9 +33,9 @@ public class CheckInValidatorTests
     public void SetCheckInWindow_WhenCloseAtIsBeforeOpenAt_ShouldFailValidation()
     {
         var now = DateTimeOffset.UtcNow;
-        var validator = new SetCheckInWindowCommandValidator();
+        var validator = new SetCheckInWindowRequestValidator();
 
-        var result = validator.Validate(new SetCheckInWindowCommand(Guid.NewGuid(), now, now.AddMinutes(-1)));
+        var result = validator.Validate(new SetCheckInWindowRequest(now, now.AddMinutes(-1)));
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName == "CheckInCloseAt");
@@ -45,9 +44,9 @@ public class CheckInValidatorTests
     [Fact]
     public void SubmitCheckIn_WhenClientEventIdIsEmpty_ShouldFailValidation()
     {
-        var validator = new SubmitCheckInCommandValidator();
+        var validator = new SubmitCheckInRequestValidator();
 
-        var result = validator.Validate(new SubmitCheckInCommand(Guid.NewGuid(), Guid.NewGuid(), "", DateTimeOffset.UtcNow, null));
+        var result = validator.Validate(new SubmitCheckInRequest(Guid.NewGuid(), Guid.NewGuid(), "", DateTimeOffset.UtcNow, null));
 
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.PropertyName == "ClientEventId");
