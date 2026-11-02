@@ -168,6 +168,8 @@ export interface TripDetail extends Trip {
   originDistrict: string
   destinationDistrict: string
   dateLabel: string
+  /** False when the backend has closed ticket sales for the trip (`canBook`, BR-SRCH-02/BR-TIME-01). */
+  salesOpen: boolean
   /** The day of the trip as `YYYY-MM-DD`. */
   dateId: string
   /** Full date with year, e.g. "Dec 16, 2025". */

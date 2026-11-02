@@ -25,7 +25,7 @@ import {
   toTrip,
   isDeparted,
 } from '../utils'
-import type { TripDetailDto, TripSeatMapDto } from '../types'
+import type { TimelineStep, TripDetailDto, TripSeatMapDto } from '../types'
 import { pickJourney } from '../utils'
 
 /** The piers change rarely and one page asks for them several times. */
@@ -72,6 +72,16 @@ export async function getNetworkRoutes(): Promise<NetworkRoute[]> {
 /** Today and the following days. The backend has no per-day summary (fares, trip counts). */
 export function getDateOptions(): Promise<DateOption[]> {
   return Promise.resolve(buildDateOptions())
+}
+
+/**
+ * Xếp các mốc lộ trình theo thời gian thật, để một khung check-in đóng sau giờ tàu chạy (dữ liệu
+ * cấu hình sai) không hiện lẫn thứ tự. Mốc không có thời gian (NaN) giữ nguyên vị trí tương đối.
+ */
+function chronological(steps: (TimelineStep & { at: number })[]): TimelineStep[] {
+  const known = steps.every((step) => Number.isFinite(step.at))
+  const ordered = known ? [...steps].sort((a, b) => a.at - b.at) : steps
+  return ordered.map(({ time, title, description, tone }) => ({ time, title, description, tone }))
 }
 
 /** `GET /trips/search` for the selected piers and day. */
@@ -162,6 +172,11 @@ export async function getTripDetail(
   let trip = selectedTrip
   // Check-in window of the boarding stop from the backend; null while operations has not set it.
   let checkIn: { openAt: string | null; closeAt: string | null } | null = null
+  // Sales state of the backend; a trip that only comes from the search results is taken as on sale.
+  let salesOpen = true
+  // Mốc thời gian thật để xếp lộ trình theo thứ tự; trip chỉ từ kết quả tìm kiếm thì giữ thứ tự sẵn có.
+  let departAt = Number.NaN
+  let arriveAt = Number.NaN
   if (tripId) {
     const raw = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
     const journey = pickJourney(raw.stops, query.originId, query.destinationId)
@@ -170,9 +185,12 @@ export async function getTripDetail(
       query: { boardingCallId: journey.boarding.callId, disembarkingCallId: journey.disembarking.callId },
     })
     const prices = seats.seats.flatMap((seat) => seat.price === null ? [] : [seat.price])
+    salesOpen = raw.canBook && seats.canBook
     checkIn = { openAt: journey.boarding.checkInOpenAt ?? null, closeAt: journey.boarding.checkInCloseAt ?? null }
     const departureTime = journey.boarding.estimatedDepartureTime ?? raw.departureTime
     const arrivalTime = journey.disembarking.estimatedArrivalTime ?? raw.arrivalTime
+    departAt = Date.parse(departureTime)
+    arriveAt = Date.parse(arrivalTime)
     trip = toTrip({ id: raw.tripId, routeName: raw.routeName, tripType: raw.tripType,
       departureStationName: journey.boarding.stationName, arrivalStationName: journey.disembarking.stationName,
       departureTime, arrivalTime,
@@ -202,13 +220,15 @@ export async function getTripDetail(
     originDistrict: origin.district,
     destinationDistrict: destination.district,
     dateLabel: formatDateLabel(date),
+    salesOpen,
     dateId: date.id,
     dateFull: date.fullLabel,
     dateShort: date.label,
-    timeline: [
+    timeline: chronological([
       // The boarding stop's check-in window; no row at all while it is not configured.
       ...(checkIn?.openAt
         ? [{
+            at: Date.parse(checkIn.openAt),
             time: formatClock(new Date(checkIn.openAt)),
             title: t('Check-in opens at {pier}', { pier: origin.pierName }),
             description: t('Show your QR ticket to the staff at the pier.'),
@@ -217,6 +237,7 @@ export async function getTripDetail(
         : []),
       ...(checkIn?.closeAt
         ? [{
+            at: Date.parse(checkIn.closeAt),
             time: formatClock(new Date(checkIn.closeAt)),
             title: t('Check-in closes'),
             description: t('Passengers who have not checked in by now cannot board.'),
@@ -224,6 +245,7 @@ export async function getTripDetail(
           }]
         : []),
       {
+        at: departAt,
         time: trip.departTime,
         title: t('Departure'),
         description: t('{code} departs {pier} across the river corridor.', {
@@ -233,12 +255,13 @@ export async function getTripDetail(
         tone: 'teal',
       },
       {
+        at: arriveAt,
         time: trip.arriveTime,
         title: t('Arrival at {pier}', { pier: destination.pierName }),
         description: t('Scheduled docking at {pier}.', { pier: destination.pierName }),
         tone: 'dark',
       },
-    ],
+    ]),
     amenityDetails: ONBOARD_AMENITIES,
     boardingSteps: BOARDING_STEPS.map((step) => ({
       ...step,

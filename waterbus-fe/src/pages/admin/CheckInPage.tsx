@@ -7,6 +7,10 @@ import { isFinished } from '../../features/admin/utils'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
 import { formatDateTime } from '../../utils/time'
+import type { TripStopDto } from '../../features/trips/types'
+
+/** Chỉ bến có khách lên và có giờ tàu rời mới có cửa sổ check-in; bến cuối chỉ cho xuống. */
+const isBoardingStop = (stop: TripStopDto) => stop.canBoard && Boolean(stop.estimatedDepartureTime)
 
 /** Admin sets, per stop of a trip, when staff may check passengers in (BR-BOARD-05). */
 export default function CheckInPage() {
@@ -43,11 +47,18 @@ export default function CheckInPage() {
           ) : !stops.data ? (
             <PageLoader />
           ) : (
-            <div className="divide-y divide-outline-variant/30">
-              {stops.data.map((stop) => (
-                <CheckInWindowRow key={stop.callId} stop={stop} />
-              ))}
-            </div>
+            <>
+              <div className="divide-y divide-outline-variant/30">
+                {stops.data.filter(isBoardingStop).map((stop) => (
+                  <CheckInWindowRow key={stop.callId} stop={stop} />
+                ))}
+              </div>
+              {stops.data.some((stop) => !isBoardingStop(stop)) && (
+                <p className="mt-3 text-xs text-on-surface-variant">
+                  {t('Stops where nobody boards (such as the last stop) have no check-in window.')}
+                </p>
+              )}
+            </>
           )}
         </Panel>
       )}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Icon } from '../../../components/ui'
+import { Button, Icon, Modal } from '../../../components/ui'
 import BookingCard from '../../booking/components/BookingCard'
 import SummaryRow from '../../booking/components/SummaryRow'
 import TotalRow from '../../booking/components/TotalRow'
@@ -10,7 +10,8 @@ import type { PurchaserForm, Seat } from '../../booking/types'
 import type { TripDetail } from '../../trips/types'
 import { ROUTES } from '../../../routes/routes'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
-import { holdExtended } from '../../booking/bookingSlice'
+import { holdCleared, holdExtended, orderReleased } from '../../booking/bookingSlice'
+import { cancelCheckout } from '../../booking/services/bookingService'
 import { useHoldCountdown } from '../../booking/hooks/useHoldCountdown'
 import { formatVnd } from '../../../utils/format'
 import { createPaymentUrl } from '../services/paymentService'
@@ -63,6 +64,18 @@ export default function PaymentOrderSummary({
   const { hold, expired } = useHoldCountdown()
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [confirmCancel, setConfirmCancel] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+
+  // BR-HOLD-03: khách bỏ đơn thì nhả ghế ngay cho người khác, không bắt chờ hết thời gian giữ.
+  const cancelHold = async () => {
+    if (!hold) return
+    setCancelling(true)
+    await cancelCheckout(hold.orderId, order?.accessToken ?? hold.accessToken)
+    dispatch(orderReleased())
+    dispatch(holdCleared())
+    navigate(ROUTES.searchResults)
+  }
 
   // BR-PAY-01: paying only sends the traveler to the gateway. The ticket is issued when the
   // backend verifies the payment, and the callback page waits for that; there is no "I have paid".
@@ -148,14 +161,35 @@ export default function PaymentOrderSummary({
           {t('We couldn’t open the payment page. Nothing was charged, please try again.')}
         </p>
       )}
-      <div className="mt-space-sm text-center">
-        <Link
-          to={ROUTES.checkoutReview}
-          className="text-xs text-on-surface-variant hover:text-deep-river"
-        >
+      <div className="mt-space-sm flex flex-wrap items-center justify-center gap-x-space-md gap-y-1 text-xs">
+        <Link to={ROUTES.checkoutReview} className="text-on-surface-variant hover:text-deep-river">
           {t('← Back to Checkout')}
         </Link>
+        {hold && !expired && (
+          <button
+            type="button"
+            onClick={() => setConfirmCancel(true)}
+            className="font-semibold text-coral-glow hover:underline"
+          >
+            {t('Cancel and release seats')}
+          </button>
+        )}
       </div>
+      {confirmCancel && (
+        <Modal title={t('Cancel this booking?')} onClose={() => setConfirmCancel(false)}>
+          <p className="text-sm text-on-surface-variant">
+            {t('Your held seats are released for other travelers. Nothing has been charged.')}
+          </p>
+          <div className="mt-space-md flex flex-wrap justify-end gap-space-sm">
+            <Button variant="neutral" onClick={() => setConfirmCancel(false)} disabled={cancelling}>
+              {t('Keep my seats')}
+            </Button>
+            <Button variant="danger" onClick={cancelHold} disabled={cancelling}>
+              {cancelling ? t('Releasing…') : t('Cancel booking')}
+            </Button>
+          </div>
+        </Modal>
+      )}
     </BookingCard>
   )
 }

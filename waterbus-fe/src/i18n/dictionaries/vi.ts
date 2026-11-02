@@ -2,9 +2,11 @@
 // Placeholders such as {count} must be kept as they are.
 export const vi: Record<string, string> = {
   'What is the difference between the cabins?': 'Các khoang trên tàu khác nhau thế nào?',
-  'The boat has a front cabin, a standard cabin and an outdoor deck. Front cabin and outdoor deck seats cost a little more, as shown on the seat map. Standard seats have no extra fee.': 'Tàu có khoang trước, khoang tiêu chuẩn và boong ngoài trời. Ghế khoang trước và boong ngoài trời có phụ thu nhỏ, hiển thị trên sơ đồ ghế. Ghế tiêu chuẩn không phụ thu.',
+  'The boat has a front cabin, a standard cabin and an outdoor deck. Each seat class has its own fare, shown on the seat map, and the fare is the same whichever piers you travel between.':
+    'Tàu có khoang trước, khoang tiêu chuẩn và boong ngoài trời. Mỗi hạng ghế có giá riêng, hiển thị trên sơ đồ ghế, và giá như nhau dù bạn đi giữa hai bến nào.',
   'Can I book several seats at once?': 'Tôi có thể đặt nhiều ghế cùng lúc không?',
-  'Yes, up to 10 seats in one booking. You enter the name of the passenger for each seat (email and phone are optional), plus the buyer’s name and email. Each ticket is issued in its passenger’s name, and the e-tickets go to the buyer.': 'Được, tối đa 10 ghế trong một đơn. Bạn nhập tên hành khách cho từng ghế (email và số điện thoại không bắt buộc), cùng họ tên và email người mua. Mỗi vé được phát hành theo tên hành khách của ghế đó, vé điện tử gửi cho người mua.',
+  'Yes, up to 10 seats in one booking. You enter the name of the passenger for each seat (email and phone are optional), plus the buyer’s name and email. Each ticket is issued in its passenger’s name; one booking has one QR code, which staff scan to check in the passengers who are present.':
+    'Được, tối đa 10 ghế trong một đơn. Bạn nhập tên hành khách cho từng ghế (email và số điện thoại không bắt buộc), cùng họ tên và email người mua. Mỗi vé đứng tên hành khách của ghế đó; mỗi đơn có một mã QR, nhân viên quét để check-in những hành khách có mặt.',
   'Payment is made online through VNPay (QR code, bank card or e-wallet).': 'Thanh toán trực tuyến qua VNPay (mã QR, thẻ ngân hàng hoặc ví điện tử).',
   '{count} Passengers': '{count} hành khách',
   'Seats {ids}': 'Ghế {ids}',
@@ -915,8 +917,8 @@ export const vi: Record<string, string> = {
     'Những chuyến qua sông êm ái, ít phát thải dọc hành lang sông Sài Gòn.',
   'Frequently Asked Questions': 'Câu hỏi thường gặp',
   'How do I book a ticket?': 'Làm sao để đặt vé?',
-  'Pick your departure and arrival piers and a date, choose a trip and a seat, enter the passenger details and pay. Your QR e-ticket is ready straight away in My Tickets.':
-    'Chọn bến đi, bến đến và ngày, chọn chuyến và ghế, nhập thông tin hành khách rồi thanh toán. Vé điện tử QR có ngay trong mục Vé của tôi.',
+  'Pick your departure and arrival piers and a date, choose a trip and a seat, enter the passenger details and pay. Your QR e-ticket appears in My Tickets as soon as the payment is confirmed.':
+    'Chọn bến đi, bến đến và ngày, chọn chuyến và ghế, nhập thông tin hành khách rồi thanh toán. Vé điện tử QR hiện trong mục Vé của tôi ngay khi thanh toán được xác nhận.',
   'What is the difference between standard and VIP seats?':
     'Ghế thường và ghế VIP khác nhau thế nào?',
   'VIP seats are in the aft lounge (rows 5–6) with priority disembarkation, for a surcharge shown on the seat map. Standard seats have no extra fee.':
@@ -925,11 +927,11 @@ export const vi: Record<string, string> = {
   'QR payment, bank cards, and the MoMo, VNPay and ZaloPay e-wallets.':
     'Thanh toán QR, thẻ ngân hàng và các ví điện tử MoMo, VNPay, ZaloPay.',
   'Can I get a refund?': 'Tôi có được hoàn tiền không?',
-  'Refunds are available up to 30 minutes before departure. Open My Tickets, choose the ticket and select Request Refund.':
-    'Hoàn tiền áp dụng khi chuyến bị hủy hoặc kết thúc sớm trước khi bạn tới bến xuống. Số tiền bạn đã trả cho các vé bị ảnh hưởng được hoàn về phương thức thanh toán ban đầu, và trạng thái hiển thị trên trang đặt chỗ. Vé của hành khách không check-in đúng hạn thì không được hoàn tiền.',
+  'Refunds happen when a trip is cancelled, or ends early before you reach your stop: 100% of what you paid for the affected tickets goes back to your original payment method. Tickets of passengers who miss check-in are not refunded.':
+    'Hoàn tiền khi chuyến bị huỷ, hoặc kết thúc sớm trước khi bạn tới bến xuống: hoàn 100% số tiền bạn đã trả cho các vé bị ảnh hưởng về phương thức thanh toán ban đầu. Vé của hành khách bỏ lỡ check-in không được hoàn tiền.',
   'When does boarding open?': 'Khi nào bắt đầu lên tàu?',
-  'Boarding opens 10 minutes before departure. Arrive at the pier with your QR ticket and scan it at the turnstile.':
-    'Lên tàu mở 10 phút trước giờ khởi hành. Hãy tới bến cùng vé QR và quét tại cổng soát vé.',
+  'Each pier has its own check-in window, shown on the trip page. Come to the waiting area of your boarding pier within that window and show your QR code to the staff, who check in each passenger. Passengers who miss the window cannot board and are not refunded.':
+    'Mỗi bến có khung giờ check-in riêng, hiển thị ở trang chi tiết chuyến. Hãy đến khu vực chờ của bến lên trong khung giờ đó và đưa mã QR cho nhân viên để check-in từng hành khách. Hành khách bỏ lỡ khung giờ sẽ không được lên tàu và không được hoàn tiền.',
   'Refunds':
     'Hoàn tiền',
   'If this trip is cancelled or ends early before you reach your stop, the amount you paid for the affected tickets is refunded to your original payment method. Any refund appears here with its status.':
@@ -1255,4 +1257,40 @@ export const vi: Record<string, string> = {
   'Check that you copied the whole link, or call the hotline with your booking code.':
     'Hãy kiểm tra bạn đã sao chép đủ cả link, hoặc gọi hotline kèm mã đặt chỗ.',
   'Remove from this device': 'Xoá khỏi thiết bị này',
+  // Rà soát nghiệp vụ FE theo BR v2.0
+  'Seats are held once you continue': 'Ghế được giữ khi bạn bấm tiếp tục',
+  'Sales closed': 'Đã đóng bán vé',
+  'See other trips': 'Xem chuyến khác',
+  'Ticket sales are closed for this trip. Please choose another trip.':
+    'Chuyến này đã đóng bán vé. Vui lòng chọn chuyến khác.',
+  'Check-in must close no later than the boat leaves this stop ({time}).':
+    'Giờ đóng check-in không được muộn hơn giờ tàu rời bến này ({time}).',
+  'Stops where nobody boards (such as the last stop) have no check-in window.':
+    'Bến không có khách lên (như bến cuối) không có khung giờ check-in.',
+  'Payment status: Not paid yet': 'Trạng thái thanh toán: Chưa thanh toán',
+  'Your seats stay held until the timer ends. After paying on VNPay you come back here to see the result.':
+    'Ghế được giữ đến khi hết giờ đếm ngược. Thanh toán xong trên VNPay, bạn sẽ được đưa về đây để xem kết quả.',
+  'Cancel and release seats': 'Huỷ đơn và nhả ghế',
+  'Cancel this booking?': 'Huỷ đơn đặt chỗ này?',
+  'Your held seats are released for other travelers. Nothing has been charged.':
+    'Ghế đang giữ sẽ được nhả cho khách khác. Bạn chưa bị trừ tiền.',
+  'Keep my seats': 'Giữ ghế',
+  'Releasing…': 'Đang nhả ghế…',
+  'Cancel booking': 'Huỷ đơn',
+  'I accept': 'Tôi đồng ý',
+  'The live boat position is shown to signed-in accounts. The trip status and its stops below update live.':
+    'Vị trí tàu trực tiếp chỉ hiển thị cho tài khoản đã đăng nhập. Trạng thái chuyến và các bến bên dưới vẫn cập nhật trực tiếp.',
+  // Quy tắc vận chuyển (content/carriageRules.ts)
+  'Each ticket is issued in the name of one passenger for one seat, on the trip and between the piers you booked.':
+    'Mỗi vé đứng tên một hành khách cho một ghế, trên đúng chuyến và đoạn bến đã đặt.',
+  'Tickets are issued only after the payment is confirmed. Seats are held for a limited time while you check out.':
+    'Vé chỉ được phát hành sau khi thanh toán được xác nhận. Ghế chỉ được giữ trong thời gian giới hạn khi bạn đặt chỗ.',
+  'One booking has one QR code. Staff at your boarding pier scan it and check in each passenger who is present, within that pier’s check-in window.':
+    'Mỗi đơn đặt chỗ có một mã QR. Nhân viên tại bến lên quét mã và check-in từng hành khách có mặt, trong khung giờ check-in của bến đó.',
+  'Passengers who are not checked in when the window closes cannot board, and their tickets are not refunded.':
+    'Hành khách chưa check-in khi hết khung giờ sẽ không được lên tàu và không được hoàn tiền.',
+  'If the trip is cancelled, or ends early before you reach your stop, 100% of what you paid for the affected tickets is refunded to your original payment method.':
+    'Nếu chuyến bị huỷ, hoặc kết thúc sớm trước khi bạn tới bến xuống, bạn được hoàn 100% số tiền đã trả cho các vé bị ảnh hưởng về phương thức thanh toán ban đầu.',
+  'Follow the crew’s instructions on board; safety announcements come before everything else.':
+    'Tuân theo hướng dẫn của thuyền viên trên tàu; thông báo an toàn luôn được ưu tiên.',
 }
