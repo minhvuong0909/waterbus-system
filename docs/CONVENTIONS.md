@@ -56,9 +56,9 @@ Quyết định của nhóm: bỏ CQRS/MediatR, chuyển về Service layer thu�
 | Bookings / Checkout / Guest Access, Payments / VNPay, Refunds, QR | ✅ Đã migrate — Controller → IService → Service → IRepository → Repository → EF Core; xem `waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md` |
 | SightseeingAudio, AiBooking | ✅ Đã migrate — Controller → IService; SQL audio qua repository; provider Azure/Semantic Kernel và adapter gọi Trips/Stations nằm ở Infrastructure. Xem `docs/thinh-ai/AI_SERVICE_MIGRATION.md` |
 | Incidents (Weather Guard), Tracking (GPS) | ✅ Đã migrate — Controller → IService → Service → IRepository → Repository; hub `BoatTrackingHub` và `BoatSimulatorService` gọi `IBoatTrackingService`; Hangfire job gọi `IWeatherGuardService` |
-| Fares | ✅ Đã migrate — `IFareService`/`FareService` (chỉ cần `IApplicationDbContext`), không có Request (GET không tham số) |
-| Boats | ✅ Đã migrate — `IBoatService`/`BoatService`; `UpdateBoatRequest` bỏ field `Id` (lấy từ route), xoá luôn code so khớp Id route/body cũ (M10) |
-| Stations | ✅ Đã migrate — `IStationService`/`StationService`; `UpdateStationRequest` bỏ field `Id` tương tự Boats |
+| Fares | ✅ Đã migrate — `IFareService`/`FareService` → `IFareRuleRepository`/`FareRuleRepository`, không có Request (GET không tham số) |
+| Boats | ✅ Đã migrate — `IBoatService`/`BoatService` → `IBoatRepository`/`BoatRepository` + `IUnitOfWork`; `UpdateBoatRequest` bỏ field `Id` (lấy từ route), xoá luôn code so khớp Id route/body cũ (M10) |
+| Stations | ✅ Đã migrate — `IStationService`/`StationService` → `IStationRepository`/`StationRepository` + `IUnitOfWork`; `UpdateStationRequest` bỏ field `Id` tương tự Boats. Adapter AI (`MediatRTripSearchTool`) đổi sang gọi `IStationService` thay vì `Mediator.Send(GetStationsQuery)` |
 | Trips | ✅ Đã migrate — `ITripService`/`TripService` (7 use case: GetDetail, GetSeatMap, GetOperations, GetOperationEvents, ChangeStatus, ReportSos, Search). Adapter AI đổi tên `MediatRTripSearchTool` → `TripSearchTool`, bỏ hẳn `ISender`/MediatR, gọi trực tiếp `IStationService`+`ITripService` |
 | CheckIns | ⏳ Chưa migrate — vẫn CQRS/MediatR |
 
@@ -77,8 +77,13 @@ Application/
     Responses/{Feature}/{Name}Response.cs
   Validators/{Feature}/{Name}RequestValidator.cs
   Interfaces/Services/I{Feature}Service.cs
-  Features/{Feature}/Services/{Name}Service.cs   # implementation, nếu chỉ cần interface hạ tầng sẵn có (IApplicationDbContext, IRepository...)
+  Interfaces/Repositories/I{Feature}Repository.cs   # contract persistence — Service KHÔNG gọi EF Core/IApplicationDbContext trực tiếp
+  Features/{Feature}/Services/{Name}Service.cs      # implementation, inject I{Feature}Repository + IUnitOfWork (ghi)
+
+Infrastructure/
+  Repositories/{Feature}Repository.cs   # implement I{Feature}Repository bằng ApplicationDbContext (AsNoTracking cho đọc, NotFoundException khi thiếu)
 ```
+- **Service không được inject `IApplicationDbContext` hay gọi EF Core trực tiếp.** Mọi đọc/ghi dữ liệu đi qua `I{Feature}Repository` (Application) → `{Feature}Repository` (Infrastructure); ghi dữ liệu xong gọi `IUnitOfWork.SaveChangesAsync`. Đây là bài học rút ra sau review PR Fares/Boats/Stations/Trips/CheckIns (lần đầu các feature này migrate có Service gọi `IApplicationDbContext` trực tiếp — đã bị yêu cầu sửa lại, xem lịch sử PR #51/#52/#53) — feature migrate sau không được lặp lại.
 - Implementation của Service đặt tại `Application/Features/{Feature}/Services/{Name}Service.cs` (không phải `Application/Services/` phẳng) — đúng vị trí thực tế đang dùng cho `Bookings`, `Incidents`, `Payments`, `Refunds`, `Tracking`, `Fares`, `Boats`, `Stations`, `Trips`. Ngoại lệ: `SightseeingAudio` đặt ở `Application/Services/SightseeingAudio/` (do nhóm AI làm trước khi chốt convention này — không bắt buộc đổi lại nếu không chạm tới feature đó). Lưu ý: `Features/CheckIns/Services/CheckInProcessor.cs` đã tồn tại từ trước nhưng chỉ là helper cho Handler CQRS hiện tại — CheckIns với tư cách module chưa thật sự migrate (còn `⏳` ở bảng trên).
 - Helper nội bộ chỉ dùng trong 1 Service (không lộ ra interface) có thể tách riêng file `internal static class` cùng thư mục `Features/{Feature}/Services/`, như `TripReadRules.cs` dùng chung cho `GetDetailAsync` và `GetSeatMapAsync` của `TripService`.
 - Implementation **PHẢI** đặt ở `Infrastructure/...` (không phải `Application/Features/.../Services/`) nếu cần dùng type cụ thể của hạ tầng mà Application không được phép biết (ví dụ `UserManager<T>`/`SignInManager<T>` của ASP.NET Identity) — xem `Infrastructure/Identity/AuthService.cs` làm mẫu. Lý do: Application không được tham chiếu Infrastructure; Service nào cần type hạ tầng cụ thể thì chính nó phải sống ở Infrastructure, chỉ để lại interface (`IAuthService`) ở Application.
