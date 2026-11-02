@@ -28,6 +28,7 @@ export const ROUTES = {
   adminBoats: '/admin/boats',
   adminFares: '/admin/fares',
   adminIncidents: '/admin/incidents',
+  adminRefunds: '/admin/refunds',
   adminCheckIn: '/admin/check-in',
   adminAudioGuides: '/admin/audio-guides',
   adminApi: '/admin/api',

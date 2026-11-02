@@ -41,6 +41,13 @@ export const API_ENDPOINTS = {
     reconcile: (orderId: string, paymentId: string) =>
       `/api/v1/payments/${orderId}/attempts/${paymentId}/reconcile`,
   },
+  refunds: {
+    /** Admin: hoàn tiền một Booking của chuyến bị huỷ/chấm dứt. */
+    request: '/api/v1/refunds/request',
+    /** Admin: xác nhận đã hoàn tay khi cổng thanh toán không hoàn được. */
+    confirmManual: '/api/v1/refunds/confirm-manual',
+    reconcile: (refundId: string) => `/api/v1/refunds/${refundId}/reconcile`,
+  },
   trips: {
     search: '/api/v1/trips/search',
     /** Public detail of a trip with its real stops (`TripStopCall`s). */

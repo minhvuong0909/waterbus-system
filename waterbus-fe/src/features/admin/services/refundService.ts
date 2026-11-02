@@ -1,0 +1,64 @@
+import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
+import { apiRequest } from '../../../services/apiClient'
+
+/** Phần tiền hoàn của một Ticket (BE `RefundTicketAllocationDto`). */
+export interface RefundTicketAllocation {
+  ticketId: string
+  ticketCode: string
+  amount: number
+  reason: string
+}
+
+/** Kết quả `POST /refunds/request` (BE `RequestRefundResultDto`). */
+export interface RefundRequestResult {
+  refundTransactionId: string
+  orderId: string
+  bookingId: string
+  amount: number
+  currency: string
+  status: string
+  gateway: string
+  /** Cổng thanh toán không hoàn được: Admin phải hoàn tay rồi xác nhận kèm bằng chứng (BR-RF-10). */
+  requiresManualAction: boolean
+  tickets: RefundTicketAllocation[]
+}
+
+/** Kết quả `POST /refunds/confirm-manual` (BE `ConfirmManualRefundResultDto`). */
+export interface ManualRefundResult {
+  refundTransactionId: string
+  amount: number
+  status: string
+  completedAt: string | null
+}
+
+/**
+ * Tạo yêu cầu hoàn tiền cho một Booking của chuyến bị huỷ/chấm dứt (BR-RF-07). Đơn khứ hồi chỉ
+ * hoàn phần của Booking đủ điều kiện (BR-RF-08). Backend chống lặp nên gửi lại không hoàn hai lần.
+ */
+export function requestRefund(bookingId: string, reason: string): Promise<RefundRequestResult> {
+  return apiRequest<RefundRequestResult>(API_ENDPOINTS.refunds.request, {
+    method: 'POST',
+    body: { bookingId, reason },
+  })
+}
+
+/** Admin xác nhận đã hoàn tay; bắt buộc có bằng chứng, không xác nhận được lần hai (BR-RF-10). */
+export function confirmManualRefund(input: {
+  refundTransactionId: string
+  evidence: string
+  gatewayReference: string | null
+  confirmedAmount: number
+}): Promise<ManualRefundResult> {
+  return apiRequest<ManualRefundResult>(API_ENDPOINTS.refunds.confirmManual, {
+    method: 'POST',
+    body: input,
+  })
+}
+
+/** Hỏi lại cổng thanh toán trạng thái của một giao dịch hoàn tiền đang chờ. */
+export async function reconcileRefund(refundId: string): Promise<string> {
+  const result = await apiRequest<{ status: string }>(API_ENDPOINTS.refunds.reconcile(refundId), {
+    method: 'POST',
+  })
+  return result.status
+}
