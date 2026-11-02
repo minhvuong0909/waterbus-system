@@ -43,8 +43,25 @@ jobs:
           --health-timeout 5s
           --health-retries 12
           --health-start-period 30s
+      # 3 Redis độc lập cho RedisCommercialTests (TTL của checkout cache và khoá RedLock giữa nhiều node)
+      redis1:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
+      redis2:
+        image: redis:7-alpine
+        ports: ["6380:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
+      redis3:
+        image: redis:7-alpine
+        ports: ["6381:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
     env:
       WATERBUS_TEST_SQLSERVER: "Server=localhost,1433;User Id=sa;Password=Ci_Test_Passw0rd!;TrustServerCertificate=True;MultipleActiveResultSets=true"
+      WATERBUS_TEST_REDIS: "localhost:6379;localhost:6380;localhost:6381"
     steps:
       - uses: actions/checkout@v4
 
@@ -65,6 +82,21 @@ jobs:
           dotnet test WaterbusSystem.sln --no-build -c Release
           --logger "trx;LogFileName=test-results.trx"
           --results-directory TestResults
+
+      # Test bị Skip vẫn tính là "xanh": chặn trường hợp Redis/SQL không được cấu hình mà CI vẫn qua.
+      - name: Verify infrastructure tests were executed, not skipped
+        run: |
+          python3 - <<'PY'
+          import re, glob, sys
+          text = open(glob.glob("TestResults/**/test-results.trx", recursive=True)[0], encoding="utf-8").read()
+          results = re.findall(r'<UnitTestResult[^>]*testName="([^"]+)"[^>]*outcome="([^"]+)"', text)
+          gated = ("RedisCommercialTests", "CommercialSqlTests", "DomainPersistenceTests")
+          bad = [(n, o) for n, o in results if any(g in n for g in gated) and o == "NotExecuted"]
+          ran = sum(1 for n, o in results if any(g in n for g in gated) and o == "Passed")
+          print(f"infrastructure tests passed: {ran}, not executed: {len(bad)}")
+          for n, o in bad: print("  SKIPPED:", n)
+          sys.exit(1 if bad or ran == 0 else 0)
+          PY
 
       - name: Upload test results
         if: always()
