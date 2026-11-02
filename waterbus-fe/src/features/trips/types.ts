@@ -1,4 +1,5 @@
-export type DepartureStatusKind = 'ontime' | 'boarding' | 'scheduled' | 'twilight'
+/** `soon`: leaves within a few minutes (a hint from the clock, not the backend's trip status). */
+export type DepartureStatusKind = 'soon' | 'scheduled'
 
 export type DepartureKind = 'transit' | 'sightseeing'
 
@@ -84,16 +85,6 @@ export interface DateOption {
   tripCount?: number
 }
 
-export interface NetworkRoute {
-  id: string
-  originId: string
-  destinationId: string
-  badge: string
-  summary: string
-  /** Lowest active fare of the route's trip type, from `GET /fares`. */
-  fromFareVnd?: number
-}
-
 export interface AmenityChip {
   icon: string
   label: string
@@ -145,17 +136,6 @@ export interface TimelineStep {
   tone: 'teal' | 'amber' | 'dark'
 }
 
-export interface AmenityDetail {
-  icon: string
-  title: string
-  description: string
-}
-
-export interface BoardingStep {
-  title: string
-  description: string
-}
-
 export interface TripDetail extends Trip {
   /** Full pier labels, e.g. "Bach Dang Pier (D1)". */
   originPierLabel: string
@@ -177,8 +157,6 @@ export interface TripDetail extends Trip {
   /** Date without the year, e.g. "Dec 16". */
   dateShort: string
   timeline: TimelineStep[]
-  amenityDetails: AmenityDetail[]
-  boardingSteps: BoardingStep[]
 }
 
 // ---- Backend DTOs -----------------------------------------------------------

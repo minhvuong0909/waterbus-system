@@ -5,7 +5,7 @@ const NOTES = [
   {
     icon: 'timer',
     title: 'Seat Hold:',
-    text: 'Your seat is held for 10 minutes while you complete payment.',
+    text: 'Your seat is held for a limited time while you complete payment.',
   },
   {
     icon: 'qr_code_scanner',

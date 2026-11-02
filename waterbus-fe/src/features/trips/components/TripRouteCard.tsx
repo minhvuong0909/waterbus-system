@@ -118,10 +118,6 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
                 {t('Price shown when you choose a seat')}
               </div>
             )}
-            <div className="mt-0.5 flex items-center gap-1 text-body-sm text-on-surface-variant">
-              <Icon name="check_circle" className="text-sm text-teal-flow" />{' '}
-              {t('Instant ticket confirmation')}
-            </div>
           </div>
           <div className="space-y-space-xs pt-space-md">
             {!trip.salesOpen ? (

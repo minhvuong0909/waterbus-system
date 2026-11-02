@@ -1,17 +1,26 @@
 import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import TripAside from '../../features/trips/components/TripAside'
-import BoardingSteps from '../../features/trips/components/BoardingSteps'
 import JourneyTimeline from '../../features/trips/components/JourneyTimeline'
-import OnboardAmenities from '../../features/trips/components/OnboardAmenities'
 import TripRouteCard from '../../features/trips/components/TripRouteCard'
-import { useTripDetail } from '../../features/booking/hooks/useTripSearch'
-import { useDocumentTitle } from '../../hooks'
+import { useSearchQuery, useTripDetail } from '../../features/booking/hooks/useTripSearch'
+import { getPierOptions } from '../../features/trips/services/tripService'
+import { buildCorridorMap, piersBetween } from '../../features/trips/utils'
+import { useDocumentTitle, useFetch } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 import NoTripSelected from '../../features/booking/components/NoTripSelected'
 
 export default function TripDetailPage() {
   const { detail, loading, error, retry, noTrip } = useTripDetail()
+  const { query } = useSearchQuery()
+  // Bến của đoạn khách đi, để bản đồ chỉ hiện phần tuyến liên quan; lỗi chỉ để trống bản đồ.
+  const corridor = useFetch(
+    () =>
+      getPierOptions().then((piers) =>
+        buildCorridorMap(piersBetween(piers, query.originId, query.destinationId)),
+      ),
+    [query.originId, query.destinationId],
+  )
   useDocumentTitle(detail ? t('Trip Detail ({code})', { code: detail.vesselCode }) : 'Trip Detail')
 
   if (noTrip) return <NoTripSelected />
@@ -35,11 +44,6 @@ export default function TripDetailPage() {
               {t('Review Your Journey')}
             </h1>
           </div>
-          <p className="text-body-md text-on-surface-variant">
-            {t(
-              'Verify your departure details, pier boarding gate, and vessel amenities before choosing your seat.',
-            )}
-          </p>
         </div>
       </section>
 
@@ -48,10 +52,8 @@ export default function TripDetailPage() {
       <div className="grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="space-y-space-lg lg:col-span-7">
           <JourneyTimeline trip={detail} />
-          <OnboardAmenities trip={detail} />
-          <BoardingSteps trip={detail} />
         </div>
-        <TripAside trip={detail} />
+        <TripAside trip={detail} map={corridor.data} />
       </div>
 
     </div>

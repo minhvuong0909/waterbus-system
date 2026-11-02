@@ -67,7 +67,7 @@ export default function LandmarkDrawer({ landmark, onClose }: { landmark: Landma
         </div>
         <div className="space-y-space-sm p-space-lg">
           <span className="inline-block rounded-full bg-sand-light px-2.5 py-0.5 text-xs font-semibold text-teal-flow">
-            {landmark.category}
+            {t(landmark.category)}
           </span>
           <h2 id="landmark-drawer-title" className="font-display text-headline-sm font-bold text-deep-river">
             {landmark.title}

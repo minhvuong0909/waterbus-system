@@ -1,73 +1,56 @@
 import baSonImg from '../assets/images/explore/ba-son.jpg'
 import landmarkImg from '../assets/images/explore/landmark-park.jpg'
-import waterwayImg from '../assets/images/waterway.jpg'
+import ecoImg from '../assets/images/home/story-eco.jpg'
 import heritageImg from '../assets/images/home/story-heritage.jpg'
-import sunsetImg from '../assets/images/home/story-sunset.jpg'
 import type { ExploreData } from '../features/explore/types'
 
+/**
+ * Các địa danh (POI) có thuyết minh trên chuyến ngắm cảnh, khớp đúng 5 POI backend seed
+ * (`ApplicationDbContextInitializer.SeedPointsOfInterestAsync`). Backend chưa có API POI công khai
+ * (`GET /audioguides/pois` chỉ cho Admin), nên tên và mô tả được chép lại ở đây; khi có API thì đọc
+ * từ API và bỏ danh sách này. Văn bản nguồn tiếng Anh, bản tiếng Việt ở i18n/dictionaries/vi.ts.
+ */
 export const EXPLORE_DATA: ExploreData = {
-  categories: ['Skyline', 'Heritage', 'Culture', 'Riverside'],
-  journeys: [
-    {
-      id: 'sunset-skyline',
-      image: sunsetImg,
-      tags: ['Scenic Route', 'Skyline Views'],
-      title: 'Saigon Sunset & Skyline Voyage',
-      description:
-        'Glide past illuminated bridges and towering downtown landmarks as golden dusk illuminates the central river corridor.',
-      route: 'Bach Dang Pier ➔ Linh Dong Pier',
-    },
-    {
-      id: 'colonial-wharves',
-      image: heritageImg,
-      tags: ['Heritage Stories', 'Architecture'],
-      title: 'Colonial Wharves & Living Heritage',
-      description:
-        'Discover the storied waterfront, historic customs houses, and lush riverside promenades.',
-      route: 'Bach Dang Pier ➔ Linh Dong Pier',
-    },
-    {
-      id: 'twilight-bridges',
-      image: waterwayImg,
-      tags: ['Skyline Views', 'Audio Stories'],
-      title: 'Twilight Reflections & Bridge Lights',
-      description:
-        'Experience the city’s architectural skyline from the panoramic catamaran observation deck under an illuminated evening sky.',
-      route: 'Bach Dang Pier ➔ Linh Dong Pier',
-    },
-  ],
+  categories: ['Heritage', 'Skyline', 'Riverside'],
   landmarks: [
     {
-      id: 'ba-son',
-      image: baSonImg,
+      id: 'thu-ngu-nha-rong',
+      image: heritageImg,
       category: 'Heritage',
-      title: 'Ba Son Waterfront',
+      title: 'Thủ Ngữ Flag Tower & Nhà Rồng Wharf',
       description:
-        'Modernized waterfront promenade blending maritime heritage with contemporary public space.',
+        'A long-standing historic site where the Bến Nghé canal meets the Saigon River, from which Hồ Chí Minh left in 1911 to look for a way to save the country.',
     },
     {
-      id: 'thu-thiem',
-      // No photo of Thu Thiem yet: the card shows a neutral tile instead of an unrelated picture.
+      id: 'ba-son-bridge',
+      image: baSonImg,
       category: 'Skyline',
-      title: 'Thu Thiem Promenade',
+      title: 'Ba Son Bridge (Thủ Thiêm 2 Bridge)',
       description:
-        'Vibrant civic waterfront offering unobstructed panoramic views of the city skyline.',
+        'A modern, sail-shaped cable-stayed bridge linking central District 1 with the new Thủ Thiêm urban area.',
     },
     {
-      id: 'customs-house',
-      // No photo of the customs house yet (the previous one showed a palm canal).
-      category: 'Culture',
-      title: 'Old Customs House',
-      description:
-        'Historic riverfront landmark reflecting the storied port heritage along the water.',
-    },
-    {
-      id: 'landmark-park',
+      id: 'landmark-81',
       image: landmarkImg,
-      category: 'Riverside',
-      title: 'Landmark River Park',
+      category: 'Skyline',
+      title: 'Landmark 81 & Vinhomes Central Park',
       description:
-        'Expansive contemporary waterfront parkland connecting urban transit with scenic walking paths.',
+        'The tallest building in Vietnam (461.3 m), a symbol of the prosperity and energy of Ho Chi Minh City.',
+    },
+    {
+      id: 'thanh-da-binh-quoi',
+      image: ecoImg,
+      category: 'Riverside',
+      title: 'Thanh Đa Peninsula & Bình Quới',
+      description: 'A peaceful green area wrapped by a winding branch of the Saigon River.',
+    },
+    {
+      id: 'binh-loi-bridge',
+      // Chưa có ảnh đúng cầu Bình Lợi: thẻ hiện ô trung tính thay vì ảnh nơi khác.
+      category: 'Heritage',
+      title: 'Historic Bình Lợi Bridge',
+      description:
+        'The first railway bridge across the Saigon River, built in 1902, a witness to more than a century of the city’s history.',
     },
   ],
 }

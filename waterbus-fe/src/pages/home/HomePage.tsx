@@ -3,9 +3,9 @@ import DeparturesSection from '../../features/home/components/DeparturesSection'
 import HeroSection from '../../features/home/components/HeroSection'
 import HowItWorksSection from '../../features/home/components/HowItWorksSection'
 import PiersSection from '../../features/home/components/PiersSection'
-import SectionNav from '../../features/home/components/SectionNav'
 import StoriesSection from '../../features/home/components/StoriesSection'
 import { useHomeData } from '../../features/home/hooks/useHomeData'
+import { getFeaturedPlaces } from '../../features/home/services/homeService'
 import { useDocumentTitle } from '../../hooks'
 import { Reveal } from '../../components/motion'
 import { ErrorState } from '../../components/ui'
@@ -38,7 +38,7 @@ export default function HomePage() {
         )
       )}
       {home.data && <HowItWorksSection steps={home.data.steps} />}
-      {home.data && <StoriesSection stories={home.data.stories} />}
+      <StoriesSection places={getFeaturedPlaces()} />
       {corridor.error ? (
         <SectionError onRetry={corridor.retry} />
       ) : (
@@ -49,7 +49,6 @@ export default function HomePage() {
           </>
         )
       )}
-      <SectionNav />
     </Reveal>
   )
 }

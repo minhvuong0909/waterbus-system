@@ -1,14 +1,11 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
-import { BOARDING_STEPS, ONBOARD_AMENITIES } from '../../../content/tripDetail'
 import { DEFAULT_SEARCH_QUERY } from '../searchDefaults'
 import { localize, t } from '../../../i18n'
 import { ApiError, apiRequest } from '../../../services/apiClient'
 import { createRequestCache } from '../../../services/requestCache'
 import { formatClock, toVietnamDate } from '../../../utils/time'
-import { getLowestFares } from './fareService'
 import type {
   DateOption,
-  NetworkRoute,
   PierOption,
   SearchQuery,
   StationDto,
@@ -44,30 +41,6 @@ export function getPierOptions(): Promise<PierOption[]> {
   return pierCache.get('all', () =>
     apiRequest<StationDto[]>(API_ENDPOINTS.stations).then((stations) => stations.map(toPierOption)),
   )
-}
-
-/**
- * The backend has no route list endpoint yet, so the corridor is derived from the real stations:
- * the first and the last pier in river order, offered in both directions, with the lowest
- * Commuter fare from `GET /fares`. No duration or distance is shown, which no API provides.
- */
-export async function getNetworkRoutes(): Promise<NetworkRoute[]> {
-  const [piers, fares] = await Promise.all([
-    getPierOptions(),
-    getLowestFares().catch(() => undefined),
-  ])
-  if (piers.length < 2) return []
-  const first = piers[0]
-  const last = piers[piers.length - 1]
-  const corridor = (from: PierOption, to: PierOption, badge: string): NetworkRoute => ({
-    id: `${from.code}-${to.code}`,
-    originId: from.id,
-    destinationId: to.id,
-    badge,
-    summary: t('River route between {from} and {to}', { from: from.shortName, to: to.shortName }),
-    fromFareVnd: fares?.Commuter,
-  })
-  return localize([corridor(first, last, 'Main Corridor'), corridor(last, first, 'Return')])
 }
 
 /** Today and the following days. The backend has no per-day summary (fares, trip counts). */
@@ -149,6 +122,15 @@ export async function getUpcomingTrips(
   return next.length > 0
     ? { trips: next, piers, search: nextDay, tomorrow: true }
     : { trips: [], piers, search, tomorrow: false }
+}
+
+/**
+ * True when the backend still sells seats on the trip (`canBook` of `GET /trips/{id}`). The search
+ * result has no sales state, so a list that invites to book checks it first (BR-SRCH-02).
+ */
+export async function isTripOnSale(tripId: string): Promise<boolean> {
+  const trip = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
+  return trip.canBook
 }
 
 /**
@@ -253,12 +235,6 @@ export async function getTripDetail(
         tone: 'dark',
       },
     ]),
-    amenityDetails: ONBOARD_AMENITIES,
-    boardingSteps: BOARDING_STEPS.map((step) => ({
-      ...step,
-      // The {origin} placeholder survives translation, so it is filled in afterwards.
-      description: t(step.description, { origin: origin.pierName }),
-    })),
   }
   return localize(detail)
 }

@@ -1,6 +1,5 @@
 /** Backend routes that the app calls (controllers use the `api/v1/[controller]` prefix). */
 export const API_ENDPOINTS = {
-  openApi: '/swagger/v1/swagger.json',
   auth: {
     login: '/api/v1/auth/login',
   },

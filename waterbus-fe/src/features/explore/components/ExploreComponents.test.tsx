@@ -1,16 +1,11 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it } from 'vitest'
-import type { Journey, Landmark } from '../types'
+import type { Landmark } from '../types'
 import ExploreHero from './ExploreHero'
-import JourneysSection from './JourneysSection'
 import LandmarksSection from './LandmarksSection'
 import { SIGHTSEEING_RESULTS } from '../constants'
-import StepAboardBanner from './StepAboardBanner'
 
-const journey = (id: string, route = 'Bach Dang Pier ➔ Linh Dong Pier'): Journey => ({
-  id, image: `${id}.jpg`, tags: ['Scenic Route', 'Skyline Views'], title: `Title ${id}`, description: 'd', route,
-})
 const landmarks: Landmark[] = [
   { id: 'ba-son', image: 'ba-son.jpg', category: 'Heritage', title: 'Ba Son Waterfront', description: 'Heritage meets public space.' },
   { id: 'thu-thiem', category: 'Skyline', title: 'Thu Thiem Promenade', description: 'Skyline views.' },
@@ -20,31 +15,18 @@ const inRouter = (ui: JSX.Element) => render(<MemoryRouter>{ui}</MemoryRouter>)
 describe('Explore page', () => {
   afterEach(cleanup)
 
-  it('sends both calls to action to the sightseeing departures', () => {
-    inRouter(<><ExploreHero /><StepAboardBanner /></>)
-    const links = screen.getAllByRole('link', { name: /See sightseeing trips/ })
-    expect(links).toHaveLength(2)
-    links.forEach((link) => expect(link.getAttribute('href')).toBe(SIGHTSEEING_RESULTS))
+  it('sends the call to action to the sightseeing departures', () => {
+    inRouter(<ExploreHero />)
+    const link = screen.getByRole('link', { name: /See sightseeing trips/ })
+    expect(link.getAttribute('href')).toBe(SIGHTSEEING_RESULTS)
     expect(SIGHTSEEING_RESULTS).toBe('/search/results?type=sightseeing')
   })
 
-  it('says a route shared by every featured route once, not on each card', () => {
-    inRouter(<JourneysSection journeys={[journey('a'), journey('b'), journey('c')]} />)
-    expect(screen.getAllByText(/Bach Dang Pier ➔ Linh Dong Pier/)).toHaveLength(1)
-    expect(screen.queryByText('Explore Journey')).toBeNull()
-  })
-
-  it('keeps the route on each card when the routes differ', () => {
-    inRouter(<JourneysSection journeys={[journey('a'), journey('b', 'Bach Dang Pier ➔ Binh An Pier')]} />)
-    expect(screen.getByText('Bach Dang Pier ➔ Linh Dong Pier')).toBeTruthy()
-    expect(screen.getByText('Bach Dang Pier ➔ Binh An Pier')).toBeTruthy()
-  })
-
   it('filters with pressed buttons and shows a note for an empty category', () => {
-    inRouter(<LandmarksSection categories={['Skyline', 'Heritage', 'Culture']} landmarks={landmarks} />)
-    const culture = screen.getByRole('button', { name: 'Culture' })
-    fireEvent.click(culture)
-    expect(culture.getAttribute('aria-pressed')).toBe('true')
+    inRouter(<LandmarksSection categories={['Skyline', 'Heritage', 'Riverside']} landmarks={landmarks} />)
+    const riverside = screen.getByRole('button', { name: 'Riverside' })
+    fireEvent.click(riverside)
+    expect(riverside.getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByText('No places in this category yet.')).toBeTruthy()
     expect(screen.queryByRole('tab')).toBeNull()
   })

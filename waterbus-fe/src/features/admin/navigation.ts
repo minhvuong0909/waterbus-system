@@ -11,7 +11,7 @@ export interface AdminNavItem {
 
 const { admin } = ROLES
 
-/** Điều hướng khu vực quản trị; công cụ kiểm thử chỉ xuất hiện ở môi trường phát triển. */
+/** Điều hướng khu vực quản trị. */
 export const ADMIN_NAV: AdminNavItem[] = [
   { to: ROUTES.admin, label: 'Overview', icon: 'dashboard', roles: [admin] },
   { to: ROUTES.adminRadar, label: 'Live Operations', icon: 'radar', roles: [admin] },
@@ -23,7 +23,4 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { to: ROUTES.adminRefunds, label: 'Refunds', icon: 'receipt_long', roles: [admin] },
   { to: ROUTES.adminCheckIn, label: 'Check-in', icon: 'how_to_reg', roles: [admin] },
   { to: ROUTES.adminAudioGuides, label: 'Audio guides', icon: 'campaign', roles: [admin] },
-  ...(import.meta.env.DEV
-    ? [{ to: ROUTES.adminApi, label: 'Test API', icon: 'api', roles: [admin] }]
-    : []),
 ]

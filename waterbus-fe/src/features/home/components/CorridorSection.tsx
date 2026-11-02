@@ -42,7 +42,7 @@ export default function CorridorSection({ map }: CorridorSectionProps) {
               map={map}
               pierActions={(pier) => (
                 <Link
-                  to={ROUTES.search}
+                  to={ROUTES.searchResults}
                   onClick={() => dispatch(setQuery({ originId: pier.id }))}
                   className="rounded-full bg-teal-flow px-3 py-1.5 text-xs font-semibold text-on-primary hover:bg-secondary"
                 >

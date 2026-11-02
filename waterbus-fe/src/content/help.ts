@@ -3,30 +3,6 @@ export interface FaqItem {
   answer: string
 }
 
-export interface HelpHighlight {
-  icon: string
-  title: string
-  description: string
-}
-
-export const HELP_HIGHLIGHTS: HelpHighlight[] = [
-  {
-    icon: 'confirmation_number',
-    title: 'Book online',
-    description: 'Choose your trip and seat, pay securely and get a QR e-ticket instantly.',
-  },
-  {
-    icon: 'radar',
-    title: 'Follow your trip',
-    description: 'Open a ticket to see the trip status and the stops it calls at.',
-  },
-  {
-    icon: 'energy_savings_leaf',
-    title: 'Electric river transit',
-    description: 'Quiet, low-emission crossings along Saigon’s river corridor.',
-  },
-]
-
 // English source text: the answers match what the booking flow actually does.
 export const FAQ: FaqItem[] = [
   {

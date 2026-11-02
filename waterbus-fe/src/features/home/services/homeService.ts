@@ -1,23 +1,26 @@
+import { EXPLORE_DATA } from '../../../content/explore'
 import { HOME_DATA } from '../../../content/home'
 import { localize } from '../../../i18n'
-import { getLowestFares } from '../../trips/services/fareService'
 import { getPierOptions, getUpcomingTrips } from '../../trips/services/tripService'
 import type { CorridorMap, Departure, SearchQuery } from '../../trips/types'
+import { translateLandmark } from '../../explore/services/exploreService'
+import type { Landmark } from '../../explore/types'
 import type { HomeData } from '../types'
-import { toDeparture } from '../utils'
-import { buildCorridorMap } from '../../trips/utils'
+import { buildCorridorMap, toDeparture } from '../../trips/utils'
 
 const MAX_DEPARTURES = 4
 
-// Editorial content (hero, stories, steps) has no backend source and stays static. Prices do not:
-// with the real backend a tour shows the lowest Sightseeing fare of the database, and no duration.
-export async function getHomeData(): Promise<HomeData> {
-  const fares = await getLowestFares().catch(() => ({}) as Awaited<ReturnType<typeof getLowestFares>>)
-  const stories = HOME_DATA.stories.map((story) => ({
-    ...story,
-    fromPriceVnd: fares.Sightseeing,
-  }))
-  return localize({ ...HOME_DATA, stories })
+/** Editorial content of the home page (timetable filters, how it works); no backend source. */
+export function getHomeData(): Promise<HomeData> {
+  return Promise.resolve(localize(HOME_DATA))
+}
+
+/** Places narrated on sightseeing trips that have a photo, shown as a teaser of the Explore page. */
+export function getFeaturedPlaces(count = 3): Landmark[] {
+  return EXPLORE_DATA.landmarks
+    .filter((place) => place.image)
+    .slice(0, count)
+    .map(translateLandmark)
 }
 
 export interface NextDepartures {

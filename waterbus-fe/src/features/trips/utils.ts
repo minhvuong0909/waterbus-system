@@ -3,6 +3,7 @@ import { formatClock, toVietnamDate } from '../../utils/time'
 import type {
   CorridorMap,
   DateOption,
+  Departure,
   PierOption,
   SearchQuery,
   StationDto,
@@ -186,6 +187,14 @@ export function pickJourney(
 }
 
 /** The corridor shown on the maps: the piers at their coordinates. */
+/** Piers from `originId` to `destinationId` in river order, both included (either direction). */
+export function piersBetween(piers: PierOption[], originId: string, destinationId: string): PierOption[] {
+  const from = piers.findIndex((p) => p.id === originId)
+  const to = piers.findIndex((p) => p.id === destinationId)
+  if (from < 0 || to < 0) return piers
+  return piers.slice(Math.min(from, to), Math.max(from, to) + 1)
+}
+
 export function buildCorridorMap(piers: PierOption[]): CorridorMap {
   const placed = piers.map((pier) => ({
     id: pier.id,
@@ -207,4 +216,37 @@ export function chronological(steps: (TimelineStep & { at: number })[]): Timelin
   const known = steps.every((step) => Number.isFinite(step.at))
   const ordered = known ? [...steps].sort((a, b) => a.at - b.at) : steps
   return ordered.map(({ time, title, description, tone }) => ({ time, title, description, tone }))
+}
+
+/** A departure leaves within this many minutes -> shown as "Departing soon". */
+const SOON_WINDOW_MINUTES = 15
+
+/**
+ * Row of an upcoming departure (home page, Explore). `origin` / `destination` are the piers of the
+ * search it came from. Only says "Departing soon" from the clock: the trip status itself (Boarding,
+ * EnRoute…) belongs to the backend (BR-OPS-01) and is not guessed here.
+ */
+export function toDeparture(
+  trip: Trip,
+  origin: PierOption,
+  destination: PierOption,
+  now = new Date(),
+  /** False for trips of another day: they cannot be "soon" just because the clock time is near. */
+  isToday = true,
+): Departure {
+  const [hours, minutes] = trip.departTime.split(':').map(Number)
+  const minutesToGo = hours * 60 + minutes - (now.getHours() * 60 + now.getMinutes())
+  const soon = isToday && minutesToGo <= SOON_WINDOW_MINUTES
+  return {
+    id: `dep-${trip.id}`,
+    trip,
+    time: trip.departTime,
+    status: soon ? t('Departing soon') : t('Scheduled'),
+    statusKind: soon ? 'soon' : 'scheduled',
+    kind: trip.kind,
+    from: origin.shortName,
+    to: destination.shortName,
+    details: [t('{durationMins} min voyage', { durationMins: trip.durationMins }), seatsLabel(trip)],
+    priceVnd: trip.fareVnd,
+  }
 }

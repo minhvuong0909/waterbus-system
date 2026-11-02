@@ -13,7 +13,6 @@ import { ROUTES } from './routes'
 // Each page is its own chunk, loaded on first visit.
 const HomePage = lazy(() => import('../pages/home/HomePage'))
 const SignInPage = lazy(() => import('../pages/auth/SignInPage'))
-const SearchJourneyPage = lazy(() => import('../pages/trips/SearchJourneyPage'))
 const SearchResultsPage = lazy(() => import('../pages/trips/SearchResultsPage'))
 const TripDetailPage = lazy(() => import('../pages/trips/TripDetailPage'))
 const SeatSelectionPage = lazy(() => import('../pages/booking/SeatSelectionPage'))
@@ -28,11 +27,9 @@ const ManageBookingPage = lazy(() => import('../pages/tickets/ManageBookingPage'
 const LiveTrackingPage = lazy(() => import('../pages/tracking/LiveTrackingPage'))
 const ExplorePage = lazy(() => import('../pages/explore/ExplorePage'))
 const HelpPage = lazy(() => import('../pages/help/HelpPage'))
-const SitemapPage = lazy(() => import('../pages/sitemap/SitemapPage'))
 
 // Operations area. Which roles may open each page is declared once, in ADMIN_NAV.
 const ADMIN_PAGES: Record<string, ComponentType> = {
-  [ROUTES.adminApi]: lazy(() => import('../pages/admin/ApiToolsPage')),
   [ROUTES.admin]: lazy(() => import('../pages/admin/OverviewPage')),
   [ROUTES.adminRadar]: lazy(() => import('../pages/admin/RadarPage')),
   [ROUTES.adminTrips]: lazy(() => import('../pages/admin/TripsPage')),
@@ -49,7 +46,6 @@ const CaptainPortalPage = lazy(() => import('../pages/captain/CaptainPortalPage'
 const PAGES = [
   { path: ROUTES.home, Page: HomePage },
   { path: ROUTES.signIn, Page: SignInPage },
-  { path: ROUTES.search, Page: SearchJourneyPage },
   { path: ROUTES.searchResults, Page: SearchResultsPage },
   { path: ROUTES.tripDetail, Page: TripDetailPage },
   { path: ROUTES.seatSelection, Page: SeatSelectionPage },
@@ -65,7 +61,6 @@ const PAGES = [
   { path: ROUTES.liveTracking, Page: LiveTrackingPage },
   { path: ROUTES.explore, Page: ExplorePage },
   { path: ROUTES.help, Page: HelpPage },
-  { path: ROUTES.sitemap, Page: SitemapPage },
 ]
 
 // Passenger pages are open to guests. Pages that need a role are wrapped in <PrivateRoute roles>.

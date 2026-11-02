@@ -256,7 +256,7 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
 
                     <div className="flex flex-wrap items-center gap-3">
                       <Link
-                        to={ROUTES.search}
+                        to={ROUTES.searchResults}
                         tabIndex={selected ? 0 : -1}
                         onClick={() => bookFrom(pier)}
                         className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-teal-flow px-6 py-2.5 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-secondary"

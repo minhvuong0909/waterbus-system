@@ -1,50 +1,21 @@
 import { Card, Icon } from '../../components/ui'
 import { CONTACT } from '../../constant/contact'
-import { FAQ, HELP_HIGHLIGHTS } from '../../content/help'
+import { FAQ } from '../../content/help'
 import { useDocumentTitle } from '../../hooks'
 import { t } from '../../i18n'
 
 export default function HelpPage() {
-  useDocumentTitle('Help & About')
+  useDocumentTitle('Help')
 
   return (
     <div className="mx-auto w-full max-w-5xl px-margin pb-space-3xl pt-space-xl">
-      <header className="max-w-2xl space-y-space-xs">
-        <span className="text-body-sm font-bold uppercase tracking-wider text-teal-flow">
-          {t('About Smart Waterbus')}
-        </span>
-        <h1 className="font-display text-headline-lg font-bold tracking-tight text-deep-river">
-          {t('Help & About')}
-        </h1>
-        <p className="text-body-lg text-on-surface-variant">
-          {t(
-            'Smart Waterbus is an electric river bus service for Saigon, with online booking, QR e-tickets and live trip status.',
-          )}
-        </p>
-      </header>
+      <h1 className="font-display text-headline-lg font-bold tracking-tight text-deep-river">
+        {t('Help')}
+      </h1>
 
-      <ul className="mt-space-xl grid grid-cols-1 gap-space-md md:grid-cols-3">
-        {HELP_HIGHLIGHTS.map((h) => (
-          <li key={h.title}>
-            <Card className="h-full space-y-space-sm p-space-lg">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-mist text-teal-flow">
-                <Icon name={h.icon} className="text-2xl" />
-              </span>
-              <h2 className="font-display text-headline-sm font-bold text-deep-river">
-                {t(h.title)}
-              </h2>
-              <p className="text-body-md text-on-surface-variant">{t(h.description)}</p>
-            </Card>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-space-2xl grid grid-cols-1 items-start gap-space-xl lg:grid-cols-3">
+      <div className="mt-space-lg grid grid-cols-1 items-start gap-space-xl lg:grid-cols-3">
         <section className="space-y-space-md lg:col-span-2" aria-labelledby="faq-title">
-          <h2
-            id="faq-title"
-            className="font-display text-headline-md font-bold text-deep-river"
-          >
+          <h2 id="faq-title" className="font-display text-headline-md font-bold text-deep-river">
             {t('Frequently Asked Questions')}
           </h2>
           <Card className="divide-y divide-outline-variant/30">

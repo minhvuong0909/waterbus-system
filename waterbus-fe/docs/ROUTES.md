@@ -1,14 +1,14 @@
 # Routes
 
-Run `pnpm dev` and open http://localhost:5173. The in-app index lives at `/sitemap`.
-Passenger routes open directly by URL. `PrivateRoute` guards routes that need a signed-in role (none yet).
+Run `pnpm dev` and open http://localhost:5173.
+Passenger routes open directly by URL; guests open their booking with the secure link. `PrivateRoute` guards the
+operations area and the captain's portal by role.
 Source of truth: `src/routes/routes.ts` (paths) and `src/routes/AppRoutes.tsx` (pages, lazy-loaded).
 
 | Route | Screen |
 |---|---|
 | `/` | Home |
-| `/sign-in` | Sign in / Create account |
-| `/search` | Search journey |
+| `/sign-in` | Sign in |
 | `/search/results` | Search results |
 | `/trip` | Trip detail |
 | `/booking/seats` | Seat selection |
@@ -17,26 +17,28 @@ Source of truth: `src/routes/routes.ts` (paths) and `src/routes/AppRoutes.tsx` (
 | `/payment` | Payment |
 | `/payment/callback` | VNPay return page (checks the result, then shows success or a failure message) |
 | `/payment/success` | Booking confirmed |
-| `/tickets` | My tickets |
+| `/tickets` | My tickets (orders bought on this device) |
 | `/tickets/detail` | Ticket detail |
 | `/tickets/manage` | Manage booking |
-| `/manage/:token` | Manage booking opened from a secure link (no sign-in needed) |
+| `/manage/:token?orderId=` | Manage booking opened from the secure link (no sign-in needed) |
 | `/tracking` | Live trip tracking |
 | `/explore` | Explore river journeys |
-| `/sitemap` | All routes |
+| `/help` | Help & FAQ |
 
 Operations area (sign in required, roles in `src/features/admin/navigation.ts`):
 
 | Route | Screen | Roles |
 |---|---|---|
-| `/admin` | Overview | Admin, Dispatcher |
-| `/admin/radar` | Live Operations (Leaflet map of boats) | Admin, Dispatcher |
-| `/admin/trips` | Trips, change boat | Admin, Dispatcher |
-| `/admin/schedules` | Schedules, generate trips | Admin |
-| `/admin/stations` | Stations CRUD | Admin |
-| `/admin/boats` | Boats CRUD | Admin |
+| `/admin` | Overview | Admin |
+| `/admin/radar` | Live Operations (Leaflet map of boats) | Admin |
+| `/admin/trips` | Trips | Admin |
+| `/admin/stations` | Stations | Admin |
+| `/admin/boats` | Boats | Admin |
 | `/admin/fares` | Fares | Admin |
-| `/admin/incidents` | Weather alerts, suspend / cancel / terminate a trip | Admin, Dispatcher |
-| `/captain` | Captain portal (Start, Arrived, SOS, narration) | Captain, Admin |
+| `/admin/incidents` | Weather alerts, suspend / cancel / terminate a trip | Admin |
+| `/admin/refunds` | Refund a booking, confirm a manual refund, reconcile | Admin |
+| `/admin/check-in` | Check-in window of each stop | Admin |
+| `/admin/audio-guides` | Sightseeing audio guides | Admin |
+| `/captain` | Captain portal (Start, Arrived, SOS, GPS) | Captain, Admin |
 
-Unknown paths redirect to `/`.
+Unknown paths redirect to `/`. The backend API is explored with Swagger (Development only), not from the web app.
