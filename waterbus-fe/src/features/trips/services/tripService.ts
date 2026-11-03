@@ -3,7 +3,7 @@ import { DEFAULT_SEARCH_QUERY } from '../searchDefaults'
 import { localize, t } from '../../../i18n'
 import { ApiError, apiRequest } from '../../../services/apiClient'
 import { createRequestCache } from '../../../services/requestCache'
-import { formatClock, toVietnamDate } from '../../../utils/time'
+import { formatClock, minutesOfClock, toVietnamDate, vietnamMinutesOfDay } from '../../../utils/time'
 import type {
   DateOption,
   PierOption,
@@ -85,12 +85,6 @@ export async function getDayTripCounts(
   return Object.fromEntries(entries.filter(([, count]) => count >= 0))
 }
 
-/** Minutes since midnight of an "HH:mm" time. */
-const minutesOf = (time: string) => {
-  const [hours, minutes] = time.split(':').map(Number)
-  return hours * 60 + minutes
-}
-
 /**
  * The next departures today on the main corridor (first to last pier), with the search they came
  * from. Departures that already left are dropped.
@@ -111,7 +105,7 @@ export async function getUpcomingTrips(
   const now = new Date()
   const bookable = (trip: Trip) => trip.seatsCount > 0
   const today = all
-    .filter((trip) => minutesOf(trip.departTime) >= now.getHours() * 60 + now.getMinutes())
+    .filter((trip) => minutesOfClock(trip.departTime) >= vietnamMinutesOfDay(now))
     .filter(bookable)
     .slice(0, limit)
   if (today.length > 0) return { trips: today, piers, search, tomorrow: false }

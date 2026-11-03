@@ -1,5 +1,5 @@
 import { numberLocale, t } from '../../i18n'
-import { formatClock, toVietnamDate } from '../../utils/time'
+import { formatClock, minutesOfClock, toVietnamDate, vietnamMinutesOfDay } from '../../utils/time'
 import type {
   CorridorMap,
   DateOption,
@@ -138,7 +138,7 @@ export function toTrip(dto: TripDto): Trip {
     crossingCaption: dto.routeName,
     seatsCount: dto.availableSeatsCount,
     seatsLow: dto.availableSeatsCount <= LOW_SEATS_THRESHOLD,
-    band: timeBandOf(depart.getHours()),
+    band: timeBandOf(Math.floor(vietnamMinutesOfDay(depart) / 60)),
     amenities: [],
     fareVnd: dto.basePrice,
     // basePrice is the lowest fare of the trip type; seats of other classes cost more.
@@ -153,8 +153,7 @@ export function toTrip(dto: TripDto): Trip {
 export function isDeparted(trip: Pick<Trip, 'departTime'>, dateId: string, now = new Date()): boolean {
   const today = toVietnamDate(now)
   if (dateId !== today) return dateId < today
-  const [hours, minutes] = trip.departTime.split(':').map(Number)
-  return hours * 60 + minutes <= now.getHours() * 60 + now.getMinutes()
+  return minutesOfClock(trip.departTime) <= vietnamMinutesOfDay(now)
 }
 
 /**
@@ -234,8 +233,7 @@ export function toDeparture(
   /** False for trips of another day: they cannot be "soon" just because the clock time is near. */
   isToday = true,
 ): Departure {
-  const [hours, minutes] = trip.departTime.split(':').map(Number)
-  const minutesToGo = hours * 60 + minutes - (now.getHours() * 60 + now.getMinutes())
+  const minutesToGo = minutesOfClock(trip.departTime) - vietnamMinutesOfDay(now)
   const soon = isToday && minutesToGo <= SOON_WINDOW_MINUTES
   return {
     id: `dep-${trip.id}`,
