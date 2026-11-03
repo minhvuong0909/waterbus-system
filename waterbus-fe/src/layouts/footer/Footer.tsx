@@ -6,7 +6,8 @@ import { t } from '../../i18n'
 export default function Footer() {
   return (
     <footer className="w-full border-t border-outline-variant/30 bg-white print:hidden">
-      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">
+      {/* pb lớn hơn: nút trợ lý nổi ở góc dưới không che chữ cuối trang. */}
+      <div className="mx-auto max-w-7xl px-5 pb-24 pt-8 sm:px-8 sm:pt-10">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <Logo className="h-8 w-auto" />
 
@@ -24,13 +25,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <p className="mt-space-lg max-w-3xl text-xs leading-relaxed text-on-surface-variant">
-          {t(
-            'Refunds: if a trip is cancelled or ends early, the part you paid for that was not served is refunded in full. A ticket missed at check-in is not refunded.',
-          )}
-        </p>
-
-        <p className="mt-space-md border-t border-outline-variant/30 pt-space-md text-body-sm text-on-surface-variant">
+        <p className="mt-space-lg border-t border-outline-variant/30 pt-space-md text-body-sm text-on-surface-variant">
           {t('© {year} Smart Waterbus. River Connects Greater Stories.', {
             year: new Date().getFullYear(),
           })}

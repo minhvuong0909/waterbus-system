@@ -1,9 +1,7 @@
 import ExploreHero from '../../features/explore/components/ExploreHero'
-import JourneysSection from '../../features/explore/components/JourneysSection'
 import LandmarksSection from '../../features/explore/components/LandmarksSection'
-import StepAboardBanner from '../../features/explore/components/StepAboardBanner'
-import StoriesSection from '../../features/explore/components/StoriesSection'
-import { getExploreData } from '../../features/explore/services/exploreService'
+import SightseeingDeparturesSection from '../../features/explore/components/SightseeingDeparturesSection'
+import { getExploreData, getSightseeingDepartures } from '../../features/explore/services/exploreService'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { Reveal } from '../../components/motion'
 import { ErrorState, PageLoader } from '../../components/ui'
@@ -11,6 +9,8 @@ import { ErrorState, PageLoader } from '../../components/ui'
 export default function ExplorePage() {
   useDocumentTitle('Explore River Journeys')
   const { data, loading, error, retry } = useFetch(getExploreData)
+  // Chuyến thật từ API; lỗi chỉ ẩn phần chuyến, phần địa danh vẫn hiện.
+  const departures = useFetch(() => getSightseeingDepartures())
 
   if (error) return <ErrorState onRetry={retry} />
 
@@ -19,10 +19,12 @@ export default function ExplorePage() {
   return (
     <Reveal>
       <ExploreHero />
-      <JourneysSection journeys={data.journeys} />
+      <SightseeingDeparturesSection
+        departures={departures.data}
+        error={Boolean(departures.error)}
+        onRetry={departures.retry}
+      />
       <LandmarksSection categories={data.categories} landmarks={data.landmarks} />
-      <StoriesSection />
-      <StepAboardBanner />
     </Reveal>
   )
 }

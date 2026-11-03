@@ -56,7 +56,7 @@ export default function BookingSummary({
       <SummaryTimer
         fallback={
           <span className="inline-flex items-center gap-1 rounded-xl bg-surface-container px-space-md py-2 text-xs font-semibold text-teal-flow">
-            <Icon name="timer" className="text-sm" /> {t('Cart holds for 10:00')}
+            <Icon name="timer" className="text-sm" /> {t('Seats are held once you continue')}
           </span>
         }
       />
@@ -84,7 +84,7 @@ export default function BookingSummary({
 
       <div className="mt-space-md">
         <div className="mb-1.5 flex items-center justify-between text-2xs font-bold uppercase tracking-wider text-teal-flow">
-          {t('Reserved Seat Choice')}
+          {t('Selected Seats')}
           <Icon name="airline_seat_recline_extra" className="text-base" />
         </div>
         {seats.length === 0 ? (

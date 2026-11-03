@@ -1,12 +1,14 @@
 import { numberLocale, t } from '../../i18n'
-import { formatClock, toVietnamDate } from '../../utils/time'
+import { formatClock, minutesOfClock, toVietnamDate, vietnamMinutesOfDay } from '../../utils/time'
 import type {
   CorridorMap,
   DateOption,
+  Departure,
   PierOption,
   SearchQuery,
   StationDto,
   TimeBand,
+  TimelineStep,
   Trip,
   TripDto,
   TripStopDto,
@@ -136,7 +138,7 @@ export function toTrip(dto: TripDto): Trip {
     crossingCaption: dto.routeName,
     seatsCount: dto.availableSeatsCount,
     seatsLow: dto.availableSeatsCount <= LOW_SEATS_THRESHOLD,
-    band: timeBandOf(depart.getHours()),
+    band: timeBandOf(Math.floor(vietnamMinutesOfDay(depart) / 60)),
     amenities: [],
     fareVnd: dto.basePrice,
     // basePrice is the lowest fare of the trip type; seats of other classes cost more.
@@ -151,8 +153,7 @@ export function toTrip(dto: TripDto): Trip {
 export function isDeparted(trip: Pick<Trip, 'departTime'>, dateId: string, now = new Date()): boolean {
   const today = toVietnamDate(now)
   if (dateId !== today) return dateId < today
-  const [hours, minutes] = trip.departTime.split(':').map(Number)
-  return hours * 60 + minutes <= now.getHours() * 60 + now.getMinutes()
+  return minutesOfClock(trip.departTime) <= vietnamMinutesOfDay(now)
 }
 
 /**
@@ -185,6 +186,14 @@ export function pickJourney(
 }
 
 /** The corridor shown on the maps: the piers at their coordinates. */
+/** Piers from `originId` to `destinationId` in river order, both included (either direction). */
+export function piersBetween(piers: PierOption[], originId: string, destinationId: string): PierOption[] {
+  const from = piers.findIndex((p) => p.id === originId)
+  const to = piers.findIndex((p) => p.id === destinationId)
+  if (from < 0 || to < 0) return piers
+  return piers.slice(Math.min(from, to), Math.max(from, to) + 1)
+}
+
 export function buildCorridorMap(piers: PierOption[]): CorridorMap {
   const placed = piers.map((pier) => ({
     id: pier.id,
@@ -196,4 +205,46 @@ export function buildCorridorMap(piers: PierOption[]): CorridorMap {
     longitude: pier.longitude,
   }))
   return { piers: placed }
+}
+
+/**
+ * Xếp các mốc lộ trình theo thời gian thật, để một khung check-in đóng sau giờ tàu chạy (dữ liệu
+ * cấu hình sai) không hiện lẫn thứ tự. Mốc không có thời gian (NaN) giữ nguyên vị trí tương đối.
+ */
+export function chronological(steps: (TimelineStep & { at: number })[]): TimelineStep[] {
+  const known = steps.every((step) => Number.isFinite(step.at))
+  const ordered = known ? [...steps].sort((a, b) => a.at - b.at) : steps
+  return ordered.map(({ time, title, description, tone }) => ({ time, title, description, tone }))
+}
+
+/** A departure leaves within this many minutes -> shown as "Departing soon". */
+const SOON_WINDOW_MINUTES = 15
+
+/**
+ * Row of an upcoming departure (home page, Explore). `origin` / `destination` are the piers of the
+ * search it came from. Only says "Departing soon" from the clock: the trip status itself (Boarding,
+ * EnRoute…) belongs to the backend (BR-OPS-01) and is not guessed here.
+ */
+export function toDeparture(
+  trip: Trip,
+  origin: PierOption,
+  destination: PierOption,
+  now = new Date(),
+  /** False for trips of another day: they cannot be "soon" just because the clock time is near. */
+  isToday = true,
+): Departure {
+  const minutesToGo = minutesOfClock(trip.departTime) - vietnamMinutesOfDay(now)
+  const soon = isToday && minutesToGo <= SOON_WINDOW_MINUTES
+  return {
+    id: `dep-${trip.id}`,
+    trip,
+    time: trip.departTime,
+    status: soon ? t('Departing soon') : t('Scheduled'),
+    statusKind: soon ? 'soon' : 'scheduled',
+    kind: trip.kind,
+    from: origin.shortName,
+    to: destination.shortName,
+    details: [t('{durationMins} min voyage', { durationMins: trip.durationMins }), seatsLabel(trip)],
+    priceVnd: trip.fareVnd,
+  }
 }

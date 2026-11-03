@@ -24,10 +24,17 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
             <span className="rounded bg-mist px-space-sm py-1 text-xs font-semibold text-teal-flow">
               {trip.direct ? t('Direct Crossing') : trip.crossingKind}
             </span>
-            <span className="flex items-center gap-1 rounded bg-sand-light px-space-sm py-1 text-xs font-semibold text-teal-flow">
-              <Icon name="event_seat" className="text-sm" />
-              {t('{count} Seats Available', { count: trip.seatsCount })}
-            </span>
+            {trip.salesOpen ? (
+              <span className="flex items-center gap-1 rounded bg-sand-light px-space-sm py-1 text-xs font-semibold text-teal-flow">
+                <Icon name="event_seat" className="text-sm" />
+                {t('{count} Seats Available', { count: trip.seatsCount })}
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 rounded bg-coral-glow/10 px-space-sm py-1 text-xs font-semibold text-deep-river">
+                <Icon name="block" className="text-sm text-coral-glow" />
+                {t('Sales closed')}
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-1 items-center gap-space-md pt-space-xs md:grid-cols-12">
@@ -111,12 +118,24 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
                 {t('Price shown when you choose a seat')}
               </div>
             )}
-            <div className="mt-0.5 flex items-center gap-1 text-body-sm text-on-surface-variant">
-              <Icon name="check_circle" className="text-sm text-teal-flow" />{' '}
-              {t('Instant ticket confirmation')}
-            </div>
           </div>
           <div className="space-y-space-xs pt-space-md">
+            {!trip.salesOpen ? (
+              <>
+                <span
+                  aria-disabled="true"
+                  className="inline-flex w-full cursor-not-allowed items-center justify-center gap-space-xs rounded-full bg-teal-flow px-space-lg py-space-sm font-display text-base font-semibold text-on-primary opacity-50"
+                >
+                  {t('Choose Seat')}
+                </span>
+                <p role="status" className="text-center text-xs text-on-surface-variant">
+                  {t('Ticket sales are closed for this trip.')}{' '}
+                  <Link to={ROUTES.searchResults} className="font-semibold text-teal-flow hover:underline">
+                    {t('See other trips')}
+                  </Link>
+                </p>
+              </>
+            ) : (
             <Link
               to={ROUTES.seatSelection}
               className="group inline-flex w-full items-center justify-center gap-space-xs rounded-full bg-teal-flow px-space-lg py-space-sm font-display text-base font-semibold text-on-primary shadow-glow transition-all hover:bg-secondary"
@@ -127,6 +146,7 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
                 className="text-lg transition-transform group-hover:translate-x-1"
               />
             </Link>
+            )}
           </div>
         </div>
       </div>

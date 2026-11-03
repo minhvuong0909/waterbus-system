@@ -52,7 +52,7 @@ export default function OrderSummary({
         </div>
         <div className="mt-2 flex items-center justify-between text-2xs text-on-surface-variant">
           <span>{t('Depart {departTime}', { departTime: trip.departTime })}</span>
-          <span>{t('Direct Line')}</span>
+          <span>{t('{durationMins} min', { durationMins: trip.durationMins })}</span>
           <span>{t('Arrive {arriveTime}', { arriveTime: trip.arriveTime })}</span>
         </div>
       </div>

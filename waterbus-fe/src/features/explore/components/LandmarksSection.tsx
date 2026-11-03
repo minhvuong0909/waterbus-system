@@ -38,7 +38,7 @@ export default function LandmarksSection({
             </button>
             {categories.map((c) => (
               <button key={c} type="button" aria-pressed={filter === c} onClick={() => setFilter(c)} className={pill(filter === c)}>
-                {c}
+                {t(c)}
               </button>
             ))}
           </div>
@@ -61,7 +61,7 @@ export default function LandmarksSection({
               <div className="relative h-40 overflow-hidden">
                 <LandmarkImage landmark={l} className="h-full w-full transition-transform duration-500 group-hover:scale-105" />
                 <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-semibold text-deep-river">
-                  {l.category}
+                  {t(l.category)}
                 </span>
               </div>
               <div className="space-y-1 p-space-md">

@@ -66,7 +66,8 @@ export default function HeroSection() {
               </p>
               <h1 className="font-display text-4xl font-extrabold leading-[1.08] tracking-[-0.02em] drop-shadow-[0_3px_18px_rgba(13,37,56,0.55)] sm:text-5xl lg:text-6xl xl:text-6xl">
                 <span className="block text-white">{t('A Smarter Journey,')}</span>
-                <span className="block bg-gradient-to-r from-sky-aqua via-secondary-container to-white bg-clip-text text-transparent">
+                {/* pb giữ vùng nền gradient đủ sâu cho dấu nặng (Một, rạng), nếu không dấu bị cắt mất. */}
+                <span className="-mb-[0.15em] block bg-gradient-to-r from-sky-aqua via-secondary-container to-white bg-clip-text pb-[0.15em] text-transparent">
                   {t('A Brighter Saigon')}
                 </span>
               </h1>

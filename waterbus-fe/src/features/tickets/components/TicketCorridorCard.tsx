@@ -60,7 +60,7 @@ export default function TicketCorridorCard({ ticket }: { ticket: Ticket }) {
         </div>
         <div className="rounded-lg bg-mist p-2">
           <div className="text-2xs text-on-surface-variant">{t('Corridor Line')}</div>
-          <div className="text-sm font-semibold text-deep-river">{t('Direct Line')}</div>
+          <div className="truncate text-sm font-semibold text-deep-river" title={ticket.lineName}>{ticket.lineName}</div>
         </div>
         <div className="rounded-lg bg-mist p-2">
           <div className="text-2xs text-on-surface-variant">{t('Passenger')}</div>

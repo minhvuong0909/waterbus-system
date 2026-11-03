@@ -1,14 +1,11 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
-import { BOARDING_STEPS, ONBOARD_AMENITIES } from '../../../content/tripDetail'
 import { DEFAULT_SEARCH_QUERY } from '../searchDefaults'
 import { localize, t } from '../../../i18n'
 import { ApiError, apiRequest } from '../../../services/apiClient'
 import { createRequestCache } from '../../../services/requestCache'
-import { formatClock, toVietnamDate } from '../../../utils/time'
-import { getLowestFares } from './fareService'
+import { formatClock, minutesOfClock, toVietnamDate, vietnamMinutesOfDay } from '../../../utils/time'
 import type {
   DateOption,
-  NetworkRoute,
   PierOption,
   SearchQuery,
   StationDto,
@@ -18,6 +15,7 @@ import type {
 } from '../types'
 import {
   buildDateOptions,
+  chronological,
   describeDate,
   formatDateLabel,
   pickPiers,
@@ -43,30 +41,6 @@ export function getPierOptions(): Promise<PierOption[]> {
   return pierCache.get('all', () =>
     apiRequest<StationDto[]>(API_ENDPOINTS.stations).then((stations) => stations.map(toPierOption)),
   )
-}
-
-/**
- * The backend has no route list endpoint yet, so the corridor is derived from the real stations:
- * the first and the last pier in river order, offered in both directions, with the lowest
- * Commuter fare from `GET /fares`. No duration or distance is shown, which no API provides.
- */
-export async function getNetworkRoutes(): Promise<NetworkRoute[]> {
-  const [piers, fares] = await Promise.all([
-    getPierOptions(),
-    getLowestFares().catch(() => undefined),
-  ])
-  if (piers.length < 2) return []
-  const first = piers[0]
-  const last = piers[piers.length - 1]
-  const corridor = (from: PierOption, to: PierOption, badge: string): NetworkRoute => ({
-    id: `${from.code}-${to.code}`,
-    originId: from.id,
-    destinationId: to.id,
-    badge,
-    summary: t('River route between {from} and {to}', { from: from.shortName, to: to.shortName }),
-    fromFareVnd: fares?.Commuter,
-  })
-  return localize([corridor(first, last, 'Main Corridor'), corridor(last, first, 'Return')])
 }
 
 /** Today and the following days. The backend has no per-day summary (fares, trip counts). */
@@ -111,12 +85,6 @@ export async function getDayTripCounts(
   return Object.fromEntries(entries.filter(([, count]) => count >= 0))
 }
 
-/** Minutes since midnight of an "HH:mm" time. */
-const minutesOf = (time: string) => {
-  const [hours, minutes] = time.split(':').map(Number)
-  return hours * 60 + minutes
-}
-
 /**
  * The next departures today on the main corridor (first to last pier), with the search they came
  * from. Departures that already left are dropped.
@@ -137,7 +105,7 @@ export async function getUpcomingTrips(
   const now = new Date()
   const bookable = (trip: Trip) => trip.seatsCount > 0
   const today = all
-    .filter((trip) => minutesOf(trip.departTime) >= now.getHours() * 60 + now.getMinutes())
+    .filter((trip) => minutesOfClock(trip.departTime) >= vietnamMinutesOfDay(now))
     .filter(bookable)
     .slice(0, limit)
   if (today.length > 0) return { trips: today, piers, search, tomorrow: false }
@@ -148,6 +116,15 @@ export async function getUpcomingTrips(
   return next.length > 0
     ? { trips: next, piers, search: nextDay, tomorrow: true }
     : { trips: [], piers, search, tomorrow: false }
+}
+
+/**
+ * True when the backend still sells seats on the trip (`canBook` of `GET /trips/{id}`). The search
+ * result has no sales state, so a list that invites to book checks it first (BR-SRCH-02).
+ */
+export async function isTripOnSale(tripId: string): Promise<boolean> {
+  const trip = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
+  return trip.canBook
 }
 
 /**
@@ -162,6 +139,11 @@ export async function getTripDetail(
   let trip = selectedTrip
   // Check-in window of the boarding stop from the backend; null while operations has not set it.
   let checkIn: { openAt: string | null; closeAt: string | null } | null = null
+  // Sales state of the backend; a trip that only comes from the search results is taken as on sale.
+  let salesOpen = true
+  // Mốc thời gian thật để xếp lộ trình theo thứ tự; trip chỉ từ kết quả tìm kiếm thì giữ thứ tự sẵn có.
+  let departAt = Number.NaN
+  let arriveAt = Number.NaN
   if (tripId) {
     const raw = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
     const journey = pickJourney(raw.stops, query.originId, query.destinationId)
@@ -170,9 +152,12 @@ export async function getTripDetail(
       query: { boardingCallId: journey.boarding.callId, disembarkingCallId: journey.disembarking.callId },
     })
     const prices = seats.seats.flatMap((seat) => seat.price === null ? [] : [seat.price])
+    salesOpen = raw.canBook && seats.canBook
     checkIn = { openAt: journey.boarding.checkInOpenAt ?? null, closeAt: journey.boarding.checkInCloseAt ?? null }
     const departureTime = journey.boarding.estimatedDepartureTime ?? raw.departureTime
     const arrivalTime = journey.disembarking.estimatedArrivalTime ?? raw.arrivalTime
+    departAt = Date.parse(departureTime)
+    arriveAt = Date.parse(arrivalTime)
     trip = toTrip({ id: raw.tripId, routeName: raw.routeName, tripType: raw.tripType,
       departureStationName: journey.boarding.stationName, arrivalStationName: journey.disembarking.stationName,
       departureTime, arrivalTime,
@@ -202,13 +187,15 @@ export async function getTripDetail(
     originDistrict: origin.district,
     destinationDistrict: destination.district,
     dateLabel: formatDateLabel(date),
+    salesOpen,
     dateId: date.id,
     dateFull: date.fullLabel,
     dateShort: date.label,
-    timeline: [
+    timeline: chronological([
       // The boarding stop's check-in window; no row at all while it is not configured.
       ...(checkIn?.openAt
         ? [{
+            at: Date.parse(checkIn.openAt),
             time: formatClock(new Date(checkIn.openAt)),
             title: t('Check-in opens at {pier}', { pier: origin.pierName }),
             description: t('Show your QR ticket to the staff at the pier.'),
@@ -217,6 +204,7 @@ export async function getTripDetail(
         : []),
       ...(checkIn?.closeAt
         ? [{
+            at: Date.parse(checkIn.closeAt),
             time: formatClock(new Date(checkIn.closeAt)),
             title: t('Check-in closes'),
             description: t('Passengers who have not checked in by now cannot board.'),
@@ -224,6 +212,7 @@ export async function getTripDetail(
           }]
         : []),
       {
+        at: departAt,
         time: trip.departTime,
         title: t('Departure'),
         description: t('{code} departs {pier} across the river corridor.', {
@@ -233,18 +222,13 @@ export async function getTripDetail(
         tone: 'teal',
       },
       {
+        at: arriveAt,
         time: trip.arriveTime,
         title: t('Arrival at {pier}', { pier: destination.pierName }),
         description: t('Scheduled docking at {pier}.', { pier: destination.pierName }),
         tone: 'dark',
       },
-    ],
-    amenityDetails: ONBOARD_AMENITIES,
-    boardingSteps: BOARDING_STEPS.map((step) => ({
-      ...step,
-      // The {origin} placeholder survives translation, so it is filled in afterwards.
-      description: t(step.description, { origin: origin.pierName }),
-    })),
+    ]),
   }
   return localize(detail)
 }

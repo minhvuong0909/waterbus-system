@@ -18,13 +18,19 @@ export default function CheckInWindowRow({ stop }: { stop: TripStopDto }) {
   const [saved, setSaved] = useState(false)
   const { run, busy, error } = useSubmit()
   const locked = LOCKED_STATUSES.includes(stop.status)
-  const departure = stop.estimatedDepartureTime ?? stop.estimatedArrivalTime
+  const departure = stop.estimatedDepartureTime
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setSaved(false)
     if (!openAt || !closeAt) return setInvalid(t('Enter both times.'))
     if (closeAt <= openAt) return setInvalid(t('Check-in must close after it opens.'))
+    // Check-in diễn ra ở khu chờ trước khi tàu rời bến này (BR-BOARD-01/05), nên không được đóng muộn hơn.
+    if (departure && Date.parse(fromVietnamDateTimeInput(closeAt)) > Date.parse(departure)) {
+      return setInvalid(t('Check-in must close no later than the boat leaves this stop ({time}).', {
+        time: formatClock(new Date(departure)),
+      }))
+    }
     setInvalid(null)
     const done = await run(() => setCheckInWindow(stop.callId, fromVietnamDateTimeInput(openAt), fromVietnamDateTimeInput(closeAt)))
     if (done) setSaved(true)

@@ -63,7 +63,7 @@ export default function UpcomingTripCard({
       </div>
       <div className="mt-space-md flex items-center justify-between border-t border-surface-container pt-space-md">
         <Link
-          to={ROUTES.manageBooking}
+          to={ticket.manageLink ?? ROUTES.manageBooking}
           className="text-xs text-on-surface-variant hover:text-deep-river"
         >
           {t('Trip Details')}

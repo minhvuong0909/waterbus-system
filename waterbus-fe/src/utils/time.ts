@@ -16,6 +16,20 @@ export function formatClock(date: Date): string {
   return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' }).format(date)
 }
 
+/** Minutes since midnight of an "HH:mm" clock time. */
+export function minutesOfClock(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number)
+  return hours * 60 + minutes
+}
+
+/**
+ * Minutes since midnight in Vietnam for an instant. Giờ chuyến là giờ Việt Nam, nên so với giờ máy
+ * (`getHours`) sẽ sai khi máy ở múi giờ khác (vd máy chủ CI chạy UTC).
+ */
+export function vietnamMinutesOfDay(date: Date): number {
+  return minutesOfClock(formatClock(date))
+}
+
 /** "Oct 12, 07:30" in Vietnam time and the active language. */
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString(numberLocale(), {

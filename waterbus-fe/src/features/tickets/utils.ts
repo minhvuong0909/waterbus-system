@@ -1,4 +1,5 @@
 import { t } from '../../i18n'
+import { ROUTES } from '../../routes/routes'
 import { toVietnamDate } from '../../utils/time'
 import type { Ticket } from './types'
 
@@ -34,4 +35,42 @@ export function groupByBooking(tickets: Ticket[]): Ticket[][] {
     else groups.set(ticket.bookingRef, [ticket])
   }
   return [...groups.values()]
+}
+
+/** Đường dẫn Manage Order secure link của một đơn: token trong path, mã đơn trong query. */
+export function manageLinkPath(orderId: string, accessToken: string): string {
+  return `${ROUTES.manageByLink.replace(
+    ':token',
+    encodeURIComponent(accessToken),
+  )}?orderId=${encodeURIComponent(orderId)}`
+}
+
+/** Link đầy đủ để khách lưu lại hoặc gửi cho chính mình. */
+export function manageLinkUrl(orderId: string, accessToken: string): string {
+  return `${window.location.origin}${manageLinkPath(orderId, accessToken)}`
+}
+
+/**
+ * Đọc mã đơn và token từ một link quản lý vé khách dán vào (đầy đủ hoặc chỉ phần đường dẫn).
+ * Trả về null khi không phải link quản lý vé.
+ */
+export function parseManageLink(input: string): { orderId: string; accessToken: string } | null {
+  const text = input.trim()
+  if (!text) return null
+  let url: URL
+  try {
+    url = new URL(text, window.location.origin)
+  } catch {
+    return null
+  }
+  const prefix = ROUTES.manageByLink.replace(':token', '')
+  if (!url.pathname.startsWith(prefix)) return null
+  const segment = url.pathname.slice(prefix.length).replace(/\/+$/, '')
+  const orderId = url.searchParams.get('orderId')
+  if (!segment || segment.includes('/') || !orderId) return null
+  try {
+    return { orderId, accessToken: decodeURIComponent(segment) }
+  } catch {
+    return null
+  }
 }
