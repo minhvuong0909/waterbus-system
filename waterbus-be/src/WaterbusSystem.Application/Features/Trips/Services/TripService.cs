@@ -198,8 +198,15 @@ public sealed class TripService(
         {
             trip.ActualDepartureTime = now;
             CloseSales(trip, now);
+            // BR-STOP-02: rời bến đầu nghĩa là điểm dừng đầu tiên (chưa Skipped) đã được phục vụ xong.
+            MarkStopDeparted(FirstServedStop(trip), now);
         }
-        if (request.Operation == TripOperation.Arrive) trip.ActualArrivalTime = now;
+        if (request.Operation == TripOperation.Arrive)
+        {
+            trip.ActualArrivalTime = now;
+            // BR-STOP-02: cập bến cuối nghĩa là điểm dừng cuối cùng (chưa Skipped) đã được phục vụ xong.
+            MarkStopArrived(LastServedStop(trip), now);
+        }
 
         tripRepository.AddOperationEvent(new TripOperationEvent
         {
@@ -274,6 +281,109 @@ public sealed class TripService(
         new(trip.Id, trip.BoatId, trip.Status.ToString(), previous.ToString(), operation.ToString(),
             trip.ActualDepartureTime, trip.ActualArrivalTime,
             TripLifecycle.AllowedOperations(trip).Select(o => o.ToString()).ToList());
+
+    private static TripStopCall? FirstServedStop(Trip trip) =>
+        trip.TripStopCalls.Where(c => c.Status != "Skipped").MinBy(c => c.VisitOrder);
+
+    private static TripStopCall? LastServedStop(Trip trip) =>
+        trip.TripStopCalls.Where(c => c.Status != "Skipped").MaxBy(c => c.VisitOrder);
+
+    private static void MarkStopDeparted(TripStopCall? call, DateTimeOffset now)
+    {
+        if (call is null) return;
+        call.ActualArrivalTime ??= now;
+        call.ActualDepartureTime = now;
+        call.Status = "Departed";
+    }
+
+    private static void MarkStopArrived(TripStopCall? call, DateTimeOffset now)
+    {
+        if (call is null) return;
+        call.ActualArrivalTime = now;
+        call.Status = "Arrived";
+    }
+
+    // ---------------- RecordStopProgress ----------------
+
+    /// <summary>
+    /// Ghi nhận tiến độ phục vụ thực tế tại 1 điểm dừng trung gian (BR-STOP-02) - KHÔNG đổi Trip.Status
+    /// (BR-OPS-02: tình trạng cập/rời từng bến được theo dõi riêng, không lặp EnRoute → Boarding → EnRoute).
+    /// Đây là dữ liệu mà RefundEligibilityEvaluator dùng để xác định đoạn đi nào đã thực sự được phục vụ
+    /// trước khi Trip bị Terminate giữa đường (BR-RF-02/03) - điểm dừng đầu/cuối tự ghi theo Start/Arrive.
+    /// </summary>
+    public async Task<StopProgressResultResponse> RecordStopProgressAsync(
+        Guid tripId, Guid tripStopCallId, RecordStopProgressRequest request, CancellationToken cancellationToken = default)
+    {
+        var isAdmin = string.Equals(currentUser.UserRole, "Admin", StringComparison.OrdinalIgnoreCase);
+        var isCaptain = string.Equals(currentUser.UserRole, "Captain", StringComparison.OrdinalIgnoreCase);
+        var userId = Guid.TryParse(currentUser.UserId, out var parsed) ? parsed : (Guid?)null;
+        if (userId is null || !(isAdmin || isCaptain))
+        {
+            throw new ForbiddenAccessException("Chỉ Admin hoặc thuyền trưởng mới được ghi nhận tiến độ điểm dừng.");
+        }
+
+        var stopCall = await tripRepository.GetTrackedStopCallAsync(tripId, tripStopCallId, cancellationToken);
+        var trip = stopCall.Trip ?? throw new NotFoundException(nameof(Trip), tripId);
+
+        if (!isAdmin && trip.Boat?.CaptainUserId != userId)
+        {
+            throw new ForbiddenAccessException("Bạn không phải thuyền trưởng của tàu chạy chuyến này.");
+        }
+
+        if (!TripLifecycle.CanRecordStopProgress(trip.Status))
+        {
+            throw new ConflictException(
+                $"Không thể ghi nhận tiến độ điểm dừng khi chuyến đang ở trạng thái {trip.Status}.");
+        }
+
+        if (stopCall.Status == "Skipped")
+        {
+            throw new ConflictException("Điểm dừng này đã bị bỏ qua, không thể ghi nhận tiến độ.");
+        }
+
+        var now = dateTime.Now;
+
+        switch (request.Action)
+        {
+            case StopCallProgress.Arrived:
+                if (stopCall.Status != "Planned")
+                {
+                    throw new ConflictException($"Điểm dừng đang ở trạng thái {stopCall.Status}, không thể đánh dấu đã đến.");
+                }
+                stopCall.ActualArrivalTime = now;
+                stopCall.Status = "Arrived";
+                break;
+
+            case StopCallProgress.Departed:
+                if (stopCall.Status is not ("Planned" or "Arrived"))
+                {
+                    throw new ConflictException($"Điểm dừng đang ở trạng thái {stopCall.Status}, không thể đánh dấu đã rời.");
+                }
+                stopCall.ActualArrivalTime ??= now;
+                stopCall.ActualDepartureTime = now;
+                stopCall.Status = "Departed";
+                break;
+
+            default:
+                throw new ValidationException([new("action", "Thao tác không hợp lệ.")]);
+        }
+
+        tripRepository.AddOperationEvent(new TripOperationEvent
+        {
+            TripId = trip.Id,
+            ActedByAdminId = isAdmin ? userId : null,
+            ActedByCaptainId = isCaptain && !isAdmin ? userId : null,
+            Action = $"Stop{request.Action}",
+            FromStatus = trip.Status.ToString(),
+            ToStatus = trip.Status.ToString(),
+            OccurredAt = now,
+            Note = $"TripStopCallId={stopCall.Id}, VisitOrder={stopCall.VisitOrder}"
+        });
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new StopProgressResultResponse(stopCall.Id, stopCall.Status, stopCall.ActualArrivalTime, stopCall.ActualDepartureTime);
+    }
 
     // ---------------- ReportSos ----------------
 

@@ -99,6 +99,49 @@ public class CheckInServiceSyncCheckInEventsTests
     }
 
     [Fact]
+    public async Task SyncCheckInEventsAsync_WhenScanWasValidButSyncHappensAfterWindowCloses_ShouldStillSucceed()
+    {
+        // BR-OFF-05: cửa sổ check-in phải đối chiếu với thời điểm quét THẬT trên máy (occurredAtDevice),
+        // không phải giờ server nhận lúc đồng bộ - mạng khôi phục muộn không được biến 1 quét hợp lệ thành lỗi.
+        using var context = TestDbContextFactory.CreateDbContext();
+        var (seed, _, ticket, boardingCall, occurredAtDevice) = SeedCheckInScenario(context, _staffId);
+
+        // Sau CheckInCloseAt (departure-5m) nhưng vẫn trong hạn ScannerAssignment (đến departure+1h)
+        // - đúng tình huống thực tế: mạng khôi phục muộn, thiết bị vẫn còn được phân công.
+        var syncedMuchLater = seed.Trip.DepartureTime.AddMinutes(30);
+        var service = CreateService(context, syncedMuchLater);
+        var request = new SyncCheckInEventsRequest(new[]
+        {
+            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-late-sync", occurredAtDevice, null)
+        });
+
+        var result = await service.SyncCheckInEventsAsync(request, CancellationToken.None);
+
+        result.Results.Should().ContainSingle(r => r.ClientEventId == "evt-late-sync" && r.Outcome == "Success");
+        context.Tickets.Single(t => t.Id == ticket.Id).BoardingStatus.Should().Be(BoardingStatus.CheckedIn);
+    }
+
+    [Fact]
+    public async Task SyncCheckInEventsAsync_WhenDeviceScanTimeItselfIsOutsideWindow_ShouldStillReportOutOfWindow()
+    {
+        // Đối chứng: occurredAtDevice thật sự ngoài cửa sổ vẫn phải bị từ chối, dù server nhận lúc đang trong cửa sổ.
+        using var context = TestDbContextFactory.CreateDbContext();
+        var (seed, _, ticket, boardingCall, serverNow) = SeedCheckInScenario(context, _staffId);
+
+        var scannedAfterClose = seed.Trip.DepartureTime.AddHours(1);
+        var service = CreateService(context, serverNow);
+        var request = new SyncCheckInEventsRequest(new[]
+        {
+            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-really-late-scan", scannedAfterClose, null)
+        });
+
+        var result = await service.SyncCheckInEventsAsync(request, CancellationToken.None);
+
+        result.Results.Should().ContainSingle(r => r.ClientEventId == "evt-really-late-scan" && r.Outcome == "OutOfWindow");
+        context.Tickets.Single(t => t.Id == ticket.Id).BoardingStatus.Should().Be(BoardingStatus.NotCheckedIn);
+    }
+
+    [Fact]
     public async Task SyncCheckInEventsAsync_WhenCallerIsNotStaff_ShouldThrowForbiddenAccessException()
     {
         using var context = TestDbContextFactory.CreateDbContext();

@@ -47,8 +47,14 @@ public interface ITripRepository
     Task<List<TripOperationEvent>> ListOperationEventsAsync(
         Guid? tripId, int take, CancellationToken cancellationToken = default);
 
-    /// <summary>Chuyến (có theo dõi để sửa) kèm Boat hoặc ném NotFoundException. Dùng cho ChangeStatus.</summary>
+    /// <summary>Chuyến (có theo dõi để sửa) kèm Boat và các TripStopCall hoặc ném NotFoundException. Dùng cho ChangeStatus.</summary>
     Task<Trip> GetTrackedWithBoatAsync(Guid tripId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 1 TripStopCall (có theo dõi để sửa) thuộc đúng <paramref name="tripId"/>, kèm Trip + Boat (để kiểm tra
+    /// quyền thuyền trưởng và trạng thái chuyến), hoặc ném NotFoundException. Dùng cho RecordStopProgress.
+    /// </summary>
+    Task<TripStopCall> GetTrackedStopCallAsync(Guid tripId, Guid tripStopCallId, CancellationToken cancellationToken = default);
 
     /// <summary>Chuyến (chỉ đọc) kèm Boat hoặc ném NotFoundException. Dùng cho ReportSos.</summary>
     Task<Trip> GetWithBoatAsync(Guid tripId, CancellationToken cancellationToken = default);

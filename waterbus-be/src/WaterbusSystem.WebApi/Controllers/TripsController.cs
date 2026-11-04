@@ -70,6 +70,22 @@ public class TripsController(ITripService tripService) : BaseApiController
         Ok(await tripService.ChangeStatusAsync(tripId, request, HttpContext.RequestAborted));
 
     /// <summary>
+    /// Ghi nhận tàu đã đến/rời một điểm dừng trung gian của chuyến (không đổi trạng thái chuyến).
+    /// Điểm dừng đầu/cuối tự cập nhật theo thao tác Start/Arrive ở trên; dùng endpoint này cho các
+    /// điểm dừng ở giữa để đánh giá hoàn tiền (refund) đúng đoạn đã thực sự được phục vụ.
+    /// </summary>
+    [HttpPost("{tripId:guid}/stops/{tripStopCallId:guid}/progress")]
+    [Authorize(Roles = "Admin,Captain")]
+    [ProducesResponseType(typeof(StopProgressResultResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<StopProgressResultResponse>> RecordStopProgress(
+        Guid tripId, Guid tripStopCallId, [FromBody] RecordStopProgressRequest request) =>
+        Ok(await tripService.RecordStopProgressAsync(tripId, tripStopCallId, request, HttpContext.RequestAborted));
+
+    /// <summary>
     /// Thuyền trưởng báo khẩn cấp (SOS) cho chuyến của tàu mình: tạo sự cố mức cao, báo Admin ngay.
     /// Không đổi trạng thái chuyến; Admin quyết định.
     /// </summary>

@@ -55,7 +55,10 @@ public class CheckInProcessor
         // không cần là Primary Offline, ràng buộc đó chỉ áp dụng khi gán scanner - BR-OFF-02).
         var hasAssignment = await _repository.HasActiveAssignmentAsync(staffId, tripStopCallId, now, cancellationToken);
 
-        var outcome = DetermineOutcome(hasAssignment, tripStopCallId, booking, stopCall, now, ticket);
+        // BR-OFF-05: cửa sổ check-in đối chiếu với thời điểm quét THẬT trên máy (occurredAtDevice), không phải
+        // giờ server nhận khi đồng bộ (now) - nếu không, quét hợp lệ lúc còn mở cửa sẽ bị từ chối oan khi
+        // mạng khôi phục muộn và lô offline được đồng bộ sau khi cửa sổ đã đóng.
+        var outcome = DetermineOutcome(hasAssignment, tripStopCallId, booking, stopCall, occurredAtDevice, ticket);
 
         _repository.AddCheckInEvent(new CheckInEvent
         {
@@ -85,7 +88,7 @@ public class CheckInProcessor
     }
 
     private static string DetermineOutcome(bool hasAssignment, Guid tripStopCallId, Booking booking, TripStopCall stopCall,
-        DateTimeOffset now, Ticket ticket)
+        DateTimeOffset occurredAtDevice, Ticket ticket)
     {
         if (!hasAssignment)
         {
@@ -99,7 +102,7 @@ public class CheckInProcessor
         }
 
         if (stopCall.CheckInOpenAt is null || stopCall.CheckInCloseAt is null ||
-            now < stopCall.CheckInOpenAt || now > stopCall.CheckInCloseAt)
+            occurredAtDevice < stopCall.CheckInOpenAt || occurredAtDevice > stopCall.CheckInCloseAt)
         {
             // BR-BOARD-05: cửa sổ check-in theo đúng bến lên, không phải một mốc chung toàn Trip.
             return "OutOfWindow";
