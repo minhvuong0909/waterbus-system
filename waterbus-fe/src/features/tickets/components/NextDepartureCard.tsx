@@ -105,7 +105,7 @@ export default function NextDepartureCard({
 
           <div className="mt-auto flex items-center justify-between border-t border-surface-container pt-space-md text-xs">
             <Link
-              to={ROUTES.manageBooking}
+              to={ticket.manageLink ?? ROUTES.manageBooking}
               className="flex items-center gap-1 font-semibold text-teal-flow hover:underline"
             >
               <Icon name="info" className="text-sm" />

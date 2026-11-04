@@ -2,7 +2,6 @@
 export const ROUTES = {
   home: '/',
   signIn: '/sign-in',
-  search: '/search',
   searchResults: '/search/results',
   tripDetail: '/trip',
   seatSelection: '/booking/seats',
@@ -19,7 +18,6 @@ export const ROUTES = {
   liveTracking: '/tracking',
   explore: '/explore',
   help: '/help',
-  sitemap: '/sitemap',
   // Operations area (Admin) and the captain's portal.
   admin: '/admin',
   adminRadar: '/admin/radar',
@@ -28,28 +26,8 @@ export const ROUTES = {
   adminBoats: '/admin/boats',
   adminFares: '/admin/fares',
   adminIncidents: '/admin/incidents',
+  adminRefunds: '/admin/refunds',
   adminCheckIn: '/admin/check-in',
   adminAudioGuides: '/admin/audio-guides',
-  adminApi: '/admin/api',
   captain: '/captain',
 } as const
-
-/** Pages listed on the /sitemap quick-navigation page. */
-export const SITEMAP_ENTRIES: { path: string; title: string }[] = [
-  { path: ROUTES.home, title: 'Home' },
-  { path: ROUTES.signIn, title: 'Sign in' },
-  { path: ROUTES.search, title: 'Search journey' },
-  { path: ROUTES.searchResults, title: 'Search results' },
-  { path: ROUTES.tripDetail, title: 'Trip detail' },
-  { path: ROUTES.seatSelection, title: 'Seat selection' },
-  { path: ROUTES.passengerDetails, title: 'Passenger details' },
-  { path: ROUTES.checkoutReview, title: 'Review booking' },
-  { path: ROUTES.payment, title: 'Payment' },
-  { path: ROUTES.bookingSuccess, title: 'Booking confirmed' },
-  { path: ROUTES.myTickets, title: 'My tickets' },
-  { path: ROUTES.ticketDetail, title: 'Ticket detail' },
-  { path: ROUTES.manageBooking, title: 'Manage booking' },
-  { path: ROUTES.liveTracking, title: 'Live trip tracking' },
-  { path: ROUTES.explore, title: 'Explore river journeys' },
-  { path: ROUTES.help, title: 'Help & About' },
-]

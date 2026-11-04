@@ -39,7 +39,7 @@ export default function DeparturesSection({ filters, departures, pierName }: Dep
                 ? t('No more departures today. Here is tomorrow’s timetable from {pier}.', {
                     pier: pierName,
                   })
-                : t('Live from {pier}', { pier: pierName })}
+                : t('From {pier}', { pier: pierName })}
             </p>
           </div>
           <div

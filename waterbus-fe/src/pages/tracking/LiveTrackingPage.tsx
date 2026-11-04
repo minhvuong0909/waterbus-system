@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import FleetMap from '../../components/map/FleetMap'
 import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
-import { isGuid } from '../../features/booking/utils'
+import { isGuid } from '../../utils/guid'
 import StopTimeline from '../../features/tracking/components/StopTimeline'
 import { useTripTracking } from '../../features/tracking/hooks/useTripTracking'
 import { useDocumentTitle } from '../../hooks'
@@ -36,7 +36,8 @@ function TripTracking({ tripId }: { tripId: string }) {
     ? [{ tripId: trip.tripId, code: trip.boat.code, latitude: position.latitude, longitude: position.longitude }]
     : []
   const positionNote = !signedIn
-    ? t('Sign in to see where the boat is right now.')
+    ? // Hub vị trí tàu của backend chỉ mở cho tài khoản; Guest vẫn theo dõi trạng thái và các bến.
+      t('The live boat position is shown to signed-in accounts. The trip status and its stops below update live.')
     : position
       ? t('Position at {time}', { time: formatClock(new Date(position.observedAt)) })
       : t('Waiting for the boat to report its position.')

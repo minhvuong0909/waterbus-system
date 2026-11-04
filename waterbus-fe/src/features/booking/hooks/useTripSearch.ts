@@ -7,7 +7,6 @@ import type { Leg } from '../legs'
 import {
   getDateOptions,
   getDayTripCounts,
-  getNetworkRoutes,
   getPierOptions,
   getTripDetail,
   getTrips,
@@ -69,15 +68,13 @@ function useValidDate(dates: DateOption[] | undefined, leg: Leg) {
 
 export function useSearchForm() {
   const piers = useFetch(getPierOptions)
-  const routes = useFetch(getNetworkRoutes)
   const dates = useFetch(getDateOptions)
   useDefaultPiers(piers.data, 'outbound')
   useValidDate(dates.data, 'outbound')
   return {
     piers: piers.data,
-    routes: routes.data,
     dates: dates.data,
-    ...combineFetches(piers, routes, dates),
+    ...combineFetches(piers, dates),
   }
 }
 

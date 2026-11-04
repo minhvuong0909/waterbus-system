@@ -14,10 +14,3 @@ export interface LoginResponse {
   roles: string[]
   token: string
 }
-
-export interface AuthShowcase {
-  eyebrow: string
-  headline: [string, string]
-  intro: string
-  highlights: string[]
-}

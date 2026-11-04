@@ -56,7 +56,7 @@ export default function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassPr
               <span className="h-2 w-2 rounded-full bg-deep-river" />
             </div>
             <span className="flex items-center gap-1 text-2xs text-on-surface-variant">
-              {t('Direct Line')} <Icon name="swap_horiz" className="text-xs text-teal-flow" />
+              {t('{durationMins} min', { durationMins: ticket.durationMins })}
             </span>
           </div>
           <div className="text-right">

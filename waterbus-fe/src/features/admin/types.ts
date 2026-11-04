@@ -116,3 +116,41 @@ export interface WeatherCheckResult {
   incidentsResolved?: number
   observationFailures: number
 }
+
+/** Phần tiền hoàn của một Ticket (BE `RefundTicketAllocationDto`). */
+export interface RefundTicketAllocation {
+  ticketId: string
+  ticketCode: string
+  amount: number
+  reason: string
+}
+
+/** Kết quả `POST /refunds/request` (BE `RequestRefundResultDto`). */
+export interface RefundRequestResult {
+  refundTransactionId: string
+  orderId: string
+  bookingId: string
+  amount: number
+  currency: string
+  status: string
+  gateway: string
+  /** Cổng thanh toán không hoàn được: Admin phải hoàn tay rồi xác nhận kèm bằng chứng (BR-RF-10). */
+  requiresManualAction: boolean
+  tickets: RefundTicketAllocation[]
+}
+
+/** Body of `POST /refunds/confirm-manual` (BE `ConfirmManualRefundRequest`). */
+export interface ManualRefundInput {
+  refundTransactionId: string
+  evidence: string
+  gatewayReference: string | null
+  confirmedAmount: number
+}
+
+/** Kết quả `POST /refunds/confirm-manual` (BE `ConfirmManualRefundResultDto`). */
+export interface ManualRefundResult {
+  refundTransactionId: string
+  amount: number
+  status: string
+  completedAt: string | null
+}

@@ -3,7 +3,7 @@ import { ErrorState, PageHeader, PageLoader, Panel, SelectField } from '../../co
 import CheckInWindowRow from '../../features/admin/components/CheckInWindowRow'
 import { getTripStops } from '../../features/admin/services/checkInService'
 import { getOperationTrips } from '../../features/admin/services/operationsService'
-import { isFinished } from '../../features/admin/utils'
+import { isBoardingStop, isFinished } from '../../features/admin/utils'
 import { useDocumentTitle, useFetch } from '../../hooks'
 import { t } from '../../i18n'
 import { formatDateTime } from '../../utils/time'
@@ -43,11 +43,18 @@ export default function CheckInPage() {
           ) : !stops.data ? (
             <PageLoader />
           ) : (
-            <div className="divide-y divide-outline-variant/30">
-              {stops.data.map((stop) => (
-                <CheckInWindowRow key={stop.callId} stop={stop} />
-              ))}
-            </div>
+            <>
+              <div className="divide-y divide-outline-variant/30">
+                {stops.data.filter(isBoardingStop).map((stop) => (
+                  <CheckInWindowRow key={stop.callId} stop={stop} />
+                ))}
+              </div>
+              {stops.data.some((stop) => !isBoardingStop(stop)) && (
+                <p className="mt-3 text-xs text-on-surface-variant">
+                  {t('Stops where nobody boards (such as the last stop) have no check-in window.')}
+                </p>
+              )}
+            </>
           )}
         </Panel>
       )}

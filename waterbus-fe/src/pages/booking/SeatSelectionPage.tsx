@@ -32,6 +32,8 @@ export default function SeatSelectionPage() {
   if (error) return <ErrorState onRetry={retry} />
 
   if (loading || !trip || !seatMap || !totals) return <PageLoader />
+  // BR-TIME-01: sales close before the trip leaves its first pier; seats can no longer be picked.
+  const salesOpen = seatMap.canBook !== false
 
   return (
     <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
@@ -66,7 +68,7 @@ export default function SeatSelectionPage() {
           <HoldCountdown
             fallback={
               <span className="inline-flex items-center gap-1 rounded-xl bg-white px-space-md py-2 text-xs font-semibold text-teal-flow shadow-sm">
-                <Icon name="timer" className="text-sm" /> {t('Cart holds for 10:00')}
+                <Icon name="timer" className="text-sm" /> {t('Seats are held once you continue')}
               </span>
             }
           />
@@ -82,6 +84,16 @@ export default function SeatSelectionPage() {
           })}
         </p>
       </div>
+
+      {!salesOpen && (
+        <p
+          role="alert"
+          className="mt-space-md flex items-center gap-2 rounded-xl border border-coral-glow/30 bg-coral-glow/10 px-space-md py-2 text-sm text-deep-river"
+        >
+          <Icon name="block" className="text-lg text-coral-glow" />
+          {t('Ticket sales are closed for this trip. Please choose another trip.')}
+        </p>
+      )}
 
       {seats.some((s) => s.status !== 'available') && (
         <p
@@ -112,7 +124,7 @@ export default function SeatSelectionPage() {
             <SeatMapView
               seatMap={seatMap}
               selectedIds={seatIds}
-              onSelect={toggleSeat}
+              onSelect={salesOpen ? toggleSeat : () => undefined}
             />
           </div>
         </div>
@@ -122,7 +134,7 @@ export default function SeatSelectionPage() {
             seats={seats}
             totals={totals}
             limitReached={seatLimitReached}
-            canBook={seatMap.canBook !== false}
+            canBook={salesOpen}
             onContinue={() => hold.submit(leg, trip.id, seatMap.journey)}
             continueLabel={roundTrip && leg === 'outbound' ? t('Continue to the return trip') : undefined}
             changeTripTo={leg === 'return' ? RETURN_RESULTS : undefined}

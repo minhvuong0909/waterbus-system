@@ -14,11 +14,6 @@ interface DepartureCardProps {
 /** Compact departure row: time/status tile, route + details, price and a select action. */
 export default function DepartureCard({ departure, onSelect }: DepartureCardProps) {
   const sightseeing = departure.kind === 'sightseeing'
-  const statusClass = sightseeing
-    ? 'text-coral-glow font-semibold'
-    : departure.statusKind === 'scheduled'
-    ? 'text-on-surface-variant'
-    : 'text-teal-flow font-semibold'
 
   return (
     <div
@@ -37,7 +32,10 @@ export default function DepartureCard({ departure, onSelect }: DepartureCardProp
           }`}
         >
           <span className="font-display text-sm font-bold">{departure.time}</span>
-          <span className={`text-2xs ${statusClass}`}>{departure.status}</span>
+          {/* Chỉ nhắc khi sắp chạy; "Theo lịch" ở mọi dòng chỉ là nhiễu. */}
+          {departure.statusKind === 'soon' && (
+            <span className="text-2xs font-semibold">{departure.status}</span>
+          )}
         </div>
         <div>
           <div className="flex items-center gap-1.5 font-display text-sm font-bold text-deep-river">
@@ -71,7 +69,9 @@ export default function DepartureCard({ departure, onSelect }: DepartureCardProp
       </div>
       <div className="flex flex-col items-end text-right">
         <span className="max-w-[9rem] font-display text-sm font-bold text-deep-river">
-          {hasFare(departure.priceVnd) ? formatVnd(departure.priceVnd) : t('Price shown when you choose a seat')}
+          {hasFare(departure.priceVnd)
+            ? formatVnd(departure.priceVnd)
+            : t('Price shown when you choose a seat')}
         </span>
         <Link
           to={ROUTES.tripDetail}

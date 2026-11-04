@@ -40,12 +40,22 @@ export function connectHub(hubPath: string, options: HubOptions): () => void {
 
   let stopped = false
   let retryTimer: number | undefined
+  let hasConnected = false
+
+  // The refresh reloads data with REST; if it fails the connection is still fine, so it must not trigger a reconnect.
+  const refresh = () => {
+    try {
+      onReconnected?.()
+    } catch {
+      // The next reconnect or a manual reload will try again.
+    }
+  }
 
   connection.onreconnecting(() => onStatus?.('reconnecting'))
   connection.onreconnected(async () => {
     await onConnected?.(connection)
     onStatus?.('live')
-    onReconnected?.()
+    refresh()
   })
   // Automatic reconnect gave up: start over with the retry loop.
   connection.onclose(() => {
@@ -63,6 +73,9 @@ export function connectHub(hubPath: string, options: HubOptions): () => void {
       if (stopped) return
       await onConnected?.(connection)
       onStatus?.('live')
+      // A start after the connection was lost for good (automatic reconnect gave up) missed events: reload like onreconnected.
+      if (hasConnected) refresh()
+      hasConnected = true
     } catch {
       if (!stopped && connection.state === HubConnectionState.Disconnected) {
         retryTimer = window.setTimeout(start, START_RETRY_MS)

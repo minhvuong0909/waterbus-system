@@ -39,12 +39,11 @@ export default function PaymentMethodPanel({ amountVnd, reference }: PaymentMeth
       </div>
 
       <div className="mt-space-md flex items-start gap-3 rounded-xl bg-surface-container px-space-md py-space-md text-xs text-on-surface-variant">
-        <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-teal-flow" />
+        <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal-amber" />
         <div>
-          <div className="font-semibold text-deep-river">
-            {t('Payment status: Waiting for confirmation')}
-          </div>
-          {t('After completing payment, continue to check the booking status.')}
+          {/* Trang này chỉ mở cổng thanh toán; trạng thái thật do backend xác nhận ở trang kết quả. */}
+          <div className="font-semibold text-deep-river">{t('Payment status: Not paid yet')}</div>
+          {t('Your seats stay held until the timer ends. After paying on VNPay you come back here to see the result.')}
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ROUTES } from '../../../routes/routes'
 import { ApiError } from '../../../services/apiClient'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
-import { holdStarted, holdSubmitted, orderReleased, setJourney, startReturnLeg } from '../bookingSlice'
+import { holdCleared, holdStarted, holdSubmitted, orderReleased, setJourney, startReturnLeg } from '../bookingSlice'
 import { isRoundTrip } from '../legs'
 import type { Leg } from '../legs'
 import { cancelCheckout, createHold, submitCheckout } from '../services/bookingService'
@@ -167,4 +167,26 @@ export function useSubmitCheckout() {
   }
 
   return { submit, busy, failure }
+}
+
+/**
+ * Bỏ đơn đang giữ (`DELETE /checkouts/{id}`): nhả ghế ngay cho khách khác thay vì chờ hết hạn
+ * (BR-HOLD-03), rồi đưa khách về kết quả tìm chuyến. Lỗi bị bỏ qua vì hold vẫn tự hết hạn.
+ */
+export function useCancelCheckout() {
+  const navigate = useNavigate()
+  const dispatch = useAppDispatch()
+  const { hold, order } = useAppSelector((s) => s.booking)
+  const [busy, setBusy] = useState(false)
+
+  const cancel = async () => {
+    if (!hold) return
+    setBusy(true)
+    await cancelCheckout(hold.orderId, order?.accessToken ?? hold.accessToken)
+    dispatch(orderReleased())
+    dispatch(holdCleared())
+    navigate(ROUTES.searchResults)
+  }
+
+  return { cancel, busy }
 }

@@ -1,6 +1,5 @@
 /** Backend routes that the app calls (controllers use the `api/v1/[controller]` prefix). */
 export const API_ENDPOINTS = {
-  openApi: '/swagger/v1/swagger.json',
   auth: {
     login: '/api/v1/auth/login',
   },
@@ -40,6 +39,13 @@ export const API_ENDPOINTS = {
     vnPayReturn: '/api/v1/payments/vnpay-return',
     reconcile: (orderId: string, paymentId: string) =>
       `/api/v1/payments/${orderId}/attempts/${paymentId}/reconcile`,
+  },
+  refunds: {
+    /** Admin: hoàn tiền một Booking của chuyến bị huỷ/chấm dứt. */
+    request: '/api/v1/refunds/request',
+    /** Admin: xác nhận đã hoàn tay khi cổng thanh toán không hoàn được. */
+    confirmManual: '/api/v1/refunds/confirm-manual',
+    reconcile: (refundId: string) => `/api/v1/refunds/${refundId}/reconcile`,
   },
   trips: {
     search: '/api/v1/trips/search',

@@ -3,7 +3,8 @@ import { t } from '../../../i18n'
 import { ApiError, apiRequest } from '../../../services/apiClient'
 import type { CheckoutDetail, CheckoutResponse, CreateHoldRequest, SeatMap, SubmitCheckoutRequest } from '../types'
 import type { TripDetailDto, TripSeatMapDto } from '../../trips/types'
-import { isGuid, toSeatMap } from '../utils'
+import { toSeatMap } from '../utils'
+import { isGuid } from '../../../utils/guid'
 import { pickJourney } from '../../trips/utils'
 
 /** Header that proves the caller owns a guest order (BE `CheckoutAccessService`). */

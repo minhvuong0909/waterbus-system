@@ -60,7 +60,7 @@ export default function TicketDetailPage() {
         </div>
         <div className="space-y-space-md print:hidden lg:col-span-5">
           <TicketCorridorCard ticket={ticket} />
-          <TicketActions tripId={ticket.tripId} />
+          <TicketActions tripId={ticket.tripId} manageLink={ticket.manageLink} />
         </div>
       </div>
 

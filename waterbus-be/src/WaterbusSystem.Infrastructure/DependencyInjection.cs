@@ -80,6 +80,12 @@ public static class DependencyInjection
         services.AddScoped<IIncidentService, WaterbusSystem.Application.Features.Incidents.Services.IncidentService>();
         services.AddScoped<IWeatherStatusService, WaterbusSystem.Application.Features.Incidents.Services.WeatherStatusService>();
         services.AddScoped<IWeatherGuardService, WaterbusSystem.Application.Features.Incidents.Services.WeatherGuardService>();
+        services.AddScoped<IFareRuleRepository, FareRuleRepository>();
+        services.AddScoped<IStationRepository, StationRepository>();
+        services.AddScoped<IFareService, WaterbusSystem.Application.Features.Fares.Services.FareService>();
+        services.AddScoped<IBoatService, WaterbusSystem.Application.Features.Boats.Services.BoatService>();
+        services.AddScoped<IStationService, WaterbusSystem.Application.Features.Stations.Services.StationService>();
+        services.AddScoped<ITripService, WaterbusSystem.Application.Features.Trips.Services.TripService>();
         services.AddScoped<IBookingReferenceRepository, BookingReferenceRepository>();
         services.AddScoped<ICheckoutService, CheckoutService>();
         services.AddScoped<ICheckoutSeatChangeService, CheckoutSeatChangeService>();
@@ -213,7 +219,7 @@ public static class DependencyInjection
         services.Configure<GroqAssistantOptions>(configuration.GetSection(GroqAssistantOptions.SectionName));
         // Adapter đã có để thử local; cả LLM và hai contract tích hợp đều tắt mặc định.
         services.Configure<AiBookingIntegrationOptions>(configuration.GetSection(AiBookingIntegrationOptions.SectionName));
-        services.AddScoped<ITripSearchTool, MediatRTripSearchTool>();
+        services.AddScoped<ITripSearchTool, TripSearchTool>();
         services.AddScoped<IBookingLinkTool, ConfiguredBookingLinkTool>();
         services.AddScoped<IAiBookingAssistantService, SemanticKernelAiBookingAssistantService>();
 

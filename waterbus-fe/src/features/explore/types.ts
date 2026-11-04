@@ -1,16 +1,8 @@
-/** A featured route shown on the Explore page (editorial content, not a bookable product). */
-export interface Journey {
-  id: string
-  image: string
-  /** Up to two curated labels, chosen per journey (all of them are shown). */
-  tags: string[]
-  title: string
-  description: string
-  route: string
-}
+import type { Departure, SearchQuery } from '../trips/types'
 
-export type PoiCategory = 'Skyline' | 'Heritage' | 'Culture' | 'Riverside'
+export type PoiCategory = 'Heritage' | 'Skyline' | 'Riverside'
 
+/** A point of interest narrated on sightseeing trips (BR-EXP-01). */
 export interface Landmark {
   id: string
   /** Missing while no photo of the right place is available: a neutral tile is shown instead. */
@@ -21,7 +13,12 @@ export interface Landmark {
 }
 
 export interface ExploreData {
-  journeys: Journey[]
   categories: PoiCategory[]
   landmarks: Landmark[]
+}
+
+/** A real upcoming sightseeing trip, with the search that opens its detail page. */
+export interface SightseeingDeparture {
+  departure: Departure
+  search: Pick<SearchQuery, 'originId' | 'destinationId' | 'dateId'>
 }

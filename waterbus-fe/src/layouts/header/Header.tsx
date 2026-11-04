@@ -98,15 +98,18 @@ export default function Header() {
               </Button>
             </>
           ) : (
-            <Button
-              to={ROUTES.signIn}
-              variant="secondary"
-              className="hidden whitespace-nowrap sm:inline-flex"
-            >
-              {t('Sign in')}
-            </Button>
+            // Trên chính trang đăng nhập thì nút này thừa.
+            pathname !== ROUTES.signIn && (
+              <Button
+                to={ROUTES.signIn}
+                variant="secondary"
+                className="hidden whitespace-nowrap sm:inline-flex"
+              >
+                {t('Sign in')}
+              </Button>
+            )
           )}
-          <Button to={ROUTES.search} className="whitespace-nowrap !px-4 sm:!px-6">
+          <Button to={ROUTES.searchResults} className="whitespace-nowrap !px-4 sm:!px-6">
             {t('Book a Trip')}
           </Button>
           <button
@@ -166,7 +169,7 @@ export default function Header() {
                 </Button>
               )}
               <Button
-                to={ROUTES.search}
+                to={ROUTES.searchResults}
                 className={staffArea ? 'col-span-2' : ''}
                 onClick={() => setOpenPath(null)}
               >

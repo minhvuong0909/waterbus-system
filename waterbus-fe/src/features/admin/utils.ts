@@ -1,6 +1,6 @@
 import { t } from '../../i18n'
 import type { OperationType, WeatherAlert } from './types'
-import type { TripStatus } from '../trips/types'
+import type { TripStatus, TripStopDto } from '../trips/types'
 
 /** Operations the admin applies from the trip menu (the captain's Start / Arrive / SOS have their own buttons). */
 export const DISPATCH_OPERATIONS: OperationType[] = ['Suspend', 'Resume', 'Cancel', 'Terminate', 'Complete']
@@ -8,6 +8,10 @@ export const DISPATCH_OPERATIONS: OperationType[] = ['Suspend', 'Resume', 'Cance
 /** The trip is over for good: nothing more can be done with it. */
 export const isFinished = (status: TripStatus): boolean =>
   status === 'Completed' || status === 'Cancelled' || status === 'Terminated'
+
+/** Chỉ bến có khách lên và có giờ tàu rời mới có cửa sổ check-in; bến cuối chỉ cho xuống. */
+export const isBoardingStop = (stop: TripStopDto): boolean =>
+  stop.canBoard && Boolean(stop.estimatedDepartureTime)
 
 /** The trip still has to run or is running: the captain has something to do with it. */
 export const isUpcomingOrRunning = (status: TripStatus): boolean =>
