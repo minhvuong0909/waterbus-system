@@ -6,7 +6,7 @@ namespace WaterbusSystem.UnitTests.TestHelpers;
 
 /// <summary>
 /// Dựng 1 Ticket đã phát hành (BR-COM-08) kèm cửa sổ check-in và ScannerAssignment, dùng chung cho
-/// test SubmitCheckInCommand và SyncCheckInEventsCommand.
+/// test CheckInService.SubmitCheckInAsync và CheckInService.SyncCheckInEventsAsync.
 /// </summary>
 public static class CheckInScenarioFactory
 {

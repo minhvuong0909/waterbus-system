@@ -1,5 +1,4 @@
-using Microsoft.EntityFrameworkCore;
-using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
@@ -9,18 +8,18 @@ namespace WaterbusSystem.Application.Features.CheckIns.Services;
 public record CheckInOutcome(string Outcome, DateTimeOffset? CheckedInAt, string? TicketCode, string? PassengerName);
 
 /// <summary>
-/// Logic xử lý 1 lần quét check-in, dùng chung cho luồng trực tuyến (SubmitCheckInCommand) và đồng bộ
-/// theo lô từ offline scanner (SyncCheckInEventsCommand) - BR-QR-03, BR-BOARD-03/05, BR-OFF-03/05.
-/// KHÔNG tự gọi SaveChangesAsync: caller quyết định lưu từng lần (để 1 event lỗi trong batch không
+/// Logic xử lý 1 lần quét check-in, dùng chung cho luồng trực tuyến (CheckInService.SubmitCheckInAsync)
+/// và đồng bộ theo lô từ offline scanner (CheckInService.SyncCheckInEventsAsync) - BR-QR-03, BR-BOARD-03/05, BR-OFF-03/05.
+/// KHÔNG tự lưu: caller quyết định lưu từng lần (để 1 event lỗi trong batch không
 /// làm rollback các event khác đã xử lý thành công - BR-OFF-03).
 /// </summary>
 public class CheckInProcessor
 {
-    private readonly IApplicationDbContext _context;
+    private readonly ICheckInRepository _repository;
 
-    public CheckInProcessor(IApplicationDbContext context)
+    public CheckInProcessor(ICheckInRepository repository)
     {
-        _context = context;
+        _repository = repository;
     }
 
     public async Task<(CheckInOutcome Outcome, bool WasAlreadySynced)> ProcessAsync(
@@ -34,13 +33,10 @@ public class CheckInProcessor
         CancellationToken cancellationToken)
     {
         // Khử trùng trước mọi việc khác (BR-OFF-03): quét/gửi lại cùng ClientEventId -> trả đúng kết quả cũ.
-        var existingEvent = await _context.CheckInEvents
-            .FirstOrDefaultAsync(e => e.ClientEventId == clientEventId, cancellationToken);
+        var existingEvent = await _repository.FindEventByClientIdAsync(clientEventId, cancellationToken);
         if (existingEvent is not null)
         {
-            var existingTicket = await _context.Tickets.AsNoTracking()
-                .Include(t => t.SeatReservation)
-                .FirstOrDefaultAsync(t => t.Id == existingEvent.TicketId, cancellationToken);
+            var existingTicket = await _repository.GetTicketWithReservationAsync(existingEvent.TicketId, cancellationToken);
 
             return (new CheckInOutcome(
                 existingEvent.Outcome,
@@ -49,30 +45,19 @@ public class CheckInProcessor
                 existingTicket?.SeatReservation?.PassengerName), true);
         }
 
-        var stopCall = await _context.TripStopCalls
-            .FirstOrDefaultAsync(c => c.Id == tripStopCallId && !c.IsDeleted, cancellationToken)
-            ?? throw new NotFoundException(nameof(TripStopCall), tripStopCallId);
-
-        var ticket = await _context.Tickets
-            .Include(t => t.SeatReservation!).ThenInclude(r => r!.Booking)
-            .FirstOrDefaultAsync(t => t.Id == ticketId && !t.IsDeleted, cancellationToken)
-            ?? throw new NotFoundException(nameof(Ticket), ticketId);
+        var stopCall = await _repository.GetRequiredStopCallAsync(tripStopCallId, cancellationToken);
+        var ticket = await _repository.GetRequiredTicketWithBookingAsync(ticketId, cancellationToken);
 
         var booking = ticket.SeatReservation?.Booking
             ?? throw new NotFoundException(nameof(Booking), ticketId);
 
         // BR-BOARD-03: quyền tác nghiệp Staff cho đúng điểm dừng (có 1 ScannerAssignment hợp lệ là đủ -
         // không cần là Primary Offline, ràng buộc đó chỉ áp dụng khi gán scanner - BR-OFF-02).
-        var hasAssignment = await _context.ScannerAssignments.AsNoTracking().AnyAsync(a =>
-                a.StaffAccountId == staffId &&
-                a.TripStopCallId == tripStopCallId &&
-                a.ActiveFrom <= now &&
-                (a.ActiveUntil == null || a.ActiveUntil >= now),
-            cancellationToken);
+        var hasAssignment = await _repository.HasActiveAssignmentAsync(staffId, tripStopCallId, now, cancellationToken);
 
         var outcome = DetermineOutcome(hasAssignment, tripStopCallId, booking, stopCall, now, ticket);
 
-        _context.CheckInEvents.Add(new CheckInEvent
+        _repository.AddCheckInEvent(new CheckInEvent
         {
             TicketId = ticket.Id,
             StaffAccountId = staffId,

@@ -17,4 +17,6 @@ public sealed class EfUnitOfWork(ApplicationDbContext context) : IUnitOfWork
             throw new ConcurrencyException("Xung đột dữ liệu khi cập nhật ghế. Vui lòng thử lại!", ex);
         }
     }
+
+    public void DiscardTrackedChanges() => context.ChangeTracker.Clear();
 }

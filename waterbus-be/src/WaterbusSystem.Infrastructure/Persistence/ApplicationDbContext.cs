@@ -85,8 +85,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
         return await base.SaveChangesAsync(cancellationToken);
     }
 
-    public void DiscardTrackedChanges() => ChangeTracker.Clear();
-
     /// <summary>
     /// Tự động gán CreatedAt/CreatedBy khi thêm mới, UpdatedAt/LastModifiedBy khi chỉnh sửa,
     /// cho mọi entity kế thừa BaseEntity, dựa trên người dùng hiện tại (ICurrentUserService).

@@ -1,26 +1,25 @@
 using Hangfire;
-using MediatR;
-using WaterbusSystem.Application.Features.CheckIns.Commands.RunNoShowFinalization;
+using WaterbusSystem.Application.Interfaces.Services;
 
 namespace WaterbusSystem.Infrastructure.BackgroundJobs;
 
 /// <summary>
-/// Hangfire recurring job "noshow-finalization": chỉ chuyển sang RunNoShowFinalizationCommand
+/// Hangfire recurring job "noshow-finalization": chỉ chuyển sang ICheckInService.RunNoShowFinalizationAsync
 /// (logic nằm ở Application). Không chạy chồng; không retry tự động vì lượt sau (cron) sẽ quét lại.
 /// </summary>
 public class NoShowFinalizationJob
 {
     public const string RecurringJobId = "noshow-finalization";
 
-    private readonly ISender _mediator;
+    private readonly ICheckInService _checkInService;
 
-    public NoShowFinalizationJob(ISender mediator)
+    public NoShowFinalizationJob(ICheckInService checkInService)
     {
-        _mediator = mediator;
+        _checkInService = checkInService;
     }
 
     [DisableConcurrentExecution(timeoutInSeconds: 600)]
     [AutomaticRetry(Attempts = 0)]
     public Task RunAsync(CancellationToken cancellationToken) =>
-        _mediator.Send(new RunNoShowFinalizationCommand(), cancellationToken);
+        _checkInService.RunNoShowFinalizationAsync(cancellationToken);
 }
