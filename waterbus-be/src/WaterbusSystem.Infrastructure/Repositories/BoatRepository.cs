@@ -57,7 +57,7 @@ public sealed class BoatRepository(ApplicationDbContext context) : IBoatReposito
             .Select(b => new BoatResponse(
                 b.Id, b.Code, b.Name, b.RegistrationNumber, b.TotalSeats, b.Manufacturer, b.YearBuilt, b.IsActive, b.CaptainUserId));
 
-        return PaginatedList<BoatResponse>.CreateAsync(source, request.PageNumber, request.PageSize, cancellationToken);
+        return source.ToPaginatedListAsync(request.PageNumber, request.PageSize, cancellationToken);
     }
 
     public void Add(Boat boat) => context.Boats.Add(boat);

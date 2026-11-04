@@ -45,7 +45,7 @@ public sealed class StationRepository(ApplicationDbContext context) : IStationRe
             .OrderBy(s => s.OrderIndex)
             .Select(s => new StationResponse(s.Id, s.Code, s.Name, s.Address, s.Latitude, s.Longitude, s.OrderIndex, s.IsActive));
 
-        return PaginatedList<StationResponse>.CreateAsync(source, request.PageNumber, request.PageSize, cancellationToken);
+        return source.ToPaginatedListAsync(request.PageNumber, request.PageSize, cancellationToken);
     }
 
     public void Add(Station station) => context.Stations.Add(station);

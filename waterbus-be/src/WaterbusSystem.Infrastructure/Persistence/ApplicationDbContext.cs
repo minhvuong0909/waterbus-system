@@ -12,7 +12,7 @@ namespace WaterbusSystem.Infrastructure.Persistence;
 /// <summary>
 /// DbContext chính của hệ thống, kết hợp ASP.NET Core Identity và Business Entities
 /// </summary>
-public class ApplicationDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>, IApplicationDbContext
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>
 {
     private readonly ICurrentUserService? _currentUserService;
 

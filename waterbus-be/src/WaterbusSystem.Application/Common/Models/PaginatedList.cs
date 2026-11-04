@@ -1,9 +1,8 @@
-using Microsoft.EntityFrameworkCore;
-
 namespace WaterbusSystem.Application.Common.Models;
 
 /// <summary>
-/// Model phân trang dùng chung cho các truy vấn danh sách (GetList queries)
+/// Model phân trang dùng chung cho các truy vấn danh sách (GetList queries). Chỉ là data shape thuần -
+/// Repository ở Infrastructure chịu trách nhiệm thực thi truy vấn (EF Core) rồi dựng instance này.
 /// </summary>
 public class PaginatedList<T>
 {
@@ -21,12 +20,5 @@ public class PaginatedList<T>
         TotalPages = (int)Math.Ceiling(count / (double)pageSize);
         TotalCount = count;
         Items = items;
-    }
-
-    public static async Task<PaginatedList<T>> CreateAsync(IQueryable<T> source, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
-    {
-        var count = await source.CountAsync(cancellationToken);
-        var items = await source.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
-        return new PaginatedList<T>(items, count, pageNumber, pageSize);
     }
 }
