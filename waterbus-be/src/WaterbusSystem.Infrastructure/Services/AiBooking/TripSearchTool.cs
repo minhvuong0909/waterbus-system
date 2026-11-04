@@ -1,34 +1,33 @@
 using System.Globalization;
 using System.Text;
-using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using WaterbusSystem.Application.DTOs.Requests.Trips;
 using WaterbusSystem.Application.DTOs.Responses.Stations;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.AiBooking.Models;
-using WaterbusSystem.Application.Features.Trips.Queries.SearchTrips;
 using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Domain.Enums;
 
 namespace WaterbusSystem.Infrastructure.Services.AiBooking;
 
 /// <summary>
-/// Adapter AI dùng cùng query với GET /api/v1/trips/search; không sửa Trip Search của teammate.
-/// Stations đã migrate sang Service layer (IStationService); Trips chưa migrate, vẫn qua ISender.
+/// Adapter AI dùng cùng Service với GET /api/v1/trips/search; không sửa Trip Search của teammate.
+/// Stations và Trips đều đã migrate sang Service layer (IStationService/ITripService).
 /// Chỉ phát Trip Card sau khi owner xác nhận contract bến/giá và kết quả qua kiểm tra an toàn.
 /// </summary>
-public sealed class MediatRTripSearchTool : ITripSearchTool
+public sealed class TripSearchTool : ITripSearchTool
 {
-    private readonly ISender _sender;
     private readonly IStationService _stationService;
+    private readonly ITripService _tripService;
     private readonly IOptions<AiBookingIntegrationOptions> _options;
     private readonly IHostEnvironment _environment;
 
-    public MediatRTripSearchTool(
-        ISender sender, IStationService stationService, IOptions<AiBookingIntegrationOptions> options, IHostEnvironment environment)
+    public TripSearchTool(
+        IStationService stationService, ITripService tripService, IOptions<AiBookingIntegrationOptions> options, IHostEnvironment environment)
     {
-        _sender = sender;
         _stationService = stationService;
+        _tripService = tripService;
         _options = options;
         _environment = environment;
     }
@@ -81,19 +80,19 @@ public sealed class MediatRTripSearchTool : ITripSearchTool
         }
 
         var date = criteria.DepartureDate?.ToDateTime(TimeOnly.MinValue);
-        List<TripDto> trips;
+        List<Application.DTOs.Responses.Trips.TripSearchResponse> trips;
         if (hasDeparture != hasArrival && !criteria.RestrictSingleStationToRequestedDirection)
         {
             // Một bến không xác định chiều: tìm cả chuyến xuất phát và chuyến đến bến đó.
             var stationId = departureId ?? arrivalId;
-            var departing = await _sender.Send(new SearchTripsQuery(stationId, null, date, tripType), cancellationToken);
-            var arriving = await _sender.Send(new SearchTripsQuery(null, stationId, date, tripType), cancellationToken);
+            var departing = await _tripService.SearchAsync(new SearchTripsRequest(stationId, null, date, tripType), cancellationToken);
+            var arriving = await _tripService.SearchAsync(new SearchTripsRequest(null, stationId, date, tripType), cancellationToken);
             trips = departing.Concat(arriving).DistinctBy(t => t.Id).OrderBy(t => t.DepartureTime).ToList();
         }
         else
         {
             // Không nêu bến: lấy danh sách chuyến sắp tới; đủ hai bến: tìm đúng chiều khách yêu cầu.
-            trips = await _sender.Send(new SearchTripsQuery(departureId, arrivalId, date, tripType), cancellationToken);
+            trips = await _tripService.SearchAsync(new SearchTripsRequest(departureId, arrivalId, date, tripType), cancellationToken);
         }
 
         // Query gốc chưa loại chuyến đã qua giờ; AI chỉ giới thiệu những chuyến còn ở phía trước.

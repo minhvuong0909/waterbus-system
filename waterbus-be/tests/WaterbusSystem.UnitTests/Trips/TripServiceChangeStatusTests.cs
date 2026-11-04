@@ -2,17 +2,20 @@ using FluentAssertions;
 using Moq;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
-using WaterbusSystem.Application.Features.Trips.Commands.ChangeTripStatus;
+using WaterbusSystem.Application.DTOs.Requests.Trips;
+using WaterbusSystem.Application.Features.Trips.Services;
+using WaterbusSystem.Application.Validators.Trips;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.UnitTests.TestHelpers;
 using Xunit;
 
 namespace WaterbusSystem.UnitTests.Trips;
 
-public class ChangeTripStatusCommandHandlerTests
+public class TripServiceChangeStatusTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 17, 8, 0, 0, TimeSpan.Zero);
 
@@ -24,7 +27,7 @@ public class ChangeTripStatusCommandHandlerTests
     private readonly Guid _adminId = Guid.NewGuid();
     private readonly Guid _captainId = Guid.NewGuid();
 
-    public ChangeTripStatusCommandHandlerTests()
+    public TripServiceChangeStatusTests()
     {
         _clock.Setup(c => c.Now).Returns(() => Now);
         _seed = TestDbContextFactory.SeedTrip(_context);
@@ -32,13 +35,14 @@ public class ChangeTripStatusCommandHandlerTests
         _context.SaveChanges();
     }
 
-    private ChangeTripStatusCommandHandler Handler() => new(_context, _user.Object, _clock.Object, _publisher.Object);
+    private TripService Service() => new(new TripRepository(_context), new IncidentRepository(_context), new EfUnitOfWork(_context),
+        _user.Object, _clock.Object, _publisher.Object, Mock.Of<IUserDirectory>());
 
     private void AsAdmin() { _user.Setup(u => u.UserId).Returns(_adminId.ToString()); _user.Setup(u => u.UserRole).Returns("Admin"); }
     private void AsCaptain(Guid? id = null) { _user.Setup(u => u.UserId).Returns((id ?? _captainId).ToString()); _user.Setup(u => u.UserRole).Returns("Captain"); }
 
-    private ChangeTripStatusCommand Cmd(TripOperation op, string? reason = null, Guid? incidentId = null) =>
-        new(_seed.Trip.Id, op, reason, incidentId);
+    private ChangeTripStatusRequest Req(TripOperation op, string? reason = null, Guid? incidentId = null) =>
+        new(op, reason, incidentId);
 
     private Incident AddIncident(bool linkTrip)
     {
@@ -54,7 +58,7 @@ public class ChangeTripStatusCommandHandlerTests
     {
         AsCaptain();
 
-        var result = await Handler().Handle(Cmd(TripOperation.Start), CancellationToken.None);
+        var result = await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Start), CancellationToken.None);
 
         result.Status.Should().Be("EnRoute");
         result.PreviousStatus.Should().Be("Scheduled");
@@ -78,7 +82,7 @@ public class ChangeTripStatusCommandHandlerTests
         _seed.Trip.SalesCloseAt = Now.AddMinutes(45);
         _context.SaveChanges();
 
-        await Handler().Handle(Cmd(TripOperation.Start), CancellationToken.None);
+        await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Start), CancellationToken.None);
 
         _context.Trips.Find(_seed.Trip.Id)!.SalesCloseAt.Should().Be(Now);
     }
@@ -91,7 +95,7 @@ public class ChangeTripStatusCommandHandlerTests
         _seed.Trip.SalesCloseAt = null;
         _context.SaveChanges();
 
-        await Handler().Handle(Cmd(TripOperation.Start), CancellationToken.None);
+        await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Start), CancellationToken.None);
 
         _context.Trips.Find(_seed.Trip.Id)!.SalesCloseAt.Should().Be(Now.AddMinutes(-20));
     }
@@ -104,7 +108,7 @@ public class ChangeTripStatusCommandHandlerTests
         _seed.Trip.SalesCloseAt = Now.AddMinutes(-30);
         _context.SaveChanges();
 
-        await Handler().Handle(Cmd(TripOperation.Start), CancellationToken.None);
+        await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Start), CancellationToken.None);
 
         _context.Trips.Find(_seed.Trip.Id)!.SalesCloseAt.Should().Be(Now.AddMinutes(-30));
     }
@@ -113,9 +117,9 @@ public class ChangeTripStatusCommandHandlerTests
     public async Task Captain_ArrivesAfterStart_ShouldStampArrival()
     {
         AsCaptain();
-        await Handler().Handle(Cmd(TripOperation.Start), CancellationToken.None);
+        await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Start), CancellationToken.None);
 
-        var result = await Handler().Handle(Cmd(TripOperation.Arrive), CancellationToken.None);
+        var result = await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Arrive), CancellationToken.None);
 
         result.Status.Should().Be("Arrived");
         result.ActualArrivalTime.Should().Be(Now);
@@ -131,7 +135,7 @@ public class ChangeTripStatusCommandHandlerTests
     {
         AsCaptain();
 
-        var act = () => Handler().Handle(Cmd(op, "x"), CancellationToken.None);
+        var act = () => Service().ChangeStatusAsync(_seed.Trip.Id, Req(op, "x"), CancellationToken.None);
 
         await act.Should().ThrowAsync<ForbiddenAccessException>();
         _context.Trips.Find(_seed.Trip.Id)!.Status.Should().Be(TripStatus.Scheduled);
@@ -143,7 +147,7 @@ public class ChangeTripStatusCommandHandlerTests
     {
         AsCaptain(Guid.NewGuid());
 
-        var act = () => Handler().Handle(Cmd(TripOperation.Start), CancellationToken.None);
+        var act = () => Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Start), CancellationToken.None);
 
         await act.Should().ThrowAsync<ForbiddenAccessException>();
     }
@@ -154,7 +158,7 @@ public class ChangeTripStatusCommandHandlerTests
         AsCaptain();
         var incident = AddIncident(linkTrip: true);
 
-        var act = () => Handler().Handle(Cmd(TripOperation.Start, null, incident.Id), CancellationToken.None);
+        var act = () => Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Start, null, incident.Id), CancellationToken.None);
 
         await act.Should().ThrowAsync<ForbiddenAccessException>();
     }
@@ -167,7 +171,7 @@ public class ChangeTripStatusCommandHandlerTests
         _user.Setup(u => u.UserId).Returns(Guid.NewGuid().ToString());
         _user.Setup(u => u.UserRole).Returns(role);
 
-        var act = () => Handler().Handle(Cmd(TripOperation.Start), CancellationToken.None);
+        var act = () => Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Start), CancellationToken.None);
 
         await act.Should().ThrowAsync<ForbiddenAccessException>();
     }
@@ -177,7 +181,7 @@ public class ChangeTripStatusCommandHandlerTests
     {
         AsAdmin();
 
-        var act = () => Handler().Handle(Cmd(TripOperation.Terminate, "x"), CancellationToken.None);
+        var act = () => Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Terminate, "x"), CancellationToken.None);
 
         (await act.Should().ThrowAsync<ConflictException>()).Which.Message.Should().Contain("Scheduled");
         _context.TripOperationEvents.Should().BeEmpty();
@@ -191,7 +195,7 @@ public class ChangeTripStatusCommandHandlerTests
         _seed.Trip.BoatId = null;
         _context.SaveChanges();
 
-        var act = () => Handler().Handle(Cmd(TripOperation.Start), CancellationToken.None);
+        var act = () => Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Start), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
     }
@@ -201,7 +205,7 @@ public class ChangeTripStatusCommandHandlerTests
     {
         AsAdmin();
 
-        var act = () => Handler().Handle(new ChangeTripStatusCommand(Guid.NewGuid(), TripOperation.Cancel, "x", null), CancellationToken.None);
+        var act = () => Service().ChangeStatusAsync(Guid.NewGuid(), Req(TripOperation.Cancel, "x"), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
@@ -212,7 +216,7 @@ public class ChangeTripStatusCommandHandlerTests
         AsAdmin();
         var incident = AddIncident(linkTrip: true);
 
-        var result = await Handler().Handle(Cmd(TripOperation.Cancel, "Gió mạnh", incident.Id), CancellationToken.None);
+        var result = await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Cancel, "Gió mạnh", incident.Id), CancellationToken.None);
 
         result.Status.Should().Be("Cancelled");
         var link = _context.IncidentTrips.Single();
@@ -228,7 +232,7 @@ public class ChangeTripStatusCommandHandlerTests
         AsAdmin();
         var incident = AddIncident(linkTrip: false);
 
-        await Handler().Handle(Cmd(TripOperation.Suspend, "Dông", incident.Id), CancellationToken.None);
+        await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Suspend, "Dông", incident.Id), CancellationToken.None);
 
         _context.IncidentTrips.Should().ContainSingle(l => l.IncidentId == incident.Id && l.TripId == _seed.Trip.Id && l.OperationDecision == "Suspend");
     }
@@ -238,7 +242,7 @@ public class ChangeTripStatusCommandHandlerTests
     {
         AsAdmin();
 
-        var act = () => Handler().Handle(Cmd(TripOperation.Suspend, "x", Guid.NewGuid()), CancellationToken.None);
+        var act = () => Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Suspend, "x", Guid.NewGuid()), CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
         _context.Trips.Find(_seed.Trip.Id)!.Status.Should().Be(TripStatus.Scheduled);
@@ -250,7 +254,7 @@ public class ChangeTripStatusCommandHandlerTests
         AsAdmin();
         var incident = AddIncident(linkTrip: true);
 
-        var result = await Handler().Handle(Cmd(TripOperation.NoAction, "Gió đã giảm", incident.Id), CancellationToken.None);
+        var result = await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.NoAction, "Gió đã giảm", incident.Id), CancellationToken.None);
 
         result.Status.Should().Be("Scheduled");
         _context.IncidentTrips.Single().OperationDecision.Should().Be("None");
@@ -262,9 +266,9 @@ public class ChangeTripStatusCommandHandlerTests
     public async Task Admin_SuspendThenResumeBeforeDeparture_ShouldReturnToScheduled()
     {
         AsAdmin();
-        await Handler().Handle(Cmd(TripOperation.Suspend, "Dông"), CancellationToken.None);
+        await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Suspend, "Dông"), CancellationToken.None);
 
-        var result = await Handler().Handle(Cmd(TripOperation.Resume), CancellationToken.None);
+        var result = await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Resume), CancellationToken.None);
 
         result.Status.Should().Be("Scheduled");
         _context.TripOperationEvents.Select(e => e.ToStatus).Should().BeEquivalentTo("Suspended", "Scheduled");
@@ -274,9 +278,9 @@ public class ChangeTripStatusCommandHandlerTests
     public async Task Admin_TerminatesRunningTrip_ShouldBecomeTerminatedWithoutDepartureChange()
     {
         AsAdmin();
-        await Handler().Handle(Cmd(TripOperation.Start), CancellationToken.None);
+        await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Start), CancellationToken.None);
 
-        var result = await Handler().Handle(Cmd(TripOperation.Terminate, "Sự cố"), CancellationToken.None);
+        var result = await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Terminate, "Sự cố"), CancellationToken.None);
 
         result.Status.Should().Be("Terminated");
         result.AllowedOperations.Should().BeEmpty();
@@ -290,19 +294,19 @@ public class ChangeTripStatusCommandHandlerTests
     [InlineData(TripOperation.NoAction)]
     public void Validator_ReasonRequiredForDecisions(TripOperation op)
     {
-        var validator = new ChangeTripStatusCommandValidator();
+        var validator = new ChangeTripStatusRequestValidator();
 
-        validator.Validate(new ChangeTripStatusCommand(Guid.NewGuid(), op, " ", Guid.NewGuid())).IsValid.Should().BeFalse();
-        validator.Validate(new ChangeTripStatusCommand(Guid.NewGuid(), op, "Lý do", Guid.NewGuid())).IsValid.Should().BeTrue();
+        validator.Validate(new ChangeTripStatusRequest(op, " ", Guid.NewGuid())).IsValid.Should().BeFalse();
+        validator.Validate(new ChangeTripStatusRequest(op, "Lý do", Guid.NewGuid())).IsValid.Should().BeTrue();
     }
 
     [Fact]
     public void Validator_NoActionNeedsIncident_AndReasonIsLimited()
     {
-        var validator = new ChangeTripStatusCommandValidator();
+        var validator = new ChangeTripStatusRequestValidator();
 
-        validator.Validate(new ChangeTripStatusCommand(Guid.NewGuid(), TripOperation.NoAction, "x", null)).IsValid.Should().BeFalse();
-        validator.Validate(new ChangeTripStatusCommand(Guid.NewGuid(), TripOperation.Start, new string('x', 501), null)).IsValid.Should().BeFalse();
-        validator.Validate(new ChangeTripStatusCommand(Guid.NewGuid(), TripOperation.Start, null, null)).IsValid.Should().BeTrue();
+        validator.Validate(new ChangeTripStatusRequest(TripOperation.NoAction, "x", null)).IsValid.Should().BeFalse();
+        validator.Validate(new ChangeTripStatusRequest(TripOperation.Start, new string('x', 501), null)).IsValid.Should().BeFalse();
+        validator.Validate(new ChangeTripStatusRequest(TripOperation.Start, null, null)).IsValid.Should().BeTrue();
     }
 }

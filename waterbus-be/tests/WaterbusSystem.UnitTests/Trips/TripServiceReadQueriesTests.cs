@@ -1,23 +1,31 @@
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using WaterbusSystem.Application.Common.Interfaces;
-using WaterbusSystem.Application.Features.Trips.Queries.GetTripDetail;
-using WaterbusSystem.Application.Features.Trips.Queries.GetTripSeatMap;
+using WaterbusSystem.Application.DTOs.Requests.Trips;
+using WaterbusSystem.Application.Features.Trips.Services;
+using WaterbusSystem.Application.Validators.Trips;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
+using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.UnitTests.TestHelpers;
 using Xunit;
 using ValidationException = WaterbusSystem.Application.Common.Exceptions.ValidationException;
 
 namespace WaterbusSystem.UnitTests.Trips;
 
-public class TripReadQueriesTests
+public class TripServiceReadQueriesTests
 {
     private sealed class Clock : IDateTimeService { public DateTimeOffset Now { get; } = DateTimeOffset.UtcNow; }
     private readonly Clock _clock = new();
 
-    private static GetTripSeatMapQuery Query(TestDbContextFactory.TripSeedData seed, int from = 1, int to = 3) =>
-        new(seed.Trip.Id, seed.Trip.TripStopCalls.Single(c => c.VisitOrder == from).Id,
+    private static TripService Service(ApplicationDbContext context, IDateTimeService clock) =>
+        new(new TripRepository(context), new IncidentRepository(context), new EfUnitOfWork(context),
+            Mock.Of<ICurrentUserService>(), clock, Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>());
+
+    private static GetTripSeatMapRequest Req(TestDbContextFactory.TripSeedData seed, int from = 1, int to = 3) =>
+        new(seed.Trip.TripStopCalls.Single(c => c.VisitOrder == from).Id,
             seed.Trip.TripStopCalls.Single(c => c.VisitOrder == to).Id);
 
     [Fact]
@@ -26,7 +34,7 @@ public class TripReadQueriesTests
         using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
         seed.StationA.OrderIndex = 90; seed.StationC.OrderIndex = 1; await c.SaveChangesAsync();
         c.ChangeTracker.Clear();
-        var dto = await new GetTripDetailQueryHandler(c, _clock).Handle(new(seed.Trip.Id), default);
+        var dto = await Service(c, _clock).GetDetailAsync(seed.Trip.Id, default);
         Assert.Equal(new[] { 1, 2, 3 }, dto.Stops.Select(s => s.VisitOrder));
         Assert.Equal(seed.StationA.Id, dto.Stops[0].StationId);
         Assert.Equal(seed.Boat.Id, dto.Boat!.BoatId);
@@ -38,19 +46,19 @@ public class TripReadQueriesTests
     public async Task MissingOrSoftDeletedTripIsNotFound()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
-        var handler = new GetTripDetailQueryHandler(c, _clock);
-        await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(new(Guid.NewGuid()), default));
+        var service = Service(c, _clock);
+        await Assert.ThrowsAsync<NotFoundException>(() => service.GetDetailAsync(Guid.NewGuid(), default));
         seed.Trip.IsDeleted = true; await c.SaveChangesAsync();
-        await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(new(seed.Trip.Id), default));
+        await Assert.ThrowsAsync<NotFoundException>(() => service.GetDetailAsync(seed.Trip.Id, default));
     }
 
     [Fact]
     public async Task AvailableMapReturnsRealCoordinatesAndFlatPricesWithoutWritingHolds()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
-        var handler = new GetTripSeatMapQueryHandler(c, _clock);
-        var whole = await handler.Handle(Query(seed), default);
-        var shortLeg = await handler.Handle(Query(seed, 1, 2), default);
+        var service = Service(c, _clock);
+        var whole = await service.GetSeatMapAsync(seed.Trip.Id, Req(seed), default);
+        var shortLeg = await service.GetSeatMapAsync(seed.Trip.Id, Req(seed, 1, 2), default);
         Assert.Equal(2, whole.AvailableSeatsCount);
         Assert.All(whole.Seats, s => { Assert.Equal("available", s.Status); Assert.Equal(15000m, s.Price); });
         Assert.Equal(seed.Seat1.RowNumber, whole.Seats.Single(s => s.SeatId == seed.Seat1.Id).RowNumber);
@@ -68,10 +76,10 @@ public class TripReadQueriesTests
         c.SeatReservations.Add(new SeatReservation { Booking = booking, BookingId = booking.Id,
             TripId = seed.Trip.Id, SeatId = seed.Seat1.Id, BoardingStopOrder = 1, DisembarkingStopOrder = 2 });
         await c.SaveChangesAsync(); c.ChangeTracker.Clear();
-        var handler = new GetTripSeatMapQueryHandler(c, _clock);
-        var adjacent = await handler.Handle(Query(seed, 2, 3), default);
+        var service = Service(c, _clock);
+        var adjacent = await service.GetSeatMapAsync(seed.Trip.Id, Req(seed, 2, 3), default);
         Assert.Equal("available", adjacent.Seats.Single(s => s.SeatId == seed.Seat1.Id).Status);
-        var overlapping = await handler.Handle(Query(seed), default);
+        var overlapping = await service.GetSeatMapAsync(seed.Trip.Id, Req(seed), default);
         var held = overlapping.Seats.Single(s => s.SeatId == seed.Seat1.Id);
         Assert.Equal("held", held.Status); Assert.Equal(booking.Order.ExpiresAt, held.HoldExpiresAt);
     }
@@ -87,7 +95,7 @@ public class TripReadQueriesTests
         c.SeatReservations.Add(new SeatReservation { Booking = booking, BookingId = booking.Id,
             TripId = seed.Trip.Id, SeatId = seed.Seat1.Id, BoardingStopOrder = 1, DisembarkingStopOrder = 3, Status = state });
         await c.SaveChangesAsync();
-        var dto = await new GetTripSeatMapQueryHandler(c, _clock).Handle(Query(seed), default);
+        var dto = await Service(c, _clock).GetSeatMapAsync(seed.Trip.Id, Req(seed), default);
         Assert.Equal(expected, dto.Seats.Single(s => s.SeatId == seed.Seat1.Id).Status);
     }
 
@@ -100,7 +108,7 @@ public class TripReadQueriesTests
         c.SeatReservations.Add(new SeatReservation { Booking = booking, BookingId = booking.Id,
             TripId = seed.Trip.Id, SeatId = seed.Seat1.Id, BoardingStopOrder = 1, DisembarkingStopOrder = 3 });
         await c.SaveChangesAsync();
-        var dto = await new GetTripSeatMapQueryHandler(c, _clock).Handle(Query(seed), default);
+        var dto = await Service(c, _clock).GetSeatMapAsync(seed.Trip.Id, Req(seed), default);
         Assert.Equal("held", dto.Seats.Single(s => s.SeatId == seed.Seat1.Id).Status);
     }
 
@@ -108,11 +116,11 @@ public class TripReadQueriesTests
     public async Task WrongReversedAndSkippedCallsAreRejected()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
-        var handler = new GetTripSeatMapQueryHandler(c, _clock);
-        await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(Query(seed) with { BoardingCallId = Guid.NewGuid() }, default));
-        await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(Query(seed, 3, 1), default));
+        var service = Service(c, _clock);
+        await Assert.ThrowsAsync<ValidationException>(() => service.GetSeatMapAsync(seed.Trip.Id, Req(seed) with { BoardingCallId = Guid.NewGuid() }, default));
+        await Assert.ThrowsAsync<ValidationException>(() => service.GetSeatMapAsync(seed.Trip.Id, Req(seed, 3, 1), default));
         seed.Trip.TripStopCalls.Single(s => s.VisitOrder == 1).Status = "Skipped"; await c.SaveChangesAsync();
-        await Assert.ThrowsAsync<ValidationException>(() => handler.Handle(Query(seed), default));
+        await Assert.ThrowsAsync<ValidationException>(() => service.GetSeatMapAsync(seed.Trip.Id, Req(seed), default));
     }
 
     [Fact]
@@ -122,7 +130,7 @@ public class TripReadQueriesTests
         seed.Trip.TripType = TripType.Sightseeing; seed.Route.ServiceType = "Sightseeing";
         seed.Trip.TripStopCalls.Single(s => s.VisitOrder == 3).RouteStop!.StationId = seed.StationA.Id;
         await c.SaveChangesAsync(); c.ChangeTracker.Clear();
-        var dto = await new GetTripSeatMapQueryHandler(c, _clock).Handle(Query(seed), default);
+        var dto = await Service(c, _clock).GetSeatMapAsync(seed.Trip.Id, Req(seed), default);
         Assert.Equal(2, dto.AvailableSeatsCount); Assert.All(dto.Seats, s => Assert.Equal(100000m, s.Price));
     }
 
@@ -131,28 +139,28 @@ public class TripReadQueriesTests
     {
         using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
         seed.Trip.SalesCloseAt = _clock.Now; await c.SaveChangesAsync();
-        var handler = new GetTripSeatMapQueryHandler(c, _clock);
-        var closed = await handler.Handle(Query(seed), default);
+        var service = Service(c, _clock);
+        var closed = await service.GetSeatMapAsync(seed.Trip.Id, Req(seed), default);
         Assert.False(closed.CanBook); Assert.Equal("salesClosed", closed.SalesState);
         Assert.All(closed.Seats, s => Assert.Equal("unavailable", s.Status));
         seed.Trip.SalesCloseAt = null; seed.Trip.ActualDepartureTime = _clock.Now; await c.SaveChangesAsync();
-        Assert.Equal("tripUnavailable", (await handler.Handle(Query(seed), default)).SalesState);
+        Assert.Equal("tripUnavailable", (await service.GetSeatMapAsync(seed.Trip.Id, Req(seed), default)).SalesState);
     }
 
     [Fact]
     public async Task MissingBoatIsConflictAndMissingFareOrInactiveSeatIsUnselectable()
     {
         using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
-        var handler = new GetTripSeatMapQueryHandler(c, _clock);
+        var service = Service(c, _clock);
         seed.Seat1.IsActive = false;
         foreach (var fare in c.FareRules) fare.IsActive = false;
         await c.SaveChangesAsync();
-        var dto = await handler.Handle(Query(seed), default);
+        var dto = await service.GetSeatMapAsync(seed.Trip.Id, Req(seed), default);
         Assert.Equal("seatInactive", dto.Seats.Single(s => s.SeatId == seed.Seat1.Id).UnavailableReason);
         Assert.Equal("missingFare", dto.Seats.Single(s => s.SeatId == seed.Seat2.Id).UnavailableReason);
         Assert.False(dto.CanBook);
         seed.Trip.BoatId = null; seed.Trip.Boat = null; await c.SaveChangesAsync();
-        await Assert.ThrowsAsync<ConcurrencyException>(() => handler.Handle(Query(seed), default));
+        await Assert.ThrowsAsync<ConcurrencyException>(() => service.GetSeatMapAsync(seed.Trip.Id, Req(seed), default));
     }
 
     [Fact]
@@ -161,15 +169,14 @@ public class TripReadQueriesTests
         using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
         c.FareRules.Add(new FareRule { TripType = "Commuter", SeatClassId = seed.StandardClass.Id,
             Price = 999m, EffectiveFrom = _clock.Now.AddMinutes(-1) }); await c.SaveChangesAsync();
-        await Assert.ThrowsAsync<ConcurrencyException>(() => new GetTripSeatMapQueryHandler(c, _clock).Handle(Query(seed), default));
+        await Assert.ThrowsAsync<ConcurrencyException>(() => Service(c, _clock).GetSeatMapAsync(seed.Trip.Id, Req(seed), default));
     }
 
     [Fact]
     public void ValidatorsRequireNonemptyDistinctCallIds()
     {
-        Assert.False(new GetTripDetailQueryValidator().Validate(new GetTripDetailQuery(Guid.Empty)).IsValid);
-        Assert.False(new GetTripSeatMapQueryValidator().Validate(new GetTripSeatMapQuery(Guid.NewGuid(), Guid.Empty, Guid.Empty)).IsValid);
+        Assert.False(new GetTripSeatMapRequestValidator().Validate(new GetTripSeatMapRequest(Guid.Empty, Guid.Empty)).IsValid);
         var id = Guid.NewGuid();
-        Assert.False(new GetTripSeatMapQueryValidator().Validate(new GetTripSeatMapQuery(Guid.NewGuid(), id, id)).IsValid);
+        Assert.False(new GetTripSeatMapRequestValidator().Validate(new GetTripSeatMapRequest(id, id)).IsValid);
     }
 }
