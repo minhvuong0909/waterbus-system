@@ -42,7 +42,7 @@ Ví dụ: `feat(realtime): add SeatSyncHub with per-trip groups`.
 ### 3.1 Kiến trúc & chiều phụ thuộc
 `WebApi → Application → Domain` và `Infrastructure → Application → Domain`.
 - **Domain**: entity, enum, rule thuần. Không tham chiếu EF, MediatR, hay thư viện hạ tầng.
-- **Application**: đang chuyển dần từ CQRS (MediatR) sang Service layer thuần (xem 3.2); validator, interface (`IApplicationDbContext`, `IDistributedLockService`, `ICurrentUserService`, `I{Feature}Service`...).
+- **Application**: đang chuyển dần từ CQRS (MediatR) sang Service layer thuần (xem 3.2); validator, interface hạ tầng cắt ngang (`IDistributedLockService`, `ICurrentUserService`...), interface theo feature (`I{Feature}Service`, `I{Feature}Repository`...). `IApplicationDbContext` chỉ còn được Handler của feature **chưa migrate** dùng trực tiếp — Service của feature đã migrate **không** được inject `IApplicationDbContext`/EF Core, chỉ phụ thuộc `I{Feature}Repository` + `IUnitOfWork` (xem 3.2).
 - **Infrastructure**: EF Core, Redis, Identity/JWT, VNPay, background job, SignalR publisher.
 - **WebApi**: controller, middleware, DI, cấu hình Hub.
 
@@ -74,9 +74,11 @@ Application/
     Responses/{Feature}/{Name}Response.cs
   Validators/{Feature}/{Name}RequestValidator.cs
   Interfaces/Services/I{Feature}Service.cs
-  Services/{Feature}Service.cs          # nếu chỉ cần interface hạ tầng sẵn có (IApplicationDbContext...)
+  Interfaces/Repositories/I{Feature}Repository.cs   # query/mutation EF Core nằm ở implementation, KHÔNG ở Service
+  Features/{Feature}/Services/{Feature}Service.cs   # inject I{Feature}Repository + IUnitOfWork, KHÔNG inject IApplicationDbContext/EF Core trực tiếp
 ```
-- Implementation **PHẢI** đặt ở `Infrastructure/...` (không phải `Application/Services/`) nếu cần dùng type cụ thể của hạ tầng mà Application không được phép biết (ví dụ `UserManager<T>`/`SignInManager<T>` của ASP.NET Identity) — xem `Infrastructure/Identity/AuthService.cs` làm mẫu. Lý do: Application không được tham chiếu Infrastructure; Service nào cần type hạ tầng cụ thể thì chính nó phải sống ở Infrastructure, chỉ để lại interface (`IAuthService`) ở Application.
+- Implementation của `I{Feature}Repository` đặt ở `Infrastructure/Repositories/{Feature}Repository.cs` (dùng `ApplicationDbContext`/EF Core), không ở Application. Service tầng Application chỉ gọi qua interface này và `IUnitOfWork` (`SaveChangesAsync`, `DiscardTrackedChanges`) — xem mẫu `IIncidentRepository`/`IncidentRepository`/`IncidentService`, `ICheckInRepository`/`CheckInRepository`/`CheckInService`.
+- Implementation của `I{Feature}Service` chỉ đặt ở `Infrastructure/...` (không phải `Application/Features/{Feature}/Services/`) trong trường hợp hiếm Service PHẢI dùng type cụ thể của hạ tầng mà Application không được phép biết (ví dụ `UserManager<T>`/`SignInManager<T>` của ASP.NET Identity) — xem `Infrastructure/Identity/AuthService.cs` làm mẫu. Lý do: Application không được tham chiếu Infrastructure; Service nào cần type hạ tầng cụ thể thì chính nó phải sống ở Infrastructure, chỉ để lại interface (`IAuthService`) ở Application. Đây không phải lý do để Service đọc/ghi EF Core trực tiếp — việc đó luôn phải qua Repository.
 - Request validate qua filter dùng chung `WebApi/Filters/ValidateRequestFilter.cs`, gắn bằng `[ServiceFilter(typeof(ValidateRequestFilter))]` trên Controller/action đã migrate — **không** đăng ký global (tránh double-validate các Controller CQRS cũ).
 - Mẫu tham khảo đầy đủ 1 feature migrate hoàn chỉnh: `Auth` — `DTOs/Requests/Auth/LoginRequest.cs`, `DTOs/Responses/Auth/LoginResponse.cs`, `Validators/Auth/LoginRequestValidator.cs`, `Interfaces/Services/IAuthService.cs`, `Infrastructure/Identity/AuthService.cs`, `WebApi/Controllers/AuthController.cs`.
 
