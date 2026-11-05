@@ -52,7 +52,8 @@ public interface ITripRepository
 
     /// <summary>
     /// 1 TripStopCall (có theo dõi để sửa) thuộc đúng <paramref name="tripId"/>, kèm Trip + Boat (để kiểm tra
-    /// quyền thuyền trưởng và trạng thái chuyến), hoặc ném NotFoundException. Dùng cho RecordStopProgress.
+    /// quyền thuyền trưởng và trạng thái chuyến) và toàn bộ TripStopCall cùng Trip (để kiểm tra thứ tự
+    /// VisitOrder), hoặc ném NotFoundException. Dùng cho RecordStopProgress.
     /// </summary>
     Task<TripStopCall> GetTrackedStopCallAsync(Guid tripId, Guid tripStopCallId, CancellationToken cancellationToken = default);
 

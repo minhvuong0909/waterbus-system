@@ -137,7 +137,7 @@ public sealed class CheckInService(
 
         var (outcome, _) = await processor.ProcessAsync(
             staffId, request.TicketId, request.TripStopCallId, request.ClientEventId,
-            request.OccurredAtDevice, request.Note, now, cancellationToken);
+            request.OccurredAtDevice, request.Note, now, isOfflineSync: false, cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -163,7 +163,7 @@ public sealed class CheckInService(
             {
                 var (outcome, wasAlreadySynced) = await processor.ProcessAsync(
                     staffId, evt.TicketId, evt.TripStopCallId, evt.ClientEventId,
-                    evt.OccurredAtDevice, evt.Note, now, cancellationToken);
+                    evt.OccurredAtDevice, evt.Note, now, isOfflineSync: true, cancellationToken);
 
                 await unitOfWork.SaveChangesAsync(cancellationToken);
 

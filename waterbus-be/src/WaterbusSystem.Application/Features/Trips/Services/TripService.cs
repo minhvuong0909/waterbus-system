@@ -341,6 +341,28 @@ public sealed class TripService(
             throw new ConflictException("Điểm dừng này đã bị bỏ qua, không thể ghi nhận tiến độ.");
         }
 
+        // BR-STOP-02: endpoint này chỉ dành cho điểm dừng TRUNG GIAN - điểm dừng đầu/cuối đã tự ghi theo
+        // Start/Arrive (ChangeStatusAsync). Cho phép ghi đè điểm dừng cuối ở đây sẽ đánh dấu hành trình đã
+        // hoàn tất dù Trip còn EnRoute, khiến RefundEligibilityEvaluator từ chối hoàn tiền sai nếu sau đó
+        // Trip bị Terminate trước khi thực sự tới bến cuối.
+        var served = trip.TripStopCalls.Where(c => c.Status != "Skipped" || c.Id == stopCall.Id)
+            .OrderBy(c => c.VisitOrder).ToList();
+        var index = served.FindIndex(c => c.Id == stopCall.Id);
+        if (index <= 0 || index >= served.Count - 1)
+        {
+            throw new ConflictException(
+                "Chỉ dùng endpoint này cho điểm dừng trung gian; điểm dừng đầu/cuối ghi nhận qua thao tác Start/Arrive.");
+        }
+
+        // BR-STOP-02: không cho ghi nhận vượt trước - điểm dừng ngay trước phải đã Departed thì mới tới
+        // lượt điểm dừng này (điểm dừng đầu đã Departed ngay khi Start, nên index 1 luôn thoả sẵn).
+        var previous = served[index - 1];
+        if (previous.Status != "Departed")
+        {
+            throw new ConflictException(
+                $"Điểm dừng trước đó (VisitOrder {previous.VisitOrder}) chưa rời bến, không thể ghi nhận tiến độ điểm dừng này.");
+        }
+
         var now = dateTime.Now;
 
         switch (request.Action)

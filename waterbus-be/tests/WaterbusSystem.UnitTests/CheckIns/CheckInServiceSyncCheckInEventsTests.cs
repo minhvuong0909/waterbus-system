@@ -124,21 +124,66 @@ public class CheckInServiceSyncCheckInEventsTests
     [Fact]
     public async Task SyncCheckInEventsAsync_WhenDeviceScanTimeItselfIsOutsideWindow_ShouldStillReportOutOfWindow()
     {
-        // Đối chứng: occurredAtDevice thật sự ngoài cửa sổ vẫn phải bị từ chối, dù server nhận lúc đang trong cửa sổ.
+        // Đối chứng: occurredAtDevice thật sự ngoài cửa sổ (nhưng không ở tương lai so với server, và vẫn
+        // trong hạn ScannerAssignment) vẫn phải bị từ chối, dù server nhận lúc đang trong cửa sổ.
         using var context = TestDbContextFactory.CreateDbContext();
         var (seed, _, ticket, boardingCall, serverNow) = SeedCheckInScenario(context, _staffId);
 
-        var scannedAfterClose = seed.Trip.DepartureTime.AddHours(1);
+        var scannedBeforeWindowOpened = seed.Trip.DepartureTime.AddMinutes(-45);
         var service = CreateService(context, serverNow);
         var request = new SyncCheckInEventsRequest(new[]
         {
-            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-really-late-scan", scannedAfterClose, null)
+            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-really-late-scan", scannedBeforeWindowOpened, null)
         });
 
         var result = await service.SyncCheckInEventsAsync(request, CancellationToken.None);
 
         result.Results.Should().ContainSingle(r => r.ClientEventId == "evt-really-late-scan" && r.Outcome == "OutOfWindow");
         context.Tickets.Single(t => t.Id == ticket.Id).BoardingStatus.Should().Be(BoardingStatus.NotCheckedIn);
+    }
+
+    [Fact]
+    public async Task SyncCheckInEventsAsync_WhenDeviceTimeIsInTheFuture_ShouldReportInvalidDeviceTimeWithoutCheckingTicket()
+    {
+        // BR-OFF-04/05: occurredAtDevice do client tự khai báo - không được tin vô điều kiện. Một thời điểm
+        // quét ở TƯƠNG LAI so với lúc server nhận chắc chắn là dữ liệu thiết bị sai (đồng hồ lệch hoặc giả).
+        using var context = TestDbContextFactory.CreateDbContext();
+        var (_, _, ticket, boardingCall, serverNow) = SeedCheckInScenario(context, _staffId);
+
+        var futureDeviceTime = serverNow.AddHours(1);
+        var service = CreateService(context, serverNow);
+        var request = new SyncCheckInEventsRequest(new[]
+        {
+            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-future-device-time", futureDeviceTime, null)
+        });
+
+        var result = await service.SyncCheckInEventsAsync(request, CancellationToken.None);
+
+        result.Results.Should().ContainSingle(r => r.ClientEventId == "evt-future-device-time" && r.Outcome == "InvalidDeviceTime");
+        context.Tickets.Single(t => t.Id == ticket.Id).BoardingStatus.Should().Be(BoardingStatus.NotCheckedIn);
+    }
+
+    [Fact]
+    public async Task SyncCheckInEventsAsync_WhenAssignmentExpiredByServerTimeButNotByDeviceTime_ShouldStillSucceed()
+    {
+        // Điểm phân công (ScannerAssignment.ActiveUntil) phải đối chiếu với occurredAtDevice khi offline,
+        // không phải now - nếu không, phân công hết hạn đúng lúc lô đồng bộ muộn tới sẽ biến 1 quét hợp lệ
+        // trong hạn phân công thành "NotAssigned" sai (review PR #56, điểm 3).
+        using var context = TestDbContextFactory.CreateDbContext();
+        var (seed, _, ticket, boardingCall, occurredAtDevice) = SeedCheckInScenario(context, _staffId);
+        // Seed: ScannerAssignment.ActiveUntil = departure + 1h; occurredAtDevice (= Now trả về) = departure - 10m,
+        // nằm trong hạn phân công và trong cửa sổ check-in.
+
+        var syncedAfterAssignmentExpired = seed.Trip.DepartureTime.AddHours(2); // Sau ActiveUntil rất lâu.
+        var service = CreateService(context, syncedAfterAssignmentExpired);
+        var request = new SyncCheckInEventsRequest(new[]
+        {
+            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-assignment-expired-by-sync-time", occurredAtDevice, null)
+        });
+
+        var result = await service.SyncCheckInEventsAsync(request, CancellationToken.None);
+
+        result.Results.Should().ContainSingle(r => r.ClientEventId == "evt-assignment-expired-by-sync-time" && r.Outcome == "Success");
     }
 
     [Fact]

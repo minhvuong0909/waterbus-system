@@ -131,6 +131,24 @@ public class CheckInServiceSubmitCheckInTests
     }
 
     [Fact]
+    public async Task SubmitCheckInAsync_WhenClientSendsManipulatedOccurredAtDevice_ShouldIgnoreItAndUseServerTime()
+    {
+        // BR-OFF-04/05: quét trực tuyến không có khoảng trễ cần đối soát - occurredAtDevice do client tự khai
+        // báo (có thể bị lùi/giả) không được dùng làm mốc nghiệp vụ cho luồng online, chỉ giờ server (now).
+        using var context = TestDbContextFactory.CreateDbContext();
+        var (_, _, ticket, boardingCall, now) = SeedCheckInScenario(context, _staffId);
+
+        var service = CreateService(context, now);
+        var manipulatedDeviceTime = boardingCall.CheckInCloseAt!.Value.AddHours(5); // Ngoài cửa sổ nếu bị tin.
+        var request = new SubmitCheckInRequest(ticket.Id, boardingCall.Id, "evt-manipulated", manipulatedDeviceTime, null);
+
+        var result = await service.SubmitCheckInAsync(request, CancellationToken.None);
+
+        result.Outcome.Should().Be("Success");
+        result.CheckedInAt.Should().Be(now);
+    }
+
+    [Fact]
     public async Task SubmitCheckInAsync_WhenCallerIsNotStaff_ShouldThrowForbiddenAccessException()
     {
         using var context = TestDbContextFactory.CreateDbContext();

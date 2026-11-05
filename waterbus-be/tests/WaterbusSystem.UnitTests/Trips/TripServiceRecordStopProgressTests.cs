@@ -38,6 +38,13 @@ public class TripServiceRecordStopProgressTests
         _seed.Boat.CaptainUserId = _captainId;
         _seed.Trip.Status = TripStatus.EnRoute;
         _seed.Trip.ActualDepartureTime = Now.AddHours(-1);
+        // Mô phỏng đúng việc Start đã chạy (ChangeStatusAsync tự ghi điểm dừng đầu Departed - xem
+        // TripServiceChangeStatusTests.StartThenArrive_...) để các test ở đây không bị chặn bởi quy tắc
+        // thứ tự VisitOrder (điểm dừng trước phải đã Departed) khi test riêng điểm dừng trung gian.
+        var firstCall = _context.TripStopCalls.Single(c => c.TripId == _seed.Trip.Id && c.VisitOrder == 1);
+        firstCall.Status = "Departed";
+        firstCall.ActualArrivalTime = Now.AddHours(-1);
+        firstCall.ActualDepartureTime = Now.AddHours(-1);
         _context.SaveChanges();
     }
 
@@ -48,6 +55,21 @@ public class TripServiceRecordStopProgressTests
     private void AsCaptain(Guid? id = null) { _user.Setup(u => u.UserId).Returns((id ?? _captainId).ToString()); _user.Setup(u => u.UserRole).Returns("Captain"); }
 
     private TripStopCall MiddleCall() => _context.TripStopCalls.Single(c => c.TripId == _seed.Trip.Id && c.VisitOrder == 2);
+    private TripStopCall FirstCall() => _context.TripStopCalls.Single(c => c.TripId == _seed.Trip.Id && c.VisitOrder == 1);
+    private TripStopCall LastCall() => _context.TripStopCalls.Single(c => c.TripId == _seed.Trip.Id && c.VisitOrder == 3);
+
+    /// <summary>Thêm bến D (VisitOrder 4) để có 2 điểm dừng trung gian (B, C) kiểm tra thứ tự vượt trước.</summary>
+    private TripStopCall AddFourthStop()
+    {
+        var stationD = new Station { Code = "ST04", Name = "Ben D", Address = "D", OrderIndex = 4, IsActive = true };
+        var routeStop = new RouteStop { RouteId = _seed.Route.Id, StationId = stationD.Id, SequenceNo = 4 };
+        var call = new TripStopCall { TripId = _seed.Trip.Id, RouteStop = routeStop, VisitOrder = 4, Status = "Planned" };
+        _context.Stations.Add(stationD);
+        _context.RouteStops.Add(routeStop);
+        _context.TripStopCalls.Add(call);
+        _context.SaveChanges();
+        return call;
+    }
 
     [Fact]
     public async Task Captain_RecordsArrivedAtIntermediateStop_ShouldStampArrivalWithoutChangingTripStatus()
@@ -158,6 +180,67 @@ public class TripServiceRecordStopProgressTests
             _seed.Trip.Id, call.Id, new RecordStopProgressRequest(StopCallProgress.Arrived), CancellationToken.None);
 
         await act.Should().ThrowAsync<ConflictException>();
+    }
+
+    [Fact]
+    public async Task RecordingAtFirstStop_ShouldBeRejected_BecauseItIsOnlyRecordedViaStart()
+    {
+        // Review PR #56 điểm 2: cho phép ghi đè điểm dừng ĐẦU ở đây là vô nghĩa (Start đã tự ghi) và không
+        // được dùng để "sửa" lại dữ liệu của điểm dừng mà ChangeStatusAsync sở hữu.
+        AsAdmin();
+        var call = FirstCall();
+
+        var act = () => Service().RecordStopProgressAsync(
+            _seed.Trip.Id, call.Id, new RecordStopProgressRequest(StopCallProgress.Departed), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>();
+    }
+
+    [Fact]
+    public async Task RecordingAtLastStop_ShouldBeRejected_BecausePrematureMarkWouldWronglyDenyRefundAfterTermination()
+    {
+        // Review PR #56 điểm 2: nếu cho phép đánh dấu điểm dừng CUỐI "Arrived" ở đây khi Trip còn EnRoute,
+        // RefundEligibilityEvaluator sẽ nghĩ hành trình đã hoàn tất dù Trip sau đó bị Terminate trước khi
+        // thực sự tới bến cuối - từ chối hoàn tiền sai cho khách chưa được phục vụ (BR-RF-02/03).
+        AsAdmin();
+        var call = LastCall();
+
+        var act = () => Service().RecordStopProgressAsync(
+            _seed.Trip.Id, call.Id, new RecordStopProgressRequest(StopCallProgress.Arrived), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>();
+        _context.TripStopCalls.Find(call.Id)!.Status.Should().Be("Planned");
+    }
+
+    [Fact]
+    public async Task RecordingLaterIntermediateStopBeforeEarlierOne_ShouldThrowConflictException()
+    {
+        // Review PR #56 điểm 2: không được ghi nhận vượt trước - bến C (VisitOrder 3, giờ là trung gian vì
+        // đã thêm bến D) chỉ được ghi nhận sau khi bến B (VisitOrder 2) đã Departed.
+        AsAdmin();
+        AddFourthStop();
+        var stationC = _context.TripStopCalls.Single(c => c.TripId == _seed.Trip.Id && c.VisitOrder == 3);
+
+        var act = () => Service().RecordStopProgressAsync(
+            _seed.Trip.Id, stationC.Id, new RecordStopProgressRequest(StopCallProgress.Arrived), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>();
+    }
+
+    [Fact]
+    public async Task RecordingIntermediateStopsInOrder_ShouldSucceedForEachOnceThePreviousOneDeparted()
+    {
+        // Đối chứng: cùng 2 điểm dừng trung gian ở trên, nhưng đi ĐÚNG thứ tự (B rồi mới C) phải thành công.
+        AsAdmin();
+        AddFourthStop();
+        var service = Service();
+        var stationB = MiddleCall();
+        var stationC = _context.TripStopCalls.Single(c => c.TripId == _seed.Trip.Id && c.VisitOrder == 3);
+
+        await service.RecordStopProgressAsync(_seed.Trip.Id, stationB.Id, new RecordStopProgressRequest(StopCallProgress.Departed), CancellationToken.None);
+        var result = await service.RecordStopProgressAsync(_seed.Trip.Id, stationC.Id, new RecordStopProgressRequest(StopCallProgress.Arrived), CancellationToken.None);
+
+        result.Status.Should().Be("Arrived");
     }
 
     [Fact]

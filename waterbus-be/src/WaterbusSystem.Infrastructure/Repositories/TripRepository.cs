@@ -97,7 +97,9 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
         ?? throw new NotFoundException(nameof(Trip), tripId);
 
     public async Task<TripStopCall> GetTrackedStopCallAsync(Guid tripId, Guid tripStopCallId, CancellationToken cancellationToken = default) =>
-        await context.TripStopCalls.Include(c => c.Trip).ThenInclude(t => t!.Boat)
+        await context.TripStopCalls
+            .Include(c => c.Trip).ThenInclude(t => t!.Boat)
+            .Include(c => c.Trip).ThenInclude(t => t!.TripStopCalls)
             .FirstOrDefaultAsync(c => c.Id == tripStopCallId && c.TripId == tripId, cancellationToken)
         ?? throw new NotFoundException(nameof(TripStopCall), tripStopCallId);
 
