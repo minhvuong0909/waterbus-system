@@ -60,4 +60,10 @@ public static class TripLifecycle
     /// <summary>Chuỗi ghi vào IncidentTrip.OperationDecision khi Admin quyết định cho chuyến.</summary>
     public static string DecisionOf(TripOperation operation) =>
         operation == TripOperation.NoAction ? "None" : operation.ToString();
+
+    /// <summary>
+    /// Chỉ ghi nhận tiến độ tại một điểm dừng trung gian khi tàu đang thực sự di chuyển (BR-STOP-02).
+    /// Điểm dừng đầu/cuối đã được cập nhật tự động theo thao tác Start/Arrive ở cấp Trip.
+    /// </summary>
+    public static bool CanRecordStopProgress(TripStatus status) => status == TripStatus.EnRoute;
 }

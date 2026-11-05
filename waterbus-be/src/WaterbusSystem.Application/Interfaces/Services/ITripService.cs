@@ -21,5 +21,13 @@ public interface ITripService
     /// <summary>Thuyền trưởng báo khẩn cấp cho chuyến của tàu mình (BR-INC-04); chỉ ghi nhận, không đổi trạng thái chuyến.</summary>
     Task<SosReportResponse> ReportSosAsync(Guid tripId, ReportTripSosRequest request, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Ghi nhận tàu đã đến/rời một điểm dừng trung gian cụ thể (BR-STOP-02) - KHÔNG đổi Trip.Status (BR-OPS-02).
+    /// Điểm dừng đầu/cuối tự cập nhật theo thao tác Start/Arrive ở <see cref="ChangeStatusAsync"/>; endpoint này
+    /// dùng cho các điểm dừng ở giữa, để Refund (BR-RF-02/03) đánh giá đúng đoạn đã thực sự được phục vụ.
+    /// </summary>
+    Task<StopProgressResultResponse> RecordStopProgressAsync(
+        Guid tripId, Guid tripStopCallId, RecordStopProgressRequest request, CancellationToken cancellationToken = default);
+
     Task<List<TripSearchResponse>> SearchAsync(SearchTripsRequest request, CancellationToken cancellationToken = default);
 }

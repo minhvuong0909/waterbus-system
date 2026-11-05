@@ -278,6 +278,7 @@ public static class DependencyInjection
         // 8.1 Hangfire: job định kỳ kết luận NoShow sau khi cửa sổ check-in đóng (BR-BOARD-05, BR-OFF-04)
         services.AddScoped<NoShowFinalizationJob>();
         services.Configure<NoShowFinalizationOptions>(configuration.GetSection(NoShowFinalizationOptions.SectionName));
+        services.Configure<OfflineCheckInReconciliationOptions>(configuration.GetSection(OfflineCheckInReconciliationOptions.SectionName));
 
         services.Configure<WeatherOptions>(configuration.GetSection(WeatherOptions.SectionName));
         var weatherProvider = configuration[$"{WeatherOptions.SectionName}:Provider"];

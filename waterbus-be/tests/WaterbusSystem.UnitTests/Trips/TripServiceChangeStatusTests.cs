@@ -125,6 +125,27 @@ public class TripServiceChangeStatusTests
         result.ActualArrivalTime.Should().Be(Now);
     }
 
+    [Fact]
+    public async Task StartThenArrive_ShouldStampFirstAndLastTripStopCallAsServed()
+    {
+        // BR-STOP-02/BR-RF-03: RefundEligibilityEvaluator đọc ActualArrivalTime/Status của TripStopCall,
+        // KHÔNG phải của Trip - Start/Arrive ở cấp Trip phải ghi lại đúng xuống điểm dừng đầu/cuối tương ứng.
+        AsCaptain();
+        var firstCall = _context.TripStopCalls.Single(c => c.TripId == _seed.Trip.Id && c.VisitOrder == 1);
+        var lastCall = _context.TripStopCalls.Single(c => c.TripId == _seed.Trip.Id && c.VisitOrder == 3);
+
+        await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Start), CancellationToken.None);
+
+        _context.TripStopCalls.Find(firstCall.Id)!.Status.Should().Be("Departed");
+        _context.TripStopCalls.Find(firstCall.Id)!.ActualDepartureTime.Should().Be(Now);
+        _context.TripStopCalls.Find(lastCall.Id)!.Status.Should().Be("Planned");
+
+        await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Arrive), CancellationToken.None);
+
+        _context.TripStopCalls.Find(lastCall.Id)!.Status.Should().Be("Arrived");
+        _context.TripStopCalls.Find(lastCall.Id)!.ActualArrivalTime.Should().Be(Now);
+    }
+
     [Theory]
     [InlineData(TripOperation.Suspend)]
     [InlineData(TripOperation.Cancel)]

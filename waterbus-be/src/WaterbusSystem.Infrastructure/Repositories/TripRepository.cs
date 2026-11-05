@@ -92,9 +92,16 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
     }
 
     public async Task<Trip> GetTrackedWithBoatAsync(Guid tripId, CancellationToken cancellationToken = default) =>
-        await context.Trips.Include(t => t.Boat)
+        await context.Trips.Include(t => t.Boat).Include(t => t.TripStopCalls)
             .FirstOrDefaultAsync(t => t.Id == tripId && !t.IsDeleted, cancellationToken)
         ?? throw new NotFoundException(nameof(Trip), tripId);
+
+    public async Task<TripStopCall> GetTrackedStopCallAsync(Guid tripId, Guid tripStopCallId, CancellationToken cancellationToken = default) =>
+        await context.TripStopCalls
+            .Include(c => c.Trip).ThenInclude(t => t!.Boat)
+            .Include(c => c.Trip).ThenInclude(t => t!.TripStopCalls)
+            .FirstOrDefaultAsync(c => c.Id == tripStopCallId && c.TripId == tripId, cancellationToken)
+        ?? throw new NotFoundException(nameof(TripStopCall), tripStopCallId);
 
     public async Task<Trip> GetWithBoatAsync(Guid tripId, CancellationToken cancellationToken = default) =>
         await context.Trips.AsNoTracking().Include(t => t.Boat)
