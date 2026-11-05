@@ -2,7 +2,6 @@ using WaterbusSystem.Application.DTOs.Requests.Bookings;
 using WaterbusSystem.Application.DTOs.Responses.Bookings;
 using WaterbusSystem.Application.Validators.Bookings;
 using FluentAssertions;
-using MediatR;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Payments.Services;
 using WaterbusSystem.Application.Features.Refunds.Services;
@@ -16,17 +15,19 @@ public sealed class CommercialArchitectureTests
     [Fact]
     public void CommercialServicesHaveNoMediatorOrDatabaseDependencies()
     {
+        // Migration CQRS/MediatR -> Service layer đã hoàn tất cho toàn bộ feature (không còn module nào
+        // "chưa migrate"), nên quy tắc này giờ áp dụng cho CẢ namespace Features, không giới hạn vài module nữa.
         var assembly = typeof(BookingService).Assembly;
-        var ownedTypes = assembly.GetTypes().Where(t => t.Namespace?.StartsWith("WaterbusSystem.Application.Features.") == true &&
-            (t.Namespace.Contains(".Bookings.") || t.Namespace.Contains(".Payments.") || t.Namespace.Contains(".Refunds.") ||
-                t.Namespace.Contains(".Incidents.") || t.Namespace.Contains(".Tracking.") || t.Namespace.Contains(".CheckIns."))).ToList();
+        var ownedTypes = assembly.GetTypes()
+            .Where(t => t.Namespace?.StartsWith("WaterbusSystem.Application.Features.") == true)
+            .ToList();
         ownedTypes.Should().NotBeEmpty();
         foreach (var type in ownedTypes)
         {
             type.GetInterfaces().Should().NotContain(i => i.Namespace == "MediatR");
             var dependencies = type.GetConstructors().SelectMany(c => c.GetParameters()).Select(p => p.ParameterType)
                 .Concat(type.GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Select(f => f.FieldType));
-            dependencies.Should().NotContain(d => d == typeof(IApplicationDbContext) ||
+            dependencies.Should().NotContain(d =>
                 d.Namespace == "MediatR" || (d.Namespace != null && d.Namespace.StartsWith("Microsoft.EntityFrameworkCore")));
         }
     }

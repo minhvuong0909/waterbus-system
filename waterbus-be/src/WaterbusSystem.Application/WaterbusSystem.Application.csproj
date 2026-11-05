@@ -12,13 +12,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- CQRS MediatR -->
-    <PackageReference Include="MediatR" Version="12.4.1" />
     <!-- Kiểm tra tính hợp lệ dữ liệu đầu vào -->
     <PackageReference Include="FluentValidation" Version="11.10.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.10.0" />
-    <!-- EF Core Abstractions cho IApplicationDbContext -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.10" />
+    <!-- Abstraction thuần (không phải EF Core/MediatR) dùng bởi Service: ILogger<T>, IOptions<T> -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
   </ItemGroup>
 
 </Project>

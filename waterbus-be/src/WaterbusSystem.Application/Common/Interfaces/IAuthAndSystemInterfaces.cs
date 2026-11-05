@@ -26,8 +26,8 @@ public interface IDateTimeService
 }
 
 /// <summary>
-/// Tra họ tên người dùng theo Id (nhật ký vận hành hiển thị "ai làm"). Tách khỏi IApplicationDbContext
-/// vì tài khoản nằm trong ASP.NET Identity ở tầng Infrastructure.
+/// Tra họ tên người dùng theo Id (nhật ký vận hành hiển thị "ai làm"). Tách riêng vì tài khoản nằm
+/// trong ASP.NET Identity ở tầng Infrastructure, không phải entity nghiệp vụ Application truy vấn qua Repository.
 /// </summary>
 public interface IUserDirectory
 {

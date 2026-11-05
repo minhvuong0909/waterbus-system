@@ -41,14 +41,14 @@ Ví dụ: `feat(realtime): add SeatSyncHub with per-trip groups`.
 
 ### 3.1 Kiến trúc & chiều phụ thuộc
 `WebApi → Application → Domain` và `Infrastructure → Application → Domain`.
-- **Domain**: entity, enum, rule thuần. Không tham chiếu EF, MediatR, hay thư viện hạ tầng.
-- **Application**: đang chuyển dần từ CQRS (MediatR) sang Service layer thuần (xem 3.2); validator, interface hạ tầng cắt ngang (`IDistributedLockService`, `ICurrentUserService`...), interface theo feature (`I{Feature}Service`, `I{Feature}Repository`...). `IApplicationDbContext` chỉ còn được Handler của feature **chưa migrate** dùng trực tiếp — Service của feature đã migrate **không** được inject `IApplicationDbContext`/EF Core, chỉ phụ thuộc `I{Feature}Repository` + `IUnitOfWork` (xem 3.2).
+- **Domain**: entity, enum, rule thuần. Không tham chiếu EF hay thư viện hạ tầng.
+- **Application**: Service layer thuần (xem 3.2); validator, interface hạ tầng cắt ngang (`IDistributedLockService`, `ICurrentUserService`...), interface theo feature (`I{Feature}Service`, `I{Feature}Repository`...). **Không còn `IApplicationDbContext`** (đã xoá cùng PR Architecture Cleanup) — Application không còn type nào tham chiếu EF Core; mọi Service chỉ phụ thuộc `I{Feature}Repository` + `IUnitOfWork` (xem 3.2).
 - **Infrastructure**: EF Core, Redis, Identity/JWT, VNPay, background job, SignalR publisher.
 - **WebApi**: controller, middleware, DI, cấu hình Hub.
 
-### 3.2 Tổ chức Application — đang chuyển đổi (CQRS/MediatR → Clean Architecture thuần)
+### 3.2 Tổ chức Application — Clean Architecture thuần (CQRS/MediatR đã loại bỏ hoàn toàn)
 
-Quyết định của nhóm: bỏ CQRS/MediatR, chuyển về Service layer thuần (Controller → Service → Repository/DbContext → Domain). **Lý do là để dễ kiểm soát và đồng bộ cách làm cho cả team** (ít khái niệm phải học hơn MediatR pipeline, dev mới đọc code nhanh hơn) — **không phải vì CQRS/MediatR sai hay kém "chuẩn" Clean Architecture hơn**. Cả 2 cách tổ chức tầng Application đều là Clean Architecture hợp lệ, miễn giữ đúng Dependency Rule (Domain/Application không phụ thuộc Infrastructure); CQRS/MediatR thậm chí ôm sát khái niệm "Use Case Interactor" gốc của Clean Architecture không kém gì Service layer. Thực hiện **tuần tự theo feature**, không đổi 1 lần toàn bộ, để giảm rủi ro regression trên hệ thống đang chạy được. Tiến độ:
+Quyết định của nhóm: bỏ CQRS/MediatR, chuyển về Service layer thuần (Controller → Service → Repository → Domain). **Lý do là để dễ kiểm soát và đồng bộ cách làm cho cả team** (ít khái niệm phải học hơn MediatR pipeline, dev mới đọc code nhanh hơn) — **không phải vì CQRS/MediatR sai hay kém "chuẩn" Clean Architecture hơn**. Cả 2 cách tổ chức tầng Application đều là Clean Architecture hợp lệ, miễn giữ đúng Dependency Rule (Domain/Application không phụ thuộc Infrastructure); CQRS/MediatR thậm chí ôm sát khái niệm "Use Case Interactor" gốc của Clean Architecture không kém gì Service layer. Migration thực hiện **tuần tự theo feature** (không đổi 1 lần toàn bộ, để giảm rủi ro regression) và nay đã **hoàn tất 100%** — không còn feature nào dùng Command/Query/Handler/MediatR; package `MediatR` và pipeline behaviors đã bị xoá khỏi solution (PR Architecture Cleanup). Lịch sử migrate từng feature:
 
 | Feature | Trạng thái |
 |---|---|
@@ -62,14 +62,9 @@ Quyết định của nhóm: bỏ CQRS/MediatR, chuyển về Service layer thu�
 | Trips | ✅ Đã migrate — `ITripService`/`TripService` → `ITripRepository`/`TripRepository` + `IIncidentRepository` + `IUnitOfWork` (7 use case: GetDetail, GetSeatMap, GetOperations, GetOperationEvents, ChangeStatus, ReportSos, Search). `GetSeats`/`GetOperations`/`GetOperationEvents` bind Request trực tiếp từ query (trước đó Controller tự dựng Request trong body, khiến `ValidateRequestFilter` không chạy — đã sửa theo PR #52 review). Adapter AI đổi tên `MediatRTripSearchTool` → `TripSearchTool`, bỏ hẳn `ISender`/MediatR, gọi trực tiếp `IStationService`+`ITripService` |
 | CheckIns | ✅ Đã migrate — `ICheckInService`/`CheckInService` → `ICheckInRepository`/`CheckInRepository` + `IUnitOfWork` (8 use case: AssignScanner, RevokeScannerAssignment, SetCheckInWindow, SubmitCheckIn, SyncCheckInEvents, GetMyScannerAssignments, GetScannerManifest, RunNoShowFinalization). `CheckInProcessor` (helper dùng chung Submit/Sync) cũng chuyển sang `ICheckInRepository`. `DiscardTrackedChanges()` (dọn entity dở dang khi 1 event trong lô lỗi — BR-OFF-03) chuyển từ `IApplicationDbContext` sang `IUnitOfWork` (theo PR #53 review, không lộ khái niệm ChangeTracker ra khỏi Infrastructure). Hangfire job `NoShowFinalizationJob` đổi sang gọi `ICheckInService` thay vì `Mediator.Send` |
 
-**Quy tắc migrate**: KHÔNG trộn 2 pattern trong cùng 1 feature. KHÔNG tự migrate feature chưa được giao — báo trong nhóm trước khi bắt đầu, tránh 2 người cùng đổi 1 feature cùng lúc (xung đột lớn, khó merge). Cập nhật lại bảng trên (đổi ⏳ → ✅) trong PR migrate feature đó.
+**Quy tắc cho feature mới**: mọi feature mới PHẢI theo đúng pattern Service + Repository dưới đây ngay từ đầu — không còn pattern CQRS/MediatR cũ để chọn. KHÔNG tự thêm lại Command/Query/Handler/MediatR.
 
-**Feature chưa migrate** — giữ nguyên pattern cũ: mỗi feature một file, đặt tại
-`Application/Features/{Feature}/{Commands|Queries}/{Name}/{Name}{Command|Query}.cs`
-gồm: DTO, record Command/Query, `AbstractValidator<T>` (nếu có input), Handler.
-Mẫu tham khảo feature chưa migrate: `CheckIns/Commands/SubmitCheckIn/SubmitCheckInCommand.cs`. Booking/Trips đã chuyển sang service, không dùng slice `CreateBookingCommand`/`SearchTripsQuery` cũ.
-
-**Feature đã/đang migrate** — pattern chuẩn mới:
+**Pattern chuẩn** (bắt buộc cho mọi feature, không còn ngoại lệ):
 ```
 Application/
   DTOs/
@@ -77,23 +72,23 @@ Application/
     Responses/{Feature}/{Name}Response.cs
   Validators/{Feature}/{Name}RequestValidator.cs
   Interfaces/Services/I{Feature}Service.cs
-  Interfaces/Repositories/I{Feature}Repository.cs   # contract persistence — Service KHÔNG gọi EF Core/IApplicationDbContext trực tiếp
+  Interfaces/Repositories/I{Feature}Repository.cs   # contract persistence — Service KHÔNG gọi EF Core trực tiếp
   Features/{Feature}/Services/{Name}Service.cs      # implementation, inject I{Feature}Repository + IUnitOfWork (ghi)
 
 Infrastructure/
   Repositories/{Feature}Repository.cs   # implement I{Feature}Repository bằng ApplicationDbContext (AsNoTracking cho đọc, NotFoundException khi thiếu)
 ```
-- **Service không được inject `IApplicationDbContext` hay gọi EF Core trực tiếp.** Mọi đọc/ghi dữ liệu đi qua `I{Feature}Repository` (Application) → `{Feature}Repository` (Infrastructure); ghi dữ liệu xong gọi `IUnitOfWork.SaveChangesAsync`/`DiscardTrackedChanges`. Đây là bài học rút ra sau review PR Fares/Boats/Stations/Trips/CheckIns (lần đầu các feature này migrate có Service gọi `IApplicationDbContext` trực tiếp — đã bị yêu cầu sửa lại, xem lịch sử PR #51/#52/#53) — feature migrate sau không được lặp lại.
+- **Service không được inject `DbContext`/EF Core trực tiếp.** Mọi đọc/ghi dữ liệu đi qua `I{Feature}Repository` (Application) → `{Feature}Repository` (Infrastructure); ghi dữ liệu xong gọi `IUnitOfWork.SaveChangesAsync`/`DiscardTrackedChanges`. Đây là bài học rút ra sau review PR Fares/Boats/Stations/Trips/CheckIns (lần đầu các feature này migrate có Service gọi `IApplicationDbContext` trực tiếp — đã bị yêu cầu sửa lại, xem lịch sử PR #51/#52/#53); abstraction `IApplicationDbContext` sau đó bị xoá hẳn khỏi Application trong PR Architecture Cleanup để loại bỏ khả năng lặp lại lỗi này. Duy nhất `Infrastructure/Services/SeatAvailabilityService.cs` dùng `ApplicationDbContext` cụ thể trực tiếp — hợp lệ vì đã ở Infrastructure.
 - Implementation của Service đặt tại `Application/Features/{Feature}/Services/{Name}Service.cs` (không phải `Application/Services/` phẳng) — đúng vị trí thực tế đang dùng cho `Bookings`, `Incidents`, `Payments`, `Refunds`, `Tracking`, `Fares`, `Boats`, `Stations`, `Trips`, `CheckIns`. Ngoại lệ: `SightseeingAudio` đặt ở `Application/Services/SightseeingAudio/` (do nhóm AI làm trước khi chốt convention này — không bắt buộc đổi lại nếu không chạm tới feature đó). `Features/CheckIns/Services/CheckInProcessor.cs` (helper dùng chung cho Submit/Sync) cũng đã chuyển sang inject `ICheckInRepository` thay vì gọi context trực tiếp.
 - Helper nội bộ chỉ dùng trong 1 Service (không lộ ra interface) có thể tách riêng file `internal static class` cùng thư mục `Features/{Feature}/Services/`, như `TripReadRules.cs` dùng chung cho `GetDetailAsync` và `GetSeatMapAsync` của `TripService`.
 - Implementation **PHẢI** đặt ở `Infrastructure/...` (không phải `Application/Features/.../Services/`) nếu cần dùng type cụ thể của hạ tầng mà Application không được phép biết (ví dụ `UserManager<T>`/`SignInManager<T>` của ASP.NET Identity) — xem `Infrastructure/Identity/AuthService.cs` làm mẫu. Lý do: Application không được tham chiếu Infrastructure; Service nào cần type hạ tầng cụ thể thì chính nó phải sống ở Infrastructure, chỉ để lại interface (`IAuthService`) ở Application.
 - Dù Service nằm ở Application hay Infrastructure, đăng ký DI đều đặt chung ở `Infrastructure/DependencyInjection.cs` (theo đúng cách các service đã migrate hiện tại đang làm, vd `services.AddScoped<IFareService, WaterbusSystem.Application.Features.Fares.Services.FareService>();`).
-- Request validate qua filter dùng chung `WebApi/Filters/ValidateRequestFilter.cs`, gắn bằng `[ServiceFilter(typeof(ValidateRequestFilter))]` trên Controller/action đã migrate — **không** đăng ký global (tránh double-validate các Controller CQRS cũ). Action không có Request (GET không tham số, như `Fares`) thì không cần gắn filter này.
+- Request validate qua filter dùng chung `WebApi/Filters/ValidateRequestFilter.cs`, gắn bằng `[ServiceFilter(typeof(ValidateRequestFilter))]` trên từng Controller/action — **không** đăng ký global. Action không có Request (GET không tham số, như `Fares`) thì không cần gắn filter này.
 - Mẫu tham khảo đầy đủ: `Auth` (có Request/Response đầy đủ, Service ở Infrastructure vì cần Identity) — `DTOs/Requests/Auth/LoginRequest.cs`, `DTOs/Responses/Auth/LoginResponse.cs`, `Validators/Auth/LoginRequestValidator.cs`, `Interfaces/Services/IAuthService.cs`, `Infrastructure/Identity/AuthService.cs`, `WebApi/Controllers/AuthController.cs`. `Fares` (Service ở Application, không có Request, không cần Validator/Filter) — `DTOs/Responses/Fares/FareResponse.cs`, `Interfaces/Services/IFareService.cs`, `Features/Fares/Services/FareService.cs`, `WebApi/Controllers/FaresController.cs`. `CheckIns` (dùng `IUnitOfWork.DiscardTrackedChanges()` để dọn ChangeTracker khi 1 event trong lô lỗi) — `Interfaces/Repositories/ICheckInRepository.cs`, `Infrastructure/Repositories/CheckInRepository.cs`, `Features/CheckIns/Services/CheckInService.cs`.
 
 ### 3.3 Controller
-- Kế thừa `BaseApiController` (route `api/v1/[controller]`, có sẵn `Mediator`).
-- Feature chưa migrate: chỉ gọi `Mediator.Send(...)`. Feature đã migrate: chỉ inject `I{Feature}Service` tương ứng, gắn `[ServiceFilter(typeof(ValidateRequestFilter))]` lên action cần validate request. **Không đặt logic nghiệp vụ trong controller** ở cả 2 trường hợp — Controller chỉ gọi 1 lớp (Mediator hoặc Service) rồi trả `Ok`/`CreatedAtAction`.
+- Kế thừa `BaseApiController` (route `api/v1/[controller]`).
+- Chỉ inject `I{Feature}Service` tương ứng, gắn `[ServiceFilter(typeof(ValidateRequestFilter))]` lên action cần validate request. **Không đặt logic nghiệp vụ trong controller** — Controller chỉ gọi Service rồi trả `Ok`/`CreatedAtAction`.
 - Gắn `[Authorize(Roles = "...")]` rõ ràng cho mọi endpoint không công khai. Endpoint Guest dùng cơ chế `AccessGrant` (xem `GuestAccessMiddleware`).
 
 ### 3.4 Lỗi
@@ -169,8 +164,7 @@ Cần mã mới (vd 403, 422) thì thêm `case` vào middleware, không xử lý
 
 ### 3.11 Đặt tên
 - C#: `PascalCase` cho type/method/property, `_camelCase` cho field private, interface bắt đầu bằng `I`.
-- Feature chưa migrate (CQRS/MediatR): Command/Query: `CreateStationCommand`, `GetTripDetailQuery`. Handler: `...Handler`. Validator: `...Validator`.
-- Feature đã migrate (Clean Architecture thuần): Request/Response: `LoginRequest`/`LoginResponse`. Validator: `...RequestValidator`. Service: `I{Feature}Service`/`{Feature}Service`.
+- Request/Response: `LoginRequest`/`LoginResponse`. Validator: `...RequestValidator`. Service: `I{Feature}Service`/`{Feature}Service`. Repository: `I{Feature}Repository`/`{Feature}Repository`.
 - Tên bảng/cột do EF sinh theo tên entity. Không đổi tên thủ công trừ khi có lý do.
 - Comment/XML-doc viết tiếng Việt như code hiện tại; tên định danh viết tiếng Anh.
 

@@ -50,7 +50,7 @@ public sealed class IncidentRepository(ApplicationDbContext context) : IIncident
                 i.AffectedTrips.Count, i.AffectedTrips.Count(t => t.OperationDecision == null)
             ));
 
-        return PaginatedList<IncidentSummaryResponse>.CreateAsync(projected, request.PageNumber, request.PageSize, cancellationToken);
+        return projected.ToPaginatedListAsync(request.PageNumber, request.PageSize, cancellationToken);
     }
 
     public Task<List<Incident>> ListOpenWeatherAsync(Guid? routeId = null, CancellationToken cancellationToken = default)

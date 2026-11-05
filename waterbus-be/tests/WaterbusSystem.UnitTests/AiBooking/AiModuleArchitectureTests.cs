@@ -1,5 +1,4 @@
 using FluentAssertions;
-using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.Services.SightseeingAudio;
 using WaterbusSystem.WebApi.Controllers;
@@ -18,7 +17,7 @@ public sealed class AiModuleArchitectureTests
         {
             type.GetInterfaces().Should().NotContain(i => i.Namespace == "MediatR");
             var dependencies = type.GetConstructors().SelectMany(c => c.GetParameters()).Select(p => p.ParameterType);
-            dependencies.Should().NotContain(t => t == typeof(IApplicationDbContext) ||
+            dependencies.Should().NotContain(t =>
                 t.Namespace == "MediatR" || (t.Namespace != null && t.Namespace.StartsWith("Microsoft.EntityFrameworkCore")));
         }
     }
