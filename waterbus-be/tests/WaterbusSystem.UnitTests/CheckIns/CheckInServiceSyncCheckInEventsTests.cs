@@ -187,6 +187,60 @@ public class CheckInServiceSyncCheckInEventsTests
     }
 
     [Fact]
+    public async Task SyncCheckInEventsAsync_WhenDeviceTimeIsFalselyBackdatedIntoAPreviouslyValidWindow_ShouldReportInvalidDeviceTime()
+    {
+        // Review PR #56 (2nd round), điểm 1: occurredAtDevice "trông hợp lệ" (đúng trong cửa sổ check-in và
+        // hạn ScannerAssignment của MỘT CHUYẾN TRƯỚC) không được tự động tin nếu khoảng cách tới lúc server
+        // nhận (now) vượt quá MaxOfflineSkewHours - dấu hiệu rõ của giả mạo/đồng hồ thiết bị sai, không phải
+        // 1 lần mất kết nối hợp lý (BR-OFF-04/05).
+        using var context = TestDbContextFactory.CreateDbContext();
+        var (_, _, ticket, boardingCall, occurredAtDevice) = SeedCheckInScenario(context, _staffId);
+        // occurredAtDevice (= Now trả về từ seed) nằm trong cửa sổ check-in VÀ trong hạn ScannerAssignment.
+
+        var syncedFarBeyondSkewThreshold = occurredAtDevice.AddHours(new OfflineCheckInReconciliationOptions().MaxOfflineSkewHours + 1);
+        var service = CreateService(context, syncedFarBeyondSkewThreshold);
+        var request = new SyncCheckInEventsRequest(new[]
+        {
+            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-falsely-backdated", occurredAtDevice, null)
+        });
+
+        var result = await service.SyncCheckInEventsAsync(request, CancellationToken.None);
+
+        result.Results.Should().ContainSingle(r => r.ClientEventId == "evt-falsely-backdated" && r.Outcome == "InvalidDeviceTime");
+        context.Tickets.Single(t => t.Id == ticket.Id).BoardingStatus.Should().Be(BoardingStatus.NotCheckedIn);
+    }
+
+    [Fact]
+    public async Task SyncCheckInEventsAsync_WhenTicketAlreadyFinalizedAsNoShow_ShouldNotRevertToCheckedIn()
+    {
+        // Review PR #56 (2nd round), điểm 2: RunNoShowFinalizationAsync đã kết luận NoShow; 1 lô offline
+        // đến muộn hơn nữa (vd scanner mất sóng cả buổi) không được âm thầm đảo lại thành CheckedIn mà
+        // không qua đối soát rõ ràng (BR-OFF-04).
+        using var context = TestDbContextFactory.CreateDbContext();
+        var (_, _, ticket, boardingCall, _) = SeedCheckInScenario(context, _staffId);
+
+        var finalizedAt = boardingCall.CheckInCloseAt!.Value.AddMinutes(16); // Qua grace 15p mặc định.
+        var finalizeService = CreateService(context, finalizedAt);
+        await finalizeService.RunNoShowFinalizationAsync(CancellationToken.None);
+        context.Tickets.Single(t => t.Id == ticket.Id).BoardingStatus.Should().Be(BoardingStatus.NoShow); // Tiền điều kiện.
+
+        // Lô offline đến muộn hơn NỮA, mang 1 event có occurredAtDevice trông "hợp lệ" (trong cửa sổ check-in).
+        var syncedMuchLater = finalizedAt.AddHours(1);
+        var service = CreateService(context, syncedMuchLater);
+        var request = new SyncCheckInEventsRequest(new[]
+        {
+            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-after-noshow", boardingCall.CheckInOpenAt!.Value.AddMinutes(5), null)
+        });
+
+        var result = await service.SyncCheckInEventsAsync(request, CancellationToken.None);
+
+        result.Results.Should().ContainSingle(r => r.ClientEventId == "evt-after-noshow" && r.Outcome == "NoShowFinalized");
+        var updated = context.Tickets.Single(t => t.Id == ticket.Id);
+        updated.BoardingStatus.Should().Be(BoardingStatus.NoShow);
+        updated.NoShowFinalizedAt.Should().Be(finalizedAt);
+    }
+
+    [Fact]
     public async Task SyncCheckInEventsAsync_WhenCallerIsNotStaff_ShouldThrowForbiddenAccessException()
     {
         using var context = TestDbContextFactory.CreateDbContext();

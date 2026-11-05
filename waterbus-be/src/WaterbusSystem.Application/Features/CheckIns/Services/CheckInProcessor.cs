@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
@@ -16,10 +17,12 @@ public record CheckInOutcome(string Outcome, DateTimeOffset? CheckedInAt, string
 public class CheckInProcessor
 {
     private readonly ICheckInRepository _repository;
+    private readonly OfflineCheckInReconciliationOptions _reconciliation;
 
-    public CheckInProcessor(ICheckInRepository repository)
+    public CheckInProcessor(ICheckInRepository repository, IOptions<OfflineCheckInReconciliationOptions>? reconciliation = null)
     {
         _repository = repository;
+        _reconciliation = reconciliation?.Value ?? new OfflineCheckInReconciliationOptions();
     }
 
     public async Task<(CheckInOutcome Outcome, bool WasAlreadySynced)> ProcessAsync(
@@ -56,9 +59,12 @@ public class CheckInProcessor
         // một cách vô điều kiện (có thể bị lùi/giả). Quét trực tuyến (SubmitCheckInAsync) luôn dùng giờ server
         // (now) vì không có khoảng trễ cần đối soát. Quét offline (SyncCheckInEventsAsync) được phép dùng
         // occurredAtDevice LÀM MỐC ĐỐI SOÁT cửa sổ check-in và quyền tác nghiệp, nhưng chỉ khi occurredAtDevice
-        // không ở tương lai so với now - vượt quá mức đó coi là dữ liệu thiết bị không đáng tin, báo lỗi riêng
-        // cho event này (BR-OFF-03: không làm fail cả lô) thay vì âm thầm dùng now hoặc occurredAtDevice.
-        if (isOfflineSync && occurredAtDevice > now)
+        // không ở tương lai so với now, VÀ không lùi quá MaxOfflineSkewHours so với now (cấu hình được, BR v2.0
+        // không quy định số cụ thể - chỉ giới hạn phạm vi bất thường, không giải quyết triệt để việc giả mạo
+        // đồng hồ thiết bị trong phạm vi ngưỡng). Vượt quá 1 trong 2 giới hạn -> báo lỗi riêng cho event này
+        // (BR-OFF-03: không làm fail cả lô) thay vì âm thầm dùng now hoặc occurredAtDevice.
+        var oldestTrustedDeviceTime = now.AddHours(-_reconciliation.MaxOfflineSkewHours);
+        if (isOfflineSync && (occurredAtDevice > now || occurredAtDevice < oldestTrustedDeviceTime))
         {
             const string invalidOutcome = "InvalidDeviceTime";
             _repository.AddCheckInEvent(new CheckInEvent
@@ -137,6 +143,15 @@ public class CheckInProcessor
         if (ticket.Status != TicketStatus.Valid)
         {
             return "TicketInvalid";
+        }
+
+        if (ticket.BoardingStatus == BoardingStatus.NoShow)
+        {
+            // BR-OFF-04: "không xem kết quả offline là bằng chứng tuyệt đối trước khi backend reconciliation,
+            // đặc biệt khi xử lý NoShow". RunNoShowFinalizationAsync đã kết luận NoShow (ghi NoShowFinalizedAt) -
+            // 1 lần quét đến muộn (online hay offline) KHÔNG được tự động đảo ngược lại CheckedIn mà không qua
+            // đối soát rõ ràng; vẫn ghi CheckInEvent để có vết cho Admin xem xét thủ công nếu cần phục hồi vé.
+            return "NoShowFinalized";
         }
 
         if (ticket.BoardingStatus == BoardingStatus.CheckedIn)
