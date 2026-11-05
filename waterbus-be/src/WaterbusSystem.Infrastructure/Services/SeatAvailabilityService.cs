@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Domain.Enums;
+using WaterbusSystem.Infrastructure.Persistence;
 
 namespace WaterbusSystem.Infrastructure.Services;
 
@@ -12,9 +13,9 @@ namespace WaterbusSystem.Infrastructure.Services;
 /// </summary>
 public class SeatAvailabilityService : ISeatAvailabilityService
 {
-    private readonly IApplicationDbContext _context;
+    private readonly ApplicationDbContext _context;
 
-    public SeatAvailabilityService(IApplicationDbContext context)
+    public SeatAvailabilityService(ApplicationDbContext context)
     {
         _context = context;
     }

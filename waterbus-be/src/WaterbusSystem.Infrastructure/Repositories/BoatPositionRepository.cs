@@ -34,6 +34,6 @@ public sealed class BoatPositionRepository(ApplicationDbContext context) : IBoat
             .Select(e => new BoatPositionHistoryResponse(
                 e.Id, e.TripId, e.Latitude, e.Longitude, e.SpeedKnots, e.ObservedAt, e.Source));
 
-        return PaginatedList<BoatPositionHistoryResponse>.CreateAsync(query, request.PageNumber, request.PageSize, cancellationToken);
+        return query.ToPaginatedListAsync(request.PageNumber, request.PageSize, cancellationToken);
     }
 }
