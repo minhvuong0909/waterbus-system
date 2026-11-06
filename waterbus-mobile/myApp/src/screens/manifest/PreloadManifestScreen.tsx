@@ -66,6 +66,7 @@ export default function PreloadManifestScreen() {
 
   const handlePreload = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Chỉ báo tải thành công sau khi manifest đã được kiểm tra và lưu trên thiết bị.
     const success = await preloadCache(selectedStationId);
     if (success) {
       await loadTrips();

@@ -65,10 +65,10 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       return { lastInsertRowId: 1, changes: 1 };
     }
     if (trimmed.startsWith('INSERT INTO MANIFEST_BOOKINGS') || trimmed.startsWith('INSERT OR REPLACE INTO MANIFEST_BOOKINGS')) {
-      const [id, pbid, code, tripId, cName, cPhone, amount, ver, status] = params;
+      const [id, pbid, code, tripId, tripStopCallId, cName, cPhone, amount, ver, status] = params;
       const filtered = this.tables.manifest_bookings.filter(b => b.id !== id);
       filtered.push({
-        id, public_booking_id: pbid, booking_code: code, trip_id: tripId,
+        id, public_booking_id: pbid, booking_code: code, trip_id: tripId, trip_stop_call_id: tripStopCallId,
         customer_name: cName, customer_phone: cPhone, total_amount: amount,
         qr_credential_version: ver, status
       });
@@ -310,7 +310,8 @@ async function initSchema(db: DatabaseAdapter): Promise<void> {
       customer_phone TEXT,
       total_amount REAL NOT NULL,
       qr_credential_version INTEGER NOT NULL DEFAULT 1,
-      status TEXT NOT NULL
+      status TEXT NOT NULL,
+      trip_stop_call_id TEXT
     );
 
     -- Bảng lưu manifest từng vé (Ticket) thuộc Booking
@@ -370,4 +371,8 @@ async function initSchema(db: DatabaseAdapter): Promise<void> {
   `;
 
   await db.execAsync(schemaSql);
+  const bookingColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(manifest_bookings)');
+  if (!bookingColumns.some(column => column.name === 'trip_stop_call_id')) {
+    await db.execAsync('ALTER TABLE manifest_bookings ADD COLUMN trip_stop_call_id TEXT');
+  }
 }

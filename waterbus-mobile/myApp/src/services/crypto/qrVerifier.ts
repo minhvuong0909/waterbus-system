@@ -1,18 +1,9 @@
-/**
- * Offline QR Code Verification Engine
- * Verifies digital signatures of Waterbus Booking QR codes using local Public Key
- * WITHOUT calling backend API (BR-QR-01, BR-QR-02, BR-OFF-01)
- */
-
 import * as forge from 'node-forge';
 import CryptoJS from 'crypto-js';
 import { SqliteRepository } from '../sqlite/sqliteRepository';
 import { PublicKeyInfo, QrPayload, QrVerificationResult } from '../../types/scanner';
 
 export class QrVerifier {
-  /**
-   * Verify QR raw string offline using cached Public Key
-   */
   static async verifyQrCode(rawQrText: string): Promise<QrVerificationResult> {
     if (!rawQrText || typeof rawQrText !== 'string') {
       return {
@@ -24,7 +15,7 @@ export class QrVerifier {
 
     const trimmed = rawQrText.trim();
 
-    // 1. Parse QR payload
+    // Tách payload và phần dữ liệu được ký; mã không đúng định dạng bị từ chối.
     const parsed = this.parseQrPayload(trimmed);
     if (!parsed) {
       return {
@@ -44,7 +35,7 @@ export class QrVerifier {
       };
     }
 
-    // 2. Fetch Public Key from SQLite local cache
+    // Chọn đúng khóa theo kid trong QR; không có khóa RS256 thì fail closed.
     const keyInfo = payload.kid
       ? await SqliteRepository.getActivePublicKey(payload.kid)
       : await SqliteRepository.getActivePublicKey();
@@ -61,7 +52,7 @@ export class QrVerifier {
       };
     }
 
-    // 3. Verify digital signature
+    // Chữ ký sai đồng nghĩa không được phép dùng mã booking để tiếp tục.
     const isSignatureValid = this.verifySignature(rawSignableData, signature, keyInfo);
 
     if (!isSignatureValid) {
@@ -77,7 +68,7 @@ export class QrVerifier {
       };
     }
 
-    // 4. Check expiration if exp field is present
+    // Nếu QR có hạn dùng, kiểm tra trước khi trả kết quả hợp lệ.
     if (payload.exp !== undefined) {
       const nowSeconds = Math.floor(Date.now() / 1000);
       if (nowSeconds > payload.exp) {
@@ -106,22 +97,15 @@ export class QrVerifier {
     };
   }
 
-  /**
-   * Parse various QR string formats:
-   * Format A: WB1.<pbid>.<ver>.<iat>.<sig>
-   * Format B: JSON string {"pbid": "...", "ver": 1, "sig": "..."}
-   * Format C: Compact Base64 URL JWS header.payload.signature
-   */
   private static parseQrPayload(raw: string): {
     payload: QrPayload;
     signature: string;
     rawSignableData: string;
     format: 'compact' | 'json' | 'jws';
   } | null {
-    // Format A: Compact WB1.<pbid>.<ver>.<iat>.<sig>
+    // Giữ hỗ trợ định dạng cũ; chữ ký vẫn được kiểm tra ở verifyQrCode.
     if (raw.startsWith('WB1.') || raw.startsWith('WB:')) {
       const parts = raw.split(/[:.]/);
-      // e.g. ["WB1", pbid, ver, iat, sig]
       if (parts.length >= 5) {
         const pbid = parts[1];
         const ver = parseInt(parts[2], 10) || 1;
@@ -138,7 +122,7 @@ export class QrVerifier {
       }
     }
 
-    // Format B: JSON Object
+    // Với JSON, loại chữ ký khỏi payload rồi sắp xếp khóa để tái tạo chuỗi đã ký.
     if (raw.startsWith('{') && raw.endsWith('}')) {
       try {
         const obj = JSON.parse(raw);
@@ -149,7 +133,6 @@ export class QrVerifier {
           this.hasValidPayloadMetadata(obj)
         ) {
           const sig = obj.sig;
-          // Build canonical signable payload without sig
           const signableObj: Record<string, unknown> = { ...obj };
           delete signableObj.sig;
           const canonical = this.canonicalStringify(signableObj);
@@ -169,12 +152,11 @@ export class QrVerifier {
           };
         }
       } catch {
-        // Not valid JSON, continue
+        // Dữ liệu không phải JSON; tiếp tục thử định dạng JWS.
       }
     }
 
-    // Format C: JWS compact (base64url header . base64url payload . base64url signature)
-    // M13 FIX: Read kid directly from JWS header first, per RFC 7515 & RsaBookingQrSigner
+    // JWS ký trực tiếp header và payload đã mã hóa Base64URL.
     const jwsParts = raw.split('.');
     if (jwsParts.length === 3) {
       try {
@@ -191,7 +173,7 @@ export class QrVerifier {
         ) {
           const pbid = payloadObj.pbid || payloadObj.sub;
           const signable = `${jwsParts[0]}.${jwsParts[1]}`;
-          // Prefer the key id from the protected JWS header.
+          // Header JWS được ký cùng payload nên ưu tiên kid trong header.
           const effectiveKid = headerKid || payloadObj.kid;
           if (typeof effectiveKid !== 'string' || effectiveKid.length === 0) return null;
 
@@ -210,16 +192,13 @@ export class QrVerifier {
           };
         }
       } catch {
-        // Not valid JWS
+        // JWS sai định dạng sẽ bị từ chối khi không có bộ phân tích nào khớp.
       }
     }
 
     return null;
   }
 
-  /**
-   * Verify cryptographic signature against Public Key
-   */
   private static verifySignature(
     data: string,
     signature: string,
@@ -240,9 +219,7 @@ export class QrVerifier {
     }
   }
 
-  /**
-   * Deterministic JSON stringify for reproducible hashes
-   */
+  // Sắp xếp khóa để phía ký và phía xác minh tạo cùng một chuỗi dữ liệu.
   private static canonicalStringify(obj: any): string {
     const keys = Object.keys(obj).sort();
     const parts: string[] = [];

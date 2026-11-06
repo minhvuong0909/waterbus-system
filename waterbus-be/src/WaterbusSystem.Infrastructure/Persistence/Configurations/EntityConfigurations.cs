@@ -438,6 +438,9 @@ public class ScannerAssignmentConfiguration : IEntityTypeConfiguration<ScannerAs
 {
     public void Configure(EntityTypeBuilder<ScannerAssignment> builder)
     {
+        builder.HasIndex(x => x.TripStopCallId)
+            .IsUnique()
+            .HasFilter("[IsPrimaryOffline] = 1");
         builder.HasOne(x => x.Device).WithMany()
             .HasForeignKey(x => x.DeviceId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.TripStopCall).WithMany()

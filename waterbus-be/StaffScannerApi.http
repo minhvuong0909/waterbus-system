@@ -1,0 +1,47 @@
+@baseUrl = https://localhost:5001
+@staffToken = replace-with-staff-jwt
+@stationCode = ST01
+@tripStopCallId = 00000000-0000-0000-0000-000000000001
+@ticketId = 00000000-0000-0000-0000-000000000002
+@tripId = 00000000-0000-0000-0000-000000000003
+@deviceCode = DEV-STAFF-01
+
+### Public RS256 key used by QR verification
+GET {{baseUrl}}/api/v1/scanner/public-key
+
+### Preload data for an assigned station (Staff JWT required)
+GET {{baseUrl}}/api/v1/scanner/manifest?stationId={{stationCode}}
+Authorization: Bearer {{staffToken}}
+Accept: application/json
+
+### Claim the primary offline scanner role for an existing assignment
+POST {{baseUrl}}/api/v1/scanner/claim-primary
+Authorization: Bearer {{staffToken}}
+Content-Type: application/json
+
+{
+  "deviceId": "{{deviceCode}}",
+  "deviceCode": "{{deviceCode}}",
+  "tripStopCallId": "{{tripStopCallId}}"
+}
+
+### Sync an offline check-in batch
+POST {{baseUrl}}/api/v1/tickets/sync-offline
+Authorization: Bearer {{staffToken}}
+Idempotency-Key: BATCH-STAFF-01-EXAMPLE
+Content-Type: application/json
+
+{
+  "scannerDeviceId": "{{deviceCode}}",
+  "batchTimestamp": "2026-11-06T03:00:00Z",
+  "events": [
+    {
+      "clientEventId": "c79a5be3-3f9f-45db-b967-6deea8caec17",
+      "ticketId": "{{ticketId}}",
+      "tripId": "{{tripId}}",
+      "tripStopCallId": "{{tripStopCallId}}",
+      "occurredAtDevice": "2026-11-06T03:00:00Z",
+      "notes": null
+    }
+  ]
+}

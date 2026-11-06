@@ -12,7 +12,7 @@
 import { QrVerifier } from '../src/services/crypto/qrVerifier';
 import { SqliteRepository } from '../src/services/sqlite/sqliteRepository';
 import { syncService } from '../src/services/sync/syncService';
-import { scannerApiService, setApiBaseUrl } from '../src/api/client';
+import { apiClient, scannerApiService, setApiBaseUrl } from '../src/api/client';
 import { useScannerStore } from '../src/store/useScannerStore';
 import { PreloadManifest, PublicKeyInfo } from '../src/types/scanner';
 
@@ -255,17 +255,21 @@ async function runVerification() {
   );
 
   // 2.1 Preload demo manifest
-  const originalFetchForPreload = globalThis.fetch;
-  globalThis.fetch = async () => ({
-    ok: true,
+  const { apiClient: apiClientForPreload } = require('../src/api/client');
+  const originalAdapterForPreload = apiClientForPreload.defaults.adapter;
+  setApiBaseUrl('https://scanner-test.invalid');
+  apiClientForPreload.defaults.adapter = async (config: any) => ({
+    data: testManifest,
     status: 200,
-    json: async () => testManifest,
-  } as Response);
+    statusText: 'OK',
+    headers: {},
+    config,
+  });
   let preloadRes: { manifest: PreloadManifest; message: string };
   try {
     preloadRes = await syncService.preloadManifest('ST-BACH-DANG', 'https://scanner-test.invalid');
   } finally {
-    globalThis.fetch = originalFetchForPreload;
+    apiClientForPreload.defaults.adapter = originalAdapterForPreload;
   }
   assert(
     preloadRes.manifest.bookings.length > 0 && preloadRes.manifest.trips.length > 0,
@@ -273,8 +277,8 @@ async function runVerification() {
     `Preloaded ${preloadRes.manifest.bookings.length} bookings, ${preloadRes.manifest.trips.length} trips`
   );
 
-  const fetchBeforeOfflinePreload = globalThis.fetch;
-  globalThis.fetch = async () => {
+  const onlineAdapterForPreload = apiClientForPreload.defaults.adapter;
+  apiClientForPreload.defaults.adapter = async () => {
     throw new Error('network unavailable');
   };
   let offlinePreloadRejected = false;
@@ -283,7 +287,7 @@ async function runVerification() {
   } catch {
     offlinePreloadRejected = true;
   } finally {
-    globalThis.fetch = fetchBeforeOfflinePreload;
+    apiClientForPreload.defaults.adapter = onlineAdapterForPreload;
   }
   assert(
     offlinePreloadRejected,
@@ -307,6 +311,11 @@ async function runVerification() {
     '2.4 Ultra-fast lookup of Booking & Passenger list by PublicBookingId',
     `Lookup completed in ${lookupTimeMs}ms, Found ${loadedBooking?.tickets.length} tickets for customer "${loadedBooking?.customerName}"`
   );
+  const manuallyFoundBooking = await SqliteRepository.searchBookingOrTicket('WB-TEST-001');
+  assert(
+    manuallyFoundBooking?.id === loadedBooking?.id,
+    '2.5 Find a preloaded booking by manually entered booking code'
+  );
 
   if (loadedBooking && loadedBooking.tickets.length >= 2) {
     const ticketToBoard1 = loadedBooking.tickets[0].id;
@@ -318,6 +327,14 @@ async function runVerification() {
       !rejectedCheckIn.success && rejectedCheckIn.count === 0,
       '3.0 Reject check-in when QR signature is invalid',
       rejectedCheckIn.error
+    );
+
+    useScannerStore.getState().setCurrentBooking(loadedBooking, null);
+    const manualLookupCheckIn = await useScannerStore.getState().performCheckIn([ticketToBoard1]);
+    assert(
+      !manualLookupCheckIn.success && manualLookupCheckIn.count === 0,
+      '3.0a Reject check-in when booking was found by manual lookup without QR verification',
+      manualLookupCheckIn.error
     );
 
     useScannerStore.getState().setCurrentBooking(loadedBooking, validResult);
@@ -367,31 +384,35 @@ async function runVerification() {
     `Found ${pendingEventsBefore.length} events pending sync`
   );
 
-  const originalFetchForSync = globalThis.fetch;
+  const originalSyncAdapter = apiClient.defaults.adapter;
   let failedAttemptKey: string | null = null;
   let successfulAttemptKey: string | null = null;
-  globalThis.fetch = async (_input, init) => {
-    failedAttemptKey = (init?.headers as Record<string, string>)['Idempotency-Key'];
-    throw new Error('network unavailable');
-  };
-  const failedSyncResult = await syncService.triggerBatchSync('https://scanner-test.invalid');
-  const pendingAfterFailure = await SqliteRepository.getPendingEvents();
-  assert(
-    failedSyncResult.syncedCount === 0 &&
-      pendingAfterFailure.length >= 2 &&
-      pendingAfterFailure.every((event) => event.retryCount > 0),
-    '4.2 Keep events pending and record retry metadata when the server cannot be reached',
-    `${failedSyncResult.message}; pending: ${pendingAfterFailure.length}; retries: ${pendingAfterFailure.map((event) => event.retryCount).join(',')}`
-  );
+  const readIdempotencyKey = (config: any) =>
+    config.headers?.get?.('Idempotency-Key')
+      ?? config.headers?.['Idempotency-Key']
+      ?? config.headers?.['idempotency-key']
+      ?? null;
+  try {
+    apiClient.defaults.adapter = async (config) => {
+      failedAttemptKey = readIdempotencyKey(config);
+      throw new Error('network unavailable');
+    };
+    const failedSyncResult = await syncService.triggerBatchSync('https://scanner-test.invalid');
+    const pendingAfterFailure = await SqliteRepository.getPendingEvents();
+    assert(
+      failedSyncResult.syncedCount === 0 &&
+        pendingAfterFailure.length >= 2 &&
+        pendingAfterFailure.every((event) => event.retryCount > 0),
+      '4.2 Keep events pending and record retry metadata when the server cannot be reached',
+      `${failedSyncResult.message}; pending: ${pendingAfterFailure.length}; retries: ${pendingAfterFailure.map((event) => event.retryCount).join(',')}`
+    );
 
-  globalThis.fetch = async (_input, init) => {
-    successfulAttemptKey = (init?.headers as Record<string, string>)['Idempotency-Key'];
-    const requestBody = JSON.parse(String(init?.body));
-    const firstEventId = requestBody.events[0].clientEventId;
-    return {
-      ok: true,
-      status: 200,
-      json: async () => ({
+    apiClient.defaults.adapter = async (config) => {
+      successfulAttemptKey = readIdempotencyKey(config);
+      const requestBody = JSON.parse(String(config.data));
+      const firstEventId = requestBody.events[0].clientEventId;
+      return {
+        data: {
         batchId: 'BATCH-ACK-TEST',
         successCount: 1,
         conflictCount: 0,
@@ -399,54 +420,53 @@ async function runVerification() {
           { clientEventId: firstEventId, outcome: 'Success', syncStatus: 'Synced' },
           { clientEventId: 'not-in-this-batch', outcome: 'Success', syncStatus: 'Synced' },
         ],
-      }),
-    } as Response;
-  };
-  let partialSyncResult: { syncedCount: number; message: string };
-  try {
-    partialSyncResult = await syncService.triggerBatchSync('https://scanner-test.invalid');
-  } finally {
-    globalThis.fetch = originalFetchForSync;
-  }
-  assert(
-    partialSyncResult.syncedCount === 1,
-    '4.3 Mark only requested events with explicit success acknowledgments as Synced',
-    `Synced ${partialSyncResult.syncedCount} event(s)`
-  );
-  const pendingAfterPartialAck = await SqliteRepository.getPendingEvents();
-  assert(
-    pendingAfterPartialAck.length === 1,
-    '4.4 Keep events without an individual acknowledgment pending',
-    `Pending after partial acknowledgment: ${pendingAfterPartialAck.length}`
-  );
-  assert(
-    !!failedAttemptKey && failedAttemptKey === successfulAttemptKey,
-    '4.5 Retries reuse a stable Idempotency-Key for the same queued events',
-    `Failed attempt key: ${failedAttemptKey}; successful attempt key: ${successfulAttemptKey}`
-  );
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      };
+    };
+    const partialSyncResult = await syncService.triggerBatchSync('https://scanner-test.invalid');
+    assert(
+      partialSyncResult.syncedCount === 1,
+      '4.3 Mark only requested events with explicit success acknowledgments as Synced',
+      `Synced ${partialSyncResult.syncedCount} event(s)`
+    );
+    const pendingAfterPartialAck = await SqliteRepository.getPendingEvents();
+    assert(
+      pendingAfterPartialAck.length === 1,
+      '4.4 Keep events without an individual acknowledgment pending',
+      `Pending after partial acknowledgment: ${pendingAfterPartialAck.length}`
+    );
+    assert(
+      !!failedAttemptKey && failedAttemptKey === successfulAttemptKey,
+      '4.5 Retries reuse a stable Idempotency-Key for the same queued events',
+      `Failed attempt key: ${failedAttemptKey}; successful attempt key: ${successfulAttemptKey}`
+    );
 
-  const originalFetchForFinalSync = globalThis.fetch;
-  globalThis.fetch = async (_input, init) => {
-    const requestBody = JSON.parse(String(init?.body));
-    return {
-      ok: true,
-      status: 200,
-      json: async () => ({
-        batchId: 'BATCH-ACK-REMAINDER',
-        successCount: requestBody.events.length,
-        conflictCount: 0,
-        processedEvents: requestBody.events.map((event: { clientEventId: string }) => ({
-          clientEventId: event.clientEventId,
-          outcome: 'Success',
-          syncStatus: 'Synced',
-        })),
-      }),
-    } as Response;
-  };
-  try {
+    apiClient.defaults.adapter = async (config) => {
+      const requestBody = JSON.parse(String(config.data));
+      return {
+        data: {
+          batchId: 'BATCH-ACK-REMAINDER',
+          successCount: requestBody.events.length,
+          conflictCount: 0,
+          processedEvents: requestBody.events.map((event: { clientEventId: string }) => ({
+            clientEventId: event.clientEventId,
+            outcome: 'Success',
+            syncStatus: 'Synced',
+          })),
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      };
+    };
     await syncService.triggerBatchSync('https://scanner-test.invalid');
   } finally {
-    globalThis.fetch = originalFetchForFinalSync;
+    apiClient.defaults.adapter = originalSyncAdapter;
   }
 
   const pendingEventsAfter = await SqliteRepository.getPendingEvents();
@@ -462,6 +482,7 @@ async function runVerification() {
 
   let lastReceivedIdempotencyKey: string | null = null;
   let lastReceivedBatchEventsCount = 0;
+  let lastClaimedTripStopCallId: string | null = null;
 
   const mockManifestData = {
     stationId: 'ST-BACH-DANG',
@@ -486,6 +507,7 @@ async function runVerification() {
         publicBookingId: 'pub_wb_live_api_01',
         bookingCode: 'WB-LIVE-999',
         tripId: 'TRIP-LIVE-API-01',
+        tripStopCallId: '8e3f6e31-3d61-49e1-9af8-4a2d96175321',
         customerName: 'Nguyễn Văn API',
         customerPhone: '0901234567',
         totalAmount: 150000,
@@ -530,7 +552,27 @@ async function runVerification() {
       return;
     }
 
-    // Route 3: Batch sync with Idempotency-Key
+    // Route 3: Claim the assigned primary scanner role
+    if (reqUrl.pathname === '/api/v1/scanner/claim-primary' && req.method === 'POST') {
+      let bodyData = '';
+      req.on('data', (chunk: any) => { bodyData += chunk; });
+      req.on('end', () => {
+        const request = JSON.parse(bodyData || '{}');
+        lastClaimedTripStopCallId = request.tripStopCallId;
+        res.writeHead(200);
+        res.end(JSON.stringify({
+          success: true,
+          isPrimaryOffline: true,
+          assignmentVersion: 1,
+          activeFrom: new Date().toISOString(),
+          activeUntil: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          message: 'Thiết bị này được phân công soát vé chính tại bến.',
+        }));
+      });
+      return;
+    }
+
+    // Route 4: Batch sync with Idempotency-Key
     if (reqUrl.pathname === '/api/v1/tickets/sync-offline' && req.method === 'POST') {
       lastReceivedIdempotencyKey = req.headers['idempotency-key'] || null;
       let bodyData = '';
@@ -558,7 +600,7 @@ async function runVerification() {
       return;
     }
 
-    // Route 4: Scanner Public Key
+    // Route 5: Scanner Public Key
     if (reqUrl.pathname === '/api/v1/scanner/public-key' && req.method === 'GET') {
       res.writeHead(200);
       res.end(JSON.stringify(testPublicKeyInfo));
@@ -602,6 +644,24 @@ async function runVerification() {
       }
       if (config.url?.includes('/scanner/manifest')) {
         return { data: mockManifestData, status: 200, statusText: 'OK', headers: {}, config };
+      }
+      if (config.url?.includes('/scanner/claim-primary')) {
+        const request = JSON.parse(String(config.data));
+        lastClaimedTripStopCallId = request.tripStopCallId;
+        return {
+          data: {
+            success: true,
+            isPrimaryOffline: true,
+            assignmentVersion: 1,
+            activeFrom: new Date().toISOString(),
+            activeUntil: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            message: 'Thiết bị này được phân công soát vé chính tại bến.',
+          },
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config,
+        };
       }
       if (config.url?.includes('/sync-offline')) {
         lastReceivedIdempotencyKey = config.headers?.['Idempotency-Key'] || config.headers?.['idempotency-key'] || null;
@@ -665,14 +725,9 @@ async function runVerification() {
           {
             clientEventId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
             ticketId: 'TK-LIVE-1001',
-            ticketNumber: 'TK-LIVE-1001',
-            passengerName: 'Nguyễn Văn API',
-            seatCode: 'A01',
-            bookingId: 'BK-LIVE-API-01',
             tripId: 'TRIP-LIVE-API-01',
-            tripStopCallId: 'TSC-001',
+            tripStopCallId: '8e3f6e31-3d61-49e1-9af8-4a2d96175321',
             occurredAtDevice: new Date().toISOString(),
-            outcome: 'Success',
           },
         ],
       },
@@ -691,6 +746,21 @@ async function runVerification() {
       liveBookingInDb !== null && liveBookingInDb.bookingCode === 'WB-LIVE-999',
       '5.5 syncService.preloadManifest() calls live API and persists real response into SQLite',
       `Loaded booking "${liveBookingInDb?.bookingCode}" for passenger "${liveBookingInDb?.customerName}" into SQLite`
+    );
+    assert(
+      liveBookingInDb?.tripStopCallId === '8e3f6e31-3d61-49e1-9af8-4a2d96175321',
+      '5.5a Persist the backend TripStopCallId in the offline booking cache',
+      `Cached TripStopCallId: "${liveBookingInDb?.tripStopCallId}"`
+    );
+
+    useScannerStore.getState().setDeviceInfo({ staffId: 'staff-test-001', staffName: 'Nhân viên thử nghiệm' });
+    const preloadAndClaimSucceeded = await useScannerStore.getState().preloadCache('ST-BACH-DANG');
+    assert(
+      preloadAndClaimSucceeded &&
+        lastClaimedTripStopCallId === '8e3f6e31-3d61-49e1-9af8-4a2d96175321' &&
+        useScannerStore.getState().deviceInfo.isPrimaryOffline,
+      '5.5b Preload claims the primary role using the real TripStopCallId',
+      `Claimed TripStopCallId: "${lastClaimedTripStopCallId}"`
     );
 
     // 5.6 End-to-End Live API Check-In & Batch Sync via syncService
@@ -788,8 +858,8 @@ async function runVerification() {
   {
     const claimResult = await syncService.claimPrimaryOfflineRole('TSC-TEST-M08', 'http://localhost:19999');
     assert(
-      claimResult.success === true && typeof claimResult.isPrimary === 'boolean',
-      '6.4 (M08) claimPrimaryOfflineRole falls back gracefully when offline',
+      claimResult.success === false && claimResult.isPrimary === false,
+      '6.4 (M08) do not grant an unconfirmed primary role while offline',
       `success=${claimResult.success}, isPrimary=${claimResult.isPrimary}, msg="${claimResult.message}"`
     );
   }

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import {
   DarkTheme,
   DefaultTheme,
@@ -25,17 +25,18 @@ export default function RootLayout() {
   const refreshStats = useScannerStore((s) => s.refreshStats);
 
   useEffect(() => {
-    // 1. Initialize SQLite schema on boot
+    // Mở SQLite trước, sau đó đồng bộ số liệu cache lên trạng thái giao diện.
     getDatabase()
       .then(() => {
         refreshStats();
       })
       .catch(() => {});
 
-    // 2. Start idempotent batch sync background worker
+    // Thử gửi các lượt check-in đang chờ khi ứng dụng còn chạy.
     syncService.startBackgroundWorker(15000);
 
     return () => {
+      // Dừng bộ hẹn giờ khi layout bị tháo khỏi ứng dụng.
       syncService.stopBackgroundWorker();
     };
   }, []);

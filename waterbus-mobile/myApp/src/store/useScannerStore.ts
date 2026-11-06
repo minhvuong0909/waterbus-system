@@ -1,8 +1,3 @@
-/**
- * Zustand Store for Staff Scanner App
- * Manages reactive UI state for scanning, check-in, SQLite statistics, and sync progress
- */
-
 import { create } from 'zustand';
 import {
   Booking,
@@ -14,21 +9,17 @@ import { SqliteRepository } from '../services/sqlite/sqliteRepository';
 import { syncService } from '../services/sync/syncService';
 
 interface ScannerState {
-  // Current scanned booking
   currentBooking: Booking | null;
   verificationResult: QrVerificationResult | null;
   isModalOpen: boolean;
 
-  // Local database & cache stats
   stats: ManifestStats;
   isPreloading: boolean;
   isSyncing: boolean;
   syncMessage: string | null;
 
-  // Device & Staff Configuration
   deviceInfo: ScannerDeviceInfo;
 
-  // Recent scans history
   recentScans: {
     bookingCode: string;
     customerName: string;
@@ -37,7 +28,6 @@ interface ScannerState {
     status: string;
   }[];
 
-  // Actions
   refreshStats: () => Promise<void>;
   setCurrentBooking: (booking: Booking | null, verification?: QrVerificationResult | null) => void;
   closeBookingModal: () => void;
@@ -45,6 +35,7 @@ interface ScannerState {
   preloadCache: (stationId?: string) => Promise<boolean>;
   syncPendingBatch: () => Promise<number>;
   claimPrimaryScanner: (tripStopCallId: string) => Promise<{ success: boolean; isPrimary: boolean; message: string }>;
+  setDeviceInfo: (info: Partial<ScannerDeviceInfo>) => void;
   setForceOfflineMode: (enabled: boolean) => void;
   clearCache: () => Promise<void>;
 }
@@ -75,7 +66,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       const stats = await SqliteRepository.getManifestStats();
       set({ stats });
     } catch {
-      // Ignore if database is busy
+      // Không để lỗi cập nhật thống kê làm gián đoạn thao tác soát vé.
     }
   },
 
@@ -120,20 +111,28 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
         error: 'Cần quét mã QR hợp lệ trước khi xác nhận khách lên tàu.',
       };
     }
+    if (!deviceInfo.staffId || !currentBooking.tripStopCallId
+        || !syncService.isPrimaryOfflineFor(currentBooking.tripStopCallId)) {
+      return {
+        success: false,
+        count: 0,
+        error: 'Đăng nhập và nhận quyền scanner offline chính cho chuyến này trước khi check-in.',
+      };
+    }
 
     try {
+      // Lưu check-in cục bộ trước để vẫn hoạt động khi thiết bị mất mạng.
       const res = await SqliteRepository.checkInTickets({
         ticketIds,
         bookingId: currentBooking.id,
         tripId: currentBooking.tripId,
-        tripStopCallId: `TSC-${currentBooking.tripId}-${deviceInfo.stationId}`,
+        tripStopCallId: currentBooking.tripStopCallId,
         staffAccountId: deviceInfo.staffId,
         staffName: deviceInfo.staffName,
         scannerDeviceId: deviceInfo.deviceId,
         notes,
       });
 
-      // Update in-memory booking object to reflect changes immediately
       const updatedTickets = currentBooking.tickets.map((t) => {
         if (ticketIds.includes(t.id)) {
           return {
@@ -152,11 +151,10 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
         },
       });
 
-      // Refresh SQLite stats
       await get().refreshStats();
 
-      // Trigger background batch sync if online
       if (!deviceInfo.forceOfflineMode) {
+        // Gửi không chờ kết quả để không chặn nhân viên; worker sẽ thử lại nếu lỗi.
         syncService.triggerBatchSync().catch(() => {});
       }
 
@@ -171,11 +169,52 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     try {
       const targetStation = stationId || get().deviceInfo.stationId;
       const res = await syncService.preloadManifest(targetStation);
+      const tripStopCallIds = [...new Set(
+        res.manifest.bookings
+          .map(booking => booking.tripStopCallId)
+          .filter((tripStopCallId): tripStopCallId is string => !!tripStopCallId)
+      )];
+      if (tripStopCallIds.length === 0) {
+        syncService.setDeviceInfo({ isPrimaryOffline: false });
+        set({
+          deviceInfo: syncService.getDeviceInfo(),
+          isPreloading: false,
+          syncMessage: 'Đã tải manifest nhưng chưa có điểm dừng được phân công để nhận quyền offline.',
+        });
+        await get().refreshStats();
+        return false;
+      }
+
+      let claimMessage = '';
+      for (const tripStopCallId of tripStopCallIds) {
+        const claim = await syncService.claimPrimaryOfflineRole(tripStopCallId);
+        claimMessage = claim.message;
+        if (!claim.success || !claim.isPrimary) {
+          set({
+            deviceInfo: syncService.getDeviceInfo(),
+            isPreloading: false,
+            syncMessage: claimMessage,
+          });
+          await get().refreshStats();
+          return false;
+        }
+      }
+
       await get().refreshStats();
-      set({ isPreloading: false, syncMessage: res.message });
+      set({
+        deviceInfo: syncService.getDeviceInfo(),
+        isPreloading: false,
+        syncMessage: `${res.message} ${claimMessage}`,
+      });
       return true;
-    } catch {
-      set({ isPreloading: false, syncMessage: 'Không thể tải dữ liệu. Vui lòng kiểm tra kết nối và thử lại.' });
+    } catch (error) {
+      set({
+        deviceInfo: syncService.getDeviceInfo(),
+        isPreloading: false,
+        syncMessage: error instanceof Error
+          ? error.message
+          : 'Không thể tải dữ liệu. Vui lòng kiểm tra kết nối và thử lại.',
+      });
       return false;
     }
   },
@@ -195,21 +234,22 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
 
   claimPrimaryScanner: async (tripStopCallId: string) => {
     const res = await syncService.claimPrimaryOfflineRole(tripStopCallId);
-    set((state) => ({
-      deviceInfo: {
-        ...state.deviceInfo,
-        isPrimaryOffline: res.isPrimary,
-      },
+    set({
+      deviceInfo: syncService.getDeviceInfo(),
       syncMessage: res.message,
-    }));
+    });
     return res;
   },
 
+  setDeviceInfo: (info) => {
+    syncService.setDeviceInfo(info);
+    set({ deviceInfo: syncService.getDeviceInfo() });
+  },
+
   setForceOfflineMode: (enabled: boolean) => {
-    const updated = { ...get().deviceInfo, forceOfflineMode: enabled };
-    syncService.setDeviceInfo(updated);
+    syncService.setDeviceInfo({ forceOfflineMode: enabled });
     set({
-      deviceInfo: updated,
+      deviceInfo: syncService.getDeviceInfo(),
       syncMessage: enabled ? 'Đã bật chế độ sử dụng khi mất kết nối.' : 'Đã bật chế độ tự động gửi dữ liệu.',
     });
   },

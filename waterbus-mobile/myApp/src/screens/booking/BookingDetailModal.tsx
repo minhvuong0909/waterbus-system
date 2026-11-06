@@ -1,9 +1,3 @@
-/**
- * Booking Detail & Passenger Check-In UI Modal
- * Displays booking details, verified digital signature badge,
- * passenger seat list, and per-passenger check-in checkboxes (BR-QR-03).
- */
-
 import { useState, useEffect } from 'react';
 import {
   Modal,
@@ -36,9 +30,9 @@ export default function BookingDetailModal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isQrVerified = verificationResult?.isValid === true;
 
-  // Initialize selected tickets: auto-select unchecked tickets by default
   useEffect(() => {
-    if (currentBooking) {
+    // Không chọn sẵn vé khi booking được mở bằng tra cứu tay chưa xác minh QR.
+    if (currentBooking && isQrVerified) {
       const uncheckedIds = currentBooking.tickets
         .filter((t) => t.boardingStatus === 'NotCheckedIn')
         .map((t) => t.id);
@@ -46,12 +40,12 @@ export default function BookingDetailModal() {
     } else {
       setSelectedTicketIds([]);
     }
-  }, [currentBooking]);
+  }, [currentBooking, isQrVerified]);
 
   if (!currentBooking) return null;
 
   const toggleSelectTicket = (ticket: Ticket) => {
-    if (ticket.boardingStatus === 'CheckedIn') return; // Cannot un-check checked ticket here
+    if (ticket.boardingStatus === 'CheckedIn') return;
 
     if (selectedTicketIds.includes(ticket.id)) {
       setSelectedTicketIds(selectedTicketIds.filter((id) => id !== ticket.id));
@@ -73,6 +67,7 @@ export default function BookingDetailModal() {
   };
 
   const handleConfirmCheckIn = async () => {
+    // Chặn check-in ở giao diện; store cũng kiểm tra lại để bảo vệ luồng nghiệp vụ.
     if (!isQrVerified) {
       Alert.alert('Chưa xác thực mã vé', 'Hãy quét mã QR hợp lệ trước khi xác nhận khách lên tàu.');
       return;
@@ -113,7 +108,6 @@ export default function BookingDetailModal() {
   return (
     <Modal visible={isModalOpen} animationType="slide" transparent={false} onRequestClose={closeBookingModal}>
       <SafeAreaView style={styles.container}>
-        {/* Header Bar */}
         <View style={styles.header}>
           <TouchableOpacity onPress={closeBookingModal} style={styles.closeButton}>
             <Ionicons name="close" size={28} color="#0F172A" />
@@ -126,7 +120,6 @@ export default function BookingDetailModal() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Digital Signature Verification Badge */}
           {verificationResult?.isValid ? (
             <View style={styles.verifiedBanner}>
               <Ionicons name="shield-checkmark" size={24} color="#059669" />
@@ -141,13 +134,17 @@ export default function BookingDetailModal() {
             <View style={styles.invalidBanner}>
               <Ionicons name="alert-circle" size={24} color="#DC2626" />
               <View style={styles.verifiedTextContainer}>
-                <Text style={styles.invalidTitle}>CẢNH BÁO: KHÔNG THỂ XÁC THỰC MÃ VÉ</Text>
-                <Text style={styles.invalidSubtitle}>{verificationResult?.error || 'QR không xác thực'}</Text>
+                <Text style={styles.invalidTitle}>
+                  {verificationResult ? 'CẢNH BÁO: KHÔNG THỂ XÁC THỰC MÃ VÉ' : 'TRA CỨU THỦ CÔNG — CHƯA XÁC THỰC QR'}
+                </Text>
+                <Text style={styles.invalidSubtitle}>
+                  {verificationResult?.error ||
+                    'Chỉ xem được thông tin vé. Cần quét QR hợp lệ để xác nhận khách lên tàu.'}
+                </Text>
               </View>
             </View>
           )}
 
-          {/* Booking & Trip Summary Card */}
           <View style={styles.card}>
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Khách hàng:</Text>
@@ -176,7 +173,6 @@ export default function BookingDetailModal() {
             </View>
           </View>
 
-          {/* Passenger Section Header */}
           <View style={styles.sectionHeader}>
             <View>
               <Text style={styles.sectionTitle}>
@@ -196,7 +192,6 @@ export default function BookingDetailModal() {
             ) : null}
           </View>
 
-          {/* List of Tickets / Passengers */}
           {currentBooking.tickets.map((ticket, index) => {
             const isCheckedIn = ticket.boardingStatus === 'CheckedIn';
             const isSelected = selectedTicketIds.includes(ticket.id);
@@ -213,7 +208,6 @@ export default function BookingDetailModal() {
                 disabled={!isQrVerified || isCheckedIn}
                 activeOpacity={!isQrVerified || isCheckedIn ? 1 : 0.7}
               >
-                {/* Checkbox */}
                 <View style={styles.checkboxContainer}>
                   {isCheckedIn ? (
                     <Ionicons name="checkmark-done-circle" size={26} color="#059669" />
@@ -224,7 +218,6 @@ export default function BookingDetailModal() {
                   )}
                 </View>
 
-                {/* Ticket Details */}
                 <View style={styles.ticketDetails}>
                   <View style={styles.ticketRowTop}>
                     <Text style={styles.passengerName}>{ticket.passengerName}</Text>
@@ -258,7 +251,6 @@ export default function BookingDetailModal() {
           })}
         </ScrollView>
 
-        {/* Bottom Action Footer */}
         <View style={styles.footer}>
           <TouchableOpacity
             style={[

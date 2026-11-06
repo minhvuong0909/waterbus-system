@@ -4,7 +4,13 @@
  */
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
-import { PreloadManifest, SyncBatchResponse, CheckInEvent, PublicKeyInfo } from '../types/scanner';
+import {
+  PreloadManifest,
+  PublicKeyInfo,
+  Station,
+  SyncBatchResponse,
+  SyncOfflineBatchRequest,
+} from '../types/scanner';
 
 declare const require: any;
 
@@ -70,12 +76,7 @@ export const scannerApiService = {
    * Batch push offline check-in events to backend with Idempotency-Key (BR-OFF-03, BR-OFF-05)
    */
   async syncOfflineBatch(
-    payload: {
-      scannerDeviceId: string;
-      staffAccountId: string;
-      batchTimestamp: string;
-      events: any[];
-    },
+    payload: SyncOfflineBatchRequest,
     idempotencyKey: string
   ): Promise<SyncBatchResponse> {
     const response = await apiClient.post<SyncBatchResponse>(`/api/v1/tickets/sync-offline`, payload, {
@@ -100,8 +101,8 @@ export const scannerApiService = {
   /**
    * GET /api/v1/stations
    */
-  async getStations(): Promise<any[]> {
-    const response = await apiClient.get<any[]>(`/api/v1/stations`);
+  async getStations(): Promise<Station[]> {
+    const response = await apiClient.get<Station[]>(`/api/v1/stations`);
     return response.data;
   },
 
@@ -112,6 +113,7 @@ export const scannerApiService = {
    */
   async claimPrimaryRole(params: {
     deviceId: string;
+    deviceCode?: string;
     tripStopCallId: string;
     staffAccountId: string;
     expectedVersion?: number;

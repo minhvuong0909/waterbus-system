@@ -1,9 +1,3 @@
-/**
- * Staff Scanner Screen (Tuấn - Thành viên 4)
- * High-speed QR Camera Scanner with reticle animation, flash toggle,
- * instant offline digital signature verification & SQLite lookup.
- */
-
 import { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
@@ -26,7 +20,7 @@ import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
 import BookingDetailModal from '../booking/BookingDetailModal';
 import { BrandColors, Radius } from '../../../constants/theme';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const SCAN_AREA_SIZE = width * 0.72;
 
 export default function StaffScannerScreen() {
@@ -46,13 +40,11 @@ export default function StaffScannerScreen() {
     syncPendingBatch,
   } = useScannerStore();
 
-  // Animated laser scanline
   const scanLineAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     refreshStats();
 
-    // Start scanner line loop animation
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(scanLineAnim, {
@@ -72,28 +64,8 @@ export default function StaffScannerScreen() {
     return () => animation.stop();
   }, []);
 
-  const handleBarcodeScanned = async (scanningResult: BarcodeScanningResult) => {
-    const rawData = scanningResult.data;
-    if (isScannedLocked || !rawData) return;
-
-    // Lock scanning temporarily to prevent multiple reads
-    setIsScannedLocked(true);
-
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      await processQrData(rawData);
-    } catch {
-      Alert.alert('Không thể quét mã', 'Vui lòng thử lại hoặc nhập mã vé thủ công.');
-    } finally {
-      // Re-enable scanner after cooldown
-      setTimeout(() => {
-        setIsScannedLocked(false);
-      }, 1500);
-    }
-  };
-
   const processQrData = async (qrString: string) => {
-    // 1. Verify digital signature offline using cached Public Key
+    // Xác minh chữ ký trước khi dùng mã booking trong QR.
     const verification = await QrVerifier.verifyQrCode(qrString);
 
     if (!verification.isValid || !verification.publicBookingId) {
@@ -107,10 +79,9 @@ export default function StaffScannerScreen() {
 
     const publicBookingId = verification.publicBookingId;
 
-    // 2. Query SQLite local cache for booking & tickets
+    // Tra cứu offline trong manifest đã tải về máy.
     let booking = await SqliteRepository.getBookingByPublicId(publicBookingId);
 
-    // If not found by publicId, fallback search by code
     if (!booking) {
       booking = await SqliteRepository.searchBookingOrTicket(publicBookingId);
     }
@@ -131,14 +102,50 @@ export default function StaffScannerScreen() {
     }
   };
 
-  const handleManualSearch = async () => {
-    if (!manualCode.trim()) return;
-    setManualModalOpen(false);
-    await processQrData(manualCode.trim());
-    setManualCode('');
+  const handleBarcodeScanned = async (scanningResult: BarcodeScanningResult) => {
+    const rawData = scanningResult.data;
+    // Camera có thể phát cùng một mã nhiều lần liên tiếp; bỏ qua lúc đang xử lý.
+    if (isScannedLocked || !rawData) return;
+
+    setIsScannedLocked(true);
+
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      await processQrData(rawData);
+    } catch {
+      Alert.alert('Không thể quét mã', 'Vui lòng thử lại hoặc nhập mã vé thủ công.');
+    } finally {
+      // Mở lại camera sau khoảng nghỉ để tránh đọc lặp cùng QR.
+      setTimeout(() => {
+        setIsScannedLocked(false);
+      }, 1500);
+    }
   };
 
-  // Render Camera Permission fallback
+  const handleManualSearch = async () => {
+    const query = manualCode.trim();
+    if (!query) return;
+
+    try {
+      const booking = await SqliteRepository.searchBookingOrTicket(query);
+      if (!booking) {
+        Alert.alert('Không tìm thấy vé', 'Mã này không có trong dữ liệu đã tải về thiết bị.');
+        return;
+      }
+
+      setManualModalOpen(false);
+      // Tra cứu tay chỉ xem thông tin; không có kết quả xác minh QR nên không thể check-in.
+      setCurrentBooking(booking, null);
+    } catch (error) {
+      Alert.alert(
+        'Không thể tra cứu',
+        error instanceof Error ? error.message : 'Đã xảy ra lỗi khi tìm vé.'
+      );
+    } finally {
+      setManualCode('');
+    }
+  };
+
   if (!permission) {
     return <View style={styles.centerContainer}><Text>Đang yêu cầu quyền camera...</Text></View>;
   }
@@ -165,7 +172,6 @@ export default function StaffScannerScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Real Camera Viewfinder */}
       {Platform.OS !== 'web' ? (
         <CameraView
           style={StyleSheet.absoluteFill}
@@ -180,7 +186,6 @@ export default function StaffScannerScreen() {
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0F172A' }]} />
       )}
 
-      {/* Top Header Controls Overlay */}
       <View style={styles.topOverlay}>
         <View style={styles.topInfoBar}>
           <View>
@@ -209,25 +214,20 @@ export default function StaffScannerScreen() {
         )}
       </View>
 
-      {/* Center Reticle Scanning Area */}
       <View style={styles.centerReticleContainer}>
         <View style={styles.reticle}>
-          {/* 4 Corner Crosshairs */}
           <View style={[styles.corner, styles.cornerTL]} />
           <View style={[styles.corner, styles.cornerTR]} />
           <View style={[styles.corner, styles.cornerBL]} />
           <View style={[styles.corner, styles.cornerBR]} />
 
-          {/* Animated Laser Scanline */}
           <Animated.View style={[styles.scanLine, { transform: [{ translateY }] }]} />
         </View>
         <Text style={styles.hintText}>Hướng máy ảnh vào mã QR vé trên điện thoại của khách</Text>
       </View>
 
-      {/* Bottom Floating Control Buttons */}
       <View style={styles.bottomOverlay}>
         <View style={styles.controlRow}>
-          {/* Torch / Flashlight Toggle */}
           <TouchableOpacity
             style={[styles.iconButton, torch && styles.iconButtonActive]}
             onPress={() => setTorch(!torch)}
@@ -236,7 +236,6 @@ export default function StaffScannerScreen() {
             <Text style={styles.iconButtonText}>{torch ? 'Tắt Đèn' : 'Bật Đèn'}</Text>
           </TouchableOpacity>
 
-          {/* Manual Code Input Fallback */}
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => setManualModalOpen(true)}
@@ -245,7 +244,6 @@ export default function StaffScannerScreen() {
             <Text style={styles.iconButtonText}>Nhập Mã</Text>
           </TouchableOpacity>
 
-          {/* Switch Camera Facing */}
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}
@@ -256,7 +254,6 @@ export default function StaffScannerScreen() {
         </View>
       </View>
 
-      {/* Manual Input Modal */}
       <Modal visible={manualModalOpen} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalBox}>
@@ -290,7 +287,6 @@ export default function StaffScannerScreen() {
         </View>
       </Modal>
 
-      {/* Check-In Passenger Detail Modal */}
       <BookingDetailModal />
     </View>
   );

@@ -1,9 +1,3 @@
-/**
- * SQLite Local Repository for Staff Scanner
- * Handles fast local manifest persistence, ticket check-in atomic transactions,
- * and offline sync event queues.
- */
-
 import { getDatabase } from './database';
 import {
   PreloadManifest,
@@ -16,7 +10,6 @@ import {
 } from '../../types/scanner';
 
 function generateUUID(): string {
-  // RFC4122 v4 UUID generator without native deps
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
@@ -25,14 +18,11 @@ function generateUUID(): string {
 }
 
 export class SqliteRepository {
-  /**
-   * Save preloaded manifest to SQLite (trips, bookings, tickets, public key)
-   */
   static async saveManifest(manifest: PreloadManifest): Promise<void> {
     const db = await getDatabase();
 
+    // Lưu khóa, chuyến và booking cùng transaction để cache không bị cập nhật dở dang.
     await db.withTransactionAsync(async () => {
-      // 1. Save or update Public Key
       if (manifest.publicKey) {
         await db.runAsync(
           `INSERT OR REPLACE INTO public_keys (kid, algorithm, public_key_pem, valid_from, valid_to, is_active)
@@ -48,7 +38,6 @@ export class SqliteRepository {
         );
       }
 
-      // 2. Save trips
       for (const trip of manifest.trips) {
         await db.runAsync(
           `INSERT OR REPLACE INTO manifest_trips (
@@ -75,19 +64,19 @@ export class SqliteRepository {
         );
       }
 
-      // 3. Save bookings & tickets
       for (const booking of manifest.bookings) {
         await db.runAsync(
           `INSERT OR REPLACE INTO manifest_bookings (
-            id, public_booking_id, booking_code, trip_id,
+            id, public_booking_id, booking_code, trip_id, trip_stop_call_id,
             customer_name, customer_phone, total_amount,
             qr_credential_version, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             booking.id,
             booking.publicBookingId,
             booking.bookingCode,
             booking.tripId,
+            booking.tripStopCallId || null,
             booking.customerName,
             booking.customerPhone || null,
             booking.totalAmount,
@@ -121,7 +110,6 @@ export class SqliteRepository {
         }
       }
 
-      // Record last preload timestamp
       await db.runAsync(
         `INSERT OR REPLACE INTO scanner_config (key, value) VALUES ('last_preload_at', ?)`,
         [new Date().toISOString()]
@@ -133,9 +121,6 @@ export class SqliteRepository {
     });
   }
 
-  /**
-   * Ultra-fast lookup of Booking by publicBookingId (from QR code)
-   */
   static async getBookingByPublicId(publicBookingId: string): Promise<Booking | null> {
     const db = await getDatabase();
 
@@ -148,13 +133,11 @@ export class SqliteRepository {
       return null;
     }
 
-    // Fetch associated trip
     const tripRow = await db.getFirstAsync<any>(
       `SELECT * FROM manifest_trips WHERE id = ?`,
       [bookingRow.trip_id]
     );
 
-    // Fetch tickets
     const ticketRows = await db.getAllAsync<any>(
       `SELECT * FROM manifest_tickets WHERE booking_id = ? ORDER BY seat_code ASC`,
       [bookingRow.id]
@@ -199,6 +182,7 @@ export class SqliteRepository {
       publicBookingId: bookingRow.public_booking_id,
       bookingCode: bookingRow.booking_code,
       tripId: bookingRow.trip_id,
+      tripStopCallId: bookingRow.trip_stop_call_id,
       customerName: bookingRow.customer_name,
       customerPhone: bookingRow.customer_phone,
       totalAmount: bookingRow.total_amount,
@@ -209,18 +193,13 @@ export class SqliteRepository {
     };
   }
 
-  /**
-   * Search by bookingCode or ticketNumber (Fallback manual search)
-   */
   static async searchBookingOrTicket(query: string): Promise<Booking | null> {
     const trimmed = query.trim().toUpperCase();
     const db = await getDatabase();
 
-    // Check by publicBookingId
     let booking = await this.getBookingByPublicId(trimmed);
     if (booking) return booking;
 
-    // Check by booking_code
     const bookingRow = await db.getFirstAsync<any>(
       `SELECT public_booking_id FROM manifest_bookings WHERE booking_code = ?`,
       [trimmed]
@@ -229,7 +208,6 @@ export class SqliteRepository {
       return await this.getBookingByPublicId(bookingRow.public_booking_id);
     }
 
-    // Check by ticket_number
     const ticketRow = await db.getFirstAsync<any>(
       `SELECT booking_id FROM manifest_tickets WHERE ticket_number = ?`,
       [trimmed]
@@ -247,9 +225,6 @@ export class SqliteRepository {
     return null;
   }
 
-  /**
-   * Perform atomic check-in on selected tickets and insert into offline queue (BR-OFF-03, BR-OFF-05)
-   */
   static async checkInTickets(params: {
     ticketIds: string[];
     bookingId: string;
@@ -264,9 +239,9 @@ export class SqliteRepository {
     const nowIso = new Date().toISOString();
     const generatedEvents: CheckInEvent[] = [];
 
+    // Vé và sự kiện chờ gửi phải được ghi cùng nhau để tránh lệch trạng thái.
     await db.withTransactionAsync(async () => {
       for (const ticketId of params.ticketIds) {
-        // Fetch ticket details
         const ticketRow = await db.getFirstAsync<any>(
           `SELECT * FROM manifest_tickets WHERE id = ?`,
           [ticketId]
@@ -274,7 +249,6 @@ export class SqliteRepository {
 
         if (!ticketRow) continue;
 
-        // Update ticket in local DB
         await db.runAsync(
           `UPDATE manifest_tickets 
            SET boarding_status = 'CheckedIn', 
@@ -284,10 +258,10 @@ export class SqliteRepository {
           [nowIso, params.staffAccountId, ticketId]
         );
 
-        // Create CheckInEvent with unique client_event_id (UUID v4)
         const clientEventId = generateUUID();
         const eventId = generateUUID();
 
+        // Pending nghĩa là đã ghi trên điện thoại nhưng chưa được máy chủ xác nhận.
         await db.runAsync(
           `INSERT INTO offline_checkin_events (
             id, client_event_id, ticket_id, ticket_number, passenger_name,
@@ -341,11 +315,9 @@ export class SqliteRepository {
     };
   }
 
-  /**
-   * Get pending offline check-in events for batch sync
-   */
   static async getPendingEvents(limit = 50): Promise<CheckInEvent[]> {
     const db = await getDatabase();
+    // Chỉ lấy sự kiện chưa đồng bộ, theo thứ tự phát sinh để gửi lại đúng trình tự.
     const rows = await db.getAllAsync<any>(
       `SELECT * FROM offline_checkin_events 
        WHERE sync_status = 'Pending' 
@@ -378,15 +350,13 @@ export class SqliteRepository {
     }));
   }
 
-  /**
-   * Mark events as Synced upon server acknowledgment
-   */
   static async markEventsSynced(
     updates: { clientEventId: string; receivedAtServer?: string }[]
   ): Promise<void> {
     const db = await getDatabase();
     const nowIso = new Date().toISOString();
 
+    // Hàm này chỉ được gọi sau ACK thành công cho từng clientEventId.
     await db.withTransactionAsync(async () => {
       for (const update of updates) {
         await db.runAsync(
@@ -401,9 +371,6 @@ export class SqliteRepository {
     });
   }
 
-  /**
-   * Record sync failure / retry attempt
-   */
   static async recordSyncFailure(
     clientEventIds: string[],
     errorMessage: string
@@ -423,9 +390,6 @@ export class SqliteRepository {
     }
   }
 
-  /**
-   * Mark an event as Conflict or Rejected due to Late Sync (H03 fix)
-   */
   static async markEventConflict(
     clientEventId: string,
     reason: string,
@@ -445,9 +409,6 @@ export class SqliteRepository {
     );
   }
 
-  /**
-   * Get active public verification key
-   */
   static async getActivePublicKey(kid?: string): Promise<PublicKeyInfo | null> {
     const db = await getDatabase();
     let row: any = null;
@@ -475,9 +436,6 @@ export class SqliteRepository {
     };
   }
 
-  /**
-   * Get local cache statistics for Staff UI
-   */
   static async getManifestStats(): Promise<ManifestStats> {
     const db = await getDatabase();
 
@@ -507,9 +465,6 @@ export class SqliteRepository {
     };
   }
 
-  /**
-   * Get all trips with local ticket counts for Staff UI
-   */
   static async getAllTrips(): Promise<(Trip & { totalTickets: number; checkedInTickets: number })[]> {
     const db = await getDatabase();
     const tripRows = await db.getAllAsync<any>(`SELECT * FROM manifest_trips ORDER BY departure_time ASC`);
@@ -541,9 +496,6 @@ export class SqliteRepository {
     });
   }
 
-  /**
-   * Get all check-in events (both Synced and Pending) for history view
-   */
   static async getAllCheckInEvents(limit = 100): Promise<CheckInEvent[]> {
     const db = await getDatabase();
     const rows = await db.getAllAsync<any>(
@@ -575,9 +527,6 @@ export class SqliteRepository {
     }));
   }
 
-  /**
-   * Clear all local tables (Reset Cache)
-   */
   static async clearCache(): Promise<void> {
     const db = await getDatabase();
     await db.execAsync(`
@@ -589,4 +538,3 @@ export class SqliteRepository {
     `);
   }
 }
-
