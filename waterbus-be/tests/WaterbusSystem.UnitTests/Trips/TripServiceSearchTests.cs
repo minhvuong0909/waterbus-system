@@ -145,11 +145,17 @@ public class TripServiceSearchTests
     }
 
     [Fact]
-    public async Task AmbiguousOverlappingFares_ShouldMakeSeatClassUnsellable()
+    public async Task AmbiguousFareInAnyClass_ShouldSuppressWholeTripTypeLikeSeatMapAndCheckout()
     {
-        ReplaceFares(Fare("Commuter", 15000), Fare("Commuter", 16000));
+        AddSeat(_seed.PremiumClass, "P01");
+        ReplaceFares(Fare("Commuter", 15000), Fare("Commuter", 20000, seatClass: _seed.PremiumClass),
+            Fare("Commuter", 21000, seatClass: _seed.PremiumClass));
+        var calls = _seed.Trip.TripStopCalls.OrderBy(c => c.VisitOrder).ToList();
 
         (await SearchAll()).Should().BeEmpty();
+        var seatMap = () => Service().GetSeatMapAsync(_seed.Trip.Id,
+            new GetTripSeatMapRequest(calls[0].Id, calls[2].Id), CancellationToken.None);
+        await seatMap.Should().ThrowAsync<WaterbusSystem.Domain.Exceptions.ConcurrencyException>();
     }
 
     // ---- BR-TIME-01/02: trạng thái và mốc đóng bán ----
@@ -306,12 +312,24 @@ public class TripServiceSearchTests
     }
 
     [Fact]
-    public async Task Paging_ShouldSkipPreviousPages()
+    public async Task Paging_ShouldSkipPreviousPages_AndBeOffByDefault()
     {
-        var found = await Service().SearchAsync(
-            new SearchTripsRequest(null, null, null, null, Page: 2, PageSize: 1), CancellationToken.None);
+        var second = _context.Trips.Single();
+        var clone = new Trip
+        {
+            RouteId = second.RouteId, BoatId = second.BoatId, DepartureTime = second.DepartureTime.AddHours(1),
+            ArrivalTime = second.ArrivalTime.AddHours(1), TripType = second.TripType, Status = TripStatus.Scheduled
+        };
+        _context.Trips.Add(clone);
+        foreach (var call in second.TripStopCalls)
+            _context.TripStopCalls.Add(new TripStopCall { TripId = clone.Id, RouteStopId = call.RouteStopId, VisitOrder = call.VisitOrder });
+        _context.SaveChanges();
 
-        found.Should().BeEmpty();
+        (await SearchAll()).Should().HaveCount(2);
+        var page2 = await Service().SearchAsync(new SearchTripsRequest(null, null, null, null, Page: 2, PageSize: 1), CancellationToken.None);
+        page2.Should().ContainSingle().Which.Id.Should().Be(clone.Id);
+        (await Service().SearchAsync(new SearchTripsRequest(null, null, null, null, Page: 3, PageSize: 1), CancellationToken.None))
+            .Should().BeEmpty();
     }
 
     [Theory]
@@ -319,7 +337,8 @@ public class TripServiceSearchTests
     [InlineData(1, 0, false)]
     [InlineData(1, 101, false)]
     [InlineData(1, 100, true)]
-    public void Validator_ShouldBoundPaging(int page, int pageSize, bool valid) =>
+    [InlineData(1, null, true)]
+    public void Validator_ShouldBoundPaging(int page, int? pageSize, bool valid) =>
         new WaterbusSystem.Application.Validators.Trips.SearchTripsRequestValidator()
             .Validate(new SearchTripsRequest(null, null, null, null, page, pageSize)).IsValid.Should().Be(valid);
 

@@ -8,4 +8,4 @@ public record SearchTripsRequest(
     DateTime? DepartureDate,
     TripType? TripType,
     int Page = 1,
-    int PageSize = 50);
+    int? PageSize = null);

@@ -558,7 +558,9 @@ public sealed class TripService(
                 available.Count > 0 ? "open" : "soldOut"));
         }
 
-        return results.Skip((request.Page - 1) * request.PageSize).Take(request.PageSize).ToList();
+        // Không gửi pageSize = trả đủ (FE/AI lọc cục bộ nên cắt ngầm sẽ làm mất chuyến); tập ứng viên đã bị giới hạn
+        // bởi ngày + SalesCloseAt. ponytail: ép phân trang phía server khi FE/AI hỗ trợ nhiều trang.
+        return request.PageSize is { } size ? results.Skip((request.Page - 1) * size).Take(size).ToList() : results;
     }
 
     /// <summary>Thời lượng đúng chặng khi có lịch từng bến; cả hành trình thì lấy giờ chuyến; còn lại null (không bịa).</summary>
