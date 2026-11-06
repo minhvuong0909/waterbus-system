@@ -139,8 +139,18 @@ public class ScannerDeviceAdminServiceTests
         _context.SaveChanges();
         (await Service().GetByIdAsync(id)).ActiveAssignmentCount.Should().Be(1);
 
-        future.ActiveUntil = future.ActiveFrom; // cách RevokeScannerAssignment thu hồi lịch tương lai: khoảng rỗng
-        _context.SaveChanges();
+        // Thu hồi bằng nghiệp vụ thật (CheckInService), rồi đọc lại bằng context mới để chắc mốc kết thúc đã được lưu.
+        var clock = new Mock<IDateTimeService>();
+        clock.Setup(c => c.Now).Returns(Now);
+        var checkIns = new WaterbusSystem.Application.Features.CheckIns.Services.CheckInService(
+            new CheckInRepository(_context), new EfUnitOfWork(_context), Mock.Of<ICurrentUserService>(), clock.Object,
+            new WaterbusSystem.Application.Features.CheckIns.Services.CheckInProcessor(new CheckInRepository(_context)),
+            Microsoft.Extensions.Options.Options.Create(new WaterbusSystem.Application.Features.CheckIns.NoShowFinalizationOptions()),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<WaterbusSystem.Application.Features.CheckIns.Services.CheckInService>.Instance);
+        var revoked = await checkIns.RevokeScannerAssignmentAsync(future.Id);
+        revoked.ActiveUntil.Should().Be(future.ActiveFrom, "lịch tương lai bị thu hồi hẳn bằng khoảng rỗng");
+        _context.ChangeTracker.Clear();
+        _context.ScannerAssignments.Single(a => a.Id == future.Id).ActiveUntil.Should().Be(future.ActiveFrom);
 
         (await Service().GetByIdAsync(id)).ActiveAssignmentCount.Should().Be(0);
         await Service().DeactivateAsync(id);

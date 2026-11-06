@@ -92,6 +92,17 @@ public class ScheduleAdminServiceTests
     }
 
     [Fact]
+    public async Task Create_ShouldRejectZeroDurationRun_SoEveryScheduleCanGenerateTrips()
+    {
+        var zeroDuration = () => Service().CreateAsync(Req(stops: [new(_stops[0].Id, null, 0), new(_stops[1].Id, 0, null)]));
+        var allZero = () => Service().CreateAsync(Req(stops: [new(_stops[0].Id, null, 0), new(_stops[1].Id, 0, 0), new(_stops[2].Id, 0, null)]));
+
+        await zeroDuration.Should().ThrowAsync<ValidationException>();
+        await allZero.Should().ThrowAsync<ValidationException>();
+        _context.Schedules.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Create_ShouldRejectTripTypeThatDoesNotMatchRouteServiceType_AndInactiveRoute()
     {
         var mismatch = () => Service().CreateAsync(Req(type: "Sightseeing"));

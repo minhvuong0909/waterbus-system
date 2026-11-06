@@ -114,6 +114,41 @@ public class FareAdminServiceTests
     }
 
     [Fact]
+    public async Task Update_StartedRule_ShouldNotExtendReopenOrUnboundTheEndDate()
+    {
+        var started = SeedFare();
+        await Service().UpdateAsync(started.Id, new UpdateFareRuleRequest(started.Price, started.EffectiveFrom, _now.AddDays(10)));
+
+        // kéo dài bảng đang chạy: từ chối
+        var extend = () => Service().UpdateAsync(started.Id, new UpdateFareRuleRequest(started.Price, started.EffectiveFrom, _now.AddDays(40)));
+        await extend.Should().ThrowAsync<ConflictException>();
+        // bỏ giới hạn kết thúc: từ chối
+        var unbound = () => Service().UpdateAsync(started.Id, new UpdateFareRuleRequest(started.Price, started.EffectiveFrom, null));
+        await unbound.Should().ThrowAsync<ConflictException>();
+        (await Service().GetByIdAsync(started.Id)).EffectiveTo.Should().Be(_now.AddDays(10));
+
+        // giữ nguyên hoặc kết thúc sớm hơn: được
+        await Service().UpdateAsync(started.Id, new UpdateFareRuleRequest(started.Price, started.EffectiveFrom, _now.AddDays(10)));
+        await Service().UpdateAsync(started.Id, new UpdateFareRuleRequest(started.Price, started.EffectiveFrom, _now.AddDays(5)));
+        (await Service().GetByIdAsync(started.Id)).EffectiveTo.Should().Be(_now.AddDays(5));
+    }
+
+    [Fact]
+    public async Task Update_ExpiredRule_ShouldNotBeReopened()
+    {
+        var expired = SeedFare();
+        expired.EffectiveTo = _now.AddDays(-1);
+        _context.SaveChanges();
+
+        var reopen = () => Service().UpdateAsync(expired.Id, new UpdateFareRuleRequest(expired.Price, expired.EffectiveFrom, null));
+        var extend = () => Service().UpdateAsync(expired.Id, new UpdateFareRuleRequest(expired.Price, expired.EffectiveFrom, _now.AddDays(20)));
+
+        await reopen.Should().ThrowAsync<ConflictException>();
+        await extend.Should().ThrowAsync<ConflictException>();
+        (await Service().GetByIdAsync(expired.Id)).EffectiveTo.Should().Be(_now.AddDays(-1));
+    }
+
+    [Fact]
     public async Task Update_ExtendingIntoNextRule_ShouldConflict()
     {
         var classId = NewClass().Id;

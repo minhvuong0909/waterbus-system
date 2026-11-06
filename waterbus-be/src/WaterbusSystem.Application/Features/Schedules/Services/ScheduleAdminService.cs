@@ -179,6 +179,9 @@ public sealed class ScheduleAdminService(
             if (i > 0 && stops[i - 1].DepartureOffsetMin is { } prevDep && arrival is { } arr && arr < prevDep)
                 errors.Add(new($"stops[{i}].arrivalOffsetMin", "Giờ đến không được sớm hơn giờ rời của điểm dừng trước."));
         }
+        // Sinh Trip cần tổng thời lượng > 0 (TripPlanningService); chặn ngay khi tạo/thay điểm dừng để không có lịch "tạo được nhưng không sinh chuyến được".
+        if (stops[^1].ArrivalOffsetMin is { } lastArrival && lastArrival <= 0)
+            errors.Add(new($"stops[{stops.Count - 1}].arrivalOffsetMin", "Giờ đến điểm dừng cuối phải lớn hơn 0 (thời lượng chuyến dương)."));
         if (stops[0].DepartureOffsetMin is { } first && first != 0)
             errors.Add(new("stops[0].departureOffsetMin", "Điểm dừng đầu rời đúng giờ khởi hành (offset 0)."));
         if (byId.TryGetValue(stops[0].RouteStopId, out var head) && !head.CanBoard)

@@ -51,6 +51,11 @@ public sealed class FareAdminService(
             var started = fare.EffectiveFrom <= dateTime.Now;
             if (started && (request.Price != fare.Price || request.EffectiveFrom != fare.EffectiveFrom))
                 throw new ConflictException("Bảng giá đã có hiệu lực: chỉ đổi được EffectiveTo. Muốn đổi giá hãy tạo bảng giá mới.");
+            // Bảng giá đã có hiệu lực chỉ được kết thúc SỚM hơn: không kéo dài, không bỏ EffectiveTo, không mở lại bảng đã hết hạn
+            // (giá lịch sử không đổi; muốn áp giá cho giai đoạn khác thì tạo bảng giá mới).
+            if (started && request.EffectiveTo != fare.EffectiveTo
+                && !(request.EffectiveTo is { } newEnd && (fare.EffectiveTo is null || newEnd < fare.EffectiveTo)))
+                throw new ConflictException("Bảng giá đã có hiệu lực: chỉ được kết thúc sớm hơn, không kéo dài hoặc mở lại. Hãy tạo bảng giá mới.");
             // Unique index (TripType, SeatClassId, EffectiveFrom) tính cả bảng đã tắt nên luôn kiểm khi đổi EffectiveFrom;
             // chỉ xét giao khoảng hiệu lực với bảng đang bật khi chính bảng này đang bật.
             if (request.EffectiveFrom != fare.EffectiveFrom
