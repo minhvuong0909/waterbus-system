@@ -90,6 +90,20 @@ public class TripPlanningServiceTests
         trip.TripStopCalls.All(c => c.CheckInOpenAt == null && c.CheckInCloseAt == null).Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(15)]
+    [InlineData(1440)]
+    public async Task Generate_WithExplicitCutoff_IsAuthoritative_AndNeverAfterDeparture(int minutes)
+    {
+        var result = await Service().GenerateFromScheduleAsync(Gen(await NewSchedule(), sales: minutes));
+
+        var trips = _context.Trips.Where(t => result.Created.Select(c => c.TripId).Contains(t.Id)).ToList();
+        trips.Should().NotBeEmpty();
+        trips.All(t => t.SalesCloseAt == t.DepartureTime.AddMinutes(-minutes)).Should().BeTrue("mốc Admin cấu hình là mốc có hiệu lực, không bị ghi đè bởi trần mặc định");
+        trips.All(t => t.SalesCloseAt <= t.DepartureTime).Should().BeTrue();
+    }
+
     [Fact]
     public async Task Generate_ShouldBeIdempotent_AndCountSoftDeletedTripsAsExisting()
     {
