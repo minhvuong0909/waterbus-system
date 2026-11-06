@@ -19,7 +19,16 @@ public sealed class SqlServerDomainFactAttribute : FactAttribute
     }
 }
 
-[CollectionDefinition("Domain SQL Server")]
+/// <summary>
+/// Mọi test dùng SQL Server thật chạy TUẦN TỰ và không song song với test khác: nhiều class cùng tạo/migrate DB
+/// và mở hàng chục kết nối làm SQL Server của CI (2 core) quá tải ⇒ "pre-login handshake" timeout.
+/// </summary>
+public static class SqlCollections { public const string Serial = "SQL Server integration"; }
+
+[CollectionDefinition(SqlCollections.Serial, DisableParallelization = true)]
+public sealed class SqlSerialCollection { }
+
+[CollectionDefinition("Domain SQL Server", DisableParallelization = true)]
 public sealed class DomainSqlCollection : ICollectionFixture<DomainSqlFixture> { }
 
 public sealed class DomainSqlFixture : IAsyncLifetime
