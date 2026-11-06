@@ -30,7 +30,7 @@ public sealed class ScheduleAdminService(
         transactions.RunAsync(async () =>
         {
             var route = await RequireUsableRouteAsync(request.RouteId, request.TripType, cancellationToken);
-            ValidateStops(route, request.Stops);
+            ValidateStops(route, request.Stops, request.Direction);
             var days = ScheduleRules.ParseDays(request.DaysOfWeek)!;
             var schedule = new Schedule
             {
@@ -56,6 +56,15 @@ public sealed class ScheduleAdminService(
                     throw new ConflictException("Lịch đã sinh Trip nên không đổi được loại chuyến.");
                 await RequireUsableRouteAsync(schedule.RouteId, request.TripType, cancellationToken);
             }
+            if (request.Direction != schedule.Direction)
+            {
+                if (await schedules.HasTripsAsync(id, cancellationToken))
+                    throw new ConflictException("Lịch đã sinh Trip nên không đổi được chiều chạy.");
+                // Điểm dừng hiện có phải hợp lệ với chiều mới (Outbound: SequenceNo tăng; Inbound: giảm).
+                var route = await schedules.GetRouteWithStopsAsync(schedule.RouteId, cancellationToken);
+                ValidateStops(route, schedule.Stops.Where(s => !s.IsDeleted).OrderBy(s => s.VisitOrder)
+                    .Select(s => new ScheduleStopInput(s.RouteStopId, s.ArrivalOffsetMin, s.DepartureOffsetMin)).ToList(), request.Direction);
+            }
             schedule.TripType = tripType;
             schedule.Direction = request.Direction;
             schedule.DepartureTime = request.DepartureTime;
@@ -75,7 +84,7 @@ public sealed class ScheduleAdminService(
             if (await schedules.HasTripsAsync(id, cancellationToken))
                 throw new ConflictException("Lịch đã sinh Trip nên không đổi được điểm dừng (BR-SCH-06). Hãy tạo lịch mới.");
             var route = await schedules.GetRouteWithStopsAsync(schedule.RouteId, cancellationToken);
-            ValidateStops(route, request.Stops);
+            ValidateStops(route, request.Stops, schedule.Direction);
 
             var now = DateTimeOffset.UtcNow;
             for (var i = 0; i < request.Stops.Count; i++)
@@ -143,7 +152,8 @@ public sealed class ScheduleAdminService(
         return route;
     }
 
-    private static void ValidateStops(Route route, List<ScheduleStopInput> stops)
+    /// <summary>Outbound đi theo SequenceNo tăng dần, Inbound theo SequenceNo giảm dần (RouteStop.SequenceNo là chiều xuôi).</summary>
+    private static void ValidateStops(Route route, List<ScheduleStopInput> stops, string direction)
     {
         var errors = new List<FluentValidation.Results.ValidationFailure>();
         var byId = route.Stops.Where(s => !s.IsDeleted).ToDictionary(s => s.Id);
@@ -155,8 +165,10 @@ public sealed class ScheduleAdminService(
                 errors.Add(new($"stops[{i}].routeStopId", "Điểm dừng không thuộc Route của lịch."));
                 continue;
             }
-            if (previous != null && stop.SequenceNo <= previous.SequenceNo)
-                errors.Add(new($"stops[{i}].routeStopId", "Điểm dừng phải đi theo đúng thứ tự của Route (không đảo, không lặp)."));
+            var inbound = direction == "Inbound";
+            if (previous != null && (inbound ? stop.SequenceNo >= previous.SequenceNo : stop.SequenceNo <= previous.SequenceNo))
+                errors.Add(new($"stops[{i}].routeStopId",
+                    inbound ? "Chiều Inbound phải đi theo SequenceNo giảm dần của Route." : "Chiều Outbound phải đi theo SequenceNo tăng dần của Route (không đảo, không lặp)."));
             previous = stop;
 
             var arrival = stops[i].ArrivalOffsetMin;
@@ -186,18 +198,35 @@ public sealed class ScheduleAdminService(
             });
     }
 
+    /// <summary>Có ít nhất một ngày thật sự nằm trong cả hai khoảng hiệu lực và khớp thứ của cả hai lịch.</summary>
+    private static bool SharesDepartureDate(Schedule candidate, SortedSet<int> candidateDays, Schedule other)
+    {
+        var from = candidate.EffectiveFrom > other.EffectiveFrom ? candidate.EffectiveFrom : other.EffectiveFrom;
+        var to = Min(candidate.EffectiveTo, other.EffectiveTo);
+        if (to is { } end && end < from) return false;
+        var otherDays = ScheduleRules.ParseDays(other.DaysOfWeek) ?? [];
+        // Thứ lặp lại mỗi 7 ngày nên chỉ cần duyệt tối đa 7 ngày đầu của phần giao.
+        for (var i = 0; i < 7; i++)
+        {
+            var date = from.AddDays(i);
+            if (to is { } last && date > last) break;
+            var iso = date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)date.DayOfWeek;
+            if (candidateDays.Contains(iso) && otherDays.Contains(iso)) return true;
+        }
+        return false;
+
+        static DateOnly? Min(DateOnly? a, DateOnly? b) => a is null ? b : b is null ? a : a < b ? a : b;
+    }
+
     /// <summary>Hai lịch cùng Route/loại/hướng/giờ mà ngày chạy và khoảng hiệu lực giao nhau là mơ hồ (sinh trùng chuyến).</summary>
     private async Task EnsureNoConflictAsync(Schedule candidate, Guid? excludeId, CancellationToken cancellationToken)
     {
         var siblings = await schedules.ListActiveSiblingsAsync(
-            candidate.RouteId, candidate.TripType.ToString(), candidate.Direction, candidate.DepartureTime, excludeId, cancellationToken);
+            candidate.RouteId, candidate.TripType, candidate.Direction, candidate.DepartureTime, excludeId, cancellationToken);
         var days = ScheduleRules.ParseDays(candidate.DaysOfWeek)!;
         foreach (var other in siblings)
         {
-            var datesOverlap = candidate.EffectiveFrom <= (other.EffectiveTo ?? DateOnly.MaxValue)
-                && other.EffectiveFrom <= (candidate.EffectiveTo ?? DateOnly.MaxValue);
-            var daysOverlap = (ScheduleRules.ParseDays(other.DaysOfWeek) ?? []).Overlaps(days);
-            if (datesOverlap && daysOverlap)
+            if (SharesDepartureDate(candidate, days, other))
                 throw new ConflictException("Đã có lịch hoạt động cùng tuyến, loại chuyến, hướng và giờ khởi hành trùng ngày/hiệu lực.");
         }
     }

@@ -56,6 +56,13 @@ public sealed class RouteAdminService(
             var route = await routes.GetTrackedWithStopsAsync(id, cancellationToken);
             if (route.ServiceType != request.ServiceType && await routes.IsReferencedAsync(id, cancellationToken))
                 throw new ConflictException("Route đã có Schedule/Trip nên không đổi được loại dịch vụ.");
+            if (request.ServiceType != "Sightseeing")
+            {
+                var live = route.Stops.Where(s => !s.IsDeleted).OrderBy(s => s.SequenceNo).ToList();
+                for (var i = 1; i < live.Count; i++)
+                    if (live[i].StationId == live[i - 1].StationId)
+                        throw new ValidationException([new("serviceType", "Route có hai điểm dừng liền kề cùng bến, chỉ tuyến Sightseeing được phép.")]);
+            }
             route.Name = request.Name.Trim();
             route.ServiceType = request.ServiceType;
             route.EstimatedDurationMinutes = request.EstimatedDurationMinutes;

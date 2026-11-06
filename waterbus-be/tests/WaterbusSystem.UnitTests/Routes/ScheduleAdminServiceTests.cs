@@ -1,5 +1,8 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
+using Moq;
+using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.DTOs.Requests.Schedules;
 using WaterbusSystem.Application.Features.Schedules.Services;
 using WaterbusSystem.Application.Validators.Schedules;
@@ -111,6 +114,60 @@ public class ScheduleAdminServiceTests
         await Service().CreateAsync(Req(days: "4,5")); // ngày khác nhau
         await Service().CreateAsync(Req(days: "1,2,3", from: new DateOnly(2027, 1, 1))); // hiệu lực không giao
         await Service().CreateAsync(Req(days: "1,2,3", time: new TimeSpan(9, 0, 0))); // giờ khác
+    }
+
+    [Fact]
+    public async Task Inbound_ShouldFollowDecreasingSequence_AndOutboundRejectsIt()
+    {
+        var reversed = new List<ScheduleStopInput> { new(_stops[2].Id, null, 0), new(_stops[1].Id, 20, 22), new(_stops[0].Id, 40, null) };
+
+        var inbound = await Service().CreateAsync(Req(stops: reversed) with { Direction = "Inbound" });
+        (await Service().GetByIdAsync(inbound)).Stops.Select(s => s.SequenceNo).Should().Equal(3, 2, 1);
+
+        var outboundReversed = () => Service().CreateAsync(Req(stops: reversed, days: "6,7"));
+        var inboundAscending = () => Service().CreateAsync(Req(days: "6,7") with { Direction = "Inbound" });
+        await outboundReversed.Should().ThrowAsync<ValidationException>();
+        await inboundAscending.Should().ThrowAsync<ValidationException>();
+    }
+
+    [Fact]
+    public async Task Update_DirectionChange_ShouldRevalidateExistingStops_AndLockWhenTripsExist()
+    {
+        var id = await Service().CreateAsync(Req()); // Outbound, tăng dần
+        var flip = () => Service().UpdateAsync(id, new UpdateScheduleRequest("Commuter", "Inbound", new TimeSpan(8, 0, 0), "1,2", new DateOnly(2026, 11, 1), null));
+        await flip.Should().ThrowAsync<ValidationException>(); // điểm dừng đang tăng dần, không hợp lệ cho Inbound
+
+        _seed.Trip.ScheduleId = id;
+        _context.SaveChanges();
+        var locked = () => Service().UpdateAsync(id, new UpdateScheduleRequest("Commuter", "Inbound", new TimeSpan(8, 0, 0), "1,2", new DateOnly(2026, 11, 1), null));
+        await locked.Should().ThrowAsync<ConflictException>();
+    }
+
+    [Fact]
+    public async Task Conflict_ShouldRequireARealSharedDepartureDate()
+    {
+        // T2-only, hiệu lực 2..8/11 -> chạy 2/11; T2-only, hiệu lực 3..9/11 -> chạy 9/11: không có ngày chung.
+        await Service().CreateAsync(Req(days: "1", from: new DateOnly(2026, 11, 2), to: new DateOnly(2026, 11, 8)));
+        await Service().CreateAsync(Req(days: "1", from: new DateOnly(2026, 11, 3), to: new DateOnly(2026, 11, 9)));
+
+        var sameDay = () => Service().CreateAsync(Req(days: "1", from: new DateOnly(2026, 11, 2), to: new DateOnly(2026, 11, 2)));
+        await sameDay.Should().ThrowAsync<ConflictException>();
+    }
+
+    [Fact]
+    public async Task ActiveSiblingsQuery_ShouldBeTranslatableToSqlServer()
+    {
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseSqlServer("Server=127.0.0.1,1;Database=x;Connect Timeout=1;TrustServerCertificate=True").Options;
+        await using var sql = new ApplicationDbContext(options, Mock.Of<ICurrentUserService>());
+
+        var act = () => new ScheduleAdminRepository(sql).ListActiveSiblingsAsync(
+            _seed.Route.Id, TripType.Commuter, "Outbound", TimeSpan.FromHours(8), null);
+
+        // Kết nối sẽ thất bại (không có SQL Server); điều cần chắc là KHÔNG phải lỗi dịch LINQ.
+        var ex = await Record.ExceptionAsync(act);
+        ex.Should().NotBeNull();
+        ex.Should().NotBeOfType<InvalidOperationException>();
     }
 
     [Fact]

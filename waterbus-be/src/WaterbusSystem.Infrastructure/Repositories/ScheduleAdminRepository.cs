@@ -4,6 +4,7 @@ using WaterbusSystem.Application.DTOs.Requests.Schedules;
 using WaterbusSystem.Application.DTOs.Responses.Schedules;
 using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Domain.Entities;
+using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.Infrastructure.Persistence;
 
@@ -46,10 +47,10 @@ public sealed class ScheduleAdminRepository(ApplicationDbContext context) : ISch
         ?? throw new NotFoundException(nameof(Route), routeId);
 
     public Task<List<Schedule>> ListActiveSiblingsAsync(
-        Guid routeId, string tripType, string direction, TimeSpan departureTime, Guid? excludeId, CancellationToken cancellationToken = default) =>
+        Guid routeId, TripType tripType, string direction, TimeSpan departureTime, Guid? excludeId, CancellationToken cancellationToken = default) =>
         context.Schedules.AsNoTracking()
             .Where(s => s.RouteId == routeId && s.IsActive && s.Direction == direction && s.DepartureTime == departureTime
-                        && s.Id != excludeId && s.TripType.ToString() == tripType)
+                        && s.Id != excludeId && s.TripType == tripType)
             .ToListAsync(cancellationToken);
 
     public Task<bool> HasTripsAsync(Guid scheduleId, CancellationToken cancellationToken = default) =>

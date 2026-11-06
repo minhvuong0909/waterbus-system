@@ -2,6 +2,7 @@ using WaterbusSystem.Application.Common.Models;
 using WaterbusSystem.Application.DTOs.Requests.Schedules;
 using WaterbusSystem.Application.DTOs.Responses.Schedules;
 using WaterbusSystem.Domain.Entities;
+using WaterbusSystem.Domain.Enums;
 
 namespace WaterbusSystem.Application.Interfaces.Repositories;
 
@@ -18,7 +19,7 @@ public interface IScheduleAdminRepository
     Task<Route> GetRouteWithStopsAsync(Guid routeId, CancellationToken cancellationToken = default);
 
     /// <summary>Lịch đang hoạt động cùng Route/TripType/Direction/giờ khởi hành (service tự xét giao nhau ngày/hiệu lực).</summary>
-    Task<List<Schedule>> ListActiveSiblingsAsync(Guid routeId, string tripType, string direction, TimeSpan departureTime, Guid? excludeId, CancellationToken cancellationToken = default);
+    Task<List<Schedule>> ListActiveSiblingsAsync(Guid routeId, TripType tripType, string direction, TimeSpan departureTime, Guid? excludeId, CancellationToken cancellationToken = default);
 
     /// <summary>Lịch đã sinh Trip (kể cả xoá mềm).</summary>
     Task<bool> HasTripsAsync(Guid scheduleId, CancellationToken cancellationToken = default);

@@ -71,6 +71,17 @@ public class RouteAdminServiceTests
     }
 
     [Fact]
+    public async Task Update_ToRegular_ShouldRejectRouteWithAdjacentSameStation()
+    {
+        var id = await Service().CreateAsync(new CreateRouteRequest("RT72", "Vong", "Sightseeing", 60, 5m, [Stop(_seed.StationA.Id), Stop(_seed.StationA.Id)]));
+
+        var act = () => Service().UpdateAsync(id, new UpdateRouteRequest("Vong", "Regular", 60, 5m));
+
+        await act.Should().ThrowAsync<ValidationException>();
+        (await Service().GetByIdAsync(id)).ServiceType.Should().Be("Sightseeing");
+    }
+
+    [Fact]
     public async Task Create_ShouldRejectDuplicateCode()
     {
         await CreateAbc("RT92");
