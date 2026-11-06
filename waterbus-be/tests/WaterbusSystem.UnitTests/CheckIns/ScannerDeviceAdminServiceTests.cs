@@ -131,6 +131,23 @@ public class ScannerDeviceAdminServiceTests
     }
 
     [Fact]
+    public async Task Deactivate_AfterFutureAssignmentIsRevoked_ShouldSucceed()
+    {
+        var id = await Service().RegisterAsync(new RegisterScannerDeviceRequest("SCN-005", null));
+        var future = Assign(id, null);
+        future.ActiveFrom = Now.AddDays(3);
+        _context.SaveChanges();
+        (await Service().GetByIdAsync(id)).ActiveAssignmentCount.Should().Be(1);
+
+        future.ActiveUntil = future.ActiveFrom; // cách RevokeScannerAssignment thu hồi lịch tương lai: khoảng rỗng
+        _context.SaveChanges();
+
+        (await Service().GetByIdAsync(id)).ActiveAssignmentCount.Should().Be(0);
+        await Service().DeactivateAsync(id);
+        (await Service().GetByIdAsync(id)).IsActive.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task List_ShouldFilterBySearchAndActivity()
     {
         var a = await Service().RegisterAsync(new RegisterScannerDeviceRequest("GATE-A", "Cong chinh"));

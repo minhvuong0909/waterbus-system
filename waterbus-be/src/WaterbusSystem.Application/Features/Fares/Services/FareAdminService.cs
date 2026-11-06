@@ -51,9 +51,13 @@ public sealed class FareAdminService(
             var started = fare.EffectiveFrom <= dateTime.Now;
             if (started && (request.Price != fare.Price || request.EffectiveFrom != fare.EffectiveFrom))
                 throw new ConflictException("Bảng giá đã có hiệu lực: chỉ đổi được EffectiveTo. Muốn đổi giá hãy tạo bảng giá mới.");
+            // Unique index (TripType, SeatClassId, EffectiveFrom) tính cả bảng đã tắt nên luôn kiểm khi đổi EffectiveFrom;
+            // chỉ xét giao khoảng hiệu lực với bảng đang bật khi chính bảng này đang bật.
+            if (request.EffectiveFrom != fare.EffectiveFrom
+                && await fares.ExistsWithSameStartAsync(fare.TripType, fare.SeatClassId, request.EffectiveFrom, id, cancellationToken))
+                throw new ConflictException("Đã có bảng giá cùng loại chuyến, hạng ghế và thời điểm bắt đầu (kể cả bảng đã tắt).");
             if (fare.IsActive)
-                await EnsureNoConflictAsync(fare.TripType, fare.SeatClassId, request.EffectiveFrom, request.EffectiveTo, id,
-                    request.EffectiveFrom != fare.EffectiveFrom, cancellationToken);
+                await EnsureNoConflictAsync(fare.TripType, fare.SeatClassId, request.EffectiveFrom, request.EffectiveTo, id, false, cancellationToken);
 
             fare.Price = request.Price;
             fare.EffectiveFrom = request.EffectiveFrom;

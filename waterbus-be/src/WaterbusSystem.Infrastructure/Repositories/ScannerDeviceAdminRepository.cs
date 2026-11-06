@@ -23,7 +23,7 @@ public sealed class ScannerDeviceAdminRepository(ApplicationDbContext context) :
 
         return query.OrderBy(d => d.DeviceCode)
             .Select(d => new ScannerDeviceResponse(d.Id, d.DeviceCode, d.Label, d.IsActive, d.LastPreloadedAt,
-                context.ScannerAssignments.Count(a => a.DeviceId == d.Id && (a.ActiveUntil == null || a.ActiveUntil > now)),
+                context.ScannerAssignments.Count(a => a.DeviceId == d.Id && (a.ActiveUntil == null || (a.ActiveUntil > a.ActiveFrom && a.ActiveUntil > now))),
                 context.CheckInEvents.Count(e => e.ScannerDeviceId == d.Id)))
             .ToPaginatedListAsync(request.PageNumber, request.PageSize, cancellationToken);
     }
@@ -31,7 +31,7 @@ public sealed class ScannerDeviceAdminRepository(ApplicationDbContext context) :
     public async Task<ScannerDeviceResponse> GetDetailAsync(Guid id, DateTimeOffset now, CancellationToken cancellationToken = default) =>
         await context.ScannerDevices.AsNoTracking().Where(d => d.Id == id && !d.IsDeleted)
             .Select(d => new ScannerDeviceResponse(d.Id, d.DeviceCode, d.Label, d.IsActive, d.LastPreloadedAt,
-                context.ScannerAssignments.Count(a => a.DeviceId == d.Id && (a.ActiveUntil == null || a.ActiveUntil > now)),
+                context.ScannerAssignments.Count(a => a.DeviceId == d.Id && (a.ActiveUntil == null || (a.ActiveUntil > a.ActiveFrom && a.ActiveUntil > now))),
                 context.CheckInEvents.Count(e => e.ScannerDeviceId == d.Id)))
             .FirstOrDefaultAsync(cancellationToken)
         ?? throw new NotFoundException(nameof(ScannerDevice), id);
@@ -44,7 +44,7 @@ public sealed class ScannerDeviceAdminRepository(ApplicationDbContext context) :
         context.ScannerDevices.IgnoreQueryFilters().AnyAsync(d => d.DeviceCode == deviceCode, cancellationToken);
 
     public Task<int> CountActiveAssignmentsAsync(Guid deviceId, DateTimeOffset now, CancellationToken cancellationToken = default) =>
-        context.ScannerAssignments.CountAsync(a => a.DeviceId == deviceId && (a.ActiveUntil == null || a.ActiveUntil > now), cancellationToken);
+        context.ScannerAssignments.CountAsync(a => a.DeviceId == deviceId && (a.ActiveUntil == null || (a.ActiveUntil > a.ActiveFrom && a.ActiveUntil > now)), cancellationToken);
 
     public void Add(ScannerDevice device) => context.ScannerDevices.Add(device);
 }

@@ -147,6 +147,21 @@ public class FareAdminServiceTests
     }
 
     [Fact]
+    public async Task Update_InactiveRuleToTheStartOfAnotherRule_ShouldConflict()
+    {
+        var classId = NewClass().Id;
+        var first = await Service().CreateAsync(Create(classId, fromDays: 10, toDays: 12));
+        var second = await Service().CreateAsync(Create(classId, fromDays: 20, toDays: 22));
+        await Service().DeactivateAsync(second);
+
+        var act = () => Service().UpdateAsync(second, new UpdateFareRuleRequest(12000m, _now.AddDays(10), _now.AddDays(11)));
+
+        await act.Should().ThrowAsync<ConflictException>(); // unique index (TripType, SeatClassId, EffectiveFrom) tính cả bảng đã tắt
+        (await Service().GetByIdAsync(second)).EffectiveFrom.Should().Be(_now.AddDays(20));
+        (await Service().GetByIdAsync(first)).EffectiveFrom.Should().Be(_now.AddDays(10));
+    }
+
+    [Fact]
     public async Task Deactivate_ShouldFreeTheScopeForANewRule()
     {
         var existing = SeedFare();
