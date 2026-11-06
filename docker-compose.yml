@@ -123,6 +123,10 @@ services:
       Email__Smtp__Username: ${EMAIL_SMTP_USERNAME:-}
       Email__Smtp__Password: ${EMAIL_SMTP_PASSWORD:-}
       Email__Smtp__AllowInsecureTransport: ${EMAIL_SMTP_ALLOW_INSECURE:-false}
+      Email__MaxAttempts: ${EMAIL_MAX_ATTEMPTS:-8}
+      Email__MaxMessageAgeHours: ${EMAIL_MAX_AGE_HOURS:-48}
+      Email__FinancialMaxAttempts: ${EMAIL_FINANCIAL_MAX_ATTEMPTS:-16}
+      Email__FinancialMaxAgeHours: ${EMAIL_FINANCIAL_MAX_AGE_HOURS:-168}
       Hangfire__Dashboard__Username: ${HANGFIRE_DASHBOARD_USER:-}
       Hangfire__Dashboard__Password: ${HANGFIRE_DASHBOARD_PASSWORD:-}
     ports:

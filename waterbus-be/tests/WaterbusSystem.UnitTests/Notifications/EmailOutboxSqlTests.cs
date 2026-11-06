@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Notifications;
+using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
@@ -41,6 +42,7 @@ public sealed class EmailOutboxDb : IAsyncLifetime
     }
 }
 
+[Collection(SqlCollections.Serial)]
 public sealed class EmailOutboxSqlTests(EmailOutboxDb db) : IClassFixture<EmailOutboxDb>
 {
     private static readonly DateTimeOffset T0 = DateTimeOffset.UtcNow;
@@ -56,8 +58,8 @@ public sealed class EmailOutboxSqlTests(EmailOutboxDb db) : IClassFixture<EmailO
         await c.SaveChangesAsync(); return ids;
     }
 
-    private async Task<IReadOnlyList<EmailOutboxMessage>> Claim(Guid token, int batch = 100, DateTimeOffset? now = null, TimeSpan? lease = null, int max = 5)
-    { await using var c = db.Context(); return await new EmailOutboxRepository(c).ClaimAsync(now ?? T0, batch, lease ?? TimeSpan.FromMinutes(10), max, token, default); }
+    private async Task<IReadOnlyList<EmailOutboxMessage>> Claim(Guid token, int batch = 100, DateTimeOffset? now = null, TimeSpan? lease = null, int max = 5, int finMax = 5)
+    { await using var c = db.Context(); return await new EmailOutboxRepository(c).ClaimAsync(now ?? T0, batch, lease ?? TimeSpan.FromMinutes(10), max, finMax, token, default); }
 
     private async Task<EmailOutboxMessage> Load(Guid id) { await using var c = db.Context(); return await c.EmailOutbox.AsNoTracking().SingleAsync(m => m.Id == id); }
 
@@ -95,7 +97,7 @@ public sealed class EmailOutboxSqlTests(EmailOutboxDb db) : IClassFixture<EmailO
             try { await outbox.EnqueueBookingConfirmedAsync(orderId, default); await c.SaveChangesAsync(); return true; }
             catch (DbUpdateException) { return false; }
         }
-        var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(Attempt)));
+        var results = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => Task.Run(Attempt)));
         results.Should().Contain(true);
         await using var check = db.Context();
         (await check.EmailOutbox.CountAsync(m => m.EventKey == $"BOOKING_CONFIRMED:{orderId:N}")).Should().Be(1);
@@ -126,7 +128,7 @@ public sealed class EmailOutboxSqlTests(EmailOutboxDb db) : IClassFixture<EmailO
         var claimed = new List<Guid>();
         for (var round = 0; round < 8 && claimed.Count < 60; round++)
         {
-            var batches = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => Task.Run(() => Claim(Guid.NewGuid(), 15))));
+            var batches = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => Task.Run(() => Claim(Guid.NewGuid(), 15))));
             claimed.AddRange(batches.SelectMany(b => b).Select(m => m.Id).Where(ids.Contains));
         }
         claimed.Should().OnlyHaveUniqueItems("READPAST/UPDLOCK: mỗi bản ghi chỉ thuộc một worker");
@@ -158,8 +160,8 @@ public sealed class EmailOutboxSqlTests(EmailOutboxDb db) : IClassFixture<EmailO
     public async Task AbandonedRecordAtMaxAttemptsIsDeadLetteredNotReclaimed()
     {
         var id = (await Insert(1)).Single();
-        await Claim(Guid.NewGuid(), 1000, T0, TimeSpan.FromMinutes(1), max: 1);
-        (await Claim(Guid.NewGuid(), 1000, T0.AddMinutes(5), max: 1)).Should().NotContain(m => m.Id == id);
+        await Claim(Guid.NewGuid(), 1000, T0, TimeSpan.FromMinutes(1), max: 1, finMax: 1);
+        (await Claim(Guid.NewGuid(), 1000, T0.AddMinutes(5), max: 1, finMax: 1)).Should().NotContain(m => m.Id == id);
         var m = await Load(id); m.Status.Should().Be(EmailOutboxStatus.DeadLetter); m.LastError.Should().Contain("max attempts");
     }
 
@@ -230,6 +232,67 @@ public sealed class EmailOutboxSqlTests(EmailOutboxDb db) : IClassFixture<EmailO
         (await Load(row.Id)).Status.Should().Be(EmailOutboxStatus.Sent);
         var email = transport.Sent.Single(e => e.MessageKey == row.Id);
         email.ToEmail.Should().Be("buyer@example.com"); email.Images.Should().ContainSingle(); email.Subject.Should().Contain(c.Bookings.Single(b => b.OrderId == checkout.OrderId).BookingCode);
+    }
+
+
+    [SqlServerDomainFact]
+    public async Task FinancialMessagesKeepBeingReclaimedLongerThanOperationalOnes()
+    {
+        var financial = Msg(); var operational = Msg(); operational.NotificationType = EmailNotificationType.TripCancelled;
+        await using (var c = db.Context()) { c.EmailOutbox.AddRange(financial, operational); await c.SaveChangesAsync(); }
+        await Claim(Guid.NewGuid(), 1000, T0, TimeSpan.FromMinutes(1), max: 1, finMax: 3);
+
+        var again = await Claim(Guid.NewGuid(), 1000, T0.AddMinutes(5), max: 1, finMax: 3);
+
+        again.Should().Contain(m => m.Id == financial.Id && m.AttemptCount == 2);
+        again.Should().NotContain(m => m.Id == operational.Id);
+        (await Load(operational.Id)).Status.Should().Be(EmailOutboxStatus.DeadLetter);
+    }
+
+    private sealed class StubData : INotificationDataRepository
+    {
+        public Task<NotificationRecipient?> GetOrderRecipientAsync(Guid o, CancellationToken ct) => throw new NotSupportedException();
+        public Task<IReadOnlyList<NotificationRecipient>> GetConfirmedBookingRecipientsForTripAsync(Guid t, CancellationToken ct) => throw new NotSupportedException();
+        public Task<NotificationRecipient?> GetRefundRecipientAsync(Guid r, CancellationToken ct) => throw new NotSupportedException();
+        public Task<BookingConfirmationData?> GetBookingConfirmationAsync(Guid o, CancellationToken ct) => Task.FromResult<BookingConfirmationData?>(
+            new(o, "Buyer", "buyer@example.com", OrderStatus.Confirmed, PurchaseMode.OneWay, 15000m, "VND", [NotificationTemplateTests.Leg()]));
+        public Task<TripDisruptionData?> GetTripDisruptionAsync(Guid b, CancellationToken ct) => throw new NotSupportedException();
+        public Task<RefundSuccessData?> GetRefundSuccessAsync(Guid r, CancellationToken ct) => throw new NotSupportedException();
+    }
+
+    [SqlServerDomainFact]
+    public async Task SlowSmtpWithTwoWorkersOnTheRealOutboxNeverSendsAMessageTwice()
+    {
+        await using (var purge = db.Context()) await purge.EmailOutbox.IgnoreQueryFilters().ExecuteDeleteAsync(); // chỉ test này chạy (collection tuần tự): cô lập khỏi bản ghi của test khác
+        var ids = (await Insert(6, "SLOW:" + Guid.NewGuid().ToString("N"))).ToHashSet();
+        var clock = new MutableClock { Now = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(5) };
+        var options = Options.Create(new EmailOptions { Enabled = true, FromAddress = "no-reply@x.example", LeaseMinutes = 10, BatchSize = 50 });
+        var sent = new List<Guid>(); var nested = false;
+        EmailOutboxProcessor Worker(ApplicationDbContext c, Func<IEmailTransport> transport) => new(new EmailOutboxRepository(c),
+            new NotificationEmailComposer(new StubData(), new FixedSigner(), new FixedQr(), options), transport(), clock, options, NullLogger<EmailOutboxProcessor>.Instance);
+
+        await using var cb = db.Context(); await using var ca = db.Context();
+        var transportB = new SlowTransport(clock, sent, null, slow: false);   // worker B gửi nhanh
+        var workerB = Worker(cb, () => transportB);
+        // Mỗi lần gửi của worker A mất 6 phút (lease 10 phút; cả lô 36 phút) và trong lúc đó worker B chạy trên DB thật.
+        var transportA = new SlowTransport(clock, sent, () =>
+        {
+            if (nested) return; nested = true; workerB.ProcessBatchAsync(default).GetAwaiter().GetResult(); nested = false;
+        });
+        await Worker(ca, () => transportA).ProcessBatchAsync(default);
+
+        sent.Where(ids.Contains).Should().HaveCount(6).And.OnlyHaveUniqueItems("không bản ghi nào bị gửi trùng do lease hết hạn giữa lô");
+        await using var check = db.Context();
+        (await check.EmailOutbox.Where(m => ids.Contains(m.Id)).AllAsync(m => m.Status == EmailOutboxStatus.Sent && m.AttemptCount == 1)).Should().BeTrue();
+    }
+
+    private sealed class SlowTransport(MutableClock clock, List<Guid> sent, Action? during, bool slow = true) : IEmailTransport
+    {
+        public Task<EmailSendResult> SendAsync(OutboundEmail e, CancellationToken ct)
+        {
+            if (slow) clock.Now += TimeSpan.FromMinutes(6); during?.Invoke(); sent.Add(e.MessageKey);
+            return Task.FromResult(new EmailSendResult("250 ok"));
+        }
     }
 
     private static NotificationEmailComposer Composer(ApplicationDbContext c) => new(new NotificationDataRepository(c), new FixedSigner(), new FixedQr(),

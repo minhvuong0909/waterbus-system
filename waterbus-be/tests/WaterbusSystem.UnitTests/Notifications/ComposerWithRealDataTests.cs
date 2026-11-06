@@ -111,4 +111,74 @@ public sealed class ComposerWithRealDataTests
         var email = (await Compose(c, m => m.NotificationType == EmailNotificationType.RefundSucceeded)).Email!;
         email.HtmlBody.Should().Contain("Hoàn toàn bộ số tiền đã thanh toán").And.Contain("không có vé nào được phát hành").And.Contain("gw-late-1");
     }
+
+    // ---- F01: chính sách trạng thái giữa lúc thanh toán và lúc gửi ----
+
+    [Fact]
+    public async Task ConfirmationIsNeverSentWithAQrForATripCancelledBeforeDispatch()
+    {
+        using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c); var g = new CommercialCheckoutTests.Gateway();
+        await PayAsync(c, g, await CheckoutAsync(c, g, "Buyer", "buyer@example.com", Leg(seed, seed.Seat1)));
+        await TripSvc(c).ChangeStatusAsync(seed.Trip.Id, Op(TripOperation.Cancel));   // sau thanh toán, trước khi worker gửi
+
+        var confirmation = await Compose(c, m => m.NotificationType == EmailNotificationType.BookingConfirmed);
+        var cancellation = await Compose(c, m => m.NotificationType == EmailNotificationType.TripCancelled);
+
+        confirmation.Email.Should().BeNull(); confirmation.SkipReason.Should().Contain("Không còn chặng nào hiệu lực");
+        cancellation.Email.Should().NotBeNull("khách nhận thông báo huỷ chuyến thay cho xác nhận");
+        cancellation.Email!.Images.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CancellationThenRefundThenDelayedDispatchStaysConsistent()
+    {
+        using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c);
+        var g = new CommercialCheckoutTests.Gateway { Outcome = RefundGatewayResult.Succeeded("gw-1") };
+        await PayAsync(c, g, await CheckoutAsync(c, g, "Buyer", "buyer@example.com", Leg(seed, seed.Seat1)));
+        await TripSvc(c).ChangeStatusAsync(seed.Trip.Id, Op(TripOperation.Cancel));
+        await CommercialHandlerFactory.Refund(c, [g]).RequestAsync(new(c.Bookings.Single().Id, "cancelled")); // Booking → Cancelled
+
+        c.Bookings.Single().Status.Should().Be(BookingStatus.Cancelled);
+        (await Compose(c, m => m.NotificationType == EmailNotificationType.BookingConfirmed)).Email.Should().BeNull();
+        // Thông báo huỷ vẫn gửi được dù Booking đã đổi trạng thái sau hoàn tiền (chính sách chỉ dựa trên trạng thái Trip).
+        (await Compose(c, m => m.NotificationType == EmailNotificationType.TripCancelled)).Email.Should().NotBeNull();
+        (await Compose(c, m => m.NotificationType == EmailNotificationType.RefundSucceeded)).Email.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task RoundTripConfirmationAfterOneLegIsCancelledDescribesOnlyTheValidLegWithoutItsQr()
+    {
+        using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c); var g = new CommercialCheckoutTests.Gateway();
+        var back = AddReturnTrip(c, seed);
+        await PayAsync(c, g, await CheckoutAsync(c, g, "Buyer", "buyer@example.com", Leg(seed, seed.Seat1), Leg(seed with { Trip = back }, seed.Seat2)));
+        await TripSvc(c).ChangeStatusAsync(back.Id, Op(TripOperation.Cancel));
+
+        var email = (await Compose(c, m => m.NotificationType == EmailNotificationType.BookingConfirmed)).Email!;
+
+        var outbound = c.Bookings.Single(b => b.TripId == seed.Trip.Id); var returning = c.Bookings.Single(b => b.TripId == back.Id);
+        email.Images.Should().ContainSingle().Which.ContentId.Should().Contain(outbound.Id.ToString("N"));
+        email.Subject.Should().Contain(outbound.BookingCode).And.NotContain(returning.BookingCode);
+        email.HtmlBody.Should().Contain("không còn hiệu lực").And.Contain(returning.BookingCode);
+        email.HtmlBody.Should().NotContain(returning.Id.ToString("N"));
+    }
+
+    [Fact]
+    public async Task RoundTripWhereBothLegsAreCancelledSendsNoConfirmationAtAll()
+    {
+        using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c); var g = new CommercialCheckoutTests.Gateway();
+        var back = AddReturnTrip(c, seed);
+        await PayAsync(c, g, await CheckoutAsync(c, g, "Buyer", "buyer@example.com", Leg(seed, seed.Seat1), Leg(seed with { Trip = back }, seed.Seat2)));
+        await TripSvc(c).ChangeStatusAsync(seed.Trip.Id, Op(TripOperation.Cancel));
+        await TripSvc(c).ChangeStatusAsync(back.Id, Op(TripOperation.Cancel));
+        (await Compose(c, m => m.NotificationType == EmailNotificationType.BookingConfirmed)).Email.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ConfirmationForATripThatAlreadyCompletedIsNotSent()
+    {
+        using var c = TestDbContextFactory.CreateDbContext(); var seed = TestDbContextFactory.SeedTrip(c); var g = new CommercialCheckoutTests.Gateway();
+        await PayAsync(c, g, await CheckoutAsync(c, g, "Buyer", "buyer@example.com", Leg(seed, seed.Seat1)));
+        seed.Trip.Status = TripStatus.Completed; await c.SaveChangesAsync();
+        (await Compose(c, m => m.NotificationType == EmailNotificationType.BookingConfirmed)).Email.Should().BeNull();
+    }
 }

@@ -87,7 +87,7 @@ sequenceDiagram
 - **Claim nguyên tử** (nhiều worker): `UPDATE TOP(n) … WITH (UPDLOCK, READPAST, ROWLOCK)` đặt `Processing + LockToken + LockedUntil`, `AttemptCount+1`. Ghi kết quả có điều kiện `LockToken` ⇒ worker "zombie" không ghi đè.
 - **Phục hồi crash**: bản ghi `Processing` có `LockedUntil < now` được claim lại; nếu đã đạt `MaxAttempts` thì chuyển `DeadLetter` thay vì lặp vô hạn.
 - **Không phụ thuộc enqueue sau commit**: polling bền vững; độ trễ ≤ chu kỳ cron (mặc định 1 phút).
-- **Bản ghi cũ**: quá `MaxMessageAgeHours` (mặc định 48h) → `Skipped` (không gửi email "đã xác nhận" lỗi thời sau khi bật SMTP trễ).
+- **Bản ghi cũ**: không bao giờ tự bị bỏ qua vì tuổi — xem §15 (chính sách theo loại; quá hạn ⇒ `DeadLetter` "StaleNeedsReview" chờ vận hành).
 - **Email tắt** (`Email:Enabled=false`, mặc định): job không claim ⇒ bản ghi nằm `Pending`, **không bao giờ** bị đánh dấu `Sent`.
 - **Người nhận không hợp lệ**: vẫn ghi 1 dòng `DeadLetter` ("InvalidRecipient") để vận hành thấy — không mất thông báo âm thầm.
 
@@ -129,7 +129,7 @@ Biến môi trường (`Email__*`), migration `AddEmailOutbox` (bảng mới, **
 
 ## 11. Runbook vận hành (inspect / retry / dead-letter)
 
-Trạng thái: `Pending` (chờ) · `Processing` (worker đang giữ lease) · `Sent` · `Failed` (lỗi tạm, sẽ retry ở `NextAttemptAt`) · `DeadLetter` (dừng, cần người xử lý) · `Skipped` (cố ý không gửi: quá hạn / dữ liệu không còn đúng).
+Trạng thái: `Pending` (chờ) · `Processing` (worker đang giữ lease) · `Sent` · `Failed` (lỗi tạm, sẽ retry ở `NextAttemptAt`) · `DeadLetter` (dừng, cần người xử lý) · `Skipped` (cố ý không gửi vì dữ liệu/trạng thái không còn đúng; `LastError` ghi lý do — KHÔNG dùng cho lý do tuổi).
 
 ```sql
 -- Tổng quan
@@ -152,11 +152,11 @@ UPDATE EmailOutbox SET Status='Pending', AttemptCount=0, NextAttemptAt=SYSDATETI
        LockToken=NULL, LockedUntil=NULL, LastError=NULL, UpdatedAt=SYSDATETIMEOFFSET()
 WHERE Id = @Id AND Status IN ('DeadLetter','Failed');   -- KHÔNG áp dụng cho Sent/Processing
 ```
-3. Bản ghi cũ hơn `Email:MaxMessageAgeHours` (mặc định 48h) sẽ bị `Skipped`. Muốn gửi lại thư cũ phải chủ ý: tăng tạm `Email__MaxMessageAgeHours` **hoặc** đặt `CreatedAt = SYSDATETIMEOFFSET()` cho đúng dòng đó, sau khi chắc nội dung vẫn đúng.
+3. Bản ghi `DeadLetter` với `LastError` bắt đầu bằng `StaleNeedsReview` là chưa gửi được quá hạn chính sách (§15). **Người vận hành quyết định**: còn đáng gửi không (xem Order/Trip/Refund hiện tại)? Nếu có, đặt `CreatedAt = SYSDATETIMEOFFSET()` cùng lệnh UPDATE ở bước 2 để cửa sổ tuổi bắt đầu lại; nếu không, để nguyên `DeadLetter` và ghi chú lý do vào ticket. Bản ghi tài chính (xác nhận/hoàn tiền) cần xem xét trong vòng 1 ngày làm việc sau khi xuất hiện.
 4. Worker chạy mỗi phút; theo dõi log `Email outbox … sent` hoặc cột `Status`.
 **Không** `INSERT` thủ công, **không** xoá dòng `Sent` (mất bằng chứng + mở cửa gửi trùng), **không** retry hàng loạt khi chưa biết nguyên nhân.
 
-Hangfire dashboard (`/hangfire`, Admin/Basic Auth) hiển thị job recurring `email-outbox`. Bật email lần đầu: các bản ghi `Pending` tích luỹ khi email tắt sẽ được gửi (trừ bản ghi quá `MaxMessageAgeHours` ⇒ `Skipped`).
+Hangfire dashboard (`/hangfire`, Admin/Basic Auth) hiển thị job recurring `email-outbox`. Bật email lần đầu: các bản ghi `Pending` tích luỹ khi email tắt sẽ được gửi nếu còn trong cửa sổ chính sách; bản ghi quá cửa sổ chuyển `DeadLetter` (StaleNeedsReview) để vận hành xem xét, không bị mất.
 
 ## 12. Cấu hình & triển khai
 
@@ -169,8 +169,9 @@ Hangfire dashboard (`/hangfire`, Admin/Basic Auth) hiển thị job recurring `e
 | `Email__Smtp__Host/Port/Security` | –/587/`StartTls` | `StartTls`\|`SslOnConnect`\|`None` |
 | `Email__Smtp__Username/Password` | trống | Phải cùng có hoặc cùng trống; chỉ để ở user-secrets/secret store |
 | `Email__Smtp__AllowInsecureTransport` | `false` | Cần cho `Security=None`; **luôn bị từ chối ở Production** |
-| `Email__Smtp__TimeoutSeconds` | 30 | `LeaseMinutes*60` phải > 2× giá trị này |
-| `Email__MaxAttempts` / `BatchSize` / `LeaseMinutes` / `MaxMessageAgeHours` / `Cron` | 8 / 20 / 10 / 48 / `* * * * *` | |
+| `Email__Smtp__TimeoutSeconds` | 30 | `LeaseMinutes*60` phải > 4× giá trị này (connect + auth + send + disconnect) |
+| `Email__MaxAttempts` / `BatchSize` / `LeaseMinutes` / `MaxMessageAgeHours` / `Cron` | 8 / 20 / 10 / 48 / `* * * * *` | `MaxAttempts`, `MaxMessageAgeHours`: thông báo vận hành (huỷ/chấm dứt chuyến) |
+| `Email__FinancialMaxAttempts` / `FinancialMaxAgeHours` | 16 / 168 | Thông báo tài chính (xác nhận vé, hoàn tiền); `FinancialMaxAgeHours` ≥ `MaxMessageAgeHours` |
 
 Dịch vụ ngoài cần có: SMTP relay (SES/SendGrid/Mailgun SMTP/…); SPF/DKIM/DMARC cho domain gửi (ngoài phạm vi code). Dev: `docker compose --profile mail-dev up -d mailpit` rồi đặt `EMAIL_SMTP_HOST=mailpit EMAIL_SMTP_PORT=1025 EMAIL_SMTP_SECURITY=None EMAIL_SMTP_ALLOW_INSECURE=true ASPNETCORE_ENVIRONMENT=Development`, xem thư ở http://localhost:8025.
 Migration `AddEmailOutbox` chỉ **tạo bảng mới** (không đụng dữ liệu cũ); rollback = `ef migrations remove`/drop bảng, ứng dụng cũ không phụ thuộc bảng này.
@@ -188,7 +189,32 @@ Migration `AddEmailOutbox` chỉ **tạo bảng mới** (không đụng dữ li�
 1. **Không có exactly-once vật lý.** DB bảo đảm một thông báo logic/sự kiện. Nếu SMTP server đã nhận thư nhưng ta timeout/crash trước khi ghi `Sent`, lần retry gửi **bản thứ hai** (cùng `Message-Id`, một số MTA/MUA sẽ khử trùng, không bảo đảm).
 2. **Độ trễ ≤ 1 phút** (chu kỳ cron) — không enqueue Hangfire tức thì sau commit (chủ ý để không phụ thuộc vào nó).
 3. **QR trong email là bearer credential**: ai đọc được hộp thư người mua dùng được QR (cùng mức với trang vé hiện tại). Email không chứa link/token quản lý đơn nên **không có link xuyên thiết bị**; khách xem lại vé bằng chính email (QR) hoặc link quản lý lưu từ lúc đặt vé.
-4. Khi `Email:Enabled=false` nhưng FE vẫn nói "chúng tôi cũng sẽ gửi email…" thì câu chữ FE sẽ không đúng với môi trường đó (FE không biết cấu hình backend); câu chữ đã nhấn mạnh vé có ngay và không cần email.
+4. FE không biết `Email:Enabled`, nên câu chữ trang xác nhận mang tính điều kiện ("nếu dịch vụ email được bật, email xác nhận có thể được gửi…") và nhấn mạnh vé có ngay, không cần email để lên tàu — đúng với mọi cấu hình.
 5. Chưa kiểm chứng với **nhà cung cấp SMTP thật** (không có credential): đã kiểm bằng MailKit → SMTP catcher cục bộ (trong test) và một API chạy thật + SQL Server + catcher.
 6. Hoàn tiền: chỉ thông báo khi `Succeeded`. Hoàn tiền `LATE_REFUND_*` (thanh toán muộn, không có vé) cũng được thông báo (Order `Expired`, không có Ticket) với nội dung riêng.
 7. Nhắc giờ khởi hành (EMAIL-04) chưa làm: thêm `EmailNotificationType` + khoá + template + một nhánh `Enqueue…` từ job quét.
+
+## 15. Sửa theo review PR #59 (F01–F04 + CI)
+
+**F01 — chính sách trạng thái giữa lúc thanh toán và lúc gửi.** Composer đánh giá lại *từng chặng* (Booking) lúc gửi: chặng "còn hiệu lực" ⇔ Booking `Confirmed/Completed` **và** Trip không `Cancelled/Terminated/Completed`.
+| Tình huống lúc gửi | Kết quả |
+|---|---|
+| Mọi chặng còn hiệu lực | Email xác nhận đầy đủ, 1 QR/chặng |
+| Một số chặng hết hiệu lực (khứ hồi bị huỷ 1 chiều) | Xác nhận chỉ mô tả chặng còn hiệu lực, **không** kèm QR chặng kia, có ghi chú "đặt chỗ X không còn hiệu lực — nhận thông báo riêng" |
+| Không chặng nào còn hiệu lực (huỷ/chấm dứt/hoàn tất trước khi gửi, hoặc đã hoàn tiền) | `Skipped` (lý do trong `LastError`); khách nhận thông báo huỷ/chấm dứt thay thế |
+| Email huỷ/chấm dứt | Chỉ phụ thuộc trạng thái Trip (vẫn gửi được sau khi hoàn tiền đổi trạng thái Booking) |
+| Email hoàn tiền | Chỉ phụ thuộc refund `Succeeded` |
+`Skipped` chỉ dùng cho lý do trạng thái, không bao giờ cho lý do tuổi.
+
+**F02 — lease theo từng bản ghi.** Worker claim **một bản ghi mỗi lần** (lặp tối đa `BatchSize` lần), nên lease `LeaseMinutes` bắt đầu đúng lúc xử lý bản ghi đó; bản ghi cuối của lô không thể hết lease khi chờ các bản ghi trước. Validator yêu cầu `LeaseMinutes*60 > 4×Smtp:TimeoutSeconds`. Kết quả ghi vẫn có điều kiện `LockToken` (worker mất lease không ghi đè được).
+
+**F03 — chính sách theo loại, không hủy âm thầm.**
+| Loại | Số lần thử | Quá hạn |
+|---|---|---|
+| Tài chính (`BookingConfirmed`, `RefundSucceeded`) | `FinancialMaxAttempts` (16 ≈ vài ngày với backoff trần 6h) | sau `FinancialMaxAgeHours` (168h) ⇒ `DeadLetter` "StaleNeedsReview" + log Error |
+| Vận hành (`TripCancelled/Terminated`) | `MaxAttempts` (8) | sau `MaxMessageAgeHours` (48h) ⇒ `DeadLetter` "StaleNeedsReview" |
+Hết lượt thử cũng ⇒ `DeadLetter` (không `Skipped`). Mọi `DeadLetter` hiện trong truy vấn runbook §11 để người vận hành xem; chu trình xem xét tài chính ≤ 1 ngày làm việc.
+
+**F04 — FE.** Câu chữ trang xác nhận mang tính điều kiện, đúng cả khi email tắt.
+
+**CI.** Lỗi gốc: các class test SQL Server chạy song song (mỗi class tạo/migrate DB, mở hàng chục kết nối) làm SQL Server 2 core của CI quá tải ⇒ "pre-login handshake timeout" rồi runner bị huỷ. Sửa: mọi test dùng SQL thật (`CommercialSqlTests`, `DomainPersistenceTests`, `WeatherGuardConcurrencySqlTests`, `ReadinessCheckTests`, `EmailOutboxSqlTests`) thuộc collection `DisableParallelization` nên chạy tuần tự và không song song với test khác; giảm số tác vụ song song trong test của PR; bỏ bước CI chạy lặp lại bộ Notifications (đã nằm trong bước Test, được cổng "không bị skip" kiểm tra).

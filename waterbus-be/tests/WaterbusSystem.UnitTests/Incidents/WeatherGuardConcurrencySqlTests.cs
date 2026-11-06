@@ -20,6 +20,7 @@ namespace WaterbusSystem.UnitTests.Incidents;
 /// Audit M09: hai lượt quét thời tiết chạy cùng lúc (thủ công + theo lịch) không được tạo 2 Incident Open cho cùng tuyến.
 /// InMemory không chứng minh được loại trừ lẫn nhau nên test này cần SQL Server thật (WATERBUS_TEST_SQLSERVER).
 /// </summary>
+[Collection(WaterbusSystem.UnitTests.Domain.SqlCollections.Serial)]
 public sealed class WeatherGuardConcurrencySqlTests : IAsyncLifetime
 {
     private string? _connection;

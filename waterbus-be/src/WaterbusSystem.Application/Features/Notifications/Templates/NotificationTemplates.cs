@@ -8,7 +8,8 @@ public static class NotificationTemplates
     public sealed record Rendered(string Subject, string Html, string Text);
 
     /// <param name="qrContentIds">BookingId → Content-ID của ảnh QR đã ký cho Booking đó.</param>
-    public static Rendered BookingConfirmed(BookingConfirmationData d, EmailContext ctx, IReadOnlyDictionary<Guid, string> qrContentIds)
+    public static Rendered BookingConfirmed(BookingConfirmationData d, EmailContext ctx, IReadOnlyDictionary<Guid, string> qrContentIds,
+        IReadOnlyList<string>? omittedBookingCodes = null)
     {
         var b = new EmailBodyBuilder(ctx);
         var codes = string.Join(", ", d.Legs.Select(l => l.BookingCode));
@@ -38,6 +39,8 @@ public static class NotificationTemplates
             }
         }
 
+        if (omittedBookingCodes is { Count: > 0 })
+            b.Notice($"Đặt chỗ {string.Join(", ", omittedBookingCodes)} của đơn này không còn hiệu lực do chuyến bị hủy/chấm dứt hoặc đã bị hủy, nên không kèm mã QR. Bạn nhận thông báo riêng cho đặt chỗ đó.");
         b.Divider();
         b.Heading("Cách sử dụng vé");
         b.Paragraph("Đưa mã QR cho nhân viên soát vé khi lên tàu. Mã QR là vé của bạn — không chia sẻ cho người không đi cùng.");

@@ -16,7 +16,7 @@ public sealed class EmailOutboxRepository(ApplicationDbContext context) : IEmail
         context.EmailOutbox.IgnoreQueryFilters().AsNoTracking().AnyAsync(m => m.EventKey == eventKey, ct);
 
     public async Task<IReadOnlyList<EmailOutboxMessage>> ClaimAsync(DateTimeOffset now, int batchSize, TimeSpan lease,
-        int maxAttempts, Guid lockToken, CancellationToken ct)
+        int maxAttempts, int financialMaxAttempts, Guid lockToken, CancellationToken ct)
     {
         // READPAST + UPDLOCK: nhiều worker/instance cùng chạy sẽ nhận các tập bản ghi rời nhau, không chờ nhau.
         // Câu 1: bản ghi bị bỏ rơi (worker chết) đã hết lượt thử ⇒ DeadLetter thay vì lặp vô hạn.
@@ -24,7 +24,8 @@ public sealed class EmailOutboxRepository(ApplicationDbContext context) : IEmail
         const string sql = """
             UPDATE [EmailOutbox] SET [Status] = 'DeadLetter', [LockToken] = NULL, [LockedUntil] = NULL,
                 [LastError] = LEFT(N'Lease expired after max attempts. ' + COALESCE([LastError], N''), 500), [UpdatedAt] = @now
-            WHERE [IsDeleted] = 0 AND [Status] = 'Processing' AND [LockedUntil] < @now AND [AttemptCount] >= @maxAttempts;
+            WHERE [IsDeleted] = 0 AND [Status] = 'Processing' AND [LockedUntil] < @now AND
+                [AttemptCount] >= CASE WHEN [NotificationType] IN ('BookingConfirmed', 'RefundSucceeded') THEN @financialMaxAttempts ELSE @maxAttempts END;
 
             WITH due AS (
                 SELECT TOP (@batch) * FROM [EmailOutbox] WITH (UPDLOCK, READPAST, ROWLOCK)
@@ -40,6 +41,7 @@ public sealed class EmailOutboxRepository(ApplicationDbContext context) : IEmail
             new SqlParameter("@until", SqlDbType.DateTimeOffset) { Value = now + lease },
             new SqlParameter("@batch", SqlDbType.Int) { Value = batchSize },
             new SqlParameter("@maxAttempts", SqlDbType.Int) { Value = maxAttempts },
+            new SqlParameter("@financialMaxAttempts", SqlDbType.Int) { Value = financialMaxAttempts },
             new SqlParameter("@token", SqlDbType.UniqueIdentifier) { Value = lockToken }], ct);
 
         return await context.EmailOutbox.AsNoTracking().Where(m => m.LockToken == lockToken && m.Status == EmailOutboxStatus.Processing)

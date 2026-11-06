@@ -11,11 +11,12 @@ public interface IEmailOutboxRepository
 
     /// <summary>
     /// Claim nguyên tử tối đa <paramref name="batchSize"/> bản ghi đến hạn (Pending/Failed hoặc Processing hết lease),
-    /// đặt lease + <paramref name="lockToken"/> và tăng AttemptCount. Bản ghi Processing hết lease đã đạt
-    /// <paramref name="maxAttempts"/> chuyển DeadLetter thay vì claim lại.
+    /// đặt lease + <paramref name="lockToken"/> và tăng AttemptCount. Bản ghi Processing hết lease đã đạt số lần thử tối đa
+    /// (<paramref name="maxAttempts"/>, riêng loại tài chính là <paramref name="financialMaxAttempts"/>) chuyển DeadLetter thay vì claim lại.
+    /// Worker nên claim từng bản ghi một (batchSize = 1) để lease tính từ lúc BẮT ĐẦU xử lý chính bản ghi đó.
     /// </summary>
     Task<IReadOnlyList<EmailOutboxMessage>> ClaimAsync(DateTimeOffset now, int batchSize, TimeSpan lease,
-        int maxAttempts, Guid lockToken, CancellationToken ct);
+        int maxAttempts, int financialMaxAttempts, Guid lockToken, CancellationToken ct);
 
     // Mọi thao tác ghi kết quả có điều kiện LockToken: worker đã mất lease không ghi đè được. Trả false nếu mất lease.
     Task<bool> MarkSentAsync(Guid id, Guid lockToken, string? providerMessageId, DateTimeOffset now, CancellationToken ct);

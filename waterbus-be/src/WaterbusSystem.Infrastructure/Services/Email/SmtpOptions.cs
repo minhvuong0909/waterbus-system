@@ -48,8 +48,11 @@ public static class EmailConfigurationRules
         if (o.MaxAttempts is < 1 or > 20) errors.Add("Email:MaxAttempts phải trong 1..20.");
         if (o.BatchSize is < 1 or > 200) errors.Add("Email:BatchSize phải trong 1..200.");
         if (o.MaxMessageAgeHours < 1) errors.Add("Email:MaxMessageAgeHours phải >= 1.");
-        if (o.LeaseMinutes * 60 <= s.TimeoutSeconds * 2)
-            errors.Add("Email:LeaseMinutes phải lớn hơn 2 lần Smtp:TimeoutSeconds (tránh claim lại khi đang gửi).");
+        if (o.FinancialMaxAttempts is < 1 or > 40) errors.Add("Email:FinancialMaxAttempts phải trong 1..40.");
+        if (o.FinancialMaxAgeHours < o.MaxMessageAgeHours) errors.Add("Email:FinancialMaxAgeHours phải >= MaxMessageAgeHours.");
+        // Một lần gửi gồm connect + authenticate + send (+ disconnect), mỗi bước có thể chờ tới TimeoutSeconds.
+        if (o.LeaseMinutes * 60 <= s.TimeoutSeconds * 4)
+            errors.Add("Email:LeaseMinutes phải lớn hơn 4 lần Smtp:TimeoutSeconds (tránh claim lại khi đang gửi).");
         if (string.IsNullOrWhiteSpace(o.Cron)) errors.Add("Email:Cron là bắt buộc.");
         return errors;
     }

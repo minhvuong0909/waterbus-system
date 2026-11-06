@@ -31,7 +31,7 @@ public sealed class MailKitEmailTransport(IOptions<SmtpOptions> smtpOptions, IOp
                 _ => SecureSocketOptions.StartTls // bắt buộc TLS, không hạ cấp ngầm
             }, ct);
             if (!string.IsNullOrWhiteSpace(smtp.Username))
-                await client.AuthenticateAsync(smtp.Username, smtp.Password, ct);
+                await client.AuthenticateAsync(smtp.Username, smtp.Password ?? string.Empty, ct);
             var response = await client.SendAsync(message, ct);
             await client.DisconnectAsync(true, CancellationToken.None);
             var id = string.IsNullOrWhiteSpace(response) ? message.MessageId : response.Trim();

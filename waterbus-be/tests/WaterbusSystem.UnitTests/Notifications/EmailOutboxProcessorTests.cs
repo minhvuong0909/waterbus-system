@@ -18,13 +18,13 @@ public sealed class EmailOutboxProcessorTests
     internal sealed class FakeOutbox(Clock clock) : IEmailOutboxRepository
     {
         public readonly List<EmailOutboxMessage> Items = [];
-        public int ClaimCalls;
+        public int ClaimCalls; public readonly List<int> BatchSizes = [];
         public void Add(EmailOutboxMessage m) => Items.Add(m);
         public Task<bool> ExistsAsync(string k, CancellationToken ct) => Task.FromResult(Items.Any(m => m.EventKey == k));
-        public Task<IReadOnlyList<EmailOutboxMessage>> ClaimAsync(DateTimeOffset now, int batch, TimeSpan lease, int max, Guid token, CancellationToken ct)
+        public Task<IReadOnlyList<EmailOutboxMessage>> ClaimAsync(DateTimeOffset now, int batch, TimeSpan lease, int max, int finMax, Guid token, CancellationToken ct)
         {
-            ClaimCalls++;
-            foreach (var m in Items.Where(m => m.Status == EmailOutboxStatus.Processing && m.LockedUntil < now && m.AttemptCount >= max).ToList())
+            ClaimCalls++; BatchSizes.Add(batch);
+            foreach (var m in Items.Where(m => m.Status == EmailOutboxStatus.Processing && m.LockedUntil < now && m.AttemptCount >= (NotificationPolicy.IsFinancial(m.NotificationType) ? finMax : max)).ToList())
                 m.Status = EmailOutboxStatus.DeadLetter;
             var due = Items.Where(m => (m.Status is EmailOutboxStatus.Pending or EmailOutboxStatus.Failed && m.NextAttemptAt <= now) ||
                 (m.Status == EmailOutboxStatus.Processing && m.LockedUntil < now)).Take(batch).ToList();
@@ -51,9 +51,10 @@ public sealed class EmailOutboxProcessorTests
     private sealed class Transport : IEmailTransport
     {
         public readonly List<OutboundEmail> Sent = [];
-        public Func<OutboundEmail, Exception?> Behavior = _ => null;
+        public Func<OutboundEmail, Exception?> Behavior = _ => null; public Action<OutboundEmail>? OnSend;
         public Task<EmailSendResult> SendAsync(OutboundEmail email, CancellationToken ct)
         {
+            OnSend?.Invoke(email);
             if (Behavior(email) is { } error) throw error;
             Sent.Add(email); return Task.FromResult(new EmailSendResult("250 queued as " + Sent.Count));
         }
@@ -80,7 +81,7 @@ public sealed class EmailOutboxProcessorTests
     private sealed class Rig
     {
         public readonly Clock Clock = new(); public readonly FakeOutbox Outbox; public readonly Transport Transport = new(); public readonly Data Data = new();
-        public EmailOptions Options = new() { Enabled = true, FromAddress = "no-reply@example.com", MaxAttempts = 3 };
+        public EmailOptions Options = new() { Enabled = true, FromAddress = "no-reply@example.com", MaxAttempts = 3, FinancialMaxAttempts = 5 };
         public Rig() { Outbox = new FakeOutbox(Clock); Data.Confirmation = Confirmed(); }
         public EmailOutboxProcessor Processor() => new(Outbox, new NotificationEmailComposer(Data, new Signer(), new Qr(), Options.AsOptions()),
             Transport, Clock, Options.AsOptions(), NullLogger<EmailOutboxProcessor>.Instance);
@@ -151,7 +152,8 @@ public sealed class EmailOutboxProcessorTests
     [Fact]
     public async Task ExhaustingMaxAttemptsDeadLettersInsteadOfRetryingForever()
     {
-        var rig = new Rig(); var m = rig.Add(); rig.Transport.Behavior = _ => new EmailDeliveryException("down", true);
+        var rig = new Rig(); var m = rig.Add(EmailNotificationType.TripCancelled); rig.Transport.Behavior = _ => new EmailDeliveryException("down", true);
+        rig.Data.Disruption = new(Guid.NewGuid(), "A", "a@example.com", "VND", NotificationTemplateTests.Leg(trip: TripStatus.Cancelled));
         var processor = rig.Processor();
         for (var i = 0; i < 3; i++) { await processor.ProcessBatchAsync(default); rig.Clock.Now += TimeSpan.FromHours(7); }
         m.Status.Should().Be(EmailOutboxStatus.DeadLetter); m.AttemptCount.Should().Be(3); m.LastError.Should().StartWith("MaxAttempts");
@@ -159,11 +161,71 @@ public sealed class EmailOutboxProcessorTests
     }
 
     [Fact]
-    public async Task StaleNotificationsAreSkippedNotSentAfterTheConfiguredAge()
+    public async Task FinancialMessageIsStillSentAfterTheOperationalWindowButNeverAutoDiscarded()
     {
-        var rig = new Rig(); var m = rig.Add(tweak: x => x.CreatedAt = rig.Clock.Now - TimeSpan.FromHours(49));
-        (await rig.Processor().ProcessBatchAsync(default)).Skipped.Should().Be(1);
-        m.Status.Should().Be(EmailOutboxStatus.Skipped); rig.Transport.Sent.Should().BeEmpty();
+        var rig = new Rig(); var m = rig.Add(tweak: x => x.CreatedAt = rig.Clock.Now - TimeSpan.FromHours(100)); // > 48h, < 168h
+        (await rig.Processor().ProcessBatchAsync(default)).Sent.Should().Be(1);
+        m.Status.Should().Be(EmailOutboxStatus.Sent);
+    }
+
+    [Fact]
+    public async Task StaleFinancialMessageIsMovedToOperatorReviewNotSkipped()
+    {
+        var rig = new Rig(); var m = rig.Add(tweak: x => x.CreatedAt = rig.Clock.Now - TimeSpan.FromHours(169));
+        (await rig.Processor().ProcessBatchAsync(default)).DeadLettered.Should().Be(1);
+        m.Status.Should().Be(EmailOutboxStatus.DeadLetter); m.LastError.Should().StartWith("StaleNeedsReview");
+        rig.Transport.Sent.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task StaleOperationalMessageIsAlsoEscalatedForReviewInsteadOfSilentlyDropped()
+    {
+        var rig = new Rig(); var m = rig.Add(EmailNotificationType.TripCancelled, x => x.CreatedAt = rig.Clock.Now - TimeSpan.FromHours(49));
+        await rig.Processor().ProcessBatchAsync(default);
+        m.Status.Should().Be(EmailOutboxStatus.DeadLetter).And.NotBe(EmailOutboxStatus.Skipped); m.LastError.Should().StartWith("StaleNeedsReview");
+    }
+
+    [Fact]
+    public async Task FinancialMessagesGetMoreAttemptsThanOperationalOnes()
+    {
+        var rig = new Rig(); rig.Transport.Behavior = _ => new EmailDeliveryException("down", true);
+        rig.Data.Disruption = new(Guid.NewGuid(), "A", "a@example.com", "VND", NotificationTemplateTests.Leg(trip: TripStatus.Cancelled));
+        var financial = rig.Add(); var operational = rig.Add(EmailNotificationType.TripCancelled);
+        var processor = rig.Processor();
+        for (var i = 0; i < 4; i++) { await processor.ProcessBatchAsync(default); rig.Clock.Now += TimeSpan.FromHours(7); }
+        operational.Status.Should().Be(EmailOutboxStatus.DeadLetter); operational.AttemptCount.Should().Be(3); // MaxAttempts = 3
+        financial.Status.Should().Be(EmailOutboxStatus.Failed, "tài chính có FinancialMaxAttempts = 5"); financial.AttemptCount.Should().Be(4);
+        await processor.ProcessBatchAsync(default);
+        financial.Status.Should().Be(EmailOutboxStatus.DeadLetter); financial.AttemptCount.Should().Be(5);
+    }
+
+    // ---- F02: lease theo từng bản ghi ----
+
+    [Fact]
+    public async Task WorkerClaimsOneMessageAtATimeSoItsLeaseStartsWhenThatMessageStarts()
+    {
+        var rig = new Rig(); for (var i = 0; i < 5; i++) rig.Add();
+        await rig.Processor().ProcessBatchAsync(default);
+        rig.Outbox.BatchSizes.Should().OnlyContain(b => b == 1);
+        rig.Transport.Sent.Should().HaveCount(5);
+    }
+
+    [Fact]
+    public async Task SlowSmtpAndASecondWorkerNeverCauseAMessageToBeSentTwice()
+    {
+        // Mỗi lần gửi mất 6 phút (lease 10 phút); trong lúc worker A đang gửi, worker B chạy cùng lúc.
+        var rig = new Rig { Options = new() { Enabled = true, FromAddress = "no-reply@example.com", BatchSize = 20, LeaseMinutes = 10, MaxAttempts = 3, FinancialMaxAttempts = 5 } };
+        for (var i = 0; i < 6; i++) rig.Add();
+        var workerB = rig.Processor(); var nested = false;
+        rig.Transport.OnSend = _ =>
+        {
+            if (nested) return;                              // worker B gửi nhanh; chỉ worker A chậm
+            rig.Clock.Now += TimeSpan.FromMinutes(6);
+            nested = true; workerB.ProcessBatchAsync(default).GetAwaiter().GetResult(); nested = false;
+        };
+        await rig.Processor().ProcessBatchAsync(default);
+        rig.Transport.Sent.Select(e => e.MessageKey).Should().OnlyHaveUniqueItems("không có bản ghi nào bị gửi hai lần");
+        rig.Outbox.Items.Should().OnlyContain(m => m.Status == EmailOutboxStatus.Sent && m.AttemptCount == 1);
     }
 
     [Fact]

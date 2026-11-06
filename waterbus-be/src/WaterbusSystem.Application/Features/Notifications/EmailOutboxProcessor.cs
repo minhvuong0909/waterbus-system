@@ -25,14 +25,18 @@ public sealed partial class EmailOutboxProcessor(IEmailOutboxRepository outbox, 
         var o = options.Value;
         if (!o.Enabled) return new(0, 0, 0, 0, 0);
 
-        var token = Guid.NewGuid();
-        var claimed = await outbox.ClaimAsync(clock.Now, Math.Max(1, o.BatchSize),
-            TimeSpan.FromMinutes(Math.Max(1, o.LeaseMinutes)), Math.Max(1, o.MaxAttempts), token, ct);
-        int sent = 0, retried = 0, dead = 0, skipped = 0;
-        foreach (var message in claimed)
+        // Claim TỪNG bản ghi một: lease (LeaseMinutes) bắt đầu từ lúc xử lý chính bản ghi đó, nên bản ghi cuối của lô
+        // không thể hết lease trong lúc chờ các bản ghi trước gửi xong (tránh bị worker khác claim lại và gửi trùng).
+        int claimed = 0, sent = 0, retried = 0, dead = 0, skipped = 0;
+        var lease = TimeSpan.FromMinutes(Math.Max(1, o.LeaseMinutes));
+        for (var i = 0; i < Math.Max(1, o.BatchSize) && !ct.IsCancellationRequested; i++)
         {
-            if (ct.IsCancellationRequested) { await outbox.ReleaseAsync(message.Id, token, CancellationToken.None); continue; }
-            switch (await ProcessOneAsync(message, token, o, ct))
+            var token = Guid.NewGuid();
+            var batch = await outbox.ClaimAsync(clock.Now, 1, lease, Math.Max(1, o.MaxAttempts),
+                Math.Max(1, o.FinancialMaxAttempts), token, ct);
+            if (batch.Count == 0) break;
+            claimed++;
+            switch (await ProcessOneAsync(batch[0], token, o, ct))
             {
                 case Outcome.Sent: sent++; break;
                 case Outcome.Retried: retried++; break;
@@ -40,7 +44,7 @@ public sealed partial class EmailOutboxProcessor(IEmailOutboxRepository outbox, 
                 case Outcome.Skipped: skipped++; break;
             }
         }
-        return new(claimed.Count, sent, retried, dead, skipped);
+        return new(claimed, sent, retried, dead, skipped);
     }
 
     private enum Outcome { Sent, Retried, Dead, Skipped, Released }
@@ -49,8 +53,15 @@ public sealed partial class EmailOutboxProcessor(IEmailOutboxRepository outbox, 
     {
         try
         {
-            if (clock.Now - m.CreatedAt > TimeSpan.FromHours(Math.Max(1, o.MaxMessageAgeHours)))
-                return await SkipAsync(m, token, "Quá hạn gửi (MaxMessageAgeHours).");
+            // Không bao giờ tự huỷ thông báo vì tuổi: quá hạn theo chính sách loại ⇒ DeadLetter để vận hành xem xét (runbook §11).
+            var reviewAfter = NotificationPolicy.ReviewAfter(m.NotificationType, o);
+            if (clock.Now - m.CreatedAt > reviewAfter)
+            {
+                var reason = $"StaleNeedsReview: chưa gửi được sau {reviewAfter.TotalHours:0}h; cần vận hành xem xét trước khi gửi lại.";
+                await outbox.MarkDeadLetterAsync(m.Id, token, reason, CancellationToken.None);
+                logger.LogError("Email outbox {OutboxId} ({Type}) is stale and needs operator review.", m.Id, m.NotificationType);
+                return Outcome.Dead;
+            }
 
             var composed = await composer.ComposeAsync(m, ct);
             if (composed.Email is null) return await SkipAsync(m, token, composed.SkipReason ?? "Không còn đúng điều kiện gửi.");
@@ -76,7 +87,7 @@ public sealed partial class EmailOutboxProcessor(IEmailOutboxRepository outbox, 
         catch (Exception ex)
         {
             var error = Sanitize(ex);
-            if (m.AttemptCount >= Math.Max(1, o.MaxAttempts))
+            if (m.AttemptCount >= NotificationPolicy.MaxAttempts(m.NotificationType, o))
             {
                 await outbox.MarkDeadLetterAsync(m.Id, token, "MaxAttempts: " + error, CancellationToken.None);
                 logger.LogError("Email outbox {OutboxId} ({Type}) dead-lettered after {Attempt} attempts: {Error}", m.Id, m.NotificationType, m.AttemptCount, error);

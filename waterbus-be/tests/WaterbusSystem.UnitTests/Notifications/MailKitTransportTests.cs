@@ -26,7 +26,13 @@ internal sealed class SmtpCatcher : IDisposable
 
     private async Task Loop()
     {
-        try { while (true) _ = Task.Run(() => Handle(_listener.AcceptTcpClient())); } catch (Exception) { /* đã dừng */ }
+        try
+        {
+            // Accept ĐỒNG BỘ rồi mới giao cho task riêng. (Bản cũ gọi AcceptTcpClient bên trong Task.Run nên vòng while(true)
+            // sinh task vô hạn ⇒ cạn thread pool và tràn bộ nhớ.)
+            while (true) { var client = _listener.AcceptTcpClient(); _ = Task.Run(() => Handle(client)); }
+        }
+        catch (Exception) { /* listener đã dừng */ }
         await Task.CompletedTask;
     }
 

@@ -83,13 +83,9 @@ jobs:
           --logger "trx;LogFileName=test-results.trx"
           --results-directory TestResults
 
-      # Email/outbox: chạy riêng để lỗi hiện rõ (gồm unique index, claim đồng thời, phục hồi crash trên SQL Server thật
-      # và MailKit → SMTP catcher cục bộ). Test SQL cần WATERBUS_TEST_SQLSERVER (đã đặt ở trên).
-      - name: Email outbox tests (targeted)
-        run: >-
-          dotnet test WaterbusSystem.sln --no-build -c Release
-          --filter "FullyQualifiedName~WaterbusSystem.UnitTests.Notifications"
-
+      # Email/outbox (unique index, claim đồng thời, lease, MailKit → SMTP catcher) nằm trong bước Test ở trên và được
+      # cổng "không bị skip" bên dưới kiểm tra (EmailOutboxSqlTests). Mọi test SQL chạy tuần tự (collection
+      # "SQL Server integration", DisableParallelization) để SQL Server 2 core của CI không quá tải.
       # Test bị Skip vẫn tính là "xanh": chặn trường hợp Redis/SQL không được cấu hình mà CI vẫn qua.
       - name: Verify infrastructure tests were executed, not skipped
         run: |

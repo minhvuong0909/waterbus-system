@@ -24,9 +24,15 @@ public sealed class NotificationEmailComposer(INotificationDataRepository data, 
             {
                 var d = await data.GetBookingConfirmationAsync(m.OrderId, ct);
                 if (d is null) return ComposeResult.Skip("Order không còn tồn tại.");
-                if (d.OrderStatus != OrderStatus.Confirmed || d.Legs.Count == 0 ||
-                    d.Legs.Any(l => l.Passengers.Count == 0 || l.BookingStatus is not (BookingStatus.Confirmed or BookingStatus.Completed)))
-                    return ComposeResult.Skip("Order không ở trạng thái Confirmed có vé hợp lệ.");
+                if (d.OrderStatus != OrderStatus.Confirmed || d.Legs.Count == 0)
+                    return ComposeResult.Skip("Order không ở trạng thái Confirmed.");
+                // Chính sách trạng thái: xác nhận chỉ mô tả các chặng CÒN HIỆU LỰC lúc gửi. Chặng có Trip đã huỷ/chấm dứt/hoàn tất
+                // hoặc Booking đã bị huỷ/chấm dứt (ví dụ sau hoàn tiền) không được kèm QR; chặng đó đã có thông báo riêng.
+                var active = d.Legs.Where(LegIsActive).ToList();
+                if (active.Count == 0 || active.Any(l => l.Passengers.Count == 0))
+                    return ComposeResult.Skip("Không còn chặng nào hiệu lực (chuyến huỷ/chấm dứt/hoàn tất hoặc đặt chỗ đã bị huỷ); thông báo gián đoạn thay thế.");
+                var omitted = d.Legs.Where(l => !LegIsActive(l)).Select(l => l.BookingCode).ToList();
+                d = d with { Legs = active };
                 var images = new List<InlineImage>();
                 var cids = new Dictionary<Guid, string>();
                 foreach (var leg in d.Legs)
@@ -36,7 +42,7 @@ public sealed class NotificationEmailComposer(INotificationDataRepository data, 
                     cids[leg.BookingId] = cid;
                     images.Add(new InlineImage(cid, qr.RenderPng(credential.Payload), "image/png", $"qr-{leg.BookingCode}.png"));
                 }
-                var r = NotificationTemplates.BookingConfirmed(d, ctx, cids);
+                var r = NotificationTemplates.BookingConfirmed(d, ctx, cids, omitted);
                 return Ready(m, r, images);
             }
             case EmailNotificationType.TripCancelled or EmailNotificationType.TripTerminated:
@@ -61,6 +67,10 @@ public sealed class NotificationEmailComposer(INotificationDataRepository data, 
                 return ComposeResult.Skip("Loại thông báo không được hỗ trợ.");
         }
     }
+
+    private static bool LegIsActive(BookingLeg l) =>
+        l.BookingStatus is BookingStatus.Confirmed or BookingStatus.Completed &&
+        l.TripStatus is not (TripStatus.Cancelled or TripStatus.Terminated or TripStatus.Completed);
 
     private static ComposeResult Ready(EmailOutboxMessage m, NotificationTemplates.Rendered r, IReadOnlyList<InlineImage> images) =>
         ComposeResult.Ready(new OutboundEmail(m.Id, m.RecipientEmail, m.RecipientName,

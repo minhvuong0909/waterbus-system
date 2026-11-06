@@ -169,6 +169,8 @@ Cần mã mới (vd 403, 422) thì thêm `case` vào middleware, không xử lý
 - Worker `email-outbox` (Hangfire) claim bằng lease nguyên tử; ghi kết quả có điều kiện `LockToken`. Không sửa `EmailOutbox` bằng tay trừ theo runbook (`docs/EMAIL_NOTIFICATION_IMPLEMENTATION_PLAN.md` §11).
 - Không đưa token Guest/`ManageOrder` vào email; QR chỉ là credential đã ký hiện có, ký lúc gửi, không lưu trong outbox. Không log body/QR/địa chỉ người nhận đầy đủ.
 - Cấu hình `Email:*` sai khi `Email:Enabled=true` ⇒ host không khởi động. Key mới → cập nhật `appsettings.example.json`, `.env.example` (gốc + `waterbus-be`), `docker-compose.yml`.
+- Chính sách theo loại (`NotificationPolicy`): tài chính thử nhiều hơn/giữ lâu hơn; quá hạn ⇒ `DeadLetter` "StaleNeedsReview" chứ không `Skipped`. Worker claim từng bản ghi một. Xác nhận vé chỉ mô tả chặng còn hiệu lực lúc gửi.
+- Test SQL Server thật phải thuộc `[Collection(SqlCollections.Serial)]` (chạy tuần tự, tránh quá tải kết nối).
 - Test: logic bằng InMemory được; **unique index / claim đồng thời / lease / rollback bắt buộc test trên SQL Server thật** (`EmailOutboxSqlTests`).
 
 ### 3.11 Đặt tên
