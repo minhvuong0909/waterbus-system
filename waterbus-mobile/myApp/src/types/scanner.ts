@@ -150,6 +150,8 @@ export interface ManifestStats {
   ticketCount: number;
   checkedInCount: number;
   pendingSyncCount: number;
+  /** Sự kiện bị máy chủ từ chối/đối soát (NoShowFinalized, InvalidDeviceTime...), chưa xử lý - MOB-05. */
+  conflictSyncCount: number;
   lastPreloadAt: string | null;
   databaseSizeKb: number;
 }

@@ -14,6 +14,7 @@ import {
   PublicKeyInfo,
   ManifestStats,
 } from '../../types/scanner';
+import { MyScannerAssignment } from '../../types/checkin';
 
 function generateUUID(): string {
   // RFC4122 v4 UUID generator without native deps
@@ -486,6 +487,9 @@ export class SqliteRepository {
     const pendingRows = await db.getAllAsync<any>(
       `SELECT id FROM offline_checkin_events WHERE sync_status = 'Pending'`
     );
+    const conflictRows = await db.getAllAsync<any>(
+      `SELECT id FROM offline_checkin_events WHERE sync_status = 'Conflict'`
+    );
 
     const lastPreloadConfig = await db.getFirstAsync<any>(
       `SELECT value FROM scanner_config WHERE key = 'last_preload_at'`
@@ -499,6 +503,7 @@ export class SqliteRepository {
       ticketCount: ticketRows.length,
       checkedInCount,
       pendingSyncCount: pendingRows.length,
+      conflictSyncCount: conflictRows.length,
       lastPreloadAt: lastPreloadConfig ? lastPreloadConfig.value : null,
       databaseSizeKb: Math.round(
         (tripRows.length * 0.5 + bookingRows.length * 0.8 + ticketRows.length * 0.4 + pendingRows.length * 0.6) * 10
@@ -507,7 +512,9 @@ export class SqliteRepository {
   }
 
   /**
-   * Clear all local tables (Reset Cache)
+   * Clear all local tables (Reset Cache). Caller (useScannerStore.clearCache) PHẢI đảm bảo
+   * không còn event Pending/Conflict trước khi gọi - đến đây mọi offline_checkin_events chỉ còn
+   * Synced nên xoá an toàn (MOB-05).
    */
   static async clearCache(): Promise<void> {
     const db = await getDatabase();
@@ -518,6 +525,56 @@ export class SqliteRepository {
       DELETE FROM offline_checkin_events;
       DELETE FROM scanner_config;
     `);
+  }
+
+  /**
+   * Xoá dữ liệu khách hàng (manifest) khỏi SQLite khi Staff đăng xuất (MOB-06), để Staff kế
+   * tiếp đăng nhập trên cùng thiết bị không còn tra cứu được tên/SĐT khách của ca trước. KHÔNG
+   * xoá offline_checkin_events hay active_assignment ở đây - lịch sử Pending/Conflict phải giữ
+   * nguyên để đối soát dù đổi tài khoản (các field cần hiển thị đã denormalize sẵn trong chính
+   * bảng events, không cần tới bảng manifest).
+   */
+  static async purgeManifestForLogout(): Promise<void> {
+    const db = await getDatabase();
+    await db.execAsync(`
+      DELETE FROM manifest_tickets;
+      DELETE FROM manifest_bookings;
+      DELETE FROM manifest_trips;
+    `);
+  }
+
+  /**
+   * Lưu phân công đang hoạt động (MOB-02) để app restart khi offline vẫn soát vé được tiếp,
+   * không chỉ dựa vào state Zustand trong RAM (mất ngay khi app bị OS kill). Gắn kèm staffId để
+   * Staff khác đăng nhập trên cùng máy không bị kế thừa nhầm phân công của người trước.
+   */
+  static async saveActiveAssignment(assignment: MyScannerAssignment, staffId: string): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(
+      `INSERT OR REPLACE INTO scanner_config (key, value) VALUES ('active_assignment', ?)`,
+      [JSON.stringify({ staffId, assignment })]
+    );
+  }
+
+  /** Khôi phục phân công đã lưu, chỉ khi đúng staffId hiện đang đăng nhập (MOB-02, MOB-06). */
+  static async getActiveAssignment(staffId: string): Promise<MyScannerAssignment | null> {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<any>(
+      `SELECT value FROM scanner_config WHERE key = 'active_assignment'`
+    );
+    if (!row?.value) return null;
+    try {
+      const parsed = JSON.parse(row.value);
+      if (parsed.staffId !== staffId) return null;
+      return parsed.assignment as MyScannerAssignment;
+    } catch {
+      return null;
+    }
+  }
+
+  static async clearActiveAssignment(): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(`DELETE FROM scanner_config WHERE key = 'active_assignment'`);
   }
 }
 

@@ -40,6 +40,24 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
 
   async runAsync(sql: string, params: any[] = []): Promise<{ lastInsertRowId: number; changes: number }> {
     const trimmed = sql.trim().toUpperCase();
+    const configInsertMatch = trimmed.match(
+      /INSERT(?: OR REPLACE)? INTO SCANNER_CONFIG \(KEY, VALUE\) VALUES\s*\('([^']+)',\s*\?\)/
+    );
+    if (configInsertMatch) {
+      const key = configInsertMatch[1];
+      const value = params[0];
+      const filtered = this.tables.scanner_config.filter((c: any) => c.key !== key);
+      filtered.push({ key, value });
+      this.tables.scanner_config = filtered;
+      return { lastInsertRowId: 1, changes: 1 };
+    }
+    const configDeleteMatch = trimmed.match(/DELETE FROM SCANNER_CONFIG WHERE KEY = '([^']+)'/);
+    if (configDeleteMatch) {
+      const key = configDeleteMatch[1];
+      const before = this.tables.scanner_config.length;
+      this.tables.scanner_config = this.tables.scanner_config.filter((c: any) => c.key !== key);
+      return { lastInsertRowId: 0, changes: before - this.tables.scanner_config.length };
+    }
     if (trimmed.startsWith('INSERT INTO PUBLIC_KEYS') || trimmed.startsWith('INSERT OR REPLACE INTO PUBLIC_KEYS')) {
       const [kid, algo, pem, from, to, active] = params;
       const filtered = this.tables.public_keys.filter(k => k.kid !== kid);
@@ -186,6 +204,9 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       if (trimmed.includes("SYNC_STATUS = 'PENDING'") || (trimmed.includes('SYNC_STATUS = ?') && params[0] === 'Pending')) {
         return this.tables.offline_checkin_events.filter(e => e.sync_status === 'Pending') as any;
       }
+      if (trimmed.includes("SYNC_STATUS = 'CONFLICT'") || (trimmed.includes('SYNC_STATUS = ?') && params[0] === 'Conflict')) {
+        return this.tables.offline_checkin_events.filter(e => e.sync_status === 'Conflict') as any;
+      }
       return [...this.tables.offline_checkin_events] as any;
     }
     if (trimmed.includes('FROM MANIFEST_TRIPS')) {
@@ -199,6 +220,13 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
     }
     if (trimmed.includes('FROM PUBLIC_KEYS')) {
       return [...this.tables.public_keys] as any;
+    }
+    if (trimmed.includes('FROM SCANNER_CONFIG')) {
+      const keyMatch = trimmed.match(/KEY = '([^']+)'/);
+      if (keyMatch) {
+        return this.tables.scanner_config.filter((c: any) => c.key === keyMatch[1]) as any;
+      }
+      return [...this.tables.scanner_config] as any;
     }
     return [];
   }
@@ -251,11 +279,15 @@ export async function getDatabase(): Promise<DatabaseAdapter> {
     dbInstance = adapter;
     return dbInstance;
   } catch (error) {
-    console.warn('[SQLite] Failed to open native database, falling back to in-memory adapter:', error);
-    const fallback = new InMemoryFallbackDatabase();
-    await initSchema(fallback);
-    dbInstance = fallback;
-    return dbInstance;
+    // Fail closed trên Android/iOS (MOB-01): KHÔNG fallback sang in-memory ở đây - dữ liệu
+    // check-in/manifest sẽ mất hoàn toàn nếu app bị kill trước khi sync, mà Staff không hề biết
+    // vì UI vẫn chạy như bình thường. Fallback in-memory chỉ hợp lệ cho Web/Test (nhánh !isNativeApp()
+    // ở trên) - không phải khi thiết bị thật không mở được bộ nhớ bền.
+    console.error('[SQLite] Failed to open native database - refusing to fall back to in-memory storage:', error);
+    throw new Error(
+      'Không thể mở bộ nhớ offline trên thiết bị (SQLite). Không được phép soát vé khi dữ liệu không thể lưu bền - ' +
+        'vui lòng khởi động lại ứng dụng hoặc liên hệ kỹ thuật trước khi tiếp tục.'
+    );
   }
 }
 

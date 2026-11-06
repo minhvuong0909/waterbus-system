@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import { authService } from '../services/auth/authService';
 import { syncService } from '../services/sync/syncService';
+import { SqliteRepository } from '../services/sqlite/sqliteRepository';
 import { AuthUser } from '../types/auth';
 import { useScannerStore } from './useScannerStore';
 
@@ -39,6 +40,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const user = await authService.restoreSession();
       applyStaffIdentity(user);
+      // MOB-02: app bị OS kill rồi mở lại khi đang offline vẫn phải soát vé tiếp được - khôi
+      // phục đúng phân công đã lưu của chính Staff này (applyStaffIdentity ở trên vừa reset về null).
+      if (user) await useScannerStore.getState().restoreActiveAssignment(user.userId);
       set({ user, isRestoring: false });
     } catch {
       set({ user: null, isRestoring: false });
@@ -50,6 +54,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const user = await authService.login(email.trim(), password);
       applyStaffIdentity(user);
+      await useScannerStore.getState().restoreActiveAssignment(user.userId);
       set({ user, isLoggingIn: false, error: null });
       return true;
     } catch (err: any) {
@@ -60,6 +65,15 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     await authService.logout();
+    // MOB-06: xoá tên/SĐT khách (manifest) khỏi SQLite chung thiết bị - Staff kế tiếp đăng nhập
+    // trên máy này không được tra cứu dữ liệu khách của ca trước. KHÔNG xoá offline_checkin_events
+    // (giữ Pending/Conflict để đối soát - xem purgeManifestForLogout).
+    try {
+      await SqliteRepository.purgeManifestForLogout();
+    } catch (err) {
+      console.warn('[AuthStore] Could not purge manifest on logout:', err);
+    }
+    await SqliteRepository.clearActiveAssignment();
     // Xoá luôn TripStopCallId đang preload (tái dùng field stationId) - Staff kế tiếp đăng nhập
     // trên máy này không được kế thừa phân công của người trước.
     syncService.setDeviceInfo({ staffId: '', staffName: '', stationId: '', stationName: '' });

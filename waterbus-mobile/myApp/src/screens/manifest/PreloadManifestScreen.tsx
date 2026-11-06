@@ -110,8 +110,12 @@ export default function PreloadManifestScreen() {
           text: 'Xoá Cache',
           style: 'destructive',
           onPress: async () => {
-            await clearCache();
-            Alert.alert('Đã xoá', 'Bộ nhớ đệm SQLite đã được làm sạch.');
+            try {
+              await clearCache();
+              Alert.alert('Đã xoá', 'Bộ nhớ đệm SQLite đã được làm sạch.');
+            } catch (err: any) {
+              Alert.alert('Không thể xoá', err?.message || 'Lỗi không xác định.');
+            }
           },
         },
       ]
@@ -231,6 +235,14 @@ export default function PreloadManifestScreen() {
               {stats.pendingSyncCount} sự kiện
             </Text>
           </View>
+          {stats.conflictSyncCount > 0 && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Bị từ chối/đối soát (Conflict):</Text>
+              <Text style={[styles.infoValueBold, { color: '#DC2626' }]}>
+                {stats.conflictSyncCount} sự kiện - báo Admin trước khi xoá bộ nhớ đệm
+              </Text>
+            </View>
+          )}
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Lần tải trước gần nhất:</Text>
             <Text style={styles.infoValue}>
