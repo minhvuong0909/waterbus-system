@@ -8,7 +8,8 @@ public class CreateSeatClassRequestValidator : AbstractValidator<CreateSeatClass
     public CreateSeatClassRequestValidator()
     {
         RuleFor(x => x.Code).NotEmpty().MaximumLength(20);
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        // 50: Name được chép vào snapshot SeatReservation.SeatClassAtSale / Ticket.FareSeatClassSnapshot (cột 50 ký tự).
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(50);
         RuleFor(x => x.Description).MaximumLength(500);
     }
 }
@@ -17,7 +18,8 @@ public class UpdateSeatClassRequestValidator : AbstractValidator<UpdateSeatClass
 {
     public UpdateSeatClassRequestValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        // 50: Name được chép vào snapshot SeatReservation.SeatClassAtSale / Ticket.FareSeatClassSnapshot (cột 50 ký tự).
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(50);
         RuleFor(x => x.Description).MaximumLength(500);
     }
 }

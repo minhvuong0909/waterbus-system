@@ -296,6 +296,45 @@ public class SeatInventoryTests
         await act.Should().ThrowAsync<NotFoundException>();
     }
 
+    [Fact]
+    public async Task SoftDeletedSeatCode_ShouldStillBeTreatedAsTaken()
+    {
+        var boat = NewBoat(5);
+        await Seats().AddSeatsAsync(boat.Id, new AddBoatSeatsRequest(
+            [Seat("A1", _seed.StandardClass.Id, 1, 1), Seat("A2", _seed.StandardClass.Id, 1, 2)]));
+        _context.Seats.Single(s => s.BoatId == boat.Id && s.SeatCode == "A1").IsDeleted = true;
+        _context.SaveChanges();
+
+        var add = () => Seats().AddSeatsAsync(boat.Id, new AddBoatSeatsRequest([Seat("A1", _seed.StandardClass.Id, 2, 1)]));
+        var rename = () => Seats().UpdateSeatAsync(boat.Id, _context.Seats.Single(s => s.BoatId == boat.Id && s.SeatCode == "A2").Id,
+            new UpdateBoatSeatRequest("A1", _seed.StandardClass.Id, 1, 2));
+
+        await add.Should().ThrowAsync<ValidationException>();
+        await rename.Should().ThrowAsync<ValidationException>();
+    }
+
+    [Fact]
+    public async Task SoftDeletedSeatClassCode_ShouldStillBeTreatedAsTaken()
+    {
+        _seed.PremiumClass.IsDeleted = true;
+        _context.SaveChanges();
+
+        var act = () => Classes().CreateAsync(new CreateSeatClassRequest(_seed.PremiumClass.Code, "Again", null));
+
+        await act.Should().ThrowAsync<ValidationException>();
+    }
+
+    [Fact]
+    public void SeatClassName_ShouldFitSnapshotColumns()
+    {
+        var create = new WaterbusSystem.Application.Validators.SeatInventory.CreateSeatClassRequestValidator();
+        var update = new WaterbusSystem.Application.Validators.SeatInventory.UpdateSeatClassRequestValidator();
+
+        create.Validate(new CreateSeatClassRequest("C1", new string('x', 50), null)).IsValid.Should().BeTrue();
+        create.Validate(new CreateSeatClassRequest("C1", new string('x', 51), null)).IsValid.Should().BeFalse();
+        update.Validate(new UpdateSeatClassRequest(new string('x', 51), null)).IsValid.Should().BeFalse();
+    }
+
     // ---- Phân quyền ----
 
     [Theory]

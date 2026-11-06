@@ -15,7 +15,8 @@ public sealed class BoatSeatRepository(ApplicationDbContext context) : IBoatSeat
         ?? throw new NotFoundException(nameof(Boat), boatId);
 
     public Task<List<Seat>> ListAllTrackedAsync(Guid boatId, CancellationToken cancellationToken = default) =>
-        context.Seats.Where(s => s.BoatId == boatId).ToListAsync(cancellationToken);
+        // IgnoreQueryFilters: unique (BoatId, SeatCode) tính cả ghế xoá mềm nên kiểm trùng phải thấy chúng.
+        context.Seats.IgnoreQueryFilters().Where(s => s.BoatId == boatId).ToListAsync(cancellationToken);
 
     public Task<List<BoatSeatResponse>> ListAsync(Guid boatId, CancellationToken cancellationToken = default) =>
         context.Seats.AsNoTracking()

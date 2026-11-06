@@ -28,7 +28,7 @@ public sealed class SeatClassRepository(ApplicationDbContext context) : ISeatCla
         ?? throw new NotFoundException(nameof(SeatClass), id);
 
     public Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default) =>
-        context.SeatClasses.AnyAsync(c => c.Code == code, cancellationToken);
+        context.SeatClasses.IgnoreQueryFilters().AnyAsync(c => c.Code == code, cancellationToken);
 
     public Task<bool> HasOpenCommitmentsAsync(Guid seatClassId, CancellationToken cancellationToken = default) =>
         context.SeatReservations.AsNoTracking().AnyAsync(r =>
