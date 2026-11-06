@@ -78,6 +78,7 @@ public static class DependencyInjection
         services.AddScoped<ITripRepository, TripRepository>();
         services.AddScoped<IBoatRepository, BoatRepository>();
         services.AddScoped<IRouteAdminRepository, RouteAdminRepository>();
+        services.AddScoped<IFareAdminRepository, FareAdminRepository>();
         services.AddScoped<ITripPlanningRepository, TripPlanningRepository>();
         services.AddScoped<IScheduleAdminRepository, ScheduleAdminRepository>();
         services.AddScoped<IBoatPositionRepository, BoatPositionRepository>();
@@ -90,6 +91,7 @@ public static class DependencyInjection
         services.AddScoped<IFareService, WaterbusSystem.Application.Features.Fares.Services.FareService>();
         services.AddScoped<IBoatService, WaterbusSystem.Application.Features.Boats.Services.BoatService>();
         services.AddScoped<IRouteAdminService, WaterbusSystem.Application.Features.Routes.Services.RouteAdminService>();
+        services.AddScoped<IFareAdminService, WaterbusSystem.Application.Features.Fares.Services.FareAdminService>();
         services.AddScoped<ITripPlanningService, WaterbusSystem.Application.Features.TripPlanning.Services.TripPlanningService>();
         services.AddScoped<IScheduleAdminService, WaterbusSystem.Application.Features.Schedules.Services.ScheduleAdminService>();
         services.AddScoped<IStationService, WaterbusSystem.Application.Features.Stations.Services.StationService>();
