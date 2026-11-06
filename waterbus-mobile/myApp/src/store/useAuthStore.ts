@@ -22,20 +22,25 @@ function applyStaffIdentity(user: AuthUser | null) {
 }
 
 /**
- * Review PR #57 (Logout privacy): nếu lần đăng xuất trước purge manifest lỗi cả 2 lần (xem
- * logout() dưới), thiết bị còn tra cứu được tên/SĐT khách ca cũ qua QR scan bình thường. Lần
- * đăng nhập/khôi phục phiên kế tiếp PHẢI thử xoá lại trước khi coi dữ liệu manifest hiện có là an
- * toàn. Best-effort: nếu vẫn lỗi lần nữa, chỉ log - không chặn đăng nhập (máy có thể đang lỗi đĩa
- * thật, buộc Staff kẹt ở màn login sẽ tệ hơn là cố hết sức rồi báo kỹ thuật riêng).
+ * Review PR #57 (2nd round, High - "Logout privacy still fails open"): nếu lần đăng xuất trước
+ * purge manifest lỗi, thiết bị còn tra cứu được tên/SĐT khách ca cũ qua QR scan bình thường. Lần
+ * đăng nhập/khôi phục phiên kế tiếp PHẢI thử xoá lại - và lần này KHÔNG được nuốt lỗi: nếu vẫn
+ * lỗi, hàm này throw để caller (login/restoreSession) chặn hẳn truy cập manifest/scanner, thay vì
+ * chỉ console.warn rồi cho vào như trước. Chặn ở đây TRƯỚC khi gọi authService.login - đây là gate
+ * an toàn CỦA THIẾT BỊ, không phụ thuộc staff nào đang đăng nhập.
  */
+const MANIFEST_PURGE_BLOCKED_MESSAGE =
+  'Thiết bị chưa xoá sạch dữ liệu khách của ca trước (lỗi lưu trữ cục bộ lặp lại). ' +
+  'Không thể đăng nhập cho tới khi xử lý xong - vui lòng khởi động lại ứng dụng hoặc báo kỹ thuật.';
+
 async function retryPendingManifestPurgeIfAny(): Promise<void> {
+  if (!(await SqliteRepository.isManifestPurgePending())) return;
   try {
-    if (await SqliteRepository.isManifestPurgePending()) {
-      await SqliteRepository.purgeManifestForLogout();
-      await SqliteRepository.setPendingManifestPurge(false);
-    }
+    await SqliteRepository.purgeManifestForLogout();
+    await SqliteRepository.setPendingManifestPurge(false);
   } catch (err) {
-    console.warn('[AuthStore] Retry dọn manifest còn treo từ lần đăng xuất trước vẫn lỗi:', err);
+    console.error('[AuthStore] Retry dọn manifest còn treo từ lần đăng xuất trước vẫn lỗi:', err);
+    throw new Error(MANIFEST_PURGE_BLOCKED_MESSAGE);
   }
 }
 
@@ -59,27 +64,41 @@ export const useAuthStore = create<AuthState>((set) => ({
   error: null,
 
   restoreSession: async () => {
+    let user: AuthUser | null;
     try {
-      const user = await authService.restoreSession();
-      applyStaffIdentity(user);
-      if (user) {
-        await retryPendingManifestPurgeIfAny();
-        // MOB-02: app bị OS kill rồi mở lại khi đang offline vẫn phải soát vé tiếp được - khôi
-        // phục đúng phân công đã lưu của chính Staff này (applyStaffIdentity ở trên vừa reset về null).
-        await useScannerStore.getState().restoreActiveAssignment(user.userId);
-      }
-      set({ user, isRestoring: false });
+      user = await authService.restoreSession();
     } catch {
       set({ user: null, isRestoring: false });
+      return;
     }
+
+    if (user) {
+      try {
+        // Review PR #57 (2nd round): purge còn treo + vẫn lỗi -> KHÔNG khôi phục phiên ngầm. Về
+        // lại màn login (không phải vào thẳng scanner) để Staff biết cần xử lý trước khi dùng máy.
+        await retryPendingManifestPurgeIfAny();
+      } catch (err: any) {
+        set({ user: null, isRestoring: false, error: err?.message || MANIFEST_PURGE_BLOCKED_MESSAGE });
+        return;
+      }
+      // MOB-02: app bị OS kill rồi mở lại khi đang offline vẫn phải soát vé tiếp được - khôi
+      // phục đúng phân công đã lưu của chính Staff này.
+      await useScannerStore.getState().restoreActiveAssignment(user.userId);
+    }
+
+    applyStaffIdentity(user);
+    set({ user, isRestoring: false });
   },
 
   login: async (email: string, password: string) => {
     set({ isLoggingIn: true, error: null });
     try {
+      // Review PR #57 (2nd round): kiểm tra TRƯỚC khi gọi backend - gate an toàn của THIẾT BỊ,
+      // không liên quan tài khoản nào đang đăng nhập. Lỗi ở đây chặn hẳn đăng nhập (throw, không
+      // nuốt), đúng yêu cầu "block access to scanner/manifest data until cleanup succeeds".
+      await retryPendingManifestPurgeIfAny();
       const user = await authService.login(email.trim(), password);
       applyStaffIdentity(user);
-      await retryPendingManifestPurgeIfAny();
       await useScannerStore.getState().restoreActiveAssignment(user.userId);
       set({ user, isLoggingIn: false, error: null });
       return true;
@@ -91,13 +110,15 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     await authService.logout();
-    // MOB-06 + Review PR #57 (High - Logout privacy): trước đây purge lỗi chỉ console.warn rồi
-    // coi như đăng xuất xong, trong khi tên/SĐT khách ca trước (manifest_bookings/tickets) vẫn
-    // TRA CỨU ĐƯỢC qua QR scan/tra tay bình thường của Staff kế tiếp - không chỉ là 1 màn hình
-    // lịch sử. Thử lại 1 lần tại chỗ; nếu vẫn lỗi, đặt cờ pending để lần đăng nhập kế tiếp
-    // (retryPendingManifestPurgeIfAny) bắt buộc thử lại, và trả cảnh báo THẬT ra ngoài (không nuốt
-    // im lặng) để UI báo cho Staff. Vẫn cho đăng xuất tiếp tục dù purge lỗi hẳn - chặn cứng đăng
-    // xuất vì lỗi I/O cục bộ sẽ kẹt Staff ở máy không theo ý muốn, tệ hơn giải pháp retry-sau.
+    // MOB-06 + Review PR #57 (2nd round, High - "persisting pending_manifest_purge is best-effort
+    // and can itself fail"): đặt cờ pending=true TRƯỚC KHI thử purge (coi lỗi là mặc định), chỉ gỡ
+    // SAU KHI xác nhận purge thành công - ngược thứ tự so với trước (đặt cờ SAU khi cả 2 lần thử
+    // đều lỗi, tức là phụ thuộc thêm 1 lượt ghi SQLite thứ 3 phải thành công thì cờ mới đáng tin).
+    // Nếu chính việc ghi "pending=true" này lỗi, purge ngay sau đó hầu như chắc chắn CŨNG lỗi (cùng
+    // nguyên nhân I/O) nên không mất độ tin cậy; còn nếu ghi "true" thành công nhưng app crash/mất
+    // điện trước khi gỡ, lần đăng nhập kế tiếp vẫn coi là pending và thử lại - an toàn hơn chiều
+    // ngược lại (quên đặt cờ khi lẽ ra phải đặt).
+    await SqliteRepository.setPendingManifestPurge(true);
     let purgeWarning: string | null = null;
     try {
       await SqliteRepository.purgeManifestForLogout();
@@ -107,10 +128,11 @@ export const useAuthStore = create<AuthState>((set) => ({
         await SqliteRepository.purgeManifestForLogout();
         await SqliteRepository.setPendingManifestPurge(false);
       } catch (retryErr: any) {
-        await SqliteRepository.setPendingManifestPurge(true).catch(() => {});
+        // Cờ pending đã là true từ đầu hàm - không cần đặt lại. Lần đăng nhập/khôi phục phiên kế
+        // tiếp (retryPendingManifestPurgeIfAny) giờ CHẶN HẲN nếu vẫn lỗi, không còn best-effort.
         purgeWarning =
-          'Không thể xoá sạch dữ liệu khách của ca trước khỏi máy. Vui lòng khởi động lại ứng dụng ' +
-          'trước khi đưa máy cho Staff khác, hoặc báo kỹ thuật nếu lặp lại.';
+          'Không thể xoá sạch dữ liệu khách của ca trước khỏi máy. KHÔNG Staff nào đăng nhập được ' +
+          'trên máy này cho tới khi xử lý xong - vui lòng khởi động lại ứng dụng hoặc báo kỹ thuật ngay.';
         console.error('[AuthStore] Manifest purge thất bại 2 lần liên tiếp khi đăng xuất:', retryErr);
       }
     }

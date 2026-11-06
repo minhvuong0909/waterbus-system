@@ -22,6 +22,19 @@ export interface DatabaseAdapter {
   getAllAsync<T = any>(sql: string, params?: any[]): Promise<T[]>;
   getFirstAsync<T = any>(sql: string, params?: any[]): Promise<T | null>;
   withTransactionAsync<T>(callback: () => Promise<T>): Promise<T>;
+  /**
+   * Review PR #57 (2nd round, High - "Cache deletion is not fully isolated"): withTransactionAsync
+   * KHÔNG exclusive trên native (chính doc của expo-sqlite ghi rõ: "This transaction is not
+   * exclusive and can be interrupted by other async queries") - 1 lần check-in khác vẫn có thể
+   * chen statement của nó vào GIỮA các câu lệnh của transaction này trên CÙNG kết nối. Dùng
+   * `db.withExclusiveTransactionAsync` thật của expo-sqlite (BEGIN EXCLUSIVE - caller khác ghi vào
+   * cùng lúc sẽ nhận lỗi "database is locked" thay vì chen vào im lặng), truyền vào callback 1
+   * adapter chạy trên `txn` (không phải `db` ngoài) như expo-sqlite yêu cầu ("Any queries inside
+   * the transaction must be executed on the txn object"). Không hỗ trợ trên web - fallback dưới
+   * chỉ cần delegate qua withTransactionAsync vì môi trường đó không có kết nối thật nào khác để
+   * chen vào (đơn luồng JS, không phải lo race thật).
+   */
+  withExclusiveTransactionAsync<T>(callback: (txn: DatabaseAdapter) => Promise<T>): Promise<T>;
 }
 
 class InMemoryFallbackDatabase implements DatabaseAdapter {
@@ -239,6 +252,12 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
   async withTransactionAsync<T>(callback: () => Promise<T>): Promise<T> {
     return await callback();
   }
+
+  // Môi trường web/test đơn luồng JS, không có kết nối SQLite thật nào khác để chen vào - không
+  // cần mô phỏng exclusivity, delegate thẳng qua `this` (đã implement DatabaseAdapter đầy đủ).
+  async withExclusiveTransactionAsync<T>(callback: (txn: DatabaseAdapter) => Promise<T>): Promise<T> {
+    return await callback(this);
+  }
 }
 
 let dbInstance: DatabaseAdapter | null = null;
@@ -270,6 +289,24 @@ export async function getDatabase(): Promise<DatabaseAdapter> {
         let result: T;
         await nativeDb.withTransactionAsync(async () => {
           result = await callback();
+        });
+        return result!;
+      },
+      withExclusiveTransactionAsync: async <T>(callback: (txn: DatabaseAdapter) => Promise<T>): Promise<T> => {
+        let result: T;
+        await nativeDb.withExclusiveTransactionAsync(async (txn) => {
+          // expo-sqlite yêu cầu MỌI câu lệnh trong transaction exclusive phải chạy trên `txn`
+          // (không phải `nativeDb`/`adapter` ngoài) - bọc lại đúng DatabaseAdapter nhưng trỏ vào
+          // txn để code gọi callback (SqliteRepository) không cần biết sự khác biệt này.
+          const txnAdapter: DatabaseAdapter = {
+            execAsync: (sql: string) => txn.execAsync(sql),
+            runAsync: (sql: string, params?: any[]) => txn.runAsync(sql, ...(params || [])),
+            getAllAsync: <U = any>(sql: string, params?: any[]) => txn.getAllAsync<U>(sql, ...(params || [])),
+            getFirstAsync: <U = any>(sql: string, params?: any[]) => txn.getFirstAsync<U>(sql, ...(params || [])),
+            withTransactionAsync: async <U>(cb: () => Promise<U>): Promise<U> => cb(),
+            withExclusiveTransactionAsync: async <U>(cb: (t: DatabaseAdapter) => Promise<U>): Promise<U> => cb(txnAdapter),
+          };
+          result = await callback(txnAdapter);
         });
         return result!;
       },

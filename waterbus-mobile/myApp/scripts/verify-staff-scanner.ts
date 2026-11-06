@@ -11,6 +11,8 @@ import { QrVerifier, DEFAULT_KEY_INFO } from '../src/services/crypto/qrVerifier'
 import { SqliteRepository } from '../src/services/sqlite/sqliteRepository';
 import { syncService } from '../src/services/sync/syncService';
 import { useScannerStore } from '../src/store/useScannerStore';
+import { useAuthStore } from '../src/store/useAuthStore';
+import { authService } from '../src/services/auth/authService';
 import { MyScannerAssignment } from '../src/types/checkin';
 
 async function runVerification() {
@@ -373,6 +375,56 @@ async function runVerification() {
     '8.2 clearCache actually deletes all manifest data once no Pending/Conflict remain',
     `Trips/Bookings/Tickets after clear: ${statsAfterClear.tripCount}/${statsAfterClear.bookingCount}/${statsAfterClear.ticketCount}`
   );
+
+  // -------------------------------------------------------------
+  // TEST GROUP 9: LOGIN IS HARD-BLOCKED WHILE A PENDING MANIFEST PURGE KEEPS FAILING
+  // (Review PR #57, 2nd round: "Logout privacy still fails open")
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 9: Login Blocked Device-Wide While a Pending Manifest Purge Still Fails');
+
+  const originalPurge = SqliteRepository.purgeManifestForLogout;
+  const originalLogin = authService.login;
+  let loginStubCalls = 0;
+  (authService as any).login = async () => {
+    loginStubCalls++;
+    return { userId: 'stub-user', email: 'stub@test.com', fullName: 'Stub', roles: ['Staff'] };
+  };
+
+  try {
+    // 9.1 Giả lập: lần đăng xuất trước đã đặt cờ pending (purge lỗi), và máy vẫn tiếp tục lỗi
+    // (vd đĩa hỏng) - login() phải bị chặn HOÀN TOÀN, KHÔNG được gọi sang authService.login (chứng
+    // minh đây là gate của thiết bị, không phải lỗi xác thực tài khoản).
+    await SqliteRepository.setPendingManifestPurge(true);
+    (SqliteRepository as any).purgeManifestForLogout = async () => {
+      throw new Error('Giả lập lỗi SQLite lặp lại (đĩa hỏng)');
+    };
+
+    const blockedResult = await useAuthStore.getState().login('staff@test.com', 'x');
+    assert(
+      blockedResult === false && loginStubCalls === 0,
+      '9.1 login() is rejected before ever calling the backend while purge is pending and still failing',
+      `result: ${blockedResult}, backend login calls: ${loginStubCalls}, error: ${useAuthStore.getState().error}`
+    );
+    assert(
+      !!useAuthStore.getState().error && useAuthStore.getState().error!.length > 0,
+      '9.2 A clear error is surfaced to the UI instead of silently failing',
+      `error: ${useAuthStore.getState().error}`
+    );
+
+    // 9.2 Phục hồi: SQLite "hết hỏng" (purge thật lại thành công) - login() của CÙNG thiết bị (bất
+    // kỳ Staff nào) giờ phải được cho qua.
+    (SqliteRepository as any).purgeManifestForLogout = originalPurge;
+    const recoveredResult = await useAuthStore.getState().login('staff@test.com', 'x');
+    assert(
+      recoveredResult === true && loginStubCalls === 1 && !(await SqliteRepository.isManifestPurgePending()),
+      '9.3 login() succeeds again once the pending purge finally resolves, and the pending flag is cleared',
+      `result: ${recoveredResult}, backend login calls: ${loginStubCalls}`
+    );
+  } finally {
+    (SqliteRepository as any).purgeManifestForLogout = originalPurge;
+    (authService as any).login = originalLogin;
+    await SqliteRepository.setPendingManifestPurge(false);
+  }
 
   // -------------------------------------------------------------
   // FINAL SUMMARY

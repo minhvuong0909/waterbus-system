@@ -513,33 +513,36 @@ export class SqliteRepository {
 
   /**
    * Clear all local tables (Reset Cache), nhưng CHỈ khi không còn event Pending/Conflict (MOB-05).
-   * Review PR #57 (Medium - Cache deletion race): trước đây useScannerStore.clearCache đọc count
-   * Pending/Conflict rồi mới gọi hàm xoá ở 2 bước riêng (2 lượt await khác nhau) - 1 sự kiện mới
-   * (sync xong từ batch khác, hoặc 1 lần quét khác) có thể được ghi xen giữa lúc đọc count và lúc
-   * DELETE thực sự chạy, rồi bị xoá mất mà không ai kiểm tra lại nó. Gộp đếm + xoá vào CHUNG 1
-   * SQLite transaction: nếu đếm được > 0, trả cleared=false và KHÔNG DELETE gì - đây là lần "nhìn
-   * thấy" số liệu duy nhất cho quyết định xoá, loại bỏ khoảng hở giữa 2 lượt await.
+   * Review PR #57 (Medium, rồi High ở lần review thứ 2 - "Cache deletion is not fully isolated"):
+   * trước đây useScannerStore.clearCache đọc count Pending/Conflict rồi mới gọi hàm xoá ở 2 bước
+   * riêng (2 lượt await khác nhau) - 1 sự kiện mới có thể được ghi xen giữa lúc đọc count và lúc
+   * DELETE thực sự chạy. Gộp đếm + xoá vào 1 `withTransactionAsync` (bản trước) đã thu hẹp cửa sổ
+   * đó ở mức code của hàm này, nhưng reviewer chỉ đúng: `withTransactionAsync` của expo-sqlite
+   * KHÔNG exclusive - 1 lệnh ghi khác NGOÀI function này (vd checkInTickets) vẫn có thể chen vào
+   * giữa các câu lệnh bên trong transaction này trên native (xem ghi chú ở DatabaseAdapter). Đổi
+   * sang `withExclusiveTransactionAsync` thật - mọi câu lệnh bên trong PHẢI chạy trên `txn` (tham
+   * số callback), không phải `db` ngoài, theo đúng yêu cầu của expo-sqlite.
    * db.execAsync với chuỗi multi-statement là NO-OP trên InMemoryFallbackDatabase (web/test - xem
    * database.ts) - dùng từng runAsync riêng để chạy đúng trên CẢ native lẫn fallback.
    */
   static async clearCache(): Promise<{ cleared: boolean; pendingSyncCount: number; conflictSyncCount: number }> {
     const db = await getDatabase();
-    return await db.withTransactionAsync(async () => {
-      const pendingRows = await db.getAllAsync<any>(
+    return await db.withExclusiveTransactionAsync(async (txn) => {
+      const pendingRows = await txn.getAllAsync<any>(
         `SELECT id FROM offline_checkin_events WHERE sync_status = 'Pending'`
       );
-      const conflictRows = await db.getAllAsync<any>(
+      const conflictRows = await txn.getAllAsync<any>(
         `SELECT id FROM offline_checkin_events WHERE sync_status = 'Conflict'`
       );
       if (pendingRows.length > 0 || conflictRows.length > 0) {
         return { cleared: false, pendingSyncCount: pendingRows.length, conflictSyncCount: conflictRows.length };
       }
 
-      await db.runAsync(`DELETE FROM manifest_tickets`);
-      await db.runAsync(`DELETE FROM manifest_bookings`);
-      await db.runAsync(`DELETE FROM manifest_trips`);
-      await db.runAsync(`DELETE FROM offline_checkin_events`);
-      await db.runAsync(`DELETE FROM scanner_config`);
+      await txn.runAsync(`DELETE FROM manifest_tickets`);
+      await txn.runAsync(`DELETE FROM manifest_bookings`);
+      await txn.runAsync(`DELETE FROM manifest_trips`);
+      await txn.runAsync(`DELETE FROM offline_checkin_events`);
+      await txn.runAsync(`DELETE FROM scanner_config`);
       return { cleared: true, pendingSyncCount: 0, conflictSyncCount: 0 };
     });
   }
@@ -572,7 +575,12 @@ export class SqliteRepository {
   static async setPendingManifestPurge(pending: boolean): Promise<void> {
     const db = await getDatabase();
     if (pending) {
-      await db.runAsync(`INSERT OR REPLACE INTO scanner_config (key, value) VALUES ('pending_manifest_purge', '1')`);
+      // Giá trị PHẢI truyền qua tham số `?` (như mọi INSERT scanner_config khác trong file này),
+      // không viết literal ('1') ngay trong câu SQL - InMemoryFallbackDatabase.runAsync (database.ts)
+      // chỉ nhận diện đúng mẫu "VALUES ('key', ?)" qua regex; viết literal khiến regex không khớp
+      // và lệnh ghi trở thành no-op IM LẶNG trên môi trường web/test (bug thật, bắt được qua Test
+      // Group 9 của verify-staff-scanner.ts).
+      await db.runAsync(`INSERT OR REPLACE INTO scanner_config (key, value) VALUES ('pending_manifest_purge', ?)`, ['1']);
     } else {
       await db.runAsync(`DELETE FROM scanner_config WHERE key = 'pending_manifest_purge'`);
     }
