@@ -177,7 +177,28 @@ public sealed class SeatInventorySqlTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Tạo SeatClass trùng mã đồng thời (HTTP thật từng cho 1x201 + 1x400 + 4x500 vì check-then-insert nằm ngoài khoá):
+    /// Xác định (không dựa may rủi lịch): request thứ nhất đã kiểm tra trùng mã xong và bị dừng ngay trước lệnh INSERT; request thứ hai
+    /// chen vào. Có khoá thương mại thì request thứ hai bị chặn tại applock rồi thấy mã đã commit ⇒ ValidationException (400); bỏ khoá thì
+    /// nó cũng qua được kiểm tra trùng và đụng unique index (DbUpdateException ⇒ HTTP 500).
+    /// </summary>
+    [SqlServerDomainFact]
+    public async Task SeatClassCreatePausedBeforeInsert_ConcurrentDuplicate_IsACleanValidationRejection()
+    {
+        var r = await NewRoundAsync();
+        static bool InsertsSeatClass(DbContext c) => c.ChangeTracker.Entries<SeatClass>().Any(e => e.State == EntityState.Added);
+        var request = new CreateSeatClassRequest("DUP-PAUSED", "Dup", null);
+
+        var (first, second) = await PausedRaceAsync(r, InsertsSeatClass,
+            c => Classes(c).CreateAsync(request), c => Classes(c).CreateAsync(request));
+
+        first.Should().BeNull("request đã giữ khoá thương mại phải hoàn tất");
+        second.Should().BeOfType<ValidationException>($"request chen vào phải bị từ chối nghiệp vụ (400), không lỗi unique-index thô; gặp {second}");
+        await using var check = r.Context();
+        (await check.SeatClasses.CountAsync(x => x.Code == "DUP-PAUSED")).Should().Be(1);
+    }
+
+    /// <summary>
+    /// Căng thẳng: tạo SeatClass trùng mã bằng 6 request song song (HTTP thật từng cho 1x201 + 1x400 + 4x500):
     /// phải đúng 1 thành công, các request còn lại bị từ chối nghiệp vụ (400), không lỗi unique-index thô.
     /// </summary>
     [SqlServerDomainFact]
