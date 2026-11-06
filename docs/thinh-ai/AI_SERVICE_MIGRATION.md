@@ -28,7 +28,7 @@ Các đường dẫn dưới đây tính từ `waterbus-be/src/`; `Application` 
 
 Audio HTTP: Controller → `ValidateRequestFilter` → `IAudioSynthesisService`/`IAudioAssetService`/`IAudioGuideService` → provider Azure hoặc repository → SQL. Service cũng validate khi được gọi trực tiếp. Blob client khởi tạo lúc truy cập asset, nên đọc danh sách POI không cần cấu hình Azure.
 
-Geofence: tracking gọi `ITrackingAudioTriggerEvaluator` → repository đọc snapshot Trip/RoutePoi/AudioGuide/Incident → `IPoiAudioTriggerDecisionService` áp dụng điều kiện hành trình, bán kính, ưu tiên an toàn và chống lặp → dispatcher hiện có. Không thay đổi thuật toán NetTopologySuite hoặc cơ chế ACK/player.
+Geofence: tracking gọi `ITrackingAudioTriggerService` → repository đọc snapshot Trip/RoutePoi/AudioGuide/Incident → `IPoiAudioTriggerDecisionService` áp dụng điều kiện hành trình, bán kính, ưu tiên an toàn và chống lặp → dispatcher hiện có. Không thay đổi thuật toán NetTopologySuite hoặc cơ chế ACK/player.
 
 AI chat: `AiAssistantController` → `IAiBookingAssistantService` → `SemanticKernelAiBookingAssistantService` → plugin/tool. Request, lịch sử, search context và dữ liệu Trip Card giữ nguyên.
 

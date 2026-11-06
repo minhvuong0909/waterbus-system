@@ -29,7 +29,7 @@ public class BoatTrackingServiceRecordTests
     private readonly TestDbContextFactory.TripSeedData _seed;
     private readonly InMemoryBoatPositionCache _cache = new();
     private readonly Mock<IBoatTrackingPublisher> _publisher = new();
-    private readonly Mock<ITrackingAudioTriggerEvaluator> _audioEvaluator = new();
+    private readonly Mock<ITrackingAudioTriggerService> _audioEvaluator = new();
     private readonly Guid _captainId = Guid.NewGuid();
 
     public BoatTrackingServiceRecordTests()
