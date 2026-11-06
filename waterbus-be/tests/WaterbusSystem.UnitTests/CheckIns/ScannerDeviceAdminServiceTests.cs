@@ -139,7 +139,7 @@ public class ScannerDeviceAdminServiceTests
         _context.SaveChanges();
         (await Service().GetByIdAsync(id)).ActiveAssignmentCount.Should().Be(1);
 
-        // Thu hồi bằng nghiệp vụ thật (CheckInService), rồi đọc lại bằng context mới để chắc mốc kết thúc đã được lưu.
+        // Thu hồi bằng nghiệp vụ thật (CheckInService), rồi xoá ChangeTracker và đọc lại từ DB để chắc mốc kết thúc đã được lưu.
         var clock = new Mock<IDateTimeService>();
         clock.Setup(c => c.Now).Returns(Now);
         var checkIns = new WaterbusSystem.Application.Features.CheckIns.Services.CheckInService(

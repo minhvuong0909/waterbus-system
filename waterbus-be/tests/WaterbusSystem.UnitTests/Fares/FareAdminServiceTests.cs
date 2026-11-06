@@ -134,6 +134,17 @@ public class FareAdminServiceTests
     }
 
     [Fact]
+    public async Task Update_UpcomingRule_MayStillExtendOrUnboundTheEndDate()
+    {
+        var id = await Service().CreateAsync(Create(NewClass().Id, fromDays: 5, toDays: 8));
+
+        await Service().UpdateAsync(id, new UpdateFareRuleRequest(12000m, _now.AddDays(5), _now.AddDays(20)));
+        (await Service().GetByIdAsync(id)).EffectiveTo.Should().Be(_now.AddDays(20));
+        await Service().UpdateAsync(id, new UpdateFareRuleRequest(12000m, _now.AddDays(5), null));
+        (await Service().GetByIdAsync(id)).EffectiveTo.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Update_ExpiredRule_ShouldNotBeReopened()
     {
         var expired = SeedFare();

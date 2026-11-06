@@ -103,6 +103,18 @@ public class ScheduleAdminServiceTests
     }
 
     [Fact]
+    public async Task ReplaceStops_ShouldRejectZeroDurationRun_AndKeepTheOldStops()
+    {
+        var id = await Service().CreateAsync(Req());
+
+        var zero = () => Service().ReplaceStopsAsync(id, new ReplaceScheduleStopsRequest([new(_stops[0].Id, null, 0), new(_stops[2].Id, 0, null)]));
+
+        await zero.Should().ThrowAsync<ValidationException>();
+        _context.ChangeTracker.Clear();
+        (await Service().GetByIdAsync(id)).Stops.Should().HaveCount(3, "lịch cũ còn nguyên khi thay điểm dừng bị từ chối");
+    }
+
+    [Fact]
     public async Task Create_ShouldRejectTripTypeThatDoesNotMatchRouteServiceType_AndInactiveRoute()
     {
         var mismatch = () => Service().CreateAsync(Req(type: "Sightseeing"));
