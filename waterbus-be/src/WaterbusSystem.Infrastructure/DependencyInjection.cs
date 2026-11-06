@@ -77,6 +77,8 @@ public static class DependencyInjection
         services.AddScoped<IRouteRepository, RouteRepository>();
         services.AddScoped<ITripRepository, TripRepository>();
         services.AddScoped<IBoatRepository, BoatRepository>();
+        services.AddScoped<ISeatClassRepository, SeatClassRepository>();
+        services.AddScoped<IBoatSeatRepository, BoatSeatRepository>();
         services.AddScoped<IBoatPositionRepository, BoatPositionRepository>();
         services.AddScoped<IBoatTrackingService, WaterbusSystem.Application.Features.Tracking.Services.BoatTrackingService>();
         services.AddScoped<IIncidentService, WaterbusSystem.Application.Features.Incidents.Services.IncidentService>();
@@ -86,6 +88,8 @@ public static class DependencyInjection
         services.AddScoped<IStationRepository, StationRepository>();
         services.AddScoped<IFareService, WaterbusSystem.Application.Features.Fares.Services.FareService>();
         services.AddScoped<IBoatService, WaterbusSystem.Application.Features.Boats.Services.BoatService>();
+        services.AddScoped<ISeatClassService, WaterbusSystem.Application.Features.SeatInventory.Services.SeatClassService>();
+        services.AddScoped<IBoatSeatService, WaterbusSystem.Application.Features.SeatInventory.Services.BoatSeatService>();
         services.AddScoped<IStationService, WaterbusSystem.Application.Features.Stations.Services.StationService>();
         services.AddScoped<ITripService, WaterbusSystem.Application.Features.Trips.Services.TripService>();
         services.AddScoped<IBookingReferenceRepository, BookingReferenceRepository>();

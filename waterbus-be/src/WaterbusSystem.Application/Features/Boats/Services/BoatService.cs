@@ -6,6 +6,7 @@ using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Domain.Entities;
+using WaterbusSystem.Domain.Exceptions;
 
 namespace WaterbusSystem.Application.Features.Boats.Services;
 
@@ -42,6 +43,14 @@ public sealed class BoatService(IBoatRepository boats, IUnitOfWork unitOfWork) :
     public async Task UpdateAsync(Guid id, UpdateBoatRequest request, CancellationToken cancellationToken = default)
     {
         var boat = await boats.GetRequiredByIdAsync(id, cancellationToken);
+
+        // Không để sức chứa khai báo thấp hơn số ghế thật đang bán; không tự sinh/xoá ghế theo TotalSeats.
+        var activeSeats = await boats.CountActiveSeatsAsync(id, cancellationToken);
+        if (request.TotalSeats < activeSeats)
+        {
+            throw new ConflictException(
+                $"TotalSeats ({request.TotalSeats}) thấp hơn số ghế đang hoạt động ({activeSeats}). Hãy ngừng bớt ghế trước.");
+        }
 
         boat.Name = request.Name;
         boat.RegistrationNumber = request.RegistrationNumber;
