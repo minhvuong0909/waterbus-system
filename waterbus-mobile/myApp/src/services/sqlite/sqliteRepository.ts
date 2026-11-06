@@ -512,35 +512,76 @@ export class SqliteRepository {
   }
 
   /**
-   * Clear all local tables (Reset Cache). Caller (useScannerStore.clearCache) PHẢI đảm bảo
-   * không còn event Pending/Conflict trước khi gọi - đến đây mọi offline_checkin_events chỉ còn
-   * Synced nên xoá an toàn (MOB-05).
+   * Clear all local tables (Reset Cache), nhưng CHỈ khi không còn event Pending/Conflict (MOB-05).
+   * Review PR #57 (Medium - Cache deletion race): trước đây useScannerStore.clearCache đọc count
+   * Pending/Conflict rồi mới gọi hàm xoá ở 2 bước riêng (2 lượt await khác nhau) - 1 sự kiện mới
+   * (sync xong từ batch khác, hoặc 1 lần quét khác) có thể được ghi xen giữa lúc đọc count và lúc
+   * DELETE thực sự chạy, rồi bị xoá mất mà không ai kiểm tra lại nó. Gộp đếm + xoá vào CHUNG 1
+   * SQLite transaction: nếu đếm được > 0, trả cleared=false và KHÔNG DELETE gì - đây là lần "nhìn
+   * thấy" số liệu duy nhất cho quyết định xoá, loại bỏ khoảng hở giữa 2 lượt await.
+   * db.execAsync với chuỗi multi-statement là NO-OP trên InMemoryFallbackDatabase (web/test - xem
+   * database.ts) - dùng từng runAsync riêng để chạy đúng trên CẢ native lẫn fallback.
    */
-  static async clearCache(): Promise<void> {
+  static async clearCache(): Promise<{ cleared: boolean; pendingSyncCount: number; conflictSyncCount: number }> {
     const db = await getDatabase();
-    await db.execAsync(`
-      DELETE FROM manifest_tickets;
-      DELETE FROM manifest_bookings;
-      DELETE FROM manifest_trips;
-      DELETE FROM offline_checkin_events;
-      DELETE FROM scanner_config;
-    `);
+    return await db.withTransactionAsync(async () => {
+      const pendingRows = await db.getAllAsync<any>(
+        `SELECT id FROM offline_checkin_events WHERE sync_status = 'Pending'`
+      );
+      const conflictRows = await db.getAllAsync<any>(
+        `SELECT id FROM offline_checkin_events WHERE sync_status = 'Conflict'`
+      );
+      if (pendingRows.length > 0 || conflictRows.length > 0) {
+        return { cleared: false, pendingSyncCount: pendingRows.length, conflictSyncCount: conflictRows.length };
+      }
+
+      await db.runAsync(`DELETE FROM manifest_tickets`);
+      await db.runAsync(`DELETE FROM manifest_bookings`);
+      await db.runAsync(`DELETE FROM manifest_trips`);
+      await db.runAsync(`DELETE FROM offline_checkin_events`);
+      await db.runAsync(`DELETE FROM scanner_config`);
+      return { cleared: true, pendingSyncCount: 0, conflictSyncCount: 0 };
+    });
   }
 
   /**
    * Xoá dữ liệu khách hàng (manifest) khỏi SQLite khi Staff đăng xuất (MOB-06), để Staff kế
-   * tiếp đăng nhập trên cùng thiết bị không còn tra cứu được tên/SĐT khách của ca trước. KHÔNG
-   * xoá offline_checkin_events hay active_assignment ở đây - lịch sử Pending/Conflict phải giữ
-   * nguyên để đối soát dù đổi tài khoản (các field cần hiển thị đã denormalize sẵn trong chính
-   * bảng events, không cần tới bảng manifest).
+   * tiếp đăng nhập trên cùng thiết bị không còn tra cứu được tên/SĐT khách của ca trước (không chỉ
+   * ẩn trên 1 màn hình lịch sử - manifest_bookings/tickets còn tồn tại thì QR scan/tra tay bình
+   * thường của Staff kế tiếp vẫn đọc được). KHÔNG xoá offline_checkin_events hay active_assignment
+   * ở đây - lịch sử Pending/Conflict phải giữ nguyên để đối soát dù đổi tài khoản (các field cần
+   * hiển thị đã denormalize sẵn trong chính bảng events, không cần tới bảng manifest).
+   * Dùng từng runAsync trong 1 transaction (như clearCache) - execAsync multi-statement là no-op
+   * trên fallback in-memory, và transaction đảm bảo atomic.
    */
   static async purgeManifestForLogout(): Promise<void> {
     const db = await getDatabase();
-    await db.execAsync(`
-      DELETE FROM manifest_tickets;
-      DELETE FROM manifest_bookings;
-      DELETE FROM manifest_trips;
-    `);
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(`DELETE FROM manifest_tickets`);
+      await db.runAsync(`DELETE FROM manifest_bookings`);
+      await db.runAsync(`DELETE FROM manifest_trips`);
+    });
+  }
+
+  /**
+   * Đánh dấu/gỡ cờ "còn 1 lần purge manifest đăng xuất bị lỗi chưa xử lý xong" (Review PR #57 -
+   * Logout privacy). useAuthStore.logout thử lại purge 1 lần tại chỗ; nếu vẫn lỗi (vd đĩa đang bị
+   * khoá), đặt cờ này để lần đăng nhập/khởi động kế tiếp trên CHÍNH thiết bị này bắt buộc thử xoá
+   * lại trước khi tin tưởng dữ liệu manifest hiện có thuộc về Staff mới hay vẫn là rác của ca cũ.
+   */
+  static async setPendingManifestPurge(pending: boolean): Promise<void> {
+    const db = await getDatabase();
+    if (pending) {
+      await db.runAsync(`INSERT OR REPLACE INTO scanner_config (key, value) VALUES ('pending_manifest_purge', '1')`);
+    } else {
+      await db.runAsync(`DELETE FROM scanner_config WHERE key = 'pending_manifest_purge'`);
+    }
+  }
+
+  static async isManifestPurgePending(): Promise<boolean> {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<any>(`SELECT value FROM scanner_config WHERE key = 'pending_manifest_purge'`);
+    return !!row?.value;
   }
 
   /**

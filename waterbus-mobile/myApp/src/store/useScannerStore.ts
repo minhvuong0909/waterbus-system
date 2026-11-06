@@ -129,7 +129,29 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     // MOB-03: chữ ký số QR (hoặc đối chiếu version/tripId - MOB-04) chưa hợp lệ thì KHÔNG được
     // check-in như đường quét QR bình thường - bắt buộc đi qua Ghi đè thủ công (Manual Override)
     // có lý do, để tách rõ 2 luồng và có vết audit (BookingDetailModal.handleConfirmCheckIn).
-    if (!isManualOverride && verificationResult?.isValid !== true) {
+    const isQrVerified = verificationResult?.isValid === true;
+
+    // Review PR #57 (High - Manual Override security): isValid=false gộp 2 trường hợp hoàn toàn
+    // khác nhau về rủi ro, không được xử lý như nhau:
+    // (a) Staff tra tay hoàn toàn không có QR để xác thực (verifiedOffline=false -
+    //     StaffScannerScreen.processManualLookup, vd màn khách vỡ/camera lỗi) - đây là fallback
+    //     vận hành hợp lý, vẫn cho Ghi đè kèm lý do như trước.
+    // (b) QR ĐÃ quét và xác thực chữ ký số THÀNH CÔNG (verifiedOffline=true) nhưng bị từ chối vì
+    //     credential version/tripId không khớp manifest (MOB-04: QR cũ do đã cấp lại, hoặc QR của
+    //     chuyến khác) - đây là tín hiệu QR có thể đã bị thu hồi hoặc dùng sai chuyến, một dòng lý
+    //     do Staff tự nhập KHÔNG được phép vượt qua. Chặn cứng, không có đường Ghi đè nào áp dụng
+    //     cho case này - Staff phải xin khách QR mới hoặc báo Admin xử lý (đối soát ngoài luồng).
+    const isStaleOrMismatchedQr = verificationResult?.verifiedOffline === true && !isQrVerified;
+    if (isStaleOrMismatchedQr) {
+      return {
+        success: false,
+        count: 0,
+        error:
+          'QR đã quét được xác thực chữ ký nhưng KHÔNG khớp phiên bản/chuyến hiện tại (có thể đã bị thu hồi hoặc cấp lại). ' +
+          'Không thể ghi đè bằng lý do thủ công cho trường hợp này - vui lòng yêu cầu khách cung cấp QR mới hoặc báo Admin xử lý.',
+      };
+    }
+    if (!isManualOverride && !isQrVerified) {
       return {
         success: false,
         count: 0,
@@ -169,7 +191,10 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
         staffAccountId: deviceInfo.staffId,
         staffName: deviceInfo.staffName,
         scannerDeviceId: deviceInfo.deviceId,
-        notes: isManualOverride ? `[GHI ĐÈ THỦ CÔNG - chưa xác thực QR] ${notes}` : notes,
+        // Tag rõ "TRA TAY KHÔNG CÓ QR" (không còn ghi mơ hồ "chưa xác thực QR") vì sau khi chặn
+        // cứng case (b) ở trên, đây là NHÃN DUY NHẤT còn có thể đi tới đây - giúp Admin đối soát
+        // lọc đúng loại Ghi đè trong Notes (review PR #57: "structured audit/reconciliation").
+        notes: isManualOverride ? `[GHI ĐÈ THỦ CÔNG - TRA TAY KHÔNG CÓ QR] ${notes}` : notes,
       });
 
       // Update in-memory booking object to reflect changes immediately
@@ -273,16 +298,18 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
   },
 
   clearCache: async () => {
-    const stats = await SqliteRepository.getManifestStats();
-    if (stats.pendingSyncCount > 0) throw new Error('Còn sự kiện chưa đồng bộ. Không thể xoá bộ nhớ đệm.');
-    // MOB-05: event bị server từ chối/đối soát (Conflict, vd NoShowFinalized) không tính vào
-    // pendingSyncCount nhưng vẫn là bằng chứng chưa xử lý - không được xoá cùng lúc với cache.
-    if (stats.conflictSyncCount > 0) {
-      throw new Error(
-        'Còn sự kiện bị máy chủ từ chối/đối soát (Conflict) chưa xử lý. Hãy báo Admin xử lý trước khi xoá bộ nhớ đệm.'
-      );
+    // MOB-05 + Review PR #57 (Medium - Cache deletion race): đếm Pending/Conflict và xoá giờ nằm
+    // CHUNG 1 transaction trong SqliteRepository.clearCache - không còn khoảng hở giữa đọc count
+    // (await riêng) và DELETE (await riêng) như trước để 1 sự kiện mới chen vào rồi bị xoá nhầm.
+    const result = await SqliteRepository.clearCache();
+    if (!result.cleared) {
+      if (result.conflictSyncCount > 0) {
+        throw new Error(
+          'Còn sự kiện bị máy chủ từ chối/đối soát (Conflict) chưa xử lý. Hãy báo Admin xử lý trước khi xoá bộ nhớ đệm.'
+        );
+      }
+      throw new Error('Còn sự kiện chưa đồng bộ. Không thể xoá bộ nhớ đệm.');
     }
-    await SqliteRepository.clearCache();
     await SqliteRepository.clearActiveAssignment();
     set({ activeAssignment: null, currentBooking: null, verificationResult: null, isModalOpen: false });
     await get().refreshStats();

@@ -65,8 +65,13 @@ export default function ScannerSettingsScreen() {
         text: 'Đăng xuất',
         style: 'destructive',
         onPress: async () => {
-          await logout();
+          const purgeWarning = await logout();
           router.replace('/login');
+          // Review PR #57: báo thật cho Staff nếu không xoá sạch được dữ liệu khách ca trước,
+          // thay vì chỉ console.warn âm thầm trong khi màn hình đã chuyển sang như đăng xuất xong.
+          if (purgeWarning) {
+            setTimeout(() => Alert.alert('Cảnh báo bảo mật dữ liệu', purgeWarning), 300);
+          }
         },
       },
     ]);

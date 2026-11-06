@@ -296,6 +296,85 @@ async function runVerification() {
   );
 
   // -------------------------------------------------------------
+  // TEST GROUP 7: STALE/MISMATCHED QR CANNOT BE OVERRIDDEN BY ANY REASON (Review PR #57, MOB-04)
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 7: Stale/Mismatched QR (verified signature, wrong version/trip) Blocks Override');
+
+  const thirdTicket = secondBooking.tickets.find(
+    (ticket) => ticket.boardingStatus === 'NotCheckedIn' && ticket.id !== secondTicket.id
+  );
+  if (!thirdTicket) throw new Error('Thiếu vé test thứ ba chưa check-in trong booking thứ hai.');
+
+  // 7.1 QR ĐÃ quét và xác thực chữ ký (verifiedOffline=true) nhưng version/tripId không khớp
+  // manifest (StaffScannerScreen.lookupAndOpenBooking hạ isValid xuống false trong trường hợp
+  // này) - khác hẳn tra tay không có QR (verifiedOffline=false ở Test Group 6). Dù có cờ
+  // isManualOverride=true kèm lý do hợp lệ, vẫn phải bị chặn cứng - không có đường Ghi đè nào áp
+  // dụng cho case này (phải escalate, không tự ý qua được bằng 1 dòng lý do).
+  useScannerStore.setState({
+    verificationResult: {
+      isValid: false,
+      publicBookingId: secondBooking.publicBookingId,
+      verifiedOffline: true,
+      version: 2,
+      error: 'QR đã cũ (phiên bản 2, hệ thống hiện tại là 3).',
+    },
+  });
+  const staleQrWithOverride = await useScannerStore.getState().performCheckIn(
+    [thirdTicket.id],
+    'Khách khẳng định vé hợp lệ, cho qua',
+    true
+  );
+  assert(
+    !staleQrWithOverride.success,
+    '7.1 Reject check-in for a signature-verified but stale/mismatched QR even with override flag + reason',
+    `Error: ${staleQrWithOverride.error}`
+  );
+
+  // 7.2 Vé KHÔNG được âm thầm check-in bởi lần gọi bị chặn ở trên.
+  const bookingAfterStaleAttempt = await SqliteRepository.getBookingByPublicId(secondBooking.publicBookingId);
+  const thirdTicketAfter = bookingAfterStaleAttempt?.tickets.find((t) => t.id === thirdTicket.id);
+  assert(
+    thirdTicketAfter?.boardingStatus === 'NotCheckedIn',
+    '7.2 Ticket stays NotCheckedIn after a blocked stale/mismatched-QR override attempt',
+    `boardingStatus: ${thirdTicketAfter?.boardingStatus}`
+  );
+
+  // -------------------------------------------------------------
+  // TEST GROUP 8: ATOMIC GUARD BEFORE CACHE DELETION (Review PR #57, MOB-05)
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 8: Clear Cache Refuses Atomically While Pending/Conflict Events Exist');
+
+  // 8.1 Còn offline_checkin_events ở trạng thái Pending (các check-in từ Test Group 3/5/6/7 chưa
+  // từng sync thành công) -> store.clearCache() phải từ chối, và KHÔNG xoá bất kỳ bảng nào (đếm +
+  // xoá nằm trong 1 transaction - SqliteRepository.clearCache()).
+  const statsBeforeClear = await SqliteRepository.getManifestStats();
+  let refusedClear = false;
+  try {
+    await useScannerStore.getState().clearCache();
+  } catch {
+    refusedClear = true;
+  }
+  const statsAfterRefusal = await SqliteRepository.getManifestStats();
+  assert(
+    refusedClear && statsAfterRefusal.bookingCount === statsBeforeClear.bookingCount,
+    '8.1 clearCache refuses atomically while Pending events exist and deletes nothing',
+    `Pending: ${statsBeforeClear.pendingSyncCount}, bookings before/after: ${statsBeforeClear.bookingCount}/${statsAfterRefusal.bookingCount}`
+  );
+
+  // 8.2 Đánh dấu toàn bộ Pending thành Synced (mô phỏng batch sync thành công) rồi clearCache()
+  // phải thành công và xoá sạch - đồng thời chứng minh execAsync multi-statement cũ KHÔNG còn là
+  // no-op trên InMemoryFallbackDatabase (môi trường chạy chính script này).
+  const remainingPending = await SqliteRepository.getPendingEvents(50);
+  await SqliteRepository.markEventsSynced(remainingPending.map((e) => ({ clientEventId: e.clientEventId })));
+  await useScannerStore.getState().clearCache();
+  const statsAfterClear = await SqliteRepository.getManifestStats();
+  assert(
+    statsAfterClear.bookingCount === 0 && statsAfterClear.tripCount === 0 && statsAfterClear.ticketCount === 0,
+    '8.2 clearCache actually deletes all manifest data once no Pending/Conflict remain',
+    `Trips/Bookings/Tickets after clear: ${statsAfterClear.tripCount}/${statsAfterClear.bookingCount}/${statsAfterClear.ticketCount}`
+  );
+
+  // -------------------------------------------------------------
   // FINAL SUMMARY
   // -------------------------------------------------------------
   console.log('\n================================================================');

@@ -35,6 +35,11 @@ export default function BookingDetailModal() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [overrideReason, setOverrideReason] = useState('');
   const isQrVerified = verificationResult?.isValid === true;
+  // Review PR #57: QR ĐÃ quét và xác thực chữ ký thành công nhưng bị từ chối do credential
+  // version/tripId không khớp manifest (MOB-04) là tín hiệu QR có thể đã bị thu hồi/dùng sai
+  // chuyến - khác hẳn việc Staff tra tay hoàn toàn không có QR (verifiedOffline=false). Case này
+  // không được hiển thị ô nhập lý do Ghi đè - phải chặn cứng (xem useScannerStore.performCheckIn).
+  const isStaleOrMismatchedQr = verificationResult?.verifiedOffline === true && !isQrVerified;
 
   // Initialize selected tickets: auto-select unchecked tickets by default
   useEffect(() => {
@@ -76,6 +81,15 @@ export default function BookingDetailModal() {
   const handleConfirmCheckIn = async () => {
     if (selectedTicketIds.length === 0) {
       Alert.alert('Chưa chọn vé', 'Vui lòng tích chọn ít nhất một hành khách đang có mặt để check-in.');
+      return;
+    }
+
+    if (isStaleOrMismatchedQr) {
+      Alert.alert(
+        'Không thể check-in',
+        'QR đã quét được xác thực chữ ký nhưng không khớp phiên bản/chuyến hiện tại (có thể đã bị thu hồi hoặc cấp lại). ' +
+          'Vui lòng yêu cầu khách cung cấp QR mới hoặc báo Admin xử lý.'
+      );
       return;
     }
 
@@ -137,13 +151,26 @@ export default function BookingDetailModal() {
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* Digital Signature Verification Badge */}
-          {verificationResult?.isValid ? (
+          {isQrVerified ? (
             <View style={styles.verifiedBanner}>
               <Ionicons name="shield-checkmark" size={24} color="#059669" />
               <View style={styles.verifiedTextContainer}>
                 <Text style={styles.verifiedTitle}>CHỮ KÝ SỐ HỢP LỆ (XÁC THỰC OFFLINE)</Text>
                 <Text style={styles.verifiedSubtitle}>
-                  Thuật toán: {verificationResult.algorithmUsed || 'RS256'} • Public Key: OK • Mã toàn vẹn
+                  Thuật toán: {verificationResult?.algorithmUsed || 'RS256'} • Public Key: OK • Mã toàn vẹn
+                </Text>
+              </View>
+            </View>
+          ) : isStaleOrMismatchedQr ? (
+            // Review PR #57: QR có chữ ký hợp lệ nhưng sai version/chuyến - KHÔNG hiển thị ô Ghi
+            // đè, chặn cứng ngay tại đây để Staff không thể tự ý vượt qua bằng một dòng lý do.
+            <View style={styles.blockedBanner}>
+              <Ionicons name="shield-outline" size={24} color="#FCA5A5" />
+              <View style={styles.verifiedTextContainer}>
+                <Text style={styles.blockedTitle}>QR ĐÃ BỊ THU HỒI/SAI CHUYẾN - KHÔNG THỂ GHI ĐÈ</Text>
+                <Text style={styles.blockedSubtitle}>
+                  {verificationResult?.error || 'Chữ ký hợp lệ nhưng không khớp dữ liệu hiện tại.'}
+                  {'\n'}Yêu cầu khách cung cấp QR mới hoặc báo Admin xử lý. Không có lý do thủ công nào được chấp nhận cho trường hợp này.
                 </Text>
               </View>
             </View>
@@ -152,8 +179,8 @@ export default function BookingDetailModal() {
               <View style={styles.invalidBanner}>
                 <Ionicons name="alert-circle" size={24} color="#DC2626" />
                 <View style={styles.verifiedTextContainer}>
-                  <Text style={styles.invalidTitle}>CẢNH BÁO: CHỮ KÝ SỐ KHÔNG HỢP LỆ</Text>
-                  <Text style={styles.invalidSubtitle}>{verificationResult?.error || 'QR không xác thực'}</Text>
+                  <Text style={styles.invalidTitle}>CHƯA CÓ QR ĐỂ XÁC THỰC</Text>
+                  <Text style={styles.invalidSubtitle}>{verificationResult?.error || 'Tra cứu thủ công theo mã, không qua camera QR'}</Text>
                 </View>
               </View>
               {/* MOB-03: bắt buộc lý do khi check-in không qua QR đã xác thực (Ghi đè thủ công) */}
@@ -285,15 +312,23 @@ export default function BookingDetailModal() {
           <TouchableOpacity
             style={[
               styles.checkInButton,
-              !isQrVerified && styles.checkInButtonOverride,
-              (selectedTicketIds.length === 0 || isSubmitting || (!isQrVerified && !overrideReason.trim())) &&
+              !isQrVerified && !isStaleOrMismatchedQr && styles.checkInButtonOverride,
+              (selectedTicketIds.length === 0 ||
+                isSubmitting ||
+                isStaleOrMismatchedQr ||
+                (!isQrVerified && !overrideReason.trim())) &&
                 styles.buttonDisabled,
             ]}
             onPress={handleConfirmCheckIn}
-            disabled={selectedTicketIds.length === 0 || isSubmitting || (!isQrVerified && !overrideReason.trim())}
+            disabled={
+              selectedTicketIds.length === 0 ||
+              isSubmitting ||
+              isStaleOrMismatchedQr ||
+              (!isQrVerified && !overrideReason.trim())
+            }
           >
             <Ionicons
-              name={isQrVerified ? 'checkmark-circle' : 'warning'}
+              name={isQrVerified ? 'checkmark-circle' : isStaleOrMismatchedQr ? 'close-circle' : 'warning'}
               size={22}
               color="#FFFFFF"
               style={{ marginRight: 8 }}
@@ -301,6 +336,8 @@ export default function BookingDetailModal() {
             <Text style={styles.checkInButtonText}>
               {isSubmitting
                 ? 'ĐANG GHI NHẬN...'
+                : isStaleOrMismatchedQr
+                ? 'KHÔNG THỂ CHECK-IN (QR KHÔNG HỢP LỆ)'
                 : isQrVerified
                 ? `XÁC NHẬN CHECK-IN (${selectedTicketIds.length} VÉ)`
                 : `GHI ĐÈ THỦ CÔNG & CHECK-IN (${selectedTicketIds.length} VÉ)`}
@@ -380,6 +417,27 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
+  },
+  blockedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#450A0A',
+    borderWidth: 1,
+    borderColor: '#DC2626',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  blockedTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FEF2F2',
+  },
+  blockedSubtitle: {
+    fontSize: 11,
+    color: '#FCA5A5',
+    marginTop: 2,
+    lineHeight: 15,
   },
   invalidTitle: {
     fontSize: 13,
