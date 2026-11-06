@@ -40,28 +40,7 @@ public class CheckInProcessor
         var existingEvent = await _repository.FindEventByClientIdAsync(clientEventId, cancellationToken);
         if (existingEvent is not null)
         {
-            // CHK-06: ClientEventId chỉ là khoá idempotency hợp lệ cho ĐÚNG request gốc đã tạo ra nó.
-            // Nếu ticket/điểm dừng/nhân viên của lần gửi này khác với bản ghi đã lưu, đây là key bị
-            // tái sử dụng sai (bug client hoặc dò đoán key) - không được âm thầm trả kết quả cũ (có
-            // thể lộ ticketCode/passengerName của 1 vé khác cho Staff không liên quan). Trả outcome
-            // riêng (không throw exception) để nhất quán với các lỗi nghiệp vụ khác của hàm này
-            // (NotAssigned/OutOfWindow/...) - caller (CheckInService) đã có catch riêng cho
-            // ConflictException hạ tầng (CHK-02 - race ghi trùng unique index), throw ở đây sẽ bị
-            // bắt nhầm thành "idempotent replay" và vô tình chấp nhận request sai.
-            if (existingEvent.TicketId != ticketId || existingEvent.TripStopCallId != tripStopCallId ||
-                existingEvent.StaffAccountId != staffId)
-            {
-                const string mismatchOutcome = "ClientEventIdMismatch";
-                return (new CheckInOutcome(mismatchOutcome, null, null, null), false);
-            }
-
-            var existingTicket = await _repository.GetTicketWithReservationAsync(existingEvent.TicketId, cancellationToken);
-
-            return (new CheckInOutcome(
-                existingEvent.Outcome,
-                existingTicket?.CheckedInAt,
-                existingTicket?.TicketCode,
-                existingTicket?.SeatReservation?.PassengerName), true);
+            return await ResolveExistingEventOutcomeAsync(existingEvent, staffId, ticketId, tripStopCallId, cancellationToken);
         }
 
         var stopCall = await _repository.GetRequiredStopCallAsync(tripStopCallId, cancellationToken);
@@ -137,6 +116,37 @@ public class CheckInProcessor
             outcome == "Success" ? effectiveAt : null,
             ticket.TicketCode,
             ticket.SeatReservation?.PassengerName), false);
+    }
+
+    /// <summary>
+    /// CHK-06: ClientEventId chỉ là khoá idempotency hợp lệ cho ĐÚNG request gốc đã tạo ra nó.
+    /// Nếu ticket/điểm dừng/nhân viên của lần gửi này khác với bản ghi đã lưu, đây là key bị
+    /// tái sử dụng sai (bug client hoặc dò đoán key) - không được âm thầm trả kết quả cũ (có
+    /// thể lộ ticketCode/passengerName của 1 vé khác cho Staff không liên quan). Trả outcome
+    /// riêng (không throw exception) để nhất quán với các lỗi nghiệp vụ khác của hàm này
+    /// (NotAssigned/OutOfWindow/...).
+    /// Dùng CHUNG cho cả đường tra trước khi ghi (ProcessAsync) VÀ đường phục hồi sau khi race
+    /// vi phạm unique index ở DB (CheckInService bắt ConflictException từ EfUnitOfWork) - nếu 2
+    /// nơi này kiểm tra identity khác nhau, request thắng/thua của 1 race có thể bỏ lọt đúng kiểm
+    /// tra mismatch mà request không-race vẫn có.
+    /// </summary>
+    public async Task<(CheckInOutcome Outcome, bool WasAlreadySynced)> ResolveExistingEventOutcomeAsync(
+        CheckInEvent existingEvent, Guid staffId, Guid ticketId, Guid tripStopCallId, CancellationToken cancellationToken)
+    {
+        if (existingEvent.TicketId != ticketId || existingEvent.TripStopCallId != tripStopCallId ||
+            existingEvent.StaffAccountId != staffId)
+        {
+            const string mismatchOutcome = "ClientEventIdMismatch";
+            return (new CheckInOutcome(mismatchOutcome, null, null, null), false);
+        }
+
+        var existingTicket = await _repository.GetTicketWithReservationAsync(existingEvent.TicketId, cancellationToken);
+
+        return (new CheckInOutcome(
+            existingEvent.Outcome,
+            existingTicket?.CheckedInAt,
+            existingTicket?.TicketCode,
+            existingTicket?.SeatReservation?.PassengerName), true);
     }
 
     private static string DetermineOutcome(bool hasAssignment, Guid tripStopCallId, Booking booking, TripStopCall stopCall,
