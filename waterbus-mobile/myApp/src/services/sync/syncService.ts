@@ -11,6 +11,7 @@
  */
 
 import { SqliteRepository } from '../sqlite/sqliteRepository';
+import { getSessionEpoch } from '../auth/sessionEpoch';
 import { DEFAULT_KEY_INFO } from '../crypto/qrVerifier';
 import { fetchScannerManifest } from '../checkin/manifestService';
 import { fetchQrPublicKey } from '../checkin/qrPublicKeyService';
@@ -138,13 +139,25 @@ class SyncService {
    * dừng (TripStopCallId) Staff được phân công, lưu vào SQLite. KHÔNG fallback sang dữ liệu demo
    * khi lỗi - ném lỗi để màn hình báo rõ cho Staff (tránh tác nghiệp nhầm trên dữ liệu giả).
    */
-  public async preloadManifest(tripStopCallId: string): Promise<{ manifest: PreloadManifest; message: string }> {
+  public async preloadManifest(
+    tripStopCallId: string,
+    expectedEpoch?: number
+  ): Promise<{ manifest: PreloadManifest; message: string }> {
     console.log(`[SyncService] Preloading REAL manifest for TripStopCallId: ${tripStopCallId}...`);
 
     const [manifestResponse, publicKeyResponse] = await Promise.all([
       fetchScannerManifest(tripStopCallId),
       fetchQrPublicKey(),
     ]);
+
+    // Review PR #57 (3rd round, High): kiểm tra NGAY TRƯỚC khi ghi SQLite, sau khi 2 request mạng
+    // (có thể mất vài giây) đã xong - nếu logout (hoặc 1 phiên khác) xảy ra TRONG LÚC đang chờ 2
+    // request này, epoch đã đổi và kết quả thuộc về 1 phiên đã kết thúc - KHÔNG được ghi dữ liệu
+    // khách của phiên đó vào máy dùng chung cho Staff kế tiếp (xem useScannerStore.preloadCache -
+    // đây là nơi expectedEpoch được chụp lúc bắt đầu).
+    if (expectedEpoch !== undefined && getSessionEpoch() !== expectedEpoch) {
+      throw new Error('Phiên đăng nhập đã kết thúc trong lúc tải trước - bỏ qua kết quả, không ghi vào máy.');
+    }
 
     const manifest = mapScannerManifestToPreloadManifest(manifestResponse, publicKeyResponse);
 

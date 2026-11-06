@@ -65,12 +65,19 @@ export default function ScannerSettingsScreen() {
         text: 'Đăng xuất',
         style: 'destructive',
         onPress: async () => {
-          const purgeWarning = await logout();
+          const result = await logout();
+          // Review PR #57 (3rd round): logout() có thể HUỶ HOÀN TOÀN nếu không ghi được cờ pending
+          // ngay từ đầu - khi đó Staff vẫn đang đăng nhập, KHÔNG được điều hướng sang /login (màn
+          // hình sẽ trông như đã đăng xuất dù state thật vẫn còn user).
+          if (!result.loggedOut) {
+            Alert.alert('Không thể đăng xuất', result.warning || 'Vui lòng thử lại.');
+            return;
+          }
           router.replace('/login');
-          // Review PR #57: báo thật cho Staff nếu không xoá sạch được dữ liệu khách ca trước,
-          // thay vì chỉ console.warn âm thầm trong khi màn hình đã chuyển sang như đăng xuất xong.
-          if (purgeWarning) {
-            setTimeout(() => Alert.alert('Cảnh báo bảo mật dữ liệu', purgeWarning), 300);
+          // Báo thật cho Staff nếu không xoá sạch được dữ liệu khách ca trước, thay vì chỉ
+          // console.warn âm thầm trong khi màn hình đã chuyển sang như đăng xuất xong.
+          if (result.warning) {
+            setTimeout(() => Alert.alert('Cảnh báo bảo mật dữ liệu', result.warning!), 300);
           }
         },
       },

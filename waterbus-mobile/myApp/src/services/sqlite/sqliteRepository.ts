@@ -27,15 +27,20 @@ function generateUUID(): string {
 
 export class SqliteRepository {
   /**
-   * Save preloaded manifest to SQLite (trips, bookings, tickets, public key)
+   * Save preloaded manifest to SQLite (trips, bookings, tickets, public key).
+   * Review PR #57 (3rd round, High - "Serialize manifest-writing operations and logout purge so
+   * they cannot interleave incorrectly"): dùng withExclusiveTransactionAsync (không phải
+   * withTransactionAsync, vốn KHÔNG exclusive trên native) - bảo đảm lần ghi này không thể chen
+   * lẫn ở mức SQL với purgeManifestForLogout/clearCache đang chạy đồng thời, bổ sung cho lớp kiểm
+   * tra epoch ở logic (syncService.preloadManifest/useScannerStore.preloadCache).
    */
   static async saveManifest(manifest: PreloadManifest): Promise<void> {
     const db = await getDatabase();
 
-    await db.withTransactionAsync(async () => {
+    await db.withExclusiveTransactionAsync(async (txn) => {
       // 1. Save or update Public Key
       if (manifest.publicKey) {
-        await db.runAsync(
+        await txn.runAsync(
           `INSERT OR REPLACE INTO public_keys (kid, algorithm, public_key_pem, valid_from, valid_to, is_active)
            VALUES (?, ?, ?, ?, ?, ?)`,
           [
@@ -51,7 +56,7 @@ export class SqliteRepository {
 
       // 2. Save trips
       for (const trip of manifest.trips) {
-        await db.runAsync(
+        await txn.runAsync(
           `INSERT OR REPLACE INTO manifest_trips (
             id, trip_code, route_name, trip_type, boat_name,
             departure_station_id, departure_station_name,
@@ -78,7 +83,7 @@ export class SqliteRepository {
 
       // 3. Save bookings & tickets
       for (const booking of manifest.bookings) {
-        await db.runAsync(
+        await txn.runAsync(
           `INSERT OR REPLACE INTO manifest_bookings (
             id, public_booking_id, booking_code, trip_id,
             customer_name, customer_phone, total_amount,
@@ -98,7 +103,7 @@ export class SqliteRepository {
         );
 
         for (const ticket of booking.tickets) {
-          await db.runAsync(
+          await txn.runAsync(
             `INSERT OR REPLACE INTO manifest_tickets (
               id, booking_id, ticket_number, seat_code, seat_class,
               passenger_name, status, boarding_status, checked_in_at,
@@ -123,11 +128,11 @@ export class SqliteRepository {
       }
 
       // Record last preload timestamp
-      await db.runAsync(
+      await txn.runAsync(
         `INSERT OR REPLACE INTO scanner_config (key, value) VALUES ('last_preload_at', ?)`,
         [new Date().toISOString()]
       );
-      await db.runAsync(
+      await txn.runAsync(
         `INSERT OR REPLACE INTO scanner_config (key, value) VALUES ('station_id', ?)`,
         [manifest.stationId]
       );
@@ -554,15 +559,16 @@ export class SqliteRepository {
    * thường của Staff kế tiếp vẫn đọc được). KHÔNG xoá offline_checkin_events hay active_assignment
    * ở đây - lịch sử Pending/Conflict phải giữ nguyên để đối soát dù đổi tài khoản (các field cần
    * hiển thị đã denormalize sẵn trong chính bảng events, không cần tới bảng manifest).
-   * Dùng từng runAsync trong 1 transaction (như clearCache) - execAsync multi-statement là no-op
-   * trên fallback in-memory, và transaction đảm bảo atomic.
+   * Dùng withExclusiveTransactionAsync (không phải withTransactionAsync, KHÔNG exclusive trên
+   * native) - như saveManifest/clearCache, để lần xoá này không thể chen lẫn ở mức SQL với 1 lần
+   * preload đang ghi dữ liệu đồng thời (review PR #57, 3rd round, High).
    */
   static async purgeManifestForLogout(): Promise<void> {
     const db = await getDatabase();
-    await db.withTransactionAsync(async () => {
-      await db.runAsync(`DELETE FROM manifest_tickets`);
-      await db.runAsync(`DELETE FROM manifest_bookings`);
-      await db.runAsync(`DELETE FROM manifest_trips`);
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.runAsync(`DELETE FROM manifest_tickets`);
+      await txn.runAsync(`DELETE FROM manifest_bookings`);
+      await txn.runAsync(`DELETE FROM manifest_trips`);
     });
   }
 

@@ -12,6 +12,7 @@ import {
 } from '../types/scanner';
 import { SqliteRepository } from '../services/sqlite/sqliteRepository';
 import { syncService } from '../services/sync/syncService';
+import { getSessionEpoch } from '../services/auth/sessionEpoch';
 import { getMyScannerAssignments } from '../services/checkin/scannerAssignmentService';
 import { MyScannerAssignment } from '../types/checkin';
 
@@ -232,6 +233,11 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
   },
 
   preloadCache: async (tripStopCallId: string) => {
+    // Review PR #57 (3rd round, High - race preload-vs-logout): chụp epoch TRƯỚC khi bắt đầu các
+    // request mạng có thể mất vài giây - nếu Staff logout (hoặc 1 phiên khác bắt đầu) trong lúc
+    // đang chờ, epoch đổi và mọi kết quả trả về sau đó đều bị coi là CHẾT, không được áp vào state
+    // hiện tại (deviceInfo/activeAssignment có thể đã thuộc về Staff khác lúc này).
+    const epochAtStart = getSessionEpoch();
     set({ isPreloading: true, syncMessage: 'Đang tải dữ liệu chuyến và Public Key...' });
     try {
       const stats = await SqliteRepository.getManifestStats();
@@ -239,7 +245,18 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       const assignments = await getMyScannerAssignments();
       const assignment = assignments.find((a) => a.tripStopCallId === tripStopCallId);
       if (!assignment) throw new Error('Bạn không được phân công tại điểm dừng này.');
-      const res = await syncService.preloadManifest(tripStopCallId);
+
+      // syncService.preloadManifest tự kiểm tra lại epoch này NGAY TRƯỚC khi ghi SQLite (sau 2
+      // request mạng) - throw nếu đã lệch, nên saveManifest() không bao giờ ghi dữ liệu của 1
+      // phiên đã kết thúc.
+      const res = await syncService.preloadManifest(tripStopCallId, epochAtStart);
+
+      if (getSessionEpoch() !== epochAtStart) {
+        // Phòng hờ thêm: dù saveManifest ở trên đã tự chặn, state Zustand/syncService dưới đây
+        // vẫn KHÔNG được áp cho 1 phiên đã chết (có thể đã là deviceInfo của Staff khác).
+        return false;
+      }
+
       // Ghi lại điểm dừng vừa preload (tái dùng field stationId) để performCheckIn gửi đúng
       // TripStopCallId khi tạo CheckInEvent offline.
       syncService.setDeviceInfo({ stationId: tripStopCallId, stationName: res.manifest.stationName,
@@ -252,6 +269,11 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
       set({ isPreloading: false, syncMessage: res.message, deviceInfo: syncService.getDeviceInfo() });
       return true;
     } catch (e: any) {
+      if (getSessionEpoch() !== epochAtStart) {
+        // Lỗi (kể cả lỗi "phiên đã kết thúc" tự throw ở trên) của 1 phiên đã chết - không hiển thị
+        // syncMessage này lên UI hiện tại (đã thuộc về phiên khác hoặc màn login).
+        return false;
+      }
       set({ isPreloading: false, syncMessage: `Lỗi tải trước: ${e.message}` });
       return false;
     }

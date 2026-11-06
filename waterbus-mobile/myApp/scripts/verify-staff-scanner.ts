@@ -13,7 +13,10 @@ import { syncService } from '../src/services/sync/syncService';
 import { useScannerStore } from '../src/store/useScannerStore';
 import { useAuthStore } from '../src/store/useAuthStore';
 import { authService } from '../src/services/auth/authService';
-import { MyScannerAssignment } from '../src/types/checkin';
+import { getSessionEpoch, bumpSessionEpoch } from '../src/services/auth/sessionEpoch';
+import * as manifestServiceModule from '../src/services/checkin/manifestService';
+import * as qrPublicKeyServiceModule from '../src/services/checkin/qrPublicKeyService';
+import { MyScannerAssignment, ScannerManifestResponse, QrPublicKeyResponse } from '../src/types/checkin';
 
 async function runVerification() {
   console.log('================================================================');
@@ -424,6 +427,187 @@ async function runVerification() {
     (SqliteRepository as any).purgeManifestForLogout = originalPurge;
     (authService as any).login = originalLogin;
     await SqliteRepository.setPendingManifestPurge(false);
+  }
+
+  // -------------------------------------------------------------
+  // TEST GROUP 10: RESTORED OFFLINE ASSIGNMENT SURVIVES SESSION RESTORATION
+  // (Review PR #57, 3rd round, High - MOB-02 regression)
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 10: Restored Offline Assignment Survives Session Restoration (MOB-02)');
+
+  const restoreTestStaffId = 'stub-restore-staff-' + Date.now();
+  const restoreTestAssignment: MyScannerAssignment = {
+    assignmentId: 'assignment-restore-test', tripStopCallId: 'stop-restore-test', tripId: 'trip-restore-test',
+    routeName: 'Test', stationName: 'Test Station', visitOrder: 1, tripStatus: 'Boarding', estimatedArrivalTime: null,
+    deviceId: 'device-restore-test', deviceCode: 'DEV-RESTORE', isPrimaryOffline: true,
+    activeFrom: new Date(Date.now() - 60000).toISOString(), activeUntil: null,
+    checkInOpenAt: new Date(Date.now() - 60000).toISOString(), checkInCloseAt: new Date(Date.now() + 60000).toISOString(),
+  };
+  await SqliteRepository.saveActiveAssignment(restoreTestAssignment, restoreTestStaffId);
+
+  const originalRestoreSession = authService.restoreSession;
+  (authService as any).restoreSession = async () => ({
+    userId: restoreTestStaffId, email: 'restore@test.com', fullName: 'Restore Test', roles: ['Staff'],
+  });
+  useAuthStore.setState({ user: null, isRestoring: true, error: null });
+  useScannerStore.setState({ activeAssignment: null });
+
+  try {
+    // 10.1 applyStaffIdentity() PHẢI chạy trước restoreActiveAssignment() trong restoreSession() -
+    // ngược lại (bug đã có ở bản trước) sẽ xoá mất đúng phân công vừa khôi phục từ SQLite ngay sau
+    // khi vừa gán, khiến app bị OS kill rồi mở lại offline báo "chưa có phân công" dù dữ liệu còn.
+    await useAuthStore.getState().restoreSession();
+    const restoredAssignment = useScannerStore.getState().activeAssignment;
+    assert(
+      restoredAssignment?.tripStopCallId === restoreTestAssignment.tripStopCallId &&
+        restoredAssignment?.deviceId === restoreTestAssignment.deviceId &&
+        restoredAssignment?.isPrimaryOffline === true,
+      '10.1 restoreSession() keeps the SQLite-persisted assignment instead of clearing it via applyStaffIdentity',
+      `activeAssignment: ${JSON.stringify(restoredAssignment)}`
+    );
+
+    // 10.2 Đổi sang 1 Staff KHÁC đang khôi phục phiên - KHÔNG được kế thừa phân công của Staff cũ
+    // (SqliteRepository.getActiveAssignment đã lọc theo staffId, kiểm tra lại từ góc nhìn store).
+    (authService as any).restoreSession = async () => ({
+      userId: 'different-staff-' + Date.now(), email: 'other@test.com', fullName: 'Other', roles: ['Staff'],
+    });
+    useAuthStore.setState({ user: null, isRestoring: true, error: null });
+    useScannerStore.setState({ activeAssignment: null });
+    await useAuthStore.getState().restoreSession();
+    assert(
+      useScannerStore.getState().activeAssignment === null,
+      '10.2 A different Staff restoring a session does NOT inherit the previous Staff\'s cached assignment',
+      `activeAssignment: ${JSON.stringify(useScannerStore.getState().activeAssignment)}`
+    );
+  } finally {
+    (authService as any).restoreSession = originalRestoreSession;
+    await SqliteRepository.clearActiveAssignment();
+  }
+
+  // -------------------------------------------------------------
+  // TEST GROUP 11: LOGOUT ABORTS ENTIRELY (STAYS LOGGED IN) IF THE PENDING-PURGE MARKER
+  // CANNOT BE WRITTEN (Review PR #57, 3rd round, High)
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 11: Logout Aborts Entirely If the Pending-Purge Marker Write Fails');
+
+  const logoutAbortStaff = { userId: 'logout-abort-staff', email: 'abort@test.com', fullName: 'Abort', roles: ['Staff'] };
+  useAuthStore.setState({ user: logoutAbortStaff, error: null });
+
+  const originalSetPending = SqliteRepository.setPendingManifestPurge;
+  const originalAuthLogout = authService.logout;
+  let authLogoutCalls = 0;
+  (authService as any).logout = async () => {
+    authLogoutCalls++;
+  };
+  (SqliteRepository as any).setPendingManifestPurge = async (pending: boolean) => {
+    if (pending) throw new Error('Giả lập lỗi ghi SQLite khi đặt cờ pending');
+    return originalSetPending.call(SqliteRepository, pending);
+  };
+
+  try {
+    const logoutResult = await useAuthStore.getState().logout();
+    assert(
+      logoutResult.loggedOut === false && authLogoutCalls === 0 && useAuthStore.getState().user !== null,
+      '11.1 logout() aborts entirely (stays logged in, never calls authService.logout) if the pending marker write fails',
+      `loggedOut: ${logoutResult.loggedOut}, authLogoutCalls: ${authLogoutCalls}, user: ${JSON.stringify(useAuthStore.getState().user)}`
+    );
+    assert(
+      !!logoutResult.warning,
+      '11.2 A clear blocking warning is returned instead of silently leaving an inconsistent state',
+      `warning: ${logoutResult.warning}`
+    );
+  } finally {
+    (SqliteRepository as any).setPendingManifestPurge = originalSetPending;
+    (authService as any).logout = originalAuthLogout;
+  }
+
+  // 11.3 Phục hồi: ghi cờ pending hoạt động lại bình thường -> logout() phải hoàn tất sạch.
+  const normalLogoutResult = await useAuthStore.getState().logout();
+  assert(
+    normalLogoutResult.loggedOut === true && useAuthStore.getState().user === null,
+    '11.3 logout() completes normally again once the marker write no longer fails',
+    `loggedOut: ${normalLogoutResult.loggedOut}, user: ${JSON.stringify(useAuthStore.getState().user)}`
+  );
+
+  // -------------------------------------------------------------
+  // TEST GROUP 12: IN-FLIGHT MANIFEST PRELOAD CANNOT REPOPULATE DATA AFTER LOGOUT
+  // (Review PR #57, 3rd round, High)
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 12: In-Flight Manifest Preload Cannot Repopulate Data After Logout');
+
+  const originalFetchManifest = manifestServiceModule.fetchScannerManifest;
+  const originalFetchKey = qrPublicKeyServiceModule.fetchQrPublicKey;
+  const raceStopCallId = 'stop-epoch-race-test';
+
+  let releasePreload: () => void = () => {};
+  const preloadGate = new Promise<void>((resolve) => {
+    releasePreload = resolve;
+  });
+
+  (manifestServiceModule as any).fetchScannerManifest = async (tripStopCallId: string): Promise<ScannerManifestResponse> => {
+    // Treo ở đây mô phỏng request mạng chậm - test chủ động release() SAU KHI đã logout, để kiểm
+    // tra kết quả trả về (tới sau) không được ghi vào SQLite nữa.
+    await preloadGate;
+    return {
+      tripStopCallId,
+      stationName: 'STALE - Phiên Đã Đăng Xuất',
+      checkInOpenAt: null,
+      checkInCloseAt: null,
+      trip: {
+        tripId: 'trip-epoch-race', routeName: 'R', boatName: 'B',
+        departureStationName: 'A', arrivalStationName: 'C',
+        departureTime: new Date().toISOString(), arrivalTime: null, salesCloseAt: null,
+        tripType: 'Commuter', status: 'Boarding',
+      },
+      bookings: [],
+      generatedAt: new Date().toISOString(),
+    };
+  };
+  (qrPublicKeyServiceModule as any).fetchQrPublicKey = async (): Promise<QrPublicKeyResponse> => ({
+    kid: DEFAULT_KEY_INFO.kid, algorithm: DEFAULT_KEY_INFO.algorithm, publicKeyPem: DEFAULT_KEY_INFO.publicKeyPem,
+  });
+
+  try {
+    const epochBeforePreloadStarts = getSessionEpoch();
+    const preloadPromise = syncService.preloadManifest(raceStopCallId, epochBeforePreloadStarts);
+
+    // "Logout" xảy ra TRONG LÚC request mạng còn treo - chỉ cần bump epoch (đúng điều logout() bây
+    // giờ làm NGAY DÒNG ĐẦU, trước mọi await) để mô phỏng chính xác điều kiện race.
+    bumpSessionEpoch();
+
+    releasePreload();
+    let preloadThrew = false;
+    try {
+      await preloadPromise;
+    } catch {
+      preloadThrew = true;
+    }
+
+    const staleBooking = await SqliteRepository.getBookingByPublicId('pub_wb_epoch_race_should_not_exist');
+    const stats = await SqliteRepository.getManifestStats();
+    assert(
+      preloadThrew && stats.tripCount === 0,
+      '12.1 preloadManifest() rejects (and never calls saveManifest) once the session epoch changes while its network requests were in flight',
+      `threw: ${preloadThrew}, tripCount after: ${stats.tripCount}`
+    );
+    assert(
+      staleBooking === null,
+      '12.2 No stale booking from the invalidated preload was written to SQLite',
+      `staleBooking: ${JSON.stringify(staleBooking)}`
+    );
+
+    // 12.3 Preload bình thường (epoch không đổi trong lúc chờ) vẫn phải hoạt động được như cũ.
+    const epochForNormalPreload = getSessionEpoch();
+    const normalResult = await syncService.preloadManifest(raceStopCallId, epochForNormalPreload);
+    assert(
+      normalResult.manifest.stationId === raceStopCallId,
+      '12.3 A normal preload (epoch unchanged) still succeeds and writes the manifest',
+      `stationId: ${normalResult.manifest.stationId}`
+    );
+  } finally {
+    (manifestServiceModule as any).fetchScannerManifest = originalFetchManifest;
+    (qrPublicKeyServiceModule as any).fetchQrPublicKey = originalFetchKey;
+    await SqliteRepository.clearCache();
   }
 
   // -------------------------------------------------------------
