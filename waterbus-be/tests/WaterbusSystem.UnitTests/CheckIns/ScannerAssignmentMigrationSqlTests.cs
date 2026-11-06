@@ -15,13 +15,24 @@ namespace WaterbusSystem.UnitTests.CheckIns;
 /// Review (human, commit fc2fc74): "Kiểm tra nâng cấp trên DB đã có dữ liệu và đã áp dụng migration
 /// của PR #59 (EmailOutbox), không chỉ DB tạo mới". Các test SQL khác trong CheckInConcurrencySqlTests
 /// luôn MigrateAsync() TOÀN BỘ chain ngay từ đầu (DB rỗng) - không mô phỏng đúng tình huống "DB
-/// production đã chạy PR #59, CHƯA chạy 2 migration ScannerAssignment mới của PR #58, và đã có dữ
-/// liệu ScannerAssignment thật". Test này tự quản lý migration theo từng mốc cụ thể để mô phỏng đúng
-/// kịch bản nâng cấp thật, bao gồm cả trường hợp dữ liệu cũ VI PHẠM unique index mới.
+/// production đã có dữ liệu ScannerAssignment thật TRƯỚC khi cả 2 migration của PR #58 VÀ
+/// migration AddEmailOutbox của PR #59 được áp dụng".
+///
+/// QUAN TRỌNG - phát hiện khi viết test này: migration "AddScannerAssignmentOpenEndedPrimaryUniqueIndex"
+/// (20261106031430) có timestamp SỚM HƠN "AddEmailOutbox" (20261106042025) - vì migration đó được
+/// tạo ra ở vòng review đầu tiên của PR #58, TRƯỚC khi nhánh này merge main (đã có PR #59). EF Core
+/// migrator áp migration theo đúng THỨ TỰ TIMESTAMP trong assembly, không theo thứ tự merge Git -
+/// nên "migrate tới đúng AddEmailOutbox" bằng assembly của nhánh NÀY vẫn áp luôn
+/// AddScannerAssignmentOpenEndedPrimaryUniqueIndex trước đó (test ban đầu seed dữ liệu trùng sau mốc
+/// đó bị chặn ngay ở bước seed, chưa tới bước migrate cần test - xem CI run thất bại ở PR #58 review
+/// vòng 4). Mốc baseline THẬT phải là migration NGAY TRƯỚC CHK-03 trong chain
+/// ("AddBoatPositionEventIndex") - đại diện đúng trạng thái DB trước khi CẢ PR #58 VÀ PR #59 tồn
+/// tại, rồi áp tiếp TOÀN BỘ 3 migration còn lại (CHK-03 index, AddEmailOutbox, Restore index) theo
+/// đúng thứ tự thời gian thật - đây chính xác là thứ tự sẽ xảy ra khi deploy, bất kể thứ tự merge Git.
 /// </summary>
 public sealed class ScannerAssignmentMigrationSqlTests : IAsyncLifetime
 {
-    private const string LastMainMigrationBeforeThisPr = "20261106042025_AddEmailOutbox";
+    private const string LastMigrationBeforeBothPRs = "20261012003336_AddBoatPositionEventIndex";
     private string? _connection;
     private ApplicationDbContext Context() => new(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(_connection!).Options);
 
@@ -86,12 +97,12 @@ public sealed class ScannerAssignmentMigrationSqlTests : IAsyncLifetime
     }
 
     [SqlServerDomainFact]
-    public async Task UpgradingFromMainAfterEmailOutbox_WithExistingValidData_ShouldPreserveDataAndAddBothIndexes()
+    public async Task UpgradingFromBeforeBothPRs_WithExistingValidData_ShouldPreserveDataAndAddEverything()
     {
-        // Mốc "main đã merge PR #59, CHƯA có 2 migration ScannerAssignment của PR #58".
+        // Mốc THẬT trước khi cả PR #58 và PR #59 tồn tại.
         await using (var c = Context())
         {
-            await c.GetService<IMigrator>().MigrateAsync(LastMainMigrationBeforeThisPr);
+            await c.GetService<IMigrator>().MigrateAsync(LastMigrationBeforeBothPRs);
         }
 
         Guid stopCallId, assignmentId;
@@ -145,10 +156,13 @@ public sealed class ScannerAssignmentMigrationSqlTests : IAsyncLifetime
         // migration "qua được" (BR v2.0: không tự ý sửa dữ liệu nghiệp vụ đã có mà không qua đối
         // soát rõ ràng). Đây là hành vi ĐÚNG cần xác nhận, không phải lỗi cần sửa - nếu kịch bản này
         // từng xảy ra thật ngoài production, cần 1 bước dọn dữ liệu thủ công có kiểm soát TRƯỚC khi
-        // chạy migration, ngoài phạm vi 1 migration tự động.
+        // chạy migration, ngoài phạm vi 1 migration tự động. PHẢI seed dữ liệu trùng ở mốc TRƯỚC
+        // CHK-03 (LastMigrationBeforeBothPRs) - seed sau mốc AddEmailOutbox sẽ bị chặn ngay ở bước
+        // seed (CHK-03 đã áp dụng do sớm hơn AddEmailOutbox theo timestamp), không test được đúng
+        // điều cần test (migration tạo index mới là điểm thất bại, không phải bước seed).
         await using (var c = Context())
         {
-            await c.GetService<IMigrator>().MigrateAsync(LastMainMigrationBeforeThisPr);
+            await c.GetService<IMigrator>().MigrateAsync(LastMigrationBeforeBothPRs);
         }
 
         Guid stopCallId;
