@@ -131,7 +131,7 @@ public sealed class TripSearchTool : ITripSearchTool
                 var disembarkingId = ResolveStationId(stations, null, t.ArrivalStationName);
                 return new AiTripCardDto(
                     t.Id, t.RouteName, t.DepartureStationName, t.ArrivalStationName,
-                    t.DepartureTime, t.ArrivalTime, t.DurationMinutes ?? (int)(t.ArrivalTime - t.DepartureTime).TotalMinutes, t.TripType,
+                    t.DepartureTime, t.ArrivalTime, t.DurationMinutes, t.TripType,
                     t.BasePrice, !developmentPreview, t.AvailableSeatsCount, null,
                     t.Stops.Select(s => new AiTripStopDto(s.StationId, s.StationName, s.OrderIndex)).ToList(),
                     boardingId, disembarkingId, developmentPreview);
