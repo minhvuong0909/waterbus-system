@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using WaterbusSystem.Application.DTOs.Requests.SeatInventory;
 using WaterbusSystem.Application.Features.SeatInventory.Services;
 using WaterbusSystem.Domain.Entities;
@@ -19,14 +20,14 @@ namespace WaterbusSystem.UnitTests.Boats;
 /// <summary>
 /// Bằng chứng trên SQL Server thật (nhiều DbContext/kết nối độc lập) cho thay đổi Seat/SeatClass đồng thời với đặt chỗ.
 /// Cả hai phía cùng chạy trong khoá thương mại (SqlCommercialTransactionRunner) nên kết quả hợp lệ chỉ có hai thứ tự:
-/// đặt chỗ thắng ⇒ thay đổi bị từ chối; thay đổi thắng ⇒ đặt chỗ thấy trạng thái mới. Không bao giờ có đặt chỗ trên ghế/hạng đã ngừng
-/// hoặc snapshot hạng ghế lệch với hạng hiện tại. Cần WATERBUS_TEST_SQLSERVER (mỗi vòng dùng DB tạm riêng, tự xoá).
+/// đặt chỗ thắng ⇒ thay đổi bị từ chối; thay đổi thắng ⇒ đặt chỗ thấy trạng thái mới. Các test đua KHÔNG dựa vào may rủi lịch: một bên bị
+/// tạm dừng đúng trước lệnh ghi (sau khi đã kiểm tra) bằng SaveChangesInterceptor, bên kia chạy xen vào — bỏ khoá thương mại là fail.
+/// Cần WATERBUS_TEST_SQLSERVER (mỗi test dùng DB tạm riêng, tự xoá).
 /// </summary>
 [Collection(SqlCollections.Serial)]
 public sealed class SeatInventorySqlTests : IAsyncLifetime
 {
     private const string Prefix = "WaterbusDomainTests_SeatInv_";
-    private const int Rounds = 3;
     private readonly List<string> _databases = [];
 
     public Task InitializeAsync() => Task.CompletedTask;
@@ -66,9 +67,10 @@ public sealed class SeatInventorySqlTests : IAsyncLifetime
     private static SeatClassService Classes(ApplicationDbContext c) =>
         new(new SeatClassRepository(c), new EfUnitOfWork(c), new SqlCommercialTransactionRunner(c));
 
-    private static async Task BookAsync(Round r)
+    private static async Task BookAsync(Round r, ApplicationDbContext? existing = null)
     {
-        await using var c = r.Context();
+        await using var own = existing is null ? r.Context() : null;
+        var c = existing ?? own!;
         await CommercialCheckoutTests.Builder(c, new SqlCommercialTransactionRunner(c)).CreateAsync(CommercialCheckoutTests.Command(r.Seed), default);
     }
 
@@ -76,20 +78,66 @@ public sealed class SeatInventorySqlTests : IAsyncLifetime
         // NotFoundException: ghế/hạng đã ngừng bị loại khỏi truy vấn đặt chỗ nên booking báo không tìm thấy (404) — vẫn là từ chối sạch.
         e is ConflictException or ConcurrencyException or SeatAlreadyBookedException or ValidationException or NotFoundException;
 
-    /// <summary>Chạy hai thao tác cùng lúc (rào chắn), trả về lỗi của từng bên (null = thành công).</summary>
-    private static async Task<(Exception? First, Exception? Second)> RaceAsync(Func<Task> first, Func<Task> second)
+    /// <summary>
+    /// Tạm dừng một DbContext ngay TRƯỚC lệnh ghi đầu tiên thoả <c>shouldPause</c> (tức là SAU khi nó đã đọc/kiểm tra xong, TRƯỚC khi ghi),
+    /// để thao tác đối kháng chạy đúng vào khoảng hở check-then-write. Có khoá thương mại thì thao tác kia bị chặn tại applock
+    /// (bên bị dừng chờ tối đa <see cref="HoldMillis"/> ms rồi tự đi tiếp); không có khoá thì thao tác kia commit xen vào giữa.
+    /// </summary>
+    private sealed class PauseBeforeWriteInterceptor(Func<DbContext, bool> shouldPause, Task<Task> competitor) : SaveChangesInterceptor
     {
-        var gate = new TaskCompletionSource();
-        async Task<Exception?> Run(Func<Task> work)
+        private int _fired;
+        public TaskCompletionSource Reached { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
         {
-            await gate.Task;
-            try { await work(); return null; } catch (Exception e) { return e; }
+            if (eventData.Context is { } context && shouldPause(context) && Interlocked.Exchange(ref _fired, 1) == 0)
+            {
+                Reached.TrySetResult();
+                var other = await competitor;
+                await Task.WhenAny(other, Task.Delay(HoldMillis, cancellationToken));
+            }
+            return result;
         }
-        var a = Task.Run(() => Run(first));
-        var b = Task.Run(() => Run(second));
-        gate.SetResult();
-        return (await a, await b);
     }
+
+    private const int HoldMillis = 2500;
+
+    private static bool BookingWrites(DbContext c) => c.ChangeTracker.Entries<SeatReservation>().Any(e => e.State == EntityState.Added);
+    private static bool SeatWrites(DbContext c) => c.ChangeTracker.Entries<Seat>().Any(e => e.State == EntityState.Modified);
+    private static bool ClassWrites(DbContext c) => c.ChangeTracker.Entries<SeatClass>().Any(e => e.State == EntityState.Modified);
+
+    private static async Task<Exception?> CaptureAsync(Func<Task> work)
+    {
+        try { await work(); return null; } catch (Exception e) { return e; }
+    }
+
+    /// <summary>Chạy <paramref name="pausedOp"/> tới điểm ghi rồi mới cho <paramref name="otherOp"/> chạy xen vào. Trả lỗi (null = thành công) của từng bên.</summary>
+    private static async Task<(Exception? Paused, Exception? Other)> PausedRaceAsync(
+        Round r, Func<DbContext, bool> pauseWhen, Func<ApplicationDbContext, Task> pausedOp, Func<ApplicationDbContext, Task> otherOp)
+    {
+        var competitor = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var interceptor = new PauseBeforeWriteInterceptor(pauseWhen, competitor.Task);
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(r.Connection).AddInterceptors(interceptor).Options;
+
+        var pausedTask = Task.Run(() => CaptureAsync(async () => { await using var c = new ApplicationDbContext(options); await pausedOp(c); }));
+        var first = await Task.WhenAny(interceptor.Reached.Task, pausedTask);
+        if (first == pausedTask)
+            throw new InvalidOperationException("Thao tác bị dừng đã kết thúc mà chưa tới điểm ghi: " + pausedTask.Result);
+
+        var otherTask = Task.Run(() => CaptureAsync(async () => { await using var c = r.Context(); await otherOp(c); }));
+        competitor.SetResult(otherTask);
+        return (await pausedTask, await otherTask);
+    }
+
+    private static Task DeactivateSeat(Round r, ApplicationDbContext c) => Seats(c).DeactivateSeatAsync(r.Seed.Boat.Id, r.Seed.Seat1.Id);
+
+    private static Task ReclassSeat(Round r, ApplicationDbContext c) => Seats(c).UpdateSeatAsync(r.Seed.Boat.Id, r.Seed.Seat1.Id,
+        new UpdateBoatSeatRequest(r.Seed.Seat1.SeatCode, r.Seed.PremiumClass.Id, r.Seed.Seat1.RowNumber, r.Seed.Seat1.ColumnNumber));
+
+    private static Task DeactivateClass(Round r, ApplicationDbContext c) => Classes(c).DeactivateAsync(r.Seed.StandardClass.Id);
+
+    private static void AssertClean(Exception? e) { if (e is not null) IsCleanRejection(e).Should().BeTrue($"lỗi phải là từ chối nghiệp vụ, gặp {e}"); }
 
     // ---- Thứ tự tuần tự trên SQL thật (hai chiều của bất biến) ----
 
@@ -128,76 +176,85 @@ public sealed class SeatInventorySqlTests : IAsyncLifetime
         (await check.SeatReservations.CountAsync()).Should().Be(0);
     }
 
-    // ---- Đua song song thật giữa đặt chỗ và thay đổi Seat/SeatClass ----
+    // ---- Đua xác định tại điểm check-then-write (một bên ĐÃ kiểm tra xong, bên kia chen vào trước khi nó ghi) ----
 
     [SqlServerDomainFact]
-    public async Task ConcurrentBookingAndSeatDeactivation_NeverReservesAnInactiveSeat()
+    public async Task BookingPausedBeforeWrite_SeatDeactivation_MustBeRejected()
     {
-        for (var i = 0; i < Rounds; i++)
-        {
-            var r = await NewRoundAsync();
-            var (booking, change) = await RaceAsync(
-                () => BookAsync(r),
-                async () => { await using var c = r.Context(); await Seats(c).DeactivateSeatAsync(r.Seed.Boat.Id, r.Seed.Seat1.Id); });
+        var r = await NewRoundAsync();
+        var (booking, change) = await PausedRaceAsync(r, BookingWrites, c => BookAsync(r, c), c => DeactivateSeat(r, c));
 
-            (booking is null && change is null).Should().BeFalse("đặt chỗ và ngừng ghế không thể cùng thành công");
-            foreach (var e in new[] { booking, change }.Where(e => e is not null)) IsCleanRejection(e!).Should().BeTrue($"lỗi phải là từ chối nghiệp vụ, gặp {e}");
-
-            await using var check = r.Context();
-            var reservations = await check.SeatReservations.CountAsync();
-            var seatActive = (await check.Seats.SingleAsync(s => s.Id == r.Seed.Seat1.Id)).IsActive;
-            if (reservations == 1) seatActive.Should().BeTrue("đặt chỗ thắng thì ghế phải còn hoạt động");
-            else { reservations.Should().Be(0); seatActive.Should().BeFalse("ngừng ghế thắng thì không có đặt chỗ"); }
-        }
+        booking.Should().BeNull("đặt chỗ đã giữ khoá thương mại nên phải hoàn tất");
+        change.Should().BeOfType<ConflictException>("ngừng ghế phải thấy đặt chỗ vừa commit, không được chen vào giữa");
+        await using var check = r.Context();
+        (await check.SeatReservations.CountAsync()).Should().Be(1);
+        (await check.Seats.SingleAsync(s => s.Id == r.Seed.Seat1.Id)).IsActive.Should().BeTrue();
     }
 
     [SqlServerDomainFact]
-    public async Task ConcurrentBookingAndSeatClassChange_NeverLeavesStaleClassSnapshot()
+    public async Task BookingPausedBeforeWrite_SeatClassChange_MustBeRejected()
     {
-        for (var i = 0; i < Rounds; i++)
-        {
-            var r = await NewRoundAsync();
-            var seat = r.Seed.Seat1;
-            var (booking, change) = await RaceAsync(
-                () => BookAsync(r),
-                async () =>
-                {
-                    await using var c = r.Context();
-                    await Seats(c).UpdateSeatAsync(r.Seed.Boat.Id, seat.Id,
-                        new UpdateBoatSeatRequest(seat.SeatCode, r.Seed.PremiumClass.Id, seat.RowNumber, seat.ColumnNumber));
-                });
+        var r = await NewRoundAsync();
+        var (booking, change) = await PausedRaceAsync(r, BookingWrites, c => BookAsync(r, c), c => ReclassSeat(r, c));
 
-            foreach (var e in new[] { booking, change }.Where(e => e is not null)) IsCleanRejection(e!).Should().BeTrue($"lỗi phải là từ chối nghiệp vụ, gặp {e}");
-
-            await using var check = r.Context();
-            var finalClass = (await check.Seats.Include(s => s.SeatClass).SingleAsync(s => s.Id == seat.Id)).SeatClass!;
-            var reservation = await check.SeatReservations.SingleOrDefaultAsync();
-            if (reservation is not null)
-                reservation.SeatClassAtSale.Should().Be(finalClass.Name, "snapshot hạng ghế phải khớp hạng ghế cuối cùng của ghế");
-            if (booking is null && change is null)
-                finalClass.Id.Should().Be(r.Seed.PremiumClass.Id, "cùng thành công chỉ hợp lệ khi đổi hạng chạy trước đặt chỗ");
-            if (change is not null) finalClass.Id.Should().Be(r.Seed.StandardClass.Id);
-        }
+        booking.Should().BeNull();
+        change.Should().BeOfType<ConflictException>();
+        await using var check = r.Context();
+        var seat = await check.Seats.Include(s => s.SeatClass).SingleAsync(s => s.Id == r.Seed.Seat1.Id);
+        seat.SeatClassId.Should().Be(r.Seed.StandardClass.Id);
+        (await check.SeatReservations.SingleAsync()).SeatClassAtSale.Should().Be(seat.SeatClass!.Name, "snapshot khớp hạng hiện tại của ghế");
     }
 
     [SqlServerDomainFact]
-    public async Task ConcurrentBookingAndSeatClassDeactivation_NeverReservesInactiveClass()
+    public async Task BookingPausedBeforeWrite_SeatClassDeactivation_MustBeRejected()
     {
-        for (var i = 0; i < Rounds; i++)
-        {
-            var r = await NewRoundAsync();
-            var (booking, change) = await RaceAsync(
-                () => BookAsync(r),
-                async () => { await using var c = r.Context(); await Classes(c).DeactivateAsync(r.Seed.StandardClass.Id); });
+        var r = await NewRoundAsync();
+        var (booking, change) = await PausedRaceAsync(r, BookingWrites, c => BookAsync(r, c), c => DeactivateClass(r, c));
 
-            (booking is null && change is null).Should().BeFalse("đặt chỗ và ngừng hạng ghế không thể cùng thành công");
-            foreach (var e in new[] { booking, change }.Where(e => e is not null)) IsCleanRejection(e!).Should().BeTrue($"lỗi phải là từ chối nghiệp vụ, gặp {e}");
+        booking.Should().BeNull();
+        change.Should().BeOfType<ConflictException>();
+        await using var check = r.Context();
+        (await check.SeatReservations.CountAsync()).Should().Be(1);
+        (await check.SeatClasses.SingleAsync(x => x.Id == r.Seed.StandardClass.Id)).IsActive.Should().BeTrue();
+    }
 
-            await using var check = r.Context();
-            var reservations = await check.SeatReservations.CountAsync();
-            var classActive = (await check.SeatClasses.SingleAsync(x => x.Id == r.Seed.StandardClass.Id)).IsActive;
-            if (reservations == 1) classActive.Should().BeTrue("đặt chỗ thắng thì hạng ghế phải còn hoạt động");
-            else { reservations.Should().Be(0); classActive.Should().BeFalse(); }
-        }
+    [SqlServerDomainFact]
+    public async Task SeatDeactivationPausedBeforeWrite_ConcurrentBooking_MustNotReserveInactiveSeat()
+    {
+        var r = await NewRoundAsync();
+        var (change, booking) = await PausedRaceAsync(r, SeatWrites, c => DeactivateSeat(r, c), c => BookAsync(r, c));
+
+        change.Should().BeNull("ngừng ghế đã giữ khoá thương mại nên phải hoàn tất");
+        booking.Should().NotBeNull("đặt chỗ phải thấy ghế đã ngừng, không được đặt song song");
+        AssertClean(booking);
+        await using var check = r.Context();
+        (await check.SeatReservations.CountAsync()).Should().Be(0);
+        (await check.Seats.SingleAsync(s => s.Id == r.Seed.Seat1.Id)).IsActive.Should().BeFalse();
+    }
+
+    [SqlServerDomainFact]
+    public async Task SeatClassChangePausedBeforeWrite_ConcurrentBooking_MustSnapshotNewClass()
+    {
+        var r = await NewRoundAsync();
+        var (change, booking) = await PausedRaceAsync(r, SeatWrites, c => ReclassSeat(r, c), c => BookAsync(r, c));
+
+        change.Should().BeNull();
+        booking.Should().BeNull("đặt chỗ chờ đổi hạng xong rồi mới chạy trên hạng mới");
+        await using var check = r.Context();
+        (await check.SeatReservations.SingleAsync()).SeatClassAtSale.Should().Be(r.Seed.PremiumClass.Name, "không được snapshot hạng cũ");
+    }
+
+    [SqlServerDomainFact]
+    public async Task SeatClassDeactivationPausedBeforeWrite_ConcurrentBooking_MustNotReserveInactiveClass()
+    {
+        var r = await NewRoundAsync();
+        var (change, booking) = await PausedRaceAsync(r, ClassWrites, c => DeactivateClass(r, c), c => BookAsync(r, c));
+
+        change.Should().BeNull();
+        booking.Should().NotBeNull("đặt chỗ phải thấy hạng ghế đã ngừng");
+        AssertClean(booking);
+        await using var check = r.Context();
+        (await check.SeatReservations.CountAsync()).Should().Be(0);
+        (await check.SeatClasses.SingleAsync(x => x.Id == r.Seed.StandardClass.Id)).IsActive.Should().BeFalse();
     }
 }
