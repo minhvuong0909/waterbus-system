@@ -181,10 +181,13 @@ export interface TripDto {
   arrivalStationName: string
   departureTime: string
   arrivalTime: string
-  durationMinutes: number
+  /** null when the timetable has no data for the selected segment. */
+  durationMinutes: number | null
   tripType: string
   basePrice: number
   availableSeatsCount: number
+  canBook?: boolean
+  salesState?: string
 }
 
 /** BE `TripType`. */

@@ -132,7 +132,7 @@ export function toTrip(dto: TripDto): Trip {
     arriveTime: formatClock(arrive),
     originGate: '',
     destinationGate: '',
-    durationMins: dto.durationMinutes,
+    durationMins: dto.durationMinutes ?? Math.max(0, Math.round((arrive.getTime() - depart.getTime()) / 60000)),
     crossingKind: kind === 'sightseeing' ? t('Sightseeing') : t('Regular'),
     direct: false,
     crossingCaption: dto.routeName,
