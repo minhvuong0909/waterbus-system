@@ -20,17 +20,19 @@ public sealed class SeatClassService(
     public Task<SeatClassResponse> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         classes.GetDetailAsync(id, cancellationToken);
 
-    public async Task<Guid> CreateAsync(CreateSeatClassRequest request, CancellationToken cancellationToken = default)
-    {
-        var code = request.Code.Trim();
-        if (await classes.ExistsByCodeAsync(code, cancellationToken))
-            throw new ValidationException([new("code", $"Mã hạng ghế '{code}' đã tồn tại.")]);
+    /// <summary>Chạy trong khoá thương mại: hai request cùng mã được tuần tự hoá nên request thua nhận 400, không phải lỗi unique-index thô (500).</summary>
+    public Task<Guid> CreateAsync(CreateSeatClassRequest request, CancellationToken cancellationToken = default) =>
+        transactions.RunAsync(async () =>
+        {
+            var code = request.Code.Trim();
+            if (await classes.ExistsByCodeAsync(code, cancellationToken))
+                throw new ValidationException([new("code", $"Mã hạng ghế '{code}' đã tồn tại.")]);
 
-        var seatClass = new SeatClass { Code = code, Name = request.Name.Trim(), Description = request.Description?.Trim(), IsActive = true };
-        classes.Add(seatClass);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        return seatClass.Id;
-    }
+            var seatClass = new SeatClass { Code = code, Name = request.Name.Trim(), Description = request.Description?.Trim(), IsActive = true };
+            classes.Add(seatClass);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return seatClass.Id;
+        }, cancellationToken);
 
     public async Task UpdateAsync(Guid id, UpdateSeatClassRequest request, CancellationToken cancellationToken = default)
     {

@@ -41,7 +41,8 @@ public class AddBoatSeatsRequestValidator : AbstractValidator<AddBoatSeatsReques
     {
         RuleFor(x => x.Seats).NotNull().NotEmpty().Must(s => s is null || s.Count <= 200)
             .WithMessage("Mỗi lần chỉ thêm tối đa 200 ghế.");
-        RuleForEach(x => x.Seats).SetValidator(new SeatInputValidator());
+        // NotNull trước SetValidator: child validator bỏ qua phần tử null nên service sẽ NullReferenceException (500) thay vì 400.
+        RuleForEach(x => x.Seats).NotNull().WithMessage("Phần tử ghế không được null.").SetValidator(new SeatInputValidator());
     }
 }
 

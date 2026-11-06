@@ -176,6 +176,35 @@ public sealed class SeatInventorySqlTests : IAsyncLifetime
         (await check.SeatReservations.CountAsync()).Should().Be(0);
     }
 
+    /// <summary>
+    /// Tạo SeatClass trùng mã đồng thời (HTTP thật từng cho 1x201 + 1x400 + 4x500 vì check-then-insert nằm ngoài khoá):
+    /// phải đúng 1 thành công, các request còn lại bị từ chối nghiệp vụ (400), không lỗi unique-index thô.
+    /// </summary>
+    [SqlServerDomainFact]
+    public async Task ConcurrentDuplicateSeatClassCreate_HasOneWinner_AndOthersAreCleanRejections()
+    {
+        var r = await NewRoundAsync();
+        const int parallelRequests = 6;
+        var gate = new TaskCompletionSource();
+        var attempts = Enumerable.Range(0, parallelRequests).Select(_ => Task.Run(async () =>
+        {
+            await gate.Task;
+            return await CaptureAsync(async () =>
+            {
+                await using var c = r.Context();
+                await Classes(c).CreateAsync(new CreateSeatClassRequest("DUP-CODE", "Dup", null));
+            });
+        })).ToList();
+        gate.SetResult();
+        var outcomes = await Task.WhenAll(attempts);
+
+        outcomes.Count(e => e is null).Should().Be(1, "đúng một request tạo được hạng ghế");
+        foreach (var failure in outcomes.Where(e => e is not null))
+            failure.Should().BeOfType<ValidationException>($"request thua phải bị từ chối nghiệp vụ, gặp {failure}");
+        await using var check = r.Context();
+        (await check.SeatClasses.CountAsync(x => x.Code == "DUP-CODE")).Should().Be(1);
+    }
+
     // ---- Đua xác định tại điểm check-then-write (một bên ĐÃ kiểm tra xong, bên kia chen vào trước khi nó ghi) ----
 
     [SqlServerDomainFact]

@@ -362,4 +362,13 @@ public class SeatInventoryTests
         v.Validate(new AddBoatSeatsRequest([Seat("A1", Guid.NewGuid(), 0, 1)])).IsValid.Should().BeFalse();
         v.Validate(new AddBoatSeatsRequest([Seat("A1", Guid.NewGuid(), 1, 1)])).IsValid.Should().BeTrue();
     }
+
+    [Fact]
+    public void AddSeatsValidator_RejectsNullElements_SoTheServiceNeverSeesThem()
+    {
+        var v = new WaterbusSystem.Application.Validators.SeatInventory.AddBoatSeatsRequestValidator();
+
+        v.Validate(new AddBoatSeatsRequest([null!])).IsValid.Should().BeFalse();
+        v.Validate(new AddBoatSeatsRequest([Seat("A1", Guid.NewGuid(), 1, 1), null!])).IsValid.Should().BeFalse();
+    }
 }
