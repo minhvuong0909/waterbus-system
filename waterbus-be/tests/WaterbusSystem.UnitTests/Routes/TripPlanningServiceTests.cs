@@ -81,12 +81,12 @@ public class TripPlanningServiceTests
     }
 
     [Fact]
-    public async Task Generate_WithoutOptionalMinutes_ShouldLeaveSalesCloseAndCheckInUnset()
+    public async Task Generate_WithoutOptionalMinutes_ShouldCapSalesAtDepartureAndLeaveCheckInUnset()
     {
         var result = await Service().GenerateFromScheduleAsync(Gen(await NewSchedule()));
 
         var trip = _context.Trips.Include(t => t.TripStopCalls).Single(t => t.Id == result.Created[0].TripId);
-        trip.SalesCloseAt.Should().BeNull();
+        trip.SalesCloseAt.Should().Be(trip.DepartureTime);
         trip.TripStopCalls.All(c => c.CheckInOpenAt == null && c.CheckInCloseAt == null).Should().BeTrue();
     }
 

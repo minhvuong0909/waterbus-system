@@ -57,7 +57,9 @@ public sealed class TripPlanningService(
                 {
                     ScheduleId = schedule.Id, RouteId = route.Id, TripType = schedule.TripType, Status = TripStatus.Scheduled,
                     DepartureTime = departure, ArrivalTime = departure.AddMinutes(totalMinutes),
-                    SalesCloseAt = request.SalesCloseMinutesBeforeDeparture is { } sc ? departure.AddMinutes(-sc) : null
+                    // BR-TIME-01/02: thiếu cấu hình thì trần bắt buộc là giờ khởi hành (không bán sau khi Trip rời bến);
+                    // Admin vẫn có thể cấu hình sớm hơn. Không đặt null vì null = không có mốc đóng bán.
+                    SalesCloseAt = departure.AddMinutes(-(request.SalesCloseMinutesBeforeDeparture ?? 0))
                 };
                 foreach (var stop in stops)
                 {
