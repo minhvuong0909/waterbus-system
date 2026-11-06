@@ -1,7 +1,7 @@
 /**
  * Preload Manifest & Offline Cache Management Screen
  * Allows staff to preload trips, bookings, tickets, and public keys before gate opening (BR-OFF-01).
- * Displays cache metrics, batch sync status, and QR test simulator.
+ * Displays cache metrics and batch sync status.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -18,7 +18,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useScannerStore } from '../../store/useScannerStore';
-import { QrVerifier } from '../../services/crypto/qrVerifier';
 import { getMyScannerAssignments } from '../../services/checkin/scannerAssignmentService';
 import { MyScannerAssignment } from '../../types/checkin';
 import { ApiError } from '../../services/api/apiClient';
@@ -41,7 +40,6 @@ export default function PreloadManifestScreen() {
   const [assignmentsError, setAssignmentsError] = useState<string | null>(null);
   // deviceInfo.stationId giữ TripStopCallId thật của lần preload gần nhất (xem useScannerStore).
   const [selectedTripStopCallId, setSelectedTripStopCallId] = useState<string>(deviceInfo.stationId);
-  const [testQrInfo, setTestQrInfo] = useState<{ compact: string; signature: string } | null>(null);
 
   const loadAssignments = useCallback(async () => {
     setIsLoadingAssignments(true);
@@ -93,11 +91,6 @@ export default function PreloadManifestScreen() {
     } else {
       Alert.alert('Thông báo', syncMessage || 'Không có vé nào tồn đọng cần đồng bộ.');
     }
-  };
-
-  const handleGenerateTestQr = () => {
-    const test = QrVerifier.generateTestSignedQr('pub_wb_98a76b5c', 'TRIP-BD-BA-01');
-    setTestQrInfo({ compact: test.compactQr, signature: test.signature });
   };
 
   const handleClearCacheConfirm = () => {
@@ -278,32 +271,6 @@ export default function PreloadManifestScreen() {
             <Text style={styles.messageBannerText}>{syncMessage}</Text>
           </View>
         )}
-
-        {/* Test QR Generator Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Tạo Mã QR Mẫu Kèm Chữ Ký Số (Demo)</Text>
-          <Text style={styles.cardDesc}>
-            Sinh chuỗi QR mẫu ký RSA-SHA256 thật bằng khoá demo cục bộ để kiểm thử quét (không phải
-            dữ liệu/khoá production):
-          </Text>
-
-          <TouchableOpacity style={styles.testGenButton} onPress={handleGenerateTestQr}>
-            <Ionicons name="qr-code-outline" size={18} color="#0284C7" style={{ marginRight: 6 }} />
-            <Text style={styles.testGenButtonText}>Sinh Chuỗi QR Hợp Lệ</Text>
-          </TouchableOpacity>
-
-          {testQrInfo && (
-            <View style={styles.qrCodeBox}>
-              <Text style={styles.qrCodeLabel}>Chuỗi QR đã ký (Dán vào camera hoặc nhập tay):</Text>
-              <Text style={styles.qrCodeText} selectable>
-                {testQrInfo.compact}
-              </Text>
-              <Text style={styles.signatureText} numberOfLines={1}>
-                Chữ ký: {testQrInfo.signature}
-              </Text>
-            </View>
-          )}
-        </View>
 
         {/* Clear Cache Card */}
         <View style={styles.dangerCard}>
@@ -514,47 +481,6 @@ const styles = StyleSheet.create({
     color: '#1D4ED8',
     fontSize: 12,
     flex: 1,
-  },
-  testGenButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 9,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#0284C7',
-    backgroundColor: '#F0F9FF',
-  },
-  testGenButtonText: {
-    color: '#0284C7',
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  qrCodeBox: {
-    marginTop: 12,
-    backgroundColor: '#F1F5F9',
-    padding: 10,
-    borderRadius: 8,
-  },
-  qrCodeLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    marginBottom: 4,
-  },
-  qrCodeText: {
-    fontSize: 12,
-    fontFamily: 'monospace',
-    color: '#0F172A',
-    backgroundColor: '#FFFFFF',
-    padding: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-  },
-  signatureText: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 4,
   },
   dangerCard: {
     marginTop: 8,

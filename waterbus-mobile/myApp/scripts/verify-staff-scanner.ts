@@ -216,7 +216,14 @@ async function runVerification() {
   const remaining = localBooking.tickets.find((ticket) => ticket.boardingStatus === 'NotCheckedIn');
   if (!remaining) throw new Error('Thiếu vé test chưa check-in.');
   syncService.setDeviceInfo({ stationId: 'stop-test', staffId: 'staff-test', forceOfflineMode: true });
-  useScannerStore.setState({ currentBooking: localBooking, activeAssignment: null });
+  // Các test 5.1-5.5 kiểm tra ràng buộc assignment/cửa sổ check-in, giả định QR ĐÃ xác thực hợp
+  // lệ (BR-QR-02) - gán sẵn verificationResult.isValid=true để cách ly khỏi gate MOB-03 (test
+  // riêng ở nhóm 6).
+  useScannerStore.setState({
+    currentBooking: localBooking,
+    activeAssignment: null,
+    verificationResult: { isValid: true, publicBookingId: sampleBookingId, verifiedOffline: true },
+  });
   assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
     '5.1 Reject check-in without a preloaded assignment');
   const assignment: MyScannerAssignment = {
@@ -238,6 +245,55 @@ async function runVerification() {
     '5.4 Accept a valid ticket at its assigned stop inside the window');
   assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
     '5.5 Reject a second local check-in for the same ticket');
+
+  // -------------------------------------------------------------
+  // TEST GROUP 6: QR SIGNATURE / VERSION GATE BEFORE CHECK-IN (MOB-03, MOB-04)
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 6: Manual Lookup Cannot Silently Bypass QR Verification (MOB-03)');
+
+  // Dùng booking khác (BK-002, cùng Trip) còn vé NotCheckedIn - booking đầu (BK-001) đã được
+  // check-in hết ở Test Group 3/5 nên localBooking (snapshot cũ trong JS) không còn vé trống.
+  const secondBooking = await SqliteRepository.getBookingByPublicId('pub_wb_11f22e33');
+  if (!secondBooking) throw new Error('Thiếu booking test thứ hai (BK-002).');
+  const secondTicket = secondBooking.tickets.find((ticket) => ticket.boardingStatus === 'NotCheckedIn');
+  if (!secondTicket) throw new Error('Thiếu vé test thứ hai chưa check-in.');
+  useScannerStore.setState({ currentBooking: secondBooking });
+
+  // 6.1 QR chưa xác thực (vd nhập tay theo mã) + không có lý do ghi đè -> phải bị chặn.
+  useScannerStore.setState({
+    verificationResult: { isValid: false, publicBookingId: secondBooking.publicBookingId, verifiedOffline: false, error: 'test' },
+  });
+  const unverifiedNoReason = await useScannerStore.getState().performCheckIn([secondTicket.id]);
+  assert(
+    !unverifiedNoReason.success,
+    '6.1 Reject check-in when QR is not verified and no manual-override reason is given',
+    `Error: ${unverifiedNoReason.error}`
+  );
+
+  // 6.2 Cùng điều kiện nhưng thiếu cờ isManualOverride dù có notes -> vẫn phải bị chặn (không
+  // được tự ý suy luận override từ việc có ghi chú).
+  const unverifiedNoFlag = await useScannerStore.getState().performCheckIn([secondTicket.id], 'khách đưa mã giấy');
+  assert(
+    !unverifiedNoFlag.success,
+    '6.2 Reject check-in when QR is not verified even if notes are present but override flag is missing'
+  );
+
+  // 6.3 Ghi đè thủ công đúng cách (có cờ + có lý do) -> được phép, và lý do phải được gắn nhãn
+  // trong CheckInEvent.Notes để phân biệt với check-in quét QR bình thường (audit trail).
+  const overrideResult = await useScannerStore.getState().performCheckIn(
+    [secondTicket.id],
+    'Camera lỗi, khách đưa mã booking giấy',
+    true
+  );
+  assert(overrideResult.success, '6.3 Accept check-in via explicit Manual Override with a reason');
+
+  const overrideEvents = await SqliteRepository.getPendingEvents(10);
+  const overrideEvent = overrideEvents.find((e) => e.ticketId === secondTicket.id);
+  assert(
+    !!overrideEvent?.notes?.includes('GHI ĐÈ THỦ CÔNG'),
+    '6.4 Manual-override CheckInEvent is tagged in Notes for audit trail',
+    `Notes: ${overrideEvent?.notes}`
+  );
 
   // -------------------------------------------------------------
   // FINAL SUMMARY

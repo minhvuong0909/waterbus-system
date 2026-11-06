@@ -14,6 +14,7 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  TextInput,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +33,8 @@ export default function BookingDetailModal() {
 
   const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [overrideReason, setOverrideReason] = useState('');
+  const isQrVerified = verificationResult?.isValid === true;
 
   // Initialize selected tickets: auto-select unchecked tickets by default
   useEffect(() => {
@@ -43,6 +46,7 @@ export default function BookingDetailModal() {
     } else {
       setSelectedTicketIds([]);
     }
+    setOverrideReason('');
   }, [currentBooking]);
 
   if (!currentBooking) return null;
@@ -75,11 +79,25 @@ export default function BookingDetailModal() {
       return;
     }
 
+    // MOB-03: nhập tay/chữ ký không hợp lệ KHÔNG được đi qua check-in như quét QR bình thường -
+    // bắt buộc Staff xác nhận rõ đây là Ghi đè thủ công kèm lý do, để có vết audit riêng.
+    if (!isQrVerified && !overrideReason.trim()) {
+      Alert.alert(
+        'Thiếu lý do ghi đè thủ công',
+        'Chữ ký số QR chưa được xác thực. Vui lòng nhập lý do (vd: khách đưa mã booking giấy, camera lỗi...) trước khi check-in.'
+      );
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-      const result = await performCheckIn(selectedTicketIds);
+      const result = await performCheckIn(
+        selectedTicketIds,
+        isQrVerified ? undefined : overrideReason.trim(),
+        !isQrVerified
+      );
       setIsSubmitting(false);
 
       if (result.success) {
@@ -130,13 +148,26 @@ export default function BookingDetailModal() {
               </View>
             </View>
           ) : (
-            <View style={styles.invalidBanner}>
-              <Ionicons name="alert-circle" size={24} color="#DC2626" />
-              <View style={styles.verifiedTextContainer}>
-                <Text style={styles.invalidTitle}>CẢNH BÁO: CHỮ KÝ SỐ KHÔNG HỢP LỆ</Text>
-                <Text style={styles.invalidSubtitle}>{verificationResult?.error || 'QR không xác thực'}</Text>
+            <>
+              <View style={styles.invalidBanner}>
+                <Ionicons name="alert-circle" size={24} color="#DC2626" />
+                <View style={styles.verifiedTextContainer}>
+                  <Text style={styles.invalidTitle}>CẢNH BÁO: CHỮ KÝ SỐ KHÔNG HỢP LỆ</Text>
+                  <Text style={styles.invalidSubtitle}>{verificationResult?.error || 'QR không xác thực'}</Text>
+                </View>
               </View>
-            </View>
+              {/* MOB-03: bắt buộc lý do khi check-in không qua QR đã xác thực (Ghi đè thủ công) */}
+              <View style={styles.overrideBox}>
+                <Text style={styles.overrideLabel}>Lý do Ghi đè thủ công (bắt buộc):</Text>
+                <TextInput
+                  style={styles.overrideInput}
+                  placeholder="VD: khách đưa mã booking giấy, camera lỗi, QR mờ..."
+                  value={overrideReason}
+                  onChangeText={setOverrideReason}
+                  multiline
+                />
+              </View>
+            </>
           )}
 
           {/* Booking & Trip Summary Card */}
@@ -254,16 +285,25 @@ export default function BookingDetailModal() {
           <TouchableOpacity
             style={[
               styles.checkInButton,
-              (selectedTicketIds.length === 0 || isSubmitting) && styles.buttonDisabled,
+              !isQrVerified && styles.checkInButtonOverride,
+              (selectedTicketIds.length === 0 || isSubmitting || (!isQrVerified && !overrideReason.trim())) &&
+                styles.buttonDisabled,
             ]}
             onPress={handleConfirmCheckIn}
-            disabled={selectedTicketIds.length === 0 || isSubmitting}
+            disabled={selectedTicketIds.length === 0 || isSubmitting || (!isQrVerified && !overrideReason.trim())}
           >
-            <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Ionicons
+              name={isQrVerified ? 'checkmark-circle' : 'warning'}
+              size={22}
+              color="#FFFFFF"
+              style={{ marginRight: 8 }}
+            />
             <Text style={styles.checkInButtonText}>
               {isSubmitting
                 ? 'ĐANG GHI NHẬN...'
-                : `XÁC NHẬN CHECK-IN (${selectedTicketIds.length} VÉ)`}
+                : isQrVerified
+                ? `XÁC NHẬN CHECK-IN (${selectedTicketIds.length} VÉ)`
+                : `GHI ĐÈ THỦ CÔNG & CHECK-IN (${selectedTicketIds.length} VÉ)`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -350,6 +390,31 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#B91C1C',
     marginTop: 2,
+  },
+  overrideBox: {
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FDBA74',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  overrideLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#9A3412',
+    marginBottom: 6,
+  },
+  overrideInput: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FDBA74',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: '#0F172A',
+    minHeight: 40,
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -507,6 +572,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
+  },
+  checkInButtonOverride: {
+    backgroundColor: '#DC2626',
+    shadowColor: '#DC2626',
   },
   checkInButton: {
     backgroundColor: '#0284C7',

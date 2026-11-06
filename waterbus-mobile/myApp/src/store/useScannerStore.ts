@@ -44,7 +44,11 @@ interface ScannerState {
   refreshStats: () => Promise<void>;
   setCurrentBooking: (booking: Booking | null, verification?: QrVerificationResult | null) => void;
   closeBookingModal: () => void;
-  performCheckIn: (ticketIds: string[], notes?: string) => Promise<{ success: boolean; count: number; error?: string }>;
+  performCheckIn: (
+    ticketIds: string[],
+    notes?: string,
+    isManualOverride?: boolean
+  ) => Promise<{ success: boolean; count: number; error?: string }>;
   /** tripStopCallId thật (Guid) lấy từ GetMyScannerAssignments - không còn là stationId demo. */
   preloadCache: (tripStopCallId: string) => Promise<boolean>;
   /** Khôi phục phân công đã lưu của đúng Staff này sau khi app bị kill/restart offline (MOB-02). */
@@ -115,11 +119,25 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     set({ isModalOpen: false, currentBooking: null, verificationResult: null });
   },
 
-  performCheckIn: async (ticketIds: string[], notes?: string) => {
-    const { currentBooking, activeAssignment } = get();
+  performCheckIn: async (ticketIds: string[], notes?: string, isManualOverride?: boolean) => {
+    const { currentBooking, activeAssignment, verificationResult } = get();
     const deviceInfo = syncService.getDeviceInfo();
     if (!currentBooking || ticketIds.length === 0) {
       return { success: false, count: 0, error: 'Không có vé nào được chọn' };
+    }
+
+    // MOB-03: chữ ký số QR (hoặc đối chiếu version/tripId - MOB-04) chưa hợp lệ thì KHÔNG được
+    // check-in như đường quét QR bình thường - bắt buộc đi qua Ghi đè thủ công (Manual Override)
+    // có lý do, để tách rõ 2 luồng và có vết audit (BookingDetailModal.handleConfirmCheckIn).
+    if (!isManualOverride && verificationResult?.isValid !== true) {
+      return {
+        success: false,
+        count: 0,
+        error: 'Chưa xác thực chữ ký số QR. Cần xác nhận Ghi đè thủ công (Manual Override) kèm lý do trước khi check-in.',
+      };
+    }
+    if (isManualOverride && !notes?.trim()) {
+      return { success: false, count: 0, error: 'Ghi đè thủ công bắt buộc phải ghi rõ lý do.' };
     }
 
     const now = Date.now();
@@ -151,7 +169,7 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
         staffAccountId: deviceInfo.staffId,
         staffName: deviceInfo.staffName,
         scannerDeviceId: deviceInfo.deviceId,
-        notes,
+        notes: isManualOverride ? `[GHI ĐÈ THỦ CÔNG - chưa xác thực QR] ${notes}` : notes,
       });
 
       // Update in-memory booking object to reflect changes immediately
