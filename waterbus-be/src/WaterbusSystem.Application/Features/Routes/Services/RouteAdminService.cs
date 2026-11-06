@@ -31,7 +31,7 @@ public sealed class RouteAdminService(
             var code = request.Code.Trim();
             if (await routes.ExistsByCodeAsync(code, cancellationToken))
                 throw new ValidationException([new("code", $"Mã tuyến '{code}' đã tồn tại.")]);
-            await EnsureStopsValidAsync(request.Stops, cancellationToken);
+            await EnsureStopsValidAsync(request.Stops, request.ServiceType, cancellationToken);
 
             var route = new Route
             {
@@ -71,7 +71,7 @@ public sealed class RouteAdminService(
             var route = await routes.GetTrackedWithStopsAsync(id, cancellationToken);
             if (await routes.IsReferencedAsync(id, cancellationToken))
                 throw new ConflictException("Route đã có Schedule/Trip nên không đổi được danh sách điểm dừng. Hãy tạo Route mới.");
-            await EnsureStopsValidAsync(request.Stops, cancellationToken);
+            await EnsureStopsValidAsync(request.Stops, route.ServiceType, cancellationToken);
 
             var now = DateTimeOffset.UtcNow;
             for (var i = 0; i < request.Stops.Count; i++)
@@ -126,7 +126,11 @@ public sealed class RouteAdminService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task EnsureStopsValidAsync(List<RouteStopInput> stops, CancellationToken cancellationToken)
+    /// <summary>
+    /// Bến liền kề lặp lại chỉ cấm với Regular; Sightseeing được phép khởi hành và trở về cùng một bến (BR-ROUTE-06 - lên và xuống
+    /// vẫn là hai lần xuất hiện khác nhau trong hành trình).
+    /// </summary>
+    private async Task EnsureStopsValidAsync(List<RouteStopInput> stops, string serviceType, CancellationToken cancellationToken)
     {
         var errors = new List<FluentValidation.Results.ValidationFailure>();
         var stations = (await routes.GetActiveStationsAsync(stops.Select(s => s.StationId).Distinct().ToList(), cancellationToken))
@@ -135,7 +139,7 @@ public sealed class RouteAdminService(
         {
             if (!stations.Contains(stops[i].StationId))
                 errors.Add(new($"stops[{i}].stationId", "Bến không tồn tại hoặc đã ngừng hoạt động."));
-            if (i > 0 && stops[i].StationId == stops[i - 1].StationId)
+            if (serviceType != "Sightseeing" && i > 0 && stops[i].StationId == stops[i - 1].StationId)
                 errors.Add(new($"stops[{i}].stationId", "Hai điểm dừng liền kề không được cùng một bến."));
         }
         if (!stops[0].CanBoard) errors.Add(new("stops[0].canBoard", "Điểm dừng đầu phải cho khách lên tàu."));

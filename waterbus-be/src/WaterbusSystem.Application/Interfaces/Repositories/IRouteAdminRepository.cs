@@ -23,7 +23,7 @@ public interface IRouteAdminRepository
     /// <summary>Có Schedule hoặc Trip (kể cả đã xoá mềm) tham chiếu Route.</summary>
     Task<bool> IsReferencedAsync(Guid routeId, CancellationToken cancellationToken = default);
 
-    /// <summary>Có Schedule đang hoạt động hoặc Trip chưa kết thúc (Scheduled/Boarding/EnRoute/Suspended) trên Route.</summary>
+    /// <summary>Có Schedule đang hoạt động hoặc Trip chưa đóng (mọi trạng thái trừ Completed/Cancelled/Terminated, kể cả Arrived chờ Complete) trên Route.</summary>
     Task<bool> HasLiveDependentsAsync(Guid routeId, CancellationToken cancellationToken = default);
 
     void Add(Route route);

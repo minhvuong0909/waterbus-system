@@ -53,8 +53,7 @@ public sealed class RouteAdminRepository(ApplicationDbContext context) : IRouteA
     public async Task<bool> HasLiveDependentsAsync(Guid routeId, CancellationToken cancellationToken = default) =>
         await context.Schedules.AnyAsync(s => s.RouteId == routeId && s.IsActive, cancellationToken)
         || await context.Trips.AnyAsync(t => t.RouteId == routeId
-            && (t.Status == TripStatus.Scheduled || t.Status == TripStatus.Boarding
-                || t.Status == TripStatus.EnRoute || t.Status == TripStatus.Suspended), cancellationToken);
+            && t.Status != TripStatus.Completed && t.Status != TripStatus.Cancelled && t.Status != TripStatus.Terminated, cancellationToken);
 
     public void Add(Route route) => context.Routes.Add(route);
 

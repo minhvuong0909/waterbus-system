@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using WaterbusSystem.Application.DTOs.Requests.Routes;
 using WaterbusSystem.Application.Features.Routes.Services;
+using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.Infrastructure.Repositories;
@@ -52,6 +53,21 @@ public class RouteAdminServiceTests
         var id = await Service().CreateAsync(NewRoute("RT91", Stop(_seed.StationA.Id), Stop(_seed.StationB.Id), Stop(_seed.StationA.Id)));
 
         (await Service().GetByIdAsync(id)).Stops.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task Sightseeing_SingleBerthLoop_ShouldBeAllowedOnCreateAndReplace_ButNotForRegular()
+    {
+        var loop = new CreateRouteRequest("RT70", "Vong", "Sightseeing", 60, 5m, [Stop(_seed.StationA.Id), Stop(_seed.StationA.Id)]);
+        var id = await Service().CreateAsync(loop);
+        (await Service().GetByIdAsync(id)).Stops.Should().HaveCount(2);
+
+        var replaced = await Service().ReplaceStopsAsync(id, new ReplaceRouteStopsRequest(
+            [Stop(_seed.StationA.Id), Stop(_seed.StationB.Id), Stop(_seed.StationB.Id)]));
+        replaced.Stops.Should().HaveCount(3);
+
+        var regular = () => Service().CreateAsync(loop with { Code = "RT71", ServiceType = "Regular" });
+        await regular.Should().ThrowAsync<ValidationException>();
     }
 
     [Fact]
@@ -141,6 +157,26 @@ public class RouteAdminServiceTests
         _context.Routes.Single(r => r.Id == id).IsActive.Should().BeFalse();
         await Service().ActivateAsync(id);
         _context.Routes.Single(r => r.Id == id).IsActive.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(TripStatus.Scheduled, true)]
+    [InlineData(TripStatus.Boarding, true)]
+    [InlineData(TripStatus.EnRoute, true)]
+    [InlineData(TripStatus.Suspended, true)]
+    [InlineData(TripStatus.Arrived, true)]
+    [InlineData(TripStatus.Completed, false)]
+    [InlineData(TripStatus.Cancelled, false)]
+    [InlineData(TripStatus.Terminated, false)]
+    public async Task Deactivate_ShouldBlockOnlyForUnclosedTrips(TripStatus status, bool blocked)
+    {
+        _seed.Trip.Status = status;
+        _context.SaveChanges();
+
+        var act = () => Service().DeactivateAsync(_seed.Route.Id);
+
+        if (blocked) await act.Should().ThrowAsync<ConflictException>();
+        else await act.Should().NotThrowAsync();
     }
 
     [Fact]
