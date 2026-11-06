@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasFare, toTrip } from './utils'
+import { hasFare, toDeparture, toTrip } from './utils'
 import type { TripDto } from './types'
 
 describe('hasFare', () => {
@@ -24,5 +24,11 @@ describe('toTrip duration', () => {
 
   it('does not turn an unknown segment duration into the whole-trip duration', () => {
     expect(toTrip(dto(null))).toMatchObject({ durationMins: 0, durationKnown: false })
+  })
+
+  it('omits the duration from the departure row when it is unknown', () => {
+    const pier = { id: 'p', name: 'P', shortName: 'P' } as never
+    const details = toDeparture(toTrip(dto(null)), pier, pier).details
+    expect(details.join(' ')).not.toMatch(/voyage|min/i)
   })
 })

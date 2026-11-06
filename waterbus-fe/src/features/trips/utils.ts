@@ -245,7 +245,7 @@ export function toDeparture(
     kind: trip.kind,
     from: origin.shortName,
     to: destination.shortName,
-    details: [t('{durationMins} min voyage', { durationMins: trip.durationMins }), seatsLabel(trip)],
+    details: [...(trip.durationKnown === false ? [] : [t('{durationMins} min voyage', { durationMins: trip.durationMins })]), seatsLabel(trip)],
     priceVnd: trip.fareVnd,
   }
 }
