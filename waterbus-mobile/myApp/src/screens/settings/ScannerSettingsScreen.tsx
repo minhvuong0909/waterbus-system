@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { isAxiosError } from 'axios';
 import { useScannerStore } from '../../store/useScannerStore';
 import { getApiBaseUrl, setApiBaseUrl } from '../../api/client';
 import { loginStaff, logoutStaff } from '../../services/auth/authService';
@@ -24,17 +25,30 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { BrandColors, Radius } from '../../../constants/theme';
 
 export default function ScannerSettingsScreen() {
-  const { deviceInfo, setDeviceInfo, setForceOfflineMode, syncPendingBatch } = useScannerStore();
+  const { deviceInfo, setDeviceInfo, setForceOfflineMode } = useScannerStore();
 
   const { user, setUser, clearUser } = useAuthStore();
-  const [backendUrl, setBackendUrl] = useState(getApiBaseUrl());
+  const formatUrlForDisplay = (url: string) => url.replace(/^https?:\/\//i, '');
+  const [backendAddress, setBackendAddress] = useState(formatUrlForDisplay(getApiBaseUrl()));
   const [deviceCode, setDeviceCode] = useState(deviceInfo.deviceCode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+  const resolveFullUrl = (input: string) => {
+    const trimmed = input.trim().replace(/\/+$/, '');
+    if (!trimmed) return getApiBaseUrl();
+    if (/^https?:\/\//i.test(trimmed)) {
+      return trimmed;
+    }
+    return `http://${trimmed}`;
+  };
+
   const handleSaveConfig = () => {
-    setApiBaseUrl(backendUrl);
+    const fullUrl = resolveFullUrl(backendAddress);
+    setApiBaseUrl(fullUrl);
+    setBackendAddress(formatUrlForDisplay(fullUrl));
     setDeviceInfo({ deviceCode });
     Alert.alert('Đã lưu cấu hình', 'Thông tin thiết bị và máy chủ đã được cập nhật.');
   };
@@ -53,9 +67,14 @@ export default function ScannerSettingsScreen() {
       setPassword('');
       Alert.alert('Đăng nhập thành công', `Xin chào ${staff.fullName}.`);
     } catch (error) {
+      const message = isAxiosError(error) && !error.response
+        ? `Không kết nối được máy chủ tại ${getApiBaseUrl()}.\n\nKiểm tra API đang chạy và địa chỉ máy chủ. Nếu dùng điện thoại thật, hãy nhập IP Wi-Fi của máy tính (ví dụ http://192.168.1.10:5000); 10.0.2.2 chỉ dùng cho Android Emulator.`
+        : error instanceof Error
+          ? error.message
+          : 'Vui lòng thử lại sau.';
       Alert.alert(
         'Không thể đăng nhập',
-        error instanceof Error ? error.message : 'Vui lòng thử lại sau.'
+        message
       );
     } finally {
       setIsLoggingIn(false);
@@ -99,13 +118,30 @@ export default function ScannerSettingsScreen() {
                 autoComplete="email"
               />
               <Text style={styles.inputLabel}>Mật khẩu</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoComplete="password"
-              />
+              <View style={styles.passwordInputContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!isPasswordVisible}
+                  autoComplete="password"
+                />
+                <TouchableOpacity
+                  style={styles.passwordVisibilityButton}
+                  onPress={() => setIsPasswordVisible((visible) => !visible)}
+                  accessibilityRole="button"
+                  accessibilityLabel={isPasswordVisible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                >
+                  <Ionicons
+                    name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={BrandColors.textSecondary}
+                  />
+                  <Text style={styles.passwordVisibilityText}>
+                    {isPasswordVisible ? 'Ẩn' : 'Hiện'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
               <TouchableOpacity
                 style={[styles.saveBtn, isLoggingIn && styles.disabledBtn]}
                 onPress={handleLogin}
@@ -117,9 +153,6 @@ export default function ScannerSettingsScreen() {
               </TouchableOpacity>
             </>
           )}
-          <Text style={styles.authNote}>
-            JWT chỉ được giữ trong bộ nhớ ứng dụng; đăng nhập lại sau khi khởi động lại app.
-          </Text>
         </View>
 
         {/* Staff Profile Card */}
@@ -200,13 +233,13 @@ export default function ScannerSettingsScreen() {
           <Text style={styles.inputLabel}>Địa chỉ máy chủ:</Text>
           <TextInput
             style={styles.input}
-            value={backendUrl}
-            onChangeText={setBackendUrl}
+            value={backendAddress}
+            onChangeText={setBackendAddress}
             autoCapitalize="none"
-            keyboardType="url"
-            placeholder="https://waterbus.example"
+            autoCorrect={false}
+            placeholder="192.168.1.10:5000"
+            placeholderTextColor={BrandColors.textSecondary}
           />
-
           <TouchableOpacity style={styles.saveBtn} onPress={handleSaveConfig}>
             <Ionicons name="save-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
             <Text style={styles.saveBtnText}>Lưu Thay Đổi</Text>
@@ -400,6 +433,35 @@ const styles = StyleSheet.create({
     backgroundColor: BrandColors.mist,
     color: BrandColors.ink,
   },
+
+  passwordInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: BrandColors.border,
+    borderRadius: Radius.sm,
+    marginBottom: 12,
+    backgroundColor: BrandColors.mist,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: BrandColors.ink,
+  },
+  passwordVisibilityButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  passwordVisibilityText: {
+    marginLeft: 4,
+    color: BrandColors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   saveBtn: {
     backgroundColor: BrandColors.tealFlow,
     flexDirection: 'row',
@@ -418,12 +480,6 @@ const styles = StyleSheet.create({
     color: BrandColors.ink,
     fontSize: 14,
     fontWeight: '700',
-  },
-  authNote: {
-    color: BrandColors.textSecondary,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 10,
   },
   logoutBtn: {
     alignItems: 'center',

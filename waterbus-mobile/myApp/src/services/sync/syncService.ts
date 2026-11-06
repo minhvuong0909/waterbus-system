@@ -32,7 +32,7 @@ class SyncService {
     deviceCode: 'DEV-BD-01',
     staffId: '',
     staffName: 'Chưa đăng nhập',
-    stationId: 'ST-BACH-DANG',
+    stationId: 'ST01',
     stationName: 'Bến Bạch Đằng (Quận 1)',
     isPrimaryOffline: false,
     forceOfflineMode: false,
@@ -169,7 +169,7 @@ class SyncService {
   }
 
   public async preloadManifest(
-    stationId = 'ST-BACH-DANG',
+    stationId = 'ST01',
     apiBaseUrl?: string
   ): Promise<{ manifest: PreloadManifest; message: string }> {
     // Lấy manifest theo bến để thiết bị có dữ liệu tra cứu khi mất mạng.

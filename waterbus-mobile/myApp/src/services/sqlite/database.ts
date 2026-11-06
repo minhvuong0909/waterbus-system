@@ -278,8 +278,8 @@ async function initSchema(db: DatabaseAdapter): Promise<void> {
       kid TEXT PRIMARY KEY,
       algorithm TEXT NOT NULL,
       public_key_pem TEXT NOT NULL,
-      valid_from TEXT NOT NULL,
-      valid_to TEXT NOT NULL,
+      valid_from TEXT,
+      valid_to TEXT,
       is_active INTEGER NOT NULL DEFAULT 1
     );
 
@@ -371,6 +371,31 @@ async function initSchema(db: DatabaseAdapter): Promise<void> {
   `;
 
   await db.execAsync(schemaSql);
+
+  // Migration an toàn cho các thiết bị đã tạo DB cũ trước đó:
+  // Nếu bảng public_keys cũ còn dính constraint NOT NULL ở valid_from, recreate lại bảng
+  try {
+    const pkTableInfo = await db.getAllAsync<{ name: string; notnull: number }>('PRAGMA table_info(public_keys)');
+    const validFromCol = pkTableInfo.find(c => c.name === 'valid_from');
+    if (validFromCol && validFromCol.notnull === 1) {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS public_keys_new (
+          kid TEXT PRIMARY KEY,
+          algorithm TEXT NOT NULL,
+          public_key_pem TEXT NOT NULL,
+          valid_from TEXT,
+          valid_to TEXT,
+          is_active INTEGER NOT NULL DEFAULT 1
+        );
+        INSERT OR IGNORE INTO public_keys_new SELECT * FROM public_keys;
+        DROP TABLE public_keys;
+        ALTER TABLE public_keys_new RENAME TO public_keys;
+      `);
+    }
+  } catch {
+    // Ignore migration fallback
+  }
+
   const bookingColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(manifest_bookings)');
   if (!bookingColumns.some(column => column.name === 'trip_stop_call_id')) {
     await db.execAsync('ALTER TABLE manifest_bookings ADD COLUMN trip_stop_call_id TEXT');

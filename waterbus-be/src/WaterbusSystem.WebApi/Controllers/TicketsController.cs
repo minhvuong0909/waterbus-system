@@ -15,11 +15,16 @@ public sealed class TicketsController : BaseApiController
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<SyncOfflineCheckInsResult>> SyncOffline(
-        [FromBody] SyncOfflineCheckInsCommand command,
-        [FromHeader(Name = "Idempotency-Key")] string idempotencyKey,
+        [FromBody] SyncOfflineCheckInsRequest request,
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
         CancellationToken cancellationToken)
     {
-        var result = await Mediator.Send(command with { IdempotencyKey = idempotencyKey }, cancellationToken);
+        var command = new SyncOfflineCheckInsCommand(
+            request.ScannerDeviceId,
+            request.BatchTimestamp,
+            request.Events,
+            idempotencyKey ?? string.Empty);
+        var result = await Mediator.Send(command, cancellationToken);
         return Ok(result);
     }
 }

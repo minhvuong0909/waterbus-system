@@ -18,6 +18,12 @@ public sealed record OfflineCheckInEventDto(
     DateTimeOffset OccurredAtDevice,
     string? Notes);
 
+/// <summary>Payload body gửi lên khi đồng bộ một lô check-in offline.</summary>
+public sealed record SyncOfflineCheckInsRequest(
+    string ScannerDeviceId,
+    DateTimeOffset BatchTimestamp,
+    IReadOnlyList<OfflineCheckInEventDto> Events);
+
 /// <summary>Lô sự kiện check-in đồng bộ từ một scanner.</summary>
 public sealed record SyncOfflineCheckInsCommand(
     string ScannerDeviceId,

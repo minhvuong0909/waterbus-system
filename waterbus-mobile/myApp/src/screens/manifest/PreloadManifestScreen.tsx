@@ -25,11 +25,11 @@ import { BrandColors, Radius } from '../../../constants/theme';
 import { getTripStatusLabel, getTripTypeLabel } from '../../utils/scannerDisplayLabels';
 
 const STATIONS = [
-  { id: 'ST-BACH-DANG', name: 'Bến Bạch Đằng (Quận 1)' },
-  { id: 'ST-BINH-AN', name: 'Bến Bình An (TP. Thủ Đức)' },
-  { id: 'ST-THU-THIEM', name: 'Bến Thủ Thiêm (TP. Thủ Đức)' },
-  { id: 'ST-THANH-DA', name: 'Bến Thanh Đa (Bình Thạnh)' },
-  { id: 'ST-LINH-DONG', name: 'Bến Linh Đông (TP. Thủ Đức)' },
+  { id: 'ST01', name: 'Bến Bạch Đằng (Quận 1)' },
+  { id: 'ST02', name: 'Bến Bình An (TP. Thủ Đức)' },
+  { id: 'ST03', name: 'Bến Thanh Đa (Bình Thạnh)' },
+  { id: 'ST04', name: 'Bến Hiệp Bình Chánh (TP. Thủ Đức)' },
+  { id: 'ST05', name: 'Bến Linh Đông (TP. Thủ Đức)' },
 ];
 
 type TripWithStats = Trip & { totalTickets: number; checkedInTickets: number };
@@ -47,7 +47,9 @@ export default function PreloadManifestScreen() {
     clearCache,
   } = useScannerStore();
 
-  const [selectedStationId, setSelectedStationId] = useState<string>(deviceInfo.stationId);
+  const [selectedStationId, setSelectedStationId] = useState<string>(
+    deviceInfo.stationId === 'ST-BACH-DANG' ? 'ST01' : deviceInfo.stationId || 'ST01'
+  );
   const [trips, setTrips] = useState<TripWithStats[]>([]);
 
   const loadTrips = useCallback(async () => {
@@ -260,13 +262,16 @@ export default function PreloadManifestScreen() {
               return (
                 <View key={trip.id} style={styles.tripItemCard}>
                   <View style={styles.tripItemTop}>
-                    <View style={styles.tripCodeBadge}>
-                      <Text style={styles.tripCodeBadgeText}>{trip.tripCode}</Text>
+                    <View style={styles.tripBadgeGroup}>
+                      <View style={styles.tripCodeBadge}>
+                        <Text style={styles.tripCodeBadgeText} numberOfLines={1}>
+                          {trip.tripCode.length > 10 ? `${trip.tripCode.substring(0, 8)}...` : trip.tripCode}
+                        </Text>
+                      </View>
+                      <View style={styles.tripTypeBadge}>
+                        <Text style={styles.tripTypeBadgeText}>{getTripTypeLabel(trip.tripType)}</Text>
+                      </View>
                     </View>
-                    <View style={styles.tripTypeBadge}>
-                      <Text style={styles.tripTypeBadgeText}>{getTripTypeLabel(trip.tripType)}</Text>
-                    </View>
-                    <View style={{ flex: 1 }} />
                     <View style={styles.tripStatusBadge}>
                       <Ionicons name="radio-button-on" size={12} color="#059669" />
                       <Text style={styles.tripStatusText}>{getTripStatusLabel(trip.status)}</Text>
@@ -529,14 +534,21 @@ const styles = StyleSheet.create({
   tripItemTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
     marginBottom: 6,
+  },
+  tripBadgeGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
   },
   tripCodeBadge: {
     backgroundColor: BrandColors.tealFlow,
     paddingVertical: 2,
     paddingHorizontal: 7,
     borderRadius: Radius.sm,
+    maxWidth: 110,
   },
   tripCodeBadgeText: {
     color: '#FFFFFF',

@@ -68,6 +68,8 @@ services:
       JwtSettings__Secret: ${JWT_SECRET:?Cần đặt JWT_SECRET (>= 32 ký tự) trong .env}
       JwtSettings__Issuer: WaterbusSystemApi
       JwtSettings__Audience: WaterbusClients
+      Qr__KeyId: ${Qr__KeyId:-waterbus-booking-v1}
+      Qr__PrivateKeyPem: ${Qr__PrivateKeyPem:-}
       Cors__AllowedOrigins__0: ${PUBLIC_URL:-http://localhost:8080}
       VnPay__TmnCode: ${VNPAY_TMN_CODE:-}
       VnPay__HashSecret: ${VNPAY_HASH_SECRET:-}
@@ -101,8 +103,8 @@ services:
       Hangfire__Dashboard__Username: ${HANGFIRE_DASHBOARD_USER:-}
       Hangfire__Dashboard__Password: ${HANGFIRE_DASHBOARD_PASSWORD:-}
     ports:
-      # Chỉ mở trên máy host (127.0.0.1) để thử API/Swagger; deploy VPS không public cổng này
-      - "127.0.0.1:${API_HOST_PORT:-5000}:8080"
+      # Mở 0.0.0.0 để điện thoại / thiết bị trong mạng LAN có thể kết nối thử nghiệm
+      - "0.0.0.0:${API_HOST_PORT:-5000}:8080"
     volumes:
       - dataprotection_keys:/home/app/.aspnet/DataProtection-Keys
     healthcheck:
