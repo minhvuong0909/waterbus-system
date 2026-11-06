@@ -17,4 +17,17 @@ internal static class TripReadRules
         if (!string.Equals(trip.Route.ServiceType, service, StringComparison.OrdinalIgnoreCase)) return "journeyUnavailable";
         return "open";
     }
+
+    /// <summary>
+    /// Lý do ghế không bán được (null = bán được). Dùng chung cho Search, Seat Map và Checkout để số ghế trống
+    /// ở Search luôn khớp với ghế Seat Map thật sự bán được.
+    /// </summary>
+    internal static string? SeatBlockReason(Seat seat, FareRule? fare) =>
+        !seat.IsActive || seat.SeatClass is not { IsActive: true, IsDeleted: false } ? "seatInactive"
+        : fare is null ? "missingFare"
+        : fare.Currency != "VND" || fare.Price < 0 ? "unsupportedCurrency" : null;
+
+    /// <summary>Giá hiệu lực theo hạng ghế; hạng có nhiều bảng giá cùng hiệu lực bị loại (Checkout cũng từ chối).</summary>
+    internal static Dictionary<Guid, FareRule> UnambiguousFares(IEnumerable<FareRule> fares) =>
+        fares.GroupBy(f => f.SeatClassId).Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single());
 }

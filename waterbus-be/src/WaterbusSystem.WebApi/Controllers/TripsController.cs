@@ -102,10 +102,6 @@ public class TripsController(ITripService tripService) : BaseApiController
     /// </summary>
     [HttpGet("search")]
     [ProducesResponseType(typeof(List<TripSearchResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<TripSearchResponse>>> SearchTrips(
-        [FromQuery] Guid? departureStationId,
-        [FromQuery] Guid? arrivalStationId,
-        [FromQuery] DateTime? departureDate,
-        [FromQuery] TripType? tripType) =>
-        Ok(await tripService.SearchAsync(new SearchTripsRequest(departureStationId, arrivalStationId, departureDate, tripType), HttpContext.RequestAborted));
+    public async Task<ActionResult<List<TripSearchResponse>>> SearchTrips([FromQuery] SearchTripsRequest request) =>
+        Ok(await tripService.SearchAsync(request, HttpContext.RequestAborted));
 }

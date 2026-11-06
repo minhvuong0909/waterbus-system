@@ -110,14 +110,16 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
 
     public void AddOperationEvent(TripOperationEvent operationEvent) => context.TripOperationEvents.Add(operationEvent);
 
-    public Task<List<Trip>> SearchScheduledAsync(
-        DateTimeOffset? departureDayStartUtc, DateTimeOffset? departureDayEndUtc, TripType? tripType,
+    public Task<List<Trip>> SearchSellableAsync(
+        DateTimeOffset? departureDayStartUtc, DateTimeOffset? departureDayEndUtc, TripType? tripType, DateTimeOffset now,
         CancellationToken cancellationToken = default)
     {
         var query = context.Trips.AsNoTracking()
             .Include(t => t.Route).Include(t => t.Boat)
             .Include(t => t.TripStopCalls).ThenInclude(c => c.RouteStop).ThenInclude(rs => rs!.Station)
-            .Where(t => !t.IsDeleted && t.Status == TripStatus.Scheduled);
+            .Where(t => !t.IsDeleted && (t.Status == TripStatus.Scheduled || t.Status == TripStatus.Boarding)
+                        && t.ActualDepartureTime == null && t.BoatId != null
+                        && (t.SalesCloseAt == null || t.SalesCloseAt > now));
 
         if (departureDayStartUtc.HasValue && departureDayEndUtc.HasValue)
         {
@@ -138,13 +140,13 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
             .Select(r => new SeatReservationSegment(r.TripId, r.SeatId, r.BoardingStopOrder, r.DisembarkingStopOrder))
             .ToListAsync(cancellationToken);
 
-    public async Task<Dictionary<string, decimal>> GetMinActivePriceByTripTypeAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
-    {
-        var fares = await context.FareRules.AsNoTracking()
-            .Where(f => f.IsActive && f.EffectiveFrom <= now && (f.EffectiveTo == null || f.EffectiveTo > now))
-            .Select(f => new { f.TripType, f.Price })
+    public Task<List<Seat>> ListSeatsForBoatsAsync(IReadOnlyCollection<Guid> boatIds, CancellationToken cancellationToken = default) =>
+        context.Seats.AsNoTracking().Include(s => s.SeatClass)
+            .Where(s => boatIds.Contains(s.BoatId))
             .ToListAsync(cancellationToken);
 
-        return fares.GroupBy(f => f.TripType).ToDictionary(g => g.Key, g => g.Min(f => f.Price));
-    }
+    public Task<List<FareRule>> ListActiveFaresAsync(DateTimeOffset now, CancellationToken cancellationToken = default) =>
+        context.FareRules.AsNoTracking()
+            .Where(f => f.IsActive && f.EffectiveFrom <= now && (f.EffectiveTo == null || f.EffectiveTo > now))
+            .ToListAsync(cancellationToken);
 }
