@@ -11,7 +11,14 @@ import { QrVerifier, DEFAULT_KEY_INFO } from '../src/services/crypto/qrVerifier'
 import { SqliteRepository } from '../src/services/sqlite/sqliteRepository';
 import { syncService } from '../src/services/sync/syncService';
 import { useScannerStore } from '../src/store/useScannerStore';
-import { MyScannerAssignment } from '../src/types/checkin';
+import { useAuthStore } from '../src/store/useAuthStore';
+import { authService } from '../src/services/auth/authService';
+import { getSessionEpoch, bumpSessionEpoch } from '../src/services/auth/sessionEpoch';
+import * as manifestServiceModule from '../src/services/checkin/manifestService';
+import * as qrPublicKeyServiceModule from '../src/services/checkin/qrPublicKeyService';
+import * as scannerAssignmentServiceModule from '../src/services/checkin/scannerAssignmentService';
+import { getDatabase } from '../src/services/sqlite/database';
+import { MyScannerAssignment, ScannerManifestResponse, QrPublicKeyResponse } from '../src/types/checkin';
 
 async function runVerification() {
   console.log('================================================================');
@@ -216,7 +223,14 @@ async function runVerification() {
   const remaining = localBooking.tickets.find((ticket) => ticket.boardingStatus === 'NotCheckedIn');
   if (!remaining) throw new Error('Thiếu vé test chưa check-in.');
   syncService.setDeviceInfo({ stationId: 'stop-test', staffId: 'staff-test', forceOfflineMode: true });
-  useScannerStore.setState({ currentBooking: localBooking, activeAssignment: null });
+  // Các test 5.1-5.5 kiểm tra ràng buộc assignment/cửa sổ check-in, giả định QR ĐÃ xác thực hợp
+  // lệ (BR-QR-02) - gán sẵn verificationResult.isValid=true để cách ly khỏi gate MOB-03 (test
+  // riêng ở nhóm 6).
+  useScannerStore.setState({
+    currentBooking: localBooking,
+    activeAssignment: null,
+    verificationResult: { isValid: true, publicBookingId: sampleBookingId, verifiedOffline: true },
+  });
   assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
     '5.1 Reject check-in without a preloaded assignment');
   const assignment: MyScannerAssignment = {
@@ -238,6 +252,521 @@ async function runVerification() {
     '5.4 Accept a valid ticket at its assigned stop inside the window');
   assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
     '5.5 Reject a second local check-in for the same ticket');
+
+  // -------------------------------------------------------------
+  // TEST GROUP 6: QR SIGNATURE / VERSION GATE BEFORE CHECK-IN (MOB-03, MOB-04)
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 6: Manual Lookup Cannot Silently Bypass QR Verification (MOB-03)');
+
+  // Dùng booking khác (BK-002, cùng Trip) còn vé NotCheckedIn - booking đầu (BK-001) đã được
+  // check-in hết ở Test Group 3/5 nên localBooking (snapshot cũ trong JS) không còn vé trống.
+  const secondBooking = await SqliteRepository.getBookingByPublicId('pub_wb_11f22e33');
+  if (!secondBooking) throw new Error('Thiếu booking test thứ hai (BK-002).');
+  const secondTicket = secondBooking.tickets.find((ticket) => ticket.boardingStatus === 'NotCheckedIn');
+  if (!secondTicket) throw new Error('Thiếu vé test thứ hai chưa check-in.');
+  useScannerStore.setState({ currentBooking: secondBooking });
+
+  // 6.1 QR chưa xác thực (vd nhập tay theo mã) + không có lý do ghi đè -> phải bị chặn.
+  useScannerStore.setState({
+    verificationResult: { isValid: false, publicBookingId: secondBooking.publicBookingId, verifiedOffline: false, error: 'test' },
+  });
+  const unverifiedNoReason = await useScannerStore.getState().performCheckIn([secondTicket.id]);
+  assert(
+    !unverifiedNoReason.success,
+    '6.1 Reject check-in when QR is not verified and no manual-override reason is given',
+    `Error: ${unverifiedNoReason.error}`
+  );
+
+  // 6.2 Cùng điều kiện nhưng thiếu cờ isManualOverride dù có notes -> vẫn phải bị chặn (không
+  // được tự ý suy luận override từ việc có ghi chú).
+  const unverifiedNoFlag = await useScannerStore.getState().performCheckIn([secondTicket.id], 'khách đưa mã giấy');
+  assert(
+    !unverifiedNoFlag.success,
+    '6.2 Reject check-in when QR is not verified even if notes are present but override flag is missing'
+  );
+
+  // 6.3 Ghi đè thủ công đúng cách (có cờ + có lý do) -> được phép, và lý do phải được gắn nhãn
+  // trong CheckInEvent.Notes để phân biệt với check-in quét QR bình thường (audit trail).
+  const overrideResult = await useScannerStore.getState().performCheckIn(
+    [secondTicket.id],
+    'Camera lỗi, khách đưa mã booking giấy',
+    true
+  );
+  assert(overrideResult.success, '6.3 Accept check-in via explicit Manual Override with a reason');
+
+  const overrideEvents = await SqliteRepository.getPendingEvents(10);
+  const overrideEvent = overrideEvents.find((e) => e.ticketId === secondTicket.id);
+  assert(
+    !!overrideEvent?.notes?.includes('GHI ĐÈ THỦ CÔNG'),
+    '6.4 Manual-override CheckInEvent is tagged in Notes for audit trail',
+    `Notes: ${overrideEvent?.notes}`
+  );
+
+  // -------------------------------------------------------------
+  // TEST GROUP 7: STALE/MISMATCHED QR CANNOT BE OVERRIDDEN BY ANY REASON (Review PR #57, MOB-04)
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 7: Stale/Mismatched QR (verified signature, wrong version/trip) Blocks Override');
+
+  const thirdTicket = secondBooking.tickets.find(
+    (ticket) => ticket.boardingStatus === 'NotCheckedIn' && ticket.id !== secondTicket.id
+  );
+  if (!thirdTicket) throw new Error('Thiếu vé test thứ ba chưa check-in trong booking thứ hai.');
+
+  // 7.1 QR ĐÃ quét và xác thực chữ ký (verifiedOffline=true) nhưng version/tripId không khớp
+  // manifest (StaffScannerScreen.lookupAndOpenBooking hạ isValid xuống false trong trường hợp
+  // này) - khác hẳn tra tay không có QR (verifiedOffline=false ở Test Group 6). Dù có cờ
+  // isManualOverride=true kèm lý do hợp lệ, vẫn phải bị chặn cứng - không có đường Ghi đè nào áp
+  // dụng cho case này (phải escalate, không tự ý qua được bằng 1 dòng lý do).
+  useScannerStore.setState({
+    verificationResult: {
+      isValid: false,
+      publicBookingId: secondBooking.publicBookingId,
+      verifiedOffline: true,
+      version: 2,
+      error: 'QR đã cũ (phiên bản 2, hệ thống hiện tại là 3).',
+    },
+  });
+  const staleQrWithOverride = await useScannerStore.getState().performCheckIn(
+    [thirdTicket.id],
+    'Khách khẳng định vé hợp lệ, cho qua',
+    true
+  );
+  assert(
+    !staleQrWithOverride.success,
+    '7.1 Reject check-in for a signature-verified but stale/mismatched QR even with override flag + reason',
+    `Error: ${staleQrWithOverride.error}`
+  );
+
+  // 7.2 Vé KHÔNG được âm thầm check-in bởi lần gọi bị chặn ở trên.
+  const bookingAfterStaleAttempt = await SqliteRepository.getBookingByPublicId(secondBooking.publicBookingId);
+  const thirdTicketAfter = bookingAfterStaleAttempt?.tickets.find((t) => t.id === thirdTicket.id);
+  assert(
+    thirdTicketAfter?.boardingStatus === 'NotCheckedIn',
+    '7.2 Ticket stays NotCheckedIn after a blocked stale/mismatched-QR override attempt',
+    `boardingStatus: ${thirdTicketAfter?.boardingStatus}`
+  );
+
+  // -------------------------------------------------------------
+  // TEST GROUP 8: ATOMIC GUARD BEFORE CACHE DELETION (Review PR #57, MOB-05)
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 8: Clear Cache Refuses Atomically While Pending/Conflict Events Exist');
+
+  // 8.1 Còn offline_checkin_events ở trạng thái Pending (các check-in từ Test Group 3/5/6/7 chưa
+  // từng sync thành công) -> store.clearCache() phải từ chối, và KHÔNG xoá bất kỳ bảng nào (đếm +
+  // xoá nằm trong 1 transaction - SqliteRepository.clearCache()).
+  const statsBeforeClear = await SqliteRepository.getManifestStats();
+  let refusedClear = false;
+  try {
+    await useScannerStore.getState().clearCache();
+  } catch {
+    refusedClear = true;
+  }
+  const statsAfterRefusal = await SqliteRepository.getManifestStats();
+  assert(
+    refusedClear && statsAfterRefusal.bookingCount === statsBeforeClear.bookingCount,
+    '8.1 clearCache refuses atomically while Pending events exist and deletes nothing',
+    `Pending: ${statsBeforeClear.pendingSyncCount}, bookings before/after: ${statsBeforeClear.bookingCount}/${statsAfterRefusal.bookingCount}`
+  );
+
+  // 8.2 Đánh dấu toàn bộ Pending thành Synced (mô phỏng batch sync thành công) rồi clearCache()
+  // phải thành công và xoá sạch - đồng thời chứng minh execAsync multi-statement cũ KHÔNG còn là
+  // no-op trên InMemoryFallbackDatabase (môi trường chạy chính script này).
+  const remainingPending = await SqliteRepository.getPendingEvents(50);
+  await SqliteRepository.markEventsSynced(remainingPending.map((e) => ({ clientEventId: e.clientEventId })));
+  await useScannerStore.getState().clearCache();
+  const statsAfterClear = await SqliteRepository.getManifestStats();
+  assert(
+    statsAfterClear.bookingCount === 0 && statsAfterClear.tripCount === 0 && statsAfterClear.ticketCount === 0,
+    '8.2 clearCache actually deletes all manifest data once no Pending/Conflict remain',
+    `Trips/Bookings/Tickets after clear: ${statsAfterClear.tripCount}/${statsAfterClear.bookingCount}/${statsAfterClear.ticketCount}`
+  );
+
+  // -------------------------------------------------------------
+  // TEST GROUP 9: LOGIN IS HARD-BLOCKED WHILE A PENDING MANIFEST PURGE KEEPS FAILING
+  // (Review PR #57, 2nd round: "Logout privacy still fails open")
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 9: Login Blocked Device-Wide While a Pending Manifest Purge Still Fails');
+
+  const originalPurge = SqliteRepository.purgeManifestForLogout;
+  const originalLogin = authService.login;
+  let loginStubCalls = 0;
+  (authService as any).login = async () => {
+    loginStubCalls++;
+    return { userId: 'stub-user', email: 'stub@test.com', fullName: 'Stub', roles: ['Staff'] };
+  };
+
+  try {
+    // 9.1 Giả lập: lần đăng xuất trước đã đặt cờ pending (purge lỗi), và máy vẫn tiếp tục lỗi
+    // (vd đĩa hỏng) - login() phải bị chặn HOÀN TOÀN, KHÔNG được gọi sang authService.login (chứng
+    // minh đây là gate của thiết bị, không phải lỗi xác thực tài khoản).
+    await SqliteRepository.setPendingManifestPurge(true);
+    (SqliteRepository as any).purgeManifestForLogout = async () => {
+      throw new Error('Giả lập lỗi SQLite lặp lại (đĩa hỏng)');
+    };
+
+    const blockedResult = await useAuthStore.getState().login('staff@test.com', 'x');
+    assert(
+      blockedResult === false && loginStubCalls === 0,
+      '9.1 login() is rejected before ever calling the backend while purge is pending and still failing',
+      `result: ${blockedResult}, backend login calls: ${loginStubCalls}, error: ${useAuthStore.getState().error}`
+    );
+    assert(
+      !!useAuthStore.getState().error && useAuthStore.getState().error!.length > 0,
+      '9.2 A clear error is surfaced to the UI instead of silently failing',
+      `error: ${useAuthStore.getState().error}`
+    );
+
+    // 9.2 Phục hồi: SQLite "hết hỏng" (purge thật lại thành công) - login() của CÙNG thiết bị (bất
+    // kỳ Staff nào) giờ phải được cho qua.
+    (SqliteRepository as any).purgeManifestForLogout = originalPurge;
+    const recoveredResult = await useAuthStore.getState().login('staff@test.com', 'x');
+    assert(
+      recoveredResult === true && loginStubCalls === 1 && !(await SqliteRepository.isManifestPurgePending()),
+      '9.3 login() succeeds again once the pending purge finally resolves, and the pending flag is cleared',
+      `result: ${recoveredResult}, backend login calls: ${loginStubCalls}`
+    );
+  } finally {
+    (SqliteRepository as any).purgeManifestForLogout = originalPurge;
+    (authService as any).login = originalLogin;
+    await SqliteRepository.setPendingManifestPurge(false);
+  }
+
+  // -------------------------------------------------------------
+  // TEST GROUP 10: RESTORED OFFLINE ASSIGNMENT SURVIVES SESSION RESTORATION
+  // (Review PR #57, 3rd round, High - MOB-02 regression)
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 10: Restored Offline Assignment Survives Session Restoration (MOB-02)');
+
+  const restoreTestStaffId = 'stub-restore-staff-' + Date.now();
+  const restoreTestAssignment: MyScannerAssignment = {
+    assignmentId: 'assignment-restore-test', tripStopCallId: 'stop-restore-test', tripId: 'trip-restore-test',
+    routeName: 'Test', stationName: 'Test Station', visitOrder: 1, tripStatus: 'Boarding', estimatedArrivalTime: null,
+    deviceId: 'device-restore-test', deviceCode: 'DEV-RESTORE', isPrimaryOffline: true,
+    activeFrom: new Date(Date.now() - 60000).toISOString(), activeUntil: null,
+    checkInOpenAt: new Date(Date.now() - 60000).toISOString(), checkInCloseAt: new Date(Date.now() + 60000).toISOString(),
+  };
+  await SqliteRepository.saveActiveAssignment(restoreTestAssignment, restoreTestStaffId);
+
+  const originalRestoreSession = authService.restoreSession;
+  (authService as any).restoreSession = async () => ({
+    userId: restoreTestStaffId, email: 'restore@test.com', fullName: 'Restore Test', roles: ['Staff'],
+  });
+  useAuthStore.setState({ user: null, isRestoring: true, error: null });
+  useScannerStore.setState({ activeAssignment: null });
+
+  try {
+    // 10.1 applyStaffIdentity() PHẢI chạy trước restoreActiveAssignment() trong restoreSession() -
+    // ngược lại (bug đã có ở bản trước) sẽ xoá mất đúng phân công vừa khôi phục từ SQLite ngay sau
+    // khi vừa gán, khiến app bị OS kill rồi mở lại offline báo "chưa có phân công" dù dữ liệu còn.
+    await useAuthStore.getState().restoreSession();
+    const restoredAssignment = useScannerStore.getState().activeAssignment;
+    assert(
+      restoredAssignment?.tripStopCallId === restoreTestAssignment.tripStopCallId &&
+        restoredAssignment?.deviceId === restoreTestAssignment.deviceId &&
+        restoredAssignment?.isPrimaryOffline === true,
+      '10.1 restoreSession() keeps the SQLite-persisted assignment instead of clearing it via applyStaffIdentity',
+      `activeAssignment: ${JSON.stringify(restoredAssignment)}`
+    );
+
+    // 10.2 Đổi sang 1 Staff KHÁC đang khôi phục phiên - KHÔNG được kế thừa phân công của Staff cũ
+    // (SqliteRepository.getActiveAssignment đã lọc theo staffId, kiểm tra lại từ góc nhìn store).
+    (authService as any).restoreSession = async () => ({
+      userId: 'different-staff-' + Date.now(), email: 'other@test.com', fullName: 'Other', roles: ['Staff'],
+    });
+    useAuthStore.setState({ user: null, isRestoring: true, error: null });
+    useScannerStore.setState({ activeAssignment: null });
+    await useAuthStore.getState().restoreSession();
+    assert(
+      useScannerStore.getState().activeAssignment === null,
+      '10.2 A different Staff restoring a session does NOT inherit the previous Staff\'s cached assignment',
+      `activeAssignment: ${JSON.stringify(useScannerStore.getState().activeAssignment)}`
+    );
+  } finally {
+    (authService as any).restoreSession = originalRestoreSession;
+    await SqliteRepository.clearActiveAssignment();
+  }
+
+  // -------------------------------------------------------------
+  // TEST GROUP 11: LOGOUT ABORTS ENTIRELY (STAYS LOGGED IN) IF THE PENDING-PURGE MARKER
+  // CANNOT BE WRITTEN (Review PR #57, 3rd round, High)
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 11: Logout Aborts Entirely If the Pending-Purge Marker Write Fails');
+
+  const logoutAbortStaff = { userId: 'logout-abort-staff', email: 'abort@test.com', fullName: 'Abort', roles: ['Staff'] };
+  useAuthStore.setState({ user: logoutAbortStaff, error: null });
+
+  const originalSetPending = SqliteRepository.setPendingManifestPurge;
+  const originalAuthLogout = authService.logout;
+  let authLogoutCalls = 0;
+  (authService as any).logout = async () => {
+    authLogoutCalls++;
+  };
+  (SqliteRepository as any).setPendingManifestPurge = async (pending: boolean) => {
+    if (pending) throw new Error('Giả lập lỗi ghi SQLite khi đặt cờ pending');
+    return originalSetPending.call(SqliteRepository, pending);
+  };
+
+  try {
+    const logoutResult = await useAuthStore.getState().logout();
+    assert(
+      logoutResult.loggedOut === false && authLogoutCalls === 0 && useAuthStore.getState().user !== null,
+      '11.1 logout() aborts entirely (stays logged in, never calls authService.logout) if the pending marker write fails',
+      `loggedOut: ${logoutResult.loggedOut}, authLogoutCalls: ${authLogoutCalls}, user: ${JSON.stringify(useAuthStore.getState().user)}`
+    );
+    assert(
+      !!logoutResult.warning,
+      '11.2 A clear blocking warning is returned instead of silently leaving an inconsistent state',
+      `warning: ${logoutResult.warning}`
+    );
+  } finally {
+    (SqliteRepository as any).setPendingManifestPurge = originalSetPending;
+    (authService as any).logout = originalAuthLogout;
+  }
+
+  // 11.3 Phục hồi: ghi cờ pending hoạt động lại bình thường -> logout() phải hoàn tất sạch.
+  const normalLogoutResult = await useAuthStore.getState().logout();
+  assert(
+    normalLogoutResult.loggedOut === true && useAuthStore.getState().user === null,
+    '11.3 logout() completes normally again once the marker write no longer fails',
+    `loggedOut: ${normalLogoutResult.loggedOut}, user: ${JSON.stringify(useAuthStore.getState().user)}`
+  );
+
+  // -------------------------------------------------------------
+  // TEST GROUP 12: IN-FLIGHT MANIFEST PRELOAD CANNOT REPOPULATE DATA AFTER LOGOUT
+  // (Review PR #57, 3rd round, High)
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 12: In-Flight Manifest Preload Cannot Repopulate Data After Logout');
+
+  const originalFetchManifest = manifestServiceModule.fetchScannerManifest;
+  const originalFetchKey = qrPublicKeyServiceModule.fetchQrPublicKey;
+  const raceStopCallId = 'stop-epoch-race-test';
+
+  let releasePreload: () => void = () => {};
+  const preloadGate = new Promise<void>((resolve) => {
+    releasePreload = resolve;
+  });
+
+  (manifestServiceModule as any).fetchScannerManifest = async (tripStopCallId: string): Promise<ScannerManifestResponse> => {
+    // Treo ở đây mô phỏng request mạng chậm - test chủ động release() SAU KHI đã logout, để kiểm
+    // tra kết quả trả về (tới sau) không được ghi vào SQLite nữa.
+    await preloadGate;
+    return {
+      tripStopCallId,
+      stationName: 'STALE - Phiên Đã Đăng Xuất',
+      checkInOpenAt: null,
+      checkInCloseAt: null,
+      trip: {
+        tripId: 'trip-epoch-race', routeName: 'R', boatName: 'B',
+        departureStationName: 'A', arrivalStationName: 'C',
+        departureTime: new Date().toISOString(), arrivalTime: null, salesCloseAt: null,
+        tripType: 'Commuter', status: 'Boarding',
+      },
+      bookings: [],
+      generatedAt: new Date().toISOString(),
+    };
+  };
+  (qrPublicKeyServiceModule as any).fetchQrPublicKey = async (): Promise<QrPublicKeyResponse> => ({
+    kid: DEFAULT_KEY_INFO.kid, algorithm: DEFAULT_KEY_INFO.algorithm, publicKeyPem: DEFAULT_KEY_INFO.publicKeyPem,
+  });
+
+  try {
+    const epochBeforePreloadStarts = getSessionEpoch();
+    const preloadPromise = syncService.preloadManifest(raceStopCallId, epochBeforePreloadStarts);
+
+    // "Logout" xảy ra TRONG LÚC request mạng còn treo - chỉ cần bump epoch (đúng điều logout() bây
+    // giờ làm NGAY DÒNG ĐẦU, trước mọi await) để mô phỏng chính xác điều kiện race.
+    bumpSessionEpoch();
+
+    releasePreload();
+    let preloadThrew = false;
+    try {
+      await preloadPromise;
+    } catch {
+      preloadThrew = true;
+    }
+
+    const staleBooking = await SqliteRepository.getBookingByPublicId('pub_wb_epoch_race_should_not_exist');
+    const stats = await SqliteRepository.getManifestStats();
+    assert(
+      preloadThrew && stats.tripCount === 0,
+      '12.1 preloadManifest() rejects (and never calls saveManifest) once the session epoch changes while its network requests were in flight',
+      `threw: ${preloadThrew}, tripCount after: ${stats.tripCount}`
+    );
+    assert(
+      staleBooking === null,
+      '12.2 No stale booking from the invalidated preload was written to SQLite',
+      `staleBooking: ${JSON.stringify(staleBooking)}`
+    );
+
+    // 12.3 Preload bình thường (epoch không đổi trong lúc chờ) vẫn phải hoạt động được như cũ.
+    const epochForNormalPreload = getSessionEpoch();
+    const normalResult = await syncService.preloadManifest(raceStopCallId, epochForNormalPreload);
+    assert(
+      normalResult.manifest.stationId === raceStopCallId,
+      '12.3 A normal preload (epoch unchanged) still succeeds and writes the manifest',
+      `stationId: ${normalResult.manifest.stationId}`
+    );
+  } finally {
+    (manifestServiceModule as any).fetchScannerManifest = originalFetchManifest;
+    (qrPublicKeyServiceModule as any).fetchQrPublicKey = originalFetchKey;
+    await SqliteRepository.clearCache();
+  }
+
+  // -------------------------------------------------------------
+  // TEST GROUP 13: EPOCH IS RE-CHECKED INSIDE THE EXCLUSIVE TRANSACTION ITSELF
+  // (Review PR #57, 4th round, High - "Close the remaining epoch-check-to-SQL-write race")
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 13: Epoch Re-Checked Inside the Exclusive Transaction (not just before it)');
+
+  // Mô phỏng chính xác khoảng hở reviewer chỉ ra: epoch check BÊN NGOÀI (ở syncService/
+  // useScannerStore) đã pass, nhưng vẫn còn 1 await thật (mở native exclusive transaction) TRƯỚC
+  // khi ghi thực sự chạy - logout có thể bump epoch + purge xong HOÀN TOÀN trong khoảng hở đó.
+  // Patch db.withExclusiveTransactionAsync để treo NGAY TẠI điểm đó, mô phỏng đúng khoảng hở này.
+  const db = await getDatabase();
+  const originalWithExclusiveTransactionAsync = db.withExclusiveTransactionAsync.bind(db);
+  let releaseExclusiveTransaction: () => void = () => {};
+  const exclusiveTransactionGate = new Promise<void>((resolve) => {
+    releaseExclusiveTransaction = resolve;
+  });
+  (db as any).withExclusiveTransactionAsync = async (callback: any) => {
+    await exclusiveTransactionGate;
+    return originalWithExclusiveTransactionAsync(callback);
+  };
+
+  try {
+    const epochBeforeWrite = getSessionEpoch();
+    const raceManifest = {
+      stationId: 'stop-exclusive-race-test',
+      stationName: 'STALE - Đã Đăng Xuất Trong Lúc Mở Transaction',
+      generatedAt: new Date().toISOString(),
+      publicKey: DEFAULT_KEY_INFO,
+      trips: [],
+      bookings: [
+        {
+          id: 'BK-EXCL-RACE', publicBookingId: 'pub_wb_exclusive_race_should_not_exist',
+          bookingCode: 'WB-EXCL-RACE', tripId: 'trip-exclusive-race', customerName: 'Stale Customer',
+          customerPhone: undefined, totalAmount: 15000, qrCredentialVersion: 1, status: 'Confirmed',
+          tickets: [],
+        },
+      ],
+    };
+
+    // 13.1 saveManifest() - lệnh ghi bắt đầu nhưng bị treo ở withExclusiveTransactionAsync.
+    const saveManifestPromise = SqliteRepository.saveManifest(raceManifest, epochBeforeWrite);
+
+    // "Logout" xảy ra TRONG LÚC transaction còn treo chưa thực sự chạy.
+    bumpSessionEpoch();
+
+    releaseExclusiveTransaction();
+    let saveManifestThrew = false;
+    try {
+      await saveManifestPromise;
+    } catch {
+      saveManifestThrew = true;
+    }
+
+    const staleBooking = await SqliteRepository.getBookingByPublicId('pub_wb_exclusive_race_should_not_exist');
+    assert(
+      saveManifestThrew && staleBooking === null,
+      '13.1 saveManifest() re-checks the epoch INSIDE the exclusive transaction and refuses to write even after the outer pre-check already passed',
+      `threw: ${saveManifestThrew}, staleBooking: ${JSON.stringify(staleBooking)}`
+    );
+
+    // 13.2 saveActiveAssignment() - cùng cơ chế, re-check epoch BÊN TRONG transaction exclusive.
+    const staleAssignment: MyScannerAssignment = {
+      assignmentId: 'assignment-exclusive-race', tripStopCallId: 'stop-exclusive-race-test',
+      tripId: 'trip-exclusive-race', routeName: 'R', stationName: 'S', visitOrder: 1,
+      tripStatus: 'Boarding', estimatedArrivalTime: null, deviceId: 'device-exclusive-race',
+      deviceCode: 'DEV-EXCL', isPrimaryOffline: true,
+      activeFrom: new Date(Date.now() - 60000).toISOString(), activeUntil: null,
+      checkInOpenAt: null, checkInCloseAt: null,
+    };
+
+    const exclusiveTransactionGate2Holder: { release: () => void } = { release: () => {} };
+    const exclusiveTransactionGate2 = new Promise<void>((resolve) => {
+      exclusiveTransactionGate2Holder.release = resolve;
+    });
+    (db as any).withExclusiveTransactionAsync = async (callback: any) => {
+      await exclusiveTransactionGate2;
+      return originalWithExclusiveTransactionAsync(callback);
+    };
+
+    const epochBeforeAssignmentWrite = getSessionEpoch();
+    const saveAssignmentPromise = SqliteRepository.saveActiveAssignment(
+      staleAssignment, 'stale-staff-exclusive-race', epochBeforeAssignmentWrite
+    );
+    bumpSessionEpoch();
+    exclusiveTransactionGate2Holder.release();
+
+    let saveAssignmentThrew = false;
+    try {
+      await saveAssignmentPromise;
+    } catch {
+      saveAssignmentThrew = true;
+    }
+
+    const staleRestoredAssignment = await SqliteRepository.getActiveAssignment('stale-staff-exclusive-race');
+    assert(
+      saveAssignmentThrew && staleRestoredAssignment === null,
+      '13.2 saveActiveAssignment() re-checks the epoch INSIDE the exclusive transaction and refuses to write a stale assignment left over after logout',
+      `threw: ${saveAssignmentThrew}, staleRestoredAssignment: ${JSON.stringify(staleRestoredAssignment)}`
+    );
+  } finally {
+    (db as any).withExclusiveTransactionAsync = originalWithExclusiveTransactionAsync;
+    await SqliteRepository.clearActiveAssignment();
+  }
+
+  // -------------------------------------------------------------
+  // TEST GROUP 14: STALE PRELOAD COMPLETION NEVER RESETS A NEWER SESSION'S LOADING STATE
+  // (Review PR #57, 4th round, MEDIUM - "Reset stale preload UI state safely")
+  // -------------------------------------------------------------
+  console.log("\n📦 TEST GROUP 14: Stale Preload Completion Doesn't Clobber a Newer Session's isPreloading");
+
+  const originalGetMyScannerAssignments = scannerAssignmentServiceModule.getMyScannerAssignments;
+  let releaseAssignmentsLookup: () => void = () => {};
+  const assignmentsLookupGate = new Promise<void>((resolve) => {
+    releaseAssignmentsLookup = resolve;
+  });
+  (scannerAssignmentServiceModule as any).getMyScannerAssignments = async (): Promise<MyScannerAssignment[]> => {
+    await assignmentsLookupGate; // treo ở đây để mô phỏng logout xảy ra TRONG LÚC preload đang chờ mạng
+    return [{
+      assignmentId: 'a-stale-ui', tripStopCallId: 'stop-stale-ui-test', tripId: 't-stale-ui',
+      routeName: 'R', stationName: 'S', visitOrder: 1, tripStatus: 'Boarding', estimatedArrivalTime: null,
+      deviceId: 'd-stale-ui', deviceCode: 'DC-STALE', isPrimaryOffline: true,
+      activeFrom: new Date(Date.now() - 60000).toISOString(), activeUntil: null,
+      checkInOpenAt: null, checkInCloseAt: null,
+    }];
+  };
+  const originalPreloadManifestForUiTest = syncService.preloadManifest;
+  (syncService as any).preloadManifest = async () => ({
+    manifest: { stationId: 'stop-stale-ui-test', stationName: 'S', generatedAt: new Date().toISOString(), publicKey: DEFAULT_KEY_INFO, trips: [], bookings: [] },
+    message: 'ignored - should never reach UI of the newer session',
+  });
+
+  try {
+    const stalePreloadPromise = useScannerStore.getState().preloadCache('stop-stale-ui-test');
+
+    // Trong lúc preload "cũ" ở trên còn đang chờ getMyScannerAssignments(), mô phỏng: Staff cũ
+    // logout, Staff mới đăng nhập và tự bắt đầu 1 preload THẬT của riêng họ (isPreloading: true
+    // hợp lệ của phiên MỚI).
+    bumpSessionEpoch();
+    useScannerStore.setState({ isPreloading: true, syncMessage: 'Phiên MỚI đang tải trước...' });
+
+    releaseAssignmentsLookup();
+    const staleResult = await stalePreloadPromise;
+
+    assert(
+      staleResult === false &&
+        useScannerStore.getState().isPreloading === true &&
+        useScannerStore.getState().syncMessage === 'Phiên MỚI đang tải trước...',
+      '14.1 A stale preload completion returns false without resetting isPreloading/syncMessage that belong to a newer session',
+      `result: ${staleResult}, isPreloading: ${useScannerStore.getState().isPreloading}, syncMessage: ${useScannerStore.getState().syncMessage}`
+    );
+  } finally {
+    (scannerAssignmentServiceModule as any).getMyScannerAssignments = originalGetMyScannerAssignments;
+    (syncService as any).preloadManifest = originalPreloadManifestForUiTest;
+    useScannerStore.setState({ isPreloading: false, syncMessage: null });
+  }
 
   // -------------------------------------------------------------
   // FINAL SUMMARY

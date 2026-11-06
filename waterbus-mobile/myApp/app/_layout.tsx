@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { View, ActivityIndicator } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, ActivityIndicator, Text, TouchableOpacity } from "react-native";
 import {
   DarkTheme,
   DefaultTheme,
@@ -22,15 +22,36 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const refreshStats = useScannerStore((s) => s.refreshStats);
   const { user, isRestoring, restoreSession } = useAuthStore();
+  // MOB-01: SQLite native mở lỗi phải khoá hẳn ứng dụng (không cho soát vé trên bộ nhớ
+  // không bền), không chỉ log console rồi để app chạy tiếp như không có gì xảy ra.
+  const [dbFatalError, setDbFatalError] = useState<string | null>(null);
+  const [isInitializingDb, setIsInitializingDb] = useState(true);
 
-  useEffect(() => {
-    // 1. Initialize SQLite schema on boot
+  const loadDatabase = () => {
     getDatabase()
       .then(() => {
         console.log("[Waterbus] SQLite initialized successfully.");
+        setIsInitializingDb(false);
         refreshStats();
       })
-      .catch((err) => console.error("[Waterbus] DB Init failed:", err));
+      .catch((err) => {
+        console.error("[Waterbus] DB Init failed:", err);
+        setIsInitializingDb(false);
+        setDbFatalError(err?.message || "Không thể mở bộ nhớ offline trên thiết bị.");
+      });
+  };
+
+  // Nút "Thử lại" trên màn hình lỗi (event handler, không phải effect) - được phép setState
+  // đồng bộ trước khi gọi lại loadDatabase().
+  const handleRetryDb = () => {
+    setIsInitializingDb(true);
+    setDbFatalError(null);
+    loadDatabase();
+  };
+
+  useEffect(() => {
+    // 1. Initialize SQLite schema on boot
+    loadDatabase();
 
     // 2. Start idempotent batch sync background worker
 
@@ -52,7 +73,24 @@ export default function RootLayout() {
     return () => { unsubscribe(); syncService.stopBackgroundWorker(); };
   }, [user, isRestoring]);
 
-  if (isRestoring) {
+  if (dbFatalError) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#450A0A", padding: 24 }}>
+        <Text style={{ color: "#FCA5A5", fontSize: 18, fontWeight: "700", textAlign: "center", marginBottom: 12 }}>
+          Không thể khởi tạo bộ nhớ offline
+        </Text>
+        <Text style={{ color: "#FECACA", fontSize: 14, textAlign: "center", marginBottom: 24 }}>{dbFatalError}</Text>
+        <TouchableOpacity
+          onPress={handleRetryDb}
+          style={{ backgroundColor: "#DC2626", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 }}
+        >
+          <Text style={{ color: "#FFFFFF", fontWeight: "600" }}>Thử lại</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (isInitializingDb || isRestoring) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F8FAFC" }}>
         <ActivityIndicator size="large" color="#0284C7" />

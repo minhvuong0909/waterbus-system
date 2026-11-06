@@ -37,7 +37,6 @@ export default function StaffScannerScreen() {
   const [isScannedLocked, setIsScannedLocked] = useState<boolean>(false);
   const [manualModalOpen, setManualModalOpen] = useState<boolean>(false);
   const [manualCode, setManualCode] = useState<string>('');
-  const [testModalOpen, setTestModalOpen] = useState<boolean>(false);
 
   const {
     isModalOpen,
@@ -137,8 +136,29 @@ export default function StaffScannerScreen() {
     }
 
     if (booking) {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setCurrentBooking(booking, verification);
+      // MOB-04: chữ ký hợp lệ không đủ - QR ký đúng nhưng cũ (trước khi cấp lại credential, vd
+      // khách báo mất/đổi vé) hoặc thuộc chuyến khác vẫn qua được bước verify chữ ký. Phải đối
+      // chiếu version/tripId của QR với đúng bản ghi trong manifest trước khi coi là đã xác thực.
+      let finalVerification = verification;
+      if (verification.isValid) {
+        const versionMismatch =
+          verification.version != null && verification.version !== booking.qrCredentialVersion;
+        const tripMismatch = verification.tripId != null && verification.tripId !== booking.tripId;
+        if (versionMismatch || tripMismatch) {
+          finalVerification = {
+            ...verification,
+            isValid: false,
+            error: versionMismatch
+              ? `QR đã cũ (phiên bản ${verification.version}, hệ thống hiện tại là ${booking.qrCredentialVersion}). Vé có thể đã được cấp lại QR mới.`
+              : 'QR thuộc chuyến khác - tripId không khớp với booking trong manifest.',
+          };
+        }
+      }
+
+      await Haptics.notificationAsync(
+        finalVerification.isValid ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning
+      );
+      setCurrentBooking(booking, finalVerification);
     } else {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert(
@@ -170,12 +190,6 @@ export default function StaffScannerScreen() {
     if (value.split('.').length === 3) await processScannedQr(value);
     else await processManualLookup(value);
     setManualCode('');
-  };
-
-  const triggerTestQrScan = (publicBookingId: string) => {
-    setTestModalOpen(false);
-    const test = QrVerifier.generateTestSignedQr(publicBookingId);
-    processScannedQr(test.compactQr);
   };
 
   // Render Camera Permission fallback
@@ -220,7 +234,7 @@ export default function StaffScannerScreen() {
           barcodeScannerSettings={{
             barcodeTypes: ['qr', 'code128', 'code39'],
           }}
-          onBarcodeScanned={isScannedLocked || isModalOpen || manualModalOpen || testModalOpen ? undefined : handleBarcodeScanned}
+          onBarcodeScanned={isScannedLocked || isModalOpen || manualModalOpen ? undefined : handleBarcodeScanned}
         />
       ) : (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0F172A' }]} />
@@ -291,15 +305,6 @@ export default function StaffScannerScreen() {
             <Text style={styles.iconButtonText}>Nhập Mã</Text>
           </TouchableOpacity>
 
-          {/* Test Signed QR Simulator */}
-          <TouchableOpacity
-            style={[styles.iconButton, { backgroundColor: 'rgba(2, 132, 199, 0.85)' }]}
-            onPress={() => setTestModalOpen(true)}
-          >
-            <Ionicons name="qr-code" size={24} color="#FFFFFF" />
-            <Text style={styles.iconButtonText}>Test QR</Text>
-          </TouchableOpacity>
-
           {/* Switch Camera Facing */}
           <TouchableOpacity
             style={styles.iconButton}
@@ -341,49 +346,6 @@ export default function StaffScannerScreen() {
                 <Text style={styles.modalBtnText}>Tra Cứu</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Test QR Simulator Modal */}
-      <Modal visible={testModalOpen} transparent animationType="slide">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Mô Phỏng Quét QR Vé Mẫu (Test)</Text>
-            <Text style={styles.modalDesc}>
-              Chọn một vé đã được ký số bằng Public Key để thử nghiệm xác thực ngoại tuyến:
-            </Text>
-
-            <TouchableOpacity
-              style={styles.testItem}
-              onPress={() => triggerTestQrScan('pub_wb_98a76b5c')}
-            >
-              <Text style={styles.testItemTitle}>Booking 1: Trần Văn Minh (3 vé: A01, A02, A03)</Text>
-              <Text style={styles.testItemSubtitle}>ID: pub_wb_98a76b5c • Tuyến Bạch Đằng - Linh Đông</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.testItem}
-              onPress={() => triggerTestQrScan('pub_wb_11f22e33')}
-            >
-              <Text style={styles.testItemTitle}>Booking 2: Nguyễn Thu Trang (2 vé: B05, B06)</Text>
-              <Text style={styles.testItemSubtitle}>ID: pub_wb_11f22e33 • Khoang Tiêu Chuẩn</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.testItem}
-              onPress={() => triggerTestQrScan('pub_wb_44d55c66')}
-            >
-              <Text style={styles.testItemTitle}>Booking 3: Phạm Đức Huy (1 vé: C10)</Text>
-              <Text style={styles.testItemSubtitle}>ID: pub_wb_44d55c66 • Boong ngoài trời</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalBtn, { backgroundColor: '#0F172A', marginTop: 14 }]}
-              onPress={() => setTestModalOpen(false)}
-            >
-              <Text style={styles.modalBtnText}>Đóng</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -649,24 +611,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
-  },
-  testItem: {
-    backgroundColor: '#F1F5F9',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: '#0284C7',
-  },
-  testItemTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  testItemSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
   },
 });
 

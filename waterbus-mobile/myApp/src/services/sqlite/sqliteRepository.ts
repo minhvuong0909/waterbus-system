@@ -5,6 +5,7 @@
  */
 
 import { getDatabase } from './database';
+import { getSessionEpoch } from '../auth/sessionEpoch';
 import {
   PreloadManifest,
   Booking,
@@ -14,6 +15,7 @@ import {
   PublicKeyInfo,
   ManifestStats,
 } from '../../types/scanner';
+import { MyScannerAssignment } from '../../types/checkin';
 
 function generateUUID(): string {
   // RFC4122 v4 UUID generator without native deps
@@ -26,15 +28,32 @@ function generateUUID(): string {
 
 export class SqliteRepository {
   /**
-   * Save preloaded manifest to SQLite (trips, bookings, tickets, public key)
+   * Save preloaded manifest to SQLite (trips, bookings, tickets, public key).
+   * Review PR #57 (3rd round, High - "Serialize manifest-writing operations and logout purge so
+   * they cannot interleave incorrectly"): dùng withExclusiveTransactionAsync (không phải
+   * withTransactionAsync, vốn KHÔNG exclusive trên native) - bảo đảm lần ghi này không thể chen
+   * lẫn ở mức SQL với purgeManifestForLogout/clearCache đang chạy đồng thời.
+   * Review PR #57 (4th round, High - "Close the remaining epoch-check-to-SQL-write race"):
+   * syncService.preloadManifest kiểm tra epoch TRƯỚC khi gọi hàm này, nhưng có 1 await thật (native
+   * bridge mở exclusive transaction) giữa lúc kiểm tra và lúc CHỮ KÝ GHI thực sự chạy - logout có
+   * thể bump epoch + purge xong HOÀN TOÀN trong khoảng hở đó, rồi lần ghi này (đã pass check cũ)
+   * mới thật sự chạy và ghi đè dữ liệu đã bị purge. Kiểm tra lại epoch LẦN NỮA làm việc ĐẦU TIÊN
+   * BÊN TRONG transaction exclusive (cùng khoá mà purgeManifestForLogout cũng dùng) - nếu logout
+   * đã bump epoch tại thời điểm giao dịch này THỰC SỰ cầm được khoá, throw để KHÔNG ghi gì cả (dù
+   * có thắng cuộc giành khoá trước purge thì cũng không sao - purge chạy sau vẫn xoá sạch; chỉ nguy
+   * hiểm khi purge đã xong TRƯỚC, nên check này mới có ý nghĩa).
    */
-  static async saveManifest(manifest: PreloadManifest): Promise<void> {
+  static async saveManifest(manifest: PreloadManifest, expectedEpoch?: number): Promise<void> {
     const db = await getDatabase();
 
-    await db.withTransactionAsync(async () => {
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      if (expectedEpoch !== undefined && getSessionEpoch() !== expectedEpoch) {
+        throw new Error('Phiên đăng nhập đã kết thúc trong lúc chờ ghi SQLite - bỏ qua, không ghi gì.');
+      }
+
       // 1. Save or update Public Key
       if (manifest.publicKey) {
-        await db.runAsync(
+        await txn.runAsync(
           `INSERT OR REPLACE INTO public_keys (kid, algorithm, public_key_pem, valid_from, valid_to, is_active)
            VALUES (?, ?, ?, ?, ?, ?)`,
           [
@@ -50,7 +69,7 @@ export class SqliteRepository {
 
       // 2. Save trips
       for (const trip of manifest.trips) {
-        await db.runAsync(
+        await txn.runAsync(
           `INSERT OR REPLACE INTO manifest_trips (
             id, trip_code, route_name, trip_type, boat_name,
             departure_station_id, departure_station_name,
@@ -77,7 +96,7 @@ export class SqliteRepository {
 
       // 3. Save bookings & tickets
       for (const booking of manifest.bookings) {
-        await db.runAsync(
+        await txn.runAsync(
           `INSERT OR REPLACE INTO manifest_bookings (
             id, public_booking_id, booking_code, trip_id,
             customer_name, customer_phone, total_amount,
@@ -97,7 +116,7 @@ export class SqliteRepository {
         );
 
         for (const ticket of booking.tickets) {
-          await db.runAsync(
+          await txn.runAsync(
             `INSERT OR REPLACE INTO manifest_tickets (
               id, booking_id, ticket_number, seat_code, seat_class,
               passenger_name, status, boarding_status, checked_in_at,
@@ -122,11 +141,11 @@ export class SqliteRepository {
       }
 
       // Record last preload timestamp
-      await db.runAsync(
+      await txn.runAsync(
         `INSERT OR REPLACE INTO scanner_config (key, value) VALUES ('last_preload_at', ?)`,
         [new Date().toISOString()]
       );
-      await db.runAsync(
+      await txn.runAsync(
         `INSERT OR REPLACE INTO scanner_config (key, value) VALUES ('station_id', ?)`,
         [manifest.stationId]
       );
@@ -486,6 +505,9 @@ export class SqliteRepository {
     const pendingRows = await db.getAllAsync<any>(
       `SELECT id FROM offline_checkin_events WHERE sync_status = 'Pending'`
     );
+    const conflictRows = await db.getAllAsync<any>(
+      `SELECT id FROM offline_checkin_events WHERE sync_status = 'Conflict'`
+    );
 
     const lastPreloadConfig = await db.getFirstAsync<any>(
       `SELECT value FROM scanner_config WHERE key = 'last_preload_at'`
@@ -499,6 +521,7 @@ export class SqliteRepository {
       ticketCount: ticketRows.length,
       checkedInCount,
       pendingSyncCount: pendingRows.length,
+      conflictSyncCount: conflictRows.length,
       lastPreloadAt: lastPreloadConfig ? lastPreloadConfig.value : null,
       databaseSizeKb: Math.round(
         (tripRows.length * 0.5 + bookingRows.length * 0.8 + ticketRows.length * 0.4 + pendingRows.length * 0.6) * 10
@@ -507,17 +530,134 @@ export class SqliteRepository {
   }
 
   /**
-   * Clear all local tables (Reset Cache)
+   * Clear all local tables (Reset Cache), nhưng CHỈ khi không còn event Pending/Conflict (MOB-05).
+   * Review PR #57 (Medium, rồi High ở lần review thứ 2 - "Cache deletion is not fully isolated"):
+   * trước đây useScannerStore.clearCache đọc count Pending/Conflict rồi mới gọi hàm xoá ở 2 bước
+   * riêng (2 lượt await khác nhau) - 1 sự kiện mới có thể được ghi xen giữa lúc đọc count và lúc
+   * DELETE thực sự chạy. Gộp đếm + xoá vào 1 `withTransactionAsync` (bản trước) đã thu hẹp cửa sổ
+   * đó ở mức code của hàm này, nhưng reviewer chỉ đúng: `withTransactionAsync` của expo-sqlite
+   * KHÔNG exclusive - 1 lệnh ghi khác NGOÀI function này (vd checkInTickets) vẫn có thể chen vào
+   * giữa các câu lệnh bên trong transaction này trên native (xem ghi chú ở DatabaseAdapter). Đổi
+   * sang `withExclusiveTransactionAsync` thật - mọi câu lệnh bên trong PHẢI chạy trên `txn` (tham
+   * số callback), không phải `db` ngoài, theo đúng yêu cầu của expo-sqlite.
+   * db.execAsync với chuỗi multi-statement là NO-OP trên InMemoryFallbackDatabase (web/test - xem
+   * database.ts) - dùng từng runAsync riêng để chạy đúng trên CẢ native lẫn fallback.
    */
-  static async clearCache(): Promise<void> {
+  static async clearCache(): Promise<{ cleared: boolean; pendingSyncCount: number; conflictSyncCount: number }> {
     const db = await getDatabase();
-    await db.execAsync(`
-      DELETE FROM manifest_tickets;
-      DELETE FROM manifest_bookings;
-      DELETE FROM manifest_trips;
-      DELETE FROM offline_checkin_events;
-      DELETE FROM scanner_config;
-    `);
+    return await db.withExclusiveTransactionAsync(async (txn) => {
+      const pendingRows = await txn.getAllAsync<any>(
+        `SELECT id FROM offline_checkin_events WHERE sync_status = 'Pending'`
+      );
+      const conflictRows = await txn.getAllAsync<any>(
+        `SELECT id FROM offline_checkin_events WHERE sync_status = 'Conflict'`
+      );
+      if (pendingRows.length > 0 || conflictRows.length > 0) {
+        return { cleared: false, pendingSyncCount: pendingRows.length, conflictSyncCount: conflictRows.length };
+      }
+
+      await txn.runAsync(`DELETE FROM manifest_tickets`);
+      await txn.runAsync(`DELETE FROM manifest_bookings`);
+      await txn.runAsync(`DELETE FROM manifest_trips`);
+      await txn.runAsync(`DELETE FROM offline_checkin_events`);
+      await txn.runAsync(`DELETE FROM scanner_config`);
+      return { cleared: true, pendingSyncCount: 0, conflictSyncCount: 0 };
+    });
+  }
+
+  /**
+   * Xoá dữ liệu khách hàng (manifest) khỏi SQLite khi Staff đăng xuất (MOB-06), để Staff kế
+   * tiếp đăng nhập trên cùng thiết bị không còn tra cứu được tên/SĐT khách của ca trước (không chỉ
+   * ẩn trên 1 màn hình lịch sử - manifest_bookings/tickets còn tồn tại thì QR scan/tra tay bình
+   * thường của Staff kế tiếp vẫn đọc được). KHÔNG xoá offline_checkin_events hay active_assignment
+   * ở đây - lịch sử Pending/Conflict phải giữ nguyên để đối soát dù đổi tài khoản (các field cần
+   * hiển thị đã denormalize sẵn trong chính bảng events, không cần tới bảng manifest).
+   * Dùng withExclusiveTransactionAsync (không phải withTransactionAsync, KHÔNG exclusive trên
+   * native) - như saveManifest/clearCache, để lần xoá này không thể chen lẫn ở mức SQL với 1 lần
+   * preload đang ghi dữ liệu đồng thời (review PR #57, 3rd round, High).
+   */
+  static async purgeManifestForLogout(): Promise<void> {
+    const db = await getDatabase();
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.runAsync(`DELETE FROM manifest_tickets`);
+      await txn.runAsync(`DELETE FROM manifest_bookings`);
+      await txn.runAsync(`DELETE FROM manifest_trips`);
+    });
+  }
+
+  /**
+   * Đánh dấu/gỡ cờ "còn 1 lần purge manifest đăng xuất bị lỗi chưa xử lý xong" (Review PR #57 -
+   * Logout privacy). useAuthStore.logout thử lại purge 1 lần tại chỗ; nếu vẫn lỗi (vd đĩa đang bị
+   * khoá), đặt cờ này để lần đăng nhập/khởi động kế tiếp trên CHÍNH thiết bị này bắt buộc thử xoá
+   * lại trước khi tin tưởng dữ liệu manifest hiện có thuộc về Staff mới hay vẫn là rác của ca cũ.
+   */
+  static async setPendingManifestPurge(pending: boolean): Promise<void> {
+    const db = await getDatabase();
+    if (pending) {
+      // Giá trị PHẢI truyền qua tham số `?` (như mọi INSERT scanner_config khác trong file này),
+      // không viết literal ('1') ngay trong câu SQL - InMemoryFallbackDatabase.runAsync (database.ts)
+      // chỉ nhận diện đúng mẫu "VALUES ('key', ?)" qua regex; viết literal khiến regex không khớp
+      // và lệnh ghi trở thành no-op IM LẶNG trên môi trường web/test (bug thật, bắt được qua Test
+      // Group 9 của verify-staff-scanner.ts).
+      await db.runAsync(`INSERT OR REPLACE INTO scanner_config (key, value) VALUES ('pending_manifest_purge', ?)`, ['1']);
+    } else {
+      await db.runAsync(`DELETE FROM scanner_config WHERE key = 'pending_manifest_purge'`);
+    }
+  }
+
+  static async isManifestPurgePending(): Promise<boolean> {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<any>(`SELECT value FROM scanner_config WHERE key = 'pending_manifest_purge'`);
+    return !!row?.value;
+  }
+
+  /**
+   * Lưu phân công đang hoạt động (MOB-02) để app restart khi offline vẫn soát vé được tiếp,
+   * không chỉ dựa vào state Zustand trong RAM (mất ngay khi app bị OS kill). Gắn kèm staffId để
+   * Staff khác đăng nhập trên cùng máy không bị kế thừa nhầm phân công của người trước.
+   * Review PR #57 (4th round, High - "Also cover a stale saveActiveAssignment() completion after
+   * logout"): cùng pattern re-check epoch BÊN TRONG exclusive transaction như saveManifest - nếu
+   * logout đã bump epoch + clearActiveAssignment xong TRƯỚC KHI giao dịch này thực sự cầm được
+   * khoá, throw để không ghi đè lại 1 phân công đã bị logout dọn sạch.
+   */
+  static async saveActiveAssignment(
+    assignment: MyScannerAssignment, staffId: string, expectedEpoch?: number
+  ): Promise<void> {
+    const db = await getDatabase();
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      if (expectedEpoch !== undefined && getSessionEpoch() !== expectedEpoch) {
+        throw new Error('Phiên đăng nhập đã kết thúc trong lúc chờ ghi SQLite - bỏ qua, không ghi gì.');
+      }
+      await txn.runAsync(
+        `INSERT OR REPLACE INTO scanner_config (key, value) VALUES ('active_assignment', ?)`,
+        [JSON.stringify({ staffId, assignment })]
+      );
+    });
+  }
+
+  /** Khôi phục phân công đã lưu, chỉ khi đúng staffId hiện đang đăng nhập (MOB-02, MOB-06). */
+  static async getActiveAssignment(staffId: string): Promise<MyScannerAssignment | null> {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<any>(
+      `SELECT value FROM scanner_config WHERE key = 'active_assignment'`
+    );
+    if (!row?.value) return null;
+    try {
+      const parsed = JSON.parse(row.value);
+      if (parsed.staffId !== staffId) return null;
+      return parsed.assignment as MyScannerAssignment;
+    } catch {
+      return null;
+    }
+  }
+
+  // Exclusive transaction (không phải runAsync trần) - khớp với saveActiveAssignment, để 2 thao
+  // tác ghi/xoá cùng 1 key không thể chen lẫn ở mức SQL với nhau (review PR #57, 4th round).
+  static async clearActiveAssignment(): Promise<void> {
+    const db = await getDatabase();
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.runAsync(`DELETE FROM scanner_config WHERE key = 'active_assignment'`);
+    });
   }
 }
 
