@@ -139,7 +139,27 @@ public sealed class CheckInService(
             staffId, request.TicketId, request.TripStopCallId, request.ClientEventId,
             request.OccurredAtDevice, request.Note, now, isOfflineSync: false, cancellationToken);
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (ConflictException)
+        {
+            // CHK-02: ClientEventId trùng được gửi gần như đồng thời (double-tap/retry mạng do
+            // timeout) - request thua cuộc đọc lại kết quả request thắng đã commit, trả đúng
+            // idempotent thay vì để lỗi hạ tầng rơi ra 500.
+            unitOfWork.DiscardTrackedChanges();
+            var existing = await checkIns.FindEventByClientIdAsync(request.ClientEventId, cancellationToken);
+            if (existing is null)
+            {
+                throw;
+            }
+
+            var existingTicket = await checkIns.GetTicketWithReservationAsync(existing.TicketId, cancellationToken);
+            return new CheckInResultResponse(
+                existing.Outcome, existingTicket?.CheckedInAt, existingTicket?.TicketCode,
+                existingTicket?.SeatReservation?.PassengerName);
+        }
 
         return new CheckInResultResponse(outcome.Outcome, outcome.CheckedInAt, outcome.TicketCode, outcome.PassengerName);
     }
@@ -182,6 +202,21 @@ public sealed class CheckInService(
                 unitOfWork.DiscardTrackedChanges();
                 results.Add(new CheckInEventSyncResultResponse(evt.ClientEventId, "Error", false,
                     "Vé vừa được cập nhật bởi người khác. Vui lòng đồng bộ lại."));
+            }
+            catch (ConflictException)
+            {
+                // CHK-02: 2 batch sync đồng thời cùng gửi ClientEventId chưa từng thấy ở server -
+                // cả 2 đều pass bước FindEventByClientIdAsync (chưa commit), rồi cùng insert; 1
+                // thắng, bên thua vi phạm unique index ClientEventId ở DB (EfUnitOfWork đã map
+                // thành ConflictException). Đọc lại bản ghi vừa commit của bên thắng và trả đúng
+                // outcome đó cho CHÍNH event này - không để 1 event đụng độ làm hỏng cả batch
+                // (BR-OFF-03), và cũng không âm thầm báo "Error" trong khi check-in thật đã thành công.
+                unitOfWork.DiscardTrackedChanges();
+                var existing = await checkIns.FindEventByClientIdAsync(evt.ClientEventId, cancellationToken);
+                results.Add(existing is not null
+                    ? new CheckInEventSyncResultResponse(evt.ClientEventId, existing.Outcome, true, null)
+                    : new CheckInEventSyncResultResponse(evt.ClientEventId, "Error", false,
+                        "Trùng dữ liệu do xử lý đồng thời. Vui lòng đồng bộ lại."));
             }
         }
 

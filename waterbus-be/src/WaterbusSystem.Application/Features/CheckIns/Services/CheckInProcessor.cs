@@ -40,6 +40,21 @@ public class CheckInProcessor
         var existingEvent = await _repository.FindEventByClientIdAsync(clientEventId, cancellationToken);
         if (existingEvent is not null)
         {
+            // CHK-06: ClientEventId chỉ là khoá idempotency hợp lệ cho ĐÚNG request gốc đã tạo ra nó.
+            // Nếu ticket/điểm dừng/nhân viên của lần gửi này khác với bản ghi đã lưu, đây là key bị
+            // tái sử dụng sai (bug client hoặc dò đoán key) - không được âm thầm trả kết quả cũ (có
+            // thể lộ ticketCode/passengerName của 1 vé khác cho Staff không liên quan). Trả outcome
+            // riêng (không throw exception) để nhất quán với các lỗi nghiệp vụ khác của hàm này
+            // (NotAssigned/OutOfWindow/...) - caller (CheckInService) đã có catch riêng cho
+            // ConflictException hạ tầng (CHK-02 - race ghi trùng unique index), throw ở đây sẽ bị
+            // bắt nhầm thành "idempotent replay" và vô tình chấp nhận request sai.
+            if (existingEvent.TicketId != ticketId || existingEvent.TripStopCallId != tripStopCallId ||
+                existingEvent.StaffAccountId != staffId)
+            {
+                const string mismatchOutcome = "ClientEventIdMismatch";
+                return (new CheckInOutcome(mismatchOutcome, null, null, null), false);
+            }
+
             var existingTicket = await _repository.GetTicketWithReservationAsync(existingEvent.TicketId, cancellationToken);
 
             return (new CheckInOutcome(
@@ -107,14 +122,19 @@ public class CheckInProcessor
 
         if (outcome == "Success")
         {
+            // CHK-05: CheckedInAt phải là thời điểm Staff thực sự quét vé (effectiveAt - đã được đối
+            // soát/giới hạn skew ở trên), không phải thời điểm server NHẬN được lô đồng bộ offline.
+            // Quét lúc 09:55 nhưng sync lúc 12:00 phải hiển thị CheckedInAt ~09:55, không phải 12:00 -
+            // tránh gây hiểu nhầm khi xem lịch sử/báo cáo ca trực (CheckInEvent vẫn giữ riêng
+            // OccurredAtDevice/ReceivedAtServer đầy đủ cho đối soát).
             ticket.BoardingStatus = BoardingStatus.CheckedIn;
-            ticket.CheckedInAt = now;
+            ticket.CheckedInAt = effectiveAt;
             ticket.CheckedInByStaffId = staffId;
         }
 
         return (new CheckInOutcome(
             outcome,
-            outcome == "Success" ? now : null,
+            outcome == "Success" ? effectiveAt : null,
             ticket.TicketCode,
             ticket.SeatReservation?.PassengerName), false);
     }

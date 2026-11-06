@@ -443,6 +443,18 @@ public class ScannerAssignmentConfiguration : IEntityTypeConfiguration<ScannerAs
         builder.HasOne(x => x.TripStopCall).WithMany()
             .HasForeignKey(x => x.TripStopCallId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.RowVersion).IsRowVersion();
+
+        // CHK-03: check-then-insert ở AssignScannerAsync (HasOverlappingPrimaryAssignmentAsync rồi
+        // mới Add) không tự chặn được race 2 request đồng thời cùng gán Primary Offline Scanner cho
+        // cùng điểm dừng. Unique filtered index này là lưới an toàn ở DB cho đúng trường hợp phổ
+        // biến nhất (phân công không đặt ActiveUntil - mặc định vô thời hạn): chặn CỨNG 2 bản ghi
+        // Primary "mở" cùng tồn tại cho 1 TripStopCall. Trường hợp cả 2 đều có ActiveUntil tường
+        // minh và vô tình chồng lấn khoảng thời gian là race hiếm hơn, chưa có constraint tổng quát
+        // (SQL Server không có exclusion constraint kiểu range như Postgres) - ngoài phạm vi sửa này.
+        builder.HasIndex(x => x.TripStopCallId)
+            .IsUnique()
+            .HasFilter("[IsPrimaryOffline] = 1 AND [ActiveUntil] IS NULL AND [IsDeleted] = 0")
+            .HasDatabaseName("IX_ScannerAssignments_TripStopCallId_OpenEndedPrimary");
     }
 }
 public class CheckInEventConfiguration : IEntityTypeConfiguration<CheckInEvent>

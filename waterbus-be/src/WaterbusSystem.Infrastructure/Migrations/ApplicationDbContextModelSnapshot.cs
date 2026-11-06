@@ -1361,7 +1361,10 @@ namespace WaterbusSystem.Infrastructure.Migrations
 
                     b.HasIndex("DeviceId");
 
-                    b.HasIndex("TripStopCallId");
+                    b.HasIndex("TripStopCallId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ScannerAssignments_TripStopCallId_OpenEndedPrimary")
+                        .HasFilter("[IsPrimaryOffline] = 1 AND [ActiveUntil] IS NULL AND [IsDeleted] = 0");
 
                     b.ToTable("ScannerAssignments");
                 });

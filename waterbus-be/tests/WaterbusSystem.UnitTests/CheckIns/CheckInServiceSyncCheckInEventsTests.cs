@@ -99,6 +99,64 @@ public class CheckInServiceSyncCheckInEventsTests
     }
 
     [Fact]
+    public async Task SyncCheckInEventsAsync_WhenSameClientEventIdReusedWithDifferentTicket_ShouldReportMismatchNotIdempotentReplay()
+    {
+        // CHK-06: ClientEventId chỉ là khoá idempotency hợp lệ cho ĐÚNG request gốc. Gửi lại cùng
+        // key nhưng đổi TicketId phải bị báo xung đột, không được âm thầm trả kết quả check-in cũ
+        // (có thể lộ thông tin vé khác cho Staff không liên quan).
+        using var context = TestDbContextFactory.CreateDbContext();
+        var (_, _, ticket, boardingCall, now) = SeedCheckInScenario(context, _staffId);
+
+        var service = CreateService(context, now);
+        var firstRequest = new SyncCheckInEventsRequest(new[]
+        {
+            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-reused-key", now, null)
+        });
+        await service.SyncCheckInEventsAsync(firstRequest, CancellationToken.None);
+
+        // Dùng lại đúng ClientEventId của lần gửi trên nhưng đổi TicketId - mô phỏng key bị tái sử
+        // dụng sai (bug client hoặc dò đoán key), không cần vé thứ 2 có thật để kiểm tra nhánh đối
+        // chiếu identity này (nó so khớp trước khi tra vé).
+        var mismatchedTicketId = Guid.NewGuid();
+        var reusedKeyRequest = new SyncCheckInEventsRequest(new[]
+        {
+            new CheckInEventInput(mismatchedTicketId, boardingCall.Id, "evt-reused-key", now, null)
+        });
+
+        var result = await service.SyncCheckInEventsAsync(reusedKeyRequest, CancellationToken.None);
+
+        var single = result.Results.Single();
+        single.Outcome.Should().Be("ClientEventIdMismatch");
+        single.WasAlreadySynced.Should().BeFalse();
+        // Vé gốc vẫn giữ đúng kết quả check-in thành công của request đầu tiên.
+        context.Tickets.Single(t => t.Id == ticket.Id).BoardingStatus.Should().Be(BoardingStatus.CheckedIn);
+        context.CheckInEvents.Count(e => e.ClientEventId == "evt-reused-key").Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SyncCheckInEventsAsync_WhenScanWasValidButSyncHappensLater_ShouldStampCheckedInAtWithDeviceTimeNotServerTime()
+    {
+        // CHK-05: CheckedInAt phải phản ánh thời điểm Staff thực sự quét vé (occurredAtDevice),
+        // không phải thời điểm server nhận lô đồng bộ offline muộn hơn.
+        using var context = TestDbContextFactory.CreateDbContext();
+        var (seed, _, ticket, boardingCall, occurredAtDevice) = SeedCheckInScenario(context, _staffId);
+
+        var syncedAtServer = seed.Trip.DepartureTime.AddMinutes(30); // sync muộn hơn nhiều so với lúc quét thật
+        var service = CreateService(context, syncedAtServer);
+        var request = new SyncCheckInEventsRequest(new[]
+        {
+            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-device-time", occurredAtDevice, null)
+        });
+
+        var result = await service.SyncCheckInEventsAsync(request, CancellationToken.None);
+
+        result.Results.Single().Outcome.Should().Be("Success");
+        var updatedTicket = context.Tickets.Single(t => t.Id == ticket.Id);
+        updatedTicket.CheckedInAt.Should().Be(occurredAtDevice, "CheckedInAt phải là giờ quét thật trên máy, không phải giờ server nhận lô sync");
+        updatedTicket.CheckedInAt.Should().NotBe(syncedAtServer);
+    }
+
+    [Fact]
     public async Task SyncCheckInEventsAsync_WhenScanWasValidButSyncHappensAfterWindowCloses_ShouldStillSucceed()
     {
         // BR-OFF-05: cửa sổ check-in phải đối chiếu với thời điểm quét THẬT trên máy (occurredAtDevice),
