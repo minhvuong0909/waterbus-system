@@ -23,9 +23,13 @@ public sealed class CheckInService(
     ICurrentUserService currentUser,
     IDateTimeService dateTime,
     CheckInProcessor processor,
+    IScannerAssignmentLock assignmentLock,
     IOptions<NoShowFinalizationOptions> noShowOptions,
     ILogger<CheckInService> logger) : ICheckInService
 {
+    /// <summary>Thời gian chờ 1 request khác đang giữ khoá cùng TripStopCallId xong.</summary>
+    private static readonly TimeSpan AssignmentLockWait = TimeSpan.FromSeconds(10);
+
     // ---------------- AssignScanner ----------------
 
     public async Task<AssignScannerResponse> AssignScannerAsync(AssignScannerRequest request, CancellationToken cancellationToken = default)
@@ -39,40 +43,60 @@ public sealed class CheckInService(
 
         var stopCall = await checkIns.GetRequiredStopCallAsync(request.TripStopCallId, cancellationToken);
 
-        if (request.IsPrimaryOffline)
+        // Review PR #58 (High - "Enforce the complete Primary Offline Scanner overlap invariant"):
+        // check-then-insert (HasOverlappingPrimaryAssignmentAsync rồi mới Add+SaveChanges) không tự
+        // loại trừ lẫn nhau giữa 2 request đồng thời - cả 2 có thể cùng thấy "chưa chồng lấn" trước
+        // khi bên nào insert xong. Unique filtered index ở DB (CHK-03) chỉ phủ đúng case Primary vô
+        // thời hạn (ActiveUntil IS NULL), KHÔNG phủ 2 khoảng hữu hạn chồng lấn giờ - đây chính là
+        // khoảng hở BR-OFF-02 còn lại. Giữ khoá (sp_getapplock theo TripStopCallId) suốt từ lúc
+        // kiểm tra overlap tới khi SaveChangesAsync commit/rollback, chỉ release ở finally - không
+        // acquire khi là Secondary assignment (không tham gia bất biến "chỉ 1 Primary" nên không
+        // cần serialize).
+        IAsyncDisposable? gate = null;
+        try
         {
-            var requestedEnd = request.ActiveUntil ?? DateTimeOffset.MaxValue;
-
-            // BR-OFF-02: chỉ 1 Primary Offline Scanner hoạt động cùng lúc cho cùng điểm dừng.
-            var hasOverlappingPrimary = await checkIns.HasOverlappingPrimaryAssignmentAsync(
-                request.TripStopCallId, request.ActiveFrom, requestedEnd, cancellationToken);
-
-            if (hasOverlappingPrimary)
+            if (request.IsPrimaryOffline)
             {
-                throw new ConflictException(
-                    "Điểm dừng này đã có Primary Offline Scanner khác đang hoạt động trong khoảng thời gian này. " +
-                    "Vui lòng thu hồi phân công cũ trước.");
+                gate = await assignmentLock.TryAcquireAsync(request.TripStopCallId, AssignmentLockWait, cancellationToken)
+                    ?? throw new ConflictException("Đang có yêu cầu phân công khác xử lý cho điểm dừng này. Vui lòng thử lại.");
+
+                var requestedEnd = request.ActiveUntil ?? DateTimeOffset.MaxValue;
+
+                // BR-OFF-02: chỉ 1 Primary Offline Scanner hoạt động cùng lúc cho cùng điểm dừng.
+                var hasOverlappingPrimary = await checkIns.HasOverlappingPrimaryAssignmentAsync(
+                    request.TripStopCallId, request.ActiveFrom, requestedEnd, cancellationToken);
+
+                if (hasOverlappingPrimary)
+                {
+                    throw new ConflictException(
+                        "Điểm dừng này đã có Primary Offline Scanner khác đang hoạt động trong khoảng thời gian này. " +
+                        "Vui lòng thu hồi phân công cũ trước.");
+                }
             }
+
+            var assignment = new ScannerAssignment
+            {
+                DeviceId = device.Id,
+                Device = device,
+                StaffAccountId = request.StaffAccountId,
+                TripStopCallId = stopCall.Id,
+                TripStopCall = stopCall,
+                IsPrimaryOffline = request.IsPrimaryOffline,
+                ActiveFrom = request.ActiveFrom,
+                ActiveUntil = request.ActiveUntil
+            };
+            checkIns.AddAssignment(assignment);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return new AssignScannerResponse(
+                assignment.Id, assignment.DeviceId, assignment.StaffAccountId, assignment.TripStopCallId,
+                assignment.IsPrimaryOffline, assignment.ActiveFrom, assignment.ActiveUntil);
         }
-
-        var assignment = new ScannerAssignment
+        finally
         {
-            DeviceId = device.Id,
-            Device = device,
-            StaffAccountId = request.StaffAccountId,
-            TripStopCallId = stopCall.Id,
-            TripStopCall = stopCall,
-            IsPrimaryOffline = request.IsPrimaryOffline,
-            ActiveFrom = request.ActiveFrom,
-            ActiveUntil = request.ActiveUntil
-        };
-        checkIns.AddAssignment(assignment);
-
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return new AssignScannerResponse(
-            assignment.Id, assignment.DeviceId, assignment.StaffAccountId, assignment.TripStopCallId,
-            assignment.IsPrimaryOffline, assignment.ActiveFrom, assignment.ActiveUntil);
+            if (gate is not null) await gate.DisposeAsync();
+        }
     }
 
     // ---------------- RevokeScannerAssignment ----------------

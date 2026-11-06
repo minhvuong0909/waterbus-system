@@ -9,6 +9,7 @@ using WaterbusSystem.Application.DTOs.Requests.CheckIns;
 using WaterbusSystem.Application.DTOs.Responses.CheckIns;
 using WaterbusSystem.Application.Features.CheckIns;
 using WaterbusSystem.Application.Features.CheckIns.Services;
+using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Infrastructure.Persistence;
@@ -69,7 +70,59 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
         }
     }
 
-    private CheckInService Service(ApplicationDbContext context, DateTimeOffset now)
+    /// <summary>
+    /// Review PR #58 (2nd round - "Concurrency regression tests must exercise the actual database
+    /// race"): rào StartGate đặt NGAY TRƯỚC lệnh gọi service (Service(...).SyncCheckInEventsAsync)
+    /// vẫn chưa đủ - đó là TRƯỚC bước FindEventByClientIdAsync (pre-check CHK-02/CHK-06 thật diễn
+    /// ra bên trong CheckInProcessor.ProcessAsync). 1 trong 2 task hoàn toàn có thể chạy xong (kể cả
+    /// SaveChangesAsync) TRƯỚC KHI task kia bắt đầu lookup - khi đó task sau chỉ đơn giản thấy
+    /// existingEvent qua pre-check bình thường (nhánh KHÔNG đụng unique index DB), không phải race
+    /// thật đang cần chứng minh. Decorator test-only này đồng bộ NGAY SAU khi CẢ 2 task đã gọi
+    /// FindEventByClientIdAsync (đều thấy null, vì chưa ai insert) - buộc cả 2 cùng tiến vào bước
+    /// insert/SaveChangesAsync, nên 1 trong 2 phải chạm đúng unique index violation ở DB
+    /// (ConflictException từ EfUnitOfWork) thay vì nhánh pre-check thường. KHÔNG đổi gì ở
+    /// CheckInProcessor/CheckInRepository production - chỉ decorate interface ở tầng test.
+    /// </summary>
+    private sealed class LookupGatedCheckInRepository(ICheckInRepository inner, StartGate gate) : ICheckInRepository
+    {
+        public async Task<CheckInEvent?> FindEventByClientIdAsync(string clientEventId, CancellationToken cancellationToken = default)
+        {
+            var result = await inner.FindEventByClientIdAsync(clientEventId, cancellationToken);
+            await gate.Arrive();
+            return result;
+        }
+
+        public Task<ScannerDevice> GetRequiredDeviceAsync(Guid deviceId, CancellationToken cancellationToken = default) =>
+            inner.GetRequiredDeviceAsync(deviceId, cancellationToken);
+        public Task<TripStopCall> GetRequiredStopCallAsync(Guid tripStopCallId, CancellationToken cancellationToken = default) =>
+            inner.GetRequiredStopCallAsync(tripStopCallId, cancellationToken);
+        public Task<bool> HasOverlappingPrimaryAssignmentAsync(Guid tripStopCallId, DateTimeOffset activeFrom, DateTimeOffset requestedEnd, CancellationToken cancellationToken = default) =>
+            inner.HasOverlappingPrimaryAssignmentAsync(tripStopCallId, activeFrom, requestedEnd, cancellationToken);
+        public void AddAssignment(ScannerAssignment assignment) => inner.AddAssignment(assignment);
+        public Task<ScannerAssignment> GetRequiredAssignmentAsync(Guid assignmentId, CancellationToken cancellationToken = default) =>
+            inner.GetRequiredAssignmentAsync(assignmentId, cancellationToken);
+        public Task<bool> HasActiveAssignmentAsync(Guid staffId, Guid tripStopCallId, DateTimeOffset now, CancellationToken cancellationToken = default) =>
+            inner.HasActiveAssignmentAsync(staffId, tripStopCallId, now, cancellationToken);
+        public Task<List<MyScannerAssignmentResponse>> ListMyAssignmentsAsync(Guid staffId, DateTimeOffset now, CancellationToken cancellationToken = default) =>
+            inner.ListMyAssignmentsAsync(staffId, now, cancellationToken);
+        public Task<Ticket?> GetTicketWithReservationAsync(Guid ticketId, CancellationToken cancellationToken = default) =>
+            inner.GetTicketWithReservationAsync(ticketId, cancellationToken);
+        public Task<Ticket> GetRequiredTicketWithBookingAsync(Guid ticketId, CancellationToken cancellationToken = default) =>
+            inner.GetRequiredTicketWithBookingAsync(ticketId, cancellationToken);
+        public void AddCheckInEvent(CheckInEvent checkInEvent) => inner.AddCheckInEvent(checkInEvent);
+        public Task<TripStopCall> GetStopCallForManifestAsync(Guid tripStopCallId, CancellationToken cancellationToken = default) =>
+            inner.GetStopCallForManifestAsync(tripStopCallId, cancellationToken);
+        public Task<List<Ticket>> ListTicketsForManifestAsync(Guid tripStopCallId, CancellationToken cancellationToken = default) =>
+            inner.ListTicketsForManifestAsync(tripStopCallId, cancellationToken);
+        public Task<List<Guid>> ListClosedStopCallIdsAsync(DateTimeOffset deadline, CancellationToken cancellationToken = default) =>
+            inner.ListClosedStopCallIdsAsync(deadline, cancellationToken);
+        public Task<List<Guid>> ListUnresolvedStopCallIdsAsync(IReadOnlyCollection<Guid> stopCallIds, CancellationToken cancellationToken = default) =>
+            inner.ListUnresolvedStopCallIdsAsync(stopCallIds, cancellationToken);
+        public Task<List<Ticket>> ListNoShowCandidateTicketsAsync(IReadOnlyCollection<Guid> eligibleStopCallIds, CancellationToken cancellationToken = default) =>
+            inner.ListNoShowCandidateTicketsAsync(eligibleStopCallIds, cancellationToken);
+    }
+
+    private CheckInService Service(ApplicationDbContext context, DateTimeOffset now, ICheckInRepository? repositoryOverride = null)
     {
         var user = new Mock<ICurrentUserService>();
         user.Setup(x => x.UserId).Returns(_staffId.ToString());
@@ -78,8 +131,10 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
         var clock = new Mock<IDateTimeService>();
         clock.Setup(x => x.Now).Returns(now);
 
-        return new CheckInService(new CheckInRepository(context), new EfUnitOfWork(context),
-            user.Object, clock.Object, new CheckInProcessor(new CheckInRepository(context)),
+        var repository = repositoryOverride ?? new CheckInRepository(context);
+        return new CheckInService(repository, new EfUnitOfWork(context),
+            user.Object, clock.Object, new CheckInProcessor(repository),
+            new SqlScannerAssignmentLock(context),
             Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
     }
 
@@ -103,8 +158,9 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
         {
             await using var c = Context();
             var request = new SyncCheckInEventsRequest([new CheckInEventInput(ticketId, stopCallId, clientEventId, now, null)]);
-            var service = Service(c, now);
-            await gate.Arrive();
+            // Đồng bộ NGAY TẠI biên FindEventByClientIdAsync (xem LookupGatedCheckInRepository) -
+            // không phải trước lệnh gọi service - để chắc chắn chạm đúng race ở DB.
+            var service = Service(c, now, new LookupGatedCheckInRepository(new CheckInRepository(c), gate));
             return await service.SyncCheckInEventsAsync(request, CancellationToken.None);
         }
 
@@ -201,8 +257,9 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
         {
             await using var c = Context();
             var request = new SyncCheckInEventsRequest([new CheckInEventInput(ticketId, stopCallId, clientEventId, now, null)]);
-            var service = Service(c, now);
-            await gate.Arrive();
+            // Đồng bộ NGAY TẠI biên FindEventByClientIdAsync (xem LookupGatedCheckInRepository) -
+            // không phải trước lệnh gọi service - để chắc chắn chạm đúng race ở DB.
+            var service = Service(c, now, new LookupGatedCheckInRepository(new CheckInRepository(c), gate));
             var response = await service.SyncCheckInEventsAsync(request, CancellationToken.None);
             return response.Results.Single();
         }
@@ -272,6 +329,60 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
             .Where(a => a.TripStopCallId == stopCallId && a.IsPrimaryOffline && a.ActiveUntil == null && !a.IsDeleted)
             .ToListAsync();
         openEndedPrimaries.Should().HaveCount(1, "unique filtered index phải chặn cứng 2 Primary Offline Scanner vô thời hạn cùng tồn tại cho 1 điểm dừng");
+    }
+
+    [SqlServerDomainFact]
+    public async Task ConcurrentOverlappingFinitePrimaryAssignments_ShouldLeaveExactlyOneSucceeding()
+    {
+        // Review PR #58 (High - "Enforce the complete Primary Offline Scanner overlap invariant"):
+        // unique filtered index (CHK-03) chỉ phủ case ActiveUntil IS NULL (vô thời hạn) - 2 Primary
+        // Offline Scanner HỮU HẠN (có ActiveUntil) chồng lấn giờ KHÔNG được index đó bảo vệ, DB vẫn
+        // cho phép cả 2 insert nếu chỉ dựa vào check-then-insert. Test này chứng minh
+        // IScannerAssignmentLock (sp_getapplock theo TripStopCallId, giữ suốt từ lúc kiểm tra
+        // overlap tới khi SaveChangesAsync commit/rollback) đóng đúng khoảng hở này bằng khoá thật,
+        // không phải unique index.
+        Guid stopCallId;
+        Guid staffA = Guid.NewGuid(), staffB = Guid.NewGuid();
+        Guid deviceAId, deviceBId;
+        DateTimeOffset activeFrom;
+
+        await using (var seed = Context())
+        {
+            var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, _staffId, withAssignment: false);
+            stopCallId = scenario.BoardingCall.Id;
+            activeFrom = scenario.Now.AddHours(-1);
+
+            var deviceA = new ScannerDevice { DeviceCode = "DEV-FIN-A", IsActive = true };
+            var deviceB = new ScannerDevice { DeviceCode = "DEV-FIN-B", IsActive = true };
+            seed.ScannerDevices.AddRange(deviceA, deviceB);
+            await seed.SaveChangesAsync();
+            deviceAId = deviceA.Id;
+            deviceBId = deviceB.Id;
+        }
+
+        var gate = new StartGate(2);
+        // 2 khoảng hữu hạn CHỒNG LẤN giờ: A = [activeFrom, activeFrom+2h), B = [activeFrom+1h, activeFrom+3h).
+        async Task AssignAsync(Guid deviceId, Guid staffId, DateTimeOffset from, DateTimeOffset until)
+        {
+            await using var c = Context();
+            var request = new AssignScannerRequest(deviceId, staffId, stopCallId, true, from, until);
+            var service = Service(c, from);
+            await gate.Arrive();
+            await service.AssignScannerAsync(request, CancellationToken.None);
+        }
+
+        var results = await Task.WhenAll(
+            SafeRun(() => AssignAsync(deviceAId, staffA, activeFrom, activeFrom.AddHours(2))),
+            SafeRun(() => AssignAsync(deviceBId, staffB, activeFrom.AddHours(1), activeFrom.AddHours(3))));
+
+        results.Count(r => r).Should().Be(1,
+            "2 Primary Offline Scanner hữu hạn chồng lấn giờ đồng thời - đúng 1 request được phép thành công nhờ sp_getapplock theo TripStopCallId, không phải unique index (index không phủ case này)");
+
+        await using var check = Context();
+        var primariesAtStop = await check.ScannerAssignments
+            .Where(a => a.TripStopCallId == stopCallId && a.IsPrimaryOffline && !a.IsDeleted)
+            .ToListAsync();
+        primariesAtStop.Should().HaveCount(1, "request thua phải bị chặn hoàn toàn trong khoá (ConflictException từ pre-check), không để lại bản ghi chồng lấn nào");
     }
 
     private static async Task<bool> SafeRun(Func<Task> action)

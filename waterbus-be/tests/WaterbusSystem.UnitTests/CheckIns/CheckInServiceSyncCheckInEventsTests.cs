@@ -37,6 +37,7 @@ public class CheckInServiceSyncCheckInEventsTests
 
         return new CheckInService(new CheckInRepository(context), new EfUnitOfWork(context),
             user.Object, clock.Object, new CheckInProcessor(new CheckInRepository(context)),
+            new SqlScannerAssignmentLock(context),
             Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
     }
 
@@ -333,7 +334,8 @@ public class CheckInServiceSyncCheckInEventsTests
 
         var repository = new CheckInRepository(context);
         var service = new CheckInService(repository, unitOfWork.Object, user.Object, clock.Object,
-            new CheckInProcessor(repository), Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
+            new CheckInProcessor(repository), new SqlScannerAssignmentLock(context),
+            Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
 
         var request = new SyncCheckInEventsRequest(new[]
         {
