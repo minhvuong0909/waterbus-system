@@ -231,7 +231,7 @@ public static class DependencyInjection
         services.AddSingleton<IPoiTriggerDeduplicationService, InMemoryPoiTriggerDeduplicationService>();
         services.AddScoped<IOnboardAudioTriggerDispatcher, LogOnlyAudioTriggerDispatcher>();
         services.AddScoped<IPoiAudioTriggerDecisionService, PoiAudioTriggerDecisionService>();
-        services.AddScoped<ITrackingAudioTriggerEvaluator, TrackingAudioTriggerEvaluator>();
+        services.AddScoped<ITrackingAudioTriggerService, TrackingAudioTriggerService>();
         services.AddScoped<ISightseeingAudioRepository, SightseeingAudioRepository>();
 
         // 8. Azure AI Speech Text-to-Speech (Neural Voice MP3 tiếng Việt)
