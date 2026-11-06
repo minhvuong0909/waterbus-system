@@ -46,7 +46,7 @@ public sealed class RefundTimeoutSafetyTests
         gateway.QueryStatus = status;
         gateway.QueryTransactionNo = "unmatched-gateway-refund";
         var reconciliation = new RefundReconciliationService(new FinancialTransactionRepository(context),
-            new EfUnitOfWork(context), gateway.Gateway, new DirectCommercialTransactionRunner());
+            new EfUnitOfWork(context), gateway.Gateway, new DirectCommercialTransactionRunner(), TestNotifications.Outbox(context));
         Assert.Equal("Processing", await reconciliation.ReconcileAsync(refund.Id, "127.0.0.1"));
         Assert.Equal(1, gateway.QueryCalls);
         Assert.Null(refund.CompletedAt);

@@ -45,7 +45,8 @@ public class TripStopProgressRefundEligibilityIntegrationTests
     }
 
     private TripService Service() => new(new TripRepository(_context), new IncidentRepository(_context), new EfUnitOfWork(_context),
-        _user.Object, _clock.Object, Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>());
+        _user.Object, _clock.Object, Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(),
+        TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner());
 
     private void AsCaptain() { _user.Setup(u => u.UserId).Returns(_captainId.ToString()); _user.Setup(u => u.UserRole).Returns("Captain"); }
     private void AsAdmin() { _user.Setup(u => u.UserId).Returns(_adminId.ToString()); _user.Setup(u => u.UserRole).Returns("Admin"); }
