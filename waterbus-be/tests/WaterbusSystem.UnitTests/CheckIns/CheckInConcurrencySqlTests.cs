@@ -152,6 +152,12 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
             var payment2 = new FinancialTransaction
             {
                 OrderId = order2.Id, Order = order2,
+                // IdempotencyKey mặc định "" (FinancialTransaction.cs) đụng unique index
+                // IX_FinancialTransactions_IdempotencyKey với FinancialTransaction của ticket1 (cùng
+                // SeedCheckInScenario cũng để trống) - set riêng để 2 FinancialTransaction thật trong
+                // CÙNG 1 DB test này không đụng nhau (lỗi này chỉ lộ ra trên SQL Server thật, không
+                // phải lỗi của fix CHK-06/CHK-02 đang test).
+                IdempotencyKey = "idem-" + Guid.NewGuid(),
                 Status = FinancialTransactionStatus.Succeeded, Amount = TestDbContextFactory.StandardCommuterFare
             };
             var ticket2 = Ticket.Issue(booking2, reservation2, payment2, TripType.Commuter, DateTimeOffset.UtcNow);
