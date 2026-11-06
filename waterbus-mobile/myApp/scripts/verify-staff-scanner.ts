@@ -16,6 +16,8 @@ import { authService } from '../src/services/auth/authService';
 import { getSessionEpoch, bumpSessionEpoch } from '../src/services/auth/sessionEpoch';
 import * as manifestServiceModule from '../src/services/checkin/manifestService';
 import * as qrPublicKeyServiceModule from '../src/services/checkin/qrPublicKeyService';
+import * as scannerAssignmentServiceModule from '../src/services/checkin/scannerAssignmentService';
+import { getDatabase } from '../src/services/sqlite/database';
 import { MyScannerAssignment, ScannerManifestResponse, QrPublicKeyResponse } from '../src/types/checkin';
 
 async function runVerification() {
@@ -608,6 +610,162 @@ async function runVerification() {
     (manifestServiceModule as any).fetchScannerManifest = originalFetchManifest;
     (qrPublicKeyServiceModule as any).fetchQrPublicKey = originalFetchKey;
     await SqliteRepository.clearCache();
+  }
+
+  // -------------------------------------------------------------
+  // TEST GROUP 13: EPOCH IS RE-CHECKED INSIDE THE EXCLUSIVE TRANSACTION ITSELF
+  // (Review PR #57, 4th round, High - "Close the remaining epoch-check-to-SQL-write race")
+  // -------------------------------------------------------------
+  console.log('\n📦 TEST GROUP 13: Epoch Re-Checked Inside the Exclusive Transaction (not just before it)');
+
+  // Mô phỏng chính xác khoảng hở reviewer chỉ ra: epoch check BÊN NGOÀI (ở syncService/
+  // useScannerStore) đã pass, nhưng vẫn còn 1 await thật (mở native exclusive transaction) TRƯỚC
+  // khi ghi thực sự chạy - logout có thể bump epoch + purge xong HOÀN TOÀN trong khoảng hở đó.
+  // Patch db.withExclusiveTransactionAsync để treo NGAY TẠI điểm đó, mô phỏng đúng khoảng hở này.
+  const db = await getDatabase();
+  const originalWithExclusiveTransactionAsync = db.withExclusiveTransactionAsync.bind(db);
+  let releaseExclusiveTransaction: () => void = () => {};
+  const exclusiveTransactionGate = new Promise<void>((resolve) => {
+    releaseExclusiveTransaction = resolve;
+  });
+  (db as any).withExclusiveTransactionAsync = async (callback: any) => {
+    await exclusiveTransactionGate;
+    return originalWithExclusiveTransactionAsync(callback);
+  };
+
+  try {
+    const epochBeforeWrite = getSessionEpoch();
+    const raceManifest = {
+      stationId: 'stop-exclusive-race-test',
+      stationName: 'STALE - Đã Đăng Xuất Trong Lúc Mở Transaction',
+      generatedAt: new Date().toISOString(),
+      publicKey: DEFAULT_KEY_INFO,
+      trips: [],
+      bookings: [
+        {
+          id: 'BK-EXCL-RACE', publicBookingId: 'pub_wb_exclusive_race_should_not_exist',
+          bookingCode: 'WB-EXCL-RACE', tripId: 'trip-exclusive-race', customerName: 'Stale Customer',
+          customerPhone: undefined, totalAmount: 15000, qrCredentialVersion: 1, status: 'Confirmed',
+          tickets: [],
+        },
+      ],
+    };
+
+    // 13.1 saveManifest() - lệnh ghi bắt đầu nhưng bị treo ở withExclusiveTransactionAsync.
+    const saveManifestPromise = SqliteRepository.saveManifest(raceManifest, epochBeforeWrite);
+
+    // "Logout" xảy ra TRONG LÚC transaction còn treo chưa thực sự chạy.
+    bumpSessionEpoch();
+
+    releaseExclusiveTransaction();
+    let saveManifestThrew = false;
+    try {
+      await saveManifestPromise;
+    } catch {
+      saveManifestThrew = true;
+    }
+
+    const staleBooking = await SqliteRepository.getBookingByPublicId('pub_wb_exclusive_race_should_not_exist');
+    assert(
+      saveManifestThrew && staleBooking === null,
+      '13.1 saveManifest() re-checks the epoch INSIDE the exclusive transaction and refuses to write even after the outer pre-check already passed',
+      `threw: ${saveManifestThrew}, staleBooking: ${JSON.stringify(staleBooking)}`
+    );
+
+    // 13.2 saveActiveAssignment() - cùng cơ chế, re-check epoch BÊN TRONG transaction exclusive.
+    const staleAssignment: MyScannerAssignment = {
+      assignmentId: 'assignment-exclusive-race', tripStopCallId: 'stop-exclusive-race-test',
+      tripId: 'trip-exclusive-race', routeName: 'R', stationName: 'S', visitOrder: 1,
+      tripStatus: 'Boarding', estimatedArrivalTime: null, deviceId: 'device-exclusive-race',
+      deviceCode: 'DEV-EXCL', isPrimaryOffline: true,
+      activeFrom: new Date(Date.now() - 60000).toISOString(), activeUntil: null,
+      checkInOpenAt: null, checkInCloseAt: null,
+    };
+
+    const exclusiveTransactionGate2Holder: { release: () => void } = { release: () => {} };
+    const exclusiveTransactionGate2 = new Promise<void>((resolve) => {
+      exclusiveTransactionGate2Holder.release = resolve;
+    });
+    (db as any).withExclusiveTransactionAsync = async (callback: any) => {
+      await exclusiveTransactionGate2;
+      return originalWithExclusiveTransactionAsync(callback);
+    };
+
+    const epochBeforeAssignmentWrite = getSessionEpoch();
+    const saveAssignmentPromise = SqliteRepository.saveActiveAssignment(
+      staleAssignment, 'stale-staff-exclusive-race', epochBeforeAssignmentWrite
+    );
+    bumpSessionEpoch();
+    exclusiveTransactionGate2Holder.release();
+
+    let saveAssignmentThrew = false;
+    try {
+      await saveAssignmentPromise;
+    } catch {
+      saveAssignmentThrew = true;
+    }
+
+    const staleRestoredAssignment = await SqliteRepository.getActiveAssignment('stale-staff-exclusive-race');
+    assert(
+      saveAssignmentThrew && staleRestoredAssignment === null,
+      '13.2 saveActiveAssignment() re-checks the epoch INSIDE the exclusive transaction and refuses to write a stale assignment left over after logout',
+      `threw: ${saveAssignmentThrew}, staleRestoredAssignment: ${JSON.stringify(staleRestoredAssignment)}`
+    );
+  } finally {
+    (db as any).withExclusiveTransactionAsync = originalWithExclusiveTransactionAsync;
+    await SqliteRepository.clearActiveAssignment();
+  }
+
+  // -------------------------------------------------------------
+  // TEST GROUP 14: STALE PRELOAD COMPLETION NEVER RESETS A NEWER SESSION'S LOADING STATE
+  // (Review PR #57, 4th round, MEDIUM - "Reset stale preload UI state safely")
+  // -------------------------------------------------------------
+  console.log("\n📦 TEST GROUP 14: Stale Preload Completion Doesn't Clobber a Newer Session's isPreloading");
+
+  const originalGetMyScannerAssignments = scannerAssignmentServiceModule.getMyScannerAssignments;
+  let releaseAssignmentsLookup: () => void = () => {};
+  const assignmentsLookupGate = new Promise<void>((resolve) => {
+    releaseAssignmentsLookup = resolve;
+  });
+  (scannerAssignmentServiceModule as any).getMyScannerAssignments = async (): Promise<MyScannerAssignment[]> => {
+    await assignmentsLookupGate; // treo ở đây để mô phỏng logout xảy ra TRONG LÚC preload đang chờ mạng
+    return [{
+      assignmentId: 'a-stale-ui', tripStopCallId: 'stop-stale-ui-test', tripId: 't-stale-ui',
+      routeName: 'R', stationName: 'S', visitOrder: 1, tripStatus: 'Boarding', estimatedArrivalTime: null,
+      deviceId: 'd-stale-ui', deviceCode: 'DC-STALE', isPrimaryOffline: true,
+      activeFrom: new Date(Date.now() - 60000).toISOString(), activeUntil: null,
+      checkInOpenAt: null, checkInCloseAt: null,
+    }];
+  };
+  const originalPreloadManifestForUiTest = syncService.preloadManifest;
+  (syncService as any).preloadManifest = async () => ({
+    manifest: { stationId: 'stop-stale-ui-test', stationName: 'S', generatedAt: new Date().toISOString(), publicKey: DEFAULT_KEY_INFO, trips: [], bookings: [] },
+    message: 'ignored - should never reach UI of the newer session',
+  });
+
+  try {
+    const stalePreloadPromise = useScannerStore.getState().preloadCache('stop-stale-ui-test');
+
+    // Trong lúc preload "cũ" ở trên còn đang chờ getMyScannerAssignments(), mô phỏng: Staff cũ
+    // logout, Staff mới đăng nhập và tự bắt đầu 1 preload THẬT của riêng họ (isPreloading: true
+    // hợp lệ của phiên MỚI).
+    bumpSessionEpoch();
+    useScannerStore.setState({ isPreloading: true, syncMessage: 'Phiên MỚI đang tải trước...' });
+
+    releaseAssignmentsLookup();
+    const staleResult = await stalePreloadPromise;
+
+    assert(
+      staleResult === false &&
+        useScannerStore.getState().isPreloading === true &&
+        useScannerStore.getState().syncMessage === 'Phiên MỚI đang tải trước...',
+      '14.1 A stale preload completion returns false without resetting isPreloading/syncMessage that belong to a newer session',
+      `result: ${staleResult}, isPreloading: ${useScannerStore.getState().isPreloading}, syncMessage: ${useScannerStore.getState().syncMessage}`
+    );
+  } finally {
+    (scannerAssignmentServiceModule as any).getMyScannerAssignments = originalGetMyScannerAssignments;
+    (syncService as any).preloadManifest = originalPreloadManifestForUiTest;
+    useScannerStore.setState({ isPreloading: false, syncMessage: null });
   }
 
   // -------------------------------------------------------------

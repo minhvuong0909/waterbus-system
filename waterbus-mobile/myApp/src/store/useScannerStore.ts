@@ -257,21 +257,38 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
         return false;
       }
 
+      // Review PR #57 (4th round): ghi SQLite TRƯỚC, chỉ áp vào state CHIA SẺ (syncService
+      // singleton + Zustand) SAU KHI đã xác nhận ghi thành công VÀ epoch vẫn còn đúng - nếu làm
+      // ngược lại (set() trước, saveActiveAssignment sau), 1 lần saveActiveAssignment bị chặn do
+      // epoch lệch (throw bên trong transaction) vẫn để lại state RAM đã bị ghi stale từ TRƯỚC khi
+      // throw, dù bản thân SQL đã được chặn đúng.
+      const staffId = syncService.getDeviceInfo().staffId;
+      // MOB-02: lưu lại phân công vào SQLite - nếu app bị OS kill khi offline rồi mở lại, Staff
+      // vẫn soát vé tiếp được dù không còn mạng để gọi lại GetMyScannerAssignments. Truyền
+      // epochAtStart để saveActiveAssignment tự re-check epoch BÊN TRONG transaction exclusive của
+      // nó (review PR #57, 4th round - "Also cover a stale saveActiveAssignment() completion").
+      await SqliteRepository.saveActiveAssignment(assignment, staffId, epochAtStart);
+
+      if (getSessionEpoch() !== epochAtStart) {
+        return false;
+      }
+
       // Ghi lại điểm dừng vừa preload (tái dùng field stationId) để performCheckIn gửi đúng
       // TripStopCallId khi tạo CheckInEvent offline.
       syncService.setDeviceInfo({ stationId: tripStopCallId, stationName: res.manifest.stationName,
         deviceId: assignment.deviceId, deviceCode: assignment.deviceCode, isPrimaryOffline: assignment.isPrimaryOffline });
       set({ activeAssignment: assignment, deviceInfo: syncService.getDeviceInfo() });
-      // MOB-02: lưu lại phân công vào SQLite - nếu app bị OS kill khi offline rồi mở lại, Staff
-      // vẫn soát vé tiếp được dù không còn mạng để gọi lại GetMyScannerAssignments.
-      await SqliteRepository.saveActiveAssignment(assignment, syncService.getDeviceInfo().staffId);
       await get().refreshStats();
       set({ isPreloading: false, syncMessage: res.message, deviceInfo: syncService.getDeviceInfo() });
       return true;
     } catch (e: any) {
       if (getSessionEpoch() !== epochAtStart) {
-        // Lỗi (kể cả lỗi "phiên đã kết thúc" tự throw ở trên) của 1 phiên đã chết - không hiển thị
-        // syncMessage này lên UI hiện tại (đã thuộc về phiên khác hoặc màn login).
+        // Review PR #57 (4th round, MEDIUM - "Reset stale preload UI state safely"): phiên này đã
+        // CHẾT (logout/đăng nhập khác xảy ra trong lúc đang chờ) - KHÔNG gọi set({isPreloading:
+        // false, ...}) ở đây, vì 1 preload MỚI của phiên kế tiếp có thể đang chạy (isPreloading:
+        // true hợp lệ của phiên đó) và bị dọn dẹp của phiên CŨ này ghi đè nhầm thành false. Việc
+        // isPreloading được đưa về false đúng lúc chuyển phiên đã do applyStaffIdentity() đảm nhiệm
+        // (useAuthStore.ts) - không lặp lại ở đây.
         return false;
       }
       set({ isPreloading: false, syncMessage: `Lỗi tải trước: ${e.message}` });

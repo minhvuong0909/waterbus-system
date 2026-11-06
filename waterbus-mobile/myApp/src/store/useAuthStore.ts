@@ -25,8 +25,14 @@ function applyStaffIdentity(user: AuthUser | null) {
   // recentScans (tên khách gần đây) là state RAM của THIẾT BỊ, không phải của tài khoản - phải xoá
   // mỗi lần đổi danh tính (đăng nhập HOẶC đăng xuất) để Staff kế tiếp trên cùng máy không thấy lại
   // tên khách ca trước (Review PR #57 - Logout privacy: "recentScans is not reset").
+  // Review PR #57 (4th round, MEDIUM - "Reset stale preload UI state safely"): isPreloading/
+  // syncMessage cũng phải reset NGAY TẠI ĐÂY (điểm chuyển danh tính duy nhất) - 1 preload bị huỷ do
+  // epoch lệch (useScannerStore.preloadCache) CHỦ ĐỘNG KHÔNG tự set isPreloading:false nữa (có thể
+  // đang ghi đè nhầm lên 1 preload MỚI của phiên kế tiếp), nên việc đưa isPreloading về false đúng
+  // lúc chuyển phiên phải do chính thời điểm chuyển phiên này đảm nhiệm.
   useScannerStore.setState({ deviceInfo: syncService.getDeviceInfo(), activeAssignment: null,
-    currentBooking: null, verificationResult: null, isModalOpen: false, recentScans: [] });
+    currentBooking: null, verificationResult: null, isModalOpen: false, recentScans: [],
+    isPreloading: false, syncMessage: null });
 }
 
 const MANIFEST_PURGE_BLOCKED_MESSAGE =

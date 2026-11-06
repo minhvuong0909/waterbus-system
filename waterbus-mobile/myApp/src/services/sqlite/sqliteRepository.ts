@@ -5,6 +5,7 @@
  */
 
 import { getDatabase } from './database';
+import { getSessionEpoch } from '../auth/sessionEpoch';
 import {
   PreloadManifest,
   Booking,
@@ -31,13 +32,25 @@ export class SqliteRepository {
    * Review PR #57 (3rd round, High - "Serialize manifest-writing operations and logout purge so
    * they cannot interleave incorrectly"): dùng withExclusiveTransactionAsync (không phải
    * withTransactionAsync, vốn KHÔNG exclusive trên native) - bảo đảm lần ghi này không thể chen
-   * lẫn ở mức SQL với purgeManifestForLogout/clearCache đang chạy đồng thời, bổ sung cho lớp kiểm
-   * tra epoch ở logic (syncService.preloadManifest/useScannerStore.preloadCache).
+   * lẫn ở mức SQL với purgeManifestForLogout/clearCache đang chạy đồng thời.
+   * Review PR #57 (4th round, High - "Close the remaining epoch-check-to-SQL-write race"):
+   * syncService.preloadManifest kiểm tra epoch TRƯỚC khi gọi hàm này, nhưng có 1 await thật (native
+   * bridge mở exclusive transaction) giữa lúc kiểm tra và lúc CHỮ KÝ GHI thực sự chạy - logout có
+   * thể bump epoch + purge xong HOÀN TOÀN trong khoảng hở đó, rồi lần ghi này (đã pass check cũ)
+   * mới thật sự chạy và ghi đè dữ liệu đã bị purge. Kiểm tra lại epoch LẦN NỮA làm việc ĐẦU TIÊN
+   * BÊN TRONG transaction exclusive (cùng khoá mà purgeManifestForLogout cũng dùng) - nếu logout
+   * đã bump epoch tại thời điểm giao dịch này THỰC SỰ cầm được khoá, throw để KHÔNG ghi gì cả (dù
+   * có thắng cuộc giành khoá trước purge thì cũng không sao - purge chạy sau vẫn xoá sạch; chỉ nguy
+   * hiểm khi purge đã xong TRƯỚC, nên check này mới có ý nghĩa).
    */
-  static async saveManifest(manifest: PreloadManifest): Promise<void> {
+  static async saveManifest(manifest: PreloadManifest, expectedEpoch?: number): Promise<void> {
     const db = await getDatabase();
 
     await db.withExclusiveTransactionAsync(async (txn) => {
+      if (expectedEpoch !== undefined && getSessionEpoch() !== expectedEpoch) {
+        throw new Error('Phiên đăng nhập đã kết thúc trong lúc chờ ghi SQLite - bỏ qua, không ghi gì.');
+      }
+
       // 1. Save or update Public Key
       if (manifest.publicKey) {
         await txn.runAsync(
@@ -602,13 +615,24 @@ export class SqliteRepository {
    * Lưu phân công đang hoạt động (MOB-02) để app restart khi offline vẫn soát vé được tiếp,
    * không chỉ dựa vào state Zustand trong RAM (mất ngay khi app bị OS kill). Gắn kèm staffId để
    * Staff khác đăng nhập trên cùng máy không bị kế thừa nhầm phân công của người trước.
+   * Review PR #57 (4th round, High - "Also cover a stale saveActiveAssignment() completion after
+   * logout"): cùng pattern re-check epoch BÊN TRONG exclusive transaction như saveManifest - nếu
+   * logout đã bump epoch + clearActiveAssignment xong TRƯỚC KHI giao dịch này thực sự cầm được
+   * khoá, throw để không ghi đè lại 1 phân công đã bị logout dọn sạch.
    */
-  static async saveActiveAssignment(assignment: MyScannerAssignment, staffId: string): Promise<void> {
+  static async saveActiveAssignment(
+    assignment: MyScannerAssignment, staffId: string, expectedEpoch?: number
+  ): Promise<void> {
     const db = await getDatabase();
-    await db.runAsync(
-      `INSERT OR REPLACE INTO scanner_config (key, value) VALUES ('active_assignment', ?)`,
-      [JSON.stringify({ staffId, assignment })]
-    );
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      if (expectedEpoch !== undefined && getSessionEpoch() !== expectedEpoch) {
+        throw new Error('Phiên đăng nhập đã kết thúc trong lúc chờ ghi SQLite - bỏ qua, không ghi gì.');
+      }
+      await txn.runAsync(
+        `INSERT OR REPLACE INTO scanner_config (key, value) VALUES ('active_assignment', ?)`,
+        [JSON.stringify({ staffId, assignment })]
+      );
+    });
   }
 
   /** Khôi phục phân công đã lưu, chỉ khi đúng staffId hiện đang đăng nhập (MOB-02, MOB-06). */
@@ -627,9 +651,13 @@ export class SqliteRepository {
     }
   }
 
+  // Exclusive transaction (không phải runAsync trần) - khớp với saveActiveAssignment, để 2 thao
+  // tác ghi/xoá cùng 1 key không thể chen lẫn ở mức SQL với nhau (review PR #57, 4th round).
   static async clearActiveAssignment(): Promise<void> {
     const db = await getDatabase();
-    await db.runAsync(`DELETE FROM scanner_config WHERE key = 'active_assignment'`);
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.runAsync(`DELETE FROM scanner_config WHERE key = 'active_assignment'`);
+    });
   }
 }
 
