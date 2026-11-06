@@ -333,6 +333,19 @@ public class TripServiceSearchTests
     }
 
     [Theory]
+    [InlineData(int.MaxValue, 100)]
+    [InlineData(int.MaxValue, 1)]
+    [InlineData(1_000_000, 5)]
+    public async Task Paging_VeryFarPage_ShouldBeEmpty_NotWrapAroundToTheFirstPage(int page, int pageSize)
+    {
+        // (Page - 1) * pageSize tràn int sẽ thành offset âm; Skip(âm) không bỏ phần tử nào nên trả lại trang đầu.
+        (await SearchAll()).Should().HaveCount(1);
+
+        (await Service().SearchAsync(new SearchTripsRequest(null, null, null, null, Page: page, PageSize: pageSize), CancellationToken.None))
+            .Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(0, 10, false)]
     [InlineData(1, 0, false)]
     [InlineData(1, 101, false)]
