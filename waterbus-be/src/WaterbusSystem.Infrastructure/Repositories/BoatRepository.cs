@@ -39,7 +39,10 @@ public sealed class BoatRepository(ApplicationDbContext context) : IBoatReposito
         await context.Boats.AsNoTracking()
             .Where(b => b.Id == id && !b.IsDeleted)
             .Select(b => new BoatResponse(
-                b.Id, b.Code, b.Name, b.RegistrationNumber, b.TotalSeats, b.Manufacturer, b.YearBuilt, b.IsActive, b.CaptainUserId))
+                b.Id, b.Code, b.Name, b.RegistrationNumber, b.TotalSeats, b.Manufacturer, b.YearBuilt, b.IsActive, b.CaptainUserId,
+                b.Seats.Count(s => s.IsActive && !s.IsDeleted),
+                !b.Seats.Any(s => s.IsActive && !s.IsDeleted) ? "NotConfigured"
+                : b.Seats.Count(s => s.IsActive && !s.IsDeleted) >= b.TotalSeats ? "Complete" : "Partial"))
             .FirstOrDefaultAsync(cancellationToken)
         ?? throw new NotFoundException(nameof(Boat), id);
 
@@ -55,10 +58,16 @@ public sealed class BoatRepository(ApplicationDbContext context) : IBoatReposito
         var source = query
             .OrderBy(b => b.Code)
             .Select(b => new BoatResponse(
-                b.Id, b.Code, b.Name, b.RegistrationNumber, b.TotalSeats, b.Manufacturer, b.YearBuilt, b.IsActive, b.CaptainUserId));
+                b.Id, b.Code, b.Name, b.RegistrationNumber, b.TotalSeats, b.Manufacturer, b.YearBuilt, b.IsActive, b.CaptainUserId,
+                b.Seats.Count(s => s.IsActive && !s.IsDeleted),
+                !b.Seats.Any(s => s.IsActive && !s.IsDeleted) ? "NotConfigured"
+                : b.Seats.Count(s => s.IsActive && !s.IsDeleted) >= b.TotalSeats ? "Complete" : "Partial"));
 
         return source.ToPaginatedListAsync(request.PageNumber, request.PageSize, cancellationToken);
     }
+
+    public Task<int> CountActiveSeatsAsync(Guid boatId, CancellationToken cancellationToken = default) =>
+        context.Seats.CountAsync(s => s.BoatId == boatId && s.IsActive && !s.IsDeleted, cancellationToken);
 
     public void Add(Boat boat) => context.Boats.Add(boat);
 }
