@@ -52,6 +52,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<PointOfInterest> PointsOfInterest => Set<PointOfInterest>();
     public DbSet<RoutePoi> RoutePois => Set<RoutePoi>();
     public DbSet<AudioGuide> AudioGuides => Set<AudioGuide>();
+    public DbSet<EmailOutboxMessage> EmailOutbox => Set<EmailOutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

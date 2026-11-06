@@ -162,6 +162,15 @@ Cần mã mới (vd 403, 422) thì thêm `case` vào middleware, không xử lý
 - Ngưỡng cảnh báo (tốc độ gió, chu kỳ quét, API key) đặt trong cấu hình, không hard-code.
 - Gọi dịch vụ ngoài phải có timeout và retry có giới hạn, lỗi chỉ ghi log, không làm sập host.
 
+### 3.10.1 Email giao dịch (transactional outbox)
+- Gửi email **chỉ** qua `INotificationOutbox` (`EnqueueBookingConfirmedAsync/EnqueueTripDisruptionAsync/EnqueueRefundSucceededAsync`), gọi **bên trong** transaction nghiệp vụ trước `SaveChanges`. Không gọi SMTP/`IEmailTransport` trong service nghiệp vụ, không dựng HTML ở đó.
+- Mỗi sự kiện có `EventKey` tất định (UNIQUE ở DB). Thêm loại thông báo mới = thêm giá trị `EmailNotificationType` + khoá + template + nhánh trong `NotificationEmailComposer` (không cần framework riêng).
+- Chỉ enqueue ở **trạng thái đã xác minh/đã commit** (Order `Confirmed` có vé; refund `Succeeded`; Trip `Cancelled`/`Terminated`). Composer kiểm tra lại lúc gửi và `Skipped` nếu không còn đúng.
+- Worker `email-outbox` (Hangfire) claim bằng lease nguyên tử; ghi kết quả có điều kiện `LockToken`. Không sửa `EmailOutbox` bằng tay trừ theo runbook (`docs/EMAIL_NOTIFICATION_IMPLEMENTATION_PLAN.md` §11).
+- Không đưa token Guest/`ManageOrder` vào email; QR chỉ là credential đã ký hiện có, ký lúc gửi, không lưu trong outbox. Không log body/QR/địa chỉ người nhận đầy đủ.
+- Cấu hình `Email:*` sai khi `Email:Enabled=true` ⇒ host không khởi động. Key mới → cập nhật `appsettings.example.json`, `.env.example` (gốc + `waterbus-be`), `docker-compose.yml`.
+- Test: logic bằng InMemory được; **unique index / claim đồng thời / lease / rollback bắt buộc test trên SQL Server thật** (`EmailOutboxSqlTests`).
+
 ### 3.11 Đặt tên
 - C#: `PascalCase` cho type/method/property, `_camelCase` cho field private, interface bắt đầu bằng `I`.
 - Request/Response: `LoginRequest`/`LoginResponse`. Validator: `...RequestValidator`. Service: `I{Feature}Service`/`{Feature}Service`. Repository: `I{Feature}Repository`/`{Feature}Repository`.

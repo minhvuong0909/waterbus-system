@@ -83,6 +83,13 @@ jobs:
           --logger "trx;LogFileName=test-results.trx"
           --results-directory TestResults
 
+      # Email/outbox: chạy riêng để lỗi hiện rõ (gồm unique index, claim đồng thời, phục hồi crash trên SQL Server thật
+      # và MailKit → SMTP catcher cục bộ). Test SQL cần WATERBUS_TEST_SQLSERVER (đã đặt ở trên).
+      - name: Email outbox tests (targeted)
+        run: >-
+          dotnet test WaterbusSystem.sln --no-build -c Release
+          --filter "FullyQualifiedName~WaterbusSystem.UnitTests.Notifications"
+
       # Test bị Skip vẫn tính là "xanh": chặn trường hợp Redis/SQL không được cấu hình mà CI vẫn qua.
       - name: Verify infrastructure tests were executed, not skipped
         run: |
@@ -90,7 +97,7 @@ jobs:
           import re, glob, sys
           text = open(glob.glob("TestResults/**/test-results.trx", recursive=True)[0], encoding="utf-8").read()
           results = re.findall(r'<UnitTestResult[^>]*testName="([^"]+)"[^>]*outcome="([^"]+)"', text)
-          gated = ("RedisCommercialTests", "CommercialSqlTests", "DomainPersistenceTests")
+          gated = ("RedisCommercialTests", "CommercialSqlTests", "DomainPersistenceTests", "EmailOutboxSqlTests")
           bad = [(n, o) for n, o in results if any(g in n for g in gated) and o == "NotExecuted"]
           ran = sum(1 for n, o in results if any(g in n for g in gated) and o == "Passed")
           print(f"infrastructure tests passed: {ran}, not executed: {len(bad)}")

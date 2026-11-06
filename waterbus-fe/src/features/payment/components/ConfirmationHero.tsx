@@ -23,8 +23,8 @@ export default function ConfirmationHero({ reference, email }: { reference: stri
           <CopyButton value={reference} />
         </div>
         <p className="text-sm text-on-surface-variant">
-          {/* The backend sends no e-mail yet: point to where the tickets are instead of promising one. */}
-          {t('Keep this booking reference. Your tickets for {email} are saved under My Tickets on this device.', {
+          {/* Delivery is asynchronous (outbox + worker): never claim "sent", and never make the booking depend on it. */}
+          {t('Keep this booking reference. Your tickets are available now under My Tickets on this device. We will also email a confirmation to {email}; it can take a few minutes and you do not need it to board.', {
             email,
           })}
         </p>
