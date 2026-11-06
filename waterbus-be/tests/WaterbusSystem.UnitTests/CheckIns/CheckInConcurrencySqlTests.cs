@@ -122,10 +122,11 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
             inner.ListNoShowCandidateTicketsAsync(eligibleStopCallIds, cancellationToken);
     }
 
-    private CheckInService Service(ApplicationDbContext context, DateTimeOffset now, ICheckInRepository? repositoryOverride = null)
+    private CheckInService Service(
+        ApplicationDbContext context, DateTimeOffset now, ICheckInRepository? repositoryOverride = null, Guid? staffIdOverride = null)
     {
         var user = new Mock<ICurrentUserService>();
-        user.Setup(x => x.UserId).Returns(_staffId.ToString());
+        user.Setup(x => x.UserId).Returns((staffIdOverride ?? _staffId).ToString());
         user.Setup(x => x.UserRole).Returns("Staff");
 
         var clock = new Mock<IDateTimeService>();
@@ -283,6 +284,109 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
     }
 
     [SqlServerDomainFact]
+    public async Task ConcurrentSyncOfSameClientEventId_WithDifferentStaff_ShouldReportMismatchNotSilentReplay()
+    {
+        // Review (human, commit fc2fc74): "kiểm tra cả trường hợp trùng ClientEventId nhưng khác
+        // Staff" - test trước đã phủ khác Ticket, test này phủ khác Staff. Cùng 1 Ticket/Stop,
+        // nhưng 2 NHÂN VIÊN khác nhau cùng gửi 1 ClientEventId - bên thua vi phạm unique index ở
+        // DB phải nhận "ClientEventIdMismatch" cho ĐÚNG staff của chính nó, không được đọc nhầm
+        // outcome của Staff kia (ai thực sự đã check-in vé này phải đúng với CheckedInByStaffId).
+        Guid ticketId, stopCallId;
+        DateTimeOffset now;
+        Guid staffA = Guid.NewGuid(), staffB = Guid.NewGuid();
+        var clientEventId = "evt-staff-race-" + Guid.NewGuid();
+
+        await using (var seed = Context())
+        {
+            var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, staffA, withAssignment: false);
+            ticketId = scenario.Ticket.Id;
+            stopCallId = scenario.BoardingCall.Id;
+            now = scenario.Now;
+
+            var deviceA = new ScannerDevice { DeviceCode = "DEV-STAFF-A", IsActive = true };
+            var deviceB = new ScannerDevice { DeviceCode = "DEV-STAFF-B", IsActive = true };
+            seed.ScannerDevices.AddRange(deviceA, deviceB);
+            seed.ScannerAssignments.AddRange(
+                new ScannerAssignment { DeviceId = deviceA.Id, StaffAccountId = staffA, TripStopCallId = stopCallId, IsPrimaryOffline = true, ActiveFrom = now.AddHours(-1), ActiveUntil = now.AddHours(1) },
+                new ScannerAssignment { DeviceId = deviceB.Id, StaffAccountId = staffB, TripStopCallId = stopCallId, IsPrimaryOffline = false, ActiveFrom = now.AddHours(-1), ActiveUntil = now.AddHours(1) });
+            await seed.SaveChangesAsync();
+        }
+
+        var gate = new StartGate(2);
+        async Task<CheckInEventSyncResultResponse> RunSync(Guid staffId)
+        {
+            await using var c = Context();
+            var request = new SyncCheckInEventsRequest([new CheckInEventInput(ticketId, stopCallId, clientEventId, now, null)]);
+            var service = Service(c, now, new LookupGatedCheckInRepository(new CheckInRepository(c), gate), staffId);
+            var response = await service.SyncCheckInEventsAsync(request, CancellationToken.None);
+            return response.Results.Single();
+        }
+
+        var results = await Task.WhenAll(RunSync(staffA), RunSync(staffB));
+
+        new[] { results[0].Outcome, results[1].Outcome }.Should().BeEquivalentTo(new[] { "Success", "ClientEventIdMismatch" },
+            "đúng 1 trong 2 Staff thắng race (Success), bên kia phải bị từ chối vì ClientEventId không khớp Staff của chính nó");
+
+        await using var check = Context();
+        var events = await check.CheckInEvents.Where(e => e.ClientEventId == clientEventId).ToListAsync();
+        events.Should().HaveCount(1, "unique index ClientEventId chỉ cho phép đúng 1 bản ghi dù 2 Staff khác nhau cùng gửi key này");
+
+        var winningStaffId = results[0].Outcome == "Success" ? staffA : staffB;
+        var ticket = await check.Tickets.SingleAsync(t => t.Id == ticketId);
+        ticket.BoardingStatus.Should().Be(BoardingStatus.CheckedIn);
+        ticket.CheckedInByStaffId.Should().Be(winningStaffId,
+            "CheckedInByStaffId phải đúng là Staff đã thắng race - không được ghi nhận cho Staff bị ClientEventIdMismatch");
+    }
+
+    [SqlServerDomainFact]
+    public async Task ConcurrentSyncOfSameClientEventId_WithDifferentStop_ShouldReportMismatchNotSilentReplay()
+    {
+        // Review (human, commit fc2fc74): "kiểm tra cả trường hợp trùng ClientEventId nhưng khác
+        // Stop" - cùng 1 Ticket/Staff, nhưng 2 ĐIỂM DỪNG khác nhau cùng gửi 1 ClientEventId (vd bug
+        // client gửi cùng key cho 2 lần quét ở 2 bến khác nhau). Bên thua vi phạm unique index phải
+        // nhận "ClientEventIdMismatch" cho ĐÚNG điểm dừng của chính nó.
+        Guid ticketId, stopCall1Id, stopCall2Id;
+        DateTimeOffset now;
+        var clientEventId = "evt-stop-race-" + Guid.NewGuid();
+
+        await using (var seed = Context())
+        {
+            var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, _staffId, withAssignment: false);
+            ticketId = scenario.Ticket.Id;
+            stopCall1Id = scenario.BoardingCall.Id;
+            now = scenario.Now;
+            stopCall2Id = scenario.Seed.Trip.TripStopCalls.Single(c => c.VisitOrder == 2).Id;
+
+            var device1 = new ScannerDevice { DeviceCode = "DEV-STOP-1", IsActive = true };
+            var device2 = new ScannerDevice { DeviceCode = "DEV-STOP-2", IsActive = true };
+            seed.ScannerDevices.AddRange(device1, device2);
+            seed.ScannerAssignments.AddRange(
+                new ScannerAssignment { DeviceId = device1.Id, StaffAccountId = _staffId, TripStopCallId = stopCall1Id, IsPrimaryOffline = true, ActiveFrom = now.AddHours(-1), ActiveUntil = now.AddHours(1) },
+                new ScannerAssignment { DeviceId = device2.Id, StaffAccountId = _staffId, TripStopCallId = stopCall2Id, IsPrimaryOffline = true, ActiveFrom = now.AddHours(-1), ActiveUntil = now.AddHours(1) });
+            await seed.SaveChangesAsync();
+        }
+
+        var gate = new StartGate(2);
+        async Task<CheckInEventSyncResultResponse> RunSync(Guid stopCallId)
+        {
+            await using var c = Context();
+            var request = new SyncCheckInEventsRequest([new CheckInEventInput(ticketId, stopCallId, clientEventId, now, null)]);
+            var service = Service(c, now, new LookupGatedCheckInRepository(new CheckInRepository(c), gate));
+            var response = await service.SyncCheckInEventsAsync(request, CancellationToken.None);
+            return response.Results.Single();
+        }
+
+        var results = await Task.WhenAll(RunSync(stopCall1Id), RunSync(stopCall2Id));
+
+        results.Count(r => r.Outcome == "ClientEventIdMismatch").Should().Be(1,
+            "đúng 1 trong 2 điểm dừng thắng race, bên kia phải bị từ chối vì ClientEventId không khớp TripStopCallId của chính nó");
+
+        await using var check = Context();
+        var events = await check.CheckInEvents.Where(e => e.ClientEventId == clientEventId).ToListAsync();
+        events.Should().HaveCount(1, "unique index ClientEventId chỉ cho phép đúng 1 bản ghi dù 2 điểm dừng khác nhau cùng gửi key này");
+    }
+
+    [SqlServerDomainFact]
     public async Task ConcurrentPrimaryOfflineScannerAssignment_ShouldLeaveExactlyOneOpenEndedPrimary()
     {
         Guid stopCallId;
@@ -383,6 +487,210 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
             .Where(a => a.TripStopCallId == stopCallId && a.IsPrimaryOffline && !a.IsDeleted)
             .ToListAsync();
         primariesAtStop.Should().HaveCount(1, "request thua phải bị chặn hoàn toàn trong khoá (ConflictException từ pre-check), không để lại bản ghi chồng lấn nào");
+    }
+
+    [SqlServerDomainFact]
+    public async Task ConcurrentNonOverlappingFinitePrimaryAssignments_ShouldBothSucceed()
+    {
+        // Review (human, commit fc2fc74): khoá sp_getapplock SERIALIZE 2 request cùng TripStopCallId
+        // (chạy tuần tự bên trong khoá), nhưng KHÔNG được biến thành "chỉ 1 được phép thành công vô
+        // điều kiện" - request thứ 2 chạy SAU vẫn phải được chấp nhận nếu khoảng thời gian của nó
+        // KHÔNG chồng lấn với request đã commit trước. Test này chứng minh khoá chỉ serialize thứ
+        // tự thực thi, không tự ý biến request hợp lệ thành ConflictException.
+        Guid stopCallId;
+        Guid staffA = Guid.NewGuid(), staffB = Guid.NewGuid();
+        Guid deviceAId, deviceBId;
+        DateTimeOffset activeFrom;
+
+        await using (var seed = Context())
+        {
+            var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, _staffId, withAssignment: false);
+            stopCallId = scenario.BoardingCall.Id;
+            activeFrom = scenario.Now.AddHours(-1);
+
+            var deviceA = new ScannerDevice { DeviceCode = "DEV-NOV-A", IsActive = true };
+            var deviceB = new ScannerDevice { DeviceCode = "DEV-NOV-B", IsActive = true };
+            seed.ScannerDevices.AddRange(deviceA, deviceB);
+            await seed.SaveChangesAsync();
+            deviceAId = deviceA.Id;
+            deviceBId = deviceB.Id;
+        }
+
+        var gate = new StartGate(2);
+        // A = [activeFrom, activeFrom+1h), B = [activeFrom+2h, activeFrom+3h) - cách xa nhau, không chồng lấn.
+        async Task AssignAsync(Guid deviceId, Guid staffId, DateTimeOffset from, DateTimeOffset until)
+        {
+            await using var c = Context();
+            var request = new AssignScannerRequest(deviceId, staffId, stopCallId, true, from, until);
+            var service = Service(c, from);
+            await gate.Arrive();
+            await service.AssignScannerAsync(request, CancellationToken.None);
+        }
+
+        var results = await Task.WhenAll(
+            SafeRun(() => AssignAsync(deviceAId, staffA, activeFrom, activeFrom.AddHours(1))),
+            SafeRun(() => AssignAsync(deviceBId, staffB, activeFrom.AddHours(2), activeFrom.AddHours(3))));
+
+        results.Should().AllSatisfy(r => r.Should().BeTrue(
+            "2 Primary Offline Scanner hữu hạn KHÔNG chồng lấn giờ phải đều được chấp nhận dù khoá serialize thứ tự thực thi của chúng"));
+
+        await using var check = Context();
+        (await check.ScannerAssignments.Where(a => a.TripStopCallId == stopCallId && a.IsPrimaryOffline && !a.IsDeleted).CountAsync())
+            .Should().Be(2, "cả 2 phân công hợp lệ, không chồng lấn đều phải tồn tại");
+    }
+
+    [SqlServerDomainFact]
+    public async Task ConcurrentAdjacentFinitePrimaryAssignments_ShouldBothSucceed()
+    {
+        // Review (human, commit fc2fc74): "hai khoảng liền kề" - A kết thúc ĐÚNG lúc B bắt đầu
+        // ([ActiveFrom, ActiveUntil) nửa mở theo đúng semantics hiện có của
+        // HasOverlappingPrimaryAssignmentAsync: activeFrom < requestedEnd && (ActiveUntil ??
+        // MaxValue) > activeFrom) - đây KHÔNG được coi là chồng lấn, cả 2 phải thành công.
+        Guid stopCallId;
+        Guid staffA = Guid.NewGuid(), staffB = Guid.NewGuid();
+        Guid deviceAId, deviceBId;
+        DateTimeOffset activeFrom;
+
+        await using (var seed = Context())
+        {
+            var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, _staffId, withAssignment: false);
+            stopCallId = scenario.BoardingCall.Id;
+            activeFrom = scenario.Now.AddHours(-1);
+
+            var deviceA = new ScannerDevice { DeviceCode = "DEV-ADJ-A", IsActive = true };
+            var deviceB = new ScannerDevice { DeviceCode = "DEV-ADJ-B", IsActive = true };
+            seed.ScannerDevices.AddRange(deviceA, deviceB);
+            await seed.SaveChangesAsync();
+            deviceAId = deviceA.Id;
+            deviceBId = deviceB.Id;
+        }
+
+        var boundary = activeFrom.AddHours(1);
+        var gate = new StartGate(2);
+        // A = [activeFrom, boundary), B = [boundary, boundary+1h) - liền kề đúng tại boundary.
+        async Task AssignAsync(Guid deviceId, Guid staffId, DateTimeOffset from, DateTimeOffset until)
+        {
+            await using var c = Context();
+            var request = new AssignScannerRequest(deviceId, staffId, stopCallId, true, from, until);
+            var service = Service(c, from);
+            await gate.Arrive();
+            await service.AssignScannerAsync(request, CancellationToken.None);
+        }
+
+        var results = await Task.WhenAll(
+            SafeRun(() => AssignAsync(deviceAId, staffA, activeFrom, boundary)),
+            SafeRun(() => AssignAsync(deviceBId, staffB, boundary, boundary.AddHours(1))));
+
+        results.Should().AllSatisfy(r => r.Should().BeTrue(
+            "2 khoảng LIỀN KỀ (A kết thúc đúng lúc B bắt đầu) không phải chồng lấn theo semantics nửa mở hiện có - cả 2 phải được chấp nhận"));
+
+        await using var check = Context();
+        (await check.ScannerAssignments.Where(a => a.TripStopCallId == stopCallId && a.IsPrimaryOffline && !a.IsDeleted).CountAsync())
+            .Should().Be(2, "cả 2 phân công liền kề đều phải tồn tại");
+    }
+
+    [SqlServerDomainFact]
+    public async Task RevokeThenReassignPrimaryOnSameStop_ShouldSucceedOnRealSqlServer()
+    {
+        // Review (human, commit fc2fc74): "thu hồi rồi gán lại" trên SQL Server thật (không chỉ
+        // InMemory) - unique filtered index (ActiveUntil IS NULL) phải hết áp dụng cho bản ghi cũ
+        // NGAY SAU khi RevokeScannerAssignmentAsync gán ActiveUntil, để sp_getapplock + pre-check
+        // không chặn nhầm 1 phân công Primary vô thời hạn MỚI hợp lệ cho đúng điểm dừng đó.
+        Guid stopCallId, oldAssignmentId;
+        Guid staffOld = Guid.NewGuid(), staffNew = Guid.NewGuid();
+        DateTimeOffset activeFrom;
+
+        await using (var seed = Context())
+        {
+            var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, _staffId, withAssignment: false);
+            stopCallId = scenario.BoardingCall.Id;
+            activeFrom = scenario.Now.AddHours(-1);
+
+            var deviceOld = new ScannerDevice { DeviceCode = "DEV-REVOKE-OLD", IsActive = true };
+            seed.ScannerDevices.Add(deviceOld);
+            await seed.SaveChangesAsync();
+
+            var service = Service(seed, activeFrom);
+            var assigned = await service.AssignScannerAsync(
+                new AssignScannerRequest(deviceOld.Id, staffOld, stopCallId, true, activeFrom, null), CancellationToken.None);
+            oldAssignmentId = assigned.AssignmentId;
+        }
+
+        await using (var revokeContext = Context())
+        {
+            var service = Service(revokeContext, activeFrom.AddMinutes(30));
+            await service.RevokeScannerAssignmentAsync(oldAssignmentId, CancellationToken.None);
+        }
+
+        Guid newDeviceId;
+        await using (var seed2 = Context())
+        {
+            var deviceNew = new ScannerDevice { DeviceCode = "DEV-REVOKE-NEW", IsActive = true };
+            seed2.ScannerDevices.Add(deviceNew);
+            await seed2.SaveChangesAsync();
+            newDeviceId = deviceNew.Id;
+        }
+
+        await using var reassignContext = Context();
+        var reassignService = Service(reassignContext, activeFrom.AddMinutes(31));
+        var act = () => reassignService.AssignScannerAsync(
+            new AssignScannerRequest(newDeviceId, staffNew, stopCallId, true, activeFrom.AddMinutes(31), null), CancellationToken.None);
+
+        await act.Should().NotThrowAsync("sau khi thu hồi, điểm dừng này phải nhận lại được 1 Primary Offline Scanner vô thời hạn mới ngay");
+
+        await using var check = Context();
+        var openEndedPrimaries = await check.ScannerAssignments
+            .Where(a => a.TripStopCallId == stopCallId && a.IsPrimaryOffline && a.ActiveUntil == null && !a.IsDeleted)
+            .ToListAsync();
+        openEndedPrimaries.Should().HaveCount(1, "chỉ đúng phân công MỚI còn vô thời hạn - phân công cũ đã bị Revoke (có ActiveUntil) không còn khớp filter của index");
+        openEndedPrimaries.Single().StaffAccountId.Should().Be(staffNew);
+    }
+
+    [SqlServerDomainFact]
+    public async Task ConcurrentPrimaryAndSecondaryAssignment_ShouldBothSucceed()
+    {
+        // Review (human, commit fc2fc74): "Secondary assignment" dưới tải đồng thời - Secondary
+        // KHÔNG tham gia bất biến "chỉ 1 Primary" (AssignScannerAsync chỉ acquire khoá khi
+        // IsPrimaryOffline=true) nên phải luôn thành công cùng lúc với 1 Primary đang được gán cho
+        // ĐÚNG điểm dừng đó, không bị chặn/chờ khoá của Primary.
+        Guid stopCallId;
+        Guid staffPrimary = Guid.NewGuid(), staffSecondary = Guid.NewGuid();
+        Guid devicePrimaryId, deviceSecondaryId;
+        DateTimeOffset activeFrom;
+
+        await using (var seed = Context())
+        {
+            var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, _staffId, withAssignment: false);
+            stopCallId = scenario.BoardingCall.Id;
+            activeFrom = scenario.Now.AddHours(-1);
+
+            var devicePrimary = new ScannerDevice { DeviceCode = "DEV-SEC-PRIMARY", IsActive = true };
+            var deviceSecondary = new ScannerDevice { DeviceCode = "DEV-SEC-SECONDARY", IsActive = true };
+            seed.ScannerDevices.AddRange(devicePrimary, deviceSecondary);
+            await seed.SaveChangesAsync();
+            devicePrimaryId = devicePrimary.Id;
+            deviceSecondaryId = deviceSecondary.Id;
+        }
+
+        var gate = new StartGate(2);
+        async Task AssignAsync(Guid deviceId, Guid staffId, bool isPrimary)
+        {
+            await using var c = Context();
+            var request = new AssignScannerRequest(deviceId, staffId, stopCallId, isPrimary, activeFrom, activeFrom.AddHours(2));
+            var service = Service(c, activeFrom);
+            await gate.Arrive();
+            await service.AssignScannerAsync(request, CancellationToken.None);
+        }
+
+        var results = await Task.WhenAll(
+            SafeRun(() => AssignAsync(devicePrimaryId, staffPrimary, true)),
+            SafeRun(() => AssignAsync(deviceSecondaryId, staffSecondary, false)));
+
+        results.Should().AllSatisfy(r => r.Should().BeTrue(
+            "Secondary assignment phải luôn được chấp nhận cùng lúc với 1 Primary mới cho ĐÚNG điểm dừng đó - không bị khoá của Primary chặn/từ chối nhầm"));
+
+        await using var check = Context();
+        (await check.ScannerAssignments.Where(a => a.TripStopCallId == stopCallId && !a.IsDeleted).CountAsync()).Should().Be(2);
     }
 
     private static async Task<bool> SafeRun(Func<Task> action)
