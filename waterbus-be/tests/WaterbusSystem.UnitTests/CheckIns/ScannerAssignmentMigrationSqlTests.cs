@@ -235,12 +235,16 @@ public sealed class ScannerAssignmentMigrationSqlTests : IAsyncLifetime
 
         await using var c2 = Context();
 
-        // SqlException cụ thể với mã vi phạm unique constraint (2601 = duplicate key row, 2627 =
-        // violation of UNIQUE KEY constraint) - KHÔNG assert Exception chung để tránh che giấu 1
-        // lỗi hoàn toàn khác (vd lỗi cú pháp migration, mất kết nối) mà vẫn làm test "pass" sai ý
-        // nghĩa. Tự dò qua InnerException (không giả định EF bọc hay không bọc SqlException gốc khi
-        // 1 migration raw-SQL thất bại) để chắc chắn bắt đúng exception thật, không phụ thuộc vào
-        // chi tiết implementation của EF Core migrator.
+        // SqlException cụ thể với mã lỗi 1505 ("CREATE UNIQUE INDEX terminated because a duplicate
+        // key was found") - LƯU Ý: đây KHÁC với 2601/2627 (chỉ xảy ra khi INSERT/UPDATE vi phạm 1
+        // unique index ĐÃ TỒN TẠI từ trước, như trong EfUnitOfWork.cs cho race CHK-02/CHK-06). Ở
+        // đây tình huống ngược lại: chính câu lệnh DDL "CREATE UNIQUE INDEX" của migration phát
+        // hiện dữ liệu ĐÃ CÓ SẴN bị trùng trước khi index kịp tồn tại - SQL Server báo lỗi 1505 cho
+        // đúng trường hợp này (đã xác nhận bằng CI thật, không phải đoán). KHÔNG assert Exception
+        // chung để tránh che giấu 1 lỗi hoàn toàn khác (vd lỗi cú pháp migration, mất kết nối) mà vẫn
+        // làm test "pass" sai ý nghĩa. Tự dò qua InnerException (không giả định EF bọc hay không bọc
+        // SqlException gốc khi 1 migration raw-SQL thất bại) để chắc chắn bắt đúng exception thật,
+        // không phụ thuộc vào chi tiết implementation của EF Core migrator.
         SqlException? sqlError = null;
         try
         {
@@ -257,8 +261,8 @@ public sealed class ScannerAssignmentMigrationSqlTests : IAsyncLifetime
         sqlError.Should().NotBeNull(
             "migration tạo unique filtered index PHẢI thất bại ĐÚNG VÌ vi phạm unique constraint ở SQL Server (SqlException) - " +
             "không phải vì 1 lỗi không liên quan nào khác, và không được âm thầm xoá/sửa bản ghi lịch sử để \"qua được\"");
-        sqlError!.Number.Should().BeOneOf(new[] { 2601, 2627 },
-            "mã lỗi SQL Server phải đúng là vi phạm khoá duy nhất (2601/2627), không phải 1 loại lỗi SQL khác");
+        sqlError!.Number.Should().Be(1505,
+            "mã lỗi SQL Server phải đúng là 'CREATE UNIQUE INDEX terminated because a duplicate key was found' (1505), không phải 1 loại lỗi SQL khác");
         sqlError.Message.Should().Contain("IX_ScannerAssignments_TripStopCallId_OpenEndedPrimary",
             "lỗi phải chỉ rõ đúng tên index CHK-03 đang được tạo, xác nhận migration dừng lại tại ĐÚNG bước cần test");
 
