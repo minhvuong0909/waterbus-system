@@ -48,6 +48,27 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
         await c.Database.EnsureDeletedAsync();
     }
 
+    /// <summary>
+    /// Review PR #58: đồng bộ các task test NGAY TRƯỚC lệnh gọi service thực sự, thay vì chỉ dựa
+    /// vào Task.WhenAll khởi động "gần như cùng lúc" - Task.WhenAll không đảm bảo cả 2 task đã mở
+    /// xong DbContext/dựng xong request trước khi bên kia bắt đầu gọi service; nếu 1 bên vô tình
+    /// chạy trọn vẹn (kể cả SaveChangesAsync) trước khi bên kia bắt đầu, bên sau chỉ đơn giản thấy
+    /// existingEvent qua pre-check (nhánh KHÔNG hề chạm unique index ở DB) chứ không phải đúng race
+    /// đang muốn chứng minh (2 request cùng pass pre-check rồi cùng insert, 1 thắng 1 thua ở DB).
+    /// Arrive() chỉ trả về khi ĐỦ `parties` task đã gọi, đảm bảo khởi động đồng thời thật.
+    /// </summary>
+    private sealed class StartGate(int parties)
+    {
+        private int _arrived;
+        private readonly TaskCompletionSource _gate = new();
+
+        public Task Arrive()
+        {
+            if (Interlocked.Increment(ref _arrived) == parties) _gate.SetResult();
+            return _gate.Task;
+        }
+    }
+
     private CheckInService Service(ApplicationDbContext context, DateTimeOffset now)
     {
         var user = new Mock<ICurrentUserService>();
@@ -77,11 +98,14 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
             now = scenario.Now;
         }
 
+        var gate = new StartGate(2);
         async Task<SyncCheckInEventsResponse> RunSync()
         {
             await using var c = Context();
             var request = new SyncCheckInEventsRequest([new CheckInEventInput(ticketId, stopCallId, clientEventId, now, null)]);
-            return await Service(c, now).SyncCheckInEventsAsync(request, CancellationToken.None);
+            var service = Service(c, now);
+            await gate.Arrive();
+            return await service.SyncCheckInEventsAsync(request, CancellationToken.None);
         }
 
         // Cả 2 request đồng thời gửi CÙNG ClientEventId chưa từng thấy ở server - trước CHK-02,
@@ -172,11 +196,14 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
             ticket2Id = ticket2.Id;
         }
 
+        var gate = new StartGate(2);
         async Task<CheckInEventSyncResultResponse> RunSync(Guid ticketId)
         {
             await using var c = Context();
             var request = new SyncCheckInEventsRequest([new CheckInEventInput(ticketId, stopCallId, clientEventId, now, null)]);
-            var response = await Service(c, now).SyncCheckInEventsAsync(request, CancellationToken.None);
+            var service = Service(c, now);
+            await gate.Arrive();
+            var response = await service.SyncCheckInEventsAsync(request, CancellationToken.None);
             return response.Results.Single();
         }
 
@@ -220,11 +247,14 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
             deviceBId = deviceB.Id;
         }
 
+        var gate = new StartGate(2);
         async Task AssignAsync(Guid deviceId, Guid staffId)
         {
             await using var c = Context();
             var request = new AssignScannerRequest(deviceId, staffId, stopCallId, true, activeFrom, null);
-            await Service(c, activeFrom).AssignScannerAsync(request, CancellationToken.None);
+            var service = Service(c, activeFrom);
+            await gate.Arrive();
+            await service.AssignScannerAsync(request, CancellationToken.None);
         }
 
         // Hai request đồng thời cùng gán Primary Offline Scanner (không ActiveUntil) cho ĐÚNG 1
