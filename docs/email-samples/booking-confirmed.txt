@@ -1,0 +1,62 @@
+Subject: Vé điện tử của bạn – WB-20261107-A1, WB-20261109-B2
+
+Smart Waterbus
+Xác nhận đặt vé thành công
+==========================
+Xin chào Nguyen Van A,
+
+Thanh toán của bạn đã được hệ thống xác nhận và vé điện tử đã được phát hành. Cảm ơn bạn đã đặt vé.
+
+
+THÔNG TIN ĐƠN HÀNG
+------------------
+Mã đơn hàng: b77425e6-4501-492a-89f3-d596513795a5
+Mã đặt chỗ: WB-20261107-A1, WB-20261109-B2
+Hình thức: Khứ hồi
+Trạng thái thanh toán: Đã thanh toán
+Tổng số tiền đã thanh toán: 45.000 ₫
+
+
+CHẶNG 1: BEN BACH DANG → BEN THANH DA
+-------------------------------------
+Tuyến: Tuyen Sai Gon
+Bến lên tàu: Ben Bach Dang
+Bến xuống tàu: Ben Thanh Da
+Khởi hành dự kiến: 08:30 ngày 07/11/2026 (GMT+7)
+Đến nơi dự kiến: 09:00 ngày 07/11/2026 (GMT+7)
+Số tiền của chặng này: 30.000 ₫
+Hành khách (2):
+
+Nguyen Van A: Ghế S01 (Tieu chuan) · Vé TKWB-20261107-A11
+Hanh khach 2: Ghế S02 (Tieu chuan) · Vé TKWB-20261107-A12
+Mã QR lên tàu cho đặt chỗ WB-20261107-A1 (dùng chung cho tất cả hành khách của đặt chỗ này):
+
+[Mã QR được đính kèm trong email; hãy mở bằng ứng dụng email hỗ trợ hiển thị ảnh.]
+
+
+CHẶNG 2: BEN THANH DA → BEN BACH DANG
+-------------------------------------
+Tuyến: Tuyen Sai Gon
+Bến lên tàu: Ben Thanh Da
+Bến xuống tàu: Ben Bach Dang
+Khởi hành dự kiến: 08:30 ngày 07/11/2026 (GMT+7)
+Đến nơi dự kiến: 09:00 ngày 07/11/2026 (GMT+7)
+Số tiền của chặng này: 15.000 ₫
+Hành khách (1):
+
+Nguyen Van A: Ghế S01 (Tieu chuan) · Vé TKWB-20261109-B21
+Mã QR lên tàu cho đặt chỗ WB-20261109-B2 (dùng chung cho tất cả hành khách của đặt chỗ này):
+
+[Mã QR được đính kèm trong email; hãy mở bằng ứng dụng email hỗ trợ hiển thị ảnh.]
+
+
+CÁCH SỬ DỤNG VÉ
+---------------
+Đưa mã QR cho nhân viên soát vé khi lên tàu. Mã QR là vé của bạn — không chia sẻ cho người không đi cùng.
+
+! Hãy lưu lại mã đặt chỗ. Email này không chứa liên kết quản lý đơn; vé cũng có trong mục "Vé của tôi" trên thiết bị và trình duyệt bạn đã dùng để đặt vé (không tự mở được trên thiết bị khác).
+
+Mở "Vé của tôi" (trên thiết bị đã đặt vé): https://waterbus.example/tickets
+
+--
+Đây là email tự động từ Smart Waterbus. Vui lòng không chia sẻ nội dung email này, đặc biệt là mã QR.

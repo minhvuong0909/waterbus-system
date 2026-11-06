@@ -19,12 +19,14 @@ public sealed class ManualRefundService : IManualRefundService
     private readonly IValidator<ConfirmManualRefundRequest> _validator;
     private readonly ICurrentUserService _currentUserService;
     private readonly ICommercialTransactionRunner _transactions;
+    private readonly INotificationOutbox _notifications;
 
-    public ManualRefundService(IFinancialTransactionRepository refunds, IUnitOfWork unitOfWork, IValidator<ConfirmManualRefundRequest> validator, ICurrentUserService currentUserService, ICommercialTransactionRunner transactions)
+    public ManualRefundService(IFinancialTransactionRepository refunds, IUnitOfWork unitOfWork, IValidator<ConfirmManualRefundRequest> validator, ICurrentUserService currentUserService, ICommercialTransactionRunner transactions, INotificationOutbox notifications)
     {
         _refunds = refunds; _unitOfWork = unitOfWork; _validator = validator;
         _currentUserService = currentUserService;
         _transactions = transactions;
+        _notifications = notifications;
     }
 
     public async Task<ConfirmManualRefundResultDto> ConfirmAsync(
@@ -85,6 +87,7 @@ public sealed class ManualRefundService : IManualRefundService
         refund.GatewayReference = request.GatewayReference ?? refund.GatewayReference;
         refund.CompletedAt = DateTimeOffset.UtcNow;
         refund.FailureReason = null;
+        await _notifications.EnqueueRefundSucceededAsync(refund.Id, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
