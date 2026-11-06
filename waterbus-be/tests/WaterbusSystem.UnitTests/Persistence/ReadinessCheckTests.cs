@@ -10,6 +10,7 @@ using Xunit;
 namespace WaterbusSystem.UnitTests.Persistence;
 
 /// <summary>Audit M07: API chỉ "ready" khi kết nối được SQL và schema đã áp dụng đủ migration.</summary>
+[Collection(WaterbusSystem.UnitTests.Domain.SqlCollections.Serial)]
 public sealed class ReadinessCheckTests
 {
     private static string? ServerConnection() => Environment.GetEnvironmentVariable("WATERBUS_TEST_SQLSERVER");

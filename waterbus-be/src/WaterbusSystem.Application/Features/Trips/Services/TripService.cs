@@ -27,7 +27,9 @@ public sealed class TripService(
     ICurrentUserService currentUser,
     IDateTimeService dateTime,
     IOperationsAlertPublisher publisher,
-    IUserDirectory users) : ITripService
+    IUserDirectory users,
+    INotificationOutbox notifications,
+    ICommercialTransactionRunner transactions) : ITripService
 {
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
 
@@ -226,7 +228,22 @@ public sealed class TripService(
             RecordDecision(decision, request.Operation, userId.Value, now);
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        if (next is TripStatus.Cancelled or TripStatus.Terminated)
+        {
+            // Cùng khoá thương mại với xác nhận thanh toán: IPN không thể xác nhận vé giữa lúc huỷ chuyến và tạo
+            // thông báo. Outbox được ghi trong cùng transaction với việc đổi trạng thái (commit xong mới có email).
+            var type = next == TripStatus.Cancelled ? EmailNotificationType.TripCancelled : EmailNotificationType.TripTerminated;
+            await transactions.RunAsync(async () =>
+            {
+                await notifications.EnqueueTripDisruptionAsync(trip.Id, type, cancellationToken);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+                return true;
+            }, cancellationToken);
+        }
+        else
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
 
         // Chỉ phát sau khi đã lưu thành công
         await publisher.PublishTripStatusChangedAsync(

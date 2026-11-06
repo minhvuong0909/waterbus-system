@@ -18,6 +18,7 @@ using Xunit;
 
 namespace WaterbusSystem.UnitTests.Bookings;
 
+[Collection(SqlCollections.Serial)]
 public sealed class CommercialSqlTests : IAsyncLifetime
 {
     private string? _connection;

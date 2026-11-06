@@ -554,3 +554,30 @@ public class AudioGuideConfiguration : IEntityTypeConfiguration<AudioGuide>
         builder.Property(x => x.RowVersion).IsRowVersion();
     }
 }
+
+public class EmailOutboxMessageConfiguration : IEntityTypeConfiguration<EmailOutboxMessage>
+{
+    public void Configure(EntityTypeBuilder<EmailOutboxMessage> builder)
+    {
+        builder.ToTable("EmailOutbox");
+        // Chốt chặn idempotency cuối cùng: một sự kiện nghiệp vụ = một thông báo logic.
+        builder.HasIndex(x => x.EventKey).IsUnique().HasDatabaseName("UX_EmailOutbox_EventKey");
+        // Truy vấn dispatch của worker (Pending/Failed đến hạn, Processing hết lease).
+        builder.HasIndex(x => new { x.Status, x.NextAttemptAt }).HasDatabaseName("IX_EmailOutbox_Dispatch");
+        builder.HasIndex(x => x.OrderId).HasDatabaseName("IX_EmailOutbox_OrderId");
+        builder.Property(x => x.EventKey).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.NotificationType).HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(x => x.RecipientEmail).HasMaxLength(254).IsRequired();
+        builder.Property(x => x.RecipientName).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.ProviderMessageId).HasMaxLength(200);
+        builder.Property(x => x.LastError).HasMaxLength(500);
+        // Không FK cứng tới Order/Booking/Refund: outbox là nhật ký tham chiếu, không được chặn/cascade nghiệp vụ.
+        builder.Property(x => x.RowVersion).IsRowVersion();
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_EmailOutbox_Status", "[Status] IN ('Pending', 'Processing', 'Sent', 'Failed', 'DeadLetter', 'Skipped')");
+            t.HasCheckConstraint("CK_EmailOutbox_Attempts", "[AttemptCount] >= 0");
+        });
+    }
+}

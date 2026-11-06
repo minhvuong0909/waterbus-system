@@ -20,12 +20,14 @@ public sealed class RefundRequestService : IRefundRequestService
     private readonly IValidator<RequestRefundRequest> _validator;
     private readonly IEnumerable<IRefundGateway> _refundGateways;
     private readonly ICommercialTransactionRunner _transactions;
+    private readonly INotificationOutbox _notifications;
 
-    public RefundRequestService(IFinancialTransactionRepository refunds, IBookingRepository bookings, IUnitOfWork unitOfWork, IValidator<RequestRefundRequest> validator, IEnumerable<IRefundGateway> refundGateways, ICommercialTransactionRunner transactions)
+    public RefundRequestService(IFinancialTransactionRepository refunds, IBookingRepository bookings, IUnitOfWork unitOfWork, IValidator<RequestRefundRequest> validator, IEnumerable<IRefundGateway> refundGateways, ICommercialTransactionRunner transactions, INotificationOutbox notifications)
     {
         _refunds = refunds; _bookings = bookings; _unitOfWork = unitOfWork; _validator = validator;
         _refundGateways = refundGateways;
         _transactions = transactions;
+        _notifications = notifications;
     }
 
     public async Task<RequestRefundResultDto> RequestAsync(RequestRefundRequest request, CancellationToken cancellationToken = default)
@@ -43,6 +45,8 @@ public sealed class RefundRequestService : IRefundRequestService
                 var current = await _refunds.GetRefundForUpdateAsync(prepared.Refund.Id, cancellationToken);
                 if (current.Status != FinancialTransactionStatus.Processing) return true;
                 ApplyGatewayOutcome(current, outcome, DateTimeOffset.UtcNow);
+                if (current.Status == FinancialTransactionStatus.Succeeded)
+                    await _notifications.EnqueueRefundSucceededAsync(current.Id, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 return true;
             }, cancellationToken);

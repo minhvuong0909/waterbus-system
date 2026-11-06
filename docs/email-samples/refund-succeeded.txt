@@ -1,0 +1,36 @@
+Subject: Hoàn tiền thành công 15.000 ₫ – WB-20261109-B2
+
+Smart Waterbus
+Hoàn tiền thành công
+====================
+Xin chào Nguyen Van A,
+
+Khoản hoàn tiền dưới đây đã được xác nhận hoàn tất thành công.
+
+
+CHI TIẾT HOÀN TIỀN
+------------------
+Mã đơn hàng: 2d005710-fe93-4e6c-88e2-3944fe429635
+Mã đặt chỗ được hoàn: WB-20261109-B2
+Trạng thái hoàn tiền: Thành công
+Số tiền đã hoàn: 15.000 ₫
+Loại hoàn tiền: Hoàn một phần (đơn hàng đã thanh toán 45.000 ₫)
+Mã giao dịch hoàn tiền: 14123456
+Hoàn tất lúc: 08:30 ngày 08/11/2026 (GMT+7)
+
+
+ĐẶT CHỖ BỊ ẢNH HƯỞNG
+--------------------
+Tuyến: Tuyen Sai Gon
+Bến lên tàu: Ben Thanh Da
+Bến xuống tàu: Ben Bach Dang
+Khởi hành dự kiến: 08:30 ngày 07/11/2026 (GMT+7)
+Đến nơi dự kiến: 09:00 ngày 07/11/2026 (GMT+7)
+Hành khách (1):
+
+Nguyen Van A: Ghế S01 (Tieu chuan) · Vé TKWB-20261109-B21 · 15.000 ₫
+! Thời gian tiền hiển thị trong tài khoản/ thẻ của bạn phụ thuộc vào ngân hàng hoặc đơn vị phát hành thẻ.
+
+
+--
+Đây là email tự động từ Smart Waterbus. Vui lòng không chia sẻ nội dung email này, đặc biệt là mã QR.

@@ -2,8 +2,8 @@ import { CopyButton, Icon } from '../../../components/ui'
 import { t } from '../../../i18n'
 
 /**
- * Manage Order secure link của đơn (BR-ID-02). Backend chưa gửi email nên đây là cách duy nhất để
- * Guest mở lại vé từ thiết bị khác; ai có link đều xem được đơn nên nhắc khách giữ riêng.
+ * Manage Order secure link của đơn (BR-ID-02). Email xác nhận cố ý KHÔNG chứa link này (không gửi token truy cập
+ * qua email) nên đây vẫn là cách duy nhất để Guest mở lại vé từ thiết bị khác; ai có link đều xem được đơn nên nhắc khách giữ riêng.
  */
 export default function ManageLinkCard({ url }: { url: string }) {
   return (

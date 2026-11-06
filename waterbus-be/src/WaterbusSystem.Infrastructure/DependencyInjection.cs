@@ -40,6 +40,9 @@ using WaterbusSystem.Infrastructure.Services.Tts;
 using WaterbusSystem.Infrastructure.Services.Tracking;
 using WaterbusSystem.Infrastructure.Services.SightseeingAudio;
 using WaterbusSystem.Infrastructure.Services.Weather;
+using WaterbusSystem.Infrastructure.Services.Email;
+using WaterbusSystem.Application.Features.Notifications;
+using Microsoft.Extensions.Options;
 
 namespace WaterbusSystem.Infrastructure;
 
@@ -279,6 +282,20 @@ public static class DependencyInjection
         services.AddScoped<NoShowFinalizationJob>();
         services.Configure<NoShowFinalizationOptions>(configuration.GetSection(NoShowFinalizationOptions.SectionName));
         services.Configure<OfflineCheckInReconciliationOptions>(configuration.GetSection(OfflineCheckInReconciliationOptions.SectionName));
+
+        // 8.2 Email giao dịch: transactional outbox (SQL) + worker Hangfire + SMTP (MailKit). Mặc định TẮT.
+        // Cấu hình sai khi Email:Enabled=true làm host không khởi động (ValidateOnStart), không fallback ngầm.
+        services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        services.AddSingleton<IValidateOptions<EmailOptions>, EmailOptionsValidator>();
+        services.AddOptions<EmailOptions>().Bind(configuration.GetSection(EmailOptions.SectionName)).ValidateOnStart();
+        services.AddScoped<IEmailOutboxRepository, EmailOutboxRepository>();
+        services.AddScoped<INotificationDataRepository, NotificationDataRepository>();
+        services.AddScoped<INotificationOutbox, NotificationOutbox>();
+        services.AddScoped<NotificationEmailComposer>();
+        services.AddScoped<IEmailOutboxProcessor, EmailOutboxProcessor>();
+        services.AddScoped<IEmailTransport, MailKitEmailTransport>();
+        services.AddSingleton<IQrImageRenderer, QrCoderImageRenderer>();
+        services.AddScoped<EmailOutboxJob>();
 
         services.Configure<WeatherOptions>(configuration.GetSection(WeatherOptions.SectionName));
         var weatherProvider = configuration[$"{WeatherOptions.SectionName}:Provider"];

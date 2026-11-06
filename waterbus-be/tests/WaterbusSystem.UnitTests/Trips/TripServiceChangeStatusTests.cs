@@ -36,7 +36,7 @@ public class TripServiceChangeStatusTests
     }
 
     private TripService Service() => new(new TripRepository(_context), new IncidentRepository(_context), new EfUnitOfWork(_context),
-        _user.Object, _clock.Object, _publisher.Object, Mock.Of<IUserDirectory>());
+        _user.Object, _clock.Object, _publisher.Object, Mock.Of<IUserDirectory>(), TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner());
 
     private void AsAdmin() { _user.Setup(u => u.UserId).Returns(_adminId.ToString()); _user.Setup(u => u.UserRole).Returns("Admin"); }
     private void AsCaptain(Guid? id = null) { _user.Setup(u => u.UserId).Returns((id ?? _captainId).ToString()); _user.Setup(u => u.UserRole).Returns("Captain"); }

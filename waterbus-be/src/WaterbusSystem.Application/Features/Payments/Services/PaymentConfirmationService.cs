@@ -3,6 +3,7 @@ using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Bookings.Services;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 
@@ -17,14 +18,15 @@ public sealed class PaymentConfirmationService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IVnPayService _gateway;
     private readonly ICommercialTransactionRunner _transactions;
+    private readonly INotificationOutbox _notifications;
     private readonly ICheckoutSessionService? _sessions;
     private readonly ISeatEventPublisher? _events;
     public PaymentConfirmationService(IFinancialTransactionRepository payments, IBookingRepository bookings, IUnitOfWork unitOfWork, IVnPayService vnPayService,
-        ICommercialTransactionRunner transactions, ICheckoutSessionService? checkoutSessionService = null,
+        ICommercialTransactionRunner transactions, INotificationOutbox notifications, ICheckoutSessionService? checkoutSessionService = null,
         ISeatEventPublisher? events = null)
     {
         _payments = payments; _bookings = bookings; _unitOfWork = unitOfWork; _gateway = vnPayService; _sessions = checkoutSessionService;
-        _transactions = transactions; _events = events;
+        _transactions = transactions; _notifications = notifications; _events = events;
     }
 
     public async Task<VnPayIpnResultDto> ConfirmIpnAsync(IReadOnlyDictionary<string, string> query, CancellationToken ct)
@@ -111,6 +113,8 @@ public sealed class PaymentConfirmationService
                     }
                 }
                 eventStatus = "Sold";
+                // Outbox: cùng transaction với việc xác nhận Order/Ticket; gửi thật do worker làm sau khi commit.
+                await _notifications.EnqueueBookingConfirmedAsync(order.Id, ct);
             }
             await _unitOfWork.SaveChangesAsync(ct);
             return new VnPayIpnResultDto("00", "Confirm Success");

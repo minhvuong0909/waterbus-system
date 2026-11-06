@@ -13,7 +13,7 @@ using ValidationException = WaterbusSystem.Application.Common.Exceptions.Validat
 namespace WaterbusSystem.Application.Features.Refunds.Services;
 
 public sealed class RefundReconciliationService(IFinancialTransactionRepository refunds, IUnitOfWork unitOfWork,
-    IVnPayService gateway, ICommercialTransactionRunner transactions) : IRefundReconciliationService
+    IVnPayService gateway, ICommercialTransactionRunner transactions, INotificationOutbox notifications) : IRefundReconciliationService
 {
     public async Task<string> ReconcileAsync(Guid refundId, string ipAddress, CancellationToken ct = default)
     {
@@ -33,6 +33,7 @@ public sealed class RefundReconciliationService(IFinancialTransactionRepository 
             {
                 refund.Status = FinancialTransactionStatus.Succeeded; refund.CompletedAt = DateTimeOffset.UtcNow;
                 refund.FailureReason = null;
+                await notifications.EnqueueRefundSucceededAsync(refund.Id, ct);
             }
             else if (matches && response.TransactionStatus == "09")
             {
