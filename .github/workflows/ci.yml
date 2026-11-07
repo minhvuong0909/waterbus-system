@@ -87,9 +87,12 @@ jobs:
       # định không bao giờ đổi nên baseline luôn đúng ý nghĩa dù main tiến lên bao nhiêu commit sau.
       # checkout mặc định chỉ fetch 1 commit nên phải fetch riêng SHA đó, rồi dùng git worktree
       # + dotnet-ef build/migrate TỪ CHÍNH code tại SHA đó (không load chung assembly vào process
-      # test để tránh xung đột nạp 2 bản cùng tên WaterbusSystem.Infrastructure.dll).
+      # test để tránh xung đột nạp 2 bản cùng tên WaterbusSystem.Infrastructure.dll). Dùng FULL SHA
+      # (không viết tắt 7 ký tự) cho lệnh fetch - GitHub từ chối "couldn't find remote ref" với SHA
+      # viết tắt vì object chưa có trong repo local để git tự giải nghĩa; git worktree add thì chấp
+      # nhận cả 2 dạng sau khi đã fetch, nhưng giữ full SHA xuyên suốt cho nhất quán.
       - name: Fetch pinned main baseline commit for migration-baseline test
-        run: git fetch origin bb1bf0c --depth=1
+        run: git fetch origin bb1bf0c2f39cf0b2ee77e099d0afae6e4ec6ab26 --depth=1
 
       - name: Build migration baseline databases from the pinned main commit's real code
         working-directory: .
@@ -97,7 +100,7 @@ jobs:
           set -e
           dotnet tool install --global dotnet-ef --version 8.0.10
           export PATH="$PATH:$HOME/.dotnet/tools"
-          MAIN_BASELINE_SHA="bb1bf0c"
+          MAIN_BASELINE_SHA="bb1bf0c2f39cf0b2ee77e099d0afae6e4ec6ab26"
           git worktree add --detach /tmp/waterbus-main "$MAIN_BASELINE_SHA"
           CONN_BASE="Server=localhost,1433;User Id=sa;Password=Ci_Test_Passw0rd!;TrustServerCertificate=True;MultipleActiveResultSets=true"
           BASELINE_MIGRATION="20261012003336_AddBoatPositionEventIndex"
