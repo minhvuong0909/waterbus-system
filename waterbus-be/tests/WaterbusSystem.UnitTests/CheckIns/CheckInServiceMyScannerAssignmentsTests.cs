@@ -32,6 +32,7 @@ public class CheckInServiceMyScannerAssignmentsTests
 
         return new CheckInService(new CheckInRepository(context), new WaterbusSystem.Infrastructure.Persistence.EfUnitOfWork(context),
             user.Object, clock.Object, new CheckInProcessor(new CheckInRepository(context)),
+            new WaterbusSystem.Infrastructure.Persistence.SqlScannerAssignmentLock(context),
             Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
     }
 
