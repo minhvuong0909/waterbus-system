@@ -16,13 +16,20 @@ namespace WaterbusSystem.UnitTests.CheckIns;
 /// PR #59 (EmailOutbox), không chỉ DB tạo mới" - rồi sau đó: "dựng database bằng migration assembly
 /// CỦA CHÍNH origin/main, rồi áp migration từ nhánh #58 lên trên, xác nhận dữ liệu/index giữ đúng".
 ///
-/// 2 database baseline (WaterbusDomainTests_MainBaselineValid/Duplicate) được CI dựng THẬT bằng
-/// `dotnet ef database update` chạy TRÊN CODE CỦA origin/main (qua git worktree, xem
-/// .github/workflows/ci.yml bước "Build migration baseline databases from origin/main's real
-/// code") - KHÔNG migrate bằng cách target 1 ID cũ trong assembly của nhánh này (dù 2 cách cho
-/// cùng kết quả vì migration đã merge không bao giờ bị sửa - AGENTS.md - nhưng reviewer muốn xác
-/// nhận bằng chính code thật của main, không chỉ bằng suy luận tương đương). 2 connection string
-/// được CI ghi vào $GITHUB_ENV, đọc qua WATERBUS_TEST_MAIN_BASELINE_VALID/DUPLICATE ở đây.
+/// 3 database baseline được CI dựng THẬT bằng `dotnet ef database update` chạy TRÊN CODE CỦA
+/// origin/main (qua git worktree, xem .github/workflows/ci.yml bước "Build migration baseline
+/// databases from origin/main's real code") - KHÔNG migrate bằng cách target 1 ID cũ trong assembly
+/// của nhánh này (dù 2 cách cho cùng kết quả vì migration đã merge không bao giờ bị sửa -
+/// AGENTS.md - nhưng reviewer muốn xác nhận bằng chính code thật của main, không chỉ bằng suy luận
+/// tương đương):
+/// - WaterbusDomainTests_MainBaselineValid/Duplicate: migrate main tới ĐÚNG mốc trước cả 2 PR
+///   (20261012003336_AddBoatPositionEventIndex) - mô phỏng "chưa chạy PR #58 lẫn #59".
+/// - WaterbusDomainTests_MainBaselineAfterEmailOutbox: migrate main tới LATEST của chính main (hiện
+///   là AddEmailOutbox) - mô phỏng "main đã chạy PR #59 (EmailOutbox) nhưng CHƯA chạy PR #58", để
+///   xác nhận 2 migration ScannerAssignment của PR #58 (1 trong đó có timestamp SỚM HƠN
+///   AddEmailOutbox, dù áp dụng SAU nó trên môi trường này) vẫn áp đúng, không mất dữ liệu.
+/// 3 connection string được CI ghi vào $GITHUB_ENV, đọc qua WATERBUS_TEST_MAIN_BASELINE_VALID/
+/// DUPLICATE/AFTER_EMAILOUTBOX ở đây.
 ///
 /// KHÔNG tự load 1 bản WaterbusSystem.Infrastructure.dll khác của main vào CHÍNH process test này
 /// (sẽ xung đột nạp 2 assembly cùng tên/cùng type identity mà EF Core dùng reflection để khớp model)
@@ -60,14 +67,15 @@ public sealed class ScannerAssignmentMigrationSqlTests
             }
             else if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(envVar)))
             {
-                Skip = $"Set {envVar} to a database already migrated to {LastMigrationBeforeBothPRs} using origin/main's " +
-                       "real code (CI builds this via git worktree + dotnet ef - see .github/workflows/ci.yml).";
+                Skip = $"Set {envVar} to a database already migrated using origin/main's real code " +
+                       "(CI builds this via git worktree + dotnet ef - see .github/workflows/ci.yml).";
             }
         }
     }
 
     private sealed class MainBaselineValidFactAttribute() : MainBaselineFactAttribute("WATERBUS_TEST_MAIN_BASELINE_VALID");
     private sealed class MainBaselineDuplicateFactAttribute() : MainBaselineFactAttribute("WATERBUS_TEST_MAIN_BASELINE_DUPLICATE");
+    private sealed class MainBaselineAfterEmailOutboxFactAttribute() : MainBaselineFactAttribute("WATERBUS_TEST_MAIN_BASELINE_AFTER_EMAILOUTBOX");
 
     private static ApplicationDbContext Context(string connectionString) =>
         new(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(connectionString).Options);
@@ -215,6 +223,79 @@ public sealed class ScannerAssignmentMigrationSqlTests
             filteredIndex.Should().NotBeNull("index filtered unique (CHK-03) phải tồn tại sau khi nâng cấp");
             filteredIndex!.IsUnique.Should().BeTrue("index CHK-03 phải là UNIQUE - đây chính là ràng buộc chặn race Primary vô thời hạn");
             filteredIndex.FilterDefinition.Should().NotBeNullOrEmpty("index CHK-03 phải có filter - chỉ áp dụng cho Primary vô thời hạn, chưa xoá");
+            filteredIndex.FilterDefinition.Should().Contain("IsPrimaryOffline").And.Contain("ActiveUntil").And.Contain("IsDeleted");
+        }
+        finally
+        {
+            await CleanupBaselineDatabaseAsync(connectionString);
+        }
+    }
+
+    [MainBaselineAfterEmailOutboxFact]
+    public async Task UpgradingFromMainsFullLatest_WithExistingValidData_ShouldApplyBothOutOfChronologicalOrderMigrationsCorrectly()
+    {
+        // Review (human): không chỉ kiểm từ mốc TRƯỚC cả 2 PR - còn phải kiểm từ 1 DB đã chạy TOÀN
+        // BỘ migration thật của main (bao gồm AddEmailOutbox của PR #59), rồi mới áp 2 migration
+        // ScannerAssignment của PR #58 lên trên. Đây là tình huống "ngược thời gian" thật sẽ xảy ra
+        // khi deploy: AddScannerAssignmentOpenEndedPrimaryUniqueIndex (20261106031430) có ID/
+        // timestamp NHỎ HƠN AddEmailOutbox (20261106042025) dù được ÁP DỤNG SAU nó trên môi trường
+        // này (vì AddEmailOutbox đã nằm trong main từ trước, còn 2 migration ScannerAssignment chỉ
+        // mới pending). EF Core áp các migration PENDING theo thứ tự ID của riêng chúng (không cần
+        // "liền mạch" với các migration ĐÃ áp dụng từ trước) - test này xác nhận điều đó hoạt động
+        // đúng trong thực tế, không chỉ về lý thuyết.
+        var connectionString = Environment.GetEnvironmentVariable("WATERBUS_TEST_MAIN_BASELINE_AFTER_EMAILOUTBOX")!;
+        try
+        {
+            Guid stopCallId, assignmentId;
+            await using (var seed = Context(connectionString))
+            {
+                var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, Guid.NewGuid(), withAssignment: false);
+                stopCallId = scenario.BoardingCall.Id;
+                var device = new ScannerDevice { DeviceCode = "DEV-AFTER-EMAILOUTBOX", IsActive = true };
+                seed.ScannerDevices.Add(device);
+                await seed.SaveChangesAsync();
+
+                var assignment = new ScannerAssignment
+                {
+                    DeviceId = device.Id, StaffAccountId = Guid.NewGuid(), TripStopCallId = stopCallId,
+                    IsPrimaryOffline = true, ActiveFrom = scenario.Now.AddHours(-1), ActiveUntil = null
+                };
+                seed.ScannerAssignments.Add(assignment);
+                await seed.SaveChangesAsync();
+                assignmentId = assignment.Id;
+            }
+
+            // DB nguồn đã có EmailOutbox từ trước (schema THẬT của main.latest) - nâng cấp bằng
+            // assembly của nhánh này chỉ còn đúng 2 migration ScannerAssignment là pending.
+            await using (var c = Context(connectionString))
+            {
+                var pendingBeforeUpgrade = (await c.Database.GetPendingMigrationsAsync()).ToList();
+                pendingBeforeUpgrade.Should().Equal(
+                    "20261106031430_AddScannerAssignmentOpenEndedPrimaryUniqueIndex",
+                    "20261106090321_RestoreScannerAssignmentTripStopCallIdIndex");
+
+                await c.Database.MigrateAsync();
+                (await c.Database.GetPendingMigrationsAsync()).Should().BeEmpty();
+            }
+
+            await using var check = Context(connectionString);
+            (await check.ScannerAssignments.FindAsync(assignmentId)).Should().NotBeNull(
+                "dữ liệu ScannerAssignment đã tồn tại TRƯỚC 2 migration mới (trên schema main.latest thật) phải còn nguyên sau khi nâng cấp");
+
+            (await TableExistsAsync(check, "EmailOutbox")).Should().BeTrue(
+                "bảng EmailOutbox của PR #59 (đã có từ trước) phải còn nguyên sau khi áp thêm 2 migration ScannerAssignment");
+
+            var indexes = await IndexesOnScannerAssignmentsAsync(check);
+
+            var generalIndex = indexes.SingleOrDefault(i => i.Name == "IX_ScannerAssignments_TripStopCallId");
+            generalIndex.Should().NotBeNull("index chung (mọi bản ghi) phải tồn tại sau khi nâng cấp");
+            generalIndex!.IsUnique.Should().BeFalse("index chung KHÔNG được là unique");
+            generalIndex.FilterDefinition.Should().BeNull("index chung không được có filter");
+
+            var filteredIndex = indexes.SingleOrDefault(i => i.Name == "IX_ScannerAssignments_TripStopCallId_OpenEndedPrimary");
+            filteredIndex.Should().NotBeNull("index filtered unique (CHK-03) phải tồn tại sau khi nâng cấp");
+            filteredIndex!.IsUnique.Should().BeTrue("index CHK-03 phải là UNIQUE");
+            filteredIndex.FilterDefinition.Should().NotBeNullOrEmpty("index CHK-03 phải có filter");
             filteredIndex.FilterDefinition.Should().Contain("IsPrimaryOffline").And.Contain("ActiveUntil").And.Contain("IsDeleted");
         }
         finally

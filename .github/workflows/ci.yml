@@ -101,9 +101,17 @@ jobs:
           (cd /tmp/waterbus-main/waterbus-be && dotnet ef database update "$BASELINE_MIGRATION" \
             --project src/WaterbusSystem.Infrastructure --startup-project src/WaterbusSystem.WebApi \
             --connection "$CONN_BASE;Initial Catalog=WaterbusDomainTests_MainBaselineDuplicate")
+          # Review (human): cũng xác nhận đường nâng cấp khi DB đã chạy TOÀN BỘ migration của main
+          # (bao gồm AddEmailOutbox của PR #59, tức migration PR #58 đầu tiên - timestamp 031430 -
+          # sẽ bị áp SAU EmailOutbox về mặt thời gian thật dù ID nhỏ hơn) - không chỉ từ mốc trước cả
+          # 2 PR. Không truyền target = migrate tới LATEST của chính main (đang là AddEmailOutbox).
+          (cd /tmp/waterbus-main/waterbus-be && dotnet ef database update \
+            --project src/WaterbusSystem.Infrastructure --startup-project src/WaterbusSystem.WebApi \
+            --connection "$CONN_BASE;Initial Catalog=WaterbusDomainTests_MainBaselineAfterEmailOutbox")
           git worktree remove /tmp/waterbus-main --force
           echo "WATERBUS_TEST_MAIN_BASELINE_VALID=$CONN_BASE;Initial Catalog=WaterbusDomainTests_MainBaselineValid" >> "$GITHUB_ENV"
           echo "WATERBUS_TEST_MAIN_BASELINE_DUPLICATE=$CONN_BASE;Initial Catalog=WaterbusDomainTests_MainBaselineDuplicate" >> "$GITHUB_ENV"
+          echo "WATERBUS_TEST_MAIN_BASELINE_AFTER_EMAILOUTBOX=$CONN_BASE;Initial Catalog=WaterbusDomainTests_MainBaselineAfterEmailOutbox" >> "$GITHUB_ENV"
 
       - name: Test
         run: >-
