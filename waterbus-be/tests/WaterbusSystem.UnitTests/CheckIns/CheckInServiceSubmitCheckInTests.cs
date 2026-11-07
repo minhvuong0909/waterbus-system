@@ -35,6 +35,7 @@ public class CheckInServiceSubmitCheckInTests
 
         return new CheckInService(new CheckInRepository(context), new EfUnitOfWork(context),
             user.Object, clock.Object, new CheckInProcessor(new CheckInRepository(context)),
+            new SqlScannerAssignmentLock(context),
             Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
     }
 

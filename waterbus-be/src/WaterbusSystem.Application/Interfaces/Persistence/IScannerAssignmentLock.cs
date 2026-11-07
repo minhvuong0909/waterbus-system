@@ -1,0 +1,16 @@
+namespace WaterbusSystem.Application.Interfaces.Persistence;
+
+/// <summary>
+/// Review PR #58 (High - "Enforce the complete Primary Offline Scanner overlap invariant"): loại
+/// trừ lẫn nhau giữa các request đồng thời cùng gán Primary Offline Scanner cho ĐÚNG 1
+/// TripStopCall. Check-then-insert (HasOverlappingPrimaryAssignmentAsync rồi mới Add) không tự
+/// chặn được 2 request cùng pass bước kiểm tra trước khi bên nào insert xong; unique filtered
+/// index ở DB (CHK-03) chỉ phủ đúng trường hợp Primary vô thời hạn (ActiveUntil IS NULL), không
+/// phủ 2 khoảng hữu hạn (có ActiveUntil) chồng lấn giờ. Khoá theo TripStopCallId (khác điểm dừng
+/// không chặn chéo nhau) giữ suốt từ lúc kiểm tra overlap tới khi SaveChangesAsync commit/rollback.
+/// </summary>
+public interface IScannerAssignmentLock
+{
+    /// <returns>Lease để giải phóng khoá, hoặc null nếu hết thời gian chờ mà request khác vẫn đang giữ khoá.</returns>
+    Task<IAsyncDisposable?> TryAcquireAsync(Guid tripStopCallId, TimeSpan wait, CancellationToken cancellationToken = default);
+}

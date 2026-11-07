@@ -27,6 +27,7 @@ public class CheckInServiceRevokeScannerAssignmentTests
         clock.Setup(x => x.Now).Returns(now);
         return new CheckInService(new CheckInRepository(context), new WaterbusSystem.Infrastructure.Persistence.EfUnitOfWork(context),
             Mock.Of<ICurrentUserService>(), clock.Object, new CheckInProcessor(new CheckInRepository(context)),
+            new WaterbusSystem.Infrastructure.Persistence.SqlScannerAssignmentLock(context),
             Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
     }
 

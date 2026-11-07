@@ -74,6 +74,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IWeatherGuardRunLock, SqlWeatherGuardRunLock>();
+        services.AddScoped<IScannerAssignmentLock, SqlScannerAssignmentLock>();
         services.AddScoped<IRouteRepository, RouteRepository>();
         services.AddScoped<ITripRepository, TripRepository>();
         services.AddScoped<IBoatRepository, BoatRepository>();
