@@ -77,22 +77,31 @@ jobs:
       - name: Build
         run: dotnet build WaterbusSystem.sln --no-restore -c Release
 
-      # ScannerAssignmentMigrationSqlTests cần 2 database đã migrate THẬT bằng code của chính
-      # origin/main (không phải "migrate tới 1 ID cũ bằng assembly nhánh này") để kiểm tra đường
-      # nâng cấp lên migration mới của nhánh này là đúng 100% với schema main thực tế đang chạy -
-      # checkout mặc định chỉ fetch 1 commit nên phải fetch origin/main riêng, rồi dùng git worktree
-      # + dotnet-ef build/migrate TỪ CHÍNH code của main (không load chung assembly vào process test
-      # để tránh xung đột nạp 2 bản cùng tên WaterbusSystem.Infrastructure.dll).
-      - name: Fetch origin/main for migration-baseline test
-        run: git fetch origin main --depth=1
+      # ScannerAssignmentMigrationSqlTests cần 2-3 database đã migrate THẬT bằng code của một
+      # điểm lịch sử CỐ ĐỊNH trên main (không phải "migrate tới 1 ID cũ bằng assembly nhánh này")
+      # để kiểm tra đường nâng cấp lên migration mới của nhánh này là đúng 100% với schema main
+      # thực tế đang chạy. Dùng SHA cố định bb1bf0c (main ngay sau PR #59 AddEmailOutbox, ngay
+      # trước PR #58) thay vì origin/main - origin/main là ref DI ĐỘNG: khi PR #58 đã merge vào
+      # main, origin/main không còn đại diện cho "trước PR #58" nữa, làm sai lệch baseline và từng
+      # khiến CI đỏ (hotfix fix/scanner-assignment-migration-test-pinned-baseline). SHA lịch sử cố
+      # định không bao giờ đổi nên baseline luôn đúng ý nghĩa dù main tiến lên bao nhiêu commit sau.
+      # checkout mặc định chỉ fetch 1 commit nên phải fetch riêng SHA đó, rồi dùng git worktree
+      # + dotnet-ef build/migrate TỪ CHÍNH code tại SHA đó (không load chung assembly vào process
+      # test để tránh xung đột nạp 2 bản cùng tên WaterbusSystem.Infrastructure.dll). Dùng FULL SHA
+      # (không viết tắt 7 ký tự) cho lệnh fetch - GitHub từ chối "couldn't find remote ref" với SHA
+      # viết tắt vì object chưa có trong repo local để git tự giải nghĩa; git worktree add thì chấp
+      # nhận cả 2 dạng sau khi đã fetch, nhưng giữ full SHA xuyên suốt cho nhất quán.
+      - name: Fetch pinned main baseline commit for migration-baseline test
+        run: git fetch origin bb1bf0c2f39cf0b2ee77e099d0afae6e4ec6ab26 --depth=1
 
-      - name: Build migration baseline databases from origin/main's real code
+      - name: Build migration baseline databases from the pinned main commit's real code
         working-directory: .
         run: |
           set -e
           dotnet tool install --global dotnet-ef --version 8.0.10
           export PATH="$PATH:$HOME/.dotnet/tools"
-          git worktree add --detach /tmp/waterbus-main origin/main
+          MAIN_BASELINE_SHA="bb1bf0c2f39cf0b2ee77e099d0afae6e4ec6ab26"
+          git worktree add --detach /tmp/waterbus-main "$MAIN_BASELINE_SHA"
           CONN_BASE="Server=localhost,1433;User Id=sa;Password=Ci_Test_Passw0rd!;TrustServerCertificate=True;MultipleActiveResultSets=true"
           BASELINE_MIGRATION="20261012003336_AddBoatPositionEventIndex"
           (cd /tmp/waterbus-main/waterbus-be && dotnet ef database update "$BASELINE_MIGRATION" \
@@ -101,11 +110,13 @@ jobs:
           (cd /tmp/waterbus-main/waterbus-be && dotnet ef database update "$BASELINE_MIGRATION" \
             --project src/WaterbusSystem.Infrastructure --startup-project src/WaterbusSystem.WebApi \
             --connection "$CONN_BASE;Initial Catalog=WaterbusDomainTests_MainBaselineDuplicate")
-          # Review (human): cũng xác nhận đường nâng cấp khi DB đã chạy TOÀN BỘ migration của main
+          # Xác nhận đường nâng cấp khi DB đã chạy TOÀN BỘ migration của main tại SHA cố định này
           # (bao gồm AddEmailOutbox của PR #59, tức migration PR #58 đầu tiên - timestamp 031430 -
           # sẽ bị áp SAU EmailOutbox về mặt thời gian thật dù ID nhỏ hơn) - không chỉ từ mốc trước cả
-          # 2 PR. Không truyền target = migrate tới LATEST của chính main (đang là AddEmailOutbox).
-          (cd /tmp/waterbus-main/waterbus-be && dotnet ef database update \
+          # 2 PR. Target migration truyền EXPLICIT (AddEmailOutbox) - không bỏ trống để "migrate tới
+          # latest", vì "latest của SHA này" chỉ đúng tình cờ tại bb1bf0c; nếu baseline SHA sau này
+          # đổi sang 1 SHA mới hơn, "latest" có thể âm thầm trỏ sang migration khác mà không ai hay.
+          (cd /tmp/waterbus-main/waterbus-be && dotnet ef database update "20261106042025_AddEmailOutbox" \
             --project src/WaterbusSystem.Infrastructure --startup-project src/WaterbusSystem.WebApi \
             --connection "$CONN_BASE;Initial Catalog=WaterbusDomainTests_MainBaselineAfterEmailOutbox")
           git worktree remove /tmp/waterbus-main --force
