@@ -15,8 +15,10 @@ public record TripSearchResponse(
     string ArrivalStationName,
     DateTimeOffset DepartureTime,
     DateTimeOffset ArrivalTime,
-    int DurationMinutes,
+    int? DurationMinutes,
     string TripType,
     decimal BasePrice,
     int AvailableSeatsCount,
-    List<TripSearchStopResponse> Stops);
+    List<TripSearchStopResponse> Stops,
+    bool CanBook = true,
+    string SalesState = "open");
