@@ -335,6 +335,53 @@ public sealed class ScannerDeviceLockSqlTests : IAsyncLifetime
         (await StateAsync(s.DeviceA)).Should().Be((1, true));
     }
 
+    // ---------- Trạng thái EF đã track từ trước (stale) phải được làm tươi từ SQL SAU khi có khoá ----------
+
+    [SqlServerDomainFact]
+    public async Task AssignOnContextThatAlreadyTrackedActiveDevice_AfterAnotherContextDeactivated_ShouldBeRejected()
+    {
+        var s = await SeedAsync();
+        await using var a = Context();
+        (await a.ScannerDevices.SingleAsync(d => d.Id == s.DeviceA)).IsActive.Should().BeTrue();   // context A đã track IsActive=true
+
+        await using (var b = Context()) await DeactivateService(b, s.Now).DeactivateAsync(s.DeviceA);   // context B commit IsActive=false
+
+        var act = async () => await AssignService(a, s.Now).AssignScannerAsync(Request(s, s.DeviceA, primary: false));
+        await act.Should().ThrowAsync<ConflictException>().WithMessage("*ngưng hoạt động*");
+
+        (await StateAsync(s.DeviceA)).Should().Be((0, false), "không được lưu phân công nào dựa trên trạng thái Active cũ trong ChangeTracker");
+    }
+
+    [SqlServerDomainFact]
+    public async Task AssignOnContextWithFreshlyReloadedDevice_ShouldKeepNavigationAndPersistAssignment()
+    {
+        // Bảo toàn hành vi EF: sau khi làm tươi, phân công vẫn gắn đúng thiết bị đang được track và lưu bình thường.
+        var s = await SeedAsync();
+        await using var a = Context();
+        var tracked = await a.ScannerDevices.SingleAsync(d => d.Id == s.DeviceA);
+
+        var response = await AssignService(a, s.Now).AssignScannerAsync(Request(s, s.DeviceA, primary: true));
+
+        (await StateAsync(s.DeviceA)).Should().Be((1, true));
+        a.ChangeTracker.Entries<ScannerDevice>().Count(e => e.Entity.Id == s.DeviceA).Should().Be(1);
+        a.ScannerAssignments.Local.Single(x => x.Id == response.AssignmentId).Device.Should().BeSameAs(tracked);
+    }
+
+    [SqlServerDomainFact]
+    public async Task DeactivateOnContextThatTrackedInactiveDevice_AfterAnotherContextActivated_ShouldStillDeactivate()
+    {
+        var s = await SeedAsync();
+        await using (var c = Context()) await DeactivateService(c, s.Now).DeactivateAsync(s.DeviceA);
+
+        await using var a = Context();
+        (await a.ScannerDevices.SingleAsync(d => d.Id == s.DeviceA)).IsActive.Should().BeFalse();   // A track IsActive=false
+
+        await using (var b = Context()) await DeactivateService(b, s.Now).ActivateAsync(s.DeviceA);  // B kích hoạt lại và commit
+
+        await DeactivateService(a, s.Now).DeactivateAsync(s.DeviceA);   // trạng thái cũ sẽ làm Deactivate "no-op" sai
+        (await StateAsync(s.DeviceA)).DeviceActive.Should().BeFalse();
+    }
+
     [SqlServerDomainFact]
     public async Task FailedAssignmentOnInactiveDevice_ShouldReleaseLockForNextCaller()
     {

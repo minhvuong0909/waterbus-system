@@ -36,9 +36,17 @@ public sealed class ScannerDeviceAdminRepository(ApplicationDbContext context) :
             .FirstOrDefaultAsync(cancellationToken)
         ?? throw new NotFoundException(nameof(ScannerDevice), id);
 
-    public async Task<ScannerDevice> GetTrackedAsync(Guid id, CancellationToken cancellationToken = default) =>
-        await context.ScannerDevices.FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted, cancellationToken)
-        ?? throw new NotFoundException(nameof(ScannerDevice), id);
+    public async Task<ScannerDevice> GetTrackedAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var device = await context.ScannerDevices.FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted, cancellationToken)
+            ?? throw new NotFoundException(nameof(ScannerDevice), id);
+
+        // Review PR #63: làm tươi instance đã track từ trước (IsActive có thể đã đổi ở context khác) - gọi sau khi giữ khoá DeviceId.
+        await context.Entry(device).ReloadAsync(cancellationToken);
+        // Reload của dòng bị xoá cứng (ngoài luồng hỗ trợ) làm EF detach instance nhưng giữ giá trị cũ: coi như không tồn tại.
+        if (context.Entry(device).State == EntityState.Detached || device.IsDeleted) throw new NotFoundException(nameof(ScannerDevice), id);
+        return device;
+    }
 
     public Task<bool> ExistsByCodeAsync(string deviceCode, CancellationToken cancellationToken = default) =>
         context.ScannerDevices.IgnoreQueryFilters().AnyAsync(d => d.DeviceCode == deviceCode, cancellationToken);
