@@ -443,6 +443,34 @@ public class ScannerAssignmentConfiguration : IEntityTypeConfiguration<ScannerAs
         builder.HasOne(x => x.TripStopCall).WithMany()
             .HasForeignKey(x => x.TripStopCallId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.RowVersion).IsRowVersion();
+
+        // Review PR #58: index FK thường (mọi bản ghi, không điều kiện) cho các truy vấn chung theo
+        // TripStopCallId (vd liệt kê toàn bộ scanner - Primary/secondary, hữu hạn/vô hạn - của 1
+        // điểm dừng) - index filtered unique dưới đây CHỈ phủ đúng tập con Primary mở, không dùng
+        // được cho truy vấn tổng quát này. Phải khai báo tường minh vì EF Core convention chỉ tạo 1
+        // index FK duy nhất cho cột này, và index filtered unique bên dưới (khai báo sau) đã chiếm
+        // vị trí đó nếu không có dòng này.
+        // Dùng overload HasIndex(expression, name) - bắt buộc để tạo 2 index KHÁC NHAU trên CÙNG 1
+        // cột: gọi .HasDatabaseName(...) sau .HasIndex(x => x.TripStopCallId) ở 2 lần riêng (như bản
+        // trước) chỉ cấu hình lại ĐÚNG 1 object index đã có (EF Core gộp theo property list), không
+        // tạo index thứ hai - verify bằng ApplicationDbContextModelSnapshot.cs chỉ còn 1 index sau khi
+        // generate migration rỗng.
+        builder.HasIndex(x => x.TripStopCallId, "IX_ScannerAssignments_TripStopCallId");
+
+        // CHK-03: check-then-insert ở AssignScannerAsync (HasOverlappingPrimaryAssignmentAsync rồi
+        // mới Add) không tự chặn được race 2 request đồng thời cùng gán Primary Offline Scanner cho
+        // cùng điểm dừng. Unique filtered index này là lưới an toàn ở DB cho đúng trường hợp phổ
+        // biến nhất (phân công không đặt ActiveUntil - mặc định vô thời hạn): chặn CỨNG 2 bản ghi
+        // Primary "mở" cùng tồn tại cho 1 TripStopCall.
+        // Review PR #58 (follow-up, chưa xử lý trong lần này): trường hợp cả 2 đều có ActiveUntil
+        // tường minh và vô tình chồng lấn khoảng thời gian hữu hạn vẫn là race chưa có constraint DB
+        // chặn (SQL Server không có exclusion constraint kiểu range như Postgres GIST) - vẫn chỉ dựa
+        // vào check-then-insert ở AssignScannerAsync. Cần theo dõi riêng (vd job đối soát định kỳ
+        // phát hiện overlap hữu hạn, hoặc constraint kiểu range giả lập bằng trigger) trước khi coi
+        // là đã khép kín BR-OFF-02 cho mọi trường hợp ActiveUntil.
+        builder.HasIndex(x => x.TripStopCallId, "IX_ScannerAssignments_TripStopCallId_OpenEndedPrimary")
+            .IsUnique()
+            .HasFilter("[IsPrimaryOffline] = 1 AND [ActiveUntil] IS NULL AND [IsDeleted] = 0");
     }
 }
 public class CheckInEventConfiguration : IEntityTypeConfiguration<CheckInEvent>

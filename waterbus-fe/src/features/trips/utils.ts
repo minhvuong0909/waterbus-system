@@ -132,7 +132,8 @@ export function toTrip(dto: TripDto): Trip {
     arriveTime: formatClock(arrive),
     originGate: '',
     destinationGate: '',
-    durationMins: dto.durationMinutes,
+    durationMins: dto.durationMinutes ?? 0,
+    durationKnown: dto.durationMinutes !== null,
     crossingKind: kind === 'sightseeing' ? t('Sightseeing') : t('Regular'),
     direct: false,
     crossingCaption: dto.routeName,
@@ -244,7 +245,7 @@ export function toDeparture(
     kind: trip.kind,
     from: origin.shortName,
     to: destination.shortName,
-    details: [t('{durationMins} min voyage', { durationMins: trip.durationMins }), seatsLabel(trip)],
+    details: [...(trip.durationKnown === false ? [] : [t('{durationMins} min voyage', { durationMins: trip.durationMins })]), seatsLabel(trip)],
     priceVnd: trip.fareVnd,
   }
 }

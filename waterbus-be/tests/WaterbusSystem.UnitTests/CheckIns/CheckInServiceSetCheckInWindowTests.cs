@@ -21,6 +21,7 @@ public class CheckInServiceSetCheckInWindowTests
     private static CheckInService CreateService(WaterbusSystem.Infrastructure.Persistence.ApplicationDbContext context) => new(
         new CheckInRepository(context), new WaterbusSystem.Infrastructure.Persistence.EfUnitOfWork(context),
         Mock.Of<ICurrentUserService>(), Mock.Of<IDateTimeService>(), new CheckInProcessor(new CheckInRepository(context)),
+        new WaterbusSystem.Infrastructure.Persistence.SqlScannerAssignmentLock(context),
         Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
 
     [Fact]

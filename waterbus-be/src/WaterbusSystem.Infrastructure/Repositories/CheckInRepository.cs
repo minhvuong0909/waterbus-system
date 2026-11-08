@@ -12,10 +12,19 @@ public sealed class CheckInRepository(ApplicationDbContext context) : ICheckInRe
 {
     // ---------------- Scanner devices / assignments ----------------
 
-    public async Task<ScannerDevice> GetRequiredDeviceAsync(Guid deviceId, CancellationToken cancellationToken = default) =>
-        await context.ScannerDevices
+    public async Task<ScannerDevice> GetRequiredDeviceAsync(Guid deviceId, CancellationToken cancellationToken = default)
+    {
+        var device = await context.ScannerDevices
             .FirstOrDefaultAsync(d => d.Id == deviceId && !d.IsDeleted, cancellationToken)
-        ?? throw new NotFoundException(nameof(ScannerDevice), deviceId);
+            ?? throw new NotFoundException(nameof(ScannerDevice), deviceId);
+
+        // Review PR #63: nếu context đã track thiết bị từ trước, EF trả lại instance cũ và KHÔNG ghi đè giá trị từ DB -
+        // IsActive có thể đã bị Deactivate commit từ context khác. Làm tươi từ SQL (gọi sau khi giữ khoá DeviceId).
+        await context.Entry(device).ReloadAsync(cancellationToken);
+        // Reload của dòng bị xoá cứng (ngoài luồng hỗ trợ) làm EF detach instance nhưng giữ giá trị cũ: coi như không tồn tại.
+        if (context.Entry(device).State == EntityState.Detached || device.IsDeleted) throw new NotFoundException(nameof(ScannerDevice), deviceId);
+        return device;
+    }
 
     public async Task<TripStopCall> GetRequiredStopCallAsync(Guid tripStopCallId, CancellationToken cancellationToken = default) =>
         await context.TripStopCalls

@@ -97,10 +97,12 @@ export default function TripCard({
           </div>
           <div className="flex flex-1 flex-col items-center px-2">
             <span className={`mb-1 whitespace-nowrap text-center text-xs font-bold ${accent}`}>
-              {t('{durationMins} min • {crossingKind}', {
-                durationMins: trip.durationMins,
-                crossingKind: trip.crossingKind,
-              })}
+              {trip.durationKnown === false
+                ? trip.crossingKind
+                : t('{durationMins} min • {crossingKind}', {
+                    durationMins: trip.durationMins,
+                    crossingKind: trip.crossingKind,
+                  })}
             </span>
             <div className="relative flex w-full items-center">
               <div

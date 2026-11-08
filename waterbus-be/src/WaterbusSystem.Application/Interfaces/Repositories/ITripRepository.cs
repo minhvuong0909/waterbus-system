@@ -63,17 +63,20 @@ public interface ITripRepository
     void AddOperationEvent(TripOperationEvent operationEvent);
 
     /// <summary>
-    /// Chuyến đang Scheduled (kèm Route, Boat, các điểm dừng thực sự), lọc theo ngày khởi hành (giờ VN,
-    /// đã quy đổi UTC) và loại chuyến, sắp theo giờ khởi hành tăng dần.
+    /// Chuyến bán được (Scheduled/Boarding, chưa xuất bến, đã có tàu, chưa quá SalesCloseAt) kèm Route, Boat, điểm dừng,
+    /// lọc theo ngày khởi hành (giờ VN đã quy đổi UTC) và loại chuyến, sắp theo giờ khởi hành tăng dần.
     /// </summary>
-    Task<List<Trip>> SearchScheduledAsync(
-        DateTimeOffset? departureDayStartUtc, DateTimeOffset? departureDayEndUtc, TripType? tripType,
+    Task<List<Trip>> SearchSellableAsync(
+        DateTimeOffset? departureDayStartUtc, DateTimeOffset? departureDayEndUtc, TripType? tripType, DateTimeOffset now,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Toàn bộ Seat (kèm SeatClass) của các tàu, dùng tính tồn kho bán được khi tìm kiếm.</summary>
+    Task<List<Seat>> ListSeatsForBoatsAsync(IReadOnlyCollection<Guid> boatIds, CancellationToken cancellationToken = default);
 
     /// <summary>SeatReservation (chưa Cancelled) của nhiều chuyến, dùng đếm ghế bận theo đoạn khi tìm kiếm.</summary>
     Task<List<SeatReservationSegment>> ListReservationSegmentsAsync(
         IReadOnlyList<Guid> tripIds, CancellationToken cancellationToken = default);
 
-    /// <summary>Giá thấp nhất đang hiệu lực tại <paramref name="now"/>, theo từng loại chuyến.</summary>
-    Task<Dictionary<string, decimal>> GetMinActivePriceByTripTypeAsync(DateTimeOffset now, CancellationToken cancellationToken = default);
+    /// <summary>Mọi FareRule đang hiệu lực tại <paramref name="now"/> (mọi loại chuyến).</summary>
+    Task<List<FareRule>> ListActiveFaresAsync(DateTimeOffset now, CancellationToken cancellationToken = default);
 }

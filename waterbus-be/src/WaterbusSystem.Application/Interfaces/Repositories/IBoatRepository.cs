@@ -25,5 +25,8 @@ public interface IBoatRepository
 
     Task<PaginatedList<BoatResponse>> GetPageAsync(GetBoatsRequest request, CancellationToken cancellationToken = default);
 
+    /// <summary>Số ghế đang hoạt động (chưa xoá) của tàu.</summary>
+    Task<int> CountActiveSeatsAsync(Guid boatId, CancellationToken cancellationToken = default);
+
     void Add(Boat boat);
 }

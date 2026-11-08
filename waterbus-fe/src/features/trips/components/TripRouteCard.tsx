@@ -59,10 +59,12 @@ export default function TripRouteCard({ trip }: TripRouteCardProps) {
             <div className="flex flex-col items-center justify-center px-space-xs py-space-xs md:col-span-4">
               <span className="mb-1 flex items-center gap-1 text-body-sm font-semibold text-teal-flow">
                 <Icon name="schedule" className="text-base" />
-                {t('{durationMins} min {crossingKind}', {
-                  durationMins: trip.durationMins,
-                  crossingKind: trip.crossingKind,
-                })}
+                {trip.durationKnown === false
+                  ? trip.crossingKind
+                  : t('{durationMins} min {crossingKind}', {
+                      durationMins: trip.durationMins,
+                      crossingKind: trip.crossingKind,
+                    })}
               </span>
               <div className="flex w-full items-center gap-2">
                 <div className="h-0.5 flex-1 rounded-full bg-gradient-to-r from-teal-flow to-sky-aqua" />

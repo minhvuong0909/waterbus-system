@@ -30,6 +30,7 @@ public class CheckInServiceNoShowFinalizationTests
         return new CheckInService(
             new CheckInRepository(context), new EfUnitOfWork(context),
             Mock.Of<ICurrentUserService>(), clock.Object, new CheckInProcessor(new CheckInRepository(context)),
+            new SqlScannerAssignmentLock(context),
             Options.Create(new NoShowFinalizationOptions { GraceMinutes = graceMinutes }),
             NullLogger<CheckInService>.Instance);
     }

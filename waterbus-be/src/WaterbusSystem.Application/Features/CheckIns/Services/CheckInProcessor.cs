@@ -40,13 +40,7 @@ public class CheckInProcessor
         var existingEvent = await _repository.FindEventByClientIdAsync(clientEventId, cancellationToken);
         if (existingEvent is not null)
         {
-            var existingTicket = await _repository.GetTicketWithReservationAsync(existingEvent.TicketId, cancellationToken);
-
-            return (new CheckInOutcome(
-                existingEvent.Outcome,
-                existingTicket?.CheckedInAt,
-                existingTicket?.TicketCode,
-                existingTicket?.SeatReservation?.PassengerName), true);
+            return await ResolveExistingEventOutcomeAsync(existingEvent, staffId, ticketId, tripStopCallId, cancellationToken);
         }
 
         var stopCall = await _repository.GetRequiredStopCallAsync(tripStopCallId, cancellationToken);
@@ -107,16 +101,52 @@ public class CheckInProcessor
 
         if (outcome == "Success")
         {
+            // CHK-05: CheckedInAt phải là thời điểm Staff thực sự quét vé (effectiveAt - đã được đối
+            // soát/giới hạn skew ở trên), không phải thời điểm server NHẬN được lô đồng bộ offline.
+            // Quét lúc 09:55 nhưng sync lúc 12:00 phải hiển thị CheckedInAt ~09:55, không phải 12:00 -
+            // tránh gây hiểu nhầm khi xem lịch sử/báo cáo ca trực (CheckInEvent vẫn giữ riêng
+            // OccurredAtDevice/ReceivedAtServer đầy đủ cho đối soát).
             ticket.BoardingStatus = BoardingStatus.CheckedIn;
-            ticket.CheckedInAt = now;
+            ticket.CheckedInAt = effectiveAt;
             ticket.CheckedInByStaffId = staffId;
         }
 
         return (new CheckInOutcome(
             outcome,
-            outcome == "Success" ? now : null,
+            outcome == "Success" ? effectiveAt : null,
             ticket.TicketCode,
             ticket.SeatReservation?.PassengerName), false);
+    }
+
+    /// <summary>
+    /// CHK-06: ClientEventId chỉ là khoá idempotency hợp lệ cho ĐÚNG request gốc đã tạo ra nó.
+    /// Nếu ticket/điểm dừng/nhân viên của lần gửi này khác với bản ghi đã lưu, đây là key bị
+    /// tái sử dụng sai (bug client hoặc dò đoán key) - không được âm thầm trả kết quả cũ (có
+    /// thể lộ ticketCode/passengerName của 1 vé khác cho Staff không liên quan). Trả outcome
+    /// riêng (không throw exception) để nhất quán với các lỗi nghiệp vụ khác của hàm này
+    /// (NotAssigned/OutOfWindow/...).
+    /// Dùng CHUNG cho cả đường tra trước khi ghi (ProcessAsync) VÀ đường phục hồi sau khi race
+    /// vi phạm unique index ở DB (CheckInService bắt ConflictException từ EfUnitOfWork) - nếu 2
+    /// nơi này kiểm tra identity khác nhau, request thắng/thua của 1 race có thể bỏ lọt đúng kiểm
+    /// tra mismatch mà request không-race vẫn có.
+    /// </summary>
+    public async Task<(CheckInOutcome Outcome, bool WasAlreadySynced)> ResolveExistingEventOutcomeAsync(
+        CheckInEvent existingEvent, Guid staffId, Guid ticketId, Guid tripStopCallId, CancellationToken cancellationToken)
+    {
+        if (existingEvent.TicketId != ticketId || existingEvent.TripStopCallId != tripStopCallId ||
+            existingEvent.StaffAccountId != staffId)
+        {
+            const string mismatchOutcome = "ClientEventIdMismatch";
+            return (new CheckInOutcome(mismatchOutcome, null, null, null), false);
+        }
+
+        var existingTicket = await _repository.GetTicketWithReservationAsync(existingEvent.TicketId, cancellationToken);
+
+        return (new CheckInOutcome(
+            existingEvent.Outcome,
+            existingTicket?.CheckedInAt,
+            existingTicket?.TicketCode,
+            existingTicket?.SeatReservation?.PassengerName), true);
     }
 
     private static string DetermineOutcome(bool hasAssignment, Guid tripStopCallId, Booking booking, TripStopCall stopCall,
