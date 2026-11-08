@@ -12,7 +12,7 @@ public sealed record AudioTriggerMessage(
     public int Version => 1;
 }
 
-/// <summary>Event <c>audioControl</c>: Action = pause | resume. Pause khi Trip không còn EnRoute hoặc có thông báo an toàn (BR-EXP-06).</summary>
+/// <summary>Event <c>audioControl</c>: Action = pause | recheck. Pause khi Trip không còn EnRoute hoặc có thông báo an toàn (BR-EXP-06); recheck = điều kiện cần đã đủ, client phải gọi GetState và chỉ tiếp tục khi playbackAllowed.</summary>
 public sealed record AudioControlMessage(string Action, Guid? TripId, string Reason, DateTimeOffset At)
 {
     public int Version => 1;

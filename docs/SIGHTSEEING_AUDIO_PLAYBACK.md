@@ -33,7 +33,7 @@ Captain GPS  ──REST/Hub──▶ BoatTrackingService ──(lọc stale)─�
 |---|---|
 | `audioState` (ngay khi kết nối) | `{ boatId, tripId?, tripStatus?, tripType?, playbackAllowed, reason }` |
 | `audioTrigger` | `{ version:1, requestId, tripId, boatId, routePoiId, poiId, poiName, audioGuideId, playbackPath, contentType:"audio/mpeg", durationSeconds?, distanceMeters, triggeredAt }` |
-| `audioControl` | `{ version:1, action:"pause"|"resume", tripId?, reason, at }` — pause khi chuyến rời `EnRoute` hoặc có SOS an toàn; resume khi về `EnRoute` |
+| `audioControl` | `{ version:1, action:"pause"|"recheck", tripId?, reason, at }` — pause khi chuyến rời `EnRoute` hoặc có SOS an toàn; `recheck` khi chuyến về `EnRoute`: client phải gọi `GetState` và chỉ tiếp tục khi `playbackAllowed=true` (Backend không ra lệnh resume vì còn điều kiện SOS/loại chuyến) |
 
 | Client → server | Ý nghĩa |
 |---|---|

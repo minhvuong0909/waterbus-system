@@ -10,6 +10,9 @@ public interface IOnboardAckWait : IDisposable
 public interface IOnboardPlayerRegistry
 {
     bool IsConnected(Guid boatId);
+    /// <summary>Kết nối đang đăng ký cho Boat kèm Captain đã xác thực lúc kết nối.</summary>
+    IReadOnlyList<(string ConnectionId, Guid CaptainId)> Connections(Guid boatId);
+    void Unregister(string connectionId);
     IOnboardAckWait PrepareAck(Guid requestId);
     /// <summary>Hoàn tất lượt chờ ACK; false nếu không có dispatch nào đang chờ (ACK muộn/lặp).</summary>
     bool SignalAck(Guid requestId);

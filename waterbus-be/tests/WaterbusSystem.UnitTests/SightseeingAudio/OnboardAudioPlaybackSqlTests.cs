@@ -331,6 +331,38 @@ public sealed class OnboardAudioPlaybackSqlTests : IAsyncLifetime
     }
 
     [SqlServerDomainFact]
+    public async Task CaptainReassignedAfterConnecting_NoLongerReceivesTriggers_AndCannotFetchAudio()
+    {
+        var oldPlayer = await ConnectPlayerAsync(_captain);
+        await GpsAsync(PoiLat);
+        var requestId = oldPlayer.Triggers.Single().GetProperty("requestId").GetGuid();
+
+        // Admin đổi Captain của tàu: kết nối cũ không còn quyền dù vẫn đang mở
+        await using (var c = Context())
+        {
+            (await c.Boats.SingleAsync(b => b.Id == _seed.Boat.Id)).CaptainUserId = Guid.NewGuid();
+            await c.SaveChangesAsync();
+        }
+        Assert.Equal(HttpStatusCode.Forbidden, (await Http(_captain).GetAsync($"/api/v1/onboard-audio/requests/{requestId}/audio")).StatusCode);
+
+        // lệnh mới ở POI khác không tới kết nối cũ (bị thu hồi khỏi group khi dispatch)
+        await using (var c = Context())
+        {
+            var poi2 = new PointOfInterest { Name = "POI 2", Latitude = PoiLat + 0.01m, Longitude = PoiLng, IsActive = true };
+            c.PointsOfInterest.Add(poi2);
+            c.RoutePois.Add(new RoutePoi { RouteId = _seed.Route.Id, PoiId = poi2.Id, DisplayOrder = 2, TriggerRadiusM = 150, IsActive = true });
+            c.AudioGuides.Add(new AudioGuide { PoiId = poi2.Id, LanguageCode = "vi", IsPublished = true,
+                AudioAssetUri = "https://example.blob.core.windows.net/audio/audio-assets/tts/20261108/poi.mp3" });
+            await c.SaveChangesAsync();
+        }
+        using var http = Http(_captain);
+        await http.PostAsJsonAsync($"/api/v1/tracking/boats/{_seed.Boat.Id}/positions",
+            new { latitude = PoiLat + 0.01m, longitude = PoiLng, speedKnots = 5m, observedAt = DateTimeOffset.UtcNow.AddSeconds(1) });
+        await Task.Delay(300);
+        Assert.Single(oldPlayer.Triggers);
+    }
+
+    [SqlServerDomainFact]
     public async Task CaptainWithoutABoat_CannotUseThePlayerContract()
     {
         var stranger = Guid.NewGuid();
@@ -367,7 +399,7 @@ public sealed class OnboardAudioPlaybackSqlTests : IAsyncLifetime
             await scope.ServiceProvider.GetRequiredService<IOperationsAlertPublisher>().PublishTripStatusChangedAsync(
                 new TripStatusChangedMessage(_seed.Trip.Id, _seed.Boat.Id, "EnRoute", "Suspended", "Resume", DateTimeOffset.UtcNow));
         await WaitAsync(() => player.Controls.Count == 2);
-        Assert.Equal("resume", player.Controls.Last().GetProperty("action").GetString());
+        Assert.Equal("recheck", player.Controls.Last().GetProperty("action").GetString());   // không bao giờ tự "resume"
     }
 
     [SqlServerDomainFact]

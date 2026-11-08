@@ -9,12 +9,15 @@ namespace WaterbusSystem.WebApi.Realtime;
 /// </summary>
 public sealed class OnboardPlayerRegistry : IOnboardPlayerRegistry
 {
-    private readonly ConcurrentDictionary<string, Guid> _connections = new();
+    private readonly ConcurrentDictionary<string, (Guid BoatId, Guid CaptainId)> _connections = new();
     private readonly ConcurrentDictionary<Guid, TaskCompletionSource<bool>> _acks = new();
 
-    public void Register(Guid boatId, string connectionId) => _connections[connectionId] = boatId;
+    public void Register(Guid boatId, string connectionId, Guid captainId) => _connections[connectionId] = (boatId, captainId);
     public void Unregister(string connectionId) => _connections.TryRemove(connectionId, out _);
-    public bool IsConnected(Guid boatId) => _connections.Values.Contains(boatId);
+    public bool IsConnected(Guid boatId) => _connections.Values.Any(c => c.BoatId == boatId);
+
+    public IReadOnlyList<(string ConnectionId, Guid CaptainId)> Connections(Guid boatId) =>
+        _connections.Where(c => c.Value.BoatId == boatId).Select(c => (c.Key, c.Value.CaptainId)).ToList();
 
     public IOnboardAckWait PrepareAck(Guid requestId)
     {

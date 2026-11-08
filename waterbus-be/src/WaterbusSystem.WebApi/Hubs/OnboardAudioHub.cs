@@ -22,7 +22,7 @@ public class OnboardAudioHub(IOnboardAudioService service, OnboardPlayerRegistry
         try
         {
             var boatId = await service.ResolveBoatAsync(CaptainId());
-            registry.Register(boatId, Context.ConnectionId);
+            registry.Register(boatId, Context.ConnectionId, CaptainId());
             await Groups.AddToGroupAsync(Context.ConnectionId, RealtimeContract.Groups.OnboardAudio(boatId));
             await Clients.Caller.SendAsync(RealtimeContract.Events.AudioState, await service.GetStateAsync(CaptainId()));
         }

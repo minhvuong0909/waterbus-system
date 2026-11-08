@@ -97,8 +97,10 @@ public class SignalROperationsAlertPublisher : IOperationsAlertPublisher
             .SendAsync(RealtimeContract.Events.TripStatusChanged, message, cancellationToken);
         await _seatHub.Clients.Group(RealtimeContract.Groups.Trip(message.TripId))
             .SendAsync(RealtimeContract.Events.TripStatusChanged, message, cancellationToken);
-        var resume = message.Status == "EnRoute";
-        await SendAudioControlAsync(message.BoatId, message.TripId, resume ? "resume" : "pause",
-            resume ? "TripEnRoute" : "Trip" + message.Status, message.ChangedAt, cancellationToken);
+        // EnRoute chỉ là điều kiện cần: còn phải không có SOS mở và đúng loại chuyến, nên KHÔNG ra lệnh "resume" —
+        // client phải gọi GetState rồi mới tiếp tục khi playbackAllowed = true.
+        var recheck = message.Status == "EnRoute";
+        await SendAudioControlAsync(message.BoatId, message.TripId, recheck ? "recheck" : "pause",
+            recheck ? "TripEnRoute" : "Trip" + message.Status, message.ChangedAt, cancellationToken);
     }
 }
