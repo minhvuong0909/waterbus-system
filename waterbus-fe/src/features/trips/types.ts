@@ -115,6 +115,8 @@ export interface Trip {
   originGate: string
   destinationGate: string
   durationMins: number
+  /** false when the timetable has no duration for the searched segment (durationMins is then 0). */
+  durationKnown?: boolean
   /** "Direct", "Leisure Speed", "Landmark Loop"... */
   crossingKind: string
   /** True for a non-stop direct crossing. */
@@ -181,10 +183,13 @@ export interface TripDto {
   arrivalStationName: string
   departureTime: string
   arrivalTime: string
-  durationMinutes: number
+  /** null when the timetable has no data for the selected segment. */
+  durationMinutes: number | null
   tripType: string
   basePrice: number
   availableSeatsCount: number
+  canBook?: boolean
+  salesState?: string
 }
 
 /** BE `TripType`. */

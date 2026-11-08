@@ -17,7 +17,8 @@ namespace WaterbusSystem.Application.Features.ScannerDevices.Services;
 /// (RevokeScannerAssignment) để không để lại phạm vi Trip + bến không có Primary Offline Scanner hợp lệ. Tuỳ chọn gán/thu hồi vẫn ở CheckIns.
 /// </summary>
 public sealed class ScannerDeviceAdminService(
-    IScannerDeviceAdminRepository devices, IUnitOfWork unitOfWork, ICommercialTransactionRunner transactions, IDateTimeService dateTime)
+    IScannerDeviceAdminRepository devices, IUnitOfWork unitOfWork, ICommercialTransactionRunner transactions, IDateTimeService dateTime,
+    IScannerAssignmentLock deviceLock)
     : IScannerDeviceAdminService
 {
     public Task<PaginatedList<ScannerDeviceResponse>> GetPageAsync(GetScannerDevicesRequest request, CancellationToken cancellationToken = default) =>
@@ -46,7 +47,19 @@ public sealed class ScannerDeviceAdminService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    public Task DeactivateAsync(Guid id, CancellationToken cancellationToken = default) =>
+    /// <summary>Thời gian chờ 1 request khác đang giữ khoá cùng DeviceId xong.</summary>
+    private static readonly TimeSpan DeviceLockWait = TimeSpan.FromSeconds(10);
+
+    public async Task DeactivateAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        // Review PR #63: khoá DeviceId (cùng khoá với CheckInService.AssignScannerAsync) giữ TRỌN transaction - lấy ngoài
+        // runner để release sau commit/rollback. Đọc device + đếm phân công làm LẠI bên trong khoá nên thấy mọi phân công đã commit.
+        await using var gate = await deviceLock.TryAcquireDeviceAsync(id, DeviceLockWait, cancellationToken)
+            ?? throw new ConflictException("Thiết bị đang được xử lý bởi yêu cầu khác. Vui lòng thử lại.");
+        await DeactivateLockedAsync(id, cancellationToken);
+    }
+
+    private Task DeactivateLockedAsync(Guid id, CancellationToken cancellationToken) =>
         transactions.RunAsync(async () =>
         {
             var device = await devices.GetTrackedAsync(id, cancellationToken);

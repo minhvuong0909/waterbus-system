@@ -74,6 +74,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IWeatherGuardRunLock, SqlWeatherGuardRunLock>();
+        services.AddScoped<IScannerAssignmentLock, SqlScannerAssignmentLock>();
         services.AddScoped<IRouteRepository, RouteRepository>();
         services.AddScoped<ITripRepository, TripRepository>();
         services.AddScoped<IBoatRepository, BoatRepository>();
@@ -82,6 +83,8 @@ public static class DependencyInjection
         services.AddScoped<IFareAdminRepository, FareAdminRepository>();
         services.AddScoped<ITripPlanningRepository, TripPlanningRepository>();
         services.AddScoped<IScheduleAdminRepository, ScheduleAdminRepository>();
+        services.AddScoped<ISeatClassRepository, SeatClassRepository>();
+        services.AddScoped<IBoatSeatRepository, BoatSeatRepository>();
         services.AddScoped<IBoatPositionRepository, BoatPositionRepository>();
         services.AddScoped<IBoatTrackingService, WaterbusSystem.Application.Features.Tracking.Services.BoatTrackingService>();
         services.AddScoped<IIncidentService, WaterbusSystem.Application.Features.Incidents.Services.IncidentService>();
@@ -96,6 +99,8 @@ public static class DependencyInjection
         services.AddScoped<IFareAdminService, WaterbusSystem.Application.Features.Fares.Services.FareAdminService>();
         services.AddScoped<ITripPlanningService, WaterbusSystem.Application.Features.TripPlanning.Services.TripPlanningService>();
         services.AddScoped<IScheduleAdminService, WaterbusSystem.Application.Features.Schedules.Services.ScheduleAdminService>();
+        services.AddScoped<ISeatClassService, WaterbusSystem.Application.Features.SeatInventory.Services.SeatClassService>();
+        services.AddScoped<IBoatSeatService, WaterbusSystem.Application.Features.SeatInventory.Services.BoatSeatService>();
         services.AddScoped<IStationService, WaterbusSystem.Application.Features.Stations.Services.StationService>();
         services.AddScoped<ITripService, WaterbusSystem.Application.Features.Trips.Services.TripService>();
         services.AddScoped<IBookingReferenceRepository, BookingReferenceRepository>();

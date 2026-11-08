@@ -31,7 +31,8 @@ public class ScannerDeviceAdminServiceTests
     }
 
     private ScannerDeviceAdminService Service() =>
-        new(new ScannerDeviceAdminRepository(_context), new EfUnitOfWork(_context), new DirectCommercialTransactionRunner(), _clock.Object);
+        new(new ScannerDeviceAdminRepository(_context), new EfUnitOfWork(_context), new DirectCommercialTransactionRunner(), _clock.Object,
+            new WaterbusSystem.Infrastructure.Persistence.SqlScannerAssignmentLock(_context));
 
     private ScannerAssignment Assign(Guid deviceId, DateTimeOffset? until)
     {
@@ -145,6 +146,7 @@ public class ScannerDeviceAdminServiceTests
         var checkIns = new WaterbusSystem.Application.Features.CheckIns.Services.CheckInService(
             new CheckInRepository(_context), new EfUnitOfWork(_context), Mock.Of<ICurrentUserService>(), clock.Object,
             new WaterbusSystem.Application.Features.CheckIns.Services.CheckInProcessor(new CheckInRepository(_context)),
+            new WaterbusSystem.Infrastructure.Persistence.SqlScannerAssignmentLock(_context),
             Microsoft.Extensions.Options.Options.Create(new WaterbusSystem.Application.Features.CheckIns.NoShowFinalizationOptions()),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<WaterbusSystem.Application.Features.CheckIns.Services.CheckInService>.Instance);
         var revoked = await checkIns.RevokeScannerAssignmentAsync(future.Id);
