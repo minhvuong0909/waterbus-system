@@ -23,4 +23,20 @@ public sealed class AccessGrantRepository(ApplicationDbContext context) : IAcces
                 b.ManageOrderTokenExpiresAt > now && !b.ManageOrderTokenRevoked)
             .Select(b => new GuestAccessIdentity(b.Id, b.Id)).FirstOrDefaultAsync(ct);
     }
+
+    public Task<bool> IsOrderOwnerAsync(Guid orderId, Guid accountId, CancellationToken ct) =>
+        context.PurchaseOrders.AsNoTracking().AnyAsync(o => o.Id == orderId && !o.IsDeleted && o.PassengerAccountId == accountId, ct);
+
+    public Task<AccessGrant?> GetActiveTrackedAsync(Guid orderId, string tokenHash, string accessType, DateTimeOffset now, CancellationToken ct) =>
+        context.AccessGrants.FirstOrDefaultAsync(g => g.OrderId == orderId && g.AccessType == accessType &&
+            g.TokenHash == tokenHash && g.RevokedAt == null && g.ExpiresAt > now, ct);
+
+    public Task<List<AccessGrant>> GetActiveForOrderTrackedAsync(Guid orderId, DateTimeOffset now, CancellationToken ct) =>
+        context.AccessGrants.Where(g => g.OrderId == orderId && g.RevokedAt == null && g.ExpiresAt > now).ToListAsync(ct);
+
+    public async Task<Guid?> FindTripAccessBookingAsync(string tokenHash, DateTimeOffset now, CancellationToken ct) =>
+        await context.AccessGrants.AsNoTracking()
+            .Where(g => g.AccessType == "PassengerTrip" && g.TokenHash == tokenHash && g.RevokedAt == null &&
+                g.ExpiresAt > now && g.BookingId != null)
+            .Select(g => g.BookingId).FirstOrDefaultAsync(ct);
 }

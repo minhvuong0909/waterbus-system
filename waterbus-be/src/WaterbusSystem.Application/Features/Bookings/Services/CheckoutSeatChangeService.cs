@@ -43,6 +43,8 @@ public sealed class CheckoutSeatChangeService(
 
         var result = await transactions.RunAsync(async () =>
         {
+            // Kiểm tra lại SAU khi giữ khóa thương mại (token có thể bị thu hồi lúc chờ khóa).
+            await access.RequireAsync(orderId, accessToken, cancellationToken);
             var order = await orders.GetForSubmissionAsync(
                 orderId, cancellationToken);
 
