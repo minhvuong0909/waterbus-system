@@ -28,6 +28,11 @@ public class AudioPlaybackRequest : BaseEntity
     public AudioPlaybackStatus Status { get; set; } = AudioPlaybackStatus.Reserved;
     /// <summary>Số lần lệnh THỰC SỰ được gửi tới player (không tính lần player offline/asset lỗi trước khi gửi).</summary>
     public int Attempts { get; set; }
+    /// <summary>
+    /// Epoch sở hữu reservation: tăng 1 mỗi lần reserve/giành lại thành công. Dispatch/release/accept của evaluation
+    /// phải mang đúng epoch (fencing token) nên evaluation đã mất lease không thể gửi hay nhả reservation của người mới.
+    /// </summary>
+    public int ReservationEpoch { get; set; }
     public DateTimeOffset ReservedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? AcceptedAt { get; set; }
     public DateTimeOffset? StartedAt { get; set; }

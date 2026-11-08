@@ -622,6 +622,7 @@ public class AudioPlaybackRequestConfiguration : IEntityTypeConfiguration<AudioP
         builder.Property(x => x.AudioAssetUri).HasMaxLength(500);
         builder.Property(x => x.FailureReason).HasMaxLength(300);
         builder.Property(x => x.Status).HasConversion<int>();
+        builder.Property(x => x.ReservationEpoch).HasDefaultValue(0);
         builder.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.RowVersion).IsRowVersion();
         builder.ToTable(t =>

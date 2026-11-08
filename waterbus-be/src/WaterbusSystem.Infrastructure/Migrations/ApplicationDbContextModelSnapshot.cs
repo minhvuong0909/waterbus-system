@@ -293,6 +293,11 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Property<Guid?>("PoiId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int>("ReservationEpoch")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<DateTimeOffset>("ReservedAt")
                         .HasColumnType("datetimeoffset");
 

@@ -11,12 +11,15 @@ public interface IAudioPlaybackRepository
 {
     /// <summary>Đã có lệnh được player nhận/đang phát/xong, hoặc đã hết lượt thử cho lượt ghé này.</summary>
     Task<bool> IsTriggeredAsync(Guid tripId, Guid routePoiKey, string visitKey, CancellationToken ct);
-    Task<bool> TryReserveAsync(Guid requestId, Guid tripId, Guid routePoiKey, string visitKey,
+    /// <summary>Giữ chỗ lượt ghé. Trả epoch mới (≥ 1) nếu giành được (insert hoặc giành lại lease/Released), null nếu không.</summary>
+    Task<int?> TryReserveAsync(Guid requestId, Guid tripId, Guid routePoiKey, string visitKey,
         DateTimeOffset now, TimeSpan lease, int maxAttempts, CancellationToken ct);
-    Task<bool> MarkAcceptedAsync(Guid requestId, DateTimeOffset now, CancellationToken ct);
-    Task ReleaseAsync(Guid requestId, string? reason, int maxAttempts, CancellationToken ct);
-    /// <summary>Ghi lượt gửi thật. Chỉ thành công khi lệnh còn Reserved và lease chưa hết (fence: người giành lại lease chỉ làm được khi lease cũ đã hết).</summary>
-    Task<bool> RecordDispatchAsync(AudioTriggerRequest request, DateTimeOffset now, TimeSpan lease, CancellationToken ct);
+    /// <summary>Reserved → Accepted. <paramref name="epoch"/> != null: chỉ khi evaluation còn sở hữu reservation (null = ACK của player cho lệnh đã gửi).</summary>
+    Task<bool> MarkAcceptedAsync(Guid requestId, int? epoch, DateTimeOffset now, CancellationToken ct);
+    /// <summary>Nhả reservation; chỉ chủ hiện tại (đúng epoch) mới nhả được.</summary>
+    Task ReleaseAsync(Guid requestId, int epoch, string? reason, int maxAttempts, CancellationToken ct);
+    /// <summary>Ghi lượt gửi thật; chỉ thành công khi lệnh còn Reserved VÀ đúng epoch của người gọi.</summary>
+    Task<bool> RecordDispatchAsync(AudioTriggerRequest request, int epoch, CancellationToken ct);
     Task<PlaybackRequestView?> FindAsync(Guid requestId, CancellationToken ct);
     /// <summary>Player báo Started/Completed/Failed. Trả true nếu chuyển trạng thái được áp dụng (false = lặp/không hợp lệ).</summary>
     Task<bool> ReportAsync(Guid requestId, AudioPlaybackStatus target, string? reason, int maxAttempts,

@@ -48,7 +48,7 @@ public sealed class OnboardAudioService(
         // vì sổ cái còn Reserved. MarkAccepted có điều kiện (chỉ từ Reserved) nên lặp ACK không mở lại/lùi trạng thái.
         if (view.Status == AudioPlaybackStatus.Reserved)
         {
-            await playback.MarkAcceptedAsync(requestId, DateTimeOffset.UtcNow, ct);
+            await playback.MarkAcceptedAsync(requestId, null, DateTimeOffset.UtcNow, ct);
             view = await playback.FindAsync(requestId, ct) ?? view;
         }
         if (view.Status is not (AudioPlaybackStatus.Accepted or AudioPlaybackStatus.Started or AudioPlaybackStatus.Completed))

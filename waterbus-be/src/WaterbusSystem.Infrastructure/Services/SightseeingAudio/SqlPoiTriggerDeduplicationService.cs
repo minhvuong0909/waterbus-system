@@ -17,13 +17,34 @@ public sealed class SqlPoiTriggerDeduplicationService(IAudioPlaybackRepository r
     public Task<bool> HasBeenTriggeredAsync(Guid tripId, Guid poiId, string? visitId = null, CancellationToken cancellationToken = default) =>
         repository.IsTriggeredAsync(tripId, poiId, visitId ?? string.Empty, cancellationToken);
 
-    public Task<bool> TryReserveAsync(Guid tripId, Guid poiId, string? visitId = null, CancellationToken cancellationToken = default) =>
-        repository.TryReserveAsync(AudioRequestIds.For(tripId, poiId, visitId), tripId, poiId, visitId ?? string.Empty,
-            DateTimeOffset.UtcNow, TimeSpan.FromSeconds(Options.ReservationLeaseSeconds), Options.MaxDispatchAttempts, cancellationToken);
+    // Scoped theo evaluation: nhớ epoch của reservation đã giành được để các bước sau (accept/release) mang đúng fencing token.
+    private readonly Dictionary<Guid, int> _epochs = new();
 
-    public Task MarkAsTriggeredAsync(Guid tripId, Guid poiId, string? visitId = null, CancellationToken cancellationToken = default) =>
-        repository.MarkAcceptedAsync(AudioRequestIds.For(tripId, poiId, visitId), DateTimeOffset.UtcNow, cancellationToken);
+    public async Task<bool> TryReserveAsync(Guid tripId, Guid poiId, string? visitId = null, CancellationToken cancellationToken = default)
+    {
+        var id = AudioRequestIds.For(tripId, poiId, visitId);
+        var epoch = await repository.TryReserveAsync(id, tripId, poiId, visitId ?? string.Empty, DateTimeOffset.UtcNow,
+            TimeSpan.FromSeconds(Options.ReservationLeaseSeconds), Options.MaxDispatchAttempts, cancellationToken);
+        if (epoch is null) return false;
+        _epochs[id] = epoch.Value;
+        return true;
+    }
 
-    public Task ReleaseReservationAsync(Guid tripId, Guid poiId, string? visitId = null, CancellationToken cancellationToken = default) =>
-        repository.ReleaseAsync(AudioRequestIds.For(tripId, poiId, visitId), "NotAcceptedByPlayer", Options.MaxDispatchAttempts, cancellationToken);
+    public int? GetReservationEpoch(Guid tripId, Guid poiId, string? visitId = null) =>
+        _epochs.TryGetValue(AudioRequestIds.For(tripId, poiId, visitId), out var e) ? e : null;
+
+    public async Task MarkAsTriggeredAsync(Guid tripId, Guid poiId, string? visitId = null, CancellationToken cancellationToken = default)
+    {
+        var id = AudioRequestIds.For(tripId, poiId, visitId);
+        if (_epochs.TryGetValue(id, out var epoch))
+            await repository.MarkAcceptedAsync(id, epoch, DateTimeOffset.UtcNow, cancellationToken);
+    }
+
+    public async Task ReleaseReservationAsync(Guid tripId, Guid poiId, string? visitId = null, CancellationToken cancellationToken = default)
+    {
+        var id = AudioRequestIds.For(tripId, poiId, visitId);
+        // Không có epoch = chưa từng giữ reservation trong evaluation này ⇒ không được nhả của người khác.
+        if (_epochs.TryGetValue(id, out var epoch))
+            await repository.ReleaseAsync(id, epoch, "NotAcceptedByPlayer", Options.MaxDispatchAttempts, cancellationToken);
+    }
 }

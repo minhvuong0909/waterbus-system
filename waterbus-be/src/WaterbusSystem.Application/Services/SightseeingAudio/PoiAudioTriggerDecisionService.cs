@@ -325,7 +325,8 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
             DistanceMeters = bestMatch.DistanceMeters,
             TriggerRadiusMeters = bestMatch.Candidate.TriggerRadiusM!.Value,
             TriggeredAt = position.ObservedAt != default ? position.ObservedAt : DateTimeOffset.UtcNow,
-            VisitId = tripContext.VisitId
+            VisitId = tripContext.VisitId,
+            ReservationEpoch = _deduplicationService.GetReservationEpoch(tripContext.TripId, deduplicationId, tripContext.VisitId)
         };
 
         // 11. Gửi yêu cầu phát tới Onboard Player (BR-EXP-03)
