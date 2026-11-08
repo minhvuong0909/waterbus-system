@@ -18,6 +18,8 @@ Gom từ các review PR #13/#14/#17 ngày 16/10/2026 để tránh nhiều báo c
 | P2 | Seat sync #17 | Bỏ đoạn trong event, gán trạng thái toàn ghế; cần overlap theo VisitOrder. Không có freeIds thì rơi sang mock và không nghe nhả ghế. | Kiệt + Viễn |
 | P2 | Search | SearchTrips vẫn dùng Route endpoints/Station.OrderIndex, giá 0 placeholder và count không theo đoạn. Dùng trip-detail/seat-map làm nguồn chuẩn cho màn chọn ghế, rồi chỉnh search riêng. | Vương |
 | P2 | Deploy/CI | Compose cần truyền khóa QR và các cấu hình mới; CI còn lọc 4 test booking cũ và chưa test mobile. | Kiệt |
+| P2 | Search paging (backlog PR #61) | Paging của SearchTrips là tuỳ chọn: khi request không có giới hạn ngày và không có `pageSize`, truy vấn không bị chặn số dòng. Cần mặc định/trần `pageSize` và cửa sổ ngày tối đa (theo BR + hợp đồng API) trước khi dữ liệu Trip lớn lên nhờ sinh chuyến từ Schedule. | Vương |
+| P2 | Trip Detail FE (backlog PR #61) | `getTripDetail` ở FE vẫn dùng thời lượng cả chuyến cho chặng không có lịch bến; sửa cần chạm ~14 chỗ hiển thị. Hành vi có từ trước, #61 chỉ sửa Search và AI card (thời lượng chưa biết thì hiển thị "không rõ"). PR riêng. | Viễn |
 
 ## Bằng chứng trước khi gom tài liệu
 

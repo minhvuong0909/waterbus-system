@@ -85,7 +85,7 @@ export default function SearchResultsPage() {
     )
     const by: Record<SortKey, (a: (typeof list)[number], b: (typeof list)[number]) => number> = {
       time: (a, b) => a.departTime.localeCompare(b.departTime),
-      speed: (a, b) => a.durationMins - b.durationMins,
+      speed: (a, b) => (a.durationKnown === false ? Infinity : a.durationMins) - (b.durationKnown === false ? Infinity : b.durationMins),
       price: (a, b) => a.fareVnd - b.fareVnd,
     }
     const sorted = [...list].sort(by[priceVaries || sort !== 'price' ? sort : 'time'])
