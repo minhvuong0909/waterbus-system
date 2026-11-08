@@ -294,7 +294,8 @@ public sealed class ScannerAssignmentMigrationSqlTests
             await using (var c = Context(connectionString))
             {
                 var pendingBeforeUpgrade = (await c.Database.GetPendingMigrationsAsync()).ToList();
-                pendingBeforeUpgrade.Should().Equal(
+                // Migration phát sinh SAU 2 migration ScannerAssignment (vd AddAudioPlaybackRequests) cũng pending nhưng không thuộc tiền đề của test này.
+                pendingBeforeUpgrade.Take(2).Should().Equal(
                     "20261106031430_AddScannerAssignmentOpenEndedPrimaryUniqueIndex",
                     "20261106090321_RestoreScannerAssignmentTripStopCallIdIndex");
 
