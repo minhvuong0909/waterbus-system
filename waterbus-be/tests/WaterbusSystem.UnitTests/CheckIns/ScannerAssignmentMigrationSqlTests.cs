@@ -14,27 +14,41 @@ namespace WaterbusSystem.UnitTests.CheckIns;
 /// <summary>
 /// Review (human, nhiều vòng): "Kiểm tra nâng cấp trên DB đã có dữ liệu và đã áp dụng migration của
 /// PR #59 (EmailOutbox), không chỉ DB tạo mới" - rồi sau đó: "dựng database bằng migration assembly
-/// CỦA CHÍNH origin/main, rồi áp migration từ nhánh #58 lên trên, xác nhận dữ liệu/index giữ đúng".
+/// CỦA CHÍNH main, rồi áp migration từ nhánh #58 lên trên, xác nhận dữ liệu/index giữ đúng".
 ///
-/// 3 database baseline được CI dựng THẬT bằng `dotnet ef database update` chạy TRÊN CODE CỦA
-/// origin/main (qua git worktree, xem .github/workflows/ci.yml bước "Build migration baseline
-/// databases from origin/main's real code") - KHÔNG migrate bằng cách target 1 ID cũ trong assembly
-/// của nhánh này (dù 2 cách cho cùng kết quả vì migration đã merge không bao giờ bị sửa -
-/// AGENTS.md - nhưng reviewer muốn xác nhận bằng chính code thật của main, không chỉ bằng suy luận
-/// tương đương):
-/// - WaterbusDomainTests_MainBaselineValid/Duplicate: migrate main tới ĐÚNG mốc trước cả 2 PR
+/// HOTFIX (sau khi PR #58 đã merge vào main): 3 database baseline này TỪNG được CI dựng bằng
+/// `dotnet ef database update` chạy trên code của ref DI ĐỘNG `origin/main`. Ngay khi PR #58 merge,
+/// `origin/main` không còn đại diện cho "trước PR #58" nữa - baseline AfterEmailOutbox lúc đó đã
+/// VÔ TÌNH chứa luôn cả 2 migration ScannerAssignment của #58, khiến
+/// <see cref="UpgradingFromMainsFullLatest_WithExistingValidData_ShouldApplyBothOutOfChronologicalOrderMigrationsCorrectly"/>
+/// fail trên CI của main (và lan ra làm đỏ Backend CI của các PR khác đang mở, vd #61). Bài học: một
+/// ref di động không thể dùng để đại diện cho một điểm lịch sử cố định. Từ hotfix này, cả 3 baseline
+/// đều dựng từ 1 SHA CỐ ĐỊNH, bất biến: `bb1bf0c` (trạng thái main ngay sau khi PR #59 - AddEmailOutbox
+/// - merge, ngay TRƯỚC khi PR #58 merge) - SHA này không bao giờ đổi nghĩa dù main tiến lên bao nhiêu
+/// commit nữa sau đó.
+///
+/// 3 database baseline được CI dựng THẬT bằng `dotnet ef database update` chạy TRÊN CODE CỦA SHA
+/// `bb1bf0c` (qua git worktree, xem .github/workflows/ci.yml bước "Build migration baseline
+/// databases from the pinned main commit's real code") - KHÔNG migrate bằng cách target 1 ID cũ
+/// trong assembly của nhánh này (dù 2 cách cho cùng kết quả vì migration đã merge không bao giờ bị
+/// sửa - AGENTS.md - nhưng reviewer muốn xác nhận bằng chính code thật của main, không chỉ bằng suy
+/// luận tương đương):
+/// - WaterbusDomainTests_MainBaselineValid/Duplicate: migrate tới ĐÚNG mốc trước cả 2 PR
 ///   (20261012003336_AddBoatPositionEventIndex) - mô phỏng "chưa chạy PR #58 lẫn #59".
-/// - WaterbusDomainTests_MainBaselineAfterEmailOutbox: migrate main tới LATEST của chính main (hiện
-///   là AddEmailOutbox) - mô phỏng "main đã chạy PR #59 (EmailOutbox) nhưng CHƯA chạy PR #58", để
-///   xác nhận 2 migration ScannerAssignment của PR #58 (1 trong đó có timestamp SỚM HƠN
-///   AddEmailOutbox, dù áp dụng SAU nó trên môi trường này) vẫn áp đúng, không mất dữ liệu.
+/// - WaterbusDomainTests_MainBaselineAfterEmailOutbox: migrate tới ĐÍCH EXPLICIT 20261106042025_
+///   AddEmailOutbox (migration cuối cùng thật sự tồn tại tại SHA bb1bf0c - KHÔNG bỏ trống target để
+///   "migrate tới latest", vì ý nghĩa của "latest" phụ thuộc SHA đang checkout tại thời điểm chạy, dễ
+///   âm thầm trỏ sang migration khác nếu SHA baseline từng bị đổi) - mô phỏng "main đã chạy PR #59
+///   (EmailOutbox) nhưng CHƯA chạy PR #58", để xác nhận 2 migration ScannerAssignment của PR #58
+///   (1 trong đó có timestamp SỚM HƠN AddEmailOutbox, dù áp dụng SAU nó trên môi trường này) vẫn áp
+///   đúng, không mất dữ liệu.
 /// 3 connection string được CI ghi vào $GITHUB_ENV, đọc qua WATERBUS_TEST_MAIN_BASELINE_VALID/
 /// DUPLICATE/AFTER_EMAILOUTBOX ở đây.
 ///
 /// KHÔNG tự load 1 bản WaterbusSystem.Infrastructure.dll khác của main vào CHÍNH process test này
 /// (sẽ xung đột nạp 2 assembly cùng tên/cùng type identity mà EF Core dùng reflection để khớp model)
-/// - build+migrate của main chạy ở 1 process `dotnet ef` HOÀN TOÀN riêng (bước CI), test chỉ KẾT
-/// NỐI vào database đã có sẵn đó bằng ApplicationDbContext của CHÍNH nhánh này (an toàn, vì tại
+/// - build+migrate tại SHA bb1bf0c chạy ở 1 process `dotnet ef` HOÀN TOÀN riêng (bước CI), test chỉ
+/// KẾT NỐI vào database đã có sẵn đó bằng ApplicationDbContext của CHÍNH nhánh này (an toàn, vì tại
 /// thời điểm đó DB mới chỉ có schema chung - Trip/Booking/Ticket/ScannerAssignment... - tồn tại từ
 /// trước cả 2 PR, đọc/viết bằng model nào cũng được miễn chưa chạm 2 migration mới).
 ///
@@ -56,7 +70,7 @@ public sealed class ScannerAssignmentMigrationSqlTests
         "20261106090321_RestoreScannerAssignmentTripStopCallIdIndex",
     ];
 
-    /// <summary>Skip nếu thiếu SQL Server thật HOẶC thiếu database baseline do CI dựng sẵn từ origin/main.</summary>
+    /// <summary>Skip nếu thiếu SQL Server thật HOẶC thiếu database baseline do CI dựng sẵn từ SHA cố định bb1bf0c.</summary>
     private class MainBaselineFactAttribute : FactAttribute
     {
         public MainBaselineFactAttribute(string envVar)
@@ -67,7 +81,7 @@ public sealed class ScannerAssignmentMigrationSqlTests
             }
             else if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(envVar)))
             {
-                Skip = $"Set {envVar} to a database already migrated using origin/main's real code " +
+                Skip = $"Set {envVar} to a database already migrated using the pinned main commit bb1bf0c's real code " +
                        "(CI builds this via git worktree + dotnet ef - see .github/workflows/ci.yml).";
             }
         }
@@ -174,7 +188,8 @@ public sealed class ScannerAssignmentMigrationSqlTests
     public async Task UpgradingFromBeforeBothPRs_WithExistingValidData_ShouldPreserveDataAndConfigureBothIndexesCorrectly()
     {
         // Database này đã được CI migrate tới ĐÚNG LastMigrationBeforeBothPRs bằng chính code của
-        // origin/main (git worktree + dotnet ef - xem ci.yml) - KHÔNG phải assembly của nhánh này.
+        // SHA cố định bb1bf0c trên main (git worktree + dotnet ef - xem ci.yml) - KHÔNG phải
+        // assembly của nhánh này.
         var connectionString = Environment.GetEnvironmentVariable("WATERBUS_TEST_MAIN_BASELINE_VALID")!;
         try
         {
@@ -198,7 +213,7 @@ public sealed class ScannerAssignmentMigrationSqlTests
             }
 
             // Nâng cấp tiếp lên migration mới nhất bằng assembly của NHÁNH NÀY (3 migration mới của
-            // PR #58/#59) - DB nguồn đã là schema THẬT của origin/main, không phải giả định.
+            // PR #58/#59) - DB nguồn đã là schema THẬT của SHA cố định bb1bf0c trên main, không phải giả định.
             await using (var c = Context(connectionString))
             {
                 await c.Database.MigrateAsync();
@@ -207,7 +222,7 @@ public sealed class ScannerAssignmentMigrationSqlTests
 
             await using var check = Context(connectionString);
             (await check.ScannerAssignments.FindAsync(assignmentId)).Should().NotBeNull(
-                "dữ liệu ScannerAssignment đã tồn tại TRƯỚC 3 migration mới (ghi bằng code thật của origin/main) phải còn nguyên sau khi nâng cấp");
+                "dữ liệu ScannerAssignment đã tồn tại TRƯỚC 3 migration mới (ghi bằng code thật của SHA bb1bf0c trên main) phải còn nguyên sau khi nâng cấp");
 
             (await TableExistsAsync(check, "EmailOutbox")).Should().BeTrue(
                 "bảng EmailOutbox của PR #59 phải còn nguyên sau khi nâng cấp tiếp lên các migration mới của PR #58");
@@ -235,14 +250,22 @@ public sealed class ScannerAssignmentMigrationSqlTests
     public async Task UpgradingFromMainsFullLatest_WithExistingValidData_ShouldApplyBothOutOfChronologicalOrderMigrationsCorrectly()
     {
         // Review (human): không chỉ kiểm từ mốc TRƯỚC cả 2 PR - còn phải kiểm từ 1 DB đã chạy TOÀN
-        // BỘ migration thật của main (bao gồm AddEmailOutbox của PR #59), rồi mới áp 2 migration
-        // ScannerAssignment của PR #58 lên trên. Đây là tình huống "ngược thời gian" thật sẽ xảy ra
-        // khi deploy: AddScannerAssignmentOpenEndedPrimaryUniqueIndex (20261106031430) có ID/
-        // timestamp NHỎ HƠN AddEmailOutbox (20261106042025) dù được ÁP DỤNG SAU nó trên môi trường
-        // này (vì AddEmailOutbox đã nằm trong main từ trước, còn 2 migration ScannerAssignment chỉ
-        // mới pending). EF Core áp các migration PENDING theo thứ tự ID của riêng chúng (không cần
+        // BỘ migration thật của main TẠI SHA CỐ ĐỊNH bb1bf0c (bao gồm AddEmailOutbox của PR #59,
+        // migration cuối cùng thật sự tồn tại ở SHA đó), rồi mới áp 2 migration ScannerAssignment
+        // của PR #58 lên trên. Đây là tình huống "ngược thời gian" thật sẽ xảy ra khi deploy:
+        // AddScannerAssignmentOpenEndedPrimaryUniqueIndex (20261106031430) có ID/timestamp NHỎ HƠN
+        // AddEmailOutbox (20261106042025) dù được ÁP DỤNG SAU nó trên môi trường này (vì
+        // AddEmailOutbox đã nằm trong main từ trước, còn 2 migration ScannerAssignment chỉ mới
+        // pending). EF Core áp các migration PENDING theo thứ tự ID của riêng chúng (không cần
         // "liền mạch" với các migration ĐÃ áp dụng từ trước) - test này xác nhận điều đó hoạt động
         // đúng trong thực tế, không chỉ về lý thuyết.
+        //
+        // HOTFIX: baseline này TỪNG được CI dựng bằng "migrate tới latest của origin/main" (ref di
+        // động) - ngay khi PR #58 merge vào main, "latest của origin/main" tự động trở thành CHÍNH
+        // 2 migration ScannerAssignment đang được test ở đây, làm pendingBeforeUpgrade rỗng và assert
+        // dưới đây fail (CI đỏ, lan ra các PR khác). Nay baseline dựng từ SHA cố định bb1bf0c với
+        // ĐÍCH EXPLICIT "20261106042025_AddEmailOutbox" (xem ci.yml) - SHA và đích đều bất biến, nên
+        // pendingBeforeUpgrade dưới đây luôn đúng là đúng 2 migration ScannerAssignment, mãi mãi.
         var connectionString = Environment.GetEnvironmentVariable("WATERBUS_TEST_MAIN_BASELINE_AFTER_EMAILOUTBOX")!;
         try
         {
@@ -308,9 +331,9 @@ public sealed class ScannerAssignmentMigrationSqlTests
     public async Task UpgradingWithPreExistingDuplicateOpenEndedPrimaries_ShouldFailWithUniqueKeyViolationNotSilentlyCorrupt()
     {
         // Review: "xác nhận dữ liệu cũ có vi phạm unique index mới không" - mô phỏng ĐÚNG tình
-        // huống xấu nhất: DB cũ (schema thật của origin/main, trước PR #58, chưa có index này) do
-        // CHÍNH race đang được sửa (CHK-03) đã lỡ để lại 2 Primary Offline Scanner vô thời hạn cho
-        // CÙNG 1 điểm dừng. Áp migration tạo unique index PHẢI thất bại rõ ràng - KHÔNG được âm
+        // huống xấu nhất: DB cũ (schema thật của main tại SHA cố định bb1bf0c, trước PR #58, chưa
+        // có index này) do CHÍNH race đang được sửa (CHK-03) đã lỡ để lại 2 Primary Offline Scanner
+        // vô thời hạn cho CÙNG 1 điểm dừng. Áp migration tạo unique index PHẢI thất bại rõ ràng - KHÔNG được âm
         // thầm xoá/sửa 1 trong 2 bản ghi lịch sử để migration "qua được" (BR v2.0: không tự ý sửa
         // dữ liệu nghiệp vụ đã có mà không qua đối soát rõ ràng). Đây là hành vi ĐÚNG cần xác nhận.
         var connectionString = Environment.GetEnvironmentVariable("WATERBUS_TEST_MAIN_BASELINE_DUPLICATE")!;
