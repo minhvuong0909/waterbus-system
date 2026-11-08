@@ -78,6 +78,11 @@ public static class DependencyInjection
         services.AddScoped<IRouteRepository, RouteRepository>();
         services.AddScoped<ITripRepository, TripRepository>();
         services.AddScoped<IBoatRepository, BoatRepository>();
+        services.AddScoped<IRouteAdminRepository, RouteAdminRepository>();
+        services.AddScoped<IScannerDeviceAdminRepository, ScannerDeviceAdminRepository>();
+        services.AddScoped<IFareAdminRepository, FareAdminRepository>();
+        services.AddScoped<ITripPlanningRepository, TripPlanningRepository>();
+        services.AddScoped<IScheduleAdminRepository, ScheduleAdminRepository>();
         services.AddScoped<ISeatClassRepository, SeatClassRepository>();
         services.AddScoped<IBoatSeatRepository, BoatSeatRepository>();
         services.AddScoped<IBoatPositionRepository, BoatPositionRepository>();
@@ -89,6 +94,11 @@ public static class DependencyInjection
         services.AddScoped<IStationRepository, StationRepository>();
         services.AddScoped<IFareService, WaterbusSystem.Application.Features.Fares.Services.FareService>();
         services.AddScoped<IBoatService, WaterbusSystem.Application.Features.Boats.Services.BoatService>();
+        services.AddScoped<IRouteAdminService, WaterbusSystem.Application.Features.Routes.Services.RouteAdminService>();
+        services.AddScoped<IScannerDeviceAdminService, WaterbusSystem.Application.Features.ScannerDevices.Services.ScannerDeviceAdminService>();
+        services.AddScoped<IFareAdminService, WaterbusSystem.Application.Features.Fares.Services.FareAdminService>();
+        services.AddScoped<ITripPlanningService, WaterbusSystem.Application.Features.TripPlanning.Services.TripPlanningService>();
+        services.AddScoped<IScheduleAdminService, WaterbusSystem.Application.Features.Schedules.Services.ScheduleAdminService>();
         services.AddScoped<ISeatClassService, WaterbusSystem.Application.Features.SeatInventory.Services.SeatClassService>();
         services.AddScoped<IBoatSeatService, WaterbusSystem.Application.Features.SeatInventory.Services.BoatSeatService>();
         services.AddScoped<IStationService, WaterbusSystem.Application.Features.Stations.Services.StationService>();

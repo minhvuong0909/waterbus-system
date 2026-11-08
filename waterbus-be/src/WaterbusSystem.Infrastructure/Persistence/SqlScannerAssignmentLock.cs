@@ -13,14 +13,20 @@ namespace WaterbusSystem.Infrastructure.Persistence;
 public sealed class SqlScannerAssignmentLock(ApplicationDbContext context) : IScannerAssignmentLock
 {
     private const string ResourcePrefix = "waterbus:scanner-assignment:";
+    private const string DeviceResourcePrefix = "waterbus:scanner-device:";
 
-    public async Task<IAsyncDisposable?> TryAcquireAsync(
-        Guid tripStopCallId, TimeSpan wait, CancellationToken cancellationToken = default)
+    public Task<IAsyncDisposable?> TryAcquireAsync(
+        Guid tripStopCallId, TimeSpan wait, CancellationToken cancellationToken = default) =>
+        AcquireAsync(ResourcePrefix + tripStopCallId.ToString("N"), wait, cancellationToken);
+
+    public Task<IAsyncDisposable?> TryAcquireDeviceAsync(
+        Guid deviceId, TimeSpan wait, CancellationToken cancellationToken = default) =>
+        AcquireAsync(DeviceResourcePrefix + deviceId.ToString("N"), wait, cancellationToken);
+
+    private async Task<IAsyncDisposable?> AcquireAsync(string resource, TimeSpan wait, CancellationToken cancellationToken)
     {
         // Test đơn vị dùng InMemory (không có SQL): không có gì để khoá
         if (!context.Database.IsRelational()) return new Lease(null, null);
-
-        var resource = ResourcePrefix + tripStopCallId.ToString("N");
 
         await context.Database.OpenConnectionAsync(cancellationToken);
         try

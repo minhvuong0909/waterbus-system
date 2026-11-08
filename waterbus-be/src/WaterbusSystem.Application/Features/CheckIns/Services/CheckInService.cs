@@ -34,6 +34,12 @@ public sealed class CheckInService(
 
     public async Task<AssignScannerResponse> AssignScannerAsync(AssignScannerRequest request, CancellationToken cancellationToken = default)
     {
+        // Review PR #63: khoá DeviceId (mọi loại phân công, kể cả Secondary) TRƯỚC khi đọc/kiểm tra thiết bị, giữ tới khi
+        // SaveChanges xong - loại trừ với ScannerDeviceAdminService.DeactivateAsync. Thứ tự: DeviceId -> TripStopCallId.
+        await using var deviceGate = await assignmentLock.TryAcquireDeviceAsync(request.DeviceId, AssignmentLockWait, cancellationToken)
+            ?? throw new ConflictException("Thiết bị đang được xử lý bởi yêu cầu khác. Vui lòng thử lại.");
+
+        // Đọc lại SAU khi có khoá (không dựa vào kiểm tra trước khoá).
         var device = await checkIns.GetRequiredDeviceAsync(request.DeviceId, cancellationToken);
 
         if (!device.IsActive)

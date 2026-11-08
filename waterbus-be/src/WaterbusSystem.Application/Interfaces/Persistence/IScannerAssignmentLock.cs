@@ -13,4 +13,12 @@ public interface IScannerAssignmentLock
 {
     /// <returns>Lease để giải phóng khoá, hoặc null nếu hết thời gian chờ mà request khác vẫn đang giữ khoá.</returns>
     Task<IAsyncDisposable?> TryAcquireAsync(Guid tripStopCallId, TimeSpan wait, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Review PR #63: khoá theo DeviceId, loại trừ lẫn nhau giữa gán phân công (Primary lẫn Secondary) và ngừng hoạt động
+    /// CÙNG 1 thiết bị. Thiếu khoá này, AssignScanner thấy device còn Active rồi mới insert, trong lúc Deactivate đếm
+    /// "0 phân công" và commit IsActive=false xen giữa -> phân công trên thiết bị đã ngừng. Thiết bị khác không chặn nhau.
+    /// THỨ TỰ LẤY KHOÁ BẮT BUỘC: DeviceId -> TripStopCallId (-> khoá thương mại, nếu có). Không bao giờ lấy ngược.
+    /// </summary>
+    Task<IAsyncDisposable?> TryAcquireDeviceAsync(Guid deviceId, TimeSpan wait, CancellationToken cancellationToken = default);
 }
