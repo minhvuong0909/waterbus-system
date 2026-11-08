@@ -112,7 +112,7 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
 
     public Task<List<Trip>> SearchSellableAsync(
         DateTimeOffset? departureDayStartUtc, DateTimeOffset? departureDayEndUtc, TripType? tripType, DateTimeOffset now,
-        CancellationToken cancellationToken = default)
+        int maxCandidates, CancellationToken cancellationToken = default)
     {
         var query = context.Trips.AsNoTracking()
             .Include(t => t.Route).Include(t => t.Boat)
@@ -130,7 +130,7 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
             query = query.Where(t => t.TripType == tripType.Value);
         }
 
-        return query.OrderBy(t => t.DepartureTime).ToListAsync(cancellationToken);
+        return query.OrderBy(t => t.DepartureTime).ThenBy(t => t.Id).Take(maxCandidates).ToListAsync(cancellationToken);
     }
 
     public Task<List<SeatReservationSegment>> ListReservationSegmentsAsync(

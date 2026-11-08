@@ -469,6 +469,11 @@ public sealed class TripService(
 
     // ---------------- Search ----------------
 
+    /// <summary>Hợp đồng chặn của SearchTrips (xem TripService.SearchAsync).</summary>
+    public const int DefaultSearchPageSize = 100;
+    public const int MaxSearchWindowDays = 14;
+    public const int MaxSearchCandidates = 1000;
+
     public async Task<List<TripSearchResponse>> SearchAsync(SearchTripsRequest request, CancellationToken cancellationToken = default)
     {
         DateTimeOffset? dayStart = null;
@@ -480,10 +485,16 @@ public sealed class TripService(
             dayStart = new DateTimeOffset(date, VietnamOffset);
             dayEnd = dayStart.Value.AddDays(1);
         }
+        else
+        {
+            // Không có ngày: cửa sổ tối đa kể từ bây giờ (chuyến đã xuất bến/đóng bán bị loại bên dưới) để truy vấn luôn có chặn.
+            dayStart = dateTime.Now;
+            dayEnd = dayStart.Value.AddDays(MaxSearchWindowDays);
+        }
 
         // BR-TIME-01/02: bán được khi Scheduled/Boarding, chưa xuất bến, chưa quá SalesCloseAt (cùng quy tắc Seat Map/Checkout).
         var now = dateTime.Now;
-        var candidates = await tripRepository.SearchSellableAsync(dayStart, dayEnd, request.TripType, now, cancellationToken);
+        var candidates = await tripRepository.SearchSellableAsync(dayStart, dayEnd, request.TripType, now, MaxSearchCandidates, cancellationToken);
 
         // H05: bến lên/bến xuống hợp lệ của một Trip là các điểm dừng THỰC TẾ của chuyến (TripStopCall →
         // RouteStop), theo VisitOrder; chuyến vòng (lặp bến) lấy lần lên đầu / lần xuống cuối như checkout.
@@ -558,12 +569,11 @@ public sealed class TripService(
                 available.Count > 0 ? "open" : "soldOut"));
         }
 
-        // Không gửi pageSize = trả đủ (FE/AI lọc cục bộ nên cắt ngầm sẽ làm mất chuyến); tập ứng viên đã bị giới hạn
-        // bởi ngày + SalesCloseAt. ponytail: ép phân trang phía server khi FE/AI hỗ trợ nhiều trang.
+        // Hợp đồng có chặn: pageSize mặc định/tối đa 100 (validator chặn >100), cửa sổ ngày mặc định MaxSearchWindowDays,
+        // tập ứng viên DB tối đa MaxSearchCandidates. Lọc theo bến/ghế/giá diễn ra sau truy vấn nên phân trang áp trên kết quả đã lọc.
         // Offset tính bằng long rồi chặn ở int.MaxValue: (Page - 1) * size tràn int sẽ ra số âm và Skip(âm) trả lại trang đầu.
-        return request.PageSize is { } size
-            ? results.Skip((int)Math.Min((long)(request.Page - 1) * size, int.MaxValue)).Take(size).ToList()
-            : results;
+        var size = request.PageSize ?? DefaultSearchPageSize;
+        return results.Skip((int)Math.Min((long)(request.Page - 1) * size, int.MaxValue)).Take(size).ToList();
     }
 
     /// <summary>Thời lượng đúng chặng khi có lịch từng bến; cả hành trình thì lấy giờ chuyến; còn lại null (không bịa).</summary>

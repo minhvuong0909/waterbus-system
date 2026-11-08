@@ -64,11 +64,11 @@ public interface ITripRepository
 
     /// <summary>
     /// Chuyến bán được (Scheduled/Boarding, chưa xuất bến, đã có tàu, chưa quá SalesCloseAt) kèm Route, Boat, điểm dừng,
-    /// lọc theo ngày khởi hành (giờ VN đã quy đổi UTC) và loại chuyến, sắp theo giờ khởi hành tăng dần.
+    /// lọc theo ngày khởi hành (giờ VN đã quy đổi UTC) và loại chuyến, sắp theo giờ khởi hành tăng dần, tối đa <paramref name="maxCandidates"/> dòng (truy vấn luôn có chặn).
     /// </summary>
     Task<List<Trip>> SearchSellableAsync(
         DateTimeOffset? departureDayStartUtc, DateTimeOffset? departureDayEndUtc, TripType? tripType, DateTimeOffset now,
-        CancellationToken cancellationToken = default);
+        int maxCandidates, CancellationToken cancellationToken = default);
 
     /// <summary>Toàn bộ Seat (kèm SeatClass) của các tàu, dùng tính tồn kho bán được khi tìm kiếm.</summary>
     Task<List<Seat>> ListSeatsForBoatsAsync(IReadOnlyCollection<Guid> boatIds, CancellationToken cancellationToken = default);

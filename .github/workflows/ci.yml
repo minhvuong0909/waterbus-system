@@ -141,7 +141,8 @@ jobs:
           text = open(glob.glob("TestResults/**/test-results.trx", recursive=True)[0], encoding="utf-8").read()
           results = re.findall(r'<UnitTestResult[^>]*testName="([^"]+)"[^>]*outcome="([^"]+)"', text)
           gated = ("RedisCommercialTests", "CommercialSqlTests", "DomainPersistenceTests", "EmailOutboxSqlTests",
-                   "CheckInConcurrencySqlTests", "ScannerAssignmentMigrationSqlTests", "ScannerDeviceLockSqlTests")
+                   "CheckInConcurrencySqlTests", "ScannerAssignmentMigrationSqlTests", "ScannerDeviceLockSqlTests",
+                   "ApiReliabilitySqlHttpTests")
           bad = [(n, o) for n, o in results if any(g in n for g in gated) and o == "NotExecuted"]
           ran = sum(1 for n, o in results if any(g in n for g in gated) and o == "Passed")
           print(f"infrastructure tests passed: {ran}, not executed: {len(bad)}")

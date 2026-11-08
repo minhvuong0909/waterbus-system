@@ -32,7 +32,7 @@ public class RefundsController(IRefundRequestService refunds, IManualRefundServi
         // dùng để cổng đối soát và chống gian lận.
         var commandWithContext = command with
         {
-            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1",
+            IpAddress = ClientIp(),
             CreatedBy = User.Identity?.Name ?? User.FindFirst(ClaimTypes.Email)?.Value
         };
 
@@ -57,5 +57,5 @@ public class RefundsController(IRefundRequestService refunds, IManualRefundServi
         return Ok(result);
     }
     [HttpPost("{refundId:guid}/reconcile")]
-    public async Task<IActionResult> Reconcile(Guid refundId) => Ok(new { status = await reconciliation.ReconcileAsync(refundId, HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1", HttpContext.RequestAborted) });
+    public async Task<IActionResult> Reconcile(Guid refundId) => Ok(new { status = await reconciliation.ReconcileAsync(refundId, ClientIp(), HttpContext.RequestAborted) });
 }

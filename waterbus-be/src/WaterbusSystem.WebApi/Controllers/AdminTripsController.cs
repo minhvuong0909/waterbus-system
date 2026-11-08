@@ -20,6 +20,18 @@ public class AdminTripsController(ITripPlanningService service) : BaseApiControl
     public async Task<ActionResult<GenerateTripsResponse>> Generate([FromBody] GenerateTripsRequest request) =>
         Ok(await service.GenerateFromScheduleAsync(request, HttpContext.RequestAborted));
 
+    /// <summary>BR-SCH-10: tạo Trip ad-hoc ngoài Schedule (chưa có tàu; gán tàu bằng PUT .../boat trước khi mở bán).</summary>
+    [HttpPost("~/api/v1/admin/trips")]
+    [ProducesResponseType(typeof(CreateAdHocTripResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<CreateAdHocTripResponse>> CreateAdHoc([FromBody] CreateAdHocTripRequest request)
+    {
+        var created = await service.CreateAdHocAsync(request, HttpContext.RequestAborted);
+        return Created($"/api/v1/trips/{created.TripId}", created);
+    }
+
     /// <summary>Gán hoặc đổi tàu cho Trip Scheduled; ghế đã bán được ánh xạ sang ghế cùng mã + hạng của tàu mới.</summary>
     [HttpPut("~/api/v1/admin/trips/{tripId:guid}/boat")]
     [ProducesResponseType(typeof(AssignTripBoatResponse), StatusCodes.Status200OK)]
