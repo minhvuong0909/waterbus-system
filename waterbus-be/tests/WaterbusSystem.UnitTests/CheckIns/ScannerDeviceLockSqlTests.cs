@@ -343,14 +343,26 @@ public sealed class ScannerDeviceLockSqlTests : IAsyncLifetime
 
         // Lần 1 lỗi nghiệp vụ (đã giữ khoá rồi mới throw) - lần 2 với thời gian chờ 300ms vẫn phải thấy lỗi "ngưng hoạt động",
         // KHÔNG phải lỗi timeout khoá => khoá đã được release ở nhánh lỗi.
-        for (var i = 0; i < 2; i++)
+        var alive = new List<ApplicationDbContext>();   // context KHÔNG dispose: dispose connection sẽ che lỗi rò khoá
+        try
         {
-            var act = async () =>
+            for (var i = 0; i < 2; i++)
             {
-                await using var c = Context();
-                await AssignService(c, s.Now, shortWait: true).AssignScannerAsync(Request(s, s.DeviceA, primary: i == 0));
-            };
-            await act.Should().ThrowAsync<ConflictException>().WithMessage("*ngưng hoạt động*");
+                var c = Context();
+                alive.Add(c);
+                var act = async () => await AssignService(c, s.Now, shortWait: true).AssignScannerAsync(Request(s, s.DeviceA, primary: i == 0));
+                await act.Should().ThrowAsync<ConflictException>().WithMessage("*ngưng hoạt động*");
+
+                // Session SQL độc lập: không còn applock nào đang được cấp dù context lỗi vẫn sống.
+                await using var probe = Context();
+                (await probe.Database.SqlQueryRaw<int>(
+                    "SELECT COUNT(*) AS Value FROM sys.dm_tran_locks WHERE resource_type = 'APPLICATION' AND request_status = 'GRANT' AND resource_database_id = DB_ID()")
+                    .SingleAsync()).Should().Be(0, "khoá phải được release ở nhánh lỗi, không đợi dispose context");
+            }
+        }
+        finally
+        {
+            foreach (var c in alive) await c.DisposeAsync();
         }
         (await StateAsync(s.DeviceA)).Should().Be((0, false));
     }
