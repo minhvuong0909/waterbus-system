@@ -394,12 +394,8 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
         candidate.RoutePoiId == Guid.Empty ? candidate.PoiId : candidate.RoutePoiId;
 
     // Cùng lượt ghé retry dùng cùng RequestId để player có thể khử trùng lệnh đã nhận.
-    private static Guid StableRequestId(Guid tripId, Guid routePoiId, string? visitId)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(
-            $"{tripId:N}:{routePoiId:N}:{(visitId is null ? "0" : "1:" + visitId)}"));
-        return new Guid(bytes.AsSpan(0, 16));
-    }
+    private static Guid StableRequestId(Guid tripId, Guid routePoiId, string? visitId) =>
+        Features.SightseeingAudio.AudioRequestIds.For(tripId, routePoiId, visitId);
 
     private static bool IsStableAssetIdentifier(string? assetUri) =>
         !string.IsNullOrWhiteSpace(assetUri)

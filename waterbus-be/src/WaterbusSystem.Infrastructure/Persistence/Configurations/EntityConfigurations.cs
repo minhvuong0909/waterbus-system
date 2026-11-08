@@ -609,3 +609,26 @@ public class EmailOutboxMessageConfiguration : IEntityTypeConfiguration<EmailOut
         });
     }
 }
+
+public class AudioPlaybackRequestConfiguration : IEntityTypeConfiguration<AudioPlaybackRequest>
+{
+    public void Configure(EntityTypeBuilder<AudioPlaybackRequest> builder)
+    {
+        builder.ToTable("AudioPlaybackRequests");
+        // Chốt chặn chống phát trùng bền vững: một lượt ghé POI trên một Trip chỉ có một lệnh (BR-EXP-05).
+        builder.HasIndex(x => new { x.TripId, x.RoutePoiKey, x.VisitKey }).IsUnique().HasDatabaseName("UX_AudioPlaybackRequests_Visit");
+        builder.HasIndex(x => new { x.BoatId, x.Status }).HasDatabaseName("IX_AudioPlaybackRequests_Boat");
+        builder.Property(x => x.VisitKey).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.AudioAssetUri).HasMaxLength(500);
+        builder.Property(x => x.FailureReason).HasMaxLength(300);
+        builder.Property(x => x.Status).HasConversion<int>();
+        builder.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId).OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.RowVersion).IsRowVersion();
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_AudioPlaybackRequests_Status", "[Status] BETWEEN 1 AND 6");
+            t.HasCheckConstraint("CK_AudioPlaybackRequests_Attempts", "[Attempts] >= 0");
+        });
+    }
+}
+
