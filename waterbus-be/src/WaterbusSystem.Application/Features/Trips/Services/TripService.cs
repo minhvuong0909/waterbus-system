@@ -494,7 +494,8 @@ public sealed class TripService(
 
         // BR-TIME-01/02: bán được khi Scheduled/Boarding, chưa xuất bến, chưa quá SalesCloseAt (cùng quy tắc Seat Map/Checkout).
         var now = dateTime.Now;
-        var candidates = await tripRepository.SearchSellableAsync(dayStart, dayEnd, request.TripType, now, MaxSearchCandidates, cancellationToken);
+        var candidates = await tripRepository.SearchSellableAsync(dayStart, dayEnd, request.TripType, now, MaxSearchCandidates,
+            request.DepartureStationId, request.ArrivalStationId, cancellationToken);
 
         // H05: bến lên/bến xuống hợp lệ của một Trip là các điểm dừng THỰC TẾ của chuyến (TripStopCall →
         // RouteStop), theo VisitOrder; chuyến vòng (lặp bến) lấy lần lên đầu / lần xuống cuối như checkout.

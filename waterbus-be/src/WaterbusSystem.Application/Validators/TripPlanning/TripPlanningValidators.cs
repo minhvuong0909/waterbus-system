@@ -30,7 +30,7 @@ public class CreateAdHocTripRequestValidator : AbstractValidator<CreateAdHocTrip
             .WithMessage("TripType không hợp lệ.");
         RuleFor(x => x.DepartureTime).NotEmpty();
         RuleFor(x => x.Stops).NotNull().Must(s => s is { Count: >= 2 and <= 50 }).WithMessage("Trip cần 2–50 điểm dừng.");
-        RuleForEach(x => x.Stops).ChildRules(s =>
+        RuleForEach(x => x.Stops).NotNull().ChildRules(s =>
         {
             s.RuleFor(p => p.RouteStopId).NotEmpty();
             s.RuleFor(p => p.ArrivalOffsetMin).GreaterThanOrEqualTo(0).When(p => p.ArrivalOffsetMin.HasValue);

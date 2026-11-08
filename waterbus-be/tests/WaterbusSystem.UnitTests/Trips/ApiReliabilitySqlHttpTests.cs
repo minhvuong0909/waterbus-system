@@ -188,6 +188,67 @@ public sealed class ApiReliabilitySqlHttpTests : IAsyncLifetime
         Assert.Contains(tripId.ToString(), Ids(await admin.GetFromJsonAsync<JsonElement>($"/api/v1/trips/search?departureDate={date}")), StringComparer.OrdinalIgnoreCase);
     }
 
+    [SqlServerDomainFact]
+    public async Task AdHocTrip_RejectsNullStopsLateFirstDepartureAndNonBoardableEnds_WithCleanProblemDetails()
+    {
+        var (a, b, c) = await RouteStopsAsync();
+        var admin = Http("Admin");
+        var when = DateTimeOffset.UtcNow.AddDays(2);
+        // phần tử stop null → 400 (không phải 500)
+        var withNull = await admin.PostAsync("/api/v1/admin/trips", new StringContent(
+            "{\"routeId\":\"" + _seed.Route.Id + "\",\"tripType\":\"Commuter\",\"departureTime\":\"" + when.ToString("O") + "\",\"stops\":[null,{\"routeStopId\":\"" + b + "\",\"arrivalOffsetMin\":20}]}",
+            Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.BadRequest, withNull.StatusCode);
+        // bến đầu rời muộn hơn giờ khởi hành của chuyến → 400
+        var late = await admin.PostAsJsonAsync("/api/v1/admin/trips", new
+        { routeId = _seed.Route.Id, tripType = "Commuter", departureTime = when,
+            stops = new[] { new { routeStopId = a, arrivalOffsetMin = (int?)null, departureOffsetMin = (int?)60 },
+                            new { routeStopId = c, arrivalOffsetMin = (int?)90, departureOffsetMin = (int?)null } } });
+        Assert.Equal(HttpStatusCode.BadRequest, late.StatusCode);
+        using (var problem = JsonDocument.Parse(await late.Content.ReadAsStringAsync()))
+        {
+            Assert.True(problem.RootElement.TryGetProperty("errors", out _));
+            Assert.True(problem.RootElement.TryGetProperty("traceId", out _));
+        }
+        // bến đầu không cho lên → 400
+        await using (var db = Context())
+        {
+            (await db.RouteStops.SingleAsync(s => s.Id == a)).CanBoard = false;
+            await db.SaveChangesAsync();
+        }
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync("/api/v1/admin/trips", AdHocBody((a, b, c)))).StatusCode);
+    }
+
+    // ───────────────────────── Search: lọc bến trước khi cắt ứng viên ─────────────────────────
+
+    [SqlServerDomainFact]
+    public async Task Search_StationFilterIsAppliedBeforeTheCandidateCap_SoUnrelatedTripsCannotHideMatches()
+    {
+        await using var c = Context();
+        var otherRoute = new Route { Code = "RT-OTHER", Name = "Tuyen khac", DepartureStationId = _seed.StationA.Id, ArrivalStationId = _seed.StationB.Id,
+            EstimatedDurationMinutes = 10, DistanceKm = 1, IsActive = true };
+        c.Routes.Add(otherRoute);
+        var s1 = new RouteStop { RouteId = otherRoute.Id, StationId = _seed.StationA.Id, SequenceNo = 1 };
+        var s2 = new RouteStop { RouteId = otherRoute.Id, StationId = _seed.StationB.Id, SequenceNo = 2 };
+        c.RouteStops.AddRange(s1, s2);
+        var match = await c.Trips.SingleAsync();
+        match.DepartureTime = DateTimeOffset.UtcNow.AddDays(10);   // chuyến khớp (A→C) nằm SAU mọi chuyến gây nhiễu
+        match.ArrivalTime = match.DepartureTime.AddMinutes(30);
+        match.SalesCloseAt = match.DepartureTime;
+        for (var i = 0; i < 1005; i++)                              // 1005 chuyến A→B sớm hơn, chiếm hết giới hạn 1000 nếu không lọc bến
+        {
+            var dep = DateTimeOffset.UtcNow.AddHours(2).AddMinutes(i);
+            var trip = new Trip { RouteId = otherRoute.Id, BoatId = _seed.Boat.Id, TripType = TripType.Commuter, Status = TripStatus.Scheduled,
+                DepartureTime = dep, ArrivalTime = dep.AddMinutes(10), SalesCloseAt = dep };
+            trip.TripStopCalls.Add(new TripStopCall { TripId = trip.Id, RouteStopId = s1.Id, VisitOrder = 1 });
+            trip.TripStopCalls.Add(new TripStopCall { TripId = trip.Id, RouteStopId = s2.Id, VisitOrder = 2 });
+            c.Trips.Add(trip);
+        }
+        await c.SaveChangesAsync();
+        var result = await Http().GetFromJsonAsync<JsonElement>($"/api/v1/trips/search?departureStationId={_seed.StationA.Id}&arrivalStationId={_seed.StationC.Id}");
+        Assert.Equal(match.Id.ToString(), Assert.Single(result.EnumerateArray()).GetProperty("id").GetString(), ignoreCase: true);
+    }
+
     // ───────────────────────── BR-SCH-07: đổi tàu với ghế đã bán ─────────────────────────
 
     [SqlServerDomainFact]
@@ -204,10 +265,22 @@ public sealed class ApiReliabilitySqlHttpTests : IAsyncLifetime
             c.Boats.Add(replacement);
             await c.SaveChangesAsync();
         }
+        await using (var c = Context())
+        {
+            // đánh dấu là ghế ĐÃ BÁN (Confirmed) để BR-SCH-07 được thử với dữ liệu đã thanh toán, không chỉ ghế đang giữ
+            var sold = await c.SeatReservations.SingleAsync();
+            sold.Status = ReservationStatus.Confirmed;
+            await c.SaveChangesAsync();
+        }
         var admin = Http("Admin");
         // OtherBoat chỉ có ghế X01 ⇒ thiếu S01 → 409, đặt chỗ không đổi
         var incompatible = await admin.PutAsJsonAsync($"/api/v1/admin/trips/{_seed.Trip.Id}/boat", new { boatId = _seed.OtherBoat.Id });
         Assert.Equal(HttpStatusCode.Conflict, incompatible.StatusCode);
+        using (var problem = JsonDocument.Parse(await incompatible.Content.ReadAsStringAsync()))
+        {
+            Assert.Equal(409, problem.RootElement.GetProperty("status").GetInt32());
+            Assert.True(problem.RootElement.TryGetProperty("traceId", out _));
+        }
         await using (var c = Context())
         {
             var r = await c.SeatReservations.Include(x => x.Seat).SingleAsync();
@@ -312,8 +385,11 @@ public sealed class ApiReliabilitySqlHttpTests : IAsyncLifetime
             var total = (await check.Boats.AsNoTracking().SingleAsync(b => b.Id == boatId)).TotalSeats;
             var active = await check.Seats.CountAsync(s => s.BoatId == boatId && s.IsActive);
             Assert.True(active <= total, $"round {round}: {active} ghế hoạt động > TotalSeats {total}");
-            foreach (var e in results.Where(e => e is not null))
-                Assert.True(e is ConflictException or ConcurrencyException, $"round {round}: lỗi thô {e!.GetType().Name}");
+            // Tuần tự hoá bằng khoá thương mại: đúng một thao tác thành công, thao tác kia bị từ chối sạch (cả hai thứ tự đều dẫn tới 3 ghế > TotalSeats 2).
+            Assert.Equal(1, results.Count(e => e is null));
+            var loser = results.Single(e => e is not null)!;
+            Assert.True(loser is ConflictException or ConcurrencyException, $"round {round}: lỗi thô {loser.GetType().Name}");
+            Assert.True((total == 2 && active == 2) || (total == 3 && active == 3), $"round {round}: trạng thái không khớp bên thắng ({total}/{active})");
         }
     }
 

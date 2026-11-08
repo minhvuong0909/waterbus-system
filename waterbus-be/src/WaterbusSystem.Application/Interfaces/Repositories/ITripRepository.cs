@@ -68,7 +68,8 @@ public interface ITripRepository
     /// </summary>
     Task<List<Trip>> SearchSellableAsync(
         DateTimeOffset? departureDayStartUtc, DateTimeOffset? departureDayEndUtc, TripType? tripType, DateTimeOffset now,
-        int maxCandidates, CancellationToken cancellationToken = default);
+        int maxCandidates, Guid? departureStationId = null, Guid? arrivalStationId = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Toàn bộ Seat (kèm SeatClass) của các tàu, dùng tính tồn kho bán được khi tìm kiếm.</summary>
     Task<List<Seat>> ListSeatsForBoatsAsync(IReadOnlyCollection<Guid> boatIds, CancellationToken cancellationToken = default);

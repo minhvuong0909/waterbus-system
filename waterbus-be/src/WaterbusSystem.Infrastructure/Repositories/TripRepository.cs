@@ -112,7 +112,8 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
 
     public Task<List<Trip>> SearchSellableAsync(
         DateTimeOffset? departureDayStartUtc, DateTimeOffset? departureDayEndUtc, TripType? tripType, DateTimeOffset now,
-        int maxCandidates, CancellationToken cancellationToken = default)
+        int maxCandidates, Guid? departureStationId = null, Guid? arrivalStationId = null,
+        CancellationToken cancellationToken = default)
     {
         var query = context.Trips.AsNoTracking()
             .Include(t => t.Route).Include(t => t.Boat)
@@ -128,6 +129,18 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
         if (tripType.HasValue)
         {
             query = query.Where(t => t.TripType == tripType.Value);
+        }
+        // Lọc bến TRƯỚC khi cắt ứng viên: chuyến không phục vụ bến được tìm không được chiếm chỗ trong giới hạn.
+        // Thứ tự lên/xuống và tồn kho vẫn được kiểm tra chính xác ở tầng service.
+        if (departureStationId.HasValue)
+        {
+            var from = departureStationId.Value;
+            query = query.Where(t => t.TripStopCalls.Any(c => c.RouteStop!.StationId == from && c.RouteStop.CanBoard));
+        }
+        if (arrivalStationId.HasValue)
+        {
+            var to = arrivalStationId.Value;
+            query = query.Where(t => t.TripStopCalls.Any(c => c.RouteStop!.StationId == to && c.RouteStop.CanAlight));
         }
 
         return query.OrderBy(t => t.DepartureTime).ThenBy(t => t.Id).Take(maxCandidates).ToListAsync(cancellationToken);

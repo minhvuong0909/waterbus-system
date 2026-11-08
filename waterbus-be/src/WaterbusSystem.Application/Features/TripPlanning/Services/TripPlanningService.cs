@@ -98,6 +98,9 @@ public sealed class TripPlanningService(
 
             var routeStops = route.Stops.ToDictionary(s => s.Id);
             var stops = request.Stops;
+            // Giờ khởi hành của Trip chính là giờ rời bến đầu (search, đóng bán, trùng lịch tàu đều dựa vào mốc này).
+            if (stops[0].DepartureOffsetMin != 0)
+                throw new ValidationException([new("stops[0].departureOffsetMin", "Bến đầu phải rời bến đúng giờ khởi hành của chuyến (offset 0).")]);
             for (var i = 0; i < stops.Count; i++)
             {
                 var s = stops[i];
@@ -112,6 +115,10 @@ public sealed class TripPlanningService(
                 if (i > 0 && (s.ArrivalOffsetMin! < previousLeave))
                     throw new ValidationException([new($"stops[{i}].arrivalOffsetMin", "Giờ đến không được sớm hơn giờ rời bến trước.")]);
             }
+
+            // Phải có ít nhất một cặp lên/xuống hợp lệ: bến đầu cho lên, bến cuối cho xuống (nếu không search không bao giờ tìm ra).
+            if (!routeStops[stops[0].RouteStopId].CanBoard || !routeStops[stops[^1].RouteStopId].CanAlight)
+                throw new ValidationException([new("stops", "Bến đầu phải cho lên tàu và bến cuối phải cho xuống tàu.")]);
 
             var trip = new Trip
             {
