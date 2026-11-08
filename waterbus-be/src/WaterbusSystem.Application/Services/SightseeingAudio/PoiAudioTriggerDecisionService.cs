@@ -352,8 +352,10 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
         if (!dispatchResult.IsDispatched || !dispatchResult.IsAcceptedByPlayer
             || dispatchResult.RequestId != triggerRequest.RequestId)
         {
-            await _deduplicationService.ReleaseReservationAsync(
-                tripContext.TripId, deduplicationId, tripContext.VisitId, CancellationToken.None);
+            // "ReservationLost": lease đã hết và evaluation khác có thể đang sở hữu lượt ghé — không nhả của họ.
+            if (dispatchResult.Message != "ReservationLost")
+                await _deduplicationService.ReleaseReservationAsync(
+                    tripContext.TripId, deduplicationId, tripContext.VisitId, CancellationToken.None);
             _logger?.LogWarning("Gửi yêu cầu phát audio cho POI {PoiId} trên Trip {TripId} thất bại.",
                 bestMatch.Candidate.PoiId, tripContext.TripId);
 

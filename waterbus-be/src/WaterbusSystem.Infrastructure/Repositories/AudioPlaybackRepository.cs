@@ -60,12 +60,16 @@ public sealed class AudioPlaybackRepository(ApplicationDbContext context) : IAud
                 .SetProperty(x => x.Status, x => x.Attempts >= maxAttempts ? AudioPlaybackStatus.Failed : AudioPlaybackStatus.Released)
                 .SetProperty(x => x.FailureReason, Trim(reason)), ct);
 
-    public Task RecordDispatchAsync(AudioTriggerRequest r, CancellationToken ct) =>
-        context.AudioPlaybackRequests.Where(x => x.Id == r.RequestId)
+    public async Task<bool> RecordDispatchAsync(AudioTriggerRequest r, DateTimeOffset now, TimeSpan lease, CancellationToken ct)
+    {
+        var leaseCutoff = now - lease;
+        return await context.AudioPlaybackRequests
+            .Where(x => x.Id == r.RequestId && x.Status == AudioPlaybackStatus.Reserved && x.ReservedAt >= leaseCutoff)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.BoatId, r.BoatId).SetProperty(x => x.PoiId, r.PoiId)
                 .SetProperty(x => x.Attempts, x => x.Attempts + 1)
                 .SetProperty(x => x.AudioGuideId, r.AudioGuideId).SetProperty(x => x.AudioAssetUri, r.AudioAssetUri)
-                .SetProperty(x => x.DurationSeconds, r.DurationSeconds).SetProperty(x => x.DistanceMeters, r.DistanceMeters), ct);
+                .SetProperty(x => x.DurationSeconds, r.DurationSeconds).SetProperty(x => x.DistanceMeters, r.DistanceMeters), ct) == 1;
+    }
 
     public Task<PlaybackRequestView?> FindAsync(Guid requestId, CancellationToken ct) =>
         context.AudioPlaybackRequests.AsNoTracking().Where(x => x.Id == requestId)

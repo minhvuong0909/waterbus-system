@@ -22,9 +22,11 @@ public class OnboardAudioHub(IOnboardAudioService service, OnboardPlayerRegistry
         try
         {
             var boatId = await service.ResolveBoatAsync(CaptainId());
-            registry.Register(boatId, Context.ConnectionId, CaptainId());
             await Groups.AddToGroupAsync(Context.ConnectionId, RealtimeContract.Groups.OnboardAudio(boatId));
             await Clients.Caller.SendAsync(RealtimeContract.Events.AudioState, await service.GetStateAsync(CaptainId()));
+            // Đăng ký làm player hoạt động SAU CÙNG: nếu các bước trên ném lỗi thì không để lại kết nối "ma"
+            // (SignalR không gọi OnDisconnectedAsync khi OnConnectedAsync ném).
+            registry.Register(boatId, Context.ConnectionId, CaptainId());
         }
         catch (ForbiddenAccessException)
         {
@@ -49,6 +51,7 @@ public class OnboardAudioHub(IOnboardAudioService service, OnboardPlayerRegistry
     public Task<bool> ReportPlaybackState(Guid requestId, string state, string? message) => Run(async () =>
     {
         if (state is not ("Started" or "Completed" or "Failed")) throw new HubException("State phải là Started, Completed hoặc Failed.");
+        if (!registry.IsActive(Context.ConnectionId)) return false; // kết nối chờ không điều khiển trạng thái lệnh
         return (await service.ReportStateAsync(CaptainId(), requestId, new ReportPlaybackStateRequest(state, message))).Applied;
     });
 

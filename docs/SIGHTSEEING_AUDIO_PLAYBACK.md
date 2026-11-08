@@ -65,6 +65,8 @@ Captain GPS  ──REST/Hub──▶ BoatTrackingService ──(lọc stale)─�
 
 ## 5. Giới hạn đã biết
 - **Một player hoạt động mỗi Boat**: nhiều kết nối Captain cùng Boat được phép (reconnect/chuyển thiết bị), nhưng `audioTrigger` chỉ gửi tới kết nối **mới nhất còn hợp lệ**; kết nối cũ ở chế độ chờ (vẫn nhận `audioState`/`audioControl` pause|recheck, `AcceptPlayback` từ kết nối chờ trả `false`). Tránh hai loa/phiên cùng phát một lệnh. Cách ly giữa các Boat không đổi.
+- **Fence lease**: `RecordDispatch` chỉ thành công khi lệnh còn `Reserved` và lease chưa hết; evaluation đã mất lease không gửi và không nhả reservation của evaluation khác. Player hoạt động được chọn lại sau bước kiểm tra kho. Kết nối chỉ được đăng ký (active) sau khi thiết lập thành công.
+- **Giới hạn đã biết**: REST `/onboard-audio/.../accept|state` xác thực theo Captain của Boat, không gắn với một kết nối cụ thể nên chính sách "một player hoạt động" chỉ áp cho hub (dispatch/ACK/report qua hub); không phải ranh giới bảo mật (cùng danh tính Captain).
 - Registry hiện diện/ACK nằm trong tiến trình; SignalR chạy **một instance** (chưa có backplane). Nhiều instance cần backplane (Redis) và đổi `OnboardPlayerRegistry`.
 - Chưa có replay sự kiện đã bỏ lỡ ngoài cơ chế retry theo GPS; trạng thái hiện tại lấy qua `GetState`.
 - Không có test E2E với dịch vụ TTS/Blob thật: test dùng kho giả và SignalR client giả lập player (không khẳng định đã phát ra loa).

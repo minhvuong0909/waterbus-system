@@ -15,7 +15,8 @@ public interface IAudioPlaybackRepository
         DateTimeOffset now, TimeSpan lease, int maxAttempts, CancellationToken ct);
     Task<bool> MarkAcceptedAsync(Guid requestId, DateTimeOffset now, CancellationToken ct);
     Task ReleaseAsync(Guid requestId, string? reason, int maxAttempts, CancellationToken ct);
-    Task RecordDispatchAsync(AudioTriggerRequest request, CancellationToken ct);
+    /// <summary>Ghi lượt gửi thật. Chỉ thành công khi lệnh còn Reserved và lease chưa hết (fence: người giành lại lease chỉ làm được khi lease cũ đã hết).</summary>
+    Task<bool> RecordDispatchAsync(AudioTriggerRequest request, DateTimeOffset now, TimeSpan lease, CancellationToken ct);
     Task<PlaybackRequestView?> FindAsync(Guid requestId, CancellationToken ct);
     /// <summary>Player báo Started/Completed/Failed. Trả true nếu chuyển trạng thái được áp dụng (false = lặp/không hợp lệ).</summary>
     Task<bool> ReportAsync(Guid requestId, AudioPlaybackStatus target, string? reason, int maxAttempts,

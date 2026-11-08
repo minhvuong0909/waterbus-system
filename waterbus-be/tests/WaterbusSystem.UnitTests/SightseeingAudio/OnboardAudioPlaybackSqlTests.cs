@@ -27,6 +27,7 @@ using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
 using WaterbusSystem.Application.Features.Incidents;
 using WaterbusSystem.Application.Features.SightseeingAudio;
 using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
+using WaterbusSystem.Application.Features.SightseeingAudio.Models;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Infrastructure;
@@ -344,9 +345,10 @@ public sealed class OnboardAudioPlaybackSqlTests : IAsyncLifetime
         var requestId = oldPlayer.Triggers.Single().GetProperty("requestId").GetGuid();
 
         // Admin đổi Captain của tàu: kết nối cũ không còn quyền dù vẫn đang mở
+        var newCaptain = Guid.NewGuid();
         await using (var c = Context())
         {
-            (await c.Boats.SingleAsync(b => b.Id == _seed.Boat.Id)).CaptainUserId = Guid.NewGuid();
+            (await c.Boats.SingleAsync(b => b.Id == _seed.Boat.Id)).CaptainUserId = newCaptain;
             await c.SaveChangesAsync();
         }
         Assert.Equal(HttpStatusCode.Forbidden, (await Http(_captain).GetAsync($"/api/v1/onboard-audio/requests/{requestId}/audio")).StatusCode);
@@ -361,9 +363,11 @@ public sealed class OnboardAudioPlaybackSqlTests : IAsyncLifetime
                 AudioAssetUri = "https://example.blob.core.windows.net/audio/audio-assets/tts/20261108/poi.mp3" });
             await c.SaveChangesAsync();
         }
-        using var http = Http(_captain);
-        await http.PostAsJsonAsync($"/api/v1/tracking/boats/{_seed.Boat.Id}/positions",
+        // GPS do Captain MỚI gửi (hợp lệ) để chắc chắn dispatch thật sự chạy; kết nối cũ không được nhận gì.
+        using var http = Http(newCaptain);
+        var gps = await http.PostAsJsonAsync($"/api/v1/tracking/boats/{_seed.Boat.Id}/positions",
             new { latitude = PoiLat + 0.01m, longitude = PoiLng, speedKnots = 5m, observedAt = DateTimeOffset.UtcNow.AddSeconds(1) });
+        Assert.Equal(HttpStatusCode.OK, gps.StatusCode);
         await Task.Delay(300);
         Assert.Single(oldPlayer.Triggers);
     }
@@ -426,6 +430,25 @@ public sealed class OnboardAudioPlaybackSqlTests : IAsyncLifetime
         // kết nối chờ không thể ACK thay cho player hoạt động
         Assert.False(await first.Hub.InvokeAsync<bool>("AcceptPlayback", requestId));
         Assert.Equal(AudioPlaybackStatus.Accepted, (await LedgerAsync())!.Status);
+    }
+
+    [SqlServerDomainFact]
+    public async Task DispatchIsFenced_ByReservationLease_StaleOwnerCannotRecordOrSend()
+    {
+        var stale = Guid.NewGuid(); var fresh = Guid.NewGuid();
+        await using (var c = Context())
+        {
+            c.AudioPlaybackRequests.AddRange(
+                new AudioPlaybackRequest { Id = stale, TripId = _seed.Trip.Id, RoutePoiKey = Guid.NewGuid(), VisitKey = "", Status = AudioPlaybackStatus.Reserved, ReservedAt = DateTimeOffset.UtcNow.AddMinutes(-2) },
+                new AudioPlaybackRequest { Id = fresh, TripId = _seed.Trip.Id, RoutePoiKey = Guid.NewGuid(), VisitKey = "", Status = AudioPlaybackStatus.Reserved, ReservedAt = DateTimeOffset.UtcNow });
+            await c.SaveChangesAsync();
+        }
+        await using var db = Context();
+        var repo = new WaterbusSystem.Infrastructure.Repositories.AudioPlaybackRepository(db);
+        AudioTriggerRequest Req(Guid id) => new() { RequestId = id, TripId = _seed.Trip.Id, BoatId = _seed.Boat.Id, AudioAssetUri = "x.mp3" };
+        var lease = TimeSpan.FromSeconds(30);
+        Assert.False(await repo.RecordDispatchAsync(Req(stale), DateTimeOffset.UtcNow, lease, default)); // lease đã hết: có thể đã bị giành lại
+        Assert.True(await repo.RecordDispatchAsync(Req(fresh), DateTimeOffset.UtcNow, lease, default));
     }
 
     [SqlServerDomainFact]
