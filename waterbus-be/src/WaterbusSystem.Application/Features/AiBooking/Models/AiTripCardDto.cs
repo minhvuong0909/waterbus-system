@@ -35,7 +35,7 @@ public record AiTripCardDto(
     string ArrivalStationName,
     DateTimeOffset DepartureTime,
     DateTimeOffset ArrivalTime,
-    int DurationMinutes,
+    int? DurationMinutes,
     string TripType,
     decimal? BasePrice,
     bool IsPriceVerified,
