@@ -394,6 +394,54 @@ public sealed class ApiReliabilitySqlHttpTests : IAsyncLifetime
     }
 
 
+    // ───────────────────────── Admin đối soát tài chính (BR-PAY-05, BR-RF-07) ─────────────────────────
+
+    [SqlServerDomainFact]
+    public async Task ReconciliationList_SurfacesLatePaymentsAndStuckRefunds_ForAdminOnly_OnRealSql()
+    {
+        Guid orderId, bookingId;
+        await using (var c = Context())
+        {
+            var booking = await CommercialHandlerFactory.Booking(c).CreateAsync(CommercialCheckoutTests.Command(_seed));
+            orderId = booking.OrderId; bookingId = booking.BookingId;
+            var payment = new FinancialTransaction
+            {
+                OrderId = orderId, TransactionType = FinancialTransactionType.Payment, Status = FinancialTransactionStatus.Succeeded,
+                Amount = 50000m, GatewayName = "VNPAY", MerchantReference = Guid.NewGuid().ToString("N"), GatewayReference = "GW1",
+                IdempotencyKey = "PAY_late_" + Guid.NewGuid().ToString("N"), GatewayRequestCreatedAt = DateTimeOffset.UtcNow.AddHours(-2),
+                CompletedAt = DateTimeOffset.UtcNow.AddHours(-1),
+                FailureReason = "ReconciliationRequired: payment received after checkout expired or trip became unavailable"
+            };
+            var stuck = new FinancialTransaction
+            {
+                OrderId = orderId, TransactionType = FinancialTransactionType.Refund, Status = FinancialTransactionStatus.Processing,
+                Amount = 10000m, GatewayName = "VNPAY", MerchantReference = payment.MerchantReference, RefundBookingId = bookingId,
+                OriginalPaymentId = payment.Id, IdempotencyKey = "REFUND_stuck_" + Guid.NewGuid().ToString("N"), ProcessedAt = DateTimeOffset.UtcNow.AddMinutes(-30)
+            };
+            c.FinancialTransactions.AddRange(payment, stuck);
+            await c.SaveChangesAsync();
+        }
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Http().GetAsync("/api/v1/refunds/reconciliation-required")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Http("Passenger").GetAsync("/api/v1/refunds/reconciliation-required")).StatusCode);
+        var response = await Http("Admin").GetAsync("/api/v1/refunds/reconciliation-required?page=1&pageSize=10");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal(2, json.GetProperty("totalCount").GetInt32());
+        var items = json.GetProperty("items").EnumerateArray().ToList();
+        var late = items.Single(i => i.GetProperty("kind").GetString() == "LatePayment");
+        Assert.Equal(orderId, late.GetProperty("orderId").GetGuid());
+        Assert.Equal(bookingId, late.GetProperty("bookingId").GetGuid());
+        Assert.StartsWith("ReconciliationRequired:", late.GetProperty("reason").GetString());
+        Assert.Equal("Processing", late.GetProperty("refundStatus").GetString());
+        var refund = items.Single(i => i.GetProperty("kind").GetString() == "RefundProcessing");
+        Assert.Equal("Processing", refund.GetProperty("status").GetString());
+        Assert.Equal(JsonValueKind.Null, refund.GetProperty("gatewayReference").ValueKind);
+        // phân trang thật
+        var page2 = JsonDocument.Parse(await Http("Admin").GetStringAsync("/api/v1/refunds/reconciliation-required?page=2&pageSize=1")).RootElement;
+        Assert.Single(page2.GetProperty("items").EnumerateArray());
+    }
+
     // ───────────────────────── IP cho VNPay ─────────────────────────
 
     [Theory]

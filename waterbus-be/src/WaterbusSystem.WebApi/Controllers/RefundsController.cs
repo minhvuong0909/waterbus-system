@@ -56,6 +56,14 @@ public class RefundsController(IRefundRequestService refunds, IManualRefundServi
         var result = await manual.ConfirmAsync(command, HttpContext.RequestAborted);
         return Ok(result);
     }
+    /// <summary>
+    /// Danh sách chỉ đọc các khoản Admin cần đối soát (BR-PAY-05, BR-RF-07): tiền về muộn/xung đột kết quả và refund VNPAY còn Processing.
+    /// Với LatePayment chưa có refund, Admin gọi POST request với bookingId trong mục để mở đường hoàn tiền.
+    /// </summary>
+    [HttpGet("reconciliation-required")]
+    public async Task<IActionResult> ReconciliationRequired([FromQuery] int page = 1, [FromQuery] int pageSize = 50) =>
+        Ok(await reconciliation.ListPendingAsync(page, pageSize, HttpContext.RequestAborted));
+
     [HttpPost("{refundId:guid}/reconcile")]
     public async Task<IActionResult> Reconcile(Guid refundId) => Ok(new { status = await reconciliation.ReconcileAsync(refundId, ClientIp(), HttpContext.RequestAborted) });
 }

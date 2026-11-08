@@ -5,7 +5,7 @@ Gom từ các review PR #13/#14/#17 ngày 16/10/2026 để tránh nhiều báo c
 | Ưu tiên | Phần | Vấn đề cần xử lý | Chủ trì |
 |---|---|---|---|
 | P1 | Payment #13 | Callback thành công sau callback thất bại cùng mã bị idempotency bỏ qua, không đánh dấu đối soát. Xem PaymentConfirmationService dòng kiểm IdempotencyKey; BR-PAY-01/05. | Nhật Anh |
-| P1 | Refund #13 | Timeout chưa có GatewayReference có thể kẹt Processing: reconcile bắt buộc reference đã biết, còn manual bị chặn. Cần đường đối soát đủ mạnh, không tự chuyển Succeeded chỉ theo số tiền. BR-RF-07/10. | Nhật Anh |
+| P1 | Refund #13 | Timeout chưa có GatewayReference có thể kẹt Processing: reconcile bắt buộc reference đã biết, còn manual bị chặn. Cần đường đối soát đủ mạnh, không tự chuyển Succeeded chỉ theo số tiền. BR-RF-07/10. **Task 6**: đã tái hiện bằng test; Admin thấy ở `GET /refunds/reconciliation-required`; lối thoát cần quyết định BR (xem ledger C3). | Nhật Anh |
 | P1 | Scanner #14 | qrVerifier nhận chữ ký RSA chỉ vì dài >64 và có bypass mock_direct_id; phải verify RSA thực sự. | Tuấn |
 | P1 | Scanner #14 | syncService khi gửi lỗi vẫn markEventsSynced; phải giữ Pending đến khi nhận ACK, xử lý conflict riêng. | Tuấn |
 | P1 | Scanner #14 | TripStopCall ID tự tạo, thiếu kiểm cửa sổ/phân công; cần API preload/batch sync và ID thật. | Vương + Tuấn |
