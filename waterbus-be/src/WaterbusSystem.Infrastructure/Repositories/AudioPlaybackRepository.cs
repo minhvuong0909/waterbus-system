@@ -67,12 +67,12 @@ public sealed class AudioPlaybackRepository(ApplicationDbContext context) : IAud
                 .SetProperty(x => x.Status, x => x.Attempts >= maxAttempts ? AudioPlaybackStatus.Failed : AudioPlaybackStatus.Released)
                 .SetProperty(x => x.FailureReason, Trim(reason)), ct);
 
-    public async Task<bool> RecordDispatchAsync(AudioTriggerRequest r, int epoch, CancellationToken ct)
+    public async Task<bool> RecordDispatchAsync(AudioTriggerRequest r, int epoch, DateTimeOffset now, CancellationToken ct)
     {
         return await context.AudioPlaybackRequests
             .Where(x => x.Id == r.RequestId && x.Status == AudioPlaybackStatus.Reserved && x.ReservationEpoch == epoch)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.BoatId, r.BoatId).SetProperty(x => x.PoiId, r.PoiId)
-                .SetProperty(x => x.Attempts, x => x.Attempts + 1)
+                .SetProperty(x => x.Attempts, x => x.Attempts + 1).SetProperty(x => x.ReservedAt, now)
                 .SetProperty(x => x.AudioGuideId, r.AudioGuideId).SetProperty(x => x.AudioAssetUri, r.AudioAssetUri)
                 .SetProperty(x => x.DurationSeconds, r.DurationSeconds).SetProperty(x => x.DistanceMeters, r.DistanceMeters), ct) == 1;
     }

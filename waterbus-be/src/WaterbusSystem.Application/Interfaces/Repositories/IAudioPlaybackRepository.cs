@@ -19,7 +19,8 @@ public interface IAudioPlaybackRepository
     /// <summary>Nhả reservation; chỉ chủ hiện tại (đúng epoch) mới nhả được.</summary>
     Task ReleaseAsync(Guid requestId, int epoch, string? reason, int maxAttempts, CancellationToken ct);
     /// <summary>Ghi lượt gửi thật; chỉ thành công khi lệnh còn Reserved VÀ đúng epoch của người gọi.</summary>
-    Task<bool> RecordDispatchAsync(AudioTriggerRequest request, int epoch, CancellationToken ct);
+    /// Đồng thời gia hạn lease (ReservedAt = now) để cửa sổ từ lúc ghi nhận tới lúc gửi/ACK nằm trọn trong một lease.
+    Task<bool> RecordDispatchAsync(AudioTriggerRequest request, int epoch, DateTimeOffset now, CancellationToken ct);
     Task<PlaybackRequestView?> FindAsync(Guid requestId, CancellationToken ct);
     /// <summary>Player báo Started/Completed/Failed. Trả true nếu chuyển trạng thái được áp dụng (false = lặp/không hợp lệ).</summary>
     Task<bool> ReportAsync(Guid requestId, AudioPlaybackStatus target, string? reason, int maxAttempts,

@@ -448,7 +448,7 @@ public sealed class OnboardAudioPlaybackSqlTests : IAsyncLifetime
 
         var req = new AudioTriggerRequest { RequestId = id, TripId = _seed.Trip.Id, BoatId = _seed.Boat.Id, AudioAssetUri = "x.mp3" };
         // A tỉnh dậy ngay sau khi B làm mới ReservedAt: dòng vẫn Reserved và "mới" nhưng A không còn là chủ
-        Assert.False(await repoA.RecordDispatchAsync(req, epochA!.Value, default));
+        Assert.False(await repoA.RecordDispatchAsync(req, epochA!.Value, t0.AddSeconds(32), default));
         Assert.False(await repoA.MarkAcceptedAsync(id, epochA, t0.AddSeconds(32), default));
         await repoA.ReleaseAsync(id, epochA.Value, "stale", 3, default);
         await using (var c = Context())
@@ -459,12 +459,42 @@ public sealed class OnboardAudioPlaybackSqlTests : IAsyncLifetime
             Assert.Equal(0, row.Attempts);                            // A không ghi được lượt gửi
         }
         // B (chủ thật) dispatch / accept bình thường
-        Assert.True(await repoB.RecordDispatchAsync(req, epochB!.Value, default));
+        Assert.True(await repoB.RecordDispatchAsync(req, epochB!.Value, t0.AddSeconds(33), default));
         Assert.True(await repoB.MarkAcceptedAsync(id, epochB, t0.AddSeconds(33), default));
         await using var d = Context();
         var final = await d.AudioPlaybackRequests.AsNoTracking().SingleAsync(x => x.Id == id);
         Assert.Equal(AudioPlaybackStatus.Accepted, final.Status);
         Assert.Equal(1, final.Attempts);
+    }
+
+    [SqlServerDomainFact]
+    public async Task RecordedDispatch_RenewsTheLease_SoTakeoverCannotRaceTheSend()
+    {
+        var id = AudioRequestIds.For(_seed.Trip.Id, _routePoiId, null);
+        var t0 = DateTimeOffset.UtcNow; var lease = TimeSpan.FromSeconds(30);
+        await using var a = Context(); await using var b = Context();
+        var repoA = new AudioPlaybackRepository(a); var repoB = new AudioPlaybackRepository(b);
+        var epoch = await repoA.TryReserveAsync(id, _seed.Trip.Id, _routePoiId, "", t0, lease, 3, default);
+        var req = new AudioTriggerRequest { RequestId = id, TripId = _seed.Trip.Id, BoatId = _seed.Boat.Id, AudioAssetUri = "x.mp3" };
+        Assert.True(await repoA.RecordDispatchAsync(req, epoch!.Value, t0.AddSeconds(25), default));   // ghi nhận gần cuối lease cũ
+        Assert.Null(await repoB.TryReserveAsync(id, _seed.Trip.Id, _routePoiId, "", t0.AddSeconds(31), lease, 3, default)); // lease đã gia hạn
+        Assert.NotNull(await repoB.TryReserveAsync(id, _seed.Trip.Id, _routePoiId, "", t0.AddSeconds(56), lease, 3, default));
+    }
+
+    [SqlServerDomainFact]
+    public async Task LateAckOfAnEarlierDelivery_AcceptsTheRequest_AndTheNewOwnerCannotDispatchAgain()
+    {
+        // ACK là mức request: player đã nhận RequestId này (dù từ lần gửi cũ). Chủ mới không được gửi lần nữa.
+        var id = AudioRequestIds.For(_seed.Trip.Id, _routePoiId, null);
+        var t0 = DateTimeOffset.UtcNow; var lease = TimeSpan.FromSeconds(30);
+        await using var a = Context(); await using var b = Context();
+        var repoA = new AudioPlaybackRepository(a); var repoB = new AudioPlaybackRepository(b);
+        var epochA = await repoA.TryReserveAsync(id, _seed.Trip.Id, _routePoiId, "", t0, lease, 3, default);
+        var epochB = await repoB.TryReserveAsync(id, _seed.Trip.Id, _routePoiId, "", t0.AddSeconds(31), lease, 3, default);
+        Assert.True(await repoB.MarkAcceptedAsync(id, null, t0.AddSeconds(32), default));        // ACK muộn của player
+        var req = new AudioTriggerRequest { RequestId = id, TripId = _seed.Trip.Id, BoatId = _seed.Boat.Id, AudioAssetUri = "x.mp3" };
+        Assert.False(await repoB.RecordDispatchAsync(req, epochB!.Value, t0.AddSeconds(33), default)); // không gửi trùng
+        Assert.False(await repoA.RecordDispatchAsync(req, epochA!.Value, t0.AddSeconds(33), default));
     }
 
     [SqlServerDomainFact]

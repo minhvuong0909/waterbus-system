@@ -66,7 +66,7 @@ public sealed class SignalROnboardAudioDispatcher(
             return AudioTriggerDispatchResult.Failed(request.RequestId, "OnboardPlayerOffline");
         // Fence theo epoch: chỉ chủ hiện tại của reservation mới được ghi lượt gửi và gửi lệnh.
         if (request.ReservationEpoch is not { } epoch ||
-            !await playback.RecordDispatchAsync(request, epoch, cancellationToken))
+            !await playback.RecordDispatchAsync(request, epoch, DateTimeOffset.UtcNow, cancellationToken))
             return AudioTriggerDispatchResult.Failed(request.RequestId, ReservationLostReason);
         using var ack = registry.PrepareAck(request.RequestId);
         var message = new AudioTriggerMessage(request.RequestId, request.TripId, request.BoatId, request.RoutePoiId, request.PoiId,
