@@ -37,7 +37,7 @@ Captain GPS  ──REST/Hub──▶ BoatTrackingService ──(lọc stale)─�
 
 | Client → server | Ý nghĩa |
 |---|---|
-| `AcceptPlayback(requestId)` → bool | ACK: đã nhận và chấp nhận xếp lệnh (chưa chắc đã phát). Idempotent |
+| `AcceptPlayback(requestId)` → bool | ACK: đã nhận và chấp nhận xếp lệnh (chưa chắc đã phát). Backend ghi `Accepted` vào SQL **trước** khi báo cho dispatcher, nên `ReportPlaybackState(Started)` ngay sau ACK luôn hợp lệ. Idempotent: ACK lặp cho lệnh đã `Accepted/Started/Completed` trả `true` mà không lùi trạng thái; lệnh `Released/Failed` trả `false` (không hồi sinh). Chỉ player **hoạt động** mới ACK được (xem bên dưới) |
 | `ReportPlaybackState(requestId, state, message?)` → bool | `Started` \| `Completed` \| `Failed`; true nếu áp dụng |
 | `GetState()` | Đồng bộ trạng thái (dùng sau reconnect) |
 
@@ -64,6 +64,7 @@ Captain GPS  ──REST/Hub──▶ BoatTrackingService ──(lọc stale)─�
 | Backend restart | Dedup nằm trong SQL nên không phát lại lượt đã ACK |
 
 ## 5. Giới hạn đã biết
+- **Một player hoạt động mỗi Boat**: nhiều kết nối Captain cùng Boat được phép (reconnect/chuyển thiết bị), nhưng `audioTrigger` chỉ gửi tới kết nối **mới nhất còn hợp lệ**; kết nối cũ ở chế độ chờ (vẫn nhận `audioState`/`audioControl` pause|recheck, `AcceptPlayback` từ kết nối chờ trả `false`). Tránh hai loa/phiên cùng phát một lệnh. Cách ly giữa các Boat không đổi.
 - Registry hiện diện/ACK nằm trong tiến trình; SignalR chạy **một instance** (chưa có backplane). Nhiều instance cần backplane (Redis) và đổi `OnboardPlayerRegistry`.
 - Chưa có replay sự kiện đã bỏ lỡ ngoài cơ chế retry theo GPS; trạng thái hiện tại lấy qua `GetState`.
 - Không có test E2E với dịch vụ TTS/Blob thật: test dùng kho giả và SignalR client giả lập player (không khẳng định đã phát ra loa).

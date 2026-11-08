@@ -43,8 +43,18 @@ public sealed class OnboardAudioService(
 
     public async Task<bool> AcceptAsync(Guid captainId, Guid requestId, CancellationToken ct = default)
     {
-        await RequireOwnRequestAsync(captainId, requestId, ct);
-        return registry.SignalAck(requestId);
+        var view = await RequireOwnRequestAsync(captainId, requestId, ct);
+        // Ghi Accepted vào SQL TRƯỚC khi đánh thức dispatcher: player có thể báo Started ngay sau ACK mà không bị từ chối
+        // vì sổ cái còn Reserved. MarkAccepted có điều kiện (chỉ từ Reserved) nên lặp ACK không mở lại/lùi trạng thái.
+        if (view.Status == AudioPlaybackStatus.Reserved)
+        {
+            await playback.MarkAcceptedAsync(requestId, DateTimeOffset.UtcNow, ct);
+            view = await playback.FindAsync(requestId, ct) ?? view;
+        }
+        if (view.Status is not (AudioPlaybackStatus.Accepted or AudioPlaybackStatus.Started or AudioPlaybackStatus.Completed))
+            return false; // Released/Failed: lệnh đã hủy, ACK muộn không hồi sinh
+        registry.SignalAck(requestId); // idempotent; không có dispatch đang chờ thì bỏ qua
+        return true;
     }
 
     public async Task<PlaybackStateAck> ReportStateAsync(Guid captainId, Guid requestId, ReportPlaybackStateRequest request, CancellationToken ct = default)

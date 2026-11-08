@@ -166,6 +166,8 @@ public sealed class OnboardAudioPlaybackSqlTests : IAsyncLifetime
         public readonly ConcurrentQueue<JsonElement> Controls = new();
         public readonly ConcurrentQueue<JsonElement> States = new();
         public bool AutoAccept = true;
+        public bool StartImmediately;
+        public readonly ConcurrentQueue<bool> StartResults = new();
     }
 
     private async Task<Player> ConnectPlayerAsync(Guid captain, string role = "Captain", bool autoAccept = true)
@@ -176,7 +178,11 @@ public sealed class OnboardAudioPlaybackSqlTests : IAsyncLifetime
         player.Hub.On<JsonElement>("audioTrigger", async m =>
         {
             player.Triggers.Enqueue(m);
-            if (player.AutoAccept) await player.Hub.InvokeAsync<bool>("AcceptPlayback", m.GetProperty("requestId").GetGuid());
+            if (!player.AutoAccept) return;
+            var id = m.GetProperty("requestId").GetGuid();
+            await player.Hub.InvokeAsync<bool>("AcceptPlayback", id);
+            // Finding A: báo Started ngay sau ACK, trước khi dispatcher kịp ghi gì thêm
+            if (player.StartImmediately) player.StartResults.Enqueue(await player.Hub.InvokeAsync<bool>("ReportPlaybackState", id, "Started", null));
         });
         player.Hub.On<JsonElement>("audioControl", m => player.Controls.Enqueue(m));
         player.Hub.On<JsonElement>("audioState", m => player.States.Enqueue(m));
@@ -360,6 +366,66 @@ public sealed class OnboardAudioPlaybackSqlTests : IAsyncLifetime
             new { latitude = PoiLat + 0.01m, longitude = PoiLng, speedKnots = 5m, observedAt = DateTimeOffset.UtcNow.AddSeconds(1) });
         await Task.Delay(300);
         Assert.Single(oldPlayer.Triggers);
+    }
+
+    [SqlServerDomainFact]
+    public async Task StartedReportedImmediatelyAfterAck_IsNeverRejectedByAReservedLedger()
+    {
+        var player = await ConnectPlayerAsync(_captain);
+        player.StartImmediately = true;
+        await GpsAsync(PoiLat);
+        await WaitAsync(() => !player.StartResults.IsEmpty);
+        Assert.True(player.StartResults.Single());
+        Assert.Equal(AudioPlaybackStatus.Started, (await LedgerAsync())!.Status);
+    }
+
+    [SqlServerDomainFact]
+    public async Task AckPersistsAcceptedBeforeSignalling_SoImmediateStartedIsApplied_Deterministic()
+    {
+        // Ép đúng chuỗi xen kẽ: sổ cái đang Reserved (dispatcher chưa kịp MarkAccepted), player ACK rồi Started ngay.
+        var requestId = Guid.NewGuid();
+        await using (var c = Context())
+        {
+            c.AudioPlaybackRequests.Add(new AudioPlaybackRequest { Id = requestId, TripId = _seed.Trip.Id, BoatId = _seed.Boat.Id,
+                RoutePoiKey = Guid.NewGuid(), VisitKey = "", Status = AudioPlaybackStatus.Reserved, Attempts = 1, ReservedAt = DateTimeOffset.UtcNow });
+            await c.SaveChangesAsync();
+        }
+        var player = await ConnectPlayerAsync(_captain, autoAccept: false);
+        Assert.True(await player.Hub.InvokeAsync<bool>("AcceptPlayback", requestId));
+        Assert.True(await player.Hub.InvokeAsync<bool>("ReportPlaybackState", requestId, "Started", null));
+        await using var check = Context();
+        Assert.Equal(AudioPlaybackStatus.Started, (await check.AudioPlaybackRequests.AsNoTracking().SingleAsync(x => x.Id == requestId)).Status);
+    }
+
+    [SqlServerDomainFact]
+    public async Task RepeatedAck_IsIdempotent_DoesNotRegressOrAffectOtherRequests()
+    {
+        var player = await ConnectPlayerAsync(_captain);
+        await GpsAsync(PoiLat);
+        var requestId = player.Triggers.Single().GetProperty("requestId").GetGuid();
+        Assert.True(await player.Hub.InvokeAsync<bool>("AcceptPlayback", requestId));
+        Assert.True(await player.Hub.InvokeAsync<bool>("ReportPlaybackState", requestId, "Started", null));
+        // ACK lặp sau khi đã Started: vẫn true, không lùi trạng thái, không gửi lại lệnh
+        Assert.True(await player.Hub.InvokeAsync<bool>("AcceptPlayback", requestId));
+        Assert.Equal(AudioPlaybackStatus.Started, (await LedgerAsync())!.Status);
+        Assert.Single(player.Triggers);
+        // ACK cho request không tồn tại: không ảnh hưởng gì
+        await Assert.ThrowsAsync<HubException>(() => player.Hub.InvokeAsync<bool>("AcceptPlayback", Guid.NewGuid()));
+        Assert.Equal(AudioPlaybackStatus.Started, (await LedgerAsync())!.Status);
+    }
+
+    [SqlServerDomainFact]
+    public async Task TwoPlayersOnOneBoat_OnlyTheNewestActivePlayerGetsTheTrigger()
+    {
+        var first = await ConnectPlayerAsync(_captain);
+        var second = await ConnectPlayerAsync(_captain);
+        await GpsAsync(PoiLat);
+        Assert.Empty(first.Triggers);
+        Assert.Single(second.Triggers);
+        var requestId = second.Triggers.Single().GetProperty("requestId").GetGuid();
+        // kết nối chờ không thể ACK thay cho player hoạt động
+        Assert.False(await first.Hub.InvokeAsync<bool>("AcceptPlayback", requestId));
+        Assert.Equal(AudioPlaybackStatus.Accepted, (await LedgerAsync())!.Status);
     }
 
     [SqlServerDomainFact]

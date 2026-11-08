@@ -43,7 +43,8 @@ public class OnboardAudioHub(IOnboardAudioService service, OnboardPlayerRegistry
     public Task<OnboardAudioStateResponse> GetState() => Run(() => service.GetStateAsync(CaptainId()));
 
     /// <summary>ACK: player đã nhận và chấp nhận xếp lệnh (chưa chắc đã phát). Idempotent theo RequestId.</summary>
-    public Task<bool> AcceptPlayback(Guid requestId) => Run(() => service.AcceptAsync(CaptainId(), requestId));
+    public Task<bool> AcceptPlayback(Guid requestId) =>
+        Run(() => registry.IsActive(Context.ConnectionId) ? service.AcceptAsync(CaptainId(), requestId) : Task.FromResult(false));
 
     public Task<bool> ReportPlaybackState(Guid requestId, string state, string? message) => Run(async () =>
     {

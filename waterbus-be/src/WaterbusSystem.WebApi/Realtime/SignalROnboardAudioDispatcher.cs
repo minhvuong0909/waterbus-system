@@ -29,14 +29,15 @@ public sealed class SignalROnboardAudioDispatcher(
         // Captain có thể đã bị đổi/ngừng sau khi kết nối: thu hồi kết nối của người không còn là Captain của Boat này
         // (rời group để không nhận lệnh/nội dung) trước khi gửi.
         var group = RealtimeContract.Groups.OnboardAudio(request.BoatId);
-        var live = 0;
+        string? activeConnection = null;
         foreach (var (connectionId, captainId) in registry.Connections(request.BoatId))
         {
-            if (await playback.FindBoatIdByCaptainAsync(captainId, cancellationToken) == request.BoatId) { live++; continue; }
+            if (await playback.FindBoatIdByCaptainAsync(captainId, cancellationToken) == request.BoatId) { activeConnection = connectionId; continue; }
             registry.Unregister(connectionId);
             await hub.Groups.RemoveFromGroupAsync(connectionId, group, cancellationToken);
         }
-        if (live == 0)
+        // Chính sách một player hoạt động: chỉ kết nối mới nhất còn hợp lệ nhận audioTrigger (tránh phát trùng loa).
+        if (activeConnection is null)
             return AudioTriggerDispatchResult.Failed(request.RequestId, "OnboardPlayerOffline");
 
         try
@@ -57,7 +58,7 @@ public sealed class SignalROnboardAudioDispatcher(
         var message = new AudioTriggerMessage(request.RequestId, request.TripId, request.BoatId, request.RoutePoiId, request.PoiId,
             request.PoiName, request.AudioGuideId, $"/api/v1/onboard-audio/requests/{request.RequestId}/audio", "audio/mpeg",
             request.DurationSeconds, request.DistanceMeters, request.TriggeredAt);
-        await hub.Clients.Group(group)
+        await hub.Clients.Client(activeConnection)
             .SendAsync(RealtimeContract.Events.AudioTrigger, message, cancellationToken);
 
         var accepted = await ack.WaitAsync(TimeSpan.FromSeconds(Math.Max(1, options.Value.AckTimeoutSeconds)), cancellationToken);
