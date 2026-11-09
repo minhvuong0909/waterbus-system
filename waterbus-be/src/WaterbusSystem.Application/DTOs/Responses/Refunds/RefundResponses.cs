@@ -15,3 +15,8 @@ public sealed record RefundTicketAllocationDto(Guid TicketId, string TicketCode,
 
 public sealed record ConfirmManualRefundResultDto(
     Guid RefundTransactionId, decimal Amount, string Status, DateTimeOffset? CompletedAt);
+
+/// <summary>Mục cần Admin đối soát: tiền về muộn/xung đột kết quả (LatePayment) hoặc refund gateway còn Processing (RefundProcessing).</summary>
+public sealed record ReconciliationItemResponse(
+    string Kind, Guid TransactionId, Guid OrderId, Guid? BookingId, decimal Amount, string? MerchantReference,
+    string? GatewayReference, string Status, string? Reason, DateTimeOffset OccurredAt, Guid? RefundId, string? RefundStatus);
