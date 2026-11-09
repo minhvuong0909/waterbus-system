@@ -243,6 +243,107 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.ToTable("AudioGuides");
                 });
 
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.AudioPlaybackRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AudioAssetUri")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid?>("AudioGuideId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("BoatId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("DistanceMeters")
+                        .HasColumnType("float");
+
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("PoiId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("ReservationEpoch")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTimeOffset>("ReservedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("RoutePoiKey")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TripId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("VisitKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoatId", "Status")
+                        .HasDatabaseName("IX_AudioPlaybackRequests_Boat");
+
+                    b.HasIndex("TripId", "RoutePoiKey", "VisitKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AudioPlaybackRequests_Visit");
+
+                    b.ToTable("AudioPlaybackRequests", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AudioPlaybackRequests_Attempts", "[Attempts] >= 0");
+
+                            t.HasCheckConstraint("CK_AudioPlaybackRequests_Status", "[Status] BETWEEN 1 AND 6");
+                        });
+                });
+
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Boat", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2416,6 +2517,15 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Poi");
+                });
+
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.AudioPlaybackRequest", b =>
+                {
+                    b.HasOne("WaterbusSystem.Domain.Entities.Trip", null)
+                        .WithMany()
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.BoatPositionEvent", b =>
