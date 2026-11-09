@@ -26,7 +26,9 @@ public sealed class RefundRequestService : IRefundRequestService
 
     public RefundRequestService(IFinancialTransactionRepository refunds, IBookingRepository bookings, IUnitOfWork unitOfWork, IValidator<RequestRefundRequest> validator, IEnumerable<IRefundGateway> refundGateways, ICommercialTransactionRunner transactions, INotificationOutbox notifications, IOptions<RefundOptions> options)
     {
-        _mode = options.Value.Mode;
+        _mode = Enum.IsDefined(options.Value.Mode)
+            ? options.Value.Mode
+            : throw new InvalidOperationException($"Refunds:Mode không hợp lệ: {(int)options.Value.Mode}.");
         _refunds = refunds; _bookings = bookings; _unitOfWork = unitOfWork; _validator = validator;
         _refundGateways = refundGateways;
         _transactions = transactions;
@@ -257,10 +259,14 @@ public sealed class RefundRequestService : IRefundRequestService
     /// Demo: chỉ chọn gateway KHÔNG tự động (Manual) — không bao giờ chạm API Refund của VNPay, kể cả khi
     /// VnPayRefundGateway được đăng ký. Gateway: hành vi cũ (ưu tiên gateway tự động).
     /// </summary>
-    private IRefundGateway SelectGateway() => _mode == RefundMode.Demo
-        ? _refundGateways.FirstOrDefault(g => !g.SupportsAutomaticRefund)
-            ?? throw new InvalidOperationException("Chế độ Refunds:Mode=Demo cần một IRefundGateway thủ công (Manual).")
-        : _refundGateways.FirstOrDefault(g => g.SupportsAutomaticRefund)
+    private IRefundGateway SelectGateway() => _mode switch
+    {
+        RefundMode.Demo => _refundGateways.FirstOrDefault(g => !g.SupportsAutomaticRefund)
+            ?? throw new InvalidOperationException("Chế độ Refunds:Mode=Demo cần một IRefundGateway thủ công (Manual)."),
+        RefundMode.Gateway => _refundGateways.FirstOrDefault(g => g.SupportsAutomaticRefund)
             ?? _refundGateways.FirstOrDefault()
-            ?? throw new InvalidOperationException("Chưa đăng ký IRefundGateway nào.");
+            ?? throw new InvalidOperationException("Chưa đăng ký IRefundGateway nào."),
+        // Giá trị số ngoài enum (vd Refunds__Mode=2) KHÔNG được âm thầm rơi vào đường hoàn tiền thật.
+        _ => throw new InvalidOperationException($"Refunds:Mode không hợp lệ: {(int)_mode}.")
+    };
 }

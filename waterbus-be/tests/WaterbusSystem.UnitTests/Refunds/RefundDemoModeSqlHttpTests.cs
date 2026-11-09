@@ -91,6 +91,7 @@ public sealed class RefundDemoModeSqlHttpTests : IAsyncLifetime
         builder.Services.RemoveAll<IRefundGateway>();
         builder.Services.AddScoped<IRefundGateway, ManualRefundGateway>();
         builder.Services.AddSingleton<IRefundGateway>(_vnpay);
+        builder.Services.AddScoped<IRefundGateway, VnPayRefundGateway>();   // adapter thật → IVnPayService.RefundAsync (được đếm)
         builder.Services.AddScoped<ValidateRequestFilter>();
         builder.Services.AddControllers().AddApplicationPart(typeof(RefundsController).Assembly);
         builder.Services.AddEndpointsApiExplorer();
@@ -114,6 +115,13 @@ public sealed class RefundDemoModeSqlHttpTests : IAsyncLifetime
         if (_connection is null) return;
         if (!new SqlConnectionStringBuilder(_connection).InitialCatalog.StartsWith("WaterbusDomainTests_RefundDemo_")) throw new InvalidOperationException("Unsafe test database.");
         await using var c = Context(); await c.Database.EnsureDeletedAsync();
+    }
+
+    /// <summary>Cả hai đường tới VNPay Refund đều phải bằng 0: IRefundGateway của test và IVnPayService.RefundAsync (API thật).</summary>
+    private void AssertNoVnPayRefund()
+    {
+        Assert.Equal(0, _vnpay.RefundCalls);
+        Assert.Equal(0, _vnpay.VnPayRefundApiCalls);
     }
 
     private HttpClient As(string? role, Guid? userId = null)
@@ -193,7 +201,7 @@ public sealed class RefundDemoModeSqlHttpTests : IAsyncLifetime
         Assert.Equal(15000m, requested.Amount);                 // chỉ phần phân bổ của booking chuyến đi
         Assert.True(requested.Amount < seeded.PaymentAmount);
         Assert.Single(requested.Tickets);
-        Assert.Equal(0, _vnpay.RefundCalls);
+        AssertNoVnPayRefund();
 
         // validation: thiếu bằng chứng → 400; sai số tiền → 409; vẫn chưa hoàn thành
         Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync("/api/v1/refunds/confirm-manual",
@@ -217,7 +225,7 @@ public sealed class RefundDemoModeSqlHttpTests : IAsyncLifetime
         Assert.Equal("Manual", refund.GatewayName);
         Assert.NotNull(refund.ManualProcessedByAdminId);
         Assert.Equal("demo evidence", refund.ManualRefundEvidence);
-        Assert.Equal(0, _vnpay.RefundCalls);
+        AssertNoVnPayRefund();
 
         // thông báo: đúng một email hoàn tiền, nội dung đánh dấu DEMO
         var outbox = await c.EmailOutbox.SingleAsync(m => m.NotificationType == EmailNotificationType.RefundSucceeded);
@@ -258,7 +266,7 @@ public sealed class RefundDemoModeSqlHttpTests : IAsyncLifetime
         var allocatedTickets = refunds.SelectMany(r => r.RefundAllocations).Select(a => a.TicketId).ToList();
         Assert.Equal(allocatedTickets.Count, allocatedTickets.Distinct().Count());
         Assert.True(refunds.Sum(r => r.Amount) <= seeded.PaymentAmount);
-        Assert.Equal(0, _vnpay.RefundCalls);
+        AssertNoVnPayRefund();
     }
 
     [SqlServerDomainFact]
@@ -275,7 +283,7 @@ public sealed class RefundDemoModeSqlHttpTests : IAsyncLifetime
         await using var c = Context();
         Assert.Equal(1, await c.FinancialTransactions.CountAsync(t => t.TransactionType == FinancialTransactionType.Refund));
         Assert.Equal(1, await c.RefundTicketAllocations.CountAsync());
-        Assert.Equal(0, _vnpay.RefundCalls);
+        AssertNoVnPayRefund();
     }
 
     [SqlServerDomainFact]
@@ -293,6 +301,17 @@ public sealed class RefundDemoModeSqlHttpTests : IAsyncLifetime
         await using var c = Context();
         Assert.Equal(1, await c.EmailOutbox.CountAsync(m => m.NotificationType == EmailNotificationType.RefundSucceeded));
         Assert.Equal(FinancialTransactionStatus.Succeeded, (await c.FinancialTransactions.SingleAsync(t => t.Id == refund.RefundTransactionId)).Status);
+        AssertNoVnPayRefund();
+    }
+
+    [Fact]
+    public void InvalidRefundModeIsRejected_NeverFallsThroughToRealRefunds()
+    {
+        var invalid = Microsoft.Extensions.Options.Options.Create(new RefundOptions { Mode = (RefundMode)2 });
+        using var context = TestDbContextFactory.CreateDbContext();
+        Assert.Throws<InvalidOperationException>(() => new RefundRequestService(new FinancialTransactionRepository(context),
+            new BookingRepository(context), new EfUnitOfWork(context), new RequestRefundRequestValidator(), [_vnpay],
+            new WaterbusSystem.UnitTests.TestHelpers.DirectCommercialTransactionRunner(), TestNotifications.Outbox(context), invalid));
         Assert.Equal(0, _vnpay.RefundCalls);
     }
 
@@ -347,7 +366,7 @@ public sealed class RefundDemoModeSqlHttpTests : IAsyncLifetime
         Assert.Null(stored.GatewayReference);
         Assert.False(stored.IsDemoRefund);
         Assert.Equal(1, timeout.Calls);               // không gửi thêm
-        Assert.Equal(0, _vnpay.RefundCalls);
+        AssertNoVnPayRefund();
     }
 
     [SqlServerDomainFact]
@@ -359,7 +378,7 @@ public sealed class RefundDemoModeSqlHttpTests : IAsyncLifetime
         var service = new RefundRequestService(new FinancialTransactionRepository(c), new BookingRepository(c), new EfUnitOfWork(c),
             new RequestRefundRequestValidator(), [_vnpay], new SqlCommercialTransactionRunner(c), TestNotifications.Outbox(c), RefundTestOptions.Demo);
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RequestAsync(new(seeded.OutboundBookingId, "x")));
-        Assert.Equal(0, _vnpay.RefundCalls);
+        AssertNoVnPayRefund();
         await using var check = Context();
         Assert.Equal(0, await check.FinancialTransactions.CountAsync(t => t.TransactionType == FinancialTransactionType.Refund));
         Assert.DoesNotContain(await check.Tickets.Where(t => t.BookingId == seeded.OutboundBookingId).ToListAsync(),

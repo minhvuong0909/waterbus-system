@@ -235,7 +235,11 @@ public static class DependencyInjection
         // - Cấu hình Groq API Key qua User Secrets / biến môi trường.
         services.Configure<GroqAssistantOptions>(configuration.GetSection(GroqAssistantOptions.SectionName));
         // Refunds:Mode = Demo (mặc định) | Gateway. Demo không bao giờ gọi API Refund của VNPay.
-        services.Configure<WaterbusSystem.Application.Features.Refunds.RefundOptions>(configuration.GetSection(WaterbusSystem.Application.Features.Refunds.RefundOptions.SectionName));
+        // Fail-fast khi khởi động: giá trị số ngoài enum (vd 2) cũng bị từ chối.
+        services.AddOptions<WaterbusSystem.Application.Features.Refunds.RefundOptions>()
+            .Bind(configuration.GetSection(WaterbusSystem.Application.Features.Refunds.RefundOptions.SectionName))
+            .Validate(o => Enum.IsDefined(o.Mode), "Refunds:Mode phải là Demo hoặc Gateway.")
+            .ValidateOnStart();
         // Adapter đã có để thử local; cả LLM và hai contract tích hợp đều tắt mặc định.
         services.Configure<AiBookingIntegrationOptions>(configuration.GetSection(AiBookingIntegrationOptions.SectionName));
         services.AddScoped<ITripSearchTool, TripSearchTool>();
