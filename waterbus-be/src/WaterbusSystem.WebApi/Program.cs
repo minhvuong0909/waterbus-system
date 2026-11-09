@@ -187,6 +187,14 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// Cấu hình thanh toán/QR rỗng không làm sập host (compose mặc định rỗng khi chưa có .env) nhưng sẽ bị từ chối khi dùng:
+// cảnh báo sớm để người vận hành thấy ngay lúc khởi động thay vì ở IPN đầu tiên.
+foreach (var key in new[] { "VnPay:TmnCode", "VnPay:HashSecret", "Qr:PrivateKeyPem" })
+{
+    if (string.IsNullOrWhiteSpace(app.Configuration[key]))
+        app.Logger.LogWarning("Thiếu cấu hình {ConfigKey}: thanh toán/phát vé sẽ bị từ chối cho đến khi cấu hình.", key);
+}
+
 // 6. Gắn kết Pipeline Middlewares
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 app.UseMiddleware<RequestLocalizationMiddleware>();

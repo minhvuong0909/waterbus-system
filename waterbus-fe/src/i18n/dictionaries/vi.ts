@@ -585,8 +585,8 @@ export const vi: Record<string, string> = {
     'Vé của hành khách không check-in đúng hạn không được hoàn tiền.',
   'Your trip details, ticket status and refund information.':
     'Thông tin chuyến, trạng thái vé và hoàn tiền của bạn.',
-  'Keep this booking reference. Your tickets for {email} are saved under My Tickets on this device.':
-    'Hãy lưu lại mã tham chiếu này. Vé của {email} được lưu trong mục Vé của tôi trên thiết bị này.',
+  'Keep this booking reference. Your tickets are available now under My Tickets on this device. If email notifications are enabled, a confirmation may also be sent to {email} after a few minutes; you do not need the email to board.':
+    'Hãy lưu lại mã tham chiếu này. Vé của bạn đã có sẵn trong mục Vé của tôi trên thiết bị này. Nếu dịch vụ email được bật, email xác nhận có thể được gửi tới {email} sau vài phút; bạn không cần email này để lên tàu.',
   'Please enter the buyer’s full name.': 'Vui lòng nhập họ tên người mua.',
   'Please enter a valid email address.': 'Vui lòng nhập địa chỉ email hợp lệ.',
   'Phone number must have 10 to 11 digits.': 'Số điện thoại phải có 10 đến 11 chữ số.',
@@ -831,6 +831,11 @@ export const vi: Record<string, string> = {
   Gateway: 'Cổng thanh toán',
   'Refund ID': 'Mã hoàn tiền',
   'Manual refund confirmed': 'Đã xác nhận hoàn tiền thủ công',
+  'Demo refund confirmed (no real money moved)': 'Đã xác nhận hoàn tiền DEMO (không có tiền thật được chuyển)',
+  'DEMO: no real money is transferred.': 'DEMO: không có tiền thật được chuyển.',
+  'Demo mode: do NOT transfer real money. Record the simulated refund with a demo reference.':
+    'Chế độ demo: KHÔNG chuyển tiền thật. Hãy ghi nhận khoản hoàn mô phỏng kèm mã tham chiếu demo.',
+  'Confirm demo refund': 'Xác nhận hoàn tiền DEMO',
   'The gateway could not refund this payment. Refund it by hand, then confirm with proof.':
     'Cổng thanh toán không hoàn được giao dịch này. Hãy hoàn tiền thủ công rồi xác nhận kèm bằng chứng.',
   Evidence: 'Bằng chứng',

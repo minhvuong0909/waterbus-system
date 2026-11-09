@@ -9,4 +9,6 @@ public record BoatResponse(
     string Manufacturer,
     int YearBuilt,
     bool IsActive,
-    Guid? CaptainUserId);
+    Guid? CaptainUserId,
+    int ConfiguredSeats = 0,
+    string SeatInventoryState = "NotConfigured");

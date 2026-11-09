@@ -27,7 +27,9 @@ public sealed class TripService(
     ICurrentUserService currentUser,
     IDateTimeService dateTime,
     IOperationsAlertPublisher publisher,
-    IUserDirectory users) : ITripService
+    IUserDirectory users,
+    INotificationOutbox notifications,
+    ICommercialTransactionRunner transactions) : ITripService
 {
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
 
@@ -76,9 +78,7 @@ public sealed class TripService(
         {
             priceByClass.TryGetValue(seat.SeatClassId, out var fare);
             var reservations = bySeat[seat.Id].ToList();
-            var reason = salesState != "open" ? salesState
-                : !seat.IsActive || seat.SeatClass is not { IsActive: true, IsDeleted: false } ? "seatInactive"
-                : fare is null ? "missingFare" : fare.Currency != "VND" ? "unsupportedCurrency" : null;
+            var reason = salesState != "open" ? salesState : TripReadRules.SeatBlockReason(seat, fare);
             var status = reason != null ? "unavailable"
                 : reservations.Any(r => r.Status != ReservationStatus.Pending) ? "sold"
                 : reservations.Count > 0 ? "held" : "available";
@@ -226,7 +226,22 @@ public sealed class TripService(
             RecordDecision(decision, request.Operation, userId.Value, now);
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
+        if (next is TripStatus.Cancelled or TripStatus.Terminated)
+        {
+            // Cùng khoá thương mại với xác nhận thanh toán: IPN không thể xác nhận vé giữa lúc huỷ chuyến và tạo
+            // thông báo. Outbox được ghi trong cùng transaction với việc đổi trạng thái (commit xong mới có email).
+            var type = next == TripStatus.Cancelled ? EmailNotificationType.TripCancelled : EmailNotificationType.TripTerminated;
+            await transactions.RunAsync(async () =>
+            {
+                await notifications.EnqueueTripDisruptionAsync(trip.Id, type, cancellationToken);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+                return true;
+            }, cancellationToken);
+        }
+        else
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
 
         // Chỉ phát sau khi đã lưu thành công
         await publisher.PublishTripStatusChangedAsync(
@@ -454,6 +469,11 @@ public sealed class TripService(
 
     // ---------------- Search ----------------
 
+    /// <summary>Hợp đồng chặn của SearchTrips (xem TripService.SearchAsync).</summary>
+    public const int DefaultSearchPageSize = 100;
+    public const int MaxSearchWindowDays = 14;
+    public const int MaxSearchCandidates = 1000;
+
     public async Task<List<TripSearchResponse>> SearchAsync(SearchTripsRequest request, CancellationToken cancellationToken = default)
     {
         DateTimeOffset? dayStart = null;
@@ -465,89 +485,105 @@ public sealed class TripService(
             dayStart = new DateTimeOffset(date, VietnamOffset);
             dayEnd = dayStart.Value.AddDays(1);
         }
+        else
+        {
+            // Không có ngày: cửa sổ tối đa kể từ bây giờ (chuyến đã xuất bến/đóng bán bị loại bên dưới) để truy vấn luôn có chặn.
+            dayStart = dateTime.Now;
+            dayEnd = dayStart.Value.AddDays(MaxSearchWindowDays);
+        }
 
-        var scheduledTrips = await tripRepository.SearchScheduledAsync(dayStart, dayEnd, request.TripType, cancellationToken);
+        // BR-TIME-01/02: bán được khi Scheduled/Boarding, chưa xuất bến, chưa quá SalesCloseAt (cùng quy tắc Seat Map/Checkout).
+        var now = dateTime.Now;
+        var candidates = await tripRepository.SearchSellableAsync(dayStart, dayEnd, request.TripType, now, MaxSearchCandidates,
+            request.DepartureStationId, request.ArrivalStationId, cancellationToken);
 
         // H05: bến lên/bến xuống hợp lệ của một Trip là các điểm dừng THỰC TẾ của chuyến (TripStopCall →
-        // RouteStop), không suy diễn từ Route.DepartureStationId/ArrivalStationId + Station.OrderIndex
-        // toàn hệ thống như trước - cách cũ bỏ sót chuyến có khách lên ở bến giữa. Cùng cơ chế resolve với
-        // BookingCreationService.ResolveJourneyCalls để kết quả search luôn đặt được vé.
+        // RouteStop), theo VisitOrder; chuyến vòng (lặp bến) lấy lần lên đầu / lần xuống cuối như checkout.
         var matched = new List<(Trip Trip, List<TripStopCall> Calls, TripStopCall Boarding, TripStopCall Disembarking)>();
-        foreach (var trip in scheduledTrips)
+        foreach (var trip in candidates)
         {
+            if (TripReadRules.SalesState(trip, now) != "open") continue;
+
             var calls = trip.TripStopCalls
                 .Where(c => c.RouteStop != null && c.Status != "Skipped")
                 .OrderBy(c => c.VisitOrder)
                 .ToList();
-            if (calls.Count < 2)
-            {
-                continue;
-            }
+            if (calls.Count < 2) continue;
 
             var boardingCall = request.DepartureStationId.HasValue
                 ? calls.FirstOrDefault(c => c.RouteStop!.StationId == request.DepartureStationId.Value && c.RouteStop.CanBoard)
-                : calls[0];
-            if (boardingCall == null)
-            {
-                continue;
-            }
+                : calls.FirstOrDefault(c => c.RouteStop!.CanBoard);
+            if (boardingCall == null) continue;
 
             var disembarkingCall = request.ArrivalStationId.HasValue
                 ? calls.LastOrDefault(c => c.RouteStop!.StationId == request.ArrivalStationId.Value && c.RouteStop.CanAlight)
-                : calls[^1];
-            if (disembarkingCall == null || boardingCall.VisitOrder >= disembarkingCall.VisitOrder)
-            {
-                continue;
-            }
+                : calls.LastOrDefault(c => c.RouteStop!.CanAlight);
+            if (disembarkingCall == null || boardingCall.VisitOrder >= disembarkingCall.VisitOrder) continue;
 
             matched.Add((trip, calls, boardingCall, disembarkingCall));
         }
 
-        if (matched.Count == 0)
+        if (matched.Count == 0) return [];
+
+        // Tồn kho thật: Seat đang hoạt động của đúng tàu, hạng ghế hoạt động, có đúng một FareRule VND hiệu lực.
+        var boatIds = matched.Select(m => m.Trip.BoatId!.Value).Distinct().ToList();
+        var seatsByBoat = (await tripRepository.ListSeatsForBoatsAsync(boatIds, cancellationToken)).ToLookup(s => s.BoatId);
+        var faresByType = (await tripRepository.ListActiveFaresAsync(now, cancellationToken))
+            .GroupBy(f => f.TripType)
+            .ToDictionary(g => g.Key, g => TripReadRules.UnambiguousFares(g));
+
+        var reservations = (await tripRepository.ListReservationSegmentsAsync(
+            matched.Select(m => m.Trip.Id).ToList(), cancellationToken)).ToLookup(r => r.TripId);
+
+        var results = new List<TripSearchResponse>();
+        foreach (var (trip, calls, boarding, disembarking) in matched)
         {
-            return [];
-        }
-
-        // H05: đếm ghế bận theo đúng chặng tìm kiếm bằng Segment Overlap Algorithm - cùng công thức đang
-        // dùng ở SeatAvailabilityService, thay vì đếm ghế bận trên toàn bộ Trip bất kể đoạn nào.
-        var tripIds = matched.Select(m => m.Trip.Id).ToList();
-        var reservationSegments = await tripRepository.ListReservationSegmentsAsync(tripIds, cancellationToken);
-        var reservationsByTrip = reservationSegments.ToLookup(r => r.TripId);
-
-        // BR-FARE-01/02: giá chỉ phụ thuộc TripType và SeatClass. Thẻ chuyến hiển thị giá thấp nhất ("từ ...")
-        // trong các bảng giá đang hiệu lực; giá từng hạng ghế nằm ở sơ đồ ghế.
-        var now = dateTime.Now;
-        var fromPriceByType = await tripRepository.GetMinActivePriceByTripTypeAsync(now, cancellationToken);
-
-        return matched.Select(m =>
-        {
-            var trip = m.Trip;
-            var totalBoatSeats = trip.Boat?.TotalSeats ?? 60;
-
-            var bookedSeatsCount = reservationsByTrip[trip.Id]
-                .Where(r => m.Boarding.VisitOrder < r.DisembarkingStopOrder && m.Disembarking.VisitOrder > r.BoardingStopOrder)
-                .Select(r => r.SeatId)
-                .Distinct()
-                .Count();
-
-            var availableSeats = Math.Max(0, totalBoatSeats - bookedSeatsCount);
-
-            var stops = m.Calls
-                .Select(c => new TripSearchStopResponse(c.RouteStop!.StationId, c.RouteStop.Station?.Name ?? "", c.RouteStop.Station?.OrderIndex ?? c.VisitOrder))
+            var fares = faresByType.GetValueOrDefault(trip.TripType.ToString()) ?? [];
+            var saleable = seatsByBoat[trip.BoatId!.Value]
+                .Where(s => TripReadRules.SeatBlockReason(s, fares.GetValueOrDefault(s.SeatClassId)) == null)
                 .ToList();
+            if (saleable.Count == 0) continue; // không có ghế bán được (hoặc thiếu giá) thì không quảng cáo chuyến
 
-            return new TripSearchResponse(
+            var busy = reservations[trip.Id]
+                .Where(r => boarding.VisitOrder < r.DisembarkingStopOrder && disembarking.VisitOrder > r.BoardingStopOrder)
+                .Select(r => r.SeatId).ToHashSet();
+            var available = saleable.Where(s => !busy.Contains(s.Id)).ToList();
+
+            // Giá "từ" lấy trên ghế còn bán được; hết ghế thì lấy trên tồn kho bán được của chuyến.
+            var priced = available.Count > 0 ? available : saleable;
+            var fromPrice = priced.Min(s => fares[s.SeatClassId].Price);
+
+            results.Add(new TripSearchResponse(
                 trip.Id,
                 trip.Route?.Name ?? "Tuyến Buýt Đường Sông",
-                m.Boarding.RouteStop!.Station?.Name ?? "",
-                m.Disembarking.RouteStop!.Station?.Name ?? "",
+                boarding.RouteStop!.Station?.Name ?? "",
+                disembarking.RouteStop!.Station?.Name ?? "",
                 trip.DepartureTime,
                 trip.ArrivalTime,
-                trip.Route?.EstimatedDurationMinutes ?? 45,
+                JourneyMinutes(trip, calls, boarding, disembarking),
                 trip.TripType.ToString(),
-                fromPriceByType.GetValueOrDefault(trip.TripType.ToString(), 0m),
-                availableSeats,
-                stops);
-        }).ToList();
+                fromPrice,
+                available.Count,
+                calls.Select(c => new TripSearchStopResponse(
+                    c.RouteStop!.StationId, c.RouteStop.Station?.Name ?? "", c.VisitOrder)).ToList(),
+                available.Count > 0,
+                available.Count > 0 ? "open" : "soldOut"));
+        }
+
+        // Hợp đồng có chặn: pageSize mặc định/tối đa 100 (validator chặn >100), cửa sổ ngày mặc định MaxSearchWindowDays,
+        // tập ứng viên DB tối đa MaxSearchCandidates. Lọc theo bến/ghế/giá diễn ra sau truy vấn nên phân trang áp trên kết quả đã lọc.
+        // Offset tính bằng long rồi chặn ở int.MaxValue: (Page - 1) * size tràn int sẽ ra số âm và Skip(âm) trả lại trang đầu.
+        var size = request.PageSize ?? DefaultSearchPageSize;
+        return results.Skip((int)Math.Min((long)(request.Page - 1) * size, int.MaxValue)).Take(size).ToList();
+    }
+
+    /// <summary>Thời lượng đúng chặng khi có lịch từng bến; cả hành trình thì lấy giờ chuyến; còn lại null (không bịa).</summary>
+    private static int? JourneyMinutes(Trip trip, List<TripStopCall> calls, TripStopCall boarding, TripStopCall disembarking)
+    {
+        if (boarding.EstimatedDepartureTime is { } from && disembarking.EstimatedArrivalTime is { } to && to > from)
+            return (int)Math.Round((to - from).TotalMinutes);
+        if (boarding.Id == calls[0].Id && disembarking.Id == calls[^1].Id && trip.ArrivalTime > trip.DepartureTime)
+            return (int)Math.Round((trip.ArrivalTime - trip.DepartureTime).TotalMinutes);
+        return null;
     }
 }

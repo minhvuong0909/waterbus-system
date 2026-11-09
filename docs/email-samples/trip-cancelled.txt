@@ -1,0 +1,36 @@
+Subject: Chuyến tàu bị hủy – WB-20261109-B2
+
+Smart Waterbus
+Chuyến tàu của bạn đã bị hủy
+============================
+Xin chào Nguyen Van A,
+
+Chuyến tàu trong đặt chỗ dưới đây đã bị hủy và sẽ không khởi hành.
+
+
+CHUYẾN BỊ ẢNH HƯỞNG
+-------------------
+Mã đặt chỗ: WB-20261109-B2
+Mã đơn hàng: 190af147-723b-4dbe-bdc1-64eb67a15074
+Tình trạng chuyến: Đã hủy
+Tuyến: Tuyen Sai Gon
+Bến lên tàu: Ben Thanh Da
+Bến xuống tàu: Ben Bach Dang
+Khởi hành dự kiến: 08:30 ngày 07/11/2026 (GMT+7)
+Đến nơi dự kiến: 09:00 ngày 07/11/2026 (GMT+7)
+Hành khách (1):
+
+Nguyen Van A: Ghế S01 (Tieu chuan) · Vé TKWB-20261109-B21
+
+
+BƯỚC TIẾP THEO
+--------------
+Vé của đặt chỗ này không còn dùng được để lên chuyến tàu trên.
+
+Bạn có thể yêu cầu hoàn tiền cho đặt chỗ này.
+
+! Email này KHÔNG xác nhận rằng khoản hoàn tiền đã được thực hiện. Để yêu cầu hoàn tiền, vui lòng liên hệ bộ phận hỗ trợ Smart Waterbus qua email support@example.invalid hoặc số 0000 000 000 và cung cấp mã đặt chỗ WB-20261109-B2. Bạn sẽ nhận email riêng khi khoản hoàn tiền được xác nhận thành công.
+
+
+--
+Đây là email tự động từ Smart Waterbus. Vui lòng không chia sẻ nội dung email này, đặc biệt là mã QR.

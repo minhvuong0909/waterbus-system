@@ -1,4 +1,5 @@
 using FluentValidation;
+using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.DTOs.Requests.Refunds;
 using WaterbusSystem.Application.DTOs.Responses.Refunds;
@@ -20,12 +21,18 @@ public sealed class RefundRequestService : IRefundRequestService
     private readonly IValidator<RequestRefundRequest> _validator;
     private readonly IEnumerable<IRefundGateway> _refundGateways;
     private readonly ICommercialTransactionRunner _transactions;
+    private readonly INotificationOutbox _notifications;
+    private readonly RefundMode _mode;
 
-    public RefundRequestService(IFinancialTransactionRepository refunds, IBookingRepository bookings, IUnitOfWork unitOfWork, IValidator<RequestRefundRequest> validator, IEnumerable<IRefundGateway> refundGateways, ICommercialTransactionRunner transactions)
+    public RefundRequestService(IFinancialTransactionRepository refunds, IBookingRepository bookings, IUnitOfWork unitOfWork, IValidator<RequestRefundRequest> validator, IEnumerable<IRefundGateway> refundGateways, ICommercialTransactionRunner transactions, INotificationOutbox notifications, IOptions<RefundOptions> options)
     {
+        _mode = Enum.IsDefined(options.Value.Mode)
+            ? options.Value.Mode
+            : throw new InvalidOperationException($"Refunds:Mode không hợp lệ: {(int)options.Value.Mode}.");
         _refunds = refunds; _bookings = bookings; _unitOfWork = unitOfWork; _validator = validator;
         _refundGateways = refundGateways;
         _transactions = transactions;
+        _notifications = notifications;
     }
 
     public async Task<RequestRefundResultDto> RequestAsync(RequestRefundRequest request, CancellationToken cancellationToken = default)
@@ -43,6 +50,8 @@ public sealed class RefundRequestService : IRefundRequestService
                 var current = await _refunds.GetRefundForUpdateAsync(prepared.Refund.Id, cancellationToken);
                 if (current.Status != FinancialTransactionStatus.Processing) return true;
                 ApplyGatewayOutcome(current, outcome, DateTimeOffset.UtcNow);
+                if (current.Status == FinancialTransactionStatus.Succeeded)
+                    await _notifications.EnqueueRefundSucceededAsync(current.Id, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 return true;
             }, cancellationToken);
@@ -50,7 +59,11 @@ public sealed class RefundRequestService : IRefundRequestService
         var refund = prepared.Refund;
         return new RequestRefundResultDto(refund.Id, refund.OrderId, refund.RefundBookingId!.Value,
             refund.Amount, refund.Currency, refund.Status.ToString(), refund.GatewayName ?? "",
-            refund.Status == FinancialTransactionStatus.Requested || refund.GatewayName == "Manual", prepared.Allocations);
+            // Chỉ còn việc thủ công khi chưa hoàn tất: Requested (gateway thất bại) hoặc Processing ở gateway Manual.
+            // Succeeded/Failed không còn gì để làm (tránh hiện lại form xác nhận sau khi đã hoàn thành).
+            refund.Status == FinancialTransactionStatus.Requested ||
+                (refund.Status == FinancialTransactionStatus.Processing && refund.GatewayName == "Manual"), prepared.Allocations,
+            refund.IsDemoRefund, refund.IsDemoRefund ? RefundDemo.Notice : null);
     }
 
     private record PreparedRefund(FinancialTransaction Refund, IRefundGateway Gateway,
@@ -150,6 +163,7 @@ public sealed class RefundRequestService : IRefundRequestService
             Currency = payment.Currency,
             Status = FinancialTransactionStatus.Processing,
             GatewayName = gateway.Name,
+            IsDemoRefund = _mode == RefundMode.Demo,
             MerchantReference = payment.MerchantReference,
             IdempotencyKey = $"REFUND_{booking.Id:N}",
             ProcessedAt = now
@@ -208,7 +222,7 @@ public sealed class RefundRequestService : IRefundRequestService
         var refund = new FinancialTransaction { Order = booking.Order, OrderId = booking.OrderId,
             RefundBooking = booking, RefundBookingId = booking.Id, OriginalPayment = payment, OriginalPaymentId = payment.Id,
             TransactionType = FinancialTransactionType.Refund, Status = FinancialTransactionStatus.Processing,
-            Amount = payment.Amount, Currency = payment.Currency, GatewayName = gateway.Name,
+            Amount = payment.Amount, Currency = payment.Currency, GatewayName = gateway.Name, IsDemoRefund = _mode == RefundMode.Demo,
             IdempotencyKey = "LATE_REFUND_" + payment.Id.ToString("N"), MerchantReference = payment.MerchantReference };
         var date = payment.GatewayRequestCreatedAt ?? throw new ConcurrencyException("Thiếu thời điểm payment gốc.");
         _refunds.Add(refund);
@@ -244,8 +258,18 @@ public sealed class RefundRequestService : IRefundRequestService
                 break;
         }
     }
-    private IRefundGateway SelectGateway() =>
-        _refundGateways.FirstOrDefault(g => g.SupportsAutomaticRefund)
-        ?? _refundGateways.FirstOrDefault()
-        ?? throw new InvalidOperationException("Chưa đăng ký IRefundGateway nào.");
+    /// <summary>
+    /// Demo: chỉ chọn gateway KHÔNG tự động (Manual) — không bao giờ chạm API Refund của VNPay, kể cả khi
+    /// VnPayRefundGateway được đăng ký. Gateway: hành vi cũ (ưu tiên gateway tự động).
+    /// </summary>
+    private IRefundGateway SelectGateway() => _mode switch
+    {
+        RefundMode.Demo => _refundGateways.FirstOrDefault(g => !g.SupportsAutomaticRefund)
+            ?? throw new InvalidOperationException("Chế độ Refunds:Mode=Demo cần một IRefundGateway thủ công (Manual)."),
+        RefundMode.Gateway => _refundGateways.FirstOrDefault(g => g.SupportsAutomaticRefund)
+            ?? _refundGateways.FirstOrDefault()
+            ?? throw new InvalidOperationException("Chưa đăng ký IRefundGateway nào."),
+        // Giá trị số ngoài enum (vd Refunds__Mode=2) KHÔNG được âm thầm rơi vào đường hoàn tiền thật.
+        _ => throw new InvalidOperationException($"Refunds:Mode không hợp lệ: {(int)_mode}.")
+    };
 }

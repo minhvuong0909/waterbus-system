@@ -21,10 +21,10 @@ public sealed class RefundServiceTests
 {
     private static RefundRequestService Requests(ApplicationDbContext context, IRefundGateway gateway) => new(
         new FinancialTransactionRepository(context), new BookingRepository(context), new EfUnitOfWork(context),
-        new RequestRefundRequestValidator(), [gateway], new DirectCommercialTransactionRunner());
+        new RequestRefundRequestValidator(), [gateway], new DirectCommercialTransactionRunner(), TestNotifications.Outbox(context), RefundTestOptions.Gateway);
 
     private static ManualRefundService Manual(ApplicationDbContext context) => new(new FinancialTransactionRepository(context),
-        new EfUnitOfWork(context), new ConfirmManualRefundRequestValidator(), new Admin(), new DirectCommercialTransactionRunner());
+        new EfUnitOfWork(context), new ConfirmManualRefundRequestValidator(), new Admin(), new DirectCommercialTransactionRunner(), TestNotifications.Outbox(context));
 
     private sealed class Admin : ICurrentUserService
     {
@@ -108,7 +108,7 @@ public sealed class RefundServiceTests
             TransactionNo = "refund-bank-reference", TransactionStatus = "00", Amount = refund.Amount * 100 + (matching ? 0 : 1)
         };
         var service = new RefundReconciliationService(new FinancialTransactionRepository(context), new EfUnitOfWork(context),
-            gateway, new DirectCommercialTransactionRunner());
+            gateway, new DirectCommercialTransactionRunner(), TestNotifications.Outbox(context));
         Assert.Equal(matching ? "Succeeded" : "Processing", await service.ReconcileAsync(refund.RefundTransactionId, "127.0.0.1"));
     }
 

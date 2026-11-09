@@ -76,6 +76,7 @@ services:
       VnPay__BaseUrl: ${VNPAY_BASE_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
       VnPay__ReturnUrl: ${PUBLIC_URL:-http://localhost:8080}/payment/callback
       # API truy vấn/hoàn tiền của VNPay: phải cùng môi trường với VNPAY_BASE_URL (cùng sandbox hoặc cùng production)
+      Refunds__Mode: ${REFUND_MODE:-Demo}
       VnPay__WebApiUrl: ${VNPAY_WEBAPI_URL:-https://sandbox.vnpayment.vn/merchant_webapi/api/transaction}
       Checkout__SessionTtlMinutes: ${Checkout__SessionTtlMinutes:-10}
       Checkout__PaymentPendingTtlMinutes: ${Checkout__PaymentPendingTtlMinutes:-15}
@@ -110,6 +111,23 @@ services:
       Weather__Fake__WindSpeedMs: ${WEATHER_FAKE_WIND_MS:-3}
       Weather__Fake__WindGustMs: ${WEATHER_FAKE_GUST_MS:-}
       Weather__Fake__ConditionCode: ${WEATHER_FAKE_CONDITION_CODE:-800}
+      # Email giao dịch (outbox + Hangfire + SMTP). Mặc định TẮT; bật cần EMAIL_* hợp lệ, sai cấu hình ⇒ API không khởi động.
+      Email__Enabled: ${EMAIL_ENABLED:-false}
+      Email__FromAddress: ${EMAIL_FROM_ADDRESS:-}
+      Email__FromName: ${EMAIL_FROM_NAME:-Smart Waterbus}
+      Email__PublicBaseUrl: ${PUBLIC_URL:-http://localhost:8080}
+      Email__SupportEmail: ${EMAIL_SUPPORT_ADDRESS:-}
+      Email__SupportPhone: ${EMAIL_SUPPORT_PHONE:-}
+      Email__Smtp__Host: ${EMAIL_SMTP_HOST:-}
+      Email__Smtp__Port: ${EMAIL_SMTP_PORT:-587}
+      Email__Smtp__Security: ${EMAIL_SMTP_SECURITY:-StartTls}
+      Email__Smtp__Username: ${EMAIL_SMTP_USERNAME:-}
+      Email__Smtp__Password: ${EMAIL_SMTP_PASSWORD:-}
+      Email__Smtp__AllowInsecureTransport: ${EMAIL_SMTP_ALLOW_INSECURE:-false}
+      Email__MaxAttempts: ${EMAIL_MAX_ATTEMPTS:-8}
+      Email__MaxMessageAgeHours: ${EMAIL_MAX_AGE_HOURS:-48}
+      Email__FinancialMaxAttempts: ${EMAIL_FINANCIAL_MAX_ATTEMPTS:-16}
+      Email__FinancialMaxAgeHours: ${EMAIL_FINANCIAL_MAX_AGE_HOURS:-168}
       Hangfire__Dashboard__Username: ${HANGFIRE_DASHBOARD_USER:-}
       Hangfire__Dashboard__Password: ${HANGFIRE_DASHBOARD_PASSWORD:-}
     ports:
@@ -140,6 +158,19 @@ services:
         condition: service_started
     ports:
       - "${WEB_PORT:-8080}:80"
+    restart: unless-stopped
+    networks: [backend]
+
+  # SMTP catcher cho dev: `docker compose --profile mail-dev up -d mailpit`; xem thư tại http://localhost:8025.
+  # Dùng với EMAIL_SMTP_HOST=mailpit, EMAIL_SMTP_PORT=1025, EMAIL_SMTP_SECURITY=None, EMAIL_SMTP_ALLOW_INSECURE=true
+  # và ASPNETCORE_ENVIRONMENT=Development (Security=None bị từ chối ở Production).
+  mailpit:
+    image: axllent/mailpit:v1.21
+    container_name: waterbus_mailpit
+    profiles: ["mail-dev"]
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
     restart: unless-stopped
     networks: [backend]
 

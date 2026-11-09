@@ -31,6 +31,9 @@ export default function RefundResultPanel({ refund }: { refund: RefundRequestRes
           ))}
         </ul>
       )}
+      {refund.isDemo && !refund.requiresManualAction && (
+        <p className="mt-4 text-sm font-semibold text-deep-river">{refund.notice ?? t('DEMO: no real money is transferred.')}</p>
+      )}
       {refund.requiresManualAction && <ManualRefundForm refund={refund} />}
     </Panel>
   )

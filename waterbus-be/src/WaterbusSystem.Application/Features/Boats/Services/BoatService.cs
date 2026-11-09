@@ -1,4 +1,5 @@
 using ValidationException = WaterbusSystem.Application.Common.Exceptions.ValidationException;
+using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Common.Models;
 using WaterbusSystem.Application.DTOs.Requests.Boats;
 using WaterbusSystem.Application.DTOs.Responses.Boats;
@@ -6,10 +7,11 @@ using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Domain.Entities;
+using WaterbusSystem.Domain.Exceptions;
 
 namespace WaterbusSystem.Application.Features.Boats.Services;
 
-public sealed class BoatService(IBoatRepository boats, IUnitOfWork unitOfWork) : IBoatService
+public sealed class BoatService(IBoatRepository boats, IUnitOfWork unitOfWork, ICommercialTransactionRunner transactions) : IBoatService
 {
     public async Task<Guid> CreateAsync(CreateBoatRequest request, CancellationToken cancellationToken = default)
     {
@@ -39,9 +41,28 @@ public sealed class BoatService(IBoatRepository boats, IUnitOfWork unitOfWork) :
         return boat.Id;
     }
 
-    public async Task UpdateAsync(Guid id, UpdateBoatRequest request, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Chạy trong khoá thương mại cùng BoatSeatService: đếm ghế và ghi TotalSeats là một đơn vị, nên kích hoạt/thêm ghế đồng thời
+    /// không thể làm số ghế hoạt động vượt TotalSeats mới (bất biến BoatSeatService: ghế hoạt động &lt;= TotalSeats).
+    /// </summary>
+    public Task UpdateAsync(Guid id, UpdateBoatRequest request, CancellationToken cancellationToken = default) =>
+        transactions.RunAsync(async () =>
+        {
+            await UpdateCoreAsync(id, request, cancellationToken);
+            return true;
+        }, cancellationToken);
+
+    private async Task UpdateCoreAsync(Guid id, UpdateBoatRequest request, CancellationToken cancellationToken)
     {
         var boat = await boats.GetRequiredByIdAsync(id, cancellationToken);
+
+        // Không để sức chứa khai báo thấp hơn số ghế thật đang bán; không tự sinh/xoá ghế theo TotalSeats.
+        var activeSeats = await boats.CountActiveSeatsAsync(id, cancellationToken);
+        if (request.TotalSeats < activeSeats)
+        {
+            throw new ConflictException(
+                $"TotalSeats ({request.TotalSeats}) thấp hơn số ghế đang hoạt động ({activeSeats}). Hãy ngừng bớt ghế trước.");
+        }
 
         boat.Name = request.Name;
         boat.RegistrationNumber = request.RegistrationNumber;

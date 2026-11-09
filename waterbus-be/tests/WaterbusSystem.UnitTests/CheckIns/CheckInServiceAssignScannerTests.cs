@@ -23,6 +23,7 @@ public class CheckInServiceAssignScannerTests
     private static CheckInService CreateService(WaterbusSystem.Infrastructure.Persistence.ApplicationDbContext context) => new(
         new CheckInRepository(context), new WaterbusSystem.Infrastructure.Persistence.EfUnitOfWork(context),
         Mock.Of<ICurrentUserService>(), Mock.Of<IDateTimeService>(), new CheckInProcessor(new CheckInRepository(context)),
+        new WaterbusSystem.Infrastructure.Persistence.SqlScannerAssignmentLock(context),
         Options.Create(new NoShowFinalizationOptions()), NullLogger<CheckInService>.Instance);
 
     private static (TestDbContextFactory.TripSeedData Seed, TripStopCall StopCall, ScannerDevice Device) SeedDeviceAndStop(
@@ -121,6 +122,34 @@ public class CheckInServiceAssignScannerTests
             CancellationToken.None);
 
         await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task AssignScannerAsync_WhenOverlappingPrimaryIsAtADifferentStop_ShouldSucceed()
+    {
+        // Review PR #58: khoá sp_getapplock mới thêm (IScannerAssignmentLock) khoá theo
+        // TripStopCallId - 2 điểm dừng khác nhau không được chặn chéo nhau dù cùng khoảng thời gian.
+        using var context = TestDbContextFactory.CreateDbContext();
+        var seed = TestDbContextFactory.SeedTrip(context);
+        var stopCall1 = seed.Trip.TripStopCalls.Single(c => c.VisitOrder == 1);
+        var stopCall2 = seed.Trip.TripStopCalls.Single(c => c.VisitOrder == 2);
+        var device1 = new ScannerDevice { DeviceCode = "DEV-STOP-1", IsActive = true };
+        var device2 = new ScannerDevice { DeviceCode = "DEV-STOP-2", IsActive = true };
+        context.ScannerDevices.AddRange(device1, device2);
+        context.SaveChanges();
+        var service = CreateService(context);
+
+        var now = DateTimeOffset.UtcNow;
+        await service.AssignScannerAsync(
+            new AssignScannerRequest(device1.Id, Guid.NewGuid(), stopCall1.Id, true, now, now.AddHours(2)),
+            CancellationToken.None);
+
+        var act = () => service.AssignScannerAsync(
+            new AssignScannerRequest(device2.Id, Guid.NewGuid(), stopCall2.Id, true, now, now.AddHours(2)),
+            CancellationToken.None);
+
+        await act.Should().NotThrowAsync();
+        context.ScannerAssignments.Count().Should().Be(2);
     }
 
     [Fact]

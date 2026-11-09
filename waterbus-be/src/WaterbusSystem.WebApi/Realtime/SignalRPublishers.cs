@@ -57,22 +57,35 @@ public class SignalROperationsAlertPublisher : IOperationsAlertPublisher
 {
     private readonly IHubContext<BoatTrackingHub> _trackingHub;
     private readonly IHubContext<SeatSyncHub> _seatHub;
+    private readonly IHubContext<OnboardAudioHub>? _onboardHub;
 
-    public SignalROperationsAlertPublisher(IHubContext<BoatTrackingHub> trackingHub, IHubContext<SeatSyncHub> seatHub)
+    public SignalROperationsAlertPublisher(IHubContext<BoatTrackingHub> trackingHub, IHubContext<SeatSyncHub> seatHub,
+        IHubContext<OnboardAudioHub>? onboardHub = null)
     {
         _trackingHub = trackingHub;
         _seatHub = seatHub;
+        _onboardHub = onboardHub;
     }
+
+    /// <summary>BR-EXP-06: audio tham quan nhường ưu tiên — báo cho Onboard Player của tàu tạm dừng/tiếp tục.</summary>
+    private Task SendAudioControlAsync(Guid? boatId, Guid? tripId, string action, string reason, DateTimeOffset at, CancellationToken ct) =>
+        _onboardHub is null || boatId is null ? Task.CompletedTask
+            : _onboardHub.Clients.Group(RealtimeContract.Groups.OnboardAudio(boatId.Value))
+                .SendAsync(RealtimeContract.Events.AudioControl, new AudioControlMessage(action, tripId, reason, at), ct);
 
     public Task PublishWeatherAlertAsync(WeatherAlertMessage message, CancellationToken cancellationToken = default) =>
         _trackingHub.Clients
             .Group(RealtimeContract.Groups.Fleet)
             .SendAsync(RealtimeContract.Events.WeatherAlert, message, cancellationToken);
 
-    public Task PublishIncidentRaisedAsync(IncidentRaisedMessage message, CancellationToken cancellationToken = default) =>
-        _trackingHub.Clients
+    public async Task PublishIncidentRaisedAsync(IncidentRaisedMessage message, CancellationToken cancellationToken = default)
+    {
+        await _trackingHub.Clients
             .Group(RealtimeContract.Groups.Fleet)
             .SendAsync(RealtimeContract.Events.IncidentRaised, message, cancellationToken);
+        if (string.Equals(message.IncidentType, "Safety", StringComparison.OrdinalIgnoreCase))
+            await SendAudioControlAsync(message.BoatId, message.TripId, "pause", "SafetyAnnouncement", message.OccurredAt, cancellationToken);
+    }
 
     public async Task PublishTripStatusChangedAsync(TripStatusChangedMessage message, CancellationToken cancellationToken = default)
     {
@@ -84,5 +97,10 @@ public class SignalROperationsAlertPublisher : IOperationsAlertPublisher
             .SendAsync(RealtimeContract.Events.TripStatusChanged, message, cancellationToken);
         await _seatHub.Clients.Group(RealtimeContract.Groups.Trip(message.TripId))
             .SendAsync(RealtimeContract.Events.TripStatusChanged, message, cancellationToken);
+        // EnRoute chỉ là điều kiện cần: còn phải không có SOS mở và đúng loại chuyến, nên KHÔNG ra lệnh "resume" —
+        // client phải gọi GetState rồi mới tiếp tục khi playbackAllowed = true.
+        var recheck = message.Status == "EnRoute";
+        await SendAudioControlAsync(message.BoatId, message.TripId, recheck ? "recheck" : "pause",
+            recheck ? "TripEnRoute" : "Trip" + message.Status, message.ChangedAt, cancellationToken);
     }
 }

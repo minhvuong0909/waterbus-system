@@ -110,14 +110,17 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
 
     public void AddOperationEvent(TripOperationEvent operationEvent) => context.TripOperationEvents.Add(operationEvent);
 
-    public Task<List<Trip>> SearchScheduledAsync(
-        DateTimeOffset? departureDayStartUtc, DateTimeOffset? departureDayEndUtc, TripType? tripType,
+    public Task<List<Trip>> SearchSellableAsync(
+        DateTimeOffset? departureDayStartUtc, DateTimeOffset? departureDayEndUtc, TripType? tripType, DateTimeOffset now,
+        int maxCandidates, Guid? departureStationId = null, Guid? arrivalStationId = null,
         CancellationToken cancellationToken = default)
     {
         var query = context.Trips.AsNoTracking()
             .Include(t => t.Route).Include(t => t.Boat)
             .Include(t => t.TripStopCalls).ThenInclude(c => c.RouteStop).ThenInclude(rs => rs!.Station)
-            .Where(t => !t.IsDeleted && t.Status == TripStatus.Scheduled);
+            .Where(t => !t.IsDeleted && (t.Status == TripStatus.Scheduled || t.Status == TripStatus.Boarding)
+                        && t.ActualDepartureTime == null && t.BoatId != null
+                        && (t.SalesCloseAt == null || t.SalesCloseAt > now));
 
         if (departureDayStartUtc.HasValue && departureDayEndUtc.HasValue)
         {
@@ -127,8 +130,20 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
         {
             query = query.Where(t => t.TripType == tripType.Value);
         }
+        // Lọc bến TRƯỚC khi cắt ứng viên: chuyến không phục vụ bến được tìm không được chiếm chỗ trong giới hạn.
+        // Thứ tự lên/xuống và tồn kho vẫn được kiểm tra chính xác ở tầng service.
+        if (departureStationId.HasValue)
+        {
+            var from = departureStationId.Value;
+            query = query.Where(t => t.TripStopCalls.Any(c => c.RouteStop!.StationId == from && c.RouteStop.CanBoard));
+        }
+        if (arrivalStationId.HasValue)
+        {
+            var to = arrivalStationId.Value;
+            query = query.Where(t => t.TripStopCalls.Any(c => c.RouteStop!.StationId == to && c.RouteStop.CanAlight));
+        }
 
-        return query.OrderBy(t => t.DepartureTime).ToListAsync(cancellationToken);
+        return query.OrderBy(t => t.DepartureTime).ThenBy(t => t.Id).Take(maxCandidates).ToListAsync(cancellationToken);
     }
 
     public Task<List<SeatReservationSegment>> ListReservationSegmentsAsync(
@@ -138,13 +153,13 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
             .Select(r => new SeatReservationSegment(r.TripId, r.SeatId, r.BoardingStopOrder, r.DisembarkingStopOrder))
             .ToListAsync(cancellationToken);
 
-    public async Task<Dictionary<string, decimal>> GetMinActivePriceByTripTypeAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
-    {
-        var fares = await context.FareRules.AsNoTracking()
-            .Where(f => f.IsActive && f.EffectiveFrom <= now && (f.EffectiveTo == null || f.EffectiveTo > now))
-            .Select(f => new { f.TripType, f.Price })
+    public Task<List<Seat>> ListSeatsForBoatsAsync(IReadOnlyCollection<Guid> boatIds, CancellationToken cancellationToken = default) =>
+        context.Seats.AsNoTracking().Include(s => s.SeatClass)
+            .Where(s => boatIds.Contains(s.BoatId))
             .ToListAsync(cancellationToken);
 
-        return fares.GroupBy(f => f.TripType).ToDictionary(g => g.Key, g => g.Min(f => f.Price));
-    }
+    public Task<List<FareRule>> ListActiveFaresAsync(DateTimeOffset now, CancellationToken cancellationToken = default) =>
+        context.FareRules.AsNoTracking()
+            .Where(f => f.IsActive && f.EffectiveFrom <= now && (f.EffectiveTo == null || f.EffectiveTo > now))
+            .ToListAsync(cancellationToken);
 }

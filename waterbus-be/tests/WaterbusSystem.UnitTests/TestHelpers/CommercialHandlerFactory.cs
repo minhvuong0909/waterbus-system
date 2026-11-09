@@ -92,16 +92,16 @@ internal static class CommercialHandlerFactory
 
     internal static PaymentConfirmationService Confirmation(ApplicationDbContext context, IVnPayService gateway,
         ICommercialTransactionRunner? transactions = null, ICheckoutSessionService? sessions = null) =>
-        new(new FinancialTransactionRepository(context), new BookingRepository(context), new EfUnitOfWork(context), gateway, transactions ?? new DirectCommercialTransactionRunner(), sessions);
+        new(new FinancialTransactionRepository(context), new BookingRepository(context), new EfUnitOfWork(context), gateway, transactions ?? new DirectCommercialTransactionRunner(), TestNotifications.Outbox(context), sessions);
 
     internal static PaymentService Ipn(ApplicationDbContext context, IVnPayService gateway,
         ICommercialTransactionRunner? transactions = null) => Payment(context, gateway, transactions);
 
     internal static RefundRequestService Refund(ApplicationDbContext context, IEnumerable<IRefundGateway> gateways,
-        ICommercialTransactionRunner? transactions = null) => new(new FinancialTransactionRepository(context), new BookingRepository(context), new EfUnitOfWork(context), new RequestRefundRequestValidator(), gateways, transactions ?? new DirectCommercialTransactionRunner());
+        ICommercialTransactionRunner? transactions = null) => new(new FinancialTransactionRepository(context), new BookingRepository(context), new EfUnitOfWork(context), new RequestRefundRequestValidator(), gateways, transactions ?? new DirectCommercialTransactionRunner(), TestNotifications.Outbox(context), RefundTestOptions.Gateway);
 
     internal static ManualRefundService ManualRefund(ApplicationDbContext context, ICurrentUserService currentUser,
-        ICommercialTransactionRunner? transactions = null) => new(new FinancialTransactionRepository(context), new EfUnitOfWork(context), new ConfirmManualRefundRequestValidator(), currentUser, transactions ?? new DirectCommercialTransactionRunner());
+        ICommercialTransactionRunner? transactions = null) => new(new FinancialTransactionRepository(context), new EfUnitOfWork(context), new ConfirmManualRefundRequestValidator(), currentUser, transactions ?? new DirectCommercialTransactionRunner(), TestNotifications.Outbox(context));
 
     private sealed class Clock : IDateTimeService { public DateTimeOffset Now => DateTimeOffset.UtcNow; }
     internal sealed class MemoryStore : ICheckoutSessionStore

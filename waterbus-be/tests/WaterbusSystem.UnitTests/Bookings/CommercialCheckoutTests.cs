@@ -32,7 +32,8 @@ public sealed class CommercialCheckoutTests
         public bool ValidateSignature(IReadOnlyDictionary<string, string> q) => true;
         public bool IsValidTmnCode(string code) => true;
         public Task<VnPayQueryResult> QueryTransactionAsync(string r, string d, string ip, CancellationToken ct = default) => Task.FromResult(QueryResult);
-        public Task<VnPayRefundResult> RefundAsync(VnPayRefundRequest r, CancellationToken ct = default) => throw new NotSupportedException();
+        public int VnPayRefundApiCalls;
+        public Task<VnPayRefundResult> RefundAsync(VnPayRefundRequest r, CancellationToken ct = default) { VnPayRefundApiCalls++; throw new NotSupportedException(); }
         public Task<RefundGatewayResult> RefundAsync(RefundGatewayRequest r, CancellationToken ct = default)
         { RefundCalls++; BeforeRefund?.Invoke(); return Task.FromResult(Outcome); }
     }
@@ -168,7 +169,7 @@ public sealed class CommercialCheckoutTests
         var refund = await CommercialHandlerFactory.Refund(c, [state.Gateway]).RequestAsync(new(state.Booking.BookingId, "cancelled"), default);
         state.Gateway.QueryResult = new VnPayQueryResult { IsSuccess = true, MerchantReference = state.Attempt.MerchantReference,
             Amount = refund.Amount * 100, TransactionType = "01", TransactionStatus = "00", TransactionNo = "12345" };
-        var handler = new WaterbusSystem.Application.Features.Refunds.Services.RefundReconciliationService(new FinancialTransactionRepository(c), new EfUnitOfWork(c), state.Gateway, new DirectCommercialTransactionRunner());
+        var handler = new WaterbusSystem.Application.Features.Refunds.Services.RefundReconciliationService(new FinancialTransactionRepository(c), new EfUnitOfWork(c), state.Gateway, new DirectCommercialTransactionRunner(), TestNotifications.Outbox(c));
         (await handler.ReconcileAsync(refund.RefundTransactionId, "127.0.0.1", default)).Should().Be("Processing");
         state.Gateway.QueryResult = state.Gateway.QueryResult with { TransactionType = "02", TransactionNo = "refund-bank-reference" };
         (await handler.ReconcileAsync(refund.RefundTransactionId, "127.0.0.1", default)).Should().Be("Succeeded");
