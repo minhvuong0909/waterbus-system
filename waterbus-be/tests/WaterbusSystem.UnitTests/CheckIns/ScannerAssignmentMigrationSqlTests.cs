@@ -95,6 +95,23 @@ public sealed class ScannerAssignmentMigrationSqlTests
         new(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(connectionString).Options);
 
     /// <summary>
+    /// Context chỉ dùng để SEED vào database baseline (schema của SHA cũ bb1bf0c, TRƯỚC các migration mới).
+    /// Model hiện tại có cột mới trên bảng cũ mà baseline chưa có (vd FinancialTransactions.IsDemoRefund) nên INSERT bằng
+    /// model đầy đủ sẽ lỗi "Invalid column name". Mỗi cột thêm vào bảng CÓ SẴN ở baseline phải được Ignore tại đây.
+    /// </summary>
+    private sealed class BaselineSeedContext(DbContextOptions<ApplicationDbContext> options) : ApplicationDbContext(options)
+    {
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+            base.OnModelCreating(builder);
+            builder.Entity<FinancialTransaction>().Ignore(x => x.IsDemoRefund);
+        }
+    }
+
+    private static ApplicationDbContext SeedContext(string connectionString) =>
+        new BaselineSeedContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(connectionString).Options);
+
+    /// <summary>
     /// Xoá sạch database baseline sau khi test xong (thành công hay thất bại) để lần CI kế tiếp dựng
     /// lại từ đầu sạch sẽ - guard cùng pattern "chỉ xoá đúng tên test DB" dùng ở các lớp test khác.
     /// </summary>
@@ -195,7 +212,7 @@ public sealed class ScannerAssignmentMigrationSqlTests
         try
         {
             Guid stopCallId, assignmentId;
-            await using (var seed = Context(connectionString))
+            await using (var seed = SeedContext(connectionString))
             {
                 var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, Guid.NewGuid(), withAssignment: false);
                 stopCallId = scenario.BoardingCall.Id;
@@ -271,7 +288,7 @@ public sealed class ScannerAssignmentMigrationSqlTests
         try
         {
             Guid stopCallId, assignmentId;
-            await using (var seed = Context(connectionString))
+            await using (var seed = SeedContext(connectionString))
             {
                 var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, Guid.NewGuid(), withAssignment: false);
                 stopCallId = scenario.BoardingCall.Id;
@@ -342,7 +359,7 @@ public sealed class ScannerAssignmentMigrationSqlTests
         try
         {
             Guid stopCallId;
-            await using (var seed = Context(connectionString))
+            await using (var seed = SeedContext(connectionString))
             {
                 var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, Guid.NewGuid(), withAssignment: false);
                 stopCallId = scenario.BoardingCall.Id;
