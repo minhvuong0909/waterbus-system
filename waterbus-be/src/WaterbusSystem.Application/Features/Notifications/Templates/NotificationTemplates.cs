@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.DTOs.Responses.Refunds;
 using WaterbusSystem.Domain.Enums;
 
 namespace WaterbusSystem.Application.Features.Notifications.Templates;
@@ -81,11 +82,12 @@ public static class NotificationTemplates
         var b = new EmailBodyBuilder(ctx);
         var partial = d.Amount < d.PaymentAmount;
         b.Paragraph($"Xin chào {d.PurchaserName},");
-        b.Paragraph("Khoản hoàn tiền dưới đây đã được xác nhận hoàn tất thành công.");
+        if (d.IsDemo) b.Notice(RefundDemo.Notice + " Email này chỉ phục vụ trình diễn.");
+        b.Paragraph(d.IsDemo ? "Khoản hoàn tiền mô phỏng dưới đây đã được Admin xác nhận trong môi trường demo." : "Khoản hoàn tiền dưới đây đã được xác nhận hoàn tất thành công.");
         b.Heading("Chi tiết hoàn tiền");
         b.Fact("Mã đơn hàng", d.OrderId.ToString());
         b.Fact("Mã đặt chỗ được hoàn", leg.BookingCode);
-        b.Fact("Trạng thái hoàn tiền", "Thành công");
+        b.Fact("Trạng thái hoàn tiền", d.IsDemo ? "Thành công (DEMO – không chuyển tiền thật)" : "Thành công");
         b.Fact("Số tiền đã hoàn", EmailFormat.Money(d.Amount, d.Currency));
         b.Fact("Loại hoàn tiền", partial ? $"Hoàn một phần (đơn hàng đã thanh toán {EmailFormat.Money(d.PaymentAmount, d.Currency)})" : "Hoàn toàn bộ số tiền đã thanh toán");
         if (!string.IsNullOrWhiteSpace(d.GatewayReference)) b.Fact("Mã giao dịch hoàn tiền", d.GatewayReference!);
@@ -95,9 +97,9 @@ public static class NotificationTemplates
         LegFacts(b, leg);
         if (d.Allocations.Count > 0) Passengers(b, d.Allocations, d.Currency, showAmount: true);
         else b.Paragraph("Khoản hoàn này là hoàn toàn bộ khoản thanh toán nhận muộn của đặt chỗ; không có vé nào được phát hành.");
-        b.Notice("Thời gian tiền hiển thị trong tài khoản/ thẻ của bạn phụ thuộc vào ngân hàng hoặc đơn vị phát hành thẻ.");
-        var (html, text) = b.Render("Hoàn tiền thành công");
-        return new($"Hoàn tiền thành công {EmailFormat.Money(d.Amount, d.Currency)} – {leg.BookingCode}", html, text);
+        if (!d.IsDemo) b.Notice("Thời gian tiền hiển thị trong tài khoản/ thẻ của bạn phụ thuộc vào ngân hàng hoặc đơn vị phát hành thẻ.");
+        var (html, text) = b.Render(d.IsDemo ? "Hoàn tiền (DEMO)" : "Hoàn tiền thành công");
+        return new($"{(d.IsDemo ? "[DEMO] " : "")}Hoàn tiền thành công {EmailFormat.Money(d.Amount, d.Currency)} – {leg.BookingCode}", html, text);
     }
 
     private static void LegFacts(EmailBodyBuilder b, BookingLeg leg)

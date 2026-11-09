@@ -174,7 +174,8 @@ public sealed class ScannerAssignmentMigrationSqlTests
             await using var c = Context(tempConnection);
             await c.GetService<IMigrator>().MigrateAsync(LastMigrationBeforeBothPRs);
             var pending = (await c.Database.GetPendingMigrationsAsync()).ToList();
-            pending.Should().Equal(ExpectedNewMigrationsInOrder,
+            // Các migration thêm SAU 3 migration của PR #58/#59 (vd AddAudioPlaybackRequests) không làm sai tiền đề baseline.
+            pending.Take(ExpectedNewMigrationsInOrder.Length).Should().Equal(ExpectedNewMigrationsInOrder,
                 "LastMigrationBeforeBothPRs phải là migration NGAY TRƯỚC 3 migration mới của PR #58/#59, theo đúng thứ tự áp dụng thật");
         }
         finally
@@ -293,7 +294,8 @@ public sealed class ScannerAssignmentMigrationSqlTests
             await using (var c = Context(connectionString))
             {
                 var pendingBeforeUpgrade = (await c.Database.GetPendingMigrationsAsync()).ToList();
-                pendingBeforeUpgrade.Should().Equal(
+                // Migration phát sinh SAU 2 migration ScannerAssignment (vd AddAudioPlaybackRequests) cũng pending nhưng không thuộc tiền đề của test này.
+                pendingBeforeUpgrade.Take(2).Should().Equal(
                     "20261106031430_AddScannerAssignmentOpenEndedPrimaryUniqueIndex",
                     "20261106090321_RestoreScannerAssignmentTripStopCallIdIndex");
 

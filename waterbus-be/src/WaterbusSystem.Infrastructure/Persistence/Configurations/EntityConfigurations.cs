@@ -375,6 +375,7 @@ public class FinancialTransactionConfiguration : IEntityTypeConfiguration<Financ
         builder.Property(x => x.Currency).HasMaxLength(10).IsRequired();
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.GatewayName).HasMaxLength(50);
+        builder.Property(x => x.IsDemoRefund).HasDefaultValue(false);
         builder.Property(x => x.GatewayReference).HasMaxLength(100);
         builder.Property(x => x.MerchantReference).HasMaxLength(100);
         builder.Property(x => x.IdempotencyKey).HasMaxLength(200).IsRequired();

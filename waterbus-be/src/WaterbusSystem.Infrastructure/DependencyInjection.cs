@@ -234,6 +234,8 @@ public static class DependencyInjection
         // - Owner Web/Booking chốt hợp đồng URL đặt vé.
         // - Cấu hình Groq API Key qua User Secrets / biến môi trường.
         services.Configure<GroqAssistantOptions>(configuration.GetSection(GroqAssistantOptions.SectionName));
+        // Refunds:Mode = Demo (mặc định) | Gateway. Demo không bao giờ gọi API Refund của VNPay.
+        services.Configure<WaterbusSystem.Application.Features.Refunds.RefundOptions>(configuration.GetSection(WaterbusSystem.Application.Features.Refunds.RefundOptions.SectionName));
         // Adapter đã có để thử local; cả LLM và hai contract tích hợp đều tắt mặc định.
         services.Configure<AiBookingIntegrationOptions>(configuration.GetSection(AiBookingIntegrationOptions.SectionName));
         services.AddScoped<ITripSearchTool, TripSearchTool>();

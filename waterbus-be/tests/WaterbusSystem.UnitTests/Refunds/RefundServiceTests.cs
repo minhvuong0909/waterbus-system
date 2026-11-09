@@ -21,7 +21,7 @@ public sealed class RefundServiceTests
 {
     private static RefundRequestService Requests(ApplicationDbContext context, IRefundGateway gateway) => new(
         new FinancialTransactionRepository(context), new BookingRepository(context), new EfUnitOfWork(context),
-        new RequestRefundRequestValidator(), [gateway], new DirectCommercialTransactionRunner(), TestNotifications.Outbox(context));
+        new RequestRefundRequestValidator(), [gateway], new DirectCommercialTransactionRunner(), TestNotifications.Outbox(context), RefundTestOptions.Gateway);
 
     private static ManualRefundService Manual(ApplicationDbContext context) => new(new FinancialTransactionRepository(context),
         new EfUnitOfWork(context), new ConfirmManualRefundRequestValidator(), new Admin(), new DirectCommercialTransactionRunner(), TestNotifications.Outbox(context));
