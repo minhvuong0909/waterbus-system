@@ -18,4 +18,16 @@ public sealed class RefundOptions
     public const string SectionName = "Refunds";
 
     public RefundMode Mode { get; set; } = RefundMode.Demo;
+
+    /// <summary>
+    /// true khi URL trỏ tới VNPay KHÔNG phải sandbox (vd pay.vnpay.vn, vnpayment.vn production). Host tự dựng/mock/localhost
+    /// hoặc để trống thì KHÔNG bị coi là tiền thật. Dùng để chặn Demo khi cấu hình endpoint tiền thật.
+    /// </summary>
+    public static bool IsLiveVnPayUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        var host = uri.Host.ToLowerInvariant();
+        var isVnPay = host == "vnpay.vn" || host.EndsWith(".vnpay.vn") || host == "vnpayment.vn" || host.EndsWith(".vnpayment.vn");
+        return isVnPay && !host.StartsWith("sandbox.");
+    }
 }

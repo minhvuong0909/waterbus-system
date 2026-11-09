@@ -239,6 +239,11 @@ public static class DependencyInjection
         services.AddOptions<WaterbusSystem.Application.Features.Refunds.RefundOptions>()
             .Bind(configuration.GetSection(WaterbusSystem.Application.Features.Refunds.RefundOptions.SectionName))
             .Validate(o => Enum.IsDefined(o.Mode), "Refunds:Mode phải là Demo hoặc Gateway.")
+            // Fail-closed: Demo không bao giờ được biểu diễn hoàn tiền cho thanh toán tiền thật.
+            .Validate(o => o.Mode != WaterbusSystem.Application.Features.Refunds.RefundMode.Demo ||
+                    !(WaterbusSystem.Application.Features.Refunds.RefundOptions.IsLiveVnPayUrl(configuration["VnPay:BaseUrl"]) ||
+                      WaterbusSystem.Application.Features.Refunds.RefundOptions.IsLiveVnPayUrl(configuration["VnPay:WebApiUrl"])),
+                "Refunds:Mode=Demo không được dùng với endpoint VNPay tiền thật (VnPay:BaseUrl/WebApiUrl không phải sandbox). Đặt Refunds:Mode=Gateway hoặc dùng sandbox.")
             .ValidateOnStart();
         // Adapter đã có để thử local; cả LLM và hai contract tích hợp đều tắt mặc định.
         services.Configure<AiBookingIntegrationOptions>(configuration.GetSection(AiBookingIntegrationOptions.SectionName));

@@ -59,7 +59,10 @@ public sealed class RefundRequestService : IRefundRequestService
         var refund = prepared.Refund;
         return new RequestRefundResultDto(refund.Id, refund.OrderId, refund.RefundBookingId!.Value,
             refund.Amount, refund.Currency, refund.Status.ToString(), refund.GatewayName ?? "",
-            refund.Status == FinancialTransactionStatus.Requested || refund.GatewayName == "Manual", prepared.Allocations,
+            // Chỉ còn việc thủ công khi chưa hoàn tất: Requested (gateway thất bại) hoặc Processing ở gateway Manual.
+            // Succeeded/Failed không còn gì để làm (tránh hiện lại form xác nhận sau khi đã hoàn thành).
+            refund.Status == FinancialTransactionStatus.Requested ||
+                (refund.Status == FinancialTransactionStatus.Processing && refund.GatewayName == "Manual"), prepared.Allocations,
             refund.IsDemoRefund, refund.IsDemoRefund ? RefundDemo.Notice : null);
     }
 

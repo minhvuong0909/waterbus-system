@@ -20,6 +20,15 @@ chế độ mặc định không bao giờ gọi API Refund của VNPay.
 
 `Succeeded` của refund demo nghĩa là **Admin ghi nhận đã mô phỏng**, không phải tiền đã chuyển.
 
+Yêu cầu hoàn lặp lại cho cùng booking trả đúng refund cũ; sau khi đã `Succeeded`, `requiresManualAction = false` (chỉ `Requested` hoặc `Processing` ở gateway Manual mới còn việc thủ công), nên giao diện không hiện lại form xác nhận.
+
+## An toàn môi trường (Demo KHÔNG dành cho tiền thật)
+Refund demo chỉ **mô phỏng** việc hoàn tiền; `Succeeded` không có nghĩa tiền đã về khách. Tuyệt đối không dùng Demo cho thanh toán tiền thật.
+- **Guard fail-closed lúc khởi động:** nếu `Refunds:Mode=Demo` mà `VnPay:BaseUrl` hoặc `VnPay:WebApiUrl` trỏ tới VNPay **không phải sandbox** (host `vnpay.vn`/`vnpayment.vn` không bắt đầu bằng `sandbox.`, vd `pay.vnpay.vn`), ứng dụng **không khởi động** (`OptionsValidationException`). Chuyển sang `Refunds:Mode=Gateway` (khi đã có quyền Refund) hoặc dùng sandbox.
+- **Không phụ thuộc tên môi trường** và không cần cờ bổ sung: sandbox VNPay, localhost/mock và cấu hình để trống đều khởi động bình thường nên demo học thuật không bị ảnh hưởng.
+- `Refunds:Mode` không hợp lệ (vd `2`, `Banana`) cũng làm ứng dụng không khởi động; không bao giờ âm thầm rơi vào hoàn tiền thật.
+- **Giới hạn đã biết:** guard dựa trên host cấu hình, không phát hiện được merchant dùng host tự dựng/proxy trỏ tới VNPay production. Quy trình triển khai production vẫn phải đặt `Refunds__Mode=Gateway` hoặc triển khai C3. Refund tạo ở Demo vẫn là `IsDemoRefund = true` vĩnh viễn kể cả khi đổi chế độ.
+
 ## Điều KHÔNG thay đổi
 - Refund `VNPAY` đang `Processing` (mơ hồ, chưa có `GatewayReference`) **không bao giờ bị tự giải quyết** bởi chế độ này: `confirm-manual` vẫn từ chối (409), `request` trả lại đúng refund cũ, không gửi thêm gì tới VNPay. Hướng giải quyết thật nằm ở `docs/C3_REFUND_TIMEOUT_DECISION_PROPOSAL.md` (công việc production tương lai, **chưa triển khai**).
 - `POST /api/v1/refunds/{id}/reconcile` (QueryDr, chỉ đọc) không đổi.

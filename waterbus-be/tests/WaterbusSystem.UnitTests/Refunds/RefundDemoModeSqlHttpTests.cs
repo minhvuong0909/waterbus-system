@@ -239,6 +239,37 @@ public sealed class RefundDemoModeSqlHttpTests : IAsyncLifetime
     }
 
     [SqlServerDomainFact]
+    public async Task RepeatedRequestAfterConfirmation_ReturnsTheSameSucceededDemoRefund_WithNoManualActionAndNoSideEffects()
+    {
+        var seeded = await PaidRoundTripAsync();
+        await CancelTripAsync(seeded.OutboundTripId);
+        using var admin = As("Admin");
+        var created = await OkRefund(await admin.PostAsJsonAsync("/api/v1/refunds/request", new RequestRefundRequest(seeded.OutboundBookingId, "cancelled")));
+        Assert.True(created.RequiresManualAction);                 // trước khi xác nhận: còn việc thủ công
+        Assert.Equal(HttpStatusCode.OK, (await admin.PostAsJsonAsync("/api/v1/refunds/confirm-manual",
+            new ConfirmManualRefundRequest(created.RefundTransactionId, "demo evidence", "DEMO-1", created.Amount))).StatusCode);
+
+        async Task<(int Refunds, int Allocations, int Emails)> Counts()
+        {
+            await using var c = Context();
+            return (await c.FinancialTransactions.CountAsync(t => t.TransactionType == FinancialTransactionType.Refund),
+                await c.RefundTicketAllocations.CountAsync(),
+                await c.EmailOutbox.CountAsync(m => m.NotificationType == EmailNotificationType.RefundSucceeded));
+        }
+        var before = await Counts();
+
+        var again = await OkRefund(await admin.PostAsJsonAsync("/api/v1/refunds/request", new RequestRefundRequest(seeded.OutboundBookingId, "again")));
+        Assert.Equal(created.RefundTransactionId, again.RefundTransactionId);
+        Assert.Equal("Succeeded", again.Status);
+        Assert.True(again.IsDemo);
+        Assert.False(again.RequiresManualAction);                  // hợp đồng đã sửa: không còn form xác nhận
+        Assert.Equal(RefundDemo.Notice, again.Notice);
+        Assert.Equal(before, await Counts());
+        Assert.Equal((1, 1, 1), before);
+        AssertNoVnPayRefund();
+    }
+
+    [SqlServerDomainFact]
     public async Task RoundTripRefundsEachLegOnceWithItsOwnAllocation_AndNeverExceedsThePayment()
     {
         var seeded = await PaidRoundTripAsync();
