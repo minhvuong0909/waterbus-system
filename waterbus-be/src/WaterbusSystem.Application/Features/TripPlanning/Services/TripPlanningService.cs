@@ -82,6 +82,69 @@ public sealed class TripPlanningService(
             return new GenerateTripsResponse(schedule.Id, created, skippedExisting, skippedPast, skippedDay);
         }, cancellationToken);
 
+    /// <summary>BR-SCH-10: Admin tạo Trip ngoài Schedule; Trip chưa có tàu (chưa bán được) và dùng cùng quy tắc giờ/bến như Trip sinh từ lịch.</summary>
+    public Task<CreateAdHocTripResponse> CreateAdHocAsync(CreateAdHocTripRequest request, CancellationToken cancellationToken = default) =>
+        transactions.RunAsync(async () =>
+        {
+            var tripType = Enum.Parse<TripType>(request.TripType, true);
+            var route = await trips.GetRouteWithStopsAsync(request.RouteId, cancellationToken);
+            if (!route.IsActive) throw new ConflictException("Route đã ngừng hoạt động nên không tạo chuyến.");
+            var expected = tripType == TripType.Sightseeing ? "Sightseeing" : "Regular";
+            if (!string.Equals(route.ServiceType, expected, StringComparison.OrdinalIgnoreCase))
+                throw new ConflictException("Loại chuyến không khớp loại dịch vụ của Route (BR-ROUTE-03).");
+
+            var departure = request.DepartureTime.ToUniversalTime();
+            if (departure <= dateTime.Now) throw new ValidationException([new("departureTime", "Giờ khởi hành phải ở tương lai.")]);
+
+            var routeStops = route.Stops.ToDictionary(s => s.Id);
+            var stops = request.Stops;
+            // Giờ khởi hành của Trip chính là giờ rời bến đầu (search, đóng bán, trùng lịch tàu đều dựa vào mốc này).
+            if (stops[0].DepartureOffsetMin != 0)
+                throw new ValidationException([new("stops[0].departureOffsetMin", "Bến đầu phải rời bến đúng giờ khởi hành của chuyến (offset 0).")]);
+            for (var i = 0; i < stops.Count; i++)
+            {
+                var s = stops[i];
+                var last = i == stops.Count - 1;
+                if (!routeStops.ContainsKey(s.RouteStopId))
+                    throw new ValidationException([new($"stops[{i}].routeStopId", "Điểm dừng không thuộc Route.")]);
+                if (i == 0 ? s.DepartureOffsetMin is null || s.ArrivalOffsetMin is not null
+                    : last ? s.ArrivalOffsetMin is null || s.DepartureOffsetMin is not null || s.ArrivalOffsetMin <= 0
+                    : s.ArrivalOffsetMin is null || s.DepartureOffsetMin is null || s.DepartureOffsetMin < s.ArrivalOffsetMin)
+                    throw new ValidationException([new($"stops[{i}]", "Mốc phút bến đầu chỉ có giờ rời, bến cuối chỉ có giờ đến, bến giữa có cả hai (đến ≤ rời).")]);
+                var previousLeave = i == 0 ? 0 : stops[i - 1].DepartureOffsetMin!.Value;
+                if (i > 0 && (s.ArrivalOffsetMin! < previousLeave))
+                    throw new ValidationException([new($"stops[{i}].arrivalOffsetMin", "Giờ đến không được sớm hơn giờ rời bến trước.")]);
+            }
+
+            // Phải có ít nhất một cặp lên/xuống hợp lệ: bến đầu cho lên, bến cuối cho xuống (nếu không search không bao giờ tìm ra).
+            if (!routeStops[stops[0].RouteStopId].CanBoard || !routeStops[stops[^1].RouteStopId].CanAlight)
+                throw new ValidationException([new("stops", "Bến đầu phải cho lên tàu và bến cuối phải cho xuống tàu.")]);
+
+            var trip = new Trip
+            {
+                ScheduleId = null, RouteId = route.Id, TripType = tripType, Status = TripStatus.Scheduled,
+                DepartureTime = departure, ArrivalTime = departure.AddMinutes(stops[^1].ArrivalOffsetMin!.Value),
+                SalesCloseAt = departure.AddMinutes(-(request.SalesCloseMinutesBeforeDeparture ?? 0))
+            };
+            for (var i = 0; i < stops.Count; i++)
+            {
+                var s = stops[i];
+                var leave = s.DepartureOffsetMin is { } d ? departure.AddMinutes(d) : (DateTimeOffset?)null;
+                trip.TripStopCalls.Add(new TripStopCall
+                {
+                    TripId = trip.Id, RouteStopId = s.RouteStopId, VisitOrder = i + 1,
+                    EstimatedArrivalTime = s.ArrivalOffsetMin is { } a ? departure.AddMinutes(a) : null,
+                    EstimatedDepartureTime = leave,
+                    CheckInOpenAt = request.CheckInOpenMinutesBeforeDeparture is { } lead ? (leave ?? departure).AddMinutes(-lead) : null,
+                    CheckInCloseAt = request.CheckInOpenMinutesBeforeDeparture is not null ? leave ?? departure : null,
+                    Status = "Planned"
+                });
+            }
+            trips.AddTrip(trip);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return new CreateAdHocTripResponse(trip.Id, trip.DepartureTime, trip.ArrivalTime, stops.Count);
+        }, cancellationToken);
+
     public Task<AssignTripBoatResponse> AssignBoatAsync(Guid tripId, AssignTripBoatRequest request, CancellationToken cancellationToken = default) =>
         transactions.RunAsync(async () =>
         {

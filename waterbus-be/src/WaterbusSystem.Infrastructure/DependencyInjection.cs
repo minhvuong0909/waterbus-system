@@ -64,6 +64,8 @@ public static class DependencyInjection
         services.AddScoped<IManualRefundService, WaterbusSystem.Application.Features.Refunds.Services.ManualRefundService>();
         services.AddScoped<IRefundReconciliationService, WaterbusSystem.Application.Features.Refunds.Services.RefundReconciliationService>();
         services.AddScoped<IAccessGrantRepository, AccessGrantRepository>();
+        services.AddScoped<IAccountAccessRepository, AccountAccessRepository>();
+        services.AddScoped<IOrderAccessService, OrderAccessService>();
         services.AddScoped<ICheckoutAccessService>(sp => sp.GetRequiredService<CheckoutAccessService>());
         services.AddScoped<IBookingService, BookingService>();
         services.AddScoped<IBookingQrService, BookingQrService>();
@@ -254,7 +256,9 @@ public static class DependencyInjection
         // 7. Tính khoảng cách địa lý cho geofence POI (NetTopologySuite, stateless)
         services.AddSingleton<IGeoDistanceCalculator, NtsGeoDistanceCalculator>();
         services.Configure<SightseeingAudioOptions>(configuration.GetSection(SightseeingAudioOptions.SectionName));
-        services.AddSingleton<IPoiTriggerDeduplicationService, InMemoryPoiTriggerDeduplicationService>();
+        services.AddScoped<IPoiTriggerDeduplicationService, SqlPoiTriggerDeduplicationService>();
+        services.AddScoped<IAudioPlaybackRepository, AudioPlaybackRepository>();
+        services.AddScoped<IOnboardAudioService, OnboardAudioService>();
         services.AddScoped<IOnboardAudioTriggerDispatcher, LogOnlyAudioTriggerDispatcher>();
         services.AddScoped<IPoiAudioTriggerDecisionService, PoiAudioTriggerDecisionService>();
         services.AddScoped<ITrackingAudioTriggerEvaluator, TrackingAudioTriggerEvaluator>();

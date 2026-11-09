@@ -13,7 +13,7 @@ namespace WaterbusSystem.UnitTests.Boats;
 public class BoatServiceTests
 {
     private static BoatService CreateService(ApplicationDbContext context) =>
-        new(new BoatRepository(context), new EfUnitOfWork(context));
+        new(new BoatRepository(context), new EfUnitOfWork(context), new WaterbusSystem.UnitTests.TestHelpers.DirectCommercialTransactionRunner());
 
     private static CreateBoatRequest NewBoatRequest(string code = "SWB-99") => new(
         Code: code,

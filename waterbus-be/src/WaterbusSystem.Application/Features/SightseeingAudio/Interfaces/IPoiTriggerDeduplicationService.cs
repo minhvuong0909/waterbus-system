@@ -53,4 +53,7 @@ public interface IPoiTriggerDeduplicationService
         Guid poiId,
         string? visitId = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Epoch (fencing token) mà instance này giữ sau TryReserve thành công; null nếu backend không dùng epoch.</summary>
+    int? GetReservationEpoch(Guid tripId, Guid poiId, string? visitId = null) => null;
 }
