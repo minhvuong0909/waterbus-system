@@ -8,8 +8,8 @@ using WaterbusSystem.Domain.Enums;
 namespace WaterbusSystem.Application.Services.SightseeingAudio;
 
 /// <summary>Áp dụng điều kiện hành trình rồi gọi core geofence bằng snapshot từ repository.</summary>
-public sealed class TrackingAudioTriggerEvaluator(ISightseeingAudioRepository repository, IPoiAudioTriggerDecisionService decisionService,
-    IOptions<SightseeingAudioOptions>? options = null) : ITrackingAudioTriggerEvaluator
+public sealed class TrackingAudioTriggerService(ISightseeingAudioRepository repository, IPoiAudioTriggerDecisionService decisionService,
+    IOptions<SightseeingAudioOptions>? options = null) : ITrackingAudioTriggerService
 {
     public async Task<PoiAudioTriggerEvaluationResult?> EvaluateAsync(BoatPositionSnapshot position, CancellationToken cancellationToken = default)
     {

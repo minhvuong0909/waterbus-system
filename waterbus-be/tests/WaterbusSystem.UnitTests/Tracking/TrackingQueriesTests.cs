@@ -24,7 +24,7 @@ public class TrackingQueriesTests
 {
     private static BoatTrackingService CreateService(ApplicationDbContext context, IBoatPositionCache cache) =>
         new(new BoatRepository(context), new BoatPositionRepository(context), new TripRepository(context),
-            new EfUnitOfWork(context), cache, Mock.Of<IBoatTrackingPublisher>(), Mock.Of<ITrackingAudioTriggerEvaluator>(),
+            new EfUnitOfWork(context), cache, Mock.Of<IBoatTrackingPublisher>(), Mock.Of<ITrackingAudioTriggerService>(),
             Mock.Of<IValidator<RecordBoatPositionRequest>>(), new GetBoatPositionHistoryRequestValidator(),
             Options.Create(new TrackingOptions()), Options.Create(new SightseeingAudioOptions()),
             NullLogger<BoatTrackingService>.Instance);

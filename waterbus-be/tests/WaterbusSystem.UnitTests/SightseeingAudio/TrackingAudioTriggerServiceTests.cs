@@ -15,14 +15,14 @@ using Xunit;
 
 namespace WaterbusSystem.UnitTests.SightseeingAudio;
 
-public class TrackingAudioTriggerEvaluatorTests
+public class TrackingAudioTriggerServiceTests
 {
     private readonly Infrastructure.Persistence.ApplicationDbContext _context = TestDbContextFactory.CreateDbContext();
     private readonly TestDbContextFactory.TripSeedData _seed;
     private readonly RecordingOnboardAudioTriggerDispatcher _dispatcher = new();
     private readonly Fakes.InMemoryPoiTriggerDeduplicationService _deduplication = new();
 
-    public TrackingAudioTriggerEvaluatorTests()
+    public TrackingAudioTriggerServiceTests()
     {
         _seed = TestDbContextFactory.SeedTrip(_context);
         _seed.Trip.TripType = TripType.Sightseeing;
@@ -45,7 +45,7 @@ public class TrackingAudioTriggerEvaluatorTests
         _context.SaveChanges();
     }
 
-    private TrackingAudioTriggerEvaluator CreateEvaluator(IOnboardAudioTriggerDispatcher? dispatcher = null,
+    private TrackingAudioTriggerService CreateEvaluator(IOnboardAudioTriggerDispatcher? dispatcher = null,
         IPoiTriggerDeduplicationService? deduplication = null) => new(
         new WaterbusSystem.Infrastructure.Repositories.SightseeingAudioRepository(_context),
         new PoiAudioTriggerDecisionService(new NtsGeoDistanceCalculator(),

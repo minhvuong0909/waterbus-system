@@ -23,7 +23,7 @@ GPS/POI, `AudioGuide` và ACK player trong bài demo là fixture; không gọi A
 
 ```powershell
 dotnet build WaterbusSystem.sln
-dotnet test WaterbusSystem.sln --filter "FullyQualifiedName~TrackingAudioTriggerEvaluatorTests|FullyQualifiedName~RecordBoatPositionCommandHandlerTests|FullyQualifiedName~LocalAudioAdaptersTests"
+dotnet test WaterbusSystem.sln --filter "FullyQualifiedName~TrackingAudioTriggerServiceTests|FullyQualifiedName~RecordBoatPositionCommandHandlerTests|FullyQualifiedName~LocalAudioAdaptersTests"
 ```
 
 Các test này dùng EF InMemory và fake ACK để chứng minh quyết định/đường nối, **không** dùng loa tàu hay Azure Blob thật. Để xem log qua API local, đặt WebApi User Secret `SightseeingAudio:EnableGpsTriggerEvaluation=true`, khởi động API ở Development và cần sẵn dữ liệu SQL: Trip Sightseeing `EnRoute` gắn Boat/Route, RoutePoi có tọa độ và bán kính dương, AudioGuide `vi` đã publish với URI Blob bền vững. Gửi GPS đúng Boat bằng tài khoản Captain được gán. Log `Audio geofence ...` cho biết lý do; `dispatched=true` chỉ là lệnh đã ghi log, **không** phải playback. Không gửi GPS giả cho Trip production. Xóa User Secret/cấu hình sau demo để tránh log lặp mỗi tick.

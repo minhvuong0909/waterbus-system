@@ -24,7 +24,7 @@ public sealed class BoatTrackingService(
     IUnitOfWork unitOfWork,
     IBoatPositionCache cache,
     IBoatTrackingPublisher publisher,
-    ITrackingAudioTriggerEvaluator audioEvaluator,
+    ITrackingAudioTriggerService audioEvaluator,
     IValidator<RecordBoatPositionRequest> recordValidator,
     IValidator<GetBoatPositionHistoryRequest> historyValidator,
     IOptions<TrackingOptions> options,

@@ -5,7 +5,7 @@ BR: audio Sightseeing **phát chung qua loa Boat**, do **Onboard Player trên t�
 ## 1. Luồng
 
 ```
-Captain GPS  ──REST/Hub──▶ BoatTrackingService ──(lọc stale)──▶ TrackingAudioTriggerEvaluator
+Captain GPS  ──REST/Hub──▶ BoatTrackingService ──(lọc stale)──▶ TrackingAudioTriggerService
                                                               │ Trip Sightseeing + EnRoute + tàu đúng + không có SOS mở
                                                               ▼
                                          PoiAudioTriggerDecisionService (geofence NTS, AudioGuide "vi" đã publish)
