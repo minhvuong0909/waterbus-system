@@ -98,6 +98,8 @@ public sealed class CheckoutService(
 
         return await transactions.RunAsync(async () =>
         {
+            // Kiểm tra lại SAU khi giữ khóa thương mại: token có thể bị thu hồi/đổi giữa lúc chờ khóa.
+            await access.RequireAsync(orderId, accessToken, cancellationToken);
             var order = await orderRepository.GetForSubmissionAsync(
                 orderId, cancellationToken);
 
@@ -223,6 +225,8 @@ public sealed class CheckoutService(
 
         var released = await transactions.RunAsync(async () =>
         {
+            // Kiểm tra lại SAU khi giữ khóa thương mại: token có thể bị thu hồi/đổi giữa lúc chờ khóa.
+            await access.RequireAsync(orderId, accessToken, cancellationToken);
             var order = await orderRepository.GetForSubmissionAsync(
                 orderId, cancellationToken);
 

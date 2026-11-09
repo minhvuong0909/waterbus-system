@@ -20,6 +20,8 @@ public sealed class PaymentService(IOrderRepository orders, IFinancialTransactio
         await access.RequireAsync(orderId, accessToken, ct);
         var result = await transactions.RunAsync(async () =>
         {
+            // Kiểm tra lại SAU khi giữ khóa thương mại: token có thể bị thu hồi/đổi giữa lúc chờ khóa.
+            await access.RequireAsync(orderId, accessToken, ct);
             var order = await orders.GetForPaymentAsync(orderId, ct);
             var now = DateTimeOffset.UtcNow;
             if (order.Status != OrderStatus.PendingPayment || order.ExpiresAt <= now || order.ExpiresAt == null ||
