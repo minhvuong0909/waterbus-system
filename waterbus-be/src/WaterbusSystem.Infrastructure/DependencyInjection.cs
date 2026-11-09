@@ -245,7 +245,9 @@ public static class DependencyInjection
         // 7. Tính khoảng cách địa lý cho geofence POI (NetTopologySuite, stateless)
         services.AddSingleton<IGeoDistanceCalculator, NtsGeoDistanceCalculator>();
         services.Configure<SightseeingAudioOptions>(configuration.GetSection(SightseeingAudioOptions.SectionName));
-        services.AddSingleton<IPoiTriggerDeduplicationService, InMemoryPoiTriggerDeduplicationService>();
+        services.AddScoped<IPoiTriggerDeduplicationService, SqlPoiTriggerDeduplicationService>();
+        services.AddScoped<IAudioPlaybackRepository, AudioPlaybackRepository>();
+        services.AddScoped<IOnboardAudioService, OnboardAudioService>();
         services.AddScoped<IOnboardAudioTriggerDispatcher, LogOnlyAudioTriggerDispatcher>();
         services.AddScoped<IPoiAudioTriggerDecisionService, PoiAudioTriggerDecisionService>();
         services.AddScoped<ITrackingAudioTriggerEvaluator, TrackingAudioTriggerEvaluator>();
