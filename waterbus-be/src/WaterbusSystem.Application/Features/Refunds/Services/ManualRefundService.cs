@@ -92,6 +92,7 @@ public sealed class ManualRefundService : IManualRefundService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new ConfirmManualRefundResultDto(
-            refund.Id, refund.Amount, refund.Status.ToString(), refund.CompletedAt);
+            refund.Id, refund.Amount, refund.Status.ToString(), refund.CompletedAt,
+            refund.IsDemoRefund, refund.IsDemoRefund ? RefundDemo.Notice : null);
     }
 }

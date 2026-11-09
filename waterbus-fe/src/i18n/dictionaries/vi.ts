@@ -831,6 +831,11 @@ export const vi: Record<string, string> = {
   Gateway: 'Cổng thanh toán',
   'Refund ID': 'Mã hoàn tiền',
   'Manual refund confirmed': 'Đã xác nhận hoàn tiền thủ công',
+  'Demo refund confirmed (no real money moved)': 'Đã xác nhận hoàn tiền DEMO (không có tiền thật được chuyển)',
+  'DEMO: no real money is transferred.': 'DEMO: không có tiền thật được chuyển.',
+  'Demo mode: do NOT transfer real money. Record the simulated refund with a demo reference.':
+    'Chế độ demo: KHÔNG chuyển tiền thật. Hãy ghi nhận khoản hoàn mô phỏng kèm mã tham chiếu demo.',
+  'Confirm demo refund': 'Xác nhận hoàn tiền DEMO',
   'The gateway could not refund this payment. Refund it by hand, then confirm with proof.':
     'Cổng thanh toán không hoàn được giao dịch này. Hãy hoàn tiền thủ công rồi xác nhận kèm bằng chứng.',
   Evidence: 'Bằng chứng',
