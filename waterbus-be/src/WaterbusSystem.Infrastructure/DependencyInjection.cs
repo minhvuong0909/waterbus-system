@@ -236,6 +236,17 @@ public static class DependencyInjection
         // - Owner Web/Booking chốt hợp đồng URL đặt vé.
         // - Cấu hình Groq API Key qua User Secrets / biến môi trường.
         services.Configure<GroqAssistantOptions>(configuration.GetSection(GroqAssistantOptions.SectionName));
+        // Refunds:Mode = Demo (mặc định) | Gateway. Demo không bao giờ gọi API Refund của VNPay.
+        // Fail-fast khi khởi động: giá trị số ngoài enum (vd 2) cũng bị từ chối.
+        services.AddOptions<WaterbusSystem.Application.Features.Refunds.RefundOptions>()
+            .Bind(configuration.GetSection(WaterbusSystem.Application.Features.Refunds.RefundOptions.SectionName))
+            .Validate(o => Enum.IsDefined(o.Mode), "Refunds:Mode phải là Demo hoặc Gateway.")
+            // Fail-closed: Demo không bao giờ được biểu diễn hoàn tiền cho thanh toán tiền thật.
+            .Validate(o => o.Mode != WaterbusSystem.Application.Features.Refunds.RefundMode.Demo ||
+                    !(WaterbusSystem.Application.Features.Refunds.RefundOptions.IsLiveVnPayUrl(configuration["VnPay:BaseUrl"]) ||
+                      WaterbusSystem.Application.Features.Refunds.RefundOptions.IsLiveVnPayUrl(configuration["VnPay:WebApiUrl"])),
+                "Refunds:Mode=Demo không được dùng với endpoint VNPay tiền thật (VnPay:BaseUrl/WebApiUrl không phải sandbox). Đặt Refunds:Mode=Gateway hoặc dùng sandbox.")
+            .ValidateOnStart();
         // Adapter đã có để thử local; cả LLM và hai contract tích hợp đều tắt mặc định.
         services.Configure<AiBookingIntegrationOptions>(configuration.GetSection(AiBookingIntegrationOptions.SectionName));
         services.AddScoped<ITripSearchTool, TripSearchTool>();
