@@ -21,6 +21,7 @@ public sealed class BookingCreationService
     private readonly ISeatAvailabilityService _seatAvailabilityService;
     private readonly ICheckoutAccessService _access;
     private readonly TimeSpan _holdDuration;
+    private readonly ICurrentUserService? _currentUser;
 
     private static readonly TripStatus[] SellableTripStatuses =
     [
@@ -36,8 +37,10 @@ public sealed class BookingCreationService
         IDistributedLockService lockService,
         ISeatAvailabilityService seatAvailabilityService,
         CheckoutOptions options,
-        ICheckoutAccessService access)
+        ICheckoutAccessService access,
+        ICurrentUserService? currentUser = null)
     {
+        _currentUser = currentUser;
         _orders = orders;
         _bookings = bookings;
         _unitOfWork = unitOfWork;
@@ -161,6 +164,9 @@ public sealed class BookingCreationService
             var passengers = ResolvePassengers(request);
             var order = sharedOrder ?? new PurchaseOrder
             {
+                // Passenger đăng nhập mua vé → Order thuộc tài khoản ngay từ đầu; Guest để null (BR-ID-01).
+                PassengerAccountId = _currentUser?.UserRole == "Passenger" && Guid.TryParse(_currentUser.UserId, out var accountId)
+                    ? accountId : null,
                 PurchaserName = request.CustomerName,
                 PurchaserEmail = request.CustomerEmail,
                 PurchaserPhone = request.CustomerPhone,
