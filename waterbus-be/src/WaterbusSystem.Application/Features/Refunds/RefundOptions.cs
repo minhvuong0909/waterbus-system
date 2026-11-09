@@ -26,7 +26,8 @@ public sealed class RefundOptions
     public static bool IsLiveVnPayUrl(string? url)
     {
         if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
-        var host = uri.Host.ToLowerInvariant();
+        // FQDN có dấu chấm cuối (pay.vnpay.vn.) là cùng một host DNS: chuẩn hoá trước khi so sánh.
+        var host = uri.Host.ToLowerInvariant().TrimEnd('.');
         var isVnPay = host == "vnpay.vn" || host.EndsWith(".vnpay.vn") || host == "vnpayment.vn" || host.EndsWith(".vnpayment.vn");
         return isVnPay && !host.StartsWith("sandbox.");
     }

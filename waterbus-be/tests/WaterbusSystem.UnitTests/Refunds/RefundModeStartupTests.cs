@@ -46,11 +46,15 @@ public sealed class RefundModeStartupTests
         return builder.Build();
     }
 
+    /// <summary>Chỉ trả lỗi của StartAsync (khởi động). Lỗi khi dừng host KHÔNG được che thành "đã từ chối khởi động".</summary>
     private static async Task<Exception?> StartAsync(string? mode, string? baseUrl = null, string? webApiUrl = null)
     {
         await using var app = Build(mode, baseUrl, webApiUrl);
-        try { await app.StartAsync(); await app.StopAsync(); return null; }
-        catch (Exception e) { return e; }
+        Exception? startupError = null;
+        try { await app.StartAsync(); }
+        catch (Exception e) { startupError = e; }
+        if (startupError is null) await app.StopAsync();
+        return startupError;
     }
 
     [Theory]
@@ -68,13 +72,20 @@ public sealed class RefundModeStartupTests
     {
         var error = await StartAsync(mode);
         Assert.NotNull(error);
-        Assert.Contains("Refunds", error!.ToString());
+        // Lỗi phải đến từ kiểm tra options (OptionsValidationException) hoặc bind enum, và nêu đúng cấu hình sai.
+        Assert.True(error is Microsoft.Extensions.Options.OptionsValidationException ||
+            error.ToString().Contains("Refunds:Mode", StringComparison.Ordinal) || error.ToString().Contains("RefundOptions", StringComparison.Ordinal),
+            error.ToString());
+        Assert.DoesNotContain("StopAsync", error.ToString());
     }
 
     [Theory]
     [InlineData("https://pay.vnpay.vn/vpcpay.html", null)]
     [InlineData("https://vnpayment.vn/paymentv2/vpcpay.html", null)]
     [InlineData(null, "https://merchant.vnpayment.vn/merchant_webapi/api/transaction")]
+    [InlineData("https://pay.vnpay.vn./vpcpay.html", null)]
+    [InlineData(null, "https://merchant.vnpayment.vn./merchant_webapi/api/transaction")]
+    [InlineData("HTTPS://PAY.VNPAY.VN./x", null)]
     public async Task DemoMode_IsRefusedForLiveMoneyVnPayEndpoints(string? baseUrl, string? webApiUrl)
     {
         var error = await StartAsync("Demo", baseUrl, webApiUrl);
@@ -94,6 +105,8 @@ public sealed class RefundModeStartupTests
     [InlineData("https://sandbox.vnpayment.vn/x", false)]
     [InlineData("https://pay.vnpay.vn/x", true)]
     [InlineData("https://vnpayment.vn/x", true)]
+    [InlineData("https://pay.vnpay.vn./x", true)]
+    [InlineData("https://sandbox.vnpayment.vn./x", false)]
     [InlineData("https://www.vnpay.vn/x", true)]
     [InlineData("http://127.0.0.1:9000/x", false)]
     [InlineData("", false)]
