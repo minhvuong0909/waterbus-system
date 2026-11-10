@@ -191,10 +191,37 @@ jobs:
       - name: Build (tsc + vite)
         run: pnpm build
 
+  mobile:
+    name: Mobile Staff Scanner (verify suite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: waterbus-mobile/myApp
+    steps:
+      - uses: actions/checkout@v4
+
+      # waterbus-mobile/myApp không khai báo packageManager; lockfileVersion 9 dùng pnpm 10
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: waterbus-mobile/myApp/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Verify QR RSA offline, đồng bộ lô theo ACK, cửa sổ check-in, thiết bị phụ
+      - name: Scanner verification suite
+        run: pnpm test:scanner
+
   docker:
     name: Docker images (build)
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [backend, frontend, mobile]
     steps:
       - uses: actions/checkout@v4
 

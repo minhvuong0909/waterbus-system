@@ -29,10 +29,11 @@ export function useLiveSeatMap(
 
   useEffect(() => {
     if (!enabled || !seatMap || !tripId) return
-    const freeIds = seatMap.seats.filter((s) => s.status === 'available').map((s) => s.id)
+    // Mọi ghế của sơ đồ (kể cả ghế đang giữ/đã bán): sơ đồ kín chỗ vẫn phải nghe sự kiện nhả ghế.
+    const seatIds = seatMap.seats.map((s) => s.id)
     return subscribeSeatEvents(
       tripId,
-      freeIds,
+      seatIds,
       (event) => {
         if (!affectsJourney(event, seatMap.journey)) return
         const status: SeatStatus =
