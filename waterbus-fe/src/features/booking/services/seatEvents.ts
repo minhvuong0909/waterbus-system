@@ -23,7 +23,8 @@ interface SeatHubEvent {
  * `disembarkingVisitOrder`); the listener receives those orders so a change on a segment that does
  * not overlap the traveler's journey can be ignored.
  *
- * @param seatIds seats that were free when the map loaded
+ * @param seatIds every seat of the loaded map, whatever its status, so a fully booked map still
+ *   hears seats being released
  * @param onReconnected called after a dropped connection is back: the map must be reloaded with
  *   REST, because events sent while it was down are not replayed
  * @returns a function that stops the updates
