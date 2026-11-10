@@ -14,7 +14,7 @@ namespace WaterbusSystem.WebApi.Controllers;
 /// BR-RF-07: Refund có trạng thái quá trình, liên kết payment gốc, chống lặp và cơ chế đối soát.
 /// </summary>
 [Authorize(Policy = "AdminOnly")]
-public class RefundsController(IRefundRequestService refunds, IManualRefundService manual, IRefundReconciliationService reconciliation) : BaseApiController
+public class RefundsController(IRefundRequestService refunds, IManualRefundService manual, IRefundReconciliationService reconciliation, IRefundBatchService batch) : BaseApiController
 {
     /// <summary>
     /// Tạo yêu cầu hoàn tiền cho một Booking bị ảnh hưởng bởi Trip bị hủy hoặc chấm dứng.
@@ -38,6 +38,37 @@ public class RefundsController(IRefundRequestService refunds, IManualRefundServi
 
         var result = await refunds.RequestAsync(commandWithContext, HttpContext.RequestAborted);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Xem trước (chỉ đọc) các Booking của chuyến bị hủy/chấm dứt cần hoàn tiền: vé đủ điều kiện theo BR-RF-01..09 và chưa
+    /// nằm trong refund nào. Chuyến chưa bị hủy/chấm dứt trả 409.
+    /// </summary>
+    [HttpGet("candidates")]
+    [ServiceFilter(typeof(ValidateRequestFilter))]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Candidates([FromQuery] ListRefundCandidatesRequest request) =>
+        Ok(await batch.ListCandidatesAsync(request, HttpContext.RequestAborted));
+
+    /// <summary>
+    /// Tạo yêu cầu hoàn tiền cho mọi Booking đủ điều kiện của một chuyến (idempotent: gọi lại không hoàn trùng).
+    /// Booking lỗi nghiệp vụ được liệt kê ở skippedItems, không làm hỏng cả lô. Không chuyển tiền thật.
+    /// </summary>
+    [HttpPost("batch-request")]
+    [ServiceFilter(typeof(ValidateRequestFilter))]
+    [ProducesResponseType(typeof(BatchRefundRequestResultResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<BatchRefundRequestResultResponse>> BatchRequest([FromBody] BatchRequestRefundsRequest request)
+    {
+        var withContext = request with
+        {
+            IpAddress = ClientIp(),
+            CreatedBy = User.Identity?.Name ?? User.FindFirst(ClaimTypes.Email)?.Value
+        };
+        return Ok(await batch.RequestForTripAsync(withContext, HttpContext.RequestAborted));
     }
 
     /// <summary>
