@@ -4,7 +4,7 @@
  * instant offline digital signature verification & SQLite lookup.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -50,7 +50,7 @@ export default function StaffScannerScreen() {
   } = useScannerStore();
 
   // Animated laser scanline
-  const scanLineAnim = useRef(new Animated.Value(0)).current;
+  const scanLineAnim = useMemo(() => new Animated.Value(0), []);
 
   useEffect(() => {
     refreshStats();
@@ -669,4 +669,3 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
-

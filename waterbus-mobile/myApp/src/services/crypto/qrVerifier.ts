@@ -242,9 +242,10 @@ export class QrVerifier {
     const jwsParts = raw.split('.');
     if (jwsParts.length === 3) {
       try {
+        const headerObj = JSON.parse(this.base64UrlDecode(jwsParts[0]));
         const payloadJson = this.base64UrlDecode(jwsParts[1]);
         const payloadObj = JSON.parse(payloadJson);
-        if (payloadObj.pbid || payloadObj.sub) {
+        if (headerObj.alg === 'RS256' && (payloadObj.pbid || payloadObj.sub)) {
           const pbid = payloadObj.pbid || payloadObj.sub;
           const signable = `${jwsParts[0]}.${jwsParts[1]}`;
           return {
@@ -254,7 +255,7 @@ export class QrVerifier {
               tid: payloadObj.tid,
               iat: payloadObj.iat,
               exp: payloadObj.exp,
-              kid: payloadObj.kid,
+              kid: headerObj.kid || payloadObj.kid,
             },
             signature: jwsParts[2],
             rawSignableData: signable,
@@ -293,7 +294,8 @@ export class QrVerifier {
   static generateTestSignedQr(
     publicBookingId: string,
     tripId?: string,
-    keyInfo: PublicKeyInfo = DEFAULT_KEY_INFO
+    keyInfo: PublicKeyInfo = DEFAULT_KEY_INFO,
+    expiresAt?: number
   ): {
     compactQr: string;
     jsonQr: string;
@@ -301,20 +303,23 @@ export class QrVerifier {
   } {
     const ver = 1;
     const iat = Math.floor(Date.now() / 1000);
-    const signable = `WB1.${publicBookingId}.${ver}.${iat}`;
-
-    const signature = this.signWithDemoPrivateKey(signable);
-    const compactQr = `${signable}.${signature}`;
-
-    const jsonObj = {
+    const header = { alg: 'RS256', typ: 'JWT', kid: keyInfo.kid };
+    const payload = {
       pbid: publicBookingId,
       ver,
-      tid: tripId,
       iat,
-      kid: keyInfo.kid,
-      sig: signature,
+      ...(tripId ? { tid: tripId } : {}),
+      ...(expiresAt !== undefined ? { exp: expiresAt } : {}),
     };
-    const jsonQr = JSON.stringify(jsonObj);
+    const encodedHeader = this.encodeBase64Url(JSON.stringify(header));
+    const encodedPayload = this.encodeBase64Url(JSON.stringify(payload));
+    const compactSignable = `${encodedHeader}.${encodedPayload}`;
+    const signature = this.signWithDemoPrivateKey(compactSignable);
+    const compactQr = `${compactSignable}.${signature}`;
+
+    const jsonPayload = { ...payload, kid: keyInfo.kid };
+    const jsonSignature = this.signWithDemoPrivateKey(this.canonicalStringify(jsonPayload));
+    const jsonQr = JSON.stringify({ ...jsonPayload, sig: jsonSignature });
 
     return { compactQr, jsonQr, signature };
   }
@@ -354,5 +359,9 @@ export class QrVerifier {
 
   private static base64ToBase64Url(input: string): string {
     return input.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  private static encodeBase64Url(input: string): string {
+    return this.base64ToBase64Url(forge.util.encode64(forge.util.encodeUtf8(input)));
   }
 }

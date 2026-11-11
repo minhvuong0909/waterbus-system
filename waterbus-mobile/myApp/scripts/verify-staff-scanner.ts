@@ -12,6 +12,125 @@ import { SqliteRepository } from '../src/services/sqlite/sqliteRepository';
 import { syncService } from '../src/services/sync/syncService';
 import { useScannerStore } from '../src/store/useScannerStore';
 import { MyScannerAssignment } from '../src/types/checkin';
+import { DatabaseAdapter, migratePublicKeysSchema } from '../src/services/sqlite/database';
+
+async function verifyLegacyPublicKeyMigration(): Promise<boolean> {
+  const legacyKeys = [
+    { key_id: 'key-1', alg: 'RS256', public_key: 'pem-1', active: 1 },
+    { key_id: 'key-2', alg: 'RS256', public_key: 'pem-2', active: 0 },
+  ];
+  const preservedOfflineData = {
+    manifestRows: [{ id: 'trip-1' }, { id: 'booking-1' }],
+    pendingCheckIns: [{ id: 'event-1' }, { id: 'event-2' }, { id: 'event-3' }],
+  };
+  let publicKeys: Record<string, unknown>[] = [];
+  const migrationSteps: string[] = [];
+  let transactionCount = 0;
+
+  const db: DatabaseAdapter = {
+    execAsync: async (sql) => {
+      if (sql.includes('ALTER TABLE public_keys RENAME TO public_keys_legacy_migration')) {
+        migrationSteps.push('rename');
+        return;
+      }
+      if (sql.includes('CREATE TABLE public_keys')) {
+        migrationSteps.push('create');
+        return;
+      }
+      if (sql.includes('INSERT INTO public_keys (kid, algorithm, public_key_pem')) {
+        if (!['"key_id"', '"alg"', '"public_key"', '"active"'].every((column) => sql.includes(column))) {
+          throw new Error('Migration did not map legacy columns as expected.');
+        }
+        migrationSteps.push('copy');
+        publicKeys = legacyKeys.map((row) => ({
+          kid: row.key_id,
+          algorithm: row.alg,
+          public_key_pem: row.public_key,
+          valid_from: '1970-01-01T00:00:00.000Z',
+          valid_to: '9999-12-31T23:59:59.999Z',
+          is_active: row.active,
+        }));
+      }
+      if (sql.includes('DROP TABLE public_keys_legacy_migration')) migrationSteps.push('drop');
+    },
+    runAsync: async () => ({ lastInsertRowId: 0, changes: 0 }),
+    getAllAsync: async <T>(sql: string) => {
+      if (sql.includes('PRAGMA table_info(public_keys)')) {
+        return ['key_id', 'alg', 'public_key', 'active'].map((name) => ({ name })) as T[];
+      }
+      return publicKeys as T[];
+    },
+    getFirstAsync: async <T>() => null as T | null,
+    withTransactionAsync: async <T>(callback: () => Promise<T>) => {
+      transactionCount++;
+      return callback();
+    },
+  };
+
+  await migratePublicKeysSchema(db);
+  return publicKeys.length === 2 &&
+    publicKeys[0].kid === 'key-1' &&
+    publicKeys[0].public_key_pem === 'pem-1' &&
+    publicKeys[1].kid === 'key-2' &&
+    publicKeys[1].is_active === 0 &&
+    migrationSteps.join(',') === 'rename,create,copy,drop' &&
+    preservedOfflineData.manifestRows.length === 2 &&
+    preservedOfflineData.pendingCheckIns.length === 3 &&
+    transactionCount === 1;
+}
+
+async function verifyPublicKeyValidityMigration(): Promise<boolean> {
+  const previousKey = {
+    kid: 'key-legacy',
+    algorithm: 'RS256',
+    public_key_pem: 'legacy-pem',
+    valid_from: '2025-01-01T00:00:00.000Z',
+    valid_to: '2026-01-01T00:00:00.000Z',
+    is_active: 1,
+  };
+  const migratedKeys: Record<string, unknown>[] = [];
+  const migrationSteps: string[] = [];
+
+  const db: DatabaseAdapter = {
+    execAsync: async (sql) => {
+      if (sql.includes('ALTER TABLE public_keys RENAME TO public_keys_legacy_migration')) {
+        migrationSteps.push('rename');
+      } else if (sql.includes('CREATE TABLE public_keys')) {
+        if (!sql.includes('valid_from TEXT,') || !sql.includes('valid_to TEXT,')) {
+          throw new Error('Migrated validity fields must be nullable.');
+        }
+        migrationSteps.push('create');
+      } else if (sql.includes('INSERT INTO public_keys (kid, algorithm, public_key_pem')) {
+        migrationSteps.push('copy');
+        migratedKeys.push({ ...previousKey });
+      } else if (sql.includes('DROP TABLE public_keys_legacy_migration')) {
+        migrationSteps.push('drop');
+      }
+    },
+    runAsync: async () => ({ lastInsertRowId: 0, changes: 0 }),
+    getAllAsync: async <T>(sql: string) => {
+      if (!sql.includes('PRAGMA table_info(public_keys)')) return [];
+      return [
+        { name: 'kid', notnull: 1 },
+        { name: 'algorithm', notnull: 1 },
+        { name: 'public_key_pem', notnull: 1 },
+        { name: 'valid_from', notnull: 1 },
+        { name: 'valid_to', notnull: 1 },
+        { name: 'is_active', notnull: 1 },
+      ] as T[];
+    },
+    getFirstAsync: async <T>() => null as T | null,
+    withTransactionAsync: async <T>(callback: () => Promise<T>) => callback(),
+  };
+
+  await migratePublicKeysSchema(db);
+  const migratedKey = migratedKeys[0];
+  return migrationSteps.join(',') === 'rename,create,copy,drop' &&
+    migratedKey?.kid === previousKey.kid &&
+    migratedKey?.public_key_pem === previousKey.public_key_pem &&
+    migratedKey?.valid_from === previousKey.valid_from &&
+    migratedKey?.valid_to === previousKey.valid_to;
+}
 
 async function runVerification() {
   console.log('================================================================');
@@ -38,6 +157,14 @@ async function runVerification() {
   // TEST GROUP 1: OFFLINE QR SIGNATURE VERIFICATION
   // -------------------------------------------------------------
   console.log('📦 TEST GROUP 1: Offline QR Verification (BR-QR-01, BR-QR-02)');
+  assert(
+    await verifyLegacyPublicKeyMigration(),
+    '1.0 Migrate legacy public-key column names while retaining key and offline data'
+  );
+  assert(
+    await verifyPublicKeyValidityMigration(),
+    '1.0a Make legacy required validity columns nullable without losing key values'
+  );
 
   const sampleBookingId = 'pub_wb_98a76b5c';
   const sampleTripId = 'TRIP-BD-BA-01';
@@ -69,29 +196,40 @@ async function runVerification() {
     `Booking ID parsed: ${jsonResult.publicBookingId}`
   );
 
-  // 1.4 Tamper detection (modified publicBookingId)
-  const tamperedQr = signed.compactQr.replace(sampleBookingId, 'pub_wb_FORGED_ID');
+  // 1.4 Tamper detection: alter the actual signed JWS payload without re-signing it.
+  const [header, encodedPayload, signature] = signed.compactQr.split('.');
+  const signedPayload = JSON.parse(
+    Buffer.from(encodedPayload.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')
+  );
+  signedPayload.pbid = 'pub_wb_FORGED_ID';
+  const tamperedPayload = Buffer.from(JSON.stringify(signedPayload))
+    .toString('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+  const tamperedQr = `${header}.${tamperedPayload}.${signature}`;
   const tamperedResult = await QrVerifier.verifyQrCode(tamperedQr);
   assert(
-    !tamperedResult.isValid && !!tamperedResult.error,
+    !tamperedResult.isValid && tamperedResult.error?.includes('Chữ ký số KHÔNG HỢP LỆ') === true,
     '1.3 Reject tampered/forged QR code (Tamper Proof)',
     `Expected rejection: ${tamperedResult.error}`
   );
 
-  // 1.5 Expired QR detection
-  const expiredQrObj = {
-    pbid: sampleBookingId,
-    ver: 1,
-    iat: Math.floor(Date.now() / 1000) - 7200,
-    exp: Math.floor(Date.now() / 1000) - 3600, // Expired 1 hour ago
-    sig: 'dummy_sig',
-    kid: DEFAULT_KEY_INFO.kid,
-  };
-  const expiredResult = await QrVerifier.verifyQrCode(JSON.stringify(expiredQrObj));
+  // 1.5 Expired QR: it is correctly RS256-signed, so expiry—not signature—rejects it.
+  const expiredAt = Math.floor(Date.now() / 1000) - 3600;
+  const expiredQr = QrVerifier.generateTestSignedQr(
+    sampleBookingId,
+    sampleTripId,
+    DEFAULT_KEY_INFO,
+    expiredAt
+  );
+  const expiredResult = await QrVerifier.verifyQrCode(expiredQr.compactQr);
   assert(
-    !expiredResult.isValid,
+    !expiredResult.isValid &&
+      expiredResult.error?.includes('hết hạn') === true &&
+      expiredResult.algorithmUsed === 'RS256',
     '1.4 Reject expired QR code past expiration window',
-    `Error reported: ${expiredResult.error}`
+    `Error reported: ${expiredResult.error}; Algorithm: ${expiredResult.algorithmUsed}`
   );
 
   // -------------------------------------------------------------
@@ -258,4 +396,3 @@ runVerification().catch((err) => {
   console.error('Fatal test error:', err);
   process.exit(1);
 });
-

@@ -33,15 +33,14 @@ export default function ScannerSettingsScreen() {
   const [deviceCode, setDeviceCode] = useState(deviceInfo.deviceCode);
 
   const [assignments, setAssignments] = useState<MyScannerAssignment[]>([]);
-  const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(true);
   const [assignmentsError, setAssignmentsError] = useState<string | null>(null);
 
   const loadAssignments = useCallback(async () => {
-    setIsLoadingAssignments(true);
-    setAssignmentsError(null);
     try {
       const result = await getMyScannerAssignments();
       setAssignments(result);
+      setAssignmentsError(null);
     } catch (err) {
       setAssignmentsError(err instanceof ApiError ? err.message : 'Không tải được phân công. Kiểm tra kết nối mạng.');
     } finally {
@@ -49,8 +48,14 @@ export default function ScannerSettingsScreen() {
     }
   }, []);
 
+  const refreshAssignments = () => {
+    setIsLoadingAssignments(true);
+    setAssignmentsError(null);
+    void loadAssignments();
+  };
+
   useEffect(() => {
-    loadAssignments();
+    void Promise.resolve().then(loadAssignments);
   }, [loadAssignments]);
 
   const handleSaveConfig = () => {
@@ -108,7 +113,7 @@ export default function ScannerSettingsScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <Text style={styles.cardTitle}>Phân công của tôi</Text>
-            <TouchableOpacity accessibilityLabel="Tải lại phân công" accessibilityRole="button" style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }} onPress={loadAssignments} disabled={isLoadingAssignments}>
+            <TouchableOpacity accessibilityLabel="Tải lại phân công" accessibilityRole="button" style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }} onPress={refreshAssignments} disabled={isLoadingAssignments}>
               <Ionicons name="refresh" size={18} color="#0284C7" />
             </TouchableOpacity>
           </View>
@@ -438,4 +443,3 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
-
