@@ -25,10 +25,8 @@ export default function RootLayout() {
   const [databaseError, setDatabaseError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1. Initialize SQLite schema on boot
     getDatabase()
       .then(() => {
-        console.log("[Waterbus] SQLite initialized successfully.");
         refreshStats();
       })
       .catch((err) => {
@@ -36,9 +34,7 @@ export default function RootLayout() {
         setDatabaseError(err instanceof Error ? err.message : String(err));
       });
 
-    // 2. Start idempotent batch sync background worker
-
-    // 3. Khôi phục phiên đăng nhập Staff đã lưu (nếu có) trước khi quyết định route đầu tiên
+    // Khôi phục phiên Staff trước khi quyết định route đầu tiên.
     restoreSession();
 
     return () => {

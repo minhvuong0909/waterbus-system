@@ -30,8 +30,7 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
     scanner_config: [],
   };
 
-  async execAsync(sql: string): Promise<void> {
-    // In-memory schema initialized
+  async execAsync(): Promise<void> {
   }
 
   async runAsync(sql: string, params: any[] = []): Promise<{ lastInsertRowId: number; changes: number }> {
