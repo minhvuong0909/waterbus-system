@@ -100,6 +100,17 @@ public class RefundsController(IRefundRequestService refunds, IManualRefundServi
         Ok(await manual.ConfirmBatchAsync(request, HttpContext.RequestAborted));
 
     /// <summary>
+    /// Danh sách chỉ đọc (phân trang, tối đa 100/trang) các refund Manual đang chờ nhân viên hoàn, cùng tiêu chí với CSV nhưng không ghi dấu
+    /// "đã xuất". Dùng để Admin chọn các khoản đã hoàn rồi xác nhận hàng loạt. Chứa dữ liệu cá nhân nên chỉ Admin.
+    /// </summary>
+    [HttpGet("pending")]
+    [ServiceFilter(typeof(ValidateRequestFilter))]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Pending([FromQuery] ListPendingRefundsRequest request) =>
+        Ok(await export.ListPendingAsync(request, HttpContext.RequestAborted));
+
+    /// <summary>
     /// Xuất CSV (UTF-8 có BOM) các refund Manual đang chờ nhân viên hoàn tiền: người mua, số tiền, mã vé, mã giao dịch VNPay để hoàn qua
     /// cổng merchant. Ghi dấu "đã xuất" nhưng cho phép xuất lại. Chứa dữ liệu cá nhân nên chỉ Admin. Quá 5000 dòng trả 409: lọc theo tripId.
     /// </summary>

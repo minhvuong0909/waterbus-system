@@ -1,0 +1,154 @@
+import { useMemo, useState } from 'react'
+import { Button, DataTable, Notice, Panel, SelectField } from '../../../components/ui'
+import type { Column } from '../../../components/ui'
+import { useFetch } from '../../../hooks'
+import { t } from '../../../i18n'
+import { formatVnd } from '../../../utils/format'
+import { formatDateTime } from '../../../utils/time'
+import { useReload, useSubmit } from '../hooks/useAdmin'
+import { getOperationTrips } from '../services/operationsService'
+import { listRefundCandidates, requestRefundsForTrip } from '../services/refundService'
+import type { BatchRefundRequestResult, RefundCandidate } from '../types'
+
+/**
+ * Hoàn theo chuyến: chọn chuyến đã bị huỷ/chấm dứt, xem Booking cần hoàn (BR-RF-01..09), rồi tạo yêu cầu hoàn
+ * hàng loạt. Bước này KHÔNG chuyển tiền: nhân viên hoàn qua cổng merchant theo file CSV, sau đó Admin xác nhận.
+ */
+export default function RefundTripPanel({ onCreated }: { onCreated: () => void }) {
+  const trips = useFetch(getOperationTrips)
+  const [tripId, setTripId] = useState('')
+  const [version, reload] = useReload()
+  const [confirming, setConfirming] = useState(false)
+  const [result, setResult] = useState<BatchRefundRequestResult | null>(null)
+  const { run, busy, error } = useSubmit()
+
+  const refundable = useMemo(
+    () =>
+      (trips.data ?? [])
+        .filter((trip) => trip.status === 'Cancelled' || trip.status === 'Terminated')
+        .sort((a, b) => b.departureTime.localeCompare(a.departureTime)),
+    [trips.data],
+  )
+  const candidates = useFetch(
+    () => (tripId ? listRefundCandidates(tripId) : Promise.resolve(undefined)),
+    [tripId, version],
+  )
+
+  const rows = candidates.data?.items ?? []
+  const total = rows.reduce((sum, row) => sum + row.amount, 0)
+  const truncated = (candidates.data?.totalCount ?? 0) > rows.length
+
+  const chooseTrip = (id: string) => {
+    setTripId(id)
+    setConfirming(false)
+    setResult(null)
+  }
+  const create = async () => {
+    const created = await run(() => requestRefundsForTrip(tripId))
+    setConfirming(false)
+    if (!created) return
+    setResult(created)
+    reload()
+    onCreated()
+  }
+
+  const columns: Column<RefundCandidate>[] = [
+    { header: 'Booking', render: (x) => <span className="font-mono font-semibold">{x.bookingCode}</span> },
+    {
+      header: 'Buyer',
+      render: (x) => (
+        <>
+          <div className="font-semibold">{x.purchaserName}</div>
+          <div className="text-xs text-on-surface-variant">{x.purchaserEmail}</div>
+        </>
+      ),
+    },
+    { header: 'Tickets', render: (x) => <span className="font-mono text-xs">{x.ticketCodes.join(', ')}</span> },
+    { header: 'Reason', render: (x) => x.reason },
+    { header: 'Amount', render: (x) => formatVnd(x.amount), className: 'text-right' },
+  ]
+
+  return (
+    <Panel title="Refund a cancelled or terminated trip">
+      <p className="mb-4 text-sm text-on-surface-variant">
+        {t('Creating requests does not move money. Staff refund each buyer through the VNPay merchant portal using the CSV below, then you confirm.')}
+      </p>
+      {trips.error ? (
+        <Notice tone="error">{t('Something went wrong. Please check your connection and try again.')}</Notice>
+      ) : (
+        <SelectField
+          label="Trip"
+          value={tripId}
+          onChange={(e) => chooseTrip(e.target.value)}
+          disabled={!trips.data}
+          hint={trips.data && refundable.length === 0 ? t('No cancelled or terminated trips.') : undefined}
+        >
+          <option value="">{t('Select a trip…')}</option>
+          {refundable.map((trip) => (
+            <option key={trip.id} value={trip.id}>
+              {formatDateTime(trip.departureTime)} • {trip.routeName} • {t(trip.status)}
+            </option>
+          ))}
+        </SelectField>
+      )}
+
+      {tripId && candidates.error && (
+        <div className="mt-4">
+          <Notice tone="error">{t('Could not load the bookings to refund.')}</Notice>
+        </div>
+      )}
+      {tripId && candidates.data && (
+        <div className="mt-4 space-y-4">
+          <DataTable columns={columns} rows={rows} rowKey={(x) => x.bookingId} empty="No bookings are waiting for a refund." />
+          {truncated && <Notice tone="error">{t('Only the first {count} bookings are shown.', { count: rows.length })}</Notice>}
+          {rows.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm font-semibold text-deep-river">
+                {t('{count} bookings • {amount}', { count: candidates.data.totalCount, amount: formatVnd(total) })}
+              </p>
+              {confirming ? (
+                <>
+                  <Button variant="danger" icon="receipt_long" onClick={create} disabled={busy}>
+                    {busy ? t('Sending…') : t('Yes, create the refund requests')}
+                  </Button>
+                  <Button variant="neutral" onClick={() => setConfirming(false)} disabled={busy}>
+                    {t('Cancel')}
+                  </Button>
+                  <p className="basis-full text-sm text-on-surface-variant">
+                    {t('Tickets and bookings are cancelled as soon as the requests are created.')}
+                  </p>
+                </>
+              ) : (
+                <Button icon="receipt_long" onClick={() => setConfirming(true)}>
+                  {t('Create refund requests')}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {error && (
+        <div className="mt-4">
+          <Notice tone="error">{error}</Notice>
+        </div>
+      )}
+      {result && (
+        <div className="mt-4 space-y-2">
+          <Notice tone="success">
+            {t('Created {created} refund requests, skipped {skipped}.', { created: result.requested, skipped: result.skipped })}
+          </Notice>
+          {result.skippedItems.length > 0 && (
+            <ul className="divide-y divide-outline-variant/30 rounded-xl border border-outline-variant/30 text-sm">
+              {result.skippedItems.map((item) => (
+                <li key={item.bookingId} className="px-3 py-2">
+                  <span className="font-mono font-semibold">{item.bookingCode}</span>
+                  <span className="ml-2 text-on-surface-variant">{item.reason}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </Panel>
+  )
+}

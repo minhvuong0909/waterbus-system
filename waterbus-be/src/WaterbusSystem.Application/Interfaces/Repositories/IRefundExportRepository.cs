@@ -6,10 +6,12 @@ namespace WaterbusSystem.Application.Interfaces.Repositories;
 public interface IRefundExportRepository
 {
     /// <summary>
-    /// Refund Manual ở trạng thái Requested/Processing (cũ nhất trước), tối đa <paramref name="limit"/> dòng.
-    /// Đã Succeeded/Failed không xuất. <paramref name="tripId"/> null = mọi chuyến.
+    /// Refund Manual ở trạng thái Requested/Processing (cũ nhất trước), bỏ qua <paramref name="skip"/> và lấy tối đa <paramref name="take"/> dòng.
+    /// Đã Succeeded/Failed không có. <paramref name="tripId"/> null = mọi chuyến.
     /// </summary>
-    Task<IReadOnlyList<RefundExportRow>> ListPendingManualAsync(Guid? tripId, int limit, CancellationToken ct);
+    Task<IReadOnlyList<PendingManualRefund>> ListPendingManualAsync(Guid? tripId, int skip, int take, CancellationToken ct);
+
+    Task<int> CountPendingManualAsync(Guid? tripId, CancellationToken ct);
 
     /// <summary>Ghi thời điểm và Admin xuất lần gần nhất (set-based, không đụng RowVersion để không cản xác nhận đang diễn ra).</summary>
     Task MarkExportedAsync(IReadOnlyCollection<Guid> refundIds, Guid adminId, DateTimeOffset exportedAt, CancellationToken ct);

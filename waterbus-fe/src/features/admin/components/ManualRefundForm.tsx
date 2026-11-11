@@ -55,7 +55,7 @@ export default function ManualRefundForm({ refund }: { refund: RefundRequestResu
       <p className="mb-3 text-sm font-semibold text-deep-river">
         {refund.isDemo
           ? t('Demo mode: do NOT transfer real money. Record the simulated refund with a demo reference.')
-          : t('The gateway could not refund this payment. Refund it by hand, then confirm with proof.')}
+          : t('Refund it through the VNPay merchant portal, then confirm with proof.')}
       </p>
       <div className="grid gap-4 sm:grid-cols-3">
         <TextField

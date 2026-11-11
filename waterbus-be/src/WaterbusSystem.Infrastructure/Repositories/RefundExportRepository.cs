@@ -11,14 +11,11 @@ public sealed class RefundExportRepository(ApplicationDbContext context) : IRefu
     /// <summary>Tiền tố khóa idempotency của refund cho khoản tiền về muộn (không có vé).</summary>
     private const string LateRefundKeyPrefix = "LATE_REFUND_";
 
-    public async Task<IReadOnlyList<RefundExportRow>> ListPendingManualAsync(Guid? tripId, int limit, CancellationToken ct)
+    public async Task<IReadOnlyList<PendingManualRefund>> ListPendingManualAsync(Guid? tripId, int skip, int take, CancellationToken ct)
     {
-        var rows = await context.FinancialTransactions.AsNoTracking()
-            .Where(r => r.TransactionType == FinancialTransactionType.Refund && r.GatewayName == "Manual" &&
-                (r.Status == FinancialTransactionStatus.Requested || r.Status == FinancialTransactionStatus.Processing) &&
-                (tripId == null || r.RefundBooking!.TripId == tripId))
+        var rows = await PendingManual(tripId)
             .OrderBy(r => r.CreatedAt).ThenBy(r => r.Id)
-            .Take(limit)
+            .Skip(skip).Take(take)
             .Select(r => new
             {
                 r.Id,
@@ -43,11 +40,19 @@ public sealed class RefundExportRepository(ApplicationDbContext context) : IRefu
             })
             .ToListAsync(ct);
 
-        return rows.Select(x => new RefundExportRow(
+        return rows.Select(x => new PendingManualRefund(
             x.Id, x.BookingCode, x.OrderId, x.PurchaserName, x.PurchaserEmail, x.PurchaserPhone,
             x.Amount, x.Currency, x.Tickets, x.RouteName, x.DepartureTime, x.IsLate, x.TripStatus.ToString(),
             x.MerchantReference, x.PaymentReference, x.PaidAt, x.Status.ToString(), x.CreatedAt, x.ExportedAt)).ToList();
     }
+
+    public Task<int> CountPendingManualAsync(Guid? tripId, CancellationToken ct) => PendingManual(tripId).CountAsync(ct);
+
+    private IQueryable<WaterbusSystem.Domain.Entities.FinancialTransaction> PendingManual(Guid? tripId) =>
+        context.FinancialTransactions.AsNoTracking()
+            .Where(r => r.TransactionType == FinancialTransactionType.Refund && r.GatewayName == "Manual" &&
+                (r.Status == FinancialTransactionStatus.Requested || r.Status == FinancialTransactionStatus.Processing) &&
+                (tripId == null || r.RefundBooking!.TripId == tripId));
 
     public Task MarkExportedAsync(IReadOnlyCollection<Guid> refundIds, Guid adminId, DateTimeOffset exportedAt, CancellationToken ct) =>
         context.FinancialTransactions
