@@ -39,7 +39,7 @@ export default function AuthField({
       <div className="relative">
         {icon && (
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-outline">
-            <Icon name={icon} className="text-[18px]" />
+            <Icon name={icon} className="text-lg" />
           </div>
         )}
         <input
@@ -55,7 +55,7 @@ export default function AuthField({
             onClick={() => setShown((v) => !v)}
             className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-outline hover:text-on-surface-variant"
           >
-            <Icon name={shown ? 'visibility_off' : 'visibility'} className="text-[18px]" />
+            <Icon name={shown ? 'visibility_off' : 'visibility'} className="text-lg" />
           </button>
         )}
       </div>

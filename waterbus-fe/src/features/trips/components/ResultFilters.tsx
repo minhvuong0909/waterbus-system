@@ -1,4 +1,4 @@
-import { Icon } from '../../../components/ui'
+import ChoiceDropdown from './ChoiceDropdown'
 import type { TimeBand, TripKind } from '../types'
 import { t } from '../../../i18n'
 
@@ -32,12 +32,9 @@ interface ResultFiltersProps {
   onTime: (time: TimeFilter) => void
   onKind: (kind: KindFilter) => void
   onSort: (s: SortKey) => void
+  /** Chỉ cho sắp xếp theo giá khi các chuyến đang xem có giá khác nhau (giá thường như nhau, BR-FARE-02). */
+  showPriceSort?: boolean
 }
-
-const selectClass =
-  'cursor-pointer bg-transparent text-xs font-semibold text-deep-river focus:outline-none'
-const boxClass =
-  'flex items-center gap-1.5 rounded-full border border-deep-river/10 bg-white px-3 py-1.5 shadow-xs'
 
 export default function ResultFilters({
   time,
@@ -46,17 +43,19 @@ export default function ResultFilters({
   onTime,
   onKind,
   onSort,
+  showPriceSort = true,
 }: ResultFiltersProps) {
+  const sorts = SORTS.filter((s) => s.id !== 'price' || showPriceSort)
   return (
     <div className="flex flex-wrap items-center justify-between gap-space-md pt-1">
-      <div className="flex items-center gap-1.5 overflow-x-auto">
+      <div className="scroll-strip flex max-w-full items-center gap-1.5 overflow-x-auto py-1">
         {TIME_FILTERS.map((f) => (
           <button
             key={f.id}
             type="button"
             aria-pressed={time === f.id}
             onClick={() => onTime(f.id)}
-            className={`rounded-full px-3.5 py-1.5 text-xs transition-all ${
+            className={`min-h-[40px] shrink-0 rounded-full border border-transparent px-3.5 py-2 text-xs transition-colors ${
               time === f.id
                 ? 'bg-deep-river font-semibold text-on-primary'
                 : 'border border-deep-river/10 bg-white font-medium text-on-surface-variant shadow-xs hover:bg-sand-light/50 hover:text-deep-river'
@@ -66,36 +65,20 @@ export default function ResultFilters({
           </button>
         ))}
       </div>
-      <div className="flex items-center gap-space-sm">
-        <div className={boxClass}>
-          <span className="text-xs text-outline">{t('Trip type:')}</span>
-          <select
-            className={selectClass}
-            value={kind}
-            onChange={(e) => onKind(e.target.value as KindFilter)}
-          >
-            {KIND_FILTERS.map((k) => (
-              <option key={k.id} value={k.id}>
-                {t(k.label)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={boxClass}>
-          <Icon name="swap_vert" className="text-[15px] text-teal-flow" />
-          <span className="text-xs text-outline">{t('Sort:')}</span>
-          <select
-            className={selectClass}
-            value={sort}
-            onChange={(e) => onSort(e.target.value as SortKey)}
-          >
-            {SORTS.map((s) => (
-              <option key={s.id} value={s.id}>
-                {t(s.label)}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2">
+        <ChoiceDropdown
+          label={t('Trip type:')}
+          options={KIND_FILTERS.map((k) => ({ id: k.id, label: t(k.label) }))}
+          value={kind}
+          onChange={(id) => onKind(id as KindFilter)}
+        />
+        <ChoiceDropdown
+          label={t('Sort:')}
+          icon="swap_vert"
+          options={sorts.map((s) => ({ id: s.id, label: t(s.label) }))}
+          value={sort}
+          onChange={(id) => onSort(id as SortKey)}
+        />
       </div>
     </div>
   )

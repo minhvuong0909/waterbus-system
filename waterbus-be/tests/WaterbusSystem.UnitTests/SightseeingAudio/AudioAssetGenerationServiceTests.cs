@@ -1,10 +1,11 @@
+using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
 using FluentAssertions;
 using Moq;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Common.Models;
 using WaterbusSystem.Application.Features.SightseeingAudio.Models;
-using WaterbusSystem.Application.Features.SightseeingAudio.Services;
+using WaterbusSystem.Application.Services.SightseeingAudio;
 using Xunit;
 
 namespace WaterbusSystem.UnitTests.SightseeingAudio;
@@ -25,11 +26,11 @@ public class AudioAssetGenerationServiceTests
         var request = Request();
         var audio = new AudioSynthesisResult([0x49, 0x44, 0x33, 0x01], "audio/mpeg",
             TimeSpan.FromSeconds(12.4), "vi-VN-HoaiMyNeural", 4);
-        StoreAudioCommand? storedCommand = null;
+        StoreAudioRequest? storedCommand = null;
         _tts.Setup(x => x.SynthesizeSpeechAsync(request.ApprovedScriptText, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(audio);
-        _storage.Setup(x => x.StoreAudioAsync(It.IsAny<StoreAudioCommand>(), It.IsAny<CancellationToken>()))
-            .Callback<StoreAudioCommand, CancellationToken>((command, _) => storedCommand = command)
+        _storage.Setup(x => x.StoreAudioAsync(It.IsAny<StoreAudioRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<StoreAudioRequest, CancellationToken>((command, _) => storedCommand = command)
             .ReturnsAsync(new AudioStorageResult("https://storage.example.com/audio-guides-private/pois/poi-1/vi/v1.mp3",
                 "audio/mpeg", 4, DateTimeOffset.UtcNow));
 
@@ -56,7 +57,7 @@ public class AudioAssetGenerationServiceTests
         var act = () => new AudioAssetGenerationService(_tts.Object, _storage.Object).GenerateAsync(request);
 
         await act.Should().ThrowAsync<TextToSpeechException>();
-        _storage.Verify(x => x.StoreAudioAsync(It.IsAny<StoreAudioCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+        _storage.Verify(x => x.StoreAudioAsync(It.IsAny<StoreAudioRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -66,7 +67,7 @@ public class AudioAssetGenerationServiceTests
         _tts.Setup(x => x.SynthesizeSpeechAsync(request.ApprovedScriptText, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AudioSynthesisResult([0x49, 0x44, 0x33, 0x01], "audio/mpeg",
                 TimeSpan.FromSeconds(10), "vi-VN-HoaiMyNeural", 4));
-        _storage.Setup(x => x.StoreAudioAsync(It.IsAny<StoreAudioCommand>(), It.IsAny<CancellationToken>()))
+        _storage.Setup(x => x.StoreAudioAsync(It.IsAny<StoreAudioRequest>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new AudioStorageException("Upload failed"));
 
         var act = () => new AudioAssetGenerationService(_tts.Object, _storage.Object).GenerateAsync(request);

@@ -14,13 +14,13 @@ public class VnPayServiceTests
     private const string TmnCode = "TESTCODE01";
     private const string HashSecret = "TEST_SECRET_KEY_FOR_UNIT_TEST_ONLY";
 
-    private static VnPayService CreateService()
+    private static VnPayService CreateService(string? tmnCode = TmnCode, string? hashSecret = HashSecret)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["VnPay:TmnCode"] = TmnCode,
-                ["VnPay:HashSecret"] = HashSecret,
+                ["VnPay:TmnCode"] = tmnCode,
+                ["VnPay:HashSecret"] = hashSecret,
                 ["VnPay:BaseUrl"] = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
                 ["VnPay:ReturnUrl"] = "http://localhost:5173/payment/callback"
             })
@@ -109,5 +109,30 @@ public class VnPayServiceTests
         var service = CreateService();
 
         service.IsValidTmnCode("SOME_OTHER_MERCHANT_CODE").Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void ValidateSignature_WhenHashSecretNotConfigured_ShouldThrowInsteadOfTrustingEmptyKey(string? hashSecret)
+    {
+        // Server quên cấu hình HashSecret phải từ chối xử lý, không được tính HMAC với khoá rỗng.
+        var forged = CreateService(hashSecret: "x").CreatePaymentUrl("WB20261002ABC123", 150000m, "Gia mao", "127.0.0.1");
+        var service = CreateService(hashSecret: hashSecret);
+
+        var act = () => service.ValidateSignature(ParseQuery(forged));
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*VnPay:HashSecret*");
+    }
+
+    [Fact]
+    public void IsValidTmnCode_WhenTmnCodeNotConfigured_ShouldThrowInsteadOfMatchingEmptyCode()
+    {
+        var service = CreateService(tmnCode: "");
+
+        var act = () => service.IsValidTmnCode("");
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*VnPay:TmnCode*");
     }
 }

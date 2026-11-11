@@ -2,7 +2,7 @@
 
 Phạm vi backend TV2: `PurchaseOrder → Booking → SeatReservation → Ticket`, Redis CheckoutSession/RedLock, VNPay HMAC-SHA512, refund allocation và QR RSA tĩnh theo Booking. Chuẩn nghiệp vụ là BR v2.0 ngày 2026-09-29.
 
-Giữ ASP.NET Core MVC Controller/API + frontend riêng. Controller nhận request, lấy header/context rồi gửi MediatR; validator/handler và application service dùng chung ở Application; SQL/Redis/VNPay/RSA nằm ở Infrastructure qua interface. Handler không phụ thuộc handler khác; cache/event tạo checkout chỉ chạy sau commit. Transaction runner là dependency bắt buộc; bản giả chỉ nằm trong test assembly. Domain, EF mappings/migrations, IAM, catalog, frontend/mobile, SignalR hubs, tracking/weather và Docker/CI không có thay đổi triển khai trong lượt TV2 này. Các file dùng chung chỉ thêm DI registration, package RedLock.net và cấu hình mẫu của TV2.
+Giữ ASP.NET Core MVC Controller/API + frontend riêng. Booking, Checkout, Guest Access, Payment/VNPay, Refund và QR đã migrate sang `Controller → IService → Service → IRepository → Repository → EF Core`. Controller chỉ binding request/header/context và trả HTTP; Application Services phối hợp Domain Entities, `IUnitOfWork`, `ICommercialTransactionRunner` và các interface tích hợp. Repository và adapter SQL/Redis/VNPay/RSA nằm ở Infrastructure; các service thương mại không dùng EF hoặc MediatR. Validate request qua `ValidateRequestFilter` tại các action đã đăng ký validator; cache/event checkout chỉ chạy sau commit. Transaction runner là dependency bắt buộc; bản giả chỉ nằm trong test assembly. Các CQRS feature ngoài phạm vi thương mại vẫn giữ nguyên. Domain, EF mappings/migrations, IAM, catalog, frontend/mobile, SignalR hubs và tracking/weather không bị refactor trong lượt này. Xem [báo cáo refactoring](../waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md) để biết phạm vi file dùng chung và kết quả kiểm chứng.
 
 ## Luồng checkout
 
@@ -20,6 +20,7 @@ Các đường dẫn dưới đây có prefix `/api/v1`.
 
 | Method | Path | Quyền / hành vi |
 | --- | --- | --- |
+| POST | `/bookings` | Công khai, rate limit BookingPolicy; tạo một Booking, HTTP 201 Location trỏ tới `/checkouts/{orderId}` |
 | POST | `/checkouts/holds` | Công khai, rate limit BookingPolicy; tạo Draft với 1–2 legs |
 | POST | `/checkouts` | Công khai, rate limit BookingPolicy; tạo checkout đầy đủ |
 | GET | `/checkouts/{orderId}` | Token của Order; trạng thái Booking, Ticket và giao dịch |
@@ -37,6 +38,8 @@ Các đường dẫn dưới đây có prefix `/api/v1`.
 | POST | `/refunds/confirm-manual` | AdminOnly; bằng chứng, reference và confirmedAmount chính xác |
 
 API thông thường camelCase. IPN trả **đúng** `{ "RspCode": "00", "Message": "Confirm Success" }` theo giao thức VNPay; replay đã xác nhận trả `02`, chữ ký sai `97`, amount sai `04`. HTTP POST IPN vẫn nhận tham số ở query string, như GET.
+
+Response JSON của `POST /bookings` giữ nguyên. Để đọc tài nguyên tại HTTP 201 Location, gửi `X-Guest-Token` chứa `accessToken` được trả về; token không nằm trong URL.
 
 Ví dụ tạo Draft:
 
@@ -68,7 +71,7 @@ Submit Draft:
 }
 ```
 
-Nếu gửi passengers ở submit thì phải khớp toàn bộ ghế đang giữ theo BookingId+SeatId, không lặp. Bỏ passengers thì dùng tên người mua. Update seats gửi `seatIds` và passengers theo cùng thứ tự. Mọi ID/token từ route/header được controller ghi đè lên body.
+Nếu gửi passengers ở submit thì phải khớp toàn bộ ghế đang giữ theo BookingId+SeatId, không lặp. Bỏ passengers thì dùng tên người mua. Update seats gửi `seatIds` và passengers theo cùng thứ tự. ID từ route và token từ header được truyền riêng cho service; body không thay thế phạm vi Order/Booking hoặc token sở hữu.
 
 ## Giữ ghế và concurrency
 
@@ -82,11 +85,17 @@ Redis một node mặc định phù hợp local. Muốn quorum RedLock cần c�
 
 ## Tiền, refund và reconciliation
 
+Sau remediation H01/H04: callback thất bại rồi nhận thành công đã xác minh phải ghi nhận receipt với `ReconciliationRequired`, không hồi sinh hold hoặc phát vé. Thành công lặp lại trả `02`; kết quả mâu thuẫn sau receipt thành công giữ nguyên receipt/vé và ghi `VerifiedOutcomeConflict`, trả `99` để đối soát. Querydr payment đi qua cùng quy tắc sau khi xác minh chữ ký và định danh giao dịch.
+
+Booking và đổi ghế chỉ nhận tàu/ghế/hạng ghế còn hoạt động, chưa xóa; bảng giá đang hiệu lực phải duy nhất, không âm và bằng VND. Khởi tạo payment và xác nhận lần đầu kiểm tra inventory bị thu hồi. Giá VND đã quote vẫn được giữ khi catalog đổi sau hold; không tính lại giá lúc IPN và không vô hiệu vé đã phát hành chỉ vì catalog đổi.
+
 Payment attempt ghi FinancialTransaction(Requested), MerchantReference GUID N, IdempotencyKey và GatewayRequestCreatedAt. VNPay create/expire/transaction dates dùng GMT+7; DB lưu UTC. Chỉ trạng thái hoàn tất có xác nhận, đúng amount và đúng merchant reference mới phát vé. Pending/unknown không đổi thành thành công. Callback đến sau expiry, sau hủy hold hoặc khi Trip không còn sẵn sàng ghi receipt thành công với `ReconciliationRequired`, không hồi sinh ghế/phát vé.
 
 Refund tính tổng **PaidFareSnapshot** của từng Ticket đủ điều kiện. Trip Cancelled/Terminated nhưng khách đã được phục vụ đến bến xuống hoặc Ticket Completed/NoShow thì không hoàn. Phần chưa phục vụ hoặc bị cắt giữa chặng được hoàn 100% allocation đủ điều kiện, không prorate theo khoảng cách; round-trip chỉ xử lý Booking bị ảnh hưởng.
 
 Refund được ghi Processing cùng allocations trước khi gọi gateway, giữ budget dưới transaction. Retry/concurrent request trả cùng refund, không gửi lại mạng. GatewayRequestId là GUID N của refund. Timeout, JSON/chữ ký không xác minh được hoặc gateway đang xử lý giữ Processing để đối soát, tránh chuyển khoản lần hai. Querydr chỉ chốt khi khớp reference, refund transaction number, amount và loại 02/03; query kết quả payment 01 không đủ để xác nhận refund. Nếu không đủ dữ liệu đối soát thì giữ Processing; cần xác minh với merchant/bank, không coi việc chờ lâu là thất bại.
+
+**M01 chưa được sửa:** timeout không có gateway refund reference vẫn không có API phục hồi được chứng minh an toàn. Không retry payout, gán reference bằng phỏng đoán hoặc confirm-manual khi còn Processing. Quy trình đề xuất cần merchant operations và team duyệt được ghi trong [Commercial audit remediation](../waterbus-be/docs/COMMERCIAL_AUDIT_REMEDIATION.md), cùng hợp đồng H02/M06/M13.
 
 Gateway từ chối chắc chắn chuyển Requested để Admin hoàn thủ công; confirm-manual yêu cầu số tiền chính xác, Admin tồn tại và bằng chứng/reference. Không cho manual race với khoản tự động còn Processing. Receipt muộn không có Ticket có nhánh hoàn toàn bộ receipt, dùng cùng cơ chế idempotency/budget. Receipt dư khi Order đã có Ticket cần đối soát riêng; không dùng nó làm payment gốc của Ticket refund.
 
@@ -100,6 +109,8 @@ Response QR gồm `payload`, `algorithm: "RS256"`, `keyId`, `credentialVersion`.
 ```
 
 Payload không chứa PII, tài chính hay access token. iat lấy timestamp đã phát hành, nên fetch lại với cùng key/version cho cùng QR. Scanner verify chữ ký bằng PublicKeyPem SPKI, kiểm tra kid/alg/ver và đối chiếu Booking/Ticket cache hợp lệ. Chữ ký không thay thế trạng thái vé hoặc boarding window. Endpoint preload/cache hiện có của Tuấn cần tích hợp public key/contract RS256 này ở phần mobile riêng; TV2 không sửa scanner hoặc IAM. Khi rotate key, cần giữ key/version cũ theo chiến lược preload của scanner; bản này cung cấp key hiện tại.
+
+`kid` nằm trong **JWS header** (phần đầu), không nằm trong claims (phần thứ hai). Scanner phải đọc header, yêu cầu `alg=RS256`, chọn đúng key có ID tương ứng và xử lý unknown kid theo chính sách refresh/từ chối đã thống nhất. Không fallback sang key mới nhất khi header đã chỉ định kid khác.
 
 Inject trực tiếp các key .NET qua User Secrets hoặc môi trường API:
 
@@ -116,10 +127,20 @@ Inject trực tiếp các key .NET qua User Secrets hoặc môi trường API:
 
 `.env.example` là mẫu cấu hình; Docker Compose hiện có không tự inject các key TV2 mới chỉ vì xuất hiện trong file mẫu. Người phụ trách DevOps bổ sung mapping khi triển khai. Không sinh private key ngẫu nhiên mỗi startup production: QR đã cấp cần key ổn định để verify offline. Không có fallback secret hoặc fake RSA signer.
 
+Mapping còn thiếu chính xác và mẫu environment cho DevOps nằm trong [báo cáo remediation M06](../waterbus-be/docs/COMMERCIAL_AUDIT_REMEDIATION.md#m06--devops-configuration-handoff). QR key mapping đã có trong Compose; không báo thiếu. Pay URL và merchant query/refund URL phải cùng môi trường merchant.
+
 ## Kiểm chứng
+
+Remediation ngày 2026-10-29 trên baseline `9309a7c`: build `--no-restore` **0 warnings/errors**; test `--no-restore` và runner `-AllTests` đều **849 passed, 0 failed, 0 skipped**, có **23 SQL/Redis integration cases**. Đã thêm 64 cases cho H01/H04 và an toàn timeout M01. M01 phục hồi chưa được sửa; các handoff H02/M06/M13 vẫn mở. Xem [kết quả và phạm vi](../waterbus-be/docs/COMMERCIAL_AUDIT_REMEDIATION.md).
 
 Chạy `dotnet build waterbus-be/WaterbusSystem.sln` và `dotnet test waterbus-be/WaterbusSystem.sln`.
 
 Các integration tests dùng SQL Server thật khi có `WATERBUS_TEST_SQLSERVER`; tự tạo/xóa DB `WaterbusDomainTests_*` riêng. Đặt `WATERBUS_TEST_REDIS` thành danh sách Redis độc lập cách nhau bằng `;` để chạy kiểm chứng quorum lock và TTL thật. Không đặt các biến này thì các test tương ứng skip; không được coi skip là đã kiểm chứng integration.
 
-Lượt mới nhất 2026-10-13: build 0 warnings/errors; **215 tests pass, 0 fail, 0 skip**, có SQL Server 2022 và ba Redis local riêng. Kiểm chứng concurrent checkout chỉ một winner, rollback round-trip không ghi cache, cache ghi sau khi cả hai Booking commit, concurrent refund chỉ một gateway call, exclusivity/release của RedLock và expiry cache. Smoke HTTP thật kiểm tra Draft → sửa ghế → submit → payment retry → IPN/replay → Ticket → QR verify RSA → Admin refund/retry, có cả nhánh 403/409 và Swagger owner header. Bộ request Postman đã kiểm tra qua HTTP runner, có script giả IPN local. Xem `NHAT_ANH_TEST_GUIDE.md` để test và biết phụ thuộc tích hợp. Merchant refund HTTP dùng gateway giả cục bộ có kiểm chứng HMAC request và ký response; chưa gọi VNPay sandbox/production bằng tài khoản merchant thật. Cần merchant credentials/quyền refund để nghiệm thu với ngân hàng.
+Baseline lịch sử 2026-10-13 (không phải kết quả hiện tại): build 0 warnings/errors; **215 tests pass, 0 fail, 0 skip**, có SQL Server 2022 và ba Redis local riêng. Kiểm chứng concurrent checkout chỉ một winner, rollback round-trip không ghi cache, cache ghi sau khi cả hai Booking commit, concurrent refund chỉ một gateway call, exclusivity/release của RedLock và expiry cache. Smoke HTTP thật kiểm tra Draft → sửa ghế → submit → payment retry → IPN/replay → Ticket → QR verify RSA → Admin refund/retry, có cả nhánh 403/409 và Swagger owner header. Bộ request Postman đã kiểm tra qua HTTP runner, có script giả IPN local. Xem `NHAT_ANH_TEST_GUIDE.md` để test và biết phụ thuộc tích hợp. Merchant refund HTTP dùng gateway giả cục bộ có kiểm chứng HMAC request và ký response; chưa gọi VNPay sandbox/production bằng tài khoản merchant thật. Cần merchant credentials/quyền refund để nghiệm thu với ngân hàng.
+
+
+Kết quả được báo cáo trước đồng bộ main, sau commit `3b6701b` (2026-10-28): build **0 warnings, 0 errors**; **785 passed, 0 failed, 0 skipped**, gồm **18 SQL/Redis integration tests**. Commit này sửa HTTP 201 Location của POST Booking tới Checkout GET hiện có và bổ sung 5 HTTP tests dùng chữ ký VNPay thật cho POST query-string IPN (hợp lệ, sai chữ ký, replay, form-only và form override). Đây là kết quả lịch sử trước merge; kết quả hậu đồng bộ được ghi riêng trong [báo cáo refactoring](../waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md).
+
+
+Kiểm chứng mới sau fetch main ngày 2026-10-28: `origin/main` = `49e1040ec1611a3eac97d3a65bc6c61fa56db688` đã có sẵn trong nhánh, không cần merge và không có conflict. Build **0 warnings, 0 errors**; runner `-AllTests` với SQL Server và ba Redis: **785 passed, 0 failed, 0 skipped**, gồm **18 integration cases** và **7 HTTP cases**. Xem [báo cáo cuối](../waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md) cho lệnh, phạm vi và giới hạn nghiệm thu. Chưa kiểm chứng merchant VNPay thật hoặc scanner triển khai.

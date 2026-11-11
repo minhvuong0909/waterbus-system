@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.EntityFrameworkCore;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.Common.Interfaces;
 
 namespace WaterbusSystem.WebApi.Middlewares;
@@ -25,35 +25,20 @@ public class GuestAccessMiddleware
         _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context, IApplicationDbContext dbContext)
+    public async Task InvokeAsync(HttpContext context, ICheckoutAccessService access)
     {
         if (context.Request.Headers.TryGetValue(GuestTokenHeader, out var tokenValues))
         {
             var rawToken = tokenValues.FirstOrDefault();
             if (!string.IsNullOrWhiteSpace(rawToken))
             {
-                var tokenHash = ComputeSha256Hash(rawToken);
-
-                // Tra cứu đơn đặt theo ManageOrderTokenHash
-                var booking = await dbContext.Bookings
-                    .AsNoTracking()
-                    .Where(b => !b.IsDeleted && b.ManageOrderTokenHash == tokenHash)
-                    .Select(b => new
-                    {
-                        b.Id,
-                        b.ManageOrderTokenExpiresAt,
-                        b.ManageOrderTokenRevoked
-                    })
-                    .FirstOrDefaultAsync();
-
-                if (booking != null
-                    && booking.ManageOrderTokenExpiresAt.HasValue
-                    && booking.ManageOrderTokenExpiresAt.Value > DateTimeOffset.UtcNow
-                    && !booking.ManageOrderTokenRevoked)
+                var identity = await access.FindIdentityAsync(rawToken, context.RequestAborted);
+                if (identity is not null)
                 {
-                    context.Items[GuestOrderIdItemKey] = booking.Id;
-                    context.Items[GuestBookingIdItemKey] = booking.Id;
-                    _logger.LogInformation("Guest Access token validated successfully for Booking {BookingId}", booking.Id);
+                    context.Items[GuestOrderIdItemKey] = identity.OrderId;
+                    if (identity.BookingId is { } bookingId)
+                        context.Items[GuestBookingIdItemKey] = bookingId;
+                    _logger.LogInformation("Guest Access token validated successfully for Booking {BookingId}", identity.OrderId);
                 }
                 else
                 {

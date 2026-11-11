@@ -1,44 +1,65 @@
-import axios from 'axios';
-import { apiClient, setAuthToken } from '../../api/client';
-import { AuthenticatedStaff } from '../../store/useAuthStore';
+import { API_ENDPOINTS } from '../../constants/api';
+/**
+ * Đăng nhập Staff thật qua POST /api/v1/auth/login - mobile CHỈ phục vụ Staff Scanner
+ * (CONVENTIONS.md mục 5), nên tài khoản không có vai trò "Staff" bị từ chối ngay ở đây dù
+ * backend xác thực mật khẩu thành công.
+ */
+import { apiClient, AUTH_TOKEN_KEY } from '../api/apiClient';
+import { getSecureItem, setSecureItem, deleteSecureItem } from './secureStorage';
+import { AuthUser, LoginRequest, LoginResponseDto } from '../../types/auth';
+import { SqliteRepository } from '../sqlite/sqliteRepository';
 
-interface LoginResponse {
-  userId: string;
-  email: string;
-  fullName: string;
-  roles: string[];
-  token: string;
-}
+const USER_KEY = 'waterbus_staff_user';
 
-export async function loginStaff(email: string, password: string): Promise<AuthenticatedStaff> {
-  try {
-    const response = await apiClient.post<LoginResponse>('/api/v1/auth/login', { email, password });
-    if (!response.data.roles.includes('Staff')) {
-      throw new Error('Tài khoản này không có quyền nhân viên soát vé.');
+class AuthService {
+  async login(email: string, password: string): Promise<AuthUser> {
+    const response = await apiClient.post<LoginResponseDto>(
+      API_ENDPOINTS.login,
+      { email, password } satisfies LoginRequest,
+      { skipAuth: true }
+    );
+
+    if (!response.roles.includes('Staff')) {
+      throw new Error(
+        `Tài khoản "${response.email}" không có vai trò Nhân viên soát vé (Staff). ` +
+          'Ứng dụng này chỉ dành cho Staff Scanner.'
+      );
     }
 
-    setAuthToken(response.data.token);
-    return {
-      userId: response.data.userId,
-      email: response.data.email,
-      fullName: response.data.fullName,
+    const user: AuthUser = {
+      userId: response.userId,
+      email: response.email,
+      fullName: response.fullName,
+      roles: response.roles,
     };
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      const body: unknown = error.response?.data;
-      if (typeof body === 'object' && body !== null && 'message' in body
-          && typeof body.message === 'string') {
-        throw new Error(body.message);
-      }
-      if (typeof body === 'object' && body !== null && 'detail' in body
-          && typeof body.detail === 'string') {
-        throw new Error(body.detail);
-      }
+
+    const pending = await SqliteRepository.getPendingEvents(200);
+    if (pending.some((event) => event.staffAccountId !== response.userId)) {
+      throw new Error('Máy còn sự kiện của nhân viên khác chưa đồng bộ. Hãy đăng nhập lại tài khoản đó để đồng bộ trước.');
     }
-    throw error;
+    await setSecureItem(AUTH_TOKEN_KEY, response.token);
+    await setSecureItem(USER_KEY, JSON.stringify(user));
+
+    return user;
+  }
+
+  async logout(): Promise<void> {
+    await deleteSecureItem(AUTH_TOKEN_KEY);
+    await deleteSecureItem(USER_KEY);
+  }
+
+  /** Khôi phục phiên đăng nhập đã lưu khi mở lại app (không gọi lại backend). */
+  async restoreSession(): Promise<AuthUser | null> {
+    const token = await getSecureItem(AUTH_TOKEN_KEY);
+    const userJson = await getSecureItem(USER_KEY);
+    if (!token || !userJson) return null;
+
+    try {
+      return JSON.parse(userJson) as AuthUser;
+    } catch {
+      return null;
+    }
   }
 }
 
-export function logoutStaff(): void {
-  setAuthToken(null);
-}
+export const authService = new AuthService();

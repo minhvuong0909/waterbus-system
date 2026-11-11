@@ -61,6 +61,20 @@ public class GlobalExceptionHandlingMiddleware
                 problemDetails.Extensions["errors"] = validationException.Errors;
                 break;
 
+            case AuthenticationException authenticationException:
+                context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                problemDetails.Status = (int)HttpStatusCode.Unauthorized;
+                problemDetails.Title = "Xác thực thất bại.";
+                problemDetails.Detail = authenticationException.Message;
+                break;
+
+            case ArgumentException argumentException:
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                problemDetails.Status = (int)HttpStatusCode.BadRequest;
+                problemDetails.Title = "Tham số yêu cầu không hợp lệ.";
+                problemDetails.Detail = argumentException.Message;
+                break;
+
             case ConcurrencyException concurrencyException:
                 context.Response.StatusCode = (int)HttpStatusCode.Conflict;
                 problemDetails.Status = (int)HttpStatusCode.Conflict;
@@ -75,11 +89,32 @@ public class GlobalExceptionHandlingMiddleware
                 problemDetails.Detail = forbiddenException.Message;
                 break;
 
+            case ConflictException conflictException:
+                context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+                problemDetails.Status = (int)HttpStatusCode.Conflict;
+                problemDetails.Title = "Thao tác không hợp lệ ở trạng thái hiện tại.";
+                problemDetails.Detail = conflictException.Message;
+                break;
+
             case NotFoundException notFoundException:
                 context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                 problemDetails.Status = (int)HttpStatusCode.NotFound;
                 problemDetails.Title = "Không tìm thấy dữ liệu.";
                 problemDetails.Detail = notFoundException.Message;
+                break;
+
+            case TextToSpeechException ttsException:
+                context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
+                problemDetails.Status = (int)HttpStatusCode.BadGateway;
+                problemDetails.Title = "Lỗi dịch vụ tổng hợp giọng nói (TTS).";
+                problemDetails.Detail = ttsException.Message;
+                break;
+
+            case AudioStorageException storageException:
+                context.Response.StatusCode = (int)HttpStatusCode.BadGateway;
+                problemDetails.Status = (int)HttpStatusCode.BadGateway;
+                problemDetails.Title = "Lỗi dịch vụ lưu trữ âm thanh.";
+                problemDetails.Detail = storageException.Message;
                 break;
 
             default:

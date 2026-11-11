@@ -1,7 +1,7 @@
 using FluentValidation;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.AiBooking.Models;
-using WaterbusSystem.Application.Features.AiBooking.Validators;
+using WaterbusSystem.Application.Validators.AiBooking;
 
 namespace WaterbusSystem.UnitTests.AiBooking.Fakes;
 
@@ -17,6 +17,15 @@ public class FakeTripSearchTool : ITripSearchTool
     private readonly List<AiTripCardDto> _availableTrips = new();
     private readonly bool _simulateEmptyResult;
     private readonly IValidator<TripSearchCriteria> _validator = new TripSearchCriteriaValidator();
+
+    public Task<IReadOnlyList<string>> ListActiveStationsAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        IReadOnlyList<string> names = _availableTrips
+            .SelectMany(t => new[] { t.DepartureStationName, t.ArrivalStationName })
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return Task.FromResult(names);
+    }
 
     public FakeTripSearchTool(IEnumerable<AiTripCardDto>? initialTrips = null, bool simulateEmptyResult = false)
     {

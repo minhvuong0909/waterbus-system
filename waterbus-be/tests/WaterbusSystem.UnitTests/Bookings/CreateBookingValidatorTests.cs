@@ -1,5 +1,8 @@
+using WaterbusSystem.Application.DTOs.Requests.Bookings;
+using WaterbusSystem.Application.DTOs.Responses.Bookings;
+using WaterbusSystem.Application.Features.Bookings.Services;
+using WaterbusSystem.Application.Validators.Bookings;
 using FluentAssertions;
-using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
 using Xunit;
 
 namespace WaterbusSystem.UnitTests.Bookings;
@@ -9,9 +12,9 @@ namespace WaterbusSystem.UnitTests.Bookings;
 /// </summary>
 public class CreateBookingValidatorTests
 {
-    private readonly CreateBookingCommandValidator _validator = new();
+    private readonly CreateBookingRequestValidator _validator = new();
 
-    private static CreateBookingCommand ValidCommand(List<Guid>? seatIds = null) => new(
+    private static CreateBookingRequest ValidCommand(List<Guid>? seatIds = null) => new(
         TripId: Guid.NewGuid(),
         SeatIds: seatIds ?? new List<Guid> { Guid.NewGuid(), Guid.NewGuid() },
         BoardingStationId: Guid.NewGuid(),

@@ -1,3 +1,8 @@
+/**
+ * Domain types & interfaces for Staff Scanner Mobile App
+ * SMART WATERBUS SYSTEM (BR v2.0 FINAL & ERD Alignment)
+ */
+
 export type TripType = 'Commuter' | 'Sightseeing';
 export type TicketStatus = 'Valid' | 'CheckedIn' | 'Cancelled' | 'Refunded';
 export type BoardingStatus = 'NotCheckedIn' | 'CheckedIn' | 'NoShow';
@@ -49,7 +54,6 @@ export interface Booking {
   publicBookingId: string; // Non-sensitive public identifier in QR (BR-QR-02)
   bookingCode: string;
   tripId: string;
-  tripStopCallId?: string;
   customerName: string;
   customerPhone?: string;
   totalAmount: number;
@@ -63,8 +67,8 @@ export interface PublicKeyInfo {
   kid: string;
   algorithm: 'RS256' | 'HS256' | 'ES256';
   publicKeyPem: string;
-  validFrom?: string;
-  validTo?: string;
+  validFrom: string;
+  validTo: string;
   isActive: boolean;
 }
 
@@ -119,22 +123,6 @@ export interface SyncBatchResponse {
   }[];
 }
 
-export interface SyncOfflineEventRequest {
-  clientEventId: string;
-  ticketId: string;
-  tripId: string;
-  tripStopCallId: string;
-  occurredAtDevice: string;
-  notes?: string | null;
-}
-
-export interface SyncOfflineBatchRequest {
-  scannerDeviceId: string;
-  staffAccountId: string;
-  batchTimestamp: string;
-  events: SyncOfflineEventRequest[];
-}
-
 export interface QrPayload {
   pbid: string; // publicBookingId
   ver: number;  // qrCredentialVersion
@@ -150,24 +138,10 @@ export interface QrVerificationResult {
   publicBookingId?: string;
   version?: number;
   tripId?: string;
-  kid?: string;
   error?: string;
   rawPayload?: any;
   verifiedOffline: boolean;
   algorithmUsed?: string;
-}
-
-export interface ScannerAssignmentClaim {
-  id: string;
-  deviceId: string;
-  deviceCode: string;
-  staffAccountId: string;
-  tripStopCallId: string;
-  isPrimaryOffline: boolean;
-  assignmentVersion: number;
-  activeFrom: string;
-  activeUntil?: string | null;
-  assignedAt: string;
 }
 
 export interface ManifestStats {
@@ -190,3 +164,4 @@ export interface ScannerDeviceInfo {
   isPrimaryOffline: boolean;
   forceOfflineMode: boolean;
 }
+

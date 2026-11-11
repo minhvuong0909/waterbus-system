@@ -75,7 +75,7 @@ function reportMissing(source: string) {
 
 /**
  * Deep-translates every string in `value` that has an exact dictionary entry, leaving ids,
- * numbers, icon names and untranslated text as they are. Services use it so mock data comes
+ * numbers, icon names and untranslated text as they are. Services use it so editorial content comes
  * back already in the active language, like a localized API response.
  */
 export function localize<T>(value: T): T {

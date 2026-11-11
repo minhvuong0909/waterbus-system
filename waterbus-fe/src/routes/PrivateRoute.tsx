@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { hasAnyRole } from '../features/authentication/authenticationUtils'
-import { useAuth } from '../features/authentication/hook/authenticationHook'
+import { hasAnyRole } from '../features/authentication/utils'
+import { useAuth } from '../features/authentication/hooks/useAuth'
 import { ROUTES } from './routes'
 
 interface PrivateRouteProps {

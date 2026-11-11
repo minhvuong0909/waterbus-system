@@ -1,6 +1,8 @@
+using WaterbusSystem.Application.DTOs.Requests.Bookings;
+using WaterbusSystem.Application.DTOs.Responses.Bookings;
+using WaterbusSystem.Application.Validators.Bookings;
 using FluentAssertions;
 using WaterbusSystem.Application.Common.Interfaces;
-using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
 using WaterbusSystem.Application.Features.Bookings.Services;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
@@ -17,10 +19,10 @@ namespace WaterbusSystem.UnitTests.Bookings;
 /// </summary>
 public class CreateBookingSeatMappingTests
 {
-    private static CreateBookingCommand CommandFor(
+    private static CreateBookingRequest CommandFor(
         TestDbContextFactory.TripSeedData seed,
         List<Guid> seatIds,
-        IReadOnlyList<PassengerInput>? passengers) =>
+        IReadOnlyList<CreateCheckoutPassengerRequest>? passengers) =>
         new(
             TripId: seed.Trip.Id,
             SeatIds: seatIds,
@@ -45,13 +47,13 @@ public class CreateBookingSeatMappingTests
 
         // Cố tình đảo thứ tự ghế so với thứ tự seed trong CSDL.
         var requestedSeatIds = new List<Guid> { seed.Seat2.Id, seed.Seat1.Id };
-        var passengers = new List<PassengerInput>
+        var passengers = new List<CreateCheckoutPassengerRequest>
         {
             new("Nguyen Van A", "a@test.com", null),
             new("Tran Thi B", null, null)
         };
 
-        var result = await handler.Handle(
+        var result = await handler.CreateAsync(
             CommandFor(seed, requestedSeatIds, passengers), CancellationToken.None);
 
         var reservations = context.SeatReservations.Where(r => r.BookingId == result.BookingId).ToList();
@@ -75,7 +77,7 @@ public class CreateBookingSeatMappingTests
         var handler = CommercialHandlerFactory.Booking(
             context, new FakeDistributedLockService(), new SeatAvailabilityService(context));
 
-        var result = await handler.Handle(
+        var result = await handler.CreateAsync(
             CommandFor(seed, [seed.Seat1.Id, seed.Seat2.Id], null), CancellationToken.None);
 
         context.SeatReservations
@@ -94,9 +96,9 @@ public class CreateBookingSeatMappingTests
         var command = CommandFor(
             seed,
             [seed.Seat1.Id, seed.Seat2.Id],
-            [new PassengerInput("Chi mot nguoi", null, null)]);
+            [new CreateCheckoutPassengerRequest("Chi mot nguoi", null, null)]);
 
-        var act = () => handler.Handle(command, CancellationToken.None);
+        var act = () => handler.CreateAsync(command, CancellationToken.None);
 
         await act.Should().ThrowAsync<Application.Common.Exceptions.ValidationException>();
     }
@@ -120,7 +122,7 @@ public class CreateBookingSeatMappingTests
         var handler = CommercialHandlerFactory.Booking(
             context, new FakeDistributedLockService(), new SeatAvailabilityService(context), failingSession);
 
-        var result = await handler.Handle(
+        var result = await handler.CreateAsync(
             CommandFor(seed, [seed.Seat1.Id], null), CancellationToken.None);
 
         // Vẫn trả kết quả đặt vé thành công dù Redis chết.

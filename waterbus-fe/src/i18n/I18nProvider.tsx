@@ -18,6 +18,7 @@ import {
 import type { Locale } from './translate'
 
 const STORAGE_KEY = 'waterbus.locale'
+const INITIAL_LOCALE: Locale = 'vi'
 
 function readStoredLocale(): Locale {
   try {
@@ -26,7 +27,8 @@ function readStoredLocale(): Locale {
   } catch {
     // localStorage can be blocked (private mode); fall back to the default.
   }
-  return DEFAULT_LOCALE
+  // Khách chưa chọn ngôn ngữ: mặc định tiếng Việt (đối tượng chính là hành khách trong nước).
+  return INITIAL_LOCALE
 }
 
 interface I18nContextValue {

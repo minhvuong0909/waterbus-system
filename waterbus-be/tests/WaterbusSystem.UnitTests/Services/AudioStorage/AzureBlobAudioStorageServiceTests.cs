@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
 using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
@@ -6,7 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Models;
-using WaterbusSystem.Application.Common.Validators;
+using WaterbusSystem.Application.Validators.SightseeingAudio;
 using WaterbusSystem.Infrastructure.Services.AudioStorage;
 using Xunit;
 
@@ -17,7 +18,7 @@ public class AzureBlobAudioStorageServiceTests
     private static readonly Uri ContainerUri = new("https://storage.example.com/audio-guides-private");
     private static readonly Uri BlobUri = new("https://storage.example.com/audio-guides-private/pois/poi-1/vi/v1.mp3");
 
-    private static StoreAudioCommand ValidCommand() => new()
+    private static StoreAudioRequest ValidCommand() => new()
     {
         AssetKey = "pois/poi-1/vi/v1.mp3",
         AudioData = [0x49, 0x44, 0x33, 0x01],
@@ -34,7 +35,7 @@ public class AzureBlobAudioStorageServiceTests
         container.Setup(c => c.GetBlobClient(It.IsAny<string>())).Returns(blob.Object);
         var service = new AzureBlobAudioStorageService(
             container.Object,
-            new StoreAudioCommandValidator(),
+            new StoreAudioRequestValidator(),
             NullLogger<AzureBlobAudioStorageService>.Instance);
         return (service, blob);
     }

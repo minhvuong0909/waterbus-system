@@ -1,10 +1,8 @@
 /**
- * Staff Scanner Settings & Diagnostics Screen
- * Device configuration, staff profile (Tuấn), force offline simulation toggle,
- * and backend server URL settings.
+ * Cài đặt tài khoản, phân công và chế độ kết nối của máy soát vé.
  */
 
-import { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -14,77 +12,64 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { isAxiosError } from 'axios';
 import { useScannerStore } from '../../store/useScannerStore';
-import { getApiBaseUrl, setApiBaseUrl } from '../../api/client';
-import { loginStaff, logoutStaff } from '../../services/auth/authService';
 import { useAuthStore } from '../../store/useAuthStore';
-import { BrandColors, Radius } from '../../../constants/theme';
+import { syncService } from '../../services/sync/syncService';
+import { getMyScannerAssignments } from '../../services/checkin/scannerAssignmentService';
+import { MyScannerAssignment } from '../../types/checkin';
+import { ApiError } from '../../services/api/apiClient';
 
 export default function ScannerSettingsScreen() {
-  const { deviceInfo, setDeviceInfo, setForceOfflineMode } = useScannerStore();
+  const { deviceInfo, setForceOfflineMode } = useScannerStore();
+  const { user, logout } = useAuthStore();
 
-  const { user, setUser, clearUser } = useAuthStore();
-  const formatUrlForDisplay = (url: string) => url.replace(/^https?:\/\//i, '');
-  const [backendAddress, setBackendAddress] = useState(formatUrlForDisplay(getApiBaseUrl()));
+  const [showDevice, setShowDevice] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [deviceCode, setDeviceCode] = useState(deviceInfo.deviceCode);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const resolveFullUrl = (input: string) => {
-    const trimmed = input.trim().replace(/\/+$/, '');
-    if (!trimmed) return getApiBaseUrl();
-    if (/^https?:\/\//i.test(trimmed)) {
-      return trimmed;
+  const [assignments, setAssignments] = useState<MyScannerAssignment[]>([]);
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
+  const [assignmentsError, setAssignmentsError] = useState<string | null>(null);
+
+  const loadAssignments = useCallback(async () => {
+    setIsLoadingAssignments(true);
+    setAssignmentsError(null);
+    try {
+      const result = await getMyScannerAssignments();
+      setAssignments(result);
+    } catch (err) {
+      setAssignmentsError(err instanceof ApiError ? err.message : 'Không tải được phân công. Kiểm tra kết nối mạng.');
+    } finally {
+      setIsLoadingAssignments(false);
     }
-    return `http://${trimmed}`;
-  };
+  }, []);
+
+  useEffect(() => {
+    loadAssignments();
+  }, [loadAssignments]);
 
   const handleSaveConfig = () => {
-    const fullUrl = resolveFullUrl(backendAddress);
-    setApiBaseUrl(fullUrl);
-    setBackendAddress(formatUrlForDisplay(fullUrl));
-    setDeviceInfo({ deviceCode });
-    Alert.alert('Đã lưu cấu hình', 'Thông tin thiết bị và máy chủ đã được cập nhật.');
-  };
-
-  const handleLogin = async () => {
-    if (!email.trim() || !password) {
-      Alert.alert('Thiếu thông tin', 'Vui lòng nhập email và mật khẩu tài khoản Staff.');
-      return;
-    }
-
-    setIsLoggingIn(true);
-    try {
-      const staff = await loginStaff(email.trim(), password);
-      setUser(staff);
-      setDeviceInfo({ staffId: staff.userId, staffName: staff.fullName });
-      setPassword('');
-      Alert.alert('Đăng nhập thành công', `Xin chào ${staff.fullName}.`);
-    } catch (error) {
-      const message = isAxiosError(error) && !error.response
-        ? `Không kết nối được máy chủ tại ${getApiBaseUrl()}.\n\nKiểm tra API đang chạy và địa chỉ máy chủ. Nếu dùng điện thoại thật, hãy nhập IP Wi-Fi của máy tính (ví dụ http://192.168.1.10:5000); 10.0.2.2 chỉ dùng cho Android Emulator.`
-        : error instanceof Error
-          ? error.message
-          : 'Vui lòng thử lại sau.';
-      Alert.alert(
-        'Không thể đăng nhập',
-        message
-      );
-    } finally {
-      setIsLoggingIn(false);
-    }
+    syncService.setDeviceInfo({ deviceCode });
+    setSaved(true);
   };
 
   const handleLogout = () => {
-    logoutStaff();
-    setDeviceInfo({ staffId: '', staffName: 'Chưa đăng nhập', isPrimaryOffline: false });
-    clearUser();
+    Alert.alert('Đăng xuất', 'Bạn có chắc muốn đăng xuất khỏi tài khoản này?', [
+      { text: 'Huỷ', style: 'cancel' },
+      {
+        text: 'Đăng xuất',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          router.replace('/login');
+        },
+      },
+    ]);
   };
 
   return (
@@ -92,113 +77,87 @@ export default function ScannerSettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Cài đặt và thông tin nhân viên</Text>
-          <Text style={styles.subtitle}>Thiết lập máy soát vé cầm tay</Text>
+          <Text style={styles.title}>Cài đặt</Text>
+          <Text style={styles.subtitle}>Tài khoản và thiết bị soát vé</Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Tài khoản Staff</Text>
-          {user ? (
-            <>
-              <Text style={styles.authenticatedText}>Đã đăng nhập: {user.fullName}</Text>
-              <Text style={styles.metaValue}>{user.email}</Text>
-              <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-                <Text style={styles.logoutBtnText}>Đăng xuất</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <Text style={styles.inputLabel}>Email</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-              />
-              <Text style={styles.inputLabel}>Mật khẩu</Text>
-              <View style={styles.passwordInputContainer}>
-                <TextInput
-                  style={styles.passwordInput}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!isPasswordVisible}
-                  autoComplete="password"
-                />
-                <TouchableOpacity
-                  style={styles.passwordVisibilityButton}
-                  onPress={() => setIsPasswordVisible((visible) => !visible)}
-                  accessibilityRole="button"
-                  accessibilityLabel={isPasswordVisible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                >
-                  <Ionicons
-                    name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color={BrandColors.textSecondary}
-                  />
-                  <Text style={styles.passwordVisibilityText}>
-                    {isPasswordVisible ? 'Ẩn' : 'Hiện'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity
-                style={[styles.saveBtn, isLoggingIn && styles.disabledBtn]}
-                onPress={handleLogin}
-                disabled={isLoggingIn}
-              >
-                <Text style={styles.saveBtnText}>
-                  {isLoggingIn ? 'Đang đăng nhập...' : 'Đăng nhập'}
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-
-        {/* Staff Profile Card */}
+        {/* Staff Profile Card - tài khoản đăng nhập thật qua POST /api/v1/auth/login */}
         <View style={styles.card}>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>NV</Text>
+              <Text style={styles.avatarText}>
+                {(user?.fullName || '?').trim().charAt(0).toUpperCase()}
+              </Text>
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.staffName}>{deviceInfo.staffName}</Text>
+              <Text style={styles.staffName}>{user?.fullName || 'Chưa đăng nhập'}</Text>
               <Text style={styles.staffRole}>Nhân viên soát vé</Text>
-              <Text style={styles.staffCode}>Mã nhân viên: {deviceInfo.staffId}</Text>
+              <Text style={styles.staffCode}>{user?.email}</Text>
             </View>
           </View>
 
           <View style={styles.divider} />
 
-          <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>Bến phân công hiện tại:</Text>
-            <Text style={styles.metaValue}>{deviceInfo.stationName}</Text>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={18} color="#DC2626" style={{ marginRight: 6 }} />
+            <Text style={styles.logoutBtnText}>Đăng xuất</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Phân công soát vé của tôi - GET /api/v1/checkins/assignments/mine (dữ liệu thật) */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardTitle}>Phân công của tôi</Text>
+            <TouchableOpacity accessibilityLabel="Tải lại phân công" accessibilityRole="button" style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }} onPress={loadAssignments} disabled={isLoadingAssignments}>
+              <Ionicons name="refresh" size={18} color="#0284C7" />
+            </TouchableOpacity>
           </View>
-          <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>Khả năng làm việc khi mất mạng:</Text>
-            <View style={deviceInfo.isPrimaryOffline ? styles.badgePrimary : styles.badgeInactive}>
-              <Text style={deviceInfo.isPrimaryOffline ? styles.badgePrimaryText : styles.badgeInactiveText}>
-                {deviceInfo.isPrimaryOffline ? 'Đã nhận quyền chính' : 'Chưa nhận quyền chính'}
-              </Text>
-            </View>
-          </View>
+
+          {isLoadingAssignments ? (
+            <ActivityIndicator color="#0284C7" style={{ marginVertical: 12 }} />
+          ) : assignmentsError ? (
+            <Text style={styles.assignmentError}>{assignmentsError}</Text>
+          ) : assignments.length === 0 ? (
+            <Text style={styles.assignmentEmpty}>Hiện chưa được phân công điểm dừng nào.</Text>
+          ) : (
+            assignments.map((a) => (
+              <View key={a.assignmentId} style={styles.assignmentItem}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.assignmentStation}>{a.stationName}</Text>
+                  <Text style={styles.assignmentRoute}>
+                    {a.routeName} • Bến thứ {a.visitOrder} • {a.tripStatus}
+                  </Text>
+                  {a.checkInOpenAt && a.checkInCloseAt ? (
+                    <Text style={styles.assignmentWindow}>
+                      Giờ soát vé: {new Date(a.checkInOpenAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' })} - {new Date(a.checkInCloseAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' })}
+                    </Text>
+                  ) : null}
+                </View>
+                {a.isPrimaryOffline ? (
+                  <View style={styles.badgePrimary}>
+                    <Text style={styles.badgePrimaryText}>Máy chính</Text>
+                  </View>
+                ) : null}
+              </View>
+            ))
+          )}
         </View>
 
         {/* Operating Mode (Offline vs Online) */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Kết nối mạng</Text>
+          <Text style={styles.cardTitle}>Kết nối & đồng bộ</Text>
 
           <View style={styles.switchRow}>
             <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={styles.switchTitle}>Chỉ lưu dữ liệu trên thiết bị</Text>
+              <Text style={styles.switchTitle}>Thử chế độ ngoại tuyến</Text>
               <Text style={styles.switchDesc}>
-                Khi bật, ứng dụng không gửi dữ liệu lên máy chủ. Dữ liệu sẽ được lưu trên thiết bị để sử dụng khi mất kết nối.
+                Lưu lượt soát vé trên máy, tạm dừng gửi dữ liệu.
               </Text>
             </View>
             <Switch
               value={deviceInfo.forceOfflineMode}
               onValueChange={setForceOfflineMode}
-              trackColor={{ false: '#CBD5E1', true: BrandColors.coralGlow }}
+              trackColor={{ false: '#CBD5E1', true: '#EF4444' }}
               thumbColor={deviceInfo.forceOfflineMode ? '#FFFFFF' : '#F8FAFC'}
             />
           </View>
@@ -207,60 +166,41 @@ export default function ScannerSettingsScreen() {
 
           <View style={styles.switchRow}>
             <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={styles.switchTitle}>Tự động gửi dữ liệu</Text>
+              <Text style={styles.switchTitle}>Tự động đồng bộ</Text>
               <Text style={styles.switchDesc}>
-                Ứng dụng tự gửi các lượt soát vé đang chờ mỗi 15 giây khi có kết nối mạng.
+                Gửi lượt soát vé khi có mạng, kiểm tra mỗi 15 giây.
               </Text>
             </View>
             <View style={styles.statusActiveBadge}>
-              <Text style={styles.statusActiveText}>ĐANG CHẠY</Text>
+              <Text style={styles.statusActiveText}>{deviceInfo.forceOfflineMode ? 'TẠM DỪNG' : 'ĐÃ BẬT'}</Text>
             </View>
           </View>
         </View>
 
         {/* Device & Backend Config */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Thông tin thiết bị</Text>
+          <TouchableOpacity accessibilityRole="button" accessibilityState={{ expanded: showDevice }} onPress={() => setShowDevice(!showDevice)} style={styles.cardHeaderRow}>
+            <Text style={[styles.cardTitle, { marginBottom: 0 }]}>Thiết bị</Text>
+            <Ionicons name={showDevice ? 'chevron-up' : 'chevron-down'} size={20} color="#64748B" />
+          </TouchableOpacity>
+          {showDevice ? <View style={{ marginTop: 12 }}>
 
-          <Text style={styles.inputLabel}>Mã thiết bị:</Text>
+          <Text style={styles.inputLabel}>Mã máy quét</Text>
           <TextInput
             style={styles.input}
             value={deviceCode}
-            onChangeText={setDeviceCode}
+            onChangeText={(value) => { setDeviceCode(value); setSaved(false); }}
             autoCapitalize="characters"
           />
 
-          <Text style={styles.inputLabel}>Địa chỉ máy chủ:</Text>
-          <TextInput
-            style={styles.input}
-            value={backendAddress}
-            onChangeText={setBackendAddress}
-            autoCapitalize="none"
-            autoCorrect={false}
-            placeholder="192.168.1.10:5000"
-            placeholderTextColor={BrandColors.textSecondary}
-          />
           <TouchableOpacity style={styles.saveBtn} onPress={handleSaveConfig}>
             <Ionicons name="save-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.saveBtnText}>Lưu Thay Đổi</Text>
+            <Text style={styles.saveBtnText}>Lưu thay đổi</Text>
           </TouchableOpacity>
+          <Text style={styles.switchDesc}>{saved ? 'Đã lưu trong phiên này. ' : ''}Phân công thiết bị chính thức được lấy khi tải vé.</Text>
+          </View> : null}
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Tính năng hỗ trợ</Text>
-          <View style={styles.specItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.specText}>Mã vé được xác thực trước khi ghi nhận khách lên tàu.</Text>
-          </View>
-          <View style={styles.specItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.specText}>Có thể soát vé khi không có kết nối mạng.</Text>
-          </View>
-          <View style={styles.specItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#059669" />
-            <Text style={styles.specText}>Dữ liệu sẽ được gửi lên máy chủ khi có kết nối mạng.</Text>
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -269,32 +209,35 @@ export default function ScannerSettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BrandColors.mist,
+    backgroundColor: '#F8FAFC',
   },
   content: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 24,
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
   },
   header: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: BrandColors.ink,
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#0F172A',
   },
   subtitle: {
     fontSize: 13,
-    color: BrandColors.textSecondary,
+    color: '#64748B',
     marginTop: 4,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: Radius.card,
+    borderRadius: 14,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: BrandColors.border,
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -304,7 +247,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: BrandColors.ink,
+    color: '#0F172A',
     marginBottom: 12,
   },
   profileRow: {
@@ -315,13 +258,13 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: BrandColors.deepRiver,
+    backgroundColor: '#0284C7',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
   avatarText: {
-    color: BrandColors.skyAqua,
+    color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 18,
   },
@@ -331,22 +274,22 @@ const styles = StyleSheet.create({
   staffName: {
     fontSize: 16,
     fontWeight: '700',
-    color: BrandColors.ink,
+    color: '#0F172A',
   },
   staffRole: {
     fontSize: 13,
-    color: BrandColors.tealFlow,
+    color: '#0284C7',
     fontWeight: '600',
     marginTop: 2,
   },
   staffCode: {
     fontSize: 12,
-    color: BrandColors.textSecondary,
+    color: '#64748B',
     marginTop: 2,
   },
   divider: {
     height: 1,
-    backgroundColor: BrandColors.border,
+    backgroundColor: '#F1F5F9',
     marginVertical: 12,
   },
   metaRow: {
@@ -357,32 +300,21 @@ const styles = StyleSheet.create({
   },
   metaLabel: {
     fontSize: 13,
-    color: BrandColors.textSecondary,
+    color: '#64748B',
   },
   metaValue: {
     fontSize: 13,
-    color: BrandColors.ink,
+    color: '#0F172A',
     fontWeight: '600',
   },
   badgePrimary: {
-    backgroundColor: BrandColors.successBg,
+    backgroundColor: '#DCFCE7',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: Radius.sm,
+    borderRadius: 6,
   },
   badgePrimaryText: {
-    color: BrandColors.success,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  badgeInactive: {
-    backgroundColor: BrandColors.mist,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: Radius.sm,
-  },
-  badgeInactiveText: {
-    color: BrandColors.textSecondary,
+    color: '#15803D',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -395,107 +327,54 @@ const styles = StyleSheet.create({
   switchTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: BrandColors.ink,
+    color: '#0F172A',
   },
   switchDesc: {
     fontSize: 12,
-    color: BrandColors.textSecondary,
+    color: '#64748B',
     marginTop: 4,
     lineHeight: 16,
   },
   statusActiveBadge: {
-    backgroundColor: '#F0FDF9',
+    backgroundColor: '#E0F2FE',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: BrandColors.tealFlow,
+    borderRadius: 6,
   },
   statusActiveText: {
-    color: BrandColors.tealFlow,
+    color: '#0284C7',
     fontSize: 11,
     fontWeight: '700',
   },
   inputLabel: {
     fontSize: 13,
-    color: BrandColors.ink,
+    color: '#475569',
     marginBottom: 6,
     fontWeight: '500',
   },
   input: {
     borderWidth: 1.5,
-    borderColor: BrandColors.border,
-    borderRadius: Radius.sm,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
     marginBottom: 12,
-    backgroundColor: BrandColors.mist,
-    color: BrandColors.ink,
-  },
-
-  passwordInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: BrandColors.border,
-    borderRadius: Radius.sm,
-    marginBottom: 12,
-    backgroundColor: BrandColors.mist,
-  },
-  passwordInput: {
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: BrandColors.ink,
-  },
-  passwordVisibilityButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  passwordVisibilityText: {
-    marginLeft: 4,
-    color: BrandColors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
+    backgroundColor: '#F8FAFC',
   },
   saveBtn: {
-    backgroundColor: BrandColors.tealFlow,
+    backgroundColor: '#0F172A',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 12,
-    borderRadius: Radius.button,
+    borderRadius: 8,
     marginTop: 4,
   },
   saveBtnText: {
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 14,
-  },
-  authenticatedText: {
-    color: BrandColors.ink,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  logoutBtn: {
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: BrandColors.border,
-    borderRadius: Radius.button,
-    marginTop: 12,
-    paddingVertical: 11,
-  },
-  logoutBtnText: {
-    color: BrandColors.ink,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  disabledBtn: {
-    opacity: 0.6,
   },
   specItem: {
     flexDirection: 'row',
@@ -505,6 +384,58 @@ const styles = StyleSheet.create({
   },
   specText: {
     fontSize: 13,
-    color: BrandColors.ink,
+    color: '#334155',
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+  },
+  logoutBtnText: {
+    color: '#DC2626',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  assignmentError: {
+    color: '#DC2626',
+    fontSize: 13,
+    marginVertical: 8,
+  },
+  assignmentEmpty: {
+    color: '#94A3B8',
+    fontSize: 13,
+    marginVertical: 8,
+  },
+  assignmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  assignmentStation: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  assignmentRoute: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  assignmentWindow: {
+    fontSize: 11,
+    color: '#0284C7',
+    marginTop: 2,
   },
 });
+

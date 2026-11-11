@@ -1,15 +1,27 @@
+/**
+ * Preload Cache & Idempotent Batch Sync Worker
+ * 1. Preload manifest thật (BR-OFF-01) từ GET /checkins/manifest/{tripStopCallId} +
+ *    GET /checkouts/qr-public-key, lưu vào SQLite qua SqliteRepository.
+ * 2. Đồng bộ theo lô các sự kiện check-in offline (BR-OFF-03) qua POST /checkins/sync.
+ *
+ * KHÔNG còn fallback ngầm sang dữ liệu demo khi gọi API thật thất bại - lỗi mạng phải báo rõ
+ * cho Staff, không được âm thầm nạp dữ liệu giả vào máy lúc tác nghiệp thật (đã từng là lỗi:
+ * Staff không biết mình đang thấy danh sách khách giả). Dữ liệu demo chỉ dùng khi Staff bấm nút
+ * demo rõ ràng (preloadDemoManifest) hoặc trong scripts/verify-staff-scanner.ts.
+ */
+
 import { SqliteRepository } from '../sqlite/sqliteRepository';
-import CryptoJS from 'crypto-js';
+import { DEFAULT_KEY_INFO } from '../crypto/qrVerifier';
+import { fetchScannerManifest } from '../checkin/manifestService';
+import { fetchQrPublicKey } from '../checkin/qrPublicKeyService';
+import { mapScannerManifestToPreloadManifest } from '../checkin/manifestMapper';
+import { syncCheckInEvents } from '../checkin/syncCheckInService';
+import { ApiError } from '../api/apiClient';
 import {
   PreloadManifest,
-  SyncOfflineBatchRequest,
-  SyncBatchResponse,
   ScannerDeviceInfo,
 } from '../../types/scanner';
-import { getApiBaseUrl, scannerApiService, setApiBaseUrl } from '../../api/client';
-import axios from 'axios';
-
-declare const require: any;
+import { CheckInEventSyncInput } from '../../types/checkin';
 
 export type SyncListener = (status: {
   isSyncing: boolean;
@@ -22,23 +34,26 @@ class SyncService {
   private syncIntervalId: any = null;
   private isSyncing = false;
   private isOnline = true;
-  private primaryAssignments = new Map<string, string | null>();
   private listeners: Set<SyncListener> = new Set();
   private lastSyncAt: string | null = null;
   private lastMessage: string | null = null;
 
+  // staffId/staffName được điền từ tài khoản đăng nhập thật (xem useAuthStore); stationId/stationName
+  // được điền bằng TripStopCallId/StationName thật sau khi preloadManifest thành công (xem
+  // useScannerStore.preloadCache). Trống nghĩa là "chưa đăng nhập" / "chưa chọn điểm dừng".
   private currentDevice: ScannerDeviceInfo = {
-    deviceId: 'DEV-STAFF-TUAN-01',
+    deviceId: 'DEV-BD-01',
     deviceCode: 'DEV-BD-01',
     staffId: '',
-    staffName: 'Chưa đăng nhập',
-    stationId: 'ST01',
-    stationName: 'Bến Bạch Đằng (Quận 1)',
-    isPrimaryOffline: false,
+    staffName: '',
+    stationId: '',
+    stationName: '',
+    isPrimaryOffline: true,
     forceOfflineMode: false,
   };
 
   constructor() {
+    // Listen to network changes safely
     try {
       const netInfoModule = require('@react-native-community/netinfo');
       const NetInfo = netInfoModule?.default || netInfoModule;
@@ -47,102 +62,28 @@ class SyncService {
           const wasOffline = !this.isOnline;
           this.isOnline = !!(state.isConnected && state.isInternetReachable !== false);
 
-          // Khi mạng vừa hoạt động lại, gửi các lượt check-in đang chờ.
           if (wasOffline && this.isOnline && !this.currentDevice.forceOfflineMode) {
+            console.log('[SyncService] Network restored (3G/WiFi) — auto triggering batch sync');
             this.triggerBatchSync();
           }
         });
       }
     } catch {
-      // NetInfo có thể không khả dụng trong môi trường web hoặc kiểm thử.
+      // Non-native / Test environment
     }
   }
 
   public setDeviceInfo(info: Partial<ScannerDeviceInfo>) {
-    const identityChanged = (info.staffId !== undefined && info.staffId !== this.currentDevice.staffId)
-      || (info.deviceCode !== undefined && info.deviceCode !== this.currentDevice.deviceCode);
-    if (identityChanged || info.isPrimaryOffline === false) {
-      this.primaryAssignments.clear();
-      this.currentDevice.isPrimaryOffline = false;
-    }
     this.currentDevice = { ...this.currentDevice, ...info };
-  }
-
-  public isPrimaryOfflineFor(tripStopCallId: string): boolean {
-    if (!this.primaryAssignments.has(tripStopCallId)) return false;
-    const activeUntil = this.primaryAssignments.get(tripStopCallId);
-    if (activeUntil && Date.parse(activeUntil) <= Date.now()) {
-      this.primaryAssignments.delete(tripStopCallId);
-      this.currentDevice.isPrimaryOffline = this.primaryAssignments.size > 0;
-      return false;
-    }
-    return true;
   }
 
   public getDeviceInfo(): ScannerDeviceInfo {
     return { ...this.currentDevice };
   }
 
-  // Yêu cầu máy chủ phân công duy nhất một thiết bị soát vé chính cho mỗi lượt ghé bến.
-  public async claimPrimaryOfflineRole(
-    tripStopCallId: string,
-    apiBaseUrl?: string
-  ): Promise<{ success: boolean; isPrimary: boolean; message: string }> {
-    try {
-      if (apiBaseUrl && apiBaseUrl !== getApiBaseUrl()) {
-        setApiBaseUrl(apiBaseUrl);
-      }
-
-      const response = await scannerApiService.claimPrimaryRole({
-        deviceId: this.currentDevice.deviceId,
-        deviceCode: this.currentDevice.deviceCode,
-        staffAccountId: this.currentDevice.staffId,
-        tripStopCallId,
-      });
-
-      const isPrimary = response.success && !!response.isPrimaryOffline;
-      if (isPrimary) {
-        this.primaryAssignments.set(tripStopCallId, response.activeUntil ?? null);
-      } else {
-        this.primaryAssignments.delete(tripStopCallId);
-      }
-      this.currentDevice.isPrimaryOffline = this.primaryAssignments.size > 0;
-      return {
-        success: response.success,
-        isPrimary: this.isPrimaryOfflineFor(tripStopCallId),
-        message: response.message ?? (isPrimary
-          ? 'Thiết bị này được phân công soát vé chính tại bến.'
-          : 'Một thiết bị khác đã được phân công soát vé chính tại bến này.'),
-      };
-    } catch (error) {
-      if (axios.isAxiosError(error) && error.response) {
-        const message = error.response.status === 409
-          ? 'Một thiết bị khác đang là scanner offline chính tại bến này.'
-          : error.response.status === 401 || error.response.status === 403
-            ? 'Vui lòng đăng nhập bằng tài khoản Staff được phân công cho điểm dừng này.'
-            : `Không thể xác nhận phân công trên máy chủ (HTTP ${error.response.status}).`;
-        this.primaryAssignments.delete(tripStopCallId);
-        this.currentDevice.isPrimaryOffline = this.primaryAssignments.size > 0;
-        return { success: false, isPrimary: false, message };
-      }
-
-      if (!axios.isAxiosError(error)) {
-        throw error;
-      }
-
-      // Khi mất mạng, chỉ giữ quyền đã được xác nhận trước đó trên thiết bị.
-      return {
-        success: this.isPrimaryOfflineFor(tripStopCallId),
-        isPrimary: this.isPrimaryOfflineFor(tripStopCallId),
-        message: this.isPrimaryOfflineFor(tripStopCallId)
-          ? 'Chưa thể xác nhận trên máy chủ. Thiết bị này vẫn được phân công soát vé chính.'
-          : 'Chưa thể xác nhận quyền soát vé trên máy chủ.',
-      };
-    }
-  }
-
   public subscribe(listener: SyncListener): () => void {
     this.listeners.add(listener);
+    // Send immediate initial status
     this.notifyStatus(0);
     return () => this.listeners.delete(listener);
   }
@@ -168,195 +109,18 @@ class SyncService {
     this.listeners.forEach((l) => l(payload));
   }
 
-  public async preloadManifest(
-    stationId = 'ST01',
-    apiBaseUrl?: string
-  ): Promise<{ manifest: PreloadManifest; message: string }> {
-    // Lấy manifest theo bến để thiết bị có dữ liệu tra cứu khi mất mạng.
-    if (apiBaseUrl && apiBaseUrl !== getApiBaseUrl()) {
-      setApiBaseUrl(apiBaseUrl);
-    }
-    const manifest = await scannerApiService.getPreloadManifest(stationId);
-    // Không lưu dữ liệu sai bến hoặc thiếu khóa RS256 dùng để xác minh QR offline.
-    if (
-      !manifest ||
-      manifest.stationId !== stationId ||
-      !manifest.publicKey ||
-      manifest.publicKey.algorithm !== 'RS256' ||
-      !manifest.publicKey.isActive ||
-      !manifest.publicKey.publicKeyPem?.includes('BEGIN PUBLIC KEY') ||
-      !Array.isArray(manifest.trips) ||
-      !Array.isArray(manifest.bookings)
-    ) {
-      throw new Error('Dữ liệu tải về thiếu thông tin chuyến, vé hoặc khóa công khai RS256 hợp lệ.');
-    }
-
-    await SqliteRepository.saveManifest(manifest);
-
-    this.lastMessage = `Đã tải thành công ${manifest.bookings.length} đơn đặt vé, ${
-      manifest.bookings.flatMap((b) => b.tickets).length
-    } vé về thiết bị.`;
-    await this.notifyStatus();
-
-    return {
-      manifest,
-      message: this.lastMessage,
-    };
-  }
-
-  public async triggerBatchSync(
-    apiBaseUrl?: string
-  ): Promise<{ syncedCount: number; message: string }> {
-    // Chặn hai lần gửi đồng thời và không gửi khi nhân viên bật chế độ offline.
-    if (this.isSyncing) {
-      return { syncedCount: 0, message: 'Đang gửi dữ liệu, vui lòng đợi.' };
-    }
-
-    if (this.currentDevice.forceOfflineMode) {
-      this.lastMessage = 'Chế độ sử dụng khi mất kết nối đang bật. Dữ liệu chưa được gửi lên máy chủ.';
-      await this.notifyStatus();
-      return { syncedCount: 0, message: this.lastMessage };
-    }
-
-    this.isSyncing = true;
-    await this.notifyStatus();
-
-    try {
-      if (apiBaseUrl && apiBaseUrl !== getApiBaseUrl()) {
-        setApiBaseUrl(apiBaseUrl);
-      }
-
-      // Mỗi yêu cầu chỉ lấy một lô giới hạn để tránh gửi quá nhiều dữ liệu cùng lúc.
-      const pendingEvents = await SqliteRepository.getPendingEvents(50);
-      if (pendingEvents.length === 0) {
-        this.lastMessage = 'Không có lượt soát vé nào đang chờ gửi.';
-        this.isSyncing = false;
-        await this.notifyStatus(0);
-        return { syncedCount: 0, message: this.lastMessage };
-      }
-
-      const batchTimestamp = new Date().toISOString();
-      const eventIds = pendingEvents.map((event) => event.clientEventId);
-      // Sắp xếp ID để gửi lại cùng lô luôn tạo cùng Idempotency-Key.
-      const batchFingerprint = CryptoJS.SHA256([...eventIds].sort().join(':')).toString();
-      const idempotencyKey = `BATCH-${this.currentDevice.deviceCode}-${batchFingerprint}`;
-
-      const requestPayload: SyncOfflineBatchRequest = {
-        scannerDeviceId: this.currentDevice.deviceCode,
-        staffAccountId: this.currentDevice.staffId,
-        batchTimestamp,
-        events: pendingEvents.map((e) => ({
-          clientEventId: e.clientEventId,
-          ticketId: e.ticketId,
-          ticketNumber: e.ticketNumber,
-          passengerName: e.passengerName,
-          seatCode: e.seatCode,
-          bookingId: e.bookingId,
-          tripId: e.tripId,
-          tripStopCallId: e.tripStopCallId,
-          occurredAtDevice: e.occurredAtDevice,
-          notes: e.notes,
-        })),
-      };
-
-      const successUpdates: { clientEventId: string; receivedAtServer: string }[] = [];
-      let lateRejectionCount = 0;
-      let conflictCount = 0;
-      const acknowledgedIds = new Set<string>();
-      const requestedIds = new Set(eventIds);
-
-      let resData: SyncBatchResponse;
-      try {
-        // Gửi lô kèm khóa ổn định để máy chủ nhận diện yêu cầu gửi lại.
-        resData = await scannerApiService.syncOfflineBatch(requestPayload, idempotencyKey);
-        if (!resData || !Array.isArray(resData.processedEvents)) {
-          throw new Error('Máy chủ trả về kết quả đồng bộ không hợp lệ.');
-        }
-      } catch {
-        await SqliteRepository.recordSyncFailure(
-          eventIds,
-          'Chưa nhận được xác nhận từ máy chủ; lượt soát vẫn được giữ để gửi lại.'
-        );
-        throw new Error('Không nhận được xác nhận từ máy chủ.');
-      }
-
-      // Chỉ chấp nhận phản hồi cho ID thuộc lô này; không tin ACK lạ hoặc lặp.
-      for (const pe of resData.processedEvents) {
-        if (!requestedIds.has(pe.clientEventId) || acknowledgedIds.has(pe.clientEventId)) {
-          continue;
-        }
-
-        if (pe.syncStatus === 'Synced' && pe.outcome === 'Success') {
-          acknowledgedIds.add(pe.clientEventId);
-          successUpdates.push({
-            clientEventId: pe.clientEventId,
-            receivedAtServer: new Date().toISOString(),
-          });
-        } else if (pe.syncStatus === 'Conflict' || pe.outcome === 'Conflict') {
-          acknowledgedIds.add(pe.clientEventId);
-          conflictCount++;
-          const isLate = pe.message?.toLowerCase().includes('muộn') ||
-            pe.message?.toLowerCase().includes('trễ') ||
-            pe.message?.toLowerCase().includes('late') ||
-            pe.message?.toLowerCase().includes('window');
-          if (isLate) lateRejectionCount++;
-          await SqliteRepository.markEventConflict(
-            pe.clientEventId,
-            pe.message || (isLate ? 'Đồng bộ trễ bị từ chối do quá giờ quy định (H03)' : 'Xung đột check-in'),
-            isLate
-          );
-        }
-      }
-
-      const unacknowledgedIds = eventIds.filter((eventId) => !acknowledgedIds.has(eventId));
-      if (unacknowledgedIds.length > 0) {
-        await SqliteRepository.recordSyncFailure(
-          unacknowledgedIds,
-          'Máy chủ chưa xác nhận lượt soát; lượt này sẽ được gửi lại.'
-        );
-      }
-
-      if (successUpdates.length > 0) {
-        // Chỉ đánh dấu Synced sau khi máy chủ xác nhận đúng sự kiện thành công.
-        await SqliteRepository.markEventsSynced(successUpdates);
-      }
-
-      this.lastSyncAt = new Date().toLocaleTimeString();
-      let statusSummary = `Đã được máy chủ xác nhận ${successUpdates.length} lượt soát`;
-      if (lateRejectionCount > 0) {
-        statusSummary += `, ${lateRejectionCount} vé không được chấp nhận do gửi trễ`;
-      }
-      if (conflictCount > lateRejectionCount) {
-        statusSummary += `, ${conflictCount - lateRejectionCount} vé bị trùng thông tin`;
-      }
-      if (unacknowledgedIds.length > 0) {
-        statusSummary += `, ${unacknowledgedIds.length} lượt chưa được xác nhận và sẽ gửi lại`;
-      }
-      this.lastMessage = `${statusSummary} lúc ${this.lastSyncAt}`;
-
-      const remainingStats = await SqliteRepository.getManifestStats();
-      this.isSyncing = false;
-      await this.notifyStatus(remainingStats.pendingSyncCount);
-
-      return {
-        syncedCount: successUpdates.length,
-        message: this.lastMessage,
-      };
-    } catch {
-      this.lastMessage = 'Không thể gửi dữ liệu lên máy chủ. Các lượt chưa được xác nhận vẫn được giữ trên thiết bị.';
-      this.isSyncing = false;
-      await this.notifyStatus();
-      return { syncedCount: 0, message: this.lastMessage };
-    }
-  }
-
+  /**
+   * Start recurring background sync timer (e.g. every 15s)
+   */
   public startBackgroundWorker(intervalMs = 15000): void {
     if (this.syncIntervalId) return;
 
-    // Bộ hẹn giờ hoạt động trong tiến trình app; không thay thế tác vụ nền của hệ điều hành.
+    console.log(`[SyncService] Background worker started (interval: ${intervalMs}ms)`);
     this.syncIntervalId = setInterval(() => {
       if (this.isOnline && !this.currentDevice.forceOfflineMode) {
-        this.triggerBatchSync().catch(() => {});
+        this.triggerBatchSync().catch((err) => {
+          console.warn('[SyncService] Periodic batch sync error:', err.message);
+        });
       }
     }, intervalMs);
   }
@@ -365,9 +129,304 @@ class SyncService {
     if (this.syncIntervalId) {
       clearInterval(this.syncIntervalId);
       this.syncIntervalId = null;
+      console.log('[SyncService] Background worker stopped');
     }
   }
 
+  /**
+   * Preload Cache thật (BR-OFF-01): tải Public Key RSA + manifest Booking/Ticket của đúng điểm
+   * dừng (TripStopCallId) Staff được phân công, lưu vào SQLite. KHÔNG fallback sang dữ liệu demo
+   * khi lỗi - ném lỗi để màn hình báo rõ cho Staff (tránh tác nghiệp nhầm trên dữ liệu giả).
+   */
+  public async preloadManifest(tripStopCallId: string): Promise<{ manifest: PreloadManifest; message: string }> {
+    console.log(`[SyncService] Preloading REAL manifest for TripStopCallId: ${tripStopCallId}...`);
+
+    const [manifestResponse, publicKeyResponse] = await Promise.all([
+      fetchScannerManifest(tripStopCallId),
+      fetchQrPublicKey(),
+    ]);
+
+    const manifest = mapScannerManifestToPreloadManifest(manifestResponse, publicKeyResponse);
+
+    await SqliteRepository.saveManifest(manifest);
+
+    this.lastMessage = `Đã tải trước thành công ${manifest.bookings.length} đơn đặt, ${
+      manifest.bookings.flatMap((b) => b.tickets).length
+    } vé vào SQLite (${manifest.stationName})`;
+    await this.notifyStatus();
+
+    return { manifest, message: this.lastMessage };
+  }
+
+  /**
+   * Idempotent Batch Sync Worker thật (BR-OFF-03): gửi các event Pending lên
+   * POST /checkins/sync. Chỉ đánh "Synced" các event server đã THỰC SỰ xử lý (outcome khác
+   * "Error"); event "Error" (vé không tồn tại, concurrency...) vẫn giữ Pending để báo lỗi/retry,
+   * KHÔNG được giả lập thành công khi gọi server thất bại hoàn toàn (mất mạng/server down) -
+   * trước đây có lỗi nghiêm trọng ở đây: catch mất mạng vẫn đánh dấu Synced hết, khiến check-in
+   * thật không bao giờ tới được backend mà Staff không biết.
+   */
+  public async triggerBatchSync(): Promise<{ syncedCount: number; message: string }> {
+    if (this.isSyncing) {
+      return { syncedCount: 0, message: 'Tiến trình đồng bộ đang chạy' };
+    }
+
+    if (this.currentDevice.forceOfflineMode) {
+      this.lastMessage = 'Đang bật chế độ Ngoại tuyến cố định (Offline Mode). Không gửi lên server.';
+      await this.notifyStatus();
+      return { syncedCount: 0, message: this.lastMessage };
+    }
+
+    this.isSyncing = true;
+    await this.notifyStatus();
+
+    try {
+      const pendingEvents = await SqliteRepository.getPendingEvents(50);
+      if (pendingEvents.length === 0) {
+        this.lastMessage = 'Dữ liệu cục bộ đã đồng bộ đầy đủ (0 vé tồn đọng)';
+        this.isSyncing = false;
+        await this.notifyStatus(0);
+        return { syncedCount: 0, message: this.lastMessage };
+      }
+
+      console.log(`[SyncService] Pushing batch of ${pendingEvents.length} offline check-in events...`);
+
+      const payload: CheckInEventSyncInput[] = pendingEvents.map((e) => ({
+        ticketId: e.ticketId,
+        tripStopCallId: e.tripStopCallId,
+        clientEventId: e.clientEventId,
+        occurredAtDevice: e.occurredAtDevice,
+        note: e.notes,
+      }));
+
+      const response = await syncCheckInEvents(payload);
+
+      const resolved = response.results.filter((r) => ['Success', 'AlreadyCheckedIn'].includes(r.outcome));
+      const failed = response.results.filter((r) => r.outcome === 'Error');
+      const conflicts = response.results.filter((r) => !['Success', 'AlreadyCheckedIn', 'Error'].includes(r.outcome));
+      for (const conflict of conflicts) {
+        await SqliteRepository.markEventConflict(conflict.clientEventId, conflict.error || conflict.outcome);
+      }
+
+      await SqliteRepository.markEventsSynced(
+        resolved.map((r) => ({ clientEventId: r.clientEventId, receivedAtServer: new Date().toISOString() }))
+      );
+      for (const f of failed) {
+        await SqliteRepository.recordSyncFailure([f.clientEventId], f.error || 'Lỗi không xác định từ máy chủ.');
+      }
+
+      this.lastSyncAt = new Date().toLocaleTimeString();
+      this.lastMessage =
+        failed.length === 0 && conflicts.length === 0
+          ? `Đã đồng bộ thành công lô ${resolved.length} vé lên hệ thống lúc ${this.lastSyncAt}`
+          : `Đồng bộ ${resolved.length} vé thành công, ${failed.length} vé lỗi, ${conflicts.length} vé bị máy chủ từ chối. Hãy kiểm tra lịch sử và tải lại manifest.`;
+      console.log(`[SyncService] ${this.lastMessage}`);
+
+      const remainingStats = await SqliteRepository.getManifestStats();
+      this.isSyncing = false;
+      await this.notifyStatus(remainingStats.pendingSyncCount);
+
+      return { syncedCount: resolved.length, message: this.lastMessage };
+    } catch (error: any) {
+      // Mất mạng hoàn toàn / server không phản hồi: KHÔNG đánh dấu Synced, chỉ ghi nhận lỗi để
+      // lần quét định kỳ sau thử lại - việc giữ Pending ở đây chính là điểm "an toàn khi lỗi".
+      const message = error instanceof ApiError ? error.message : error?.message || 'Không kết nối được máy chủ.';
+      try {
+        const pendingEvents = await SqliteRepository.getPendingEvents(50);
+        await SqliteRepository.recordSyncFailure(pendingEvents.map((e) => e.clientEventId), message);
+      } catch {
+        // Bỏ qua lỗi phụ khi đang xử lý lỗi chính.
+      }
+
+      console.error('[SyncService] Batch sync failure:', error);
+      this.lastMessage = `Lỗi đồng bộ: ${message}`;
+      this.isSyncing = false;
+      await this.notifyStatus();
+      return { syncedCount: 0, message: this.lastMessage };
+    }
+  }
+
+  /**
+   * Preload DEMO rõ ràng (không phải đường tắt ngầm của preloadManifest thật) - chỉ dùng cho nút
+   * demo hoặc scripts/verify-staff-scanner.ts khi chưa có backend thật để gọi.
+   */
+  public async preloadDemoManifest(
+    stationId = 'ST-BACH-DANG'
+  ): Promise<{ manifest: PreloadManifest; message: string }> {
+    console.log(`[SyncService] Preloading DEMO manifest for station: ${stationId}...`);
+    const manifest = this.generateDemoManifest(stationId);
+    await SqliteRepository.saveManifest(manifest);
+
+    this.lastMessage = `[DEMO] Đã tải ${manifest.bookings.length} đơn đặt, ${
+      manifest.bookings.flatMap((b) => b.tickets).length
+    } vé mẫu vào SQLite`;
+    await this.notifyStatus();
+
+    return { manifest, message: this.lastMessage };
+  }
+
+  /**
+   * Sample generator producing realistic Saigon Waterbus data for local testing
+   */
+  private generateDemoManifest(stationId: string): PreloadManifest {
+    const today = new Date().toISOString().split('T')[0];
+
+    const trips = [
+      {
+        id: 'TRIP-BD-BA-01',
+        tripCode: 'SWB-0830',
+        routeName: 'Tuyến Bạch Đằng - Bình An - Linh Đông',
+        tripType: 'Commuter' as const,
+        boatName: 'Tàu Sài Gòn 01 (60 chỗ)',
+        departureStationId: 'ST-BACH-DANG',
+        departureStationName: 'Bến Bạch Đằng (Q1)',
+        arrivalStationId: 'ST-BINH-AN',
+        arrivalStationName: 'Bến Bình An (TP. Thủ Đức)',
+        departureTime: `${today}T08:30:00+07:00`,
+        arrivalTime: `${today}T09:15:00+07:00`,
+        salesCloseAt: `${today}T08:20:00+07:00`,
+        status: 'Boarding',
+      },
+      {
+        id: 'TRIP-BD-SS-02',
+        tripCode: 'SWB-SUNSET-1700',
+        routeName: 'Tuyến Hoàng Hôn Ngắm Cảnh Sông Sài Gòn',
+        tripType: 'Sightseeing' as const,
+        boatName: 'Saigon Princess 02 (120 chỗ)',
+        departureStationId: 'ST-BACH-DANG',
+        departureStationName: 'Bến Bạch Đằng (Q1)',
+        arrivalStationId: 'ST-BACH-DANG',
+        arrivalStationName: 'Bến Bạch Đằng (Q1)',
+        departureTime: `${today}T17:00:00+07:00`,
+        arrivalTime: `${today}T18:30:00+07:00`,
+        salesCloseAt: `${today}T16:50:00+07:00`,
+        status: 'Scheduled',
+      },
+    ];
+
+    const bookings = [
+      {
+        id: 'BK-001',
+        publicBookingId: 'pub_wb_98a76b5c',
+        bookingCode: 'WB20261006001',
+        tripId: 'TRIP-BD-BA-01',
+        customerName: 'Trần Văn Minh',
+        customerPhone: '0901234567',
+        totalAmount: 45000,
+        qrCredentialVersion: 1,
+        status: 'Confirmed',
+        tickets: [
+          {
+            id: 'TK-001-A1',
+            bookingId: 'BK-001',
+            ticketNumber: 'TK202610060011',
+            seatCode: 'A01',
+            seatClass: 'Khoang trước (FrontCabin)',
+            passengerName: 'Trần Văn Minh',
+            status: 'Valid' as const,
+            boardingStatus: 'NotCheckedIn' as const,
+            faceFare: 15000,
+            paidFare: 15000,
+          },
+          {
+            id: 'TK-001-A2',
+            bookingId: 'BK-001',
+            ticketNumber: 'TK202610060012',
+            seatCode: 'A02',
+            seatClass: 'Khoang trước (FrontCabin)',
+            passengerName: 'Lê Thị Mai (Vợ)',
+            status: 'Valid' as const,
+            boardingStatus: 'NotCheckedIn' as const,
+            faceFare: 15000,
+            paidFare: 15000,
+          },
+          {
+            id: 'TK-001-A3',
+            bookingId: 'BK-001',
+            ticketNumber: 'TK202610060013',
+            seatCode: 'A03',
+            seatClass: 'Khoang trước (FrontCabin)',
+            passengerName: 'Trần Minh Khang (Con)',
+            status: 'Valid' as const,
+            boardingStatus: 'NotCheckedIn' as const,
+            faceFare: 15000,
+            paidFare: 15000,
+          },
+        ],
+      },
+      {
+        id: 'BK-002',
+        publicBookingId: 'pub_wb_11f22e33',
+        bookingCode: 'WB20261006002',
+        tripId: 'TRIP-BD-BA-01',
+        customerName: 'Nguyễn Thu Trang',
+        customerPhone: '0987654321',
+        totalAmount: 30000,
+        qrCredentialVersion: 1,
+        status: 'Confirmed',
+        tickets: [
+          {
+            id: 'TK-002-B1',
+            bookingId: 'BK-002',
+            ticketNumber: 'TK202610060021',
+            seatCode: 'B05',
+            seatClass: 'Tiêu chuẩn (Standard)',
+            passengerName: 'Nguyễn Thu Trang',
+            status: 'Valid' as const,
+            boardingStatus: 'NotCheckedIn' as const,
+            faceFare: 15000,
+            paidFare: 15000,
+          },
+          {
+            id: 'TK-002-B2',
+            bookingId: 'BK-002',
+            ticketNumber: 'TK202610060022',
+            seatCode: 'B06',
+            seatClass: 'Tiêu chuẩn (Standard)',
+            passengerName: 'Hoàng Quốc Bảo',
+            status: 'Valid' as const,
+            boardingStatus: 'NotCheckedIn' as const,
+            faceFare: 15000,
+            paidFare: 15000,
+          },
+        ],
+      },
+      {
+        id: 'BK-003',
+        publicBookingId: 'pub_wb_44d55c66',
+        bookingCode: 'WB20261006003',
+        tripId: 'TRIP-BD-BA-01',
+        customerName: 'Phạm Đức Huy',
+        customerPhone: '0912345678',
+        totalAmount: 15000,
+        qrCredentialVersion: 1,
+        status: 'Confirmed',
+        tickets: [
+          {
+            id: 'TK-003-C1',
+            bookingId: 'BK-003',
+            ticketNumber: 'TK202610060031',
+            seatCode: 'C10',
+            seatClass: 'Boong ngoài trời (Outdoor)',
+            passengerName: 'Phạm Đức Huy',
+            status: 'Valid' as const,
+            boardingStatus: 'NotCheckedIn' as const,
+            faceFare: 15000,
+            paidFare: 15000,
+          },
+        ],
+      },
+    ];
+
+    return {
+      stationId,
+      stationName: 'Bến Bạch Đằng (Quận 1)',
+      generatedAt: new Date().toISOString(),
+      publicKey: DEFAULT_KEY_INFO,
+      trips,
+      bookings,
+    };
+  }
 }
 
 export const syncService = new SyncService();

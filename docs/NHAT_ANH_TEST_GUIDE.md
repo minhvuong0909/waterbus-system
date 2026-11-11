@@ -1,6 +1,10 @@
-# Nhật Anh — kết quả triển khai và cách test (2026-10-13)
+# Nhật Anh — kết quả triển khai và cách test (cập nhật 2026-10-28)
 
-## Kết quả
+## Kết quả trước đồng bộ main
+
+Sau `3b6701b`, kết quả được báo cáo: **785 passed, 0 failed, 0 skipped**, gồm **18 SQL/Redis integration tests**; build **0 warnings, 0 errors**. Đây là kết quả lịch sử trước merge. Xem [báo cáo refactoring](../waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md) cho kết quả hậu đồng bộ.
+
+### Baseline lịch sử 2026-10-13
 
 **Phần backend TV2 đã implement và kiểm thử local.** Build: 0 warnings/errors. Test suite: **215 pass, 0 fail, 0 skip**, có SQL Server 2022 thật và ba Redis độc lập. HTTP smoke pass: Draft, đổi ghế, submit, payment retry, IPN/replay, Ticket, QR RSA, Admin refund và refund retry. Bộ request Postman được kiểm tra bằng HTTP runner: 11 requests + script IPN local đều pass; chưa chạy bằng ứng dụng Postman.
 
@@ -8,15 +12,16 @@ Các test SQL chứng minh hai checkout đồng thời chỉ một winner; round
 
 ## Kiến trúc BE
 
-Giữ **ASP.NET Core MVC Controller API + frontend riêng**, tổ chức bên trong theo Clean Architecture/CQRS của repo:
+Giữ **ASP.NET Core MVC Controller API + frontend riêng**, với các use case Booking, Checkout, Guest Access, Payment/VNPay, Refund và QR theo:
 
-`Controller → MediatR validator/handler → application service/domain`
+`Controller → IService → Service → IRepository → Repository → EF Core`
 
-Infrastructure cung cấp EF/SQL transaction, Redis, VNPay HTTP/HMAC và RSA qua interface. Controller TV2 chỉ xử lý binding/HTTP context và gửi command/query. `BookingCreationService` và `PaymentConfirmationService` chứa nghiệp vụ dùng chung; các handler không gọi trực tiếp handler khác. Transaction runner bắt buộc; fake runner chỉ nằm trong tests. `CheckoutCommitEffects` đồng bộ session/event sau commit. Query public key tách thành feature slice riêng.
+Application Services phối hợp Domain Entities, Unit of Work, SQL commercial transaction và interface tích hợp; không dùng EF/MediatR trong các service thương mại. Infrastructure cung cấp repository, SQL transaction, Redis, VNPay HTTP/HMAC và RSA. Validate request qua `ValidateRequestFilter` tại các action đã đăng ký validator. `CheckoutCommitEffects` cập nhật session/event sau commit; QR/public key qua `IBookingQrService`. Các handler thương mại cũ đã được xóa; CQRS của module ngoài phạm vi vẫn giữ nguyên. Auth đã migrate sang service theo convention của nhóm.
 
-Application vẫn dùng EF qua IApplicationDbContext theo cấu trúc hiện có của repo. Đây là Clean Architecture theo lựa chọn hiện tại, không phải bản độc lập hoàn toàn khỏi ORM. Không đổi kiến trúc toàn dự án hoặc refactor IAM của Vương. AuthController hiện còn xử lý login trực tiếp; phần BE chung này chưa thống nhất hoàn toàn với quy tắc controller mỏng.
+POST Booking trả Location tới Checkout GET và vẫn yêu cầu `X-Guest-Token`. VNPay GET và POST IPN đều dùng signed query string; form body không thay thế query. HTTP tests bao phủ các hợp đồng này.
 
-## Đã xong / phần còn phụ thuộc
+
+## Phạm vi triển khai và phụ thuộc lịch sử 2026-10-13
 
 | Phần | Trạng thái hiện tại | Còn cần ai / điều kiện nào |
 | --- | --- | --- |
@@ -33,11 +38,11 @@ Application vẫn dùng EF qua IApplicationDbContext theo cấu trúc hiện có
 
 Không gọi bank thật trong kiểm thử này. Gateway giả local kiểm tra HMAC request refund, ký HMAC response và trả kết quả giả; không có tiền thật chuyển đi. Không coi đây là nghiệm thu VNPay sandbox/production hoặc nghiệm thu toàn bộ UI/mobile.
 
-## Test ngay ở môi trường demo đã bật
+## Môi trường demo lịch sử 2026-10-13 (cần kiểm tra lại trước khi dùng)
 
 API: **http://127.0.0.1:5189**. Swagger: **http://127.0.0.1:5189/swagger**. API dùng DB demo riêng `WaterbusDomainTests_Smoke_*`, SQL host 14335; Redis ở 63795/63796/63797; merchant giả TESTCODE và gateway giả ở 5190. Không dùng/ghi dữ liệu DB phát triển của bạn. QR private key local được lưu trong User Secrets, không nằm trong repo.
 
-Demo được để chạy sau khi kiểm thử trong phiên này. Nó cần Docker Desktop và process API còn chạy; đây không phải deployment thường trực. SQL/Redis dùng các container `waterbus_nhatanh_test_*`. Nếu Docker/app tắt, xem mục chạy lại bên dưới; không dùng collection này với merchant thật.
+Demo từng được để chạy sau kiểm thử ngày 2026-10-13; trạng thái hiện tại chưa được xác nhận. Nó cần Docker Desktop và process API còn chạy; đây không phải deployment thường trực. SQL/Redis dùng các container `waterbus_nhatanh_test_*`. Nếu Docker/app tắt, xem mục chạy lại bên dưới; không dùng collection này với merchant thật.
 
 ### Postman
 
@@ -91,4 +96,7 @@ Lệnh này dùng cấu hình thông thường của bạn, không tự bật me
 - Endpoint public key cấp key hiện tại; chiến lược preload/key rotation nhiều key cần thống nhất với Tuấn trước khi triển khai scanner.
 - Mapping env TV2 mới vào Docker Compose thuộc Kiệt; việc thêm vào .env.example chưa tự làm container đọc các key đó.
 
-Code còn local, chưa commit/push. Các thay đổi sẵn có ở `.gitignore` và `waterbus-be/docker-compose.yml` được giữ nguyên; không đưa chúng vào phạm vi sửa TV2.
+Trạng thái lịch sử ngày 2026-10-13: code khi đó còn local, chưa commit/push; các thay đổi sẵn có ở `.gitignore` và `waterbus-be/docker-compose.yml` được giữ ngoài phạm vi TV2. Refactoring hiện đã được commit trên `refactor/commercial-transactions`; trạng thái đồng bộ và kiểm chứng mới được ghi trong báo cáo cuối.
+
+
+Kiểm chứng mới sau fetch main ngày 2026-10-28: `origin/main` = `49e1040ec1611a3eac97d3a65bc6c61fa56db688` đã có sẵn trong nhánh, không cần merge và không có conflict. Build **0 warnings, 0 errors**; runner `-AllTests` với SQL Server và ba Redis: **785 passed, 0 failed, 0 skipped**, gồm **18 integration cases** và **7 HTTP cases**. Xem [báo cáo cuối](../waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md) cho lệnh, phạm vi và giới hạn nghiệm thu. Chưa kiểm chứng merchant VNPay thật hoặc scanner triển khai.

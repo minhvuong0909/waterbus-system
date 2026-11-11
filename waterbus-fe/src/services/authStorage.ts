@@ -1,5 +1,18 @@
-import type { AuthSession } from '../features/authentication/authenticationTypes'
 import { isTokenExpired } from '../utils/jwt'
+
+export interface AuthUser {
+  id: string
+  fullName: string
+  email: string
+  /** Role names as issued by the backend, e.g. "Admin" (see `constant/roles.ts`). */
+  roles: string[]
+}
+
+/** The signed-in user and their JWT. */
+export interface AuthSession {
+  user: AuthUser
+  token: string
+}
 
 const STORAGE_KEY = 'waterbus.session'
 

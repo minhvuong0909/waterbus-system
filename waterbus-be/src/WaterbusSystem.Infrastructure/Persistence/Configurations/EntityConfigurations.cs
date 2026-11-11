@@ -375,6 +375,7 @@ public class FinancialTransactionConfiguration : IEntityTypeConfiguration<Financ
         builder.Property(x => x.Currency).HasMaxLength(10).IsRequired();
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.GatewayName).HasMaxLength(50);
+        builder.Property(x => x.IsDemoRefund).HasDefaultValue(false);
         builder.Property(x => x.GatewayReference).HasMaxLength(100);
         builder.Property(x => x.MerchantReference).HasMaxLength(100);
         builder.Property(x => x.IdempotencyKey).HasMaxLength(200).IsRequired();
@@ -438,14 +439,39 @@ public class ScannerAssignmentConfiguration : IEntityTypeConfiguration<ScannerAs
 {
     public void Configure(EntityTypeBuilder<ScannerAssignment> builder)
     {
-        builder.HasIndex(x => x.TripStopCallId)
-            .IsUnique()
-            .HasFilter("[IsPrimaryOffline] = 1");
         builder.HasOne(x => x.Device).WithMany()
             .HasForeignKey(x => x.DeviceId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.TripStopCall).WithMany()
             .HasForeignKey(x => x.TripStopCallId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.RowVersion).IsRowVersion();
+
+        // Review PR #58: index FK thường (mọi bản ghi, không điều kiện) cho các truy vấn chung theo
+        // TripStopCallId (vd liệt kê toàn bộ scanner - Primary/secondary, hữu hạn/vô hạn - của 1
+        // điểm dừng) - index filtered unique dưới đây CHỈ phủ đúng tập con Primary mở, không dùng
+        // được cho truy vấn tổng quát này. Phải khai báo tường minh vì EF Core convention chỉ tạo 1
+        // index FK duy nhất cho cột này, và index filtered unique bên dưới (khai báo sau) đã chiếm
+        // vị trí đó nếu không có dòng này.
+        // Dùng overload HasIndex(expression, name) - bắt buộc để tạo 2 index KHÁC NHAU trên CÙNG 1
+        // cột: gọi .HasDatabaseName(...) sau .HasIndex(x => x.TripStopCallId) ở 2 lần riêng (như bản
+        // trước) chỉ cấu hình lại ĐÚNG 1 object index đã có (EF Core gộp theo property list), không
+        // tạo index thứ hai - verify bằng ApplicationDbContextModelSnapshot.cs chỉ còn 1 index sau khi
+        // generate migration rỗng.
+        builder.HasIndex(x => x.TripStopCallId, "IX_ScannerAssignments_TripStopCallId");
+
+        // CHK-03: check-then-insert ở AssignScannerAsync (HasOverlappingPrimaryAssignmentAsync rồi
+        // mới Add) không tự chặn được race 2 request đồng thời cùng gán Primary Offline Scanner cho
+        // cùng điểm dừng. Unique filtered index này là lưới an toàn ở DB cho đúng trường hợp phổ
+        // biến nhất (phân công không đặt ActiveUntil - mặc định vô thời hạn): chặn CỨNG 2 bản ghi
+        // Primary "mở" cùng tồn tại cho 1 TripStopCall.
+        // Review PR #58 (follow-up, chưa xử lý trong lần này): trường hợp cả 2 đều có ActiveUntil
+        // tường minh và vô tình chồng lấn khoảng thời gian hữu hạn vẫn là race chưa có constraint DB
+        // chặn (SQL Server không có exclusion constraint kiểu range như Postgres GIST) - vẫn chỉ dựa
+        // vào check-then-insert ở AssignScannerAsync. Cần theo dõi riêng (vd job đối soát định kỳ
+        // phát hiện overlap hữu hạn, hoặc constraint kiểu range giả lập bằng trigger) trước khi coi
+        // là đã khép kín BR-OFF-02 cho mọi trường hợp ActiveUntil.
+        builder.HasIndex(x => x.TripStopCallId, "IX_ScannerAssignments_TripStopCallId_OpenEndedPrimary")
+            .IsUnique()
+            .HasFilter("[IsPrimaryOffline] = 1 AND [ActiveUntil] IS NULL AND [IsDeleted] = 0");
     }
 }
 public class CheckInEventConfiguration : IEntityTypeConfiguration<CheckInEvent>
@@ -557,3 +583,54 @@ public class AudioGuideConfiguration : IEntityTypeConfiguration<AudioGuide>
         builder.Property(x => x.RowVersion).IsRowVersion();
     }
 }
+
+public class EmailOutboxMessageConfiguration : IEntityTypeConfiguration<EmailOutboxMessage>
+{
+    public void Configure(EntityTypeBuilder<EmailOutboxMessage> builder)
+    {
+        builder.ToTable("EmailOutbox");
+        // Chốt chặn idempotency cuối cùng: một sự kiện nghiệp vụ = một thông báo logic.
+        builder.HasIndex(x => x.EventKey).IsUnique().HasDatabaseName("UX_EmailOutbox_EventKey");
+        // Truy vấn dispatch của worker (Pending/Failed đến hạn, Processing hết lease).
+        builder.HasIndex(x => new { x.Status, x.NextAttemptAt }).HasDatabaseName("IX_EmailOutbox_Dispatch");
+        builder.HasIndex(x => x.OrderId).HasDatabaseName("IX_EmailOutbox_OrderId");
+        builder.Property(x => x.EventKey).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.NotificationType).HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(x => x.RecipientEmail).HasMaxLength(254).IsRequired();
+        builder.Property(x => x.RecipientName).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.ProviderMessageId).HasMaxLength(200);
+        builder.Property(x => x.LastError).HasMaxLength(500);
+        // Không FK cứng tới Order/Booking/Refund: outbox là nhật ký tham chiếu, không được chặn/cascade nghiệp vụ.
+        builder.Property(x => x.RowVersion).IsRowVersion();
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_EmailOutbox_Status", "[Status] IN ('Pending', 'Processing', 'Sent', 'Failed', 'DeadLetter', 'Skipped')");
+            t.HasCheckConstraint("CK_EmailOutbox_Attempts", "[AttemptCount] >= 0");
+        });
+    }
+}
+
+public class AudioPlaybackRequestConfiguration : IEntityTypeConfiguration<AudioPlaybackRequest>
+{
+    public void Configure(EntityTypeBuilder<AudioPlaybackRequest> builder)
+    {
+        builder.ToTable("AudioPlaybackRequests");
+        // Chốt chặn chống phát trùng bền vững: một lượt ghé POI trên một Trip chỉ có một lệnh (BR-EXP-05).
+        builder.HasIndex(x => new { x.TripId, x.RoutePoiKey, x.VisitKey }).IsUnique().HasDatabaseName("UX_AudioPlaybackRequests_Visit");
+        builder.HasIndex(x => new { x.BoatId, x.Status }).HasDatabaseName("IX_AudioPlaybackRequests_Boat");
+        builder.Property(x => x.VisitKey).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.AudioAssetUri).HasMaxLength(500);
+        builder.Property(x => x.FailureReason).HasMaxLength(300);
+        builder.Property(x => x.Status).HasConversion<int>();
+        builder.Property(x => x.ReservationEpoch).HasDefaultValue(0);
+        builder.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId).OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.RowVersion).IsRowVersion();
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint("CK_AudioPlaybackRequests_Status", "[Status] BETWEEN 1 AND 6");
+            t.HasCheckConstraint("CK_AudioPlaybackRequests_Attempts", "[Attempts] >= 0");
+        });
+    }
+}
+

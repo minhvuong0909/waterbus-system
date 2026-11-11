@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Icon font, self-hosted and cut down to the glyphs the app uses (about 20 KB instead of ~970 KB).
+   `block` keeps the icon invisible until it loads, so its name is never shown as text.
+   A new icon name must be added to the subset (see src/assets/fonts/README.md). */
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('./assets/fonts/material-symbols-outlined.woff2') format('woff2');
+}
+
 @layer base {
   html,
   body {
@@ -9,12 +20,38 @@
     padding: 0;
   }
   body {
-    @apply bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-secondary-container selection:text-on-secondary-container;
+    @apply bg-surface font-sans text-body-md text-on-surface antialiased selection:bg-secondary-container selection:text-on-secondary-container;
     overscroll-behavior: none;
   }
   /* Keyboard users get a clear ring; mouse clicks do not. */
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-teal-flow;
+    @apply outline outline-2 outline-offset-2 outline-teal-flow;
+  }
+  html {
+    scroll-padding-top: 6rem;
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button,
+  a {
+    touch-action: manipulation;
+  }
+  img {
+    max-width: 100%;
+  }
+}
+
+/* Tránh Safari phóng to form khi chạm ô nhập trên điện thoại. */
+@media (max-width: 639px) {
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: 16px;
   }
 }
 
@@ -47,12 +84,50 @@
     -webkit-font-smoothing: antialiased;
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   }
+  /* Grows the touch area of a small link or button to ~44px without changing how it looks. */
+  .tap-area {
+    position: relative;
+  }
+  .tap-area::before {
+    content: '';
+    position: absolute;
+    inset: -12px -4px;
+  }
   .material-symbols-outlined.filled {
     font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   }
 }
 
 /* Boat marker on the fleet map: a disc that glides to each new position. */
+.hover-lift {
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out, background-color 200ms ease-out;
+}
+.scroll-strip {
+  scrollbar-width: none;
+}
+.scroll-strip::-webkit-scrollbar {
+  display: none;
+}
+.pointer-glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at 85% 20%, rgba(255, 255, 255, 0.14), transparent 65%);
+  transition: opacity 220ms ease-out;
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px -16px rgba(13, 37, 56, 0.35);
+  }
+  .pointer-glow:hover::before {
+    opacity: 1;
+  }
+}
+
 .fleet-boat {
   display: flex;
   align-items: center;

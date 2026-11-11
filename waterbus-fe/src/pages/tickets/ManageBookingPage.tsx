@@ -1,11 +1,12 @@
-import { useParams } from 'react-router-dom'
-import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
-import {
-  BookingSummaryCard,
-  OperatingBanner,
-  RefundPolicyCard,
-} from '../../features/tickets/components/ManageParts'
+import { useNavigate, useParams } from 'react-router-dom'
+import { Breadcrumb, Button, ErrorState, PageLoader } from '../../components/ui'
+import BookingSummaryCard from '../../features/tickets/components/BookingSummaryCard'
+import ManageLinkCard from '../../features/tickets/components/ManageLinkCard'
+import BookingLinkPrompt from '../../features/tickets/components/BookingLinkPrompt'
+import RefundPolicyCard from '../../features/tickets/components/RefundPolicyCard'
 import { useManageBooking } from '../../features/tickets/hooks/useTickets'
+import { forgetOrder } from '../../features/tickets/orderStorage'
+import { hasOrderToManage } from '../../features/tickets/services/ticketService'
 import { useDocumentTitle } from '../../hooks'
 import { ApiError } from '../../services/apiClient'
 import { ROUTES } from '../../routes/routes'
@@ -13,16 +14,31 @@ import { t } from '../../i18n'
 
 export default function ManageBookingPage() {
   useDocumentTitle('Manage Booking')
+  const navigate = useNavigate()
   const { token } = useParams()
   const { manage, loading, error, retry } = useManageBooking(token)
 
-  if (error instanceof ApiError && error.status === 404) {
+  // Không có link và tab này chưa đặt đơn nào: cho khách dán link đã lưu thay vì báo lỗi.
+  if (!hasOrderToManage(token)) {
     return (
-      <ErrorState
+      <BookingLinkPrompt
+        title={t('Open your booking')}
+        message={t(
+          'Paste the booking link you saved after payment. Tickets bought in this browser are already in My Tickets.',
+        )}
+      />
+    )
+  }
+
+  // 403: the backend rejects a wrong or expired guest token the same way as an unknown booking.
+  if (error instanceof ApiError && (error.status === 404 || error.status === 403)) {
+    return (
+      <BookingLinkPrompt
         title={t('This link is invalid or has expired')}
         message={t(
-          'Open the latest email or message we sent you, or look up your booking with your booking code.',
+          'Check that you copied the whole link, or call the hotline with your booking code.',
         )}
+        warning
       />
     )
   }
@@ -43,7 +59,7 @@ export default function ManageBookingPage() {
 
       <div className="mt-space-md flex flex-col justify-between gap-space-md md:flex-row md:items-start">
         <div>
-          <h1 className="font-headline-xl text-4xl font-bold tracking-tight text-deep-river">
+          <h1 className="font-display text-4xl font-bold tracking-tight text-deep-river">
             {t('Manage Your Booking')}
           </h1>
           <p className="mt-1 text-body-md text-on-surface-variant">
@@ -64,11 +80,30 @@ export default function ManageBookingPage() {
 
       <div className="mt-space-lg space-y-space-md">
         <BookingSummaryCard ticket={manage.ticket} />
-        <OperatingBanner vessel={manage.ticket.tripCode} />
       </div>
+
+      {manage.manageUrl && (
+        <div className="mt-space-md">
+          <ManageLinkCard url={manage.manageUrl} />
+        </div>
+      )}
 
       <div className="mt-space-md">
         <RefundPolicyCard />
+      </div>
+
+      <div className="mt-space-lg flex justify-end">
+        <Button
+          variant="text"
+          size="sm"
+          icon="delete"
+          onClick={() => {
+            forgetOrder(manage.orderId)
+            navigate(ROUTES.myTickets)
+          }}
+        >
+          {t('Remove from this device')}
+        </Button>
       </div>
     </div>
   )

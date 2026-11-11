@@ -2,10 +2,8 @@
  * SQLite Local Database Service
  * Provides offline-first persistence for preloaded trips, bookings, tickets, public keys,
  * and offline check-in event queues.
- * Supports Expo SQLite with cross-platform fallback for Web/Unit Tests.
+ * Supports Expo SQLite (SDK 54) with cross-platform fallback for Web/Unit Tests.
  */
-
-declare const require: any;
 
 function isNativeApp(): boolean {
   try {
@@ -42,10 +40,7 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
 
   async runAsync(sql: string, params: any[] = []): Promise<{ lastInsertRowId: number; changes: number }> {
     const trimmed = sql.trim().toUpperCase();
-    if (
-      trimmed.startsWith('INSERT INTO PUBLIC_KEYS') ||
-      trimmed.startsWith('INSERT OR REPLACE INTO PUBLIC_KEYS')
-    ) {
+    if (trimmed.startsWith('INSERT INTO PUBLIC_KEYS') || trimmed.startsWith('INSERT OR REPLACE INTO PUBLIC_KEYS')) {
       const [kid, algo, pem, from, to, active] = params;
       const filtered = this.tables.public_keys.filter(k => k.kid !== kid);
       filtered.push({ kid, algorithm: algo, public_key_pem: pem, valid_from: from, valid_to: to, is_active: active });
@@ -65,10 +60,10 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       return { lastInsertRowId: 1, changes: 1 };
     }
     if (trimmed.startsWith('INSERT INTO MANIFEST_BOOKINGS') || trimmed.startsWith('INSERT OR REPLACE INTO MANIFEST_BOOKINGS')) {
-      const [id, pbid, code, tripId, tripStopCallId, cName, cPhone, amount, ver, status] = params;
+      const [id, pbid, code, tripId, cName, cPhone, amount, ver, status] = params;
       const filtered = this.tables.manifest_bookings.filter(b => b.id !== id);
       filtered.push({
-        id, public_booking_id: pbid, booking_code: code, trip_id: tripId, trip_stop_call_id: tripStopCallId,
+        id, public_booking_id: pbid, booking_code: code, trip_id: tripId,
         customer_name: cName, customer_phone: cPhone, total_amount: amount,
         qr_credential_version: ver, status
       });
@@ -126,33 +121,20 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       }
       return { lastInsertRowId: 0, changes: 0 };
     }
-    // H03: markEventConflict — SET sync_status = 'Conflict', outcome = ?
-    if (normalized.includes("SYNC_STATUS = 'CONFLICT'") && normalized.includes('OUTCOME = ?')) {
-      const [outcomeVal, lAtt, errMsg, cEventId] = params;
+    if (normalized.includes("UPDATE OFFLINE_CHECKIN_EVENTS SET SYNC_STATUS = 'CONFLICT'")) {
+      // markEventConflict - phải tách khỏi nhánh markEventsSynced bên dưới, nếu không sẽ bị
+      // nhánh đó bắt nhầm trước (cùng bắt đầu bằng "SET SYNC_STATUS") và đánh sai thành Synced.
+      const [lAtt, errMsg, cEventId] = params;
       const event = this.tables.offline_checkin_events.find(e => e.client_event_id === cEventId);
       if (event) {
         event.sync_status = 'Conflict';
-        event.outcome = outcomeVal; // 'LateSyncRejected' or 'Conflict'
+        event.outcome = 'Conflict';
         event.last_sync_attempt_at = lAtt;
         event.error_message = errMsg;
         return { lastInsertRowId: 0, changes: 1 };
       }
       return { lastInsertRowId: 0, changes: 0 };
     }
-    if (normalized.includes('UPDATE OFFLINE_CHECKIN_EVENTS SET RETRY_COUNT')) {
-      const [lastAttemptAt, errorMessage, clientEventId] = params;
-      const event = this.tables.offline_checkin_events.find(
-        (item) => item.client_event_id === clientEventId
-      );
-      if (event) {
-        event.retry_count += 1;
-        event.last_sync_attempt_at = lastAttemptAt;
-        event.error_message = errorMessage;
-        return { lastInsertRowId: 0, changes: 1 };
-      }
-      return { lastInsertRowId: 0, changes: 0 };
-    }
-    // markEventsSynced — SET sync_status = 'Synced'
     if (normalized.includes('UPDATE OFFLINE_CHECKIN_EVENTS SET SYNC_STATUS')) {
       const [recAt, lAtt, cEventId] = params;
       const targetId = cEventId || params[params.length - 1];
@@ -161,6 +143,19 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
         event.sync_status = 'Synced';
         event.received_at_server = recAt;
         event.last_sync_attempt_at = lAtt;
+        return { lastInsertRowId: 0, changes: 1 };
+      }
+      return { lastInsertRowId: 0, changes: 0 };
+    }
+    if (normalized.includes('UPDATE OFFLINE_CHECKIN_EVENTS SET RETRY_COUNT')) {
+      // recordSyncFailure - trước đây KHÔNG được xử lý ở fallback in-memory: lỗi sync không bao
+      // giờ thực sự được ghi lại (retry_count/error_message) khi chạy ngoài native (web/script test).
+      const [lAtt, errMsg, cEventId] = params;
+      const event = this.tables.offline_checkin_events.find(e => e.client_event_id === cEventId);
+      if (event) {
+        event.retry_count = (event.retry_count || 0) + 1;
+        event.last_sync_attempt_at = lAtt;
+        event.error_message = errMsg;
         return { lastInsertRowId: 0, changes: 1 };
       }
       return { lastInsertRowId: 0, changes: 0 };
@@ -203,11 +198,7 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       return [...this.tables.manifest_tickets] as any;
     }
     if (trimmed.includes('FROM PUBLIC_KEYS')) {
-      const activeKeys = this.tables.public_keys.filter((key) => key.is_active === 1);
-      if (trimmed.includes('KID = ?')) {
-        return activeKeys.filter((key) => key.kid === params[0]) as any;
-      }
-      return activeKeys.sort((left, right) => right.valid_from.localeCompare(left.valid_from)) as any;
+      return [...this.tables.public_keys] as any;
     }
     return [];
   }
@@ -230,6 +221,7 @@ export async function getDatabase(): Promise<DatabaseAdapter> {
   }
 
   if (!isNativeApp()) {
+    console.log('[SQLite] Running in Web/Test environment — using InMemory SQLite Fallback');
     const fallback = new InMemoryFallbackDatabase();
     await initSchema(fallback);
     dbInstance = fallback;
@@ -237,7 +229,7 @@ export async function getDatabase(): Promise<DatabaseAdapter> {
   }
 
   try {
-    const SQLite = await import('expo-sqlite');
+    const SQLite = await import('./sqliteDriver');
     const nativeDb = await SQLite.openDatabaseAsync(DB_NAME);
 
     // Wrapper matching DatabaseAdapter interface
@@ -258,7 +250,8 @@ export async function getDatabase(): Promise<DatabaseAdapter> {
     await initSchema(adapter);
     dbInstance = adapter;
     return dbInstance;
-  } catch {
+  } catch (error) {
+    console.warn('[SQLite] Failed to open native database, falling back to in-memory adapter:', error);
     const fallback = new InMemoryFallbackDatabase();
     await initSchema(fallback);
     dbInstance = fallback;
@@ -310,8 +303,7 @@ async function initSchema(db: DatabaseAdapter): Promise<void> {
       customer_phone TEXT,
       total_amount REAL NOT NULL,
       qr_credential_version INTEGER NOT NULL DEFAULT 1,
-      status TEXT NOT NULL,
-      trip_stop_call_id TEXT
+      status TEXT NOT NULL
     );
 
     -- Bảng lưu manifest từng vé (Ticket) thuộc Booking
@@ -372,14 +364,18 @@ async function initSchema(db: DatabaseAdapter): Promise<void> {
 
   await db.execAsync(schemaSql);
 
-  // Migration an toàn cho các thiết bị đã tạo DB cũ trước đó:
-  // Nếu bảng public_keys cũ còn dính constraint NOT NULL ở valid_from, recreate lại bảng
-  const pkTableInfo = await db.getAllAsync<{ name: string; notnull: number }>('PRAGMA table_info(public_keys)');
-  const validFromColumn = pkTableInfo.find(column => column.name === 'valid_from');
-  if (validFromColumn?.notnull === 1) {
+  const publicKeyColumns = await db.getAllAsync<{ name: string; notnull: number }>(
+    'PRAGMA table_info(public_keys)'
+  );
+  const hasRequiredValidityWindow = publicKeyColumns.some(
+    column => (column.name === 'valid_from' || column.name === 'valid_to') && column.notnull === 1
+  );
+
+  if (hasRequiredValidityWindow) {
     await db.withTransactionAsync(async () => {
       await db.execAsync(`
-        CREATE TABLE IF NOT EXISTS public_keys_new (
+        DROP TABLE IF EXISTS public_keys_migration;
+        CREATE TABLE public_keys_migration (
           kid TEXT PRIMARY KEY,
           algorithm TEXT NOT NULL,
           public_key_pem TEXT NOT NULL,
@@ -389,19 +385,14 @@ async function initSchema(db: DatabaseAdapter): Promise<void> {
         );
       `);
       await db.execAsync(`
-        INSERT OR IGNORE INTO public_keys_new (
+        INSERT OR IGNORE INTO public_keys_migration (
           kid, algorithm, public_key_pem, valid_from, valid_to, is_active
         )
         SELECT kid, algorithm, public_key_pem, valid_from, valid_to, is_active
         FROM public_keys;
       `);
       await db.execAsync('DROP TABLE public_keys');
-      await db.execAsync('ALTER TABLE public_keys_new RENAME TO public_keys');
+      await db.execAsync('ALTER TABLE public_keys_migration RENAME TO public_keys');
     });
-  }
-
-  const bookingColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(manifest_bookings)');
-  if (!bookingColumns.some(column => column.name === 'trip_stop_call_id')) {
-    await db.execAsync('ALTER TABLE manifest_bookings ADD COLUMN trip_stop_call_id TEXT');
   }
 }

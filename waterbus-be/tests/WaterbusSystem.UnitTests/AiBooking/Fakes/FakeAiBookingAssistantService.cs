@@ -1,7 +1,10 @@
+using WaterbusSystem.Application.Interfaces.Services;
+using WaterbusSystem.Application.DTOs.Responses.AiBooking;
+using WaterbusSystem.Application.DTOs.Requests.AiBooking;
 using FluentValidation;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.AiBooking.Models;
-using WaterbusSystem.Application.Features.AiBooking.Validators;
+using WaterbusSystem.Application.Validators.AiBooking;
 
 namespace WaterbusSystem.UnitTests.AiBooking.Fakes;
 

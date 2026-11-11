@@ -4,9 +4,13 @@ import { orderSettled } from '../../booking/bookingSlice'
 import { getCheckout } from '../../booking/services/bookingService'
 import type { CheckoutDetail } from '../../booking/types'
 import { reconcilePayment } from '../services/paymentService'
+import { isPaidAfterExpiry } from '../utils'
 
-/** pending: still waiting for the backend; confirmed: paid; failed: expired or cancelled; timeout: gave up waiting. */
-export type ConfirmationPhase = 'none' | 'pending' | 'confirmed' | 'failed' | 'timeout'
+/**
+ * pending: still waiting for the backend; confirmed: paid; failed: expired or cancelled; timeout: gave
+ * up waiting; paidLate: money was taken after the order expired, so no ticket and a refund is due.
+ */
+export type ConfirmationPhase = 'none' | 'pending' | 'confirmed' | 'failed' | 'timeout' | 'paidLate'
 
 const POLL_MS = 3000
 const MAX_POLLS = 40
@@ -44,7 +48,7 @@ export function useOrderConfirmation() {
           return
         }
         if (result.status === 'Expired' || result.status === 'Cancelled') {
-          setPhase('failed')
+          setPhase(isPaidAfterExpiry(result) ? 'paidLate' : 'failed')
           dispatch(orderSettled())
           return
         }

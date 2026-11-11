@@ -1,8 +1,7 @@
-import type { Seat } from '../booking/types'
-import type { SearchQuery, Trip } from '../trips/types'
-
 export interface Ticket {
   id: string
+  /** Backend trip id, used to follow the trip on the tracking page. */
+  tripId: string
   /** Vessel/trip code, e.g. "SWB-01". */
   tripCode: string
   lineName: string
@@ -11,6 +10,7 @@ export interface Ticket {
   bookingRef: string
   /** Code encoded in the boarding QR. */
   ticketCode: string
+  qrPayload?: string
   /** Display text, already in the active language. */
   status: string
   departTime: string
@@ -35,31 +35,21 @@ export interface Ticket {
   windowSeat: boolean
   /** True once the journey has been made. */
   completed: boolean
+  /** Vòng đời vé (BR v2.0 mục 13). Chưa có thì xem như `Valid`. */
+  lifecycle?: 'Valid' | 'Cancelled' | 'Terminated' | 'Completed'
+  /** Kết quả check-in hiện hành tại bến lên (BR-OFF-05). Chưa có thì xem như `NotCheckedIn`. */
+  boardingStatus?: 'NotCheckedIn' | 'CheckedIn' | 'NoShow'
+  /** Tiền hoàn của vé này (BR-RF), kèm trạng thái xử lý. Chỉ có khi chuyến bị huỷ/kết thúc sớm. */
+  refund?: { amountVnd: number; state: 'Requested' | 'Processing' | 'Succeeded' | 'Failed' }
   fareVnd: number
   vesselNote: string
   gate: string
-}
-
-/**
- * What is stored for a booking made in this session. The display ticket is rebuilt from it in the
- * active language every time, so switching language never leaves half-translated tickets behind.
- */
-export interface BookedSnapshot {
-  id: string
-  tripId: string
-  /** The trip chosen from the search results; null when only an id is known (mock trips). */
-  selectedTrip: Trip | null
-  query: SearchQuery
-  /** One ticket is issued per seat. */
-  seats: Seat[]
-  /** What each ticket cost, in the order of `seats`. */
-  fares: number[]
-  /** Name of the passenger on each seat, in the order of `seats`. */
-  passengerNames: string[]
+  /** Đường dẫn Manage Order secure link của đơn chứa vé này (BR-ID-02). */
+  manageLink?: string
 }
 
 export interface TicketWallet {
-  next: Ticket
+  next?: Ticket
   later: Ticket[]
   past: Ticket[]
 }
@@ -67,4 +57,15 @@ export interface TicketWallet {
 export interface ManageBooking {
   bookingCode: string
   ticket: Ticket
+  orderId: string
+  /** Link quản lý vé để khách lưu lại; không có khi đơn không có token Guest. */
+  manageUrl?: string
+}
+
+/** Một đơn đã mua trên thiết bị này, kèm token Guest để mở lại (BR-ID-02). */
+export interface SavedOrder {
+  orderId: string
+  accessToken: string
+  /** ms since epoch, đơn mới nhất đứng đầu. */
+  savedAt: number
 }

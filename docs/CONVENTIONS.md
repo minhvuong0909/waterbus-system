@@ -1,7 +1,7 @@
 # Smart Waterbus — Quy ước & Quy tắc dự án
 
 > Áp dụng cho cả 6 thành viên. Nguồn chuẩn nghiệp vụ: `Smart_Waterbus_Business_Rules_v2_0_FINAL_2026-09-29.md`.
-> Khi quy ước này mâu thuẫn với `SETUP.md` hoặc `TASK_BREAKDOWN_ROADMAP.md` (viết trước BR v2.0), **file này và BR v2.0 thắng**.
+> Khi quy ước này mâu thuẫn với `SETUP.md` (viết trước BR v2.0), **file này và BR v2.0 thắng**.
 > Phần nào ghi là chưa được cả nhóm xác nhận — chốt trong buổi họp rồi bỏ nhãn.
 
 ---
@@ -33,28 +33,62 @@ Ví dụ: `feat(realtime): add SeatSyncHub with per-trip groups`.
 
 ### Pull Request
 - Một PR = một mục đích. Mô tả: làm gì, vì sao, cách kiểm tra.
-- Điều kiện merge: `dotnet build` và `dotnet test` (BE) hoặc `npm run build` (FE) **không lỗi**, ít nhất 1 người review.
+- Điều kiện merge: `dotnet build` và `dotnet test` (BE) hoặc `pnpm lint` + `pnpm test` + `pnpm build` (FE) **không lỗi**, ít nhất 1 người review.
 - Không commit: secrets, `bin/`, `obj/`, `node_modules/`, file `.env`.
-- Hiện có **4 test CreateBooking đang fail** (xem `docs/DOMAIN_BR_ALIGNMENT.md`). Không được làm thêm test fail ngoài 4 test đó.
+- Toàn bộ test hiện **đều pass**; CI chạy cả bộ, không còn bộ lọc bỏ qua test lỗi. Không được làm hỏng hay bỏ qua test nào.
 
 ## 3. Backend (.NET 8)
 
 ### 3.1 Kiến trúc & chiều phụ thuộc
 `WebApi → Application → Domain` và `Infrastructure → Application → Domain`.
-- **Domain**: entity, enum, rule thuần. Không tham chiếu EF, MediatR, hay thư viện hạ tầng.
-- **Application**: CQRS (MediatR), validator, interface (`IApplicationDbContext`, `IDistributedLockService`, `ICurrentUserService`...).
+- **Domain**: entity, enum, rule thuần. Không tham chiếu EF hay thư viện hạ tầng.
+- **Application**: Service layer thuần (xem 3.2); validator, interface hạ tầng cắt ngang (`IDistributedLockService`, `ICurrentUserService`...), interface theo feature (`I{Feature}Service`, `I{Feature}Repository`...). **Không còn `IApplicationDbContext`** (đã xoá cùng PR Architecture Cleanup) — Application không còn type nào tham chiếu EF Core; mọi Service chỉ phụ thuộc `I{Feature}Repository` + `IUnitOfWork` (xem 3.2).
 - **Infrastructure**: EF Core, Redis, Identity/JWT, VNPay, background job, SignalR publisher.
 - **WebApi**: controller, middleware, DI, cấu hình Hub.
 
-### 3.2 Feature slice
-Mỗi feature một file, đặt tại
-`Application/Features/{Feature}/{Commands|Queries}/{Name}/{Name}{Command|Query}.cs`
-gồm: DTO, record Command/Query, `AbstractValidator<T>` (nếu có input), Handler.
-Mẫu tham khảo: `CreateBookingCommand.cs`, `SearchTripsQuery.cs`.
+### 3.2 Tổ chức Application — Clean Architecture thuần (CQRS/MediatR đã loại bỏ hoàn toàn)
+
+Quyết định của nhóm: bỏ CQRS/MediatR, chuyển về Service layer thuần (Controller → Service → Repository → Domain). **Lý do là để dễ kiểm soát và đồng bộ cách làm cho cả team** (ít khái niệm phải học hơn MediatR pipeline, dev mới đọc code nhanh hơn) — **không phải vì CQRS/MediatR sai hay kém "chuẩn" Clean Architecture hơn**. Cả 2 cách tổ chức tầng Application đều là Clean Architecture hợp lệ, miễn giữ đúng Dependency Rule (Domain/Application không phụ thuộc Infrastructure); CQRS/MediatR thậm chí ôm sát khái niệm "Use Case Interactor" gốc của Clean Architecture không kém gì Service layer. Migration thực hiện **tuần tự theo feature** (không đổi 1 lần toàn bộ, để giảm rủi ro regression) và nay đã **hoàn tất 100%** — không còn feature nào dùng Command/Query/Handler/MediatR; package `MediatR` và pipeline behaviors đã bị xoá khỏi solution (PR Architecture Cleanup). Lịch sử migrate từng feature:
+
+| Feature | Trạng thái |
+|---|---|
+| Auth | ✅ Đã migrate — mẫu chuẩn tham khảo |
+| Bookings / Checkout / Guest Access, Payments / VNPay, Refunds, QR | ✅ Đã migrate — Controller → IService → Service → IRepository → Repository → EF Core; xem `waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md` |
+| SightseeingAudio, AiBooking | ✅ Đã migrate — Controller → IService; SQL audio qua repository; provider Azure/Semantic Kernel và adapter gọi Trips/Stations nằm ở Infrastructure. Xem `docs/thinh-ai/AI_SERVICE_MIGRATION.md` |
+| Incidents (Weather Guard), Tracking (GPS) | ✅ Đã migrate — Controller → IService → Service → IRepository → Repository; hub `BoatTrackingHub` và `BoatSimulatorService` gọi `IBoatTrackingService`; Hangfire job gọi `IWeatherGuardService` |
+| Fares | ✅ Đã migrate — `IFareService`/`FareService` → `IFareRuleRepository`/`FareRuleRepository`, không có Request (GET không tham số) |
+| Boats | ✅ Đã migrate — `IBoatService`/`BoatService` → `IBoatRepository`/`BoatRepository` + `IUnitOfWork`; `UpdateBoatRequest` bỏ field `Id` (lấy từ route), xoá luôn code so khớp Id route/body cũ (M10) |
+| Stations | ✅ Đã migrate — `IStationService`/`StationService` → `IStationRepository`/`StationRepository` + `IUnitOfWork`; `UpdateStationRequest` bỏ field `Id` tương tự Boats. Adapter AI (`MediatRTripSearchTool`) đổi sang gọi `IStationService` thay vì `Mediator.Send(GetStationsQuery)` |
+| Trips | ✅ Đã migrate — `ITripService`/`TripService` → `ITripRepository`/`TripRepository` + `IIncidentRepository` + `IUnitOfWork` (7 use case: GetDetail, GetSeatMap, GetOperations, GetOperationEvents, ChangeStatus, ReportSos, Search). `GetSeats`/`GetOperations`/`GetOperationEvents` bind Request trực tiếp từ query (trước đó Controller tự dựng Request trong body, khiến `ValidateRequestFilter` không chạy — đã sửa theo PR #52 review). Adapter AI đổi tên `MediatRTripSearchTool` → `TripSearchTool`, bỏ hẳn `ISender`/MediatR, gọi trực tiếp `IStationService`+`ITripService` |
+| CheckIns | ✅ Đã migrate — `ICheckInService`/`CheckInService` → `ICheckInRepository`/`CheckInRepository` + `IUnitOfWork` (8 use case: AssignScanner, RevokeScannerAssignment, SetCheckInWindow, SubmitCheckIn, SyncCheckInEvents, GetMyScannerAssignments, GetScannerManifest, RunNoShowFinalization). `CheckInProcessor` (helper dùng chung Submit/Sync) cũng chuyển sang `ICheckInRepository`. `DiscardTrackedChanges()` (dọn entity dở dang khi 1 event trong lô lỗi — BR-OFF-03) chuyển từ `IApplicationDbContext` sang `IUnitOfWork` (theo PR #53 review, không lộ khái niệm ChangeTracker ra khỏi Infrastructure). Hangfire job `NoShowFinalizationJob` đổi sang gọi `ICheckInService` thay vì `Mediator.Send` |
+
+**Quy tắc cho feature mới**: mọi feature mới PHẢI theo đúng pattern Service + Repository dưới đây ngay từ đầu — không còn pattern CQRS/MediatR cũ để chọn. KHÔNG tự thêm lại Command/Query/Handler/MediatR.
+
+**Pattern chuẩn** (bắt buộc cho mọi feature, không còn ngoại lệ):
+```
+Application/
+  DTOs/
+    Requests/{Feature}/{Name}Request.cs
+    Responses/{Feature}/{Name}Response.cs
+  Validators/{Feature}/{Name}RequestValidator.cs
+  Interfaces/Services/I{Feature}Service.cs
+  Interfaces/Repositories/I{Feature}Repository.cs   # contract persistence — Service KHÔNG gọi EF Core trực tiếp
+  Features/{Feature}/Services/{Name}Service.cs      # implementation, inject I{Feature}Repository + IUnitOfWork (ghi)
+
+Infrastructure/
+  Repositories/{Feature}Repository.cs   # implement I{Feature}Repository bằng ApplicationDbContext (AsNoTracking cho đọc, NotFoundException khi thiếu)
+```
+- **Service không được inject `DbContext`/EF Core trực tiếp.** Mọi đọc/ghi dữ liệu đi qua `I{Feature}Repository` (Application) → `{Feature}Repository` (Infrastructure); ghi dữ liệu xong gọi `IUnitOfWork.SaveChangesAsync`/`DiscardTrackedChanges`. Đây là bài học rút ra sau review PR Fares/Boats/Stations/Trips/CheckIns (lần đầu các feature này migrate có Service gọi `IApplicationDbContext` trực tiếp — đã bị yêu cầu sửa lại, xem lịch sử PR #51/#52/#53); abstraction `IApplicationDbContext` sau đó bị xoá hẳn khỏi Application trong PR Architecture Cleanup để loại bỏ khả năng lặp lại lỗi này. Duy nhất `Infrastructure/Services/SeatAvailabilityService.cs` dùng `ApplicationDbContext` cụ thể trực tiếp — hợp lệ vì đã ở Infrastructure.
+- Implementation của Service đặt tại `Application/Features/{Feature}/Services/{Name}Service.cs` (không phải `Application/Services/` phẳng) — đúng vị trí thực tế đang dùng cho `Bookings`, `Incidents`, `Payments`, `Refunds`, `Tracking`, `Fares`, `Boats`, `Stations`, `Trips`, `CheckIns`. Ngoại lệ: `SightseeingAudio` đặt ở `Application/Services/SightseeingAudio/` (do nhóm AI làm trước khi chốt convention này — không bắt buộc đổi lại nếu không chạm tới feature đó). `Features/CheckIns/Services/CheckInProcessor.cs` (helper dùng chung cho Submit/Sync) cũng đã chuyển sang inject `ICheckInRepository` thay vì gọi context trực tiếp.
+- Helper nội bộ chỉ dùng trong 1 Service (không lộ ra interface) có thể tách riêng file `internal static class` cùng thư mục `Features/{Feature}/Services/`, như `TripReadRules.cs` dùng chung cho `GetDetailAsync` và `GetSeatMapAsync` của `TripService`.
+- Implementation **PHẢI** đặt ở `Infrastructure/...` (không phải `Application/Features/.../Services/`) nếu cần dùng type cụ thể của hạ tầng mà Application không được phép biết (ví dụ `UserManager<T>`/`SignInManager<T>` của ASP.NET Identity) — xem `Infrastructure/Identity/AuthService.cs` làm mẫu. Lý do: Application không được tham chiếu Infrastructure; Service nào cần type hạ tầng cụ thể thì chính nó phải sống ở Infrastructure, chỉ để lại interface (`IAuthService`) ở Application.
+- Dù Service nằm ở Application hay Infrastructure, đăng ký DI đều đặt chung ở `Infrastructure/DependencyInjection.cs` (theo đúng cách các service đã migrate hiện tại đang làm, vd `services.AddScoped<IFareService, WaterbusSystem.Application.Features.Fares.Services.FareService>();`).
+- Request validate qua filter dùng chung `WebApi/Filters/ValidateRequestFilter.cs`, gắn bằng `[ServiceFilter(typeof(ValidateRequestFilter))]` trên từng Controller/action — **không** đăng ký global. Action không có Request (GET không tham số, như `Fares`) thì không cần gắn filter này.
+- Mẫu tham khảo đầy đủ: `Auth` (có Request/Response đầy đủ, Service ở Infrastructure vì cần Identity) — `DTOs/Requests/Auth/LoginRequest.cs`, `DTOs/Responses/Auth/LoginResponse.cs`, `Validators/Auth/LoginRequestValidator.cs`, `Interfaces/Services/IAuthService.cs`, `Infrastructure/Identity/AuthService.cs`, `WebApi/Controllers/AuthController.cs`. `Fares` (Service ở Application, không có Request, không cần Validator/Filter) — `DTOs/Responses/Fares/FareResponse.cs`, `Interfaces/Services/IFareService.cs`, `Features/Fares/Services/FareService.cs`, `WebApi/Controllers/FaresController.cs`. `CheckIns` (dùng `IUnitOfWork.DiscardTrackedChanges()` để dọn ChangeTracker khi 1 event trong lô lỗi) — `Interfaces/Repositories/ICheckInRepository.cs`, `Infrastructure/Repositories/CheckInRepository.cs`, `Features/CheckIns/Services/CheckInService.cs`.
 
 ### 3.3 Controller
-- Kế thừa `BaseApiController` (route `api/v1/[controller]`, có sẵn `Mediator`).
-- Chỉ gọi `Mediator.Send(...)` và trả `Ok`/`CreatedAtAction`. **Không đặt logic nghiệp vụ trong controller.**
+- Kế thừa `BaseApiController` (route `api/v1/[controller]`).
+- Chỉ inject `I{Feature}Service` tương ứng, gắn `[ServiceFilter(typeof(ValidateRequestFilter))]` lên action cần validate request. **Không đặt logic nghiệp vụ trong controller** — Controller chỉ gọi Service rồi trả `Ok`/`CreatedAtAction`.
 - Gắn `[Authorize(Roles = "...")]` rõ ràng cho mọi endpoint không công khai. Endpoint Guest dùng cơ chế `AccessGrant` (xem `GuestAccessMiddleware`).
 
 ### 3.4 Lỗi
@@ -62,9 +96,13 @@ Ném exception nghiệp vụ, **không** tự `return BadRequest/Conflict` trong
 
 | Exception | HTTP |
 |---|---|
-| `ValidationException` | 400 |
+| `ValidationException`, `ArgumentException` | 400 |
+| `AuthenticationException` | 401 |
+| `ForbiddenAccessException` | 403 |
 | `NotFoundException` | 404 |
-| `ConcurrencyException` (và `SeatAlreadyBookedException`) | 409 |
+| `ConcurrencyException` (và `SeatAlreadyBookedException`), `ConflictException` | 409 |
+| `TextToSpeechException`, `AudioStorageException` | 502 |
+| `AiBookingUnavailableException` | 503 |
 | khác | 500 |
 
 Cần mã mới (vd 403, 422) thì thêm `case` vào middleware, không xử lý riêng lẻ.
@@ -124,9 +162,20 @@ Cần mã mới (vd 403, 422) thì thêm `case` vào middleware, không xử lý
 - Ngưỡng cảnh báo (tốc độ gió, chu kỳ quét, API key) đặt trong cấu hình, không hard-code.
 - Gọi dịch vụ ngoài phải có timeout và retry có giới hạn, lỗi chỉ ghi log, không làm sập host.
 
+### 3.10.1 Email giao dịch (transactional outbox)
+- Gửi email **chỉ** qua `INotificationOutbox` (`EnqueueBookingConfirmedAsync/EnqueueTripDisruptionAsync/EnqueueRefundSucceededAsync`), gọi **bên trong** transaction nghiệp vụ trước `SaveChanges`. Không gọi SMTP/`IEmailTransport` trong service nghiệp vụ, không dựng HTML ở đó.
+- Mỗi sự kiện có `EventKey` tất định (UNIQUE ở DB). Thêm loại thông báo mới = thêm giá trị `EmailNotificationType` + khoá + template + nhánh trong `NotificationEmailComposer` (không cần framework riêng).
+- Chỉ enqueue ở **trạng thái đã xác minh/đã commit** (Order `Confirmed` có vé; refund `Succeeded`; Trip `Cancelled`/`Terminated`). Composer kiểm tra lại lúc gửi và `Skipped` nếu không còn đúng.
+- Worker `email-outbox` (Hangfire) claim bằng lease nguyên tử; ghi kết quả có điều kiện `LockToken`. Không sửa `EmailOutbox` bằng tay trừ theo runbook (`docs/EMAIL_NOTIFICATION_IMPLEMENTATION_PLAN.md` §11).
+- Không đưa token Guest/`ManageOrder` vào email; QR chỉ là credential đã ký hiện có, ký lúc gửi, không lưu trong outbox. Không log body/QR/địa chỉ người nhận đầy đủ.
+- Cấu hình `Email:*` sai khi `Email:Enabled=true` ⇒ host không khởi động. Key mới → cập nhật `appsettings.example.json`, `.env.example` (gốc + `waterbus-be`), `docker-compose.yml`.
+- Chính sách theo loại (`NotificationPolicy`): tài chính thử nhiều hơn/giữ lâu hơn; quá hạn ⇒ `DeadLetter` "StaleNeedsReview" chứ không `Skipped`. Worker claim từng bản ghi một. Xác nhận vé chỉ mô tả chặng còn hiệu lực lúc gửi.
+- Test SQL Server thật phải thuộc `[Collection(SqlCollections.Serial)]` (chạy tuần tự, tránh quá tải kết nối).
+- Test: logic bằng InMemory được; **unique index / claim đồng thời / lease / rollback bắt buộc test trên SQL Server thật** (`EmailOutboxSqlTests`).
+
 ### 3.11 Đặt tên
 - C#: `PascalCase` cho type/method/property, `_camelCase` cho field private, interface bắt đầu bằng `I`.
-- Command/Query: `CreateStationCommand`, `GetTripDetailQuery`. Handler: `...Handler`. Validator: `...Validator`.
+- Request/Response: `LoginRequest`/`LoginResponse`. Validator: `...RequestValidator`. Service: `I{Feature}Service`/`{Feature}Service`. Repository: `I{Feature}Repository`/`{Feature}Repository`.
 - Tên bảng/cột do EF sinh theo tên entity. Không đổi tên thủ công trừ khi có lý do.
 - Comment/XML-doc viết tiếng Việt như code hiện tại; tên định danh viết tiếng Anh.
 
@@ -151,7 +200,7 @@ Cần mã mới (vd 403, 422) thì thêm `case` vào middleware, không xử lý
 - Realtime: một service bọc kết nối SignalR (tự reconnect, join lại group, gọi REST đồng bộ lại sau reconnect).
 - Tiền hiển thị theo `vi-VN`, thời gian lấy UTC từ API và format theo múi giờ Việt Nam.
 - Component: `PascalCase.tsx`; hook: `useXxx`; không dùng `any` nếu tránh được.
-- `npm run build` phải qua (gồm `tsc`) trước khi mở PR.
+- `pnpm lint`, `pnpm test` và `pnpm build` (gồm `tsc`) phải qua trước khi mở PR. FE dùng pnpm, không dùng npm.
 
 ## 5. Mobile (Staff Scanner)
 

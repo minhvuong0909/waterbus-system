@@ -1,4 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+/**
+ * Staff Scanner Screen (Tuấn - Thành viên 4)
+ * High-speed QR Camera Scanner with reticle animation, flash toggle,
+ * instant offline digital signature verification & SQLite lookup.
+ */
+
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -14,13 +20,14 @@ import {
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useScannerStore } from '../../store/useScannerStore';
 import { QrVerifier } from '../../services/crypto/qrVerifier';
 import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
+import { QrVerificationResult } from '../../types/scanner';
 import BookingDetailModal from '../booking/BookingDetailModal';
-import { BrandColors, Radius } from '../../../constants/theme';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const SCAN_AREA_SIZE = width * 0.72;
 
 export default function StaffScannerScreen() {
@@ -30,8 +37,10 @@ export default function StaffScannerScreen() {
   const [isScannedLocked, setIsScannedLocked] = useState<boolean>(false);
   const [manualModalOpen, setManualModalOpen] = useState<boolean>(false);
   const [manualCode, setManualCode] = useState<string>('');
+  const [testModalOpen, setTestModalOpen] = useState<boolean>(false);
 
   const {
+    isModalOpen,
     setCurrentBooking,
     stats,
     deviceInfo,
@@ -40,11 +49,13 @@ export default function StaffScannerScreen() {
     syncPendingBatch,
   } = useScannerStore();
 
+  // Animated laser scanline
   const scanLineAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     refreshStats();
 
+    // Start scanner line loop animation
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(scanLineAnim, {
@@ -64,22 +75,61 @@ export default function StaffScannerScreen() {
     return () => animation.stop();
   }, []);
 
-  const processQrData = async (qrString: string) => {
-    // Xác minh chữ ký trước khi dùng mã booking trong QR.
+  const handleBarcodeScanned = async (scanningResult: BarcodeScanningResult) => {
+    const rawData = scanningResult.data;
+    if (isScannedLocked || !rawData) return;
+
+    // Lock scanning temporarily to prevent multiple reads
+    setIsScannedLocked(true);
+
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      await processScannedQr(rawData);
+    } catch (err: any) {
+      console.error('[Scanner] Scan handling error:', err);
+      Alert.alert('Lỗi quét mã', err.message);
+    } finally {
+      // Re-enable scanner after cooldown
+      setTimeout(() => {
+        setIsScannedLocked(false);
+      }, 1500);
+    }
+  };
+
+  /**
+   * Luồng quét QR qua camera (hoặc giả lập): PHẢI xác thực chữ ký số thành công (BR-QR-02)
+   * trước khi cho xem/soát vé. Khác với tìm tay theo mã (processManualLookup) - không mang
+   * chữ ký nào để xác thực nên không đi qua hàm này.
+   */
+  const processScannedQr = async (qrString: string) => {
     const verification = await QrVerifier.verifyQrCode(qrString);
 
-    if (!verification.isValid || !verification.publicBookingId) {
+    if (!verification.isValid) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(
-        'Mã vé không hợp lệ',
-        verification.error || 'Mã QR không đúng định dạng.'
+        'QR Không Hợp Lệ',
+        verification.error || 'Mã QR không đúng định dạng hoặc chữ ký số không hợp lệ.'
       );
       return;
     }
 
-    const publicBookingId = verification.publicBookingId;
+    await lookupAndOpenBooking(verification.publicBookingId!, verification);
+  };
 
-    // Tra cứu offline trong manifest đã tải về máy.
+  /**
+   * Tìm tay theo mã Booking/Ticket khi không quét được QR - KHÔNG có chữ ký số để xác thực,
+   * nên tra cứu trực tiếp theo mã, không gọi QrVerifier (tránh hiểu nhầm "đã xác thực chữ ký").
+   */
+  const processManualLookup = async (code: string) => {
+    await lookupAndOpenBooking(code, {
+      isValid: false,
+      publicBookingId: code,
+      verifiedOffline: false,
+      error: 'Nhập tay theo mã - chưa xác thực chữ ký số, cần đối chiếu thủ công.',
+    });
+  };
+
+  const lookupAndOpenBooking = async (publicBookingId: string, verification: QrVerificationResult) => {
     let booking = await SqliteRepository.getBookingByPublicId(publicBookingId);
 
     if (!booking) {
@@ -93,73 +143,62 @@ export default function StaffScannerScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert(
         'Chưa có dữ liệu chuyến trong máy',
-        `Mã QR: "${publicBookingId}".\nThông tin đơn đặt vé này chưa được tải về thiết bị.\n\nVui lòng tải dữ liệu của bến trước giờ mở cửa.`,
+        `Đã giải mã: "${publicBookingId}".\nTuy nhiên dữ liệu đơn này chưa có trong bộ nhớ SQLite của máy.\n\nNhân viên vui lòng bấm "Tải trước Cache" trước giờ mở cổng bến.`,
         [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Tải dữ liệu ngay', onPress: () => preloadCache() },
+          { text: 'Huỷ', style: 'cancel' },
+          {
+            text: 'Tải trước ngay',
+            onPress: () => {
+              // deviceInfo.stationId giữ TripStopCallId của lần preload gần nhất (nếu có).
+              // Không có thì chuyển sang màn Preload để Staff chọn phân công thật.
+              if (deviceInfo.stationId) {
+                preloadCache(deviceInfo.stationId);
+              } else {
+                router.push('/(tabs)/manifest');
+              }
+            },
+          },
         ]
       );
     }
   };
 
-  const handleBarcodeScanned = async (scanningResult: BarcodeScanningResult) => {
-    const rawData = scanningResult.data;
-    // Camera có thể phát cùng một mã nhiều lần liên tiếp; bỏ qua lúc đang xử lý.
-    if (isScannedLocked || !rawData) return;
-
-    setIsScannedLocked(true);
-
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      await processQrData(rawData);
-    } catch {
-      Alert.alert('Không thể quét mã', 'Vui lòng thử lại hoặc nhập mã vé thủ công.');
-    } finally {
-      // Mở lại camera sau khoảng nghỉ để tránh đọc lặp cùng QR.
-      setTimeout(() => {
-        setIsScannedLocked(false);
-      }, 1500);
-    }
-  };
-
   const handleManualSearch = async () => {
-    const query = manualCode.trim();
-    if (!query) return;
-
-    try {
-      const booking = await SqliteRepository.searchBookingOrTicket(query);
-      if (!booking) {
-        Alert.alert('Không tìm thấy vé', 'Mã này không có trong dữ liệu đã tải về thiết bị.');
-        return;
-      }
-
-      setManualModalOpen(false);
-      // Tra cứu tay chỉ xem thông tin; không có kết quả xác minh QR nên không thể check-in.
-      setCurrentBooking(booking, null);
-    } catch (error) {
-      Alert.alert(
-        'Không thể tra cứu',
-        error instanceof Error ? error.message : 'Đã xảy ra lỗi khi tìm vé.'
-      );
-    } finally {
-      setManualCode('');
-    }
+    if (!manualCode.trim()) return;
+    setManualModalOpen(false);
+    const value = manualCode.trim();
+    if (value.split('.').length === 3) await processScannedQr(value);
+    else await processManualLookup(value);
+    setManualCode('');
   };
 
-  if (!permission) {
+  const triggerTestQrScan = (publicBookingId: string) => {
+    setTestModalOpen(false);
+    const test = QrVerifier.generateTestSignedQr(publicBookingId);
+    processScannedQr(test.compactQr);
+  };
+
+  // Render Camera Permission fallback
+  if (!permission && Platform.OS !== 'web') {
     return <View style={styles.centerContainer}><Text>Đang yêu cầu quyền camera...</Text></View>;
   }
 
-  if (!permission.granted) {
+  if (permission && !permission.granted && Platform.OS !== 'web') {
     return (
       <View style={styles.centerContainer}>
         <Ionicons name="camera-reverse-outline" size={64} color="#0284C7" />
-        <Text style={styles.permissionTitle}>Cần quyền sử dụng máy ảnh</Text>
+        <Text style={styles.permissionTitle}>Cần Quyền Truy Cập Camera</Text>
         <Text style={styles.permissionDesc}>
-          Ứng dụng cần dùng máy ảnh để nhân viên quét mã vé cho khách lên tàu.
+          Ứng dụng cần quyền camera để nhân viên soát vé quét mã QR lên tàu với tốc độ cao.
         </Text>
         <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-          <Text style={styles.permissionButtonText}>Cho phép sử dụng máy ảnh</Text>
+          <Text style={styles.permissionButtonText}>Cấp Quyền Camera</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.permissionButton, { backgroundColor: '#0F172A', marginTop: 12 }]}
+          onPress={() => router.push('/(tabs)/manifest')}
+        >
+          <Text style={styles.permissionButtonText}>Xem phân công và tải vé</Text>
         </TouchableOpacity>
       </View>
     );
@@ -172,6 +211,7 @@ export default function StaffScannerScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Real Camera Viewfinder */}
       {Platform.OS !== 'web' ? (
         <CameraView
           style={StyleSheet.absoluteFill}
@@ -180,28 +220,29 @@ export default function StaffScannerScreen() {
           barcodeScannerSettings={{
             barcodeTypes: ['qr', 'code128', 'code39'],
           }}
-          onBarcodeScanned={isScannedLocked ? undefined : handleBarcodeScanned}
+          onBarcodeScanned={isScannedLocked || isModalOpen || manualModalOpen || testModalOpen ? undefined : handleBarcodeScanned}
         />
       ) : (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0F172A' }]} />
       )}
 
+      {/* Top Header Controls Overlay */}
       <View style={styles.topOverlay}>
         <View style={styles.topInfoBar}>
           <View>
-            <Text style={styles.staffNameText}>Nhân viên: {deviceInfo.staffName} ({deviceInfo.deviceCode})</Text>
+            <Text style={styles.staffNameText}>NV: {deviceInfo.staffName} ({deviceInfo.deviceCode})</Text>
             <Text style={styles.stationNameText}>{deviceInfo.stationName}</Text>
           </View>
 
           {stats.pendingSyncCount > 0 ? (
             <TouchableOpacity onPress={syncPendingBatch} style={styles.pendingBadge}>
               <Ionicons name="cloud-upload" size={16} color="#FFFFFF" />
-              <Text style={styles.pendingBadgeText}>{stats.pendingSyncCount} lượt chờ gửi</Text>
+              <Text style={styles.pendingBadgeText}>{stats.pendingSyncCount} chờ sync</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.syncedBadge}>
               <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-              <Text style={styles.syncedBadgeText}>Đã gửi đủ</Text>
+              <Text style={styles.syncedBadgeText}>Đã sync đủ</Text>
             </View>
           )}
         </View>
@@ -209,25 +250,30 @@ export default function StaffScannerScreen() {
         {deviceInfo.forceOfflineMode && (
           <View style={styles.offlineBanner}>
             <Ionicons name="wifi-outline" size={16} color="#DC2626" />
-            <Text style={styles.offlineBannerText}>ĐANG SỬ DỤNG KHI MẤT KẾT NỐI</Text>
+            <Text style={styles.offlineBannerText}>ĐANG BẬT CHẾ ĐỘ NGOẠI TUYẾN CỐ ĐỊNH (OFFLINE FIRST)</Text>
           </View>
         )}
       </View>
 
+      {/* Center Reticle Scanning Area */}
       <View style={styles.centerReticleContainer}>
         <View style={styles.reticle}>
+          {/* 4 Corner Crosshairs */}
           <View style={[styles.corner, styles.cornerTL]} />
           <View style={[styles.corner, styles.cornerTR]} />
           <View style={[styles.corner, styles.cornerBL]} />
           <View style={[styles.corner, styles.cornerBR]} />
 
+          {/* Animated Laser Scanline */}
           <Animated.View style={[styles.scanLine, { transform: [{ translateY }] }]} />
         </View>
-        <Text style={styles.hintText}>Hướng máy ảnh vào mã QR vé trên điện thoại của khách</Text>
+        <Text style={styles.hintText}>Hướng camera vào mã QR vé trên điện thoại của khách</Text>
       </View>
 
+      {/* Bottom Floating Control Buttons */}
       <View style={styles.bottomOverlay}>
         <View style={styles.controlRow}>
+          {/* Torch / Flashlight Toggle */}
           <TouchableOpacity
             style={[styles.iconButton, torch && styles.iconButtonActive]}
             onPress={() => setTorch(!torch)}
@@ -236,6 +282,7 @@ export default function StaffScannerScreen() {
             <Text style={styles.iconButtonText}>{torch ? 'Tắt Đèn' : 'Bật Đèn'}</Text>
           </TouchableOpacity>
 
+          {/* Manual Code Input Fallback */}
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => setManualModalOpen(true)}
@@ -244,22 +291,33 @@ export default function StaffScannerScreen() {
             <Text style={styles.iconButtonText}>Nhập Mã</Text>
           </TouchableOpacity>
 
+          {/* Test Signed QR Simulator */}
+          <TouchableOpacity
+            style={[styles.iconButton, { backgroundColor: 'rgba(2, 132, 199, 0.85)' }]}
+            onPress={() => setTestModalOpen(true)}
+          >
+            <Ionicons name="qr-code" size={24} color="#FFFFFF" />
+            <Text style={styles.iconButtonText}>Test QR</Text>
+          </TouchableOpacity>
+
+          {/* Switch Camera Facing */}
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}
           >
             <Ionicons name="camera-reverse" size={24} color="#FFFFFF" />
-            <Text style={styles.iconButtonText}>Đổi máy ảnh</Text>
+            <Text style={styles.iconButtonText}>Đổi Cam</Text>
           </TouchableOpacity>
         </View>
       </View>
 
+      {/* Manual Input Modal */}
       <Modal visible={manualModalOpen} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Nhập mã vé hoặc mã đặt chỗ</Text>
+            <Text style={styles.modalTitle}>Nhập Mã Vé / Booking Thủ Công</Text>
             <Text style={styles.modalDesc}>
-              Dùng khi màn hình khách bị hỏng hoặc máy ảnh không đọc được mã QR.
+              Dùng khi màn hình khách bị vỡ hoặc camera không nhận dạng được mã QR.
             </Text>
             <TextInput
               style={styles.input}
@@ -277,16 +335,60 @@ export default function StaffScannerScreen() {
                 <Text style={styles.modalBtnText}>Huỷ</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: BrandColors.tealFlow }]}
+                style={[styles.modalBtn, { backgroundColor: '#0284C7' }]}
                 onPress={handleManualSearch}
               >
-                <Text style={styles.modalBtnText}>Tra cứu</Text>
+                <Text style={styles.modalBtnText}>Tra Cứu</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
+      {/* Test QR Simulator Modal */}
+      <Modal visible={testModalOpen} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Mô Phỏng Quét QR Vé Mẫu (Test)</Text>
+            <Text style={styles.modalDesc}>
+              Chọn một vé đã được ký số bằng Public Key để thử nghiệm xác thực ngoại tuyến:
+            </Text>
+
+            <TouchableOpacity
+              style={styles.testItem}
+              onPress={() => triggerTestQrScan('pub_wb_98a76b5c')}
+            >
+              <Text style={styles.testItemTitle}>Booking 1: Trần Văn Minh (3 vé: A01, A02, A03)</Text>
+              <Text style={styles.testItemSubtitle}>ID: pub_wb_98a76b5c • Tuyến Bạch Đằng - Linh Đông</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.testItem}
+              onPress={() => triggerTestQrScan('pub_wb_11f22e33')}
+            >
+              <Text style={styles.testItemTitle}>Booking 2: Nguyễn Thu Trang (2 vé: B05, B06)</Text>
+              <Text style={styles.testItemSubtitle}>ID: pub_wb_11f22e33 • Khoang Tiêu Chuẩn</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.testItem}
+              onPress={() => triggerTestQrScan('pub_wb_44d55c66')}
+            >
+              <Text style={styles.testItemTitle}>Booking 3: Phạm Đức Huy (1 vé: C10)</Text>
+              <Text style={styles.testItemSubtitle}>ID: pub_wb_44d55c66 • Boong ngoài trời</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalBtn, { backgroundColor: '#0F172A', marginTop: 14 }]}
+              onPress={() => setTestModalOpen(false)}
+            >
+              <Text style={styles.modalBtnText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Check-In Passenger Detail Modal */}
       <BookingDetailModal />
     </View>
   );
@@ -299,7 +401,7 @@ const styles = StyleSheet.create({
   },
   centerContainer: {
     flex: 1,
-    backgroundColor: BrandColors.mist,
+    backgroundColor: '#F8FAFC',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -307,21 +409,21 @@ const styles = StyleSheet.create({
   permissionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: BrandColors.ink,
+    color: '#0F172A',
     marginTop: 16,
   },
   permissionDesc: {
     fontSize: 14,
-    color: BrandColors.textSecondary,
+    color: '#64748B',
     textAlign: 'center',
     marginVertical: 12,
     lineHeight: 20,
   },
   permissionButton: {
-    backgroundColor: BrandColors.tealFlow,
+    backgroundColor: '#0284C7',
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: Radius.button,
+    borderRadius: 8,
     marginTop: 8,
   },
   permissionButtonText: {
@@ -340,12 +442,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(13, 37, 56, 0.92)',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: Radius.md,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(79, 195, 216, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   staffNameText: {
     color: '#F8FAFC',
@@ -353,36 +455,35 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   stationNameText: {
-    color: BrandColors.skyAqua,
+    color: '#94A3B8',
     fontSize: 12,
     marginTop: 2,
-    fontWeight: '600',
   },
   pendingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: BrandColors.signalAmber,
+    backgroundColor: '#EA580C',
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: Radius.pill,
+    borderRadius: 20,
     gap: 4,
   },
   pendingBadgeText: {
-    color: BrandColors.ink,
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
   },
   syncedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(5, 150, 105, 0.2)',
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: Radius.pill,
+    borderRadius: 20,
     gap: 4,
   },
   syncedBadgeText: {
-    color: '#34D399',
+    color: '#10B981',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -390,14 +491,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: BrandColors.dangerBg,
+    backgroundColor: '#FEF2F2',
     paddingVertical: 6,
-    borderRadius: Radius.sm,
+    borderRadius: 8,
     marginTop: 8,
     gap: 6,
   },
   offlineBannerText: {
-    color: BrandColors.danger,
+    color: '#DC2626',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -409,7 +510,7 @@ const styles = StyleSheet.create({
   reticle: {
     width: SCAN_AREA_SIZE,
     height: SCAN_AREA_SIZE,
-    borderRadius: Radius.card,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
     backgroundColor: 'transparent',
@@ -419,7 +520,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 28,
     height: 28,
-    borderColor: BrandColors.skyAqua,
+    borderColor: '#38BDF8',
   },
   cornerTL: {
     top: 0,
@@ -452,8 +553,8 @@ const styles = StyleSheet.create({
   scanLine: {
     width: '100%',
     height: 3,
-    backgroundColor: BrandColors.skyAqua,
-    shadowColor: BrandColors.skyAqua,
+    backgroundColor: '#38BDF8',
+    shadowColor: '#38BDF8',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 8,
@@ -463,10 +564,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     marginTop: 20,
-    backgroundColor: 'rgba(13, 37, 56, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     paddingHorizontal: 16,
     paddingVertical: 6,
-    borderRadius: Radius.pill,
+    borderRadius: 20,
     textAlign: 'center',
   },
   bottomOverlay: {
@@ -478,20 +579,20 @@ const styles = StyleSheet.create({
   controlRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: 'rgba(13, 37, 56, 0.92)',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     paddingVertical: 12,
-    borderRadius: Radius.card,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(79, 195, 216, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   iconButton: {
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: Radius.sm,
+    borderRadius: 10,
   },
   iconButtonActive: {
-    backgroundColor: 'rgba(232, 182, 62, 0.35)',
+    backgroundColor: 'rgba(234, 179, 8, 0.3)',
   },
   iconButtonText: {
     color: '#FFFFFF',
@@ -501,14 +602,14 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(13, 37, 56, 0.75)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalBox: {
     backgroundColor: '#FFFFFF',
-    borderRadius: Radius.card,
+    borderRadius: 16,
     padding: 20,
     width: '100%',
     maxWidth: 400,
@@ -516,18 +617,18 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: BrandColors.ink,
+    color: '#0F172A',
     marginBottom: 6,
   },
   modalDesc: {
     fontSize: 13,
-    color: BrandColors.textSecondary,
+    color: '#64748B',
     marginBottom: 16,
   },
   input: {
     borderWidth: 1.5,
-    borderColor: BrandColors.border,
-    borderRadius: Radius.sm,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
@@ -541,7 +642,7 @@ const styles = StyleSheet.create({
   modalBtn: {
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: Radius.button,
+    borderRadius: 8,
     alignItems: 'center',
   },
   modalBtnText: {
@@ -549,4 +650,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 14,
   },
+  testItem: {
+    backgroundColor: '#F1F5F9',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0284C7',
+  },
+  testItemTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  testItemSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
 });
+

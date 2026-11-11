@@ -1,47 +1,70 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { gsap } from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { useGSAP } from '@gsap/react'
-
-gsap.registerPlugin(useGSAP, ScrollTrigger)
 
 interface RevealProps {
   children: ReactNode
   className?: string
 }
 
-/**
- * Fades up every descendant marked `data-reveal` the first time it scrolls into view.
- * Siblings that enter together are staggered. Nothing is animated when the user prefers reduced
- * motion, so the content is simply there. GSAP only runs on the client (inside `useGSAP`) and
- * reverts itself on unmount.
- */
+/** Hiện từng khối một lần bằng API trình duyệt, không giữ trình xử lý cuộn liên tục. */
 export default function Reveal({ children, className }: RevealProps) {
   const scope = useRef<HTMLDivElement>(null)
-
-  useGSAP(
-    () => {
-      const mm = gsap.matchMedia()
-      mm.add('(prefers-reduced-motion: no-preference)', () => {
-        gsap.set('[data-reveal]', { autoAlpha: 0, y: 28 })
-        ScrollTrigger.batch('[data-reveal]', {
-          start: 'top 88%',
-          once: true,
-          onEnter: (items) =>
-            gsap.to(items, {
-              autoAlpha: 1,
-              y: 0,
-              duration: 0.7,
-              ease: 'power3.out',
-              stagger: 0.12,
-              overwrite: true,
-            }),
+  useEffect(() => {
+    if (
+      !scope.current ||
+      typeof window.IntersectionObserver !== 'function' ||
+      !Element.prototype.animate
+    )
+      return
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const animations = new Set<Animation>()
+    const revealed = new WeakSet<Element>()
+    const targets = scope.current.querySelectorAll('[data-reveal]')
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries
+          .filter((entry) => entry.isIntersecting)
+          .forEach((entry, index) => {
+          if (revealed.has(entry.target)) return
+            observer.unobserve(entry.target)
+            revealed.add(entry.target)
+            if (media.matches || entry.boundingClientRect.top < 0) return
+            const animation = entry.target.animate(
+              [
+                { opacity: 0, transform: 'translateY(18px)' },
+                { opacity: 1, transform: 'translateY(0)' },
+              ],
+              {
+                duration: 460,
+                delay: Math.min(index, 3) * 45,
+                easing: 'cubic-bezier(.2,.7,.2,1)',
+                fill: 'backwards',
+              },
+            )
+            animations.add(animation)
+            animation.onfinish = animation.oncancel = () => {
+              animations.delete(animation)
+            }
+          })
+      },
+      { rootMargin: '0px 0px -32px 0px', threshold: 0.08 },
+    )
+    const configure = () => {
+      observer.disconnect()
+      animations.forEach((animation) => animation.cancel())
+      if (!media.matches)
+        targets.forEach((target) => {
+          if (!revealed.has(target)) observer.observe(target)
         })
-      })
-    },
-    { scope },
-  )
+    }
+    configure()
+    media.addEventListener('change', configure)
+    return () => {
+      observer.disconnect()
+      media.removeEventListener('change', configure)
+      animations.forEach((animation) => animation.cancel())
+    }
+  }, [])
 
   return (
     <div ref={scope} className={className}>

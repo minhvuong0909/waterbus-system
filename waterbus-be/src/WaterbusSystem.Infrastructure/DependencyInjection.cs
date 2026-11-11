@@ -1,8 +1,11 @@
+using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
+using WaterbusSystem.Application.Features.Payments.Services;
 using System.Text;
 using Azure.Storage.Blobs;
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -10,15 +13,23 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Application.Interfaces.Services;
+using WaterbusSystem.Application.Interfaces.Repositories;
+using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Application.Features.Bookings.Services;
-using WaterbusSystem.Application.Features.Bookings.Commands.CreateBooking;
+using WaterbusSystem.Application.Features.CheckIns;
+using WaterbusSystem.Application.Features.CheckIns.Services;
 using WaterbusSystem.Application.Features.AiBooking.Interfaces;
 using WaterbusSystem.Application.Features.Incidents;
 using WaterbusSystem.Application.Features.Tracking;
+using WaterbusSystem.Application.Features.SightseeingAudio;
+using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
+using WaterbusSystem.Application.Services.SightseeingAudio;
 using WaterbusSystem.Infrastructure.BackgroundJobs;
 using WaterbusSystem.Infrastructure.Identity;
 using WaterbusSystem.Infrastructure.Locking;
 using WaterbusSystem.Infrastructure.Persistence;
+using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.Infrastructure.Services;
 using WaterbusSystem.Infrastructure.Services.Checkout;
 using WaterbusSystem.Infrastructure.Services.Payment;
@@ -27,7 +38,11 @@ using WaterbusSystem.Infrastructure.Services.AiBooking;
 using WaterbusSystem.Infrastructure.Services.AudioStorage;
 using WaterbusSystem.Infrastructure.Services.Tts;
 using WaterbusSystem.Infrastructure.Services.Tracking;
+using WaterbusSystem.Infrastructure.Services.SightseeingAudio;
 using WaterbusSystem.Infrastructure.Services.Weather;
+using WaterbusSystem.Infrastructure.Services.Email;
+using WaterbusSystem.Application.Features.Notifications;
+using Microsoft.Extensions.Options;
 
 namespace WaterbusSystem.Infrastructure;
 
@@ -43,7 +58,56 @@ public static class DependencyInjection
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseSqlServer(connectionString, b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
-        services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
+        services.AddScoped<IFinancialTransactionRepository, FinancialTransactionRepository>();
+        services.AddScoped<IPaymentService, PaymentService>();
+        services.AddScoped<IRefundRequestService, WaterbusSystem.Application.Features.Refunds.Services.RefundRequestService>();
+        services.AddScoped<IManualRefundService, WaterbusSystem.Application.Features.Refunds.Services.ManualRefundService>();
+        services.AddScoped<IRefundReconciliationService, WaterbusSystem.Application.Features.Refunds.Services.RefundReconciliationService>();
+        services.AddScoped<IAccessGrantRepository, AccessGrantRepository>();
+        services.AddScoped<IAccountAccessRepository, AccountAccessRepository>();
+        services.AddScoped<IOrderAccessService, OrderAccessService>();
+        services.AddScoped<ICheckoutAccessService>(sp => sp.GetRequiredService<CheckoutAccessService>());
+        services.AddScoped<IBookingService, BookingService>();
+        services.AddScoped<IBookingQrService, BookingQrService>();
+        services.AddScoped<ICheckoutReadService, CheckoutReadService>();
+        services.AddScoped<ICheckoutExpirationService, CheckoutExpirationService>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IBookingRepository, BookingRepository>();
+        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        services.AddScoped<IIncidentRepository, IncidentRepository>();
+        services.AddScoped<IWeatherGuardRunLock, SqlWeatherGuardRunLock>();
+        services.AddScoped<IScannerAssignmentLock, SqlScannerAssignmentLock>();
+        services.AddScoped<IRouteRepository, RouteRepository>();
+        services.AddScoped<ITripRepository, TripRepository>();
+        services.AddScoped<IBoatRepository, BoatRepository>();
+        services.AddScoped<IRouteAdminRepository, RouteAdminRepository>();
+        services.AddScoped<IScannerDeviceAdminRepository, ScannerDeviceAdminRepository>();
+        services.AddScoped<IFareAdminRepository, FareAdminRepository>();
+        services.AddScoped<ITripPlanningRepository, TripPlanningRepository>();
+        services.AddScoped<IScheduleAdminRepository, ScheduleAdminRepository>();
+        services.AddScoped<ISeatClassRepository, SeatClassRepository>();
+        services.AddScoped<IBoatSeatRepository, BoatSeatRepository>();
+        services.AddScoped<IBoatPositionRepository, BoatPositionRepository>();
+        services.AddScoped<IBoatTrackingService, WaterbusSystem.Application.Features.Tracking.Services.BoatTrackingService>();
+        services.AddScoped<IIncidentService, WaterbusSystem.Application.Features.Incidents.Services.IncidentService>();
+        services.AddScoped<IWeatherStatusService, WaterbusSystem.Application.Features.Incidents.Services.WeatherStatusService>();
+        services.AddScoped<IWeatherGuardService, WaterbusSystem.Application.Features.Incidents.Services.WeatherGuardService>();
+        services.AddScoped<IFareRuleRepository, FareRuleRepository>();
+        services.AddScoped<IStationRepository, StationRepository>();
+        services.AddScoped<IFareService, WaterbusSystem.Application.Features.Fares.Services.FareService>();
+        services.AddScoped<IBoatService, WaterbusSystem.Application.Features.Boats.Services.BoatService>();
+        services.AddScoped<IRouteAdminService, WaterbusSystem.Application.Features.Routes.Services.RouteAdminService>();
+        services.AddScoped<IScannerDeviceAdminService, WaterbusSystem.Application.Features.ScannerDevices.Services.ScannerDeviceAdminService>();
+        services.AddScoped<IFareAdminService, WaterbusSystem.Application.Features.Fares.Services.FareAdminService>();
+        services.AddScoped<ITripPlanningService, WaterbusSystem.Application.Features.TripPlanning.Services.TripPlanningService>();
+        services.AddScoped<IScheduleAdminService, WaterbusSystem.Application.Features.Schedules.Services.ScheduleAdminService>();
+        services.AddScoped<ISeatClassService, WaterbusSystem.Application.Features.SeatInventory.Services.SeatClassService>();
+        services.AddScoped<IBoatSeatService, WaterbusSystem.Application.Features.SeatInventory.Services.BoatSeatService>();
+        services.AddScoped<IStationService, WaterbusSystem.Application.Features.Stations.Services.StationService>();
+        services.AddScoped<ITripService, WaterbusSystem.Application.Features.Trips.Services.TripService>();
+        services.AddScoped<IBookingReferenceRepository, BookingReferenceRepository>();
+        services.AddScoped<ICheckoutService, CheckoutService>();
+        services.AddScoped<ICheckoutSeatChangeService, CheckoutSeatChangeService>();
         services.AddScoped<ApplicationDbContextInitializer>();
 
         // 2. Đăng ký ASP.NET Core Identity
@@ -55,6 +119,11 @@ public static class DependencyInjection
             options.Password.RequireNonAlphanumeric = false;
             options.Password.RequiredLength = 6;
             options.User.RequireUniqueEmail = true;
+
+            // M11: khóa tài khoản sau 5 lần sai mật khẩu liên tiếp, mở lại sau 5 phút.
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+            options.Lockout.AllowedForNewUsers = true;
         })
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
@@ -89,9 +158,13 @@ public static class DependencyInjection
             };
 
             // SignalR: đọc JWT từ query access_token cho đường dẫn /hubs
+            // M10: chuẩn hóa 401/403 của JWT challenge/forbid về cùng hình dạng ProblemDetails + traceId
+            // mà GlobalExceptionHandlingMiddleware đang dùng cho các lỗi khác (JwtProblemDetailsEvents.cs).
             options.Events = new JwtBearerEvents
             {
-                OnMessageReceived = SignalRTokenReader.OnMessageReceived
+                OnMessageReceived = SignalRTokenReader.OnMessageReceived,
+                OnChallenge = JwtProblemDetailsEvents.OnChallenge,
+                OnForbidden = JwtProblemDetailsEvents.OnForbidden
             };
         });
 
@@ -114,9 +187,11 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(30);
         });
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<IAuthService, AuthService>();
         services.AddTransient<IDateTimeService, DateTimeService>();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IUserDirectory, UserDirectory>();
         services.AddScoped<ISeatAvailabilityService, SeatAvailabilityService>();
         services.AddScoped<ICommercialTransactionRunner, SqlCommercialTransactionRunner>();
         services.AddScoped<BookingCreationService>();
@@ -124,6 +199,9 @@ public static class DependencyInjection
         services.AddScoped<WaterbusSystem.Application.Features.Payments.Services.PaymentConfirmationService>();
         services.AddScoped<CheckoutAccessService>();
         services.AddScoped<IBookingQrSigner, RsaBookingQrSigner>();
+        services.AddScoped<ICheckInRepository, CheckInRepository>();
+        services.AddScoped<CheckInProcessor>();
+        services.AddScoped<ICheckInService, CheckInService>();
         services.AddSingleton(new CheckoutOptions
         {
             SessionTtlMinutes = configuration.GetValue("Checkout:SessionTtlMinutes", 10),
@@ -151,21 +229,40 @@ public static class DependencyInjection
                 sp.GetRequiredService<CheckoutOptions>().PaymentDuration);
         });
 
-        // 6. AI Booking Assistant (OpenAI gpt-4.1-mini qua Semantic Kernel)
+        // 6. AI Booking Assistant (Groq qua Semantic Kernel)
         // Mặc định ở trạng thái chưa kích hoạt (IsEnabled = false, ApiKey chưa cấu hình).
         // Phụ thuộc còn thiếu trước khi kích hoạt production:
         // - Owner Trip Search hoàn thiện FareRule pricing (hiện BasePrice = 0 TODO) và danh sách stops thực tế.
         // - Owner Web/Booking chốt hợp đồng URL đặt vé.
-        // - Cấu hình OpenAI API Key qua User Secrets / biến môi trường.
-        services.Configure<OpenAiAssistantOptions>(configuration.GetSection(OpenAiAssistantOptions.SectionName));
+        // - Cấu hình Groq API Key qua User Secrets / biến môi trường.
+        services.Configure<GroqAssistantOptions>(configuration.GetSection(GroqAssistantOptions.SectionName));
+        // Refunds:Mode = Demo (mặc định) | Gateway. Demo không bao giờ gọi API Refund của VNPay.
+        // Fail-fast khi khởi động: giá trị số ngoài enum (vd 2) cũng bị từ chối.
+        services.AddOptions<WaterbusSystem.Application.Features.Refunds.RefundOptions>()
+            .Bind(configuration.GetSection(WaterbusSystem.Application.Features.Refunds.RefundOptions.SectionName))
+            .Validate(o => Enum.IsDefined(o.Mode), "Refunds:Mode phải là Demo hoặc Gateway.")
+            // Fail-closed: Demo không bao giờ được biểu diễn hoàn tiền cho thanh toán tiền thật.
+            .Validate(o => o.Mode != WaterbusSystem.Application.Features.Refunds.RefundMode.Demo ||
+                    !(WaterbusSystem.Application.Features.Refunds.RefundOptions.IsLiveVnPayUrl(configuration["VnPay:BaseUrl"]) ||
+                      WaterbusSystem.Application.Features.Refunds.RefundOptions.IsLiveVnPayUrl(configuration["VnPay:WebApiUrl"])),
+                "Refunds:Mode=Demo không được dùng với endpoint VNPay tiền thật (VnPay:BaseUrl/WebApiUrl không phải sandbox). Đặt Refunds:Mode=Gateway hoặc dùng sandbox.")
+            .ValidateOnStart();
         // Adapter đã có để thử local; cả LLM và hai contract tích hợp đều tắt mặc định.
         services.Configure<AiBookingIntegrationOptions>(configuration.GetSection(AiBookingIntegrationOptions.SectionName));
-        services.AddScoped<ITripSearchTool, MediatRTripSearchTool>();
+        services.AddScoped<ITripSearchTool, TripSearchTool>();
         services.AddScoped<IBookingLinkTool, ConfiguredBookingLinkTool>();
         services.AddScoped<IAiBookingAssistantService, SemanticKernelAiBookingAssistantService>();
 
         // 7. Tính khoảng cách địa lý cho geofence POI (NetTopologySuite, stateless)
         services.AddSingleton<IGeoDistanceCalculator, NtsGeoDistanceCalculator>();
+        services.Configure<SightseeingAudioOptions>(configuration.GetSection(SightseeingAudioOptions.SectionName));
+        services.AddScoped<IPoiTriggerDeduplicationService, SqlPoiTriggerDeduplicationService>();
+        services.AddScoped<IAudioPlaybackRepository, AudioPlaybackRepository>();
+        services.AddScoped<IOnboardAudioService, OnboardAudioService>();
+        services.AddScoped<IOnboardAudioTriggerDispatcher, LogOnlyAudioTriggerDispatcher>();
+        services.AddScoped<IPoiAudioTriggerDecisionService, PoiAudioTriggerDecisionService>();
+        services.AddScoped<ITrackingAudioTriggerService, TrackingAudioTriggerService>();
+        services.AddScoped<ISightseeingAudioRepository, SightseeingAudioRepository>();
 
         // 8. Azure AI Speech Text-to-Speech (Neural Voice MP3 tiếng Việt)
         services.Configure<AzureSpeechOptions>(configuration.GetSection(AzureSpeechOptions.SectionName));
@@ -177,14 +274,16 @@ public static class DependencyInjection
         services.Configure<AzureBlobAudioStorageOptions>(configuration.GetSection(AzureBlobAudioStorageOptions.SectionName));
         services.AddScoped<IAudioStorageService>(provider =>
         {
-            var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AzureBlobAudioStorageOptions>>().Value;
-            if (string.IsNullOrWhiteSpace(options.ConnectionString) || string.IsNullOrWhiteSpace(options.ContainerName))
-                throw new InvalidOperationException("Thiếu AzureBlobAudioStorage:ConnectionString hoặc ContainerName. Cấu hình secret ngoài Git trước khi lưu MP3.");
-
-            var container = new BlobContainerClient(options.ConnectionString, options.ContainerName);
+            var container = new Lazy<BlobContainerClient>(() =>
+            {
+                var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AzureBlobAudioStorageOptions>>().Value;
+                if (string.IsNullOrWhiteSpace(options.ConnectionString) || string.IsNullOrWhiteSpace(options.ContainerName))
+                    throw new InvalidOperationException("Thiếu AzureBlobAudioStorage:ConnectionString hoặc ContainerName. Cấu hình secret ngoài Git trước khi lưu MP3.");
+                return new BlobContainerClient(options.ConnectionString, options.ContainerName);
+            });
             return new AzureBlobAudioStorageService(
                 container,
-                provider.GetRequiredService<FluentValidation.IValidator<WaterbusSystem.Application.Common.Models.StoreAudioCommand>>(),
+                provider.GetRequiredService<FluentValidation.IValidator<WaterbusSystem.Application.DTOs.Requests.SightseeingAudio.StoreAudioRequest>>(),
                 provider.GetRequiredService<ILogger<AzureBlobAudioStorageService>>());
         });
 
@@ -208,6 +307,25 @@ public static class DependencyInjection
             }));
         services.AddHangfireServer(options => options.WorkerCount = 2);
         services.AddScoped<WeatherGuardJob>();
+
+        // 8.1 Hangfire: job định kỳ kết luận NoShow sau khi cửa sổ check-in đóng (BR-BOARD-05, BR-OFF-04)
+        services.AddScoped<NoShowFinalizationJob>();
+        services.Configure<NoShowFinalizationOptions>(configuration.GetSection(NoShowFinalizationOptions.SectionName));
+        services.Configure<OfflineCheckInReconciliationOptions>(configuration.GetSection(OfflineCheckInReconciliationOptions.SectionName));
+
+        // 8.2 Email giao dịch: transactional outbox (SQL) + worker Hangfire + SMTP (MailKit). Mặc định TẮT.
+        // Cấu hình sai khi Email:Enabled=true làm host không khởi động (ValidateOnStart), không fallback ngầm.
+        services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        services.AddSingleton<IValidateOptions<EmailOptions>, EmailOptionsValidator>();
+        services.AddOptions<EmailOptions>().Bind(configuration.GetSection(EmailOptions.SectionName)).ValidateOnStart();
+        services.AddScoped<IEmailOutboxRepository, EmailOutboxRepository>();
+        services.AddScoped<INotificationDataRepository, NotificationDataRepository>();
+        services.AddScoped<INotificationOutbox, NotificationOutbox>();
+        services.AddScoped<NotificationEmailComposer>();
+        services.AddScoped<IEmailOutboxProcessor, EmailOutboxProcessor>();
+        services.AddScoped<IEmailTransport, MailKitEmailTransport>();
+        services.AddSingleton<IQrImageRenderer, QrCoderImageRenderer>();
+        services.AddScoped<EmailOutboxJob>();
 
         services.Configure<WeatherOptions>(configuration.GetSection(WeatherOptions.SectionName));
         var weatherProvider = configuration[$"{WeatherOptions.SectionName}:Provider"];

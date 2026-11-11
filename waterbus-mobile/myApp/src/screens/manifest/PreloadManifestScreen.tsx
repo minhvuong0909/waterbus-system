@@ -1,10 +1,10 @@
 /**
  * Preload Manifest & Offline Cache Management Screen
  * Allows staff to preload trips, bookings, tickets, and public keys before gate opening (BR-OFF-01).
- * Displays cache metrics, batch sync status, loaded trip list, and QR test simulator.
+ * Displays cache metrics, batch sync status, and QR test simulator.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -13,26 +13,15 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  SafeAreaView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
 import { useScannerStore } from '../../store/useScannerStore';
-import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
-import { Trip } from '../../types/scanner';
-import { BrandColors, Radius } from '../../../constants/theme';
-import { getTripStatusLabel, getTripTypeLabel } from '../../utils/scannerDisplayLabels';
-
-const STATIONS = [
-  { id: 'ST01', name: 'Bến Bạch Đằng (Quận 1)' },
-  { id: 'ST02', name: 'Bến Bình An (TP. Thủ Đức)' },
-  { id: 'ST03', name: 'Bến Thanh Đa (Bình Thạnh)' },
-  { id: 'ST04', name: 'Bến Hiệp Bình Chánh (TP. Thủ Đức)' },
-  { id: 'ST05', name: 'Bến Linh Đông (TP. Thủ Đức)' },
-];
-
-type TripWithStats = Trip & { totalTickets: number; checkedInTickets: number };
+import { QrVerifier } from '../../services/crypto/qrVerifier';
+import { getMyScannerAssignments } from '../../services/checkin/scannerAssignmentService';
+import { MyScannerAssignment } from '../../types/checkin';
+import { ApiError } from '../../services/api/apiClient';
 
 export default function PreloadManifestScreen() {
   const {
@@ -47,65 +36,82 @@ export default function PreloadManifestScreen() {
     clearCache,
   } = useScannerStore();
 
-  const [selectedStationId, setSelectedStationId] = useState<string>(
-    deviceInfo.stationId === 'ST-BACH-DANG' ? 'ST01' : deviceInfo.stationId || 'ST01'
-  );
-  const [trips, setTrips] = useState<TripWithStats[]>([]);
+  const [assignments, setAssignments] = useState<MyScannerAssignment[]>([]);
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
+  const [assignmentsError, setAssignmentsError] = useState<string | null>(null);
+  // deviceInfo.stationId giữ TripStopCallId thật của lần preload gần nhất (xem useScannerStore).
+  const [selectedTripStopCallId, setSelectedTripStopCallId] = useState<string>(deviceInfo.stationId);
+  const [testQrInfo, setTestQrInfo] = useState<{ compact: string; signature: string } | null>(null);
 
-  const loadTrips = useCallback(async () => {
+  const loadAssignments = useCallback(async () => {
+    setIsLoadingAssignments(true);
+    setAssignmentsError(null);
     try {
-      const list = await SqliteRepository.getAllTrips();
-      setTrips(list);
-    } catch {
-      // Ignored if table not populated yet
+      const result = await getMyScannerAssignments();
+      setAssignments(result);
+      if (!selectedTripStopCallId && result.length > 0) {
+        setSelectedTripStopCallId(result[0].tripStopCallId);
+      }
+    } catch (err) {
+      setAssignmentsError(err instanceof ApiError ? err.message : 'Không tải được phân công. Kiểm tra kết nối mạng.');
+    } finally {
+      setIsLoadingAssignments(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     refreshStats();
-    loadTrips();
-  }, [refreshStats, loadTrips]);
+    loadAssignments();
+  }, [loadAssignments, refreshStats]);
 
   const handlePreload = async () => {
+    if (!selectedTripStopCallId) {
+      Alert.alert('Chưa chọn điểm dừng', 'Vui lòng chọn một phân công ở trên trước khi tải trước.');
+      return;
+    }
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Chỉ báo tải thành công sau khi manifest đã được kiểm tra và lưu trên thiết bị.
-    const success = await preloadCache(selectedStationId);
+    const success = await preloadCache(selectedTripStopCallId);
     if (success) {
-      await loadTrips();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
-        'Đã tải dữ liệu thành công',
-        'Danh sách chuyến và vé đã được lưu trên thiết bị. Thiết bị đã sẵn sàng soát vé khi không có kết nối mạng.',
-        [{ text: 'Đóng' }]
+        'Đã Tải Trước Thành Công',
+        `Toàn bộ danh sách chuyến, vé hợp lệ và Public Key đã được lưu an toàn vào cơ sở dữ liệu SQLite.\nThiết bị đã sẵn sàng tác nghiệp soát vé ngoại tuyến 100%!`,
+        [{ text: 'OK' }]
       );
+    } else {
+      Alert.alert('Lỗi tải trước', syncMessage || 'Không tải được dữ liệu từ máy chủ.');
     }
   };
 
   const handleSyncBatch = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const count = await syncPendingBatch();
-    await loadTrips();
     if (count > 0) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Đã gửi dữ liệu', `Đã gửi ${count} lượt soát vé lên máy chủ.`);
+      Alert.alert('Đồng Bộ Thành Công', `Đã đẩy lô ${count} sự kiện check-in lên máy chủ.`);
     } else {
-      Alert.alert('Thông báo', 'Không có lượt soát vé nào đang chờ gửi.');
+      Alert.alert('Thông báo', syncMessage || 'Không có vé nào tồn đọng cần đồng bộ.');
     }
+  };
+
+  const handleGenerateTestQr = () => {
+    const test = QrVerifier.generateTestSignedQr('pub_wb_98a76b5c', 'TRIP-BD-BA-01');
+    setTestQrInfo({ compact: test.compactQr, signature: test.signature });
   };
 
   const handleClearCacheConfirm = () => {
     Alert.alert(
-      'Xác nhận xóa dữ liệu',
-      'Bạn có chắc chắn muốn xóa toàn bộ dữ liệu đã tải về thiết bị? Các lượt soát vé chưa gửi có thể bị mất.',
+      'Xác nhận xoá cache',
+      'Bạn có chắc chắn muốn xoá toàn bộ dữ liệu SQLite trên máy? Dữ liệu chưa sync có thể bị mất.',
       [
-        { text: 'Hủy', style: 'cancel' },
+        { text: 'Huỷ', style: 'cancel' },
         {
-          text: 'Xóa dữ liệu',
+          text: 'Xoá Cache',
           style: 'destructive',
           onPress: async () => {
             await clearCache();
-            await loadTrips();
-            Alert.alert('Đã xóa', 'Dữ liệu trên thiết bị đã được xóa.');
+            Alert.alert('Đã xoá', 'Bộ nhớ đệm SQLite đã được làm sạch.');
           },
         },
       ]
@@ -117,42 +123,66 @@ export default function PreloadManifestScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Screen Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Chuẩn bị dữ liệu cho ca trực</Text>
+          <Text style={styles.title}>Quản Lý Bộ Nhớ Đệm & Preload</Text>
           <Text style={styles.subtitle}>
-            Tải danh sách chuyến và vé về thiết bị trước giờ mở cửa bến.
+            Tải dữ liệu vé và Public Key vào máy trước giờ mở cổng bến (BR-OFF-01)
           </Text>
         </View>
 
-        {/* Station Selector */}
+        {/* Assignment Selector - danh sách phân công thật từ GET /checkins/assignments/mine */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Chọn bến làm việc</Text>
-          <View style={styles.stationList}>
-            {STATIONS.map((st) => {
-              const isSelected = selectedStationId === st.id;
-              return (
-                <TouchableOpacity
-                  key={st.id}
-                  style={[styles.stationChip, isSelected && styles.stationChipSelected]}
-                  onPress={() => setSelectedStationId(st.id)}
-                >
-                  <Ionicons
-                    name={isSelected ? 'radio-button-on' : 'radio-button-off'}
-                    size={16}
-                    color={isSelected ? BrandColors.tealFlow : BrandColors.textSecondary}
-                  />
-                  <Text style={[styles.stationChipText, isSelected && styles.stationChipTextSelected]}>
-                    {st.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.cardTitle}>Chọn Điểm Dừng Được Phân Công</Text>
+            <TouchableOpacity onPress={loadAssignments} disabled={isLoadingAssignments}>
+              <Ionicons name="refresh" size={18} color="#0284C7" />
+            </TouchableOpacity>
           </View>
+
+          {isLoadingAssignments ? (
+            <ActivityIndicator color="#0284C7" style={{ marginVertical: 12 }} />
+          ) : assignmentsError ? (
+            <Text style={styles.assignmentError}>{assignmentsError}</Text>
+          ) : assignments.length === 0 ? (
+            <Text style={styles.assignmentEmpty}>Hiện chưa được phân công điểm dừng nào.</Text>
+          ) : (
+            <View style={styles.stationList}>
+              {assignments.map((a) => {
+                const isSelected = selectedTripStopCallId === a.tripStopCallId;
+                return (
+                  <TouchableOpacity
+                    key={a.assignmentId}
+                    style={[styles.stationChip, isSelected && styles.stationChipSelected]}
+                    onPress={() => setSelectedTripStopCallId(a.tripStopCallId)}
+                  >
+                    <Ionicons
+                      name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                      size={16}
+                      color={isSelected ? '#0284C7' : '#64748B'}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.stationChipText, isSelected && styles.stationChipTextSelected]}>
+                        {a.stationName}
+                      </Text>
+                      <Text style={styles.stationChipSub}>
+                        {a.routeName} • Bến thứ {a.visitOrder} • {a.tripStatus}
+                      </Text>
+                    </View>
+                    {a.isPrimaryOffline && (
+                      <View style={styles.badgePrimary}>
+                        <Text style={styles.badgePrimaryText}>Primary</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
           {/* Action Button: Preload Cache */}
           <TouchableOpacity
-            style={[styles.preloadButton, isPreloading && styles.buttonDisabled]}
+            style={[styles.preloadButton, (isPreloading || !selectedTripStopCallId) && styles.buttonDisabled]}
             onPress={handlePreload}
-            disabled={isPreloading}
+            disabled={isPreloading || !selectedTripStopCallId}
           >
             {isPreloading ? (
               <ActivityIndicator color="#FFFFFF" style={{ marginRight: 8 }} />
@@ -160,7 +190,7 @@ export default function PreloadManifestScreen() {
               <Ionicons name="cloud-download" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
             )}
             <Text style={styles.preloadButtonText}>
-              {isPreloading ? 'ĐANG TẢI DỮ LIỆU...' : 'TẢI DỮ LIỆU VỀ THIẾT BỊ'}
+              {isPreloading ? 'ĐANG TẢI DỮ LIỆU...' : 'TẢI TRƯỚC DỮ LIỆU (PRELOAD CACHE)'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -168,48 +198,48 @@ export default function PreloadManifestScreen() {
         {/* SQLite Database Statistics Card */}
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Dữ liệu trên thiết bị</Text>
-            <TouchableOpacity onPress={() => { refreshStats(); loadTrips(); }} style={styles.refreshIconBtn}>
-              <Ionicons name="refresh" size={18} color={BrandColors.tealFlow} />
+            <Text style={styles.cardTitle}>Trạng Thái Bộ Nhớ Cục Bộ (SQLite)</Text>
+            <TouchableOpacity onPress={refreshStats} style={styles.refreshIconBtn}>
+              <Ionicons name="refresh" size={18} color="#0284C7" />
             </TouchableOpacity>
           </View>
 
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>{stats.tripCount}</Text>
-              <Text style={styles.statLabel}>Chuyến</Text>
+              <Text style={styles.statLabel}>Chuyến Đi</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statNumber}>{stats.bookingCount}</Text>
-              <Text style={styles.statLabel}>Đơn đặt vé</Text>
+              <Text style={styles.statLabel}>Đơn Booking</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={[styles.statNumber, { color: BrandColors.tealFlow }]}>{stats.ticketCount}</Text>
-              <Text style={styles.statLabel}>Tổng số vé</Text>
+              <Text style={[styles.statNumber, { color: '#0284C7' }]}>{stats.ticketCount}</Text>
+              <Text style={styles.statLabel}>Tổng Vé Cache</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={[styles.statNumber, { color: BrandColors.success }]}>{stats.checkedInCount}</Text>
-              <Text style={styles.statLabel}>Đã xác nhận lên tàu</Text>
+              <Text style={[styles.statNumber, { color: '#059669' }]}>{stats.checkedInCount}</Text>
+              <Text style={styles.statLabel}>Đã Check-in</Text>
             </View>
           </View>
 
           <View style={styles.statsDivider} />
 
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Lượt soát vé chờ gửi:</Text>
-            <Text style={[styles.infoValueBold, stats.pendingSyncCount > 0 && { color: BrandColors.signalAmber }]}>
-              {stats.pendingSyncCount} lượt
+            <Text style={styles.infoLabel}>Vé chờ đồng bộ (Offline Queue):</Text>
+            <Text style={[styles.infoValueBold, stats.pendingSyncCount > 0 && { color: '#EA580C' }]}>
+              {stats.pendingSyncCount} sự kiện
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Lần tải dữ liệu gần nhất:</Text>
+            <Text style={styles.infoLabel}>Lần tải trước gần nhất:</Text>
             <Text style={styles.infoValue}>
-              {stats.lastPreloadAt ? new Date(stats.lastPreloadAt).toLocaleString('vi-VN') : 'Chưa tải'}
+              {stats.lastPreloadAt ? new Date(stats.lastPreloadAt).toLocaleString() : 'Chưa tải'}
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Dung lượng dữ liệu:</Text>
-            <Text style={styles.infoValue}>Khoảng {stats.databaseSizeKb} KB</Text>
+            <Text style={styles.infoLabel}>Dung lượng SQLite:</Text>
+            <Text style={styles.infoValue}>~{stats.databaseSizeKb} KB</Text>
           </View>
 
           {/* Sync Button */}
@@ -224,7 +254,7 @@ export default function PreloadManifestScreen() {
               <Ionicons name="sync" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
             )}
             <Text style={styles.syncButtonText}>
-              {isSyncing ? 'ĐANG GỬI DỮ LIỆU...' : `GỬI ${stats.pendingSyncCount} LƯỢT SOÁT VÉ`}
+              {isSyncing ? 'ĐANG ĐỒNG BỘ LÔ...' : `ĐẨY LÔ SYNC LÊN SERVER (${stats.pendingSyncCount})`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -237,80 +267,29 @@ export default function PreloadManifestScreen() {
           </View>
         )}
 
-        {/* Loaded Trips Section */}
+        {/* Test QR Generator Card */}
         <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardTitle}>Chuyến đã tải ({trips.length})</Text>
-            <Text style={styles.cardSubtitle}>Ca trực hôm nay</Text>
-          </View>
+          <Text style={styles.cardTitle}>Tạo Mã QR Mẫu Kèm Chữ Ký Số (Demo)</Text>
+          <Text style={styles.cardDesc}>
+            Sinh chuỗi QR mẫu ký RSA-SHA256 thật bằng khoá demo cục bộ để kiểm thử quét (không phải
+            dữ liệu/khoá production):
+          </Text>
 
-          {trips.length === 0 ? (
-            <View style={styles.emptyTripsBox}>
-              <Ionicons name="boat-outline" size={36} color="#CBD5E1" />
-              <Text style={styles.emptyTripsText}>
-                Chưa có chuyến nào trên thiết bị. Nhấn nút tải dữ liệu về thiết bị để xem chuyến và vé.
+          <TouchableOpacity style={styles.testGenButton} onPress={handleGenerateTestQr}>
+            <Ionicons name="qr-code-outline" size={18} color="#0284C7" style={{ marginRight: 6 }} />
+            <Text style={styles.testGenButtonText}>Sinh Chuỗi QR Hợp Lệ</Text>
+          </TouchableOpacity>
+
+          {testQrInfo && (
+            <View style={styles.qrCodeBox}>
+              <Text style={styles.qrCodeLabel}>Chuỗi QR đã ký (Dán vào camera hoặc nhập tay):</Text>
+              <Text style={styles.qrCodeText} selectable>
+                {testQrInfo.compact}
+              </Text>
+              <Text style={styles.signatureText} numberOfLines={1}>
+                Chữ ký: {testQrInfo.signature}
               </Text>
             </View>
-          ) : (
-            trips.map((trip) => {
-              const progressPercent = trip.totalTickets > 0 ? (trip.checkedInTickets / trip.totalTickets) * 100 : 0;
-              const depFormatted = new Date(trip.departureTime).toLocaleTimeString('vi-VN', {
-                hour: '2-digit',
-                minute: '2-digit',
-              });
-
-              return (
-                <View key={trip.id} style={styles.tripItemCard}>
-                  <View style={styles.tripItemTop}>
-                    <View style={styles.tripBadgeGroup}>
-                      <View style={styles.tripCodeBadge}>
-                        <Text style={styles.tripCodeBadgeText} numberOfLines={1}>
-                          {trip.tripCode.length > 10 ? `${trip.tripCode.substring(0, 8)}...` : trip.tripCode}
-                        </Text>
-                      </View>
-                      <View style={styles.tripTypeBadge}>
-                        <Text style={styles.tripTypeBadgeText}>{getTripTypeLabel(trip.tripType)}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.tripStatusBadge}>
-                      <Ionicons name="radio-button-on" size={12} color="#059669" />
-                      <Text style={styles.tripStatusText}>{getTripStatusLabel(trip.status)}</Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.tripRouteName}>{trip.routeName}</Text>
-
-                  <View style={styles.tripDetailRow}>
-                    <Ionicons name="boat" size={14} color="#64748B" />
-                    <Text style={styles.tripDetailText}>{trip.boatName}</Text>
-                    <Text style={styles.tripDetailDot}>•</Text>
-                    <Ionicons name="time" size={14} color="#64748B" />
-                    <Text style={styles.tripDetailText}>Xuất bến: {depFormatted}</Text>
-                  </View>
-
-                  {/* Boarding progress bar */}
-                  <View style={styles.progressContainer}>
-                    <View style={styles.progressRow}>
-                      <Text style={styles.progressLabel}>Tiến độ soát vé:</Text>
-                      <Text style={styles.progressValue}>
-                        {trip.checkedInTickets} / {trip.totalTickets} khách
-                      </Text>
-                    </View>
-                    <View style={styles.progressBarBg}>
-                      <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.scanTripButton}
-                    onPress={() => router.push('/(tabs)')}
-                  >
-                    <Ionicons name="qr-code" size={16} color="#0284C7" />
-                    <Text style={styles.scanTripButtonText}>Mở máy ảnh để soát vé</Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            })
           )}
         </View>
 
@@ -318,7 +297,7 @@ export default function PreloadManifestScreen() {
         <View style={styles.dangerCard}>
           <TouchableOpacity style={styles.clearCacheBtn} onPress={handleClearCacheConfirm}>
             <Ionicons name="trash-outline" size={18} color="#DC2626" style={{ marginRight: 6 }} />
-            <Text style={styles.clearCacheBtnText}>Xóa toàn bộ dữ liệu trên thiết bị</Text>
+            <Text style={styles.clearCacheBtnText}>Xoá Toàn Bộ Dữ Liệu SQLite Cục Bộ</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -329,7 +308,7 @@ export default function PreloadManifestScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: BrandColors.mist,
+    backgroundColor: '#F8FAFC',
   },
   content: {
     padding: 16,
@@ -341,21 +320,21 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: BrandColors.ink,
+    color: '#0F172A',
   },
   subtitle: {
     fontSize: 13,
-    color: BrandColors.textSecondary,
+    color: '#64748B',
     marginTop: 4,
     lineHeight: 18,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: Radius.card,
+    borderRadius: 14,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: BrandColors.border,
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -371,19 +350,26 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: BrandColors.ink,
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: BrandColors.textSecondary,
+    color: '#0F172A',
+    marginBottom: 10,
   },
   cardDesc: {
     fontSize: 13,
-    color: BrandColors.textSecondary,
+    color: '#64748B',
     marginBottom: 12,
   },
   refreshIconBtn: {
     padding: 4,
+  },
+  assignmentError: {
+    color: '#DC2626',
+    fontSize: 13,
+    marginVertical: 8,
+  },
+  assignmentEmpty: {
+    color: '#94A3B8',
+    fontSize: 13,
+    marginVertical: 8,
   },
   stationList: {
     gap: 8,
@@ -392,100 +378,105 @@ const styles = StyleSheet.create({
   stationChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: Radius.md,
+    padding: 10,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: BrandColors.border,
-    backgroundColor: '#FFFFFF',
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    gap: 8,
   },
   stationChipSelected: {
-    borderColor: BrandColors.tealFlow,
-    backgroundColor: '#F0FDF9',
+    borderColor: '#0284C7',
+    backgroundColor: '#F0F9FF',
   },
   stationChipText: {
     fontSize: 14,
-    color: BrandColors.ink,
-    marginLeft: 10,
-    fontWeight: '500',
+    color: '#334155',
   },
   stationChipTextSelected: {
-    color: BrandColors.tealFlow,
+    color: '#0284C7',
+    fontWeight: '600',
+  },
+  stationChipSub: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  badgePrimary: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  badgePrimaryText: {
+    color: '#15803D',
+    fontSize: 10,
     fontWeight: '700',
   },
   preloadButton: {
-    backgroundColor: BrandColors.tealFlow,
+    backgroundColor: '#0284C7',
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: Radius.button,
-    marginTop: 6,
+    alignItems: 'center',
+    paddingVertical: 13,
+    borderRadius: 10,
   },
   preloadButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
   statsGrid: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 14,
+    justifyContent: 'space-between',
+    marginVertical: 6,
   },
   statBox: {
-    flex: 1,
-    backgroundColor: BrandColors.mist,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
-    borderRadius: Radius.sm,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: BrandColors.border,
+    flex: 1,
   },
   statNumber: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '800',
-    color: BrandColors.ink,
+    color: '#0F172A',
   },
   statLabel: {
     fontSize: 11,
-    color: BrandColors.textSecondary,
+    color: '#64748B',
     marginTop: 2,
     textAlign: 'center',
   },
   statsDivider: {
     height: 1,
-    backgroundColor: BrandColors.border,
-    marginBottom: 12,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 12,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    marginVertical: 4,
   },
   infoLabel: {
     fontSize: 13,
-    color: BrandColors.textSecondary,
+    color: '#64748B',
   },
   infoValue: {
     fontSize: 13,
-    color: BrandColors.ink,
+    color: '#1E293B',
+    fontWeight: '500',
   },
   infoValueBold: {
     fontSize: 13,
+    color: '#0F172A',
     fontWeight: '700',
-    color: BrandColors.ink,
   },
   syncButton: {
-    backgroundColor: BrandColors.deepRiver,
+    backgroundColor: '#059669',
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: Radius.button,
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderRadius: 8,
     marginTop: 14,
   },
   syncButtonText: {
@@ -493,168 +484,78 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  buttonDisabled: {
+    backgroundColor: '#94A3B8',
+  },
   messageBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF9',
+    backgroundColor: '#EFF6FF',
     borderWidth: 1,
-    borderColor: BrandColors.tealFlow,
-    borderRadius: Radius.md,
-    padding: 12,
+    borderColor: '#BFDBFE',
+    borderRadius: 8,
+    padding: 10,
     marginBottom: 16,
     gap: 8,
   },
   messageBannerText: {
-    fontSize: 13,
-    color: BrandColors.tealFlow,
-    fontWeight: '600',
+    color: '#1D4ED8',
+    fontSize: 12,
     flex: 1,
   },
-  emptyTripsBox: {
-    alignItems: 'center',
+  testGenButton: {
+    flexDirection: 'row',
     justifyContent: 'center',
-    paddingVertical: 24,
-    gap: 8,
-  },
-  emptyTripsText: {
-    fontSize: 13,
-    color: BrandColors.textMuted,
-    textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 16,
-  },
-  tripItemCard: {
-    backgroundColor: BrandColors.mist,
-    borderRadius: Radius.md,
-    padding: 14,
-    marginBottom: 10,
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: BrandColors.border,
+    borderColor: '#0284C7',
+    backgroundColor: '#F0F9FF',
   },
-  tripItemTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  tripBadgeGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexShrink: 1,
-  },
-  tripCodeBadge: {
-    backgroundColor: BrandColors.tealFlow,
-    paddingVertical: 2,
-    paddingHorizontal: 7,
-    borderRadius: Radius.sm,
-    maxWidth: 110,
-  },
-  tripCodeBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  tripTypeBadge: {
-    backgroundColor: BrandColors.sandLight,
-    paddingVertical: 2,
-    paddingHorizontal: 7,
-    borderRadius: Radius.sm,
-  },
-  tripTypeBadgeText: {
-    color: BrandColors.ink,
-    fontSize: 11,
+  testGenButtonText: {
+    color: '#0284C7',
     fontWeight: '600',
+    fontSize: 13,
   },
-  tripStatusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  qrCodeBox: {
+    marginTop: 12,
+    backgroundColor: '#F1F5F9',
+    padding: 10,
+    borderRadius: 8,
   },
-  tripStatusText: {
-    fontSize: 12,
-    color: BrandColors.success,
-    fontWeight: '600',
-  },
-  tripRouteName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: BrandColors.ink,
+  qrCodeLabel: {
+    fontSize: 11,
+    color: '#64748B',
     marginBottom: 4,
   },
-  tripDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 10,
-  },
-  tripDetailText: {
+  qrCodeText: {
     fontSize: 12,
-    color: BrandColors.textSecondary,
+    fontFamily: 'monospace',
+    color: '#0F172A',
+    backgroundColor: '#FFFFFF',
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
   },
-  tripDetailDot: {
-    color: BrandColors.border,
-    marginHorizontal: 4,
-  },
-  progressContainer: {
-    marginBottom: 10,
-  },
-  progressRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  progressLabel: {
+  signatureText: {
     fontSize: 11,
-    color: BrandColors.textSecondary,
-  },
-  progressValue: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: BrandColors.tealFlow,
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: BrandColors.border,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: BrandColors.tealFlow,
-    borderRadius: 3,
-  },
-  scanTripButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: Radius.sm,
-    backgroundColor: '#F0FDF9',
-    gap: 6,
-  },
-  scanTripButtonText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: BrandColors.tealFlow,
+    color: '#94A3B8',
+    marginTop: 4,
   },
   dangerCard: {
-    marginTop: 4,
-    marginBottom: 20,
+    marginTop: 8,
+    alignItems: 'center',
   },
   clearCacheBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: Radius.button,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    backgroundColor: BrandColors.dangerBg,
+    paddingVertical: 10,
   },
   clearCacheBtnText: {
+    color: '#DC2626',
     fontSize: 13,
     fontWeight: '600',
-    color: BrandColors.danger,
   },
 });

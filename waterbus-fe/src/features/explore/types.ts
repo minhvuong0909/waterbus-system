@@ -1,62 +1,24 @@
-export interface Journey {
-  id: string
-  image: string
-  eyebrow: string
-  tags: string[]
-  title: string
-  description: string
-  route: string
-}
+import type { Departure, SearchQuery } from '../trips/types'
 
-export type PoiCategory = 'Skyline' | 'Heritage' | 'Culture' | 'Riverside'
+export type PoiCategory = 'Heritage' | 'Skyline' | 'Riverside'
 
+/** A point of interest narrated on sightseeing trips (BR-EXP-01). */
 export interface Landmark {
   id: string
-  image: string
+  /** Missing while no photo of the right place is available: a neutral tile is shown instead. */
+  image?: string
   category: PoiCategory
-  routeTag: string
   title: string
   description: string
-}
-
-export interface MobilityMode {
-  id: 'transit' | 'sightseeing'
-  eyebrow: string
-  title: string
-  subtitle: string
-  icon: string
-  chip: string
-  features: string[]
-  cta: string
-}
-
-export interface ExploreEpisode {
-  id: string
-  eyebrow: string
-  title: string
-  subtitle: string
-  durationSec: number
-  startAtSec: number
-  thumbnail: string
-}
-
-export interface CorridorPin {
-  id: string
-  icon: string
-  title: string
-  subtitle?: string
-  /** Position in percent of the map panel. */
-  x: number
-  y: number
-  emphasis?: 'hub' | 'stop' | 'poi'
 }
 
 export interface ExploreData {
-  journeys: Journey[]
-  modes: MobilityMode[]
   categories: PoiCategory[]
   landmarks: Landmark[]
-  languages: string[]
-  episode: ExploreEpisode
-  pins: CorridorPin[]
+}
+
+/** A real upcoming sightseeing trip, with the search that opens its detail page. */
+export interface SightseeingDeparture {
+  departure: Departure
+  search: Pick<SearchQuery, 'originId' | 'destinationId' | 'dateId'>
 }

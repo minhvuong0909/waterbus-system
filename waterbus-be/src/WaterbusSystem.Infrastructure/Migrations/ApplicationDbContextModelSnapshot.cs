@@ -243,6 +243,107 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.ToTable("AudioGuides");
                 });
 
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.AudioPlaybackRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AudioAssetUri")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid?>("AudioGuideId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("BoatId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("DistanceMeters")
+                        .HasColumnType("float");
+
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("PoiId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("ReservationEpoch")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTimeOffset>("ReservedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("RoutePoiKey")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TripId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("VisitKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoatId", "Status")
+                        .HasDatabaseName("IX_AudioPlaybackRequests_Boat");
+
+                    b.HasIndex("TripId", "RoutePoiKey", "VisitKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AudioPlaybackRequests_Visit");
+
+                    b.ToTable("AudioPlaybackRequests", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AudioPlaybackRequests_Attempts", "[Attempts] >= 0");
+
+                            t.HasCheckConstraint("CK_AudioPlaybackRequests_Status", "[Status] BETWEEN 1 AND 6");
+                        });
+                });
+
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Boat", b =>
                 {
                     b.Property<Guid>("Id")
@@ -577,6 +678,110 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.ToTable("CheckInEvents");
                 });
 
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.EmailOutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("BookingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EventKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("FinancialTransactionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("LockToken")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("LockedUntil")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("NextAttemptAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("NotificationType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProviderMessageId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("RecipientEmail")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<string>("RecipientName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset?>("SentAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_EmailOutbox_EventKey");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("IX_EmailOutbox_OrderId");
+
+                    b.HasIndex("Status", "NextAttemptAt")
+                        .HasDatabaseName("IX_EmailOutbox_Dispatch");
+
+                    b.ToTable("EmailOutbox", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_EmailOutbox_Attempts", "[AttemptCount] >= 0");
+
+                            t.HasCheckConstraint("CK_EmailOutbox_Status", "[Status] IN ('Pending', 'Processing', 'Sent', 'Failed', 'DeadLetter', 'Skipped')");
+                        });
+                });
+
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.FareRule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -688,6 +893,11 @@ namespace WaterbusSystem.Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<bool>("IsDemoRefund")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("nvarchar(max)");
@@ -1361,9 +1571,11 @@ namespace WaterbusSystem.Infrastructure.Migrations
 
                     b.HasIndex("DeviceId");
 
-                    b.HasIndex("TripStopCallId")
+                    b.HasIndex(new[] { "TripStopCallId" }, "IX_ScannerAssignments_TripStopCallId");
+
+                    b.HasIndex(new[] { "TripStopCallId" }, "IX_ScannerAssignments_TripStopCallId_OpenEndedPrimary")
                         .IsUnique()
-                        .HasFilter("[IsPrimaryOffline] = 1");
+                        .HasFilter("[IsPrimaryOffline] = 1 AND [ActiveUntil] IS NULL AND [IsDeleted] = 0");
 
                     b.ToTable("ScannerAssignments");
                 });
@@ -2310,6 +2522,15 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Poi");
+                });
+
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.AudioPlaybackRequest", b =>
+                {
+                    b.HasOne("WaterbusSystem.Domain.Entities.Trip", null)
+                        .WithMany()
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.BoatPositionEvent", b =>

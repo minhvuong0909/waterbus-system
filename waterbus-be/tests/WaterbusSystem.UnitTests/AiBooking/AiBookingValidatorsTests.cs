@@ -1,6 +1,7 @@
+using WaterbusSystem.Application.DTOs.Requests.AiBooking;
 using FluentAssertions;
 using WaterbusSystem.Application.Features.AiBooking.Models;
-using WaterbusSystem.Application.Features.AiBooking.Validators;
+using WaterbusSystem.Application.Validators.AiBooking;
 using Xunit;
 
 namespace WaterbusSystem.UnitTests.AiBooking;
@@ -56,6 +57,22 @@ public class AiBookingValidatorsTests
         result.IsValid.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("vi", true)]
+    [InlineData("en", true)]
+    [InlineData("fr", false)]
+    public void ChatRequestValidator_OnlySupportsWebsiteLanguages(string? languageCode, bool valid)
+    {
+        var result = _chatRequestValidator.Validate(new AiBookingChatRequest
+        {
+            Message = "Find trips",
+            LanguageCode = languageCode
+        });
+
+        result.IsValid.Should().Be(valid);
+    }
+
     [Fact]
     public void ChatRequestValidator_InvalidServiceType_ShouldFail()
     {
@@ -81,6 +98,63 @@ public class AiBookingValidatorsTests
         });
 
         result.IsValid.Should().BeFalse("Domain TripType chỉ có Commuter và Sightseeing");
+    }
+
+    [Fact]
+    public void ChatRequestValidator_ValidSearchContext_ShouldPass()
+    {
+        var result = _chatRequestValidator.Validate(new AiBookingChatRequest
+        {
+            Message = "Sớm hơn một chút",
+            SearchContext = new TripSearchCriteria
+            {
+                DepartureStationName = "Bạch Đằng",
+                PassengerCount = 2,
+                PreferredDepartureTime = new TimeOnly(16, 0)
+            }
+        });
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ChatRequestValidator_OversizedClientContext_ShouldFail()
+    {
+        var result = _chatRequestValidator.Validate(new AiBookingChatRequest
+        {
+            Message = "Sớm hơn một chút",
+            SearchContext = new TripSearchCriteria { DepartureStationName = new string('a', 101) }
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName.Contains("DepartureStationName"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ChatRequestValidator_EmptyPendingQuestion_ShouldFail(string originalMessage)
+    {
+        var result = _chatRequestValidator.Validate(new AiBookingChatRequest
+        {
+            Message = "lọc tiếp",
+            PendingClarification = new AiSearchScopeClarification(originalMessage)
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName.Contains("OriginalMessage"));
+    }
+
+    [Fact]
+    public void ChatRequestValidator_OversizedPendingQuestion_ShouldFail()
+    {
+        var result = _chatRequestValidator.Validate(new AiBookingChatRequest
+        {
+            Message = "lọc tiếp",
+            PendingClarification = new AiSearchScopeClarification(new string('a', 1001))
+        });
+
+        result.IsValid.Should().BeFalse();
     }
 
     // ── TripSearchCriteriaValidator ─────────────────────────────────────────

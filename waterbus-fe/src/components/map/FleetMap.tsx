@@ -21,6 +21,11 @@ interface FleetMapProps {
   /** Stations in river order; the line of the corridor is drawn through them. */
   stations: MapStation[]
   boats: MapBoat[]
+  /**
+   * Course of the route along the river. Without it the line joins the stations with straight
+   * segments, which cut across land where the river bends.
+   */
+  path?: [number, number][]
   className?: string
 }
 
@@ -36,8 +41,9 @@ const boatIcon = L.divIcon({
 const DEFAULT_CENTER: [number, number] = [10.81, 106.73]
 
 /** OpenStreetMap view of the river corridor with its stations and the boats on it. */
-export default function FleetMap({ stations, boats, className = '' }: FleetMapProps) {
-  const line = stations.map((s): [number, number] => [s.latitude, s.longitude])
+export default function FleetMap({ stations, boats, path, className = '' }: FleetMapProps) {
+  const stationPoints = stations.map((s): [number, number] => [s.latitude, s.longitude])
+  const line = path && path.length > 1 ? path : stationPoints
   const bounds = line.length > 1 ? L.latLngBounds(line).pad(0.2) : undefined
 
   return (

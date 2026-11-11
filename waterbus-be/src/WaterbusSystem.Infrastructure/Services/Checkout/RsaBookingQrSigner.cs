@@ -35,7 +35,7 @@ public sealed class RsaBookingQrSigner(IConfiguration configuration) : IBookingQ
         var rsa = RSA.Create();
         try
         {
-            rsa.ImportFromPem(pem);
+            rsa.ImportFromPem(pem.Replace("\\n", "\n"));
             if (rsa.KeySize < 2048) throw new InvalidOperationException("QR RSA key phải ít nhất 2048 bit.");
             return rsa;
         }

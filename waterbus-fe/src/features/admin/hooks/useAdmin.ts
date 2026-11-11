@@ -49,12 +49,3 @@ export function useNow(ms: number): number {
   return now
 }
 
-/** A counter that goes up every `ms` milliseconds, to pass as a `useFetch` dependency for polling. */
-export function useTicker(ms: number): number {
-  const [tick, setTick] = useState(0)
-  useEffect(() => {
-    const timer = window.setInterval(() => setTick((n) => n + 1), ms)
-    return () => window.clearInterval(timer)
-  }, [ms])
-  return tick
-}

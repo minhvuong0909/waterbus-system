@@ -19,8 +19,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
         {t('Skip to main content')}
       </a>
       <Header />
-      <main id="main-content" className="w-full flex-1 pt-20 print:pt-0">{children}</main>
+      <main id="main-content" className="w-full flex-1 pt-16 sm:pt-20 print:pt-0">
+        {children}
+      </main>
       <Footer />
+      <div aria-hidden className="h-20 bg-white sm:hidden print:hidden" />
       <AssistantWidget />
     </div>
   )

@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.DTOs.Requests.AiBooking;
 using FluentAssertions;
 using FluentValidation;
 using WaterbusSystem.Application.Features.AiBooking.Models;

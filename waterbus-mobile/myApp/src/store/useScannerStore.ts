@@ -1,3 +1,8 @@
+/**
+ * Zustand Store for Staff Scanner App
+ * Manages reactive UI state for scanning, check-in, SQLite statistics, and sync progress
+ */
+
 import { create } from 'zustand';
 import {
   Booking,
@@ -7,19 +12,26 @@ import {
 } from '../types/scanner';
 import { SqliteRepository } from '../services/sqlite/sqliteRepository';
 import { syncService } from '../services/sync/syncService';
+import { getMyScannerAssignments } from '../services/checkin/scannerAssignmentService';
+import { MyScannerAssignment } from '../types/checkin';
 
 interface ScannerState {
+  // Current scanned booking
   currentBooking: Booking | null;
   verificationResult: QrVerificationResult | null;
   isModalOpen: boolean;
 
+  // Local database & cache stats
   stats: ManifestStats;
   isPreloading: boolean;
   isSyncing: boolean;
   syncMessage: string | null;
 
+  // Device & Staff Configuration
   deviceInfo: ScannerDeviceInfo;
+  activeAssignment: MyScannerAssignment | null;
 
+  // Recent scans history
   recentScans: {
     bookingCode: string;
     customerName: string;
@@ -28,20 +40,21 @@ interface ScannerState {
     status: string;
   }[];
 
+  // Actions
   refreshStats: () => Promise<void>;
   setCurrentBooking: (booking: Booking | null, verification?: QrVerificationResult | null) => void;
   closeBookingModal: () => void;
   performCheckIn: (ticketIds: string[], notes?: string) => Promise<{ success: boolean; count: number; error?: string }>;
-  preloadCache: (stationId?: string) => Promise<boolean>;
+  /** tripStopCallId thật (Guid) lấy từ GetMyScannerAssignments - không còn là stationId demo. */
+  preloadCache: (tripStopCallId: string) => Promise<boolean>;
   syncPendingBatch: () => Promise<number>;
-  claimPrimaryScanner: (tripStopCallId: string) => Promise<{ success: boolean; isPrimary: boolean; message: string }>;
-  setDeviceInfo: (info: Partial<ScannerDeviceInfo>) => void;
   setForceOfflineMode: (enabled: boolean) => void;
   clearCache: () => Promise<void>;
 }
 
 export const useScannerStore = create<ScannerState>((set, get) => ({
   currentBooking: null,
+  activeAssignment: null,
   verificationResult: null,
   isModalOpen: false,
 
@@ -65,8 +78,8 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     try {
       const stats = await SqliteRepository.getManifestStats();
       set({ stats });
-    } catch {
-      // Không để lỗi cập nhật thống kê làm gián đoạn thao tác soát vé.
+    } catch (err) {
+      console.warn('[Store] Could not load stats:', err);
     }
   },
 
@@ -100,39 +113,45 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
   },
 
   performCheckIn: async (ticketIds: string[], notes?: string) => {
-    const { currentBooking, deviceInfo, verificationResult } = get();
+    const { currentBooking, activeAssignment } = get();
+    const deviceInfo = syncService.getDeviceInfo();
     if (!currentBooking || ticketIds.length === 0) {
       return { success: false, count: 0, error: 'Không có vé nào được chọn' };
     }
-    if (verificationResult?.isValid !== true) {
-      return {
-        success: false,
-        count: 0,
-        error: 'Cần quét mã QR hợp lệ trước khi xác nhận khách lên tàu.',
-      };
+
+    const now = Date.now();
+    if (!activeAssignment || currentBooking.tripId !== activeAssignment.tripId ||
+        deviceInfo.stationId !== activeAssignment.tripStopCallId) {
+      return { success: false, count: 0, error: 'Hãy tải trước phân công đúng chuyến trước khi soát vé.' };
     }
-    if (!deviceInfo.staffId || !currentBooking.tripStopCallId
-        || !syncService.isPrimaryOfflineFor(currentBooking.tripStopCallId)) {
-      return {
-        success: false,
-        count: 0,
-        error: 'Đăng nhập và nhận quyền scanner offline chính cho chuyến này trước khi check-in.',
-      };
+    if (!activeAssignment.isPrimaryOffline) {
+      return { success: false, count: 0, error: 'Thiết bị này không được phân công ghi check-in ngoại tuyến.' };
+    }
+    const opens = Date.parse(activeAssignment.checkInOpenAt ?? '');
+    const closes = Date.parse(activeAssignment.checkInCloseAt ?? '');
+    if (!Number.isFinite(opens) || !Number.isFinite(closes) || now < opens || now > closes ||
+        now < Date.parse(activeAssignment.activeFrom) ||
+        (activeAssignment.activeUntil && now > Date.parse(activeAssignment.activeUntil))) {
+      return { success: false, count: 0, error: 'Ngoài cửa sổ check-in hoặc phân công đã hết hiệu lực.' };
+    }
+    if (ticketIds.some((id) => !currentBooking.tickets.some((t) => t.id === id && t.status === 'Valid' && t.boardingStatus === 'NotCheckedIn'))) {
+      return { success: false, count: 0, error: 'Vé không hợp lệ hoặc đã check-in.' };
     }
 
     try {
-      // Lưu check-in cục bộ trước để vẫn hoạt động khi thiết bị mất mạng.
       const res = await SqliteRepository.checkInTickets({
         ticketIds,
         bookingId: currentBooking.id,
         tripId: currentBooking.tripId,
-        tripStopCallId: currentBooking.tripStopCallId,
+        // deviceInfo.stationId giờ giữ TripStopCallId thật của lần preload gần nhất (xem preloadCache).
+        tripStopCallId: deviceInfo.stationId,
         staffAccountId: deviceInfo.staffId,
         staffName: deviceInfo.staffName,
         scannerDeviceId: deviceInfo.deviceId,
         notes,
       });
 
+      // Update in-memory booking object to reflect changes immediately
       const updatedTickets = currentBooking.tickets.map((t) => {
         if (ticketIds.includes(t.id)) {
           return {
@@ -151,112 +170,73 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
         },
       });
 
+      // Refresh SQLite stats
       await get().refreshStats();
 
+      // Trigger background batch sync if online
       if (!deviceInfo.forceOfflineMode) {
-        // Gửi không chờ kết quả để không chặn nhân viên; worker sẽ thử lại nếu lỗi.
-        syncService.triggerBatchSync().catch(() => {});
+        syncService.triggerBatchSync().catch((e) => console.log('Auto sync error:', e));
       }
 
       return { success: true, count: res.checkedInCount };
     } catch (error: any) {
+      console.error('[Store] Check-in error:', error);
       return { success: false, count: 0, error: error.message };
     }
   },
 
-  preloadCache: async (stationId?: string) => {
-    set({ isPreloading: true, syncMessage: 'Đang tải dữ liệu chuyến và khóa xác thực...' });
+  preloadCache: async (tripStopCallId: string) => {
+    set({ isPreloading: true, syncMessage: 'Đang tải dữ liệu chuyến và Public Key...' });
     try {
-      const targetStation = stationId || get().deviceInfo.stationId;
-      const res = await syncService.preloadManifest(targetStation);
-      const tripStopCallIds = [...new Set(
-        res.manifest.bookings
-          .map(booking => booking.tripStopCallId)
-          .filter((tripStopCallId): tripStopCallId is string => !!tripStopCallId)
-      )];
-      if (tripStopCallIds.length === 0) {
-        syncService.setDeviceInfo({ isPrimaryOffline: false });
-        set({
-          deviceInfo: syncService.getDeviceInfo(),
-          isPreloading: false,
-          syncMessage: 'Đã tải manifest nhưng chưa có điểm dừng được phân công để nhận quyền offline.',
-        });
-        await get().refreshStats();
-        return false;
-      }
-
-      let claimMessage = '';
-      for (const tripStopCallId of tripStopCallIds) {
-        const claim = await syncService.claimPrimaryOfflineRole(tripStopCallId);
-        claimMessage = claim.message;
-        if (!claim.success || !claim.isPrimary) {
-          set({
-            deviceInfo: syncService.getDeviceInfo(),
-            isPreloading: false,
-            syncMessage: claimMessage,
-          });
-          await get().refreshStats();
-          return false;
-        }
-      }
-
+      const stats = await SqliteRepository.getManifestStats();
+      if (stats.pendingSyncCount > 0) throw new Error('Hãy đồng bộ các sự kiện đang chờ trước khi tải lại manifest.');
+      const assignments = await getMyScannerAssignments();
+      const assignment = assignments.find((a) => a.tripStopCallId === tripStopCallId);
+      if (!assignment) throw new Error('Bạn không được phân công tại điểm dừng này.');
+      const res = await syncService.preloadManifest(tripStopCallId);
+      // Ghi lại điểm dừng vừa preload (tái dùng field stationId) để performCheckIn gửi đúng
+      // TripStopCallId khi tạo CheckInEvent offline.
+      syncService.setDeviceInfo({ stationId: tripStopCallId, stationName: res.manifest.stationName,
+        deviceId: assignment.deviceId, deviceCode: assignment.deviceCode, isPrimaryOffline: assignment.isPrimaryOffline });
+      set({ activeAssignment: assignment, deviceInfo: syncService.getDeviceInfo() });
       await get().refreshStats();
-      set({
-        deviceInfo: syncService.getDeviceInfo(),
-        isPreloading: false,
-        syncMessage: `${res.message} ${claimMessage}`,
-      });
+      set({ isPreloading: false, syncMessage: res.message, deviceInfo: syncService.getDeviceInfo() });
       return true;
-    } catch (error) {
-      set({
-        deviceInfo: syncService.getDeviceInfo(),
-        isPreloading: false,
-        syncMessage: error instanceof Error
-          ? error.message
-          : 'Không thể tải dữ liệu. Vui lòng kiểm tra kết nối và thử lại.',
-      });
+    } catch (e: any) {
+      set({ isPreloading: false, syncMessage: `Lỗi tải trước: ${e.message}` });
       return false;
     }
   },
 
   syncPendingBatch: async () => {
-    set({ isSyncing: true, syncMessage: 'Đang gửi lượt soát vé lên máy chủ...' });
+    set({ isSyncing: true, syncMessage: 'Đang gửi lô check-in lên hệ thống...' });
     try {
       const res = await syncService.triggerBatchSync();
       await get().refreshStats();
       set({ isSyncing: false, syncMessage: res.message });
       return res.syncedCount;
-    } catch {
-      set({ isSyncing: false, syncMessage: 'Không thể gửi dữ liệu. Vui lòng kiểm tra kết nối và thử lại.' });
+    } catch (e: any) {
+      set({ isSyncing: false, syncMessage: `Lỗi đồng bộ: ${e.message}` });
       return 0;
     }
   },
 
-  claimPrimaryScanner: async (tripStopCallId: string) => {
-    const res = await syncService.claimPrimaryOfflineRole(tripStopCallId);
-    set({
-      deviceInfo: syncService.getDeviceInfo(),
-      syncMessage: res.message,
-    });
-    return res;
-  },
-
-  setDeviceInfo: (info) => {
-    syncService.setDeviceInfo(info);
-    set({ deviceInfo: syncService.getDeviceInfo() });
-  },
-
   setForceOfflineMode: (enabled: boolean) => {
-    syncService.setDeviceInfo({ forceOfflineMode: enabled });
+    const updated = { ...get().deviceInfo, forceOfflineMode: enabled };
+    syncService.setDeviceInfo(updated);
     set({
-      deviceInfo: syncService.getDeviceInfo(),
-      syncMessage: enabled ? 'Đã bật chế độ sử dụng khi mất kết nối.' : 'Đã bật chế độ tự động gửi dữ liệu.',
+      deviceInfo: updated,
+      syncMessage: enabled ? 'Đã bật chế độ Ngoại Tuyến (Offline Mode)' : 'Đã bật chế độ Tự động đồng bộ',
     });
   },
 
   clearCache: async () => {
+    const stats = await SqliteRepository.getManifestStats();
+    if (stats.pendingSyncCount > 0) throw new Error('Còn sự kiện chưa đồng bộ. Không thể xoá bộ nhớ đệm.');
     await SqliteRepository.clearCache();
+    set({ activeAssignment: null, currentBooking: null, verificationResult: null, isModalOpen: false });
     await get().refreshStats();
-    set({ syncMessage: 'Đã xóa dữ liệu trên thiết bị.' });
+    set({ syncMessage: 'Đã xoá sạch bộ nhớ đệm cục bộ' });
   },
 }));
+

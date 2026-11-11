@@ -1,13 +1,17 @@
 import { numberLocale, t } from '../../i18n'
-import { formatClock, toIsoDate } from '../../utils/time'
+import { formatClock, minutesOfClock, toVietnamDate, vietnamMinutesOfDay } from '../../utils/time'
 import type {
+  CorridorMap,
   DateOption,
+  Departure,
   PierOption,
   SearchQuery,
   StationDto,
   TimeBand,
+  TimelineStep,
   Trip,
   TripDto,
+  TripStopDto,
 } from './types'
 
 /** At or below this many free seats a trip is shown as "Limited". */
@@ -25,6 +29,7 @@ export function formatDateLabel(date: DateOption): string {
 
 /** "28 Seats Left", or "54 Seats Available" when plenty remain. */
 export function seatsLabel(trip: Pick<Trip, 'seatsCount' | 'seatsLow'>): string {
+  if (trip.seatsCount <= 0) return t('Sold out')
   if (trip.seatsLow) return t('Limited: Only {count} Seats Left', { count: trip.seatsCount })
   return trip.seatsCount >= 50
     ? t('{count} Seats Available', { count: trip.seatsCount })
@@ -76,32 +81,36 @@ export function timeBandOf(hour: number): TimeBand {
   return hour < 17 ? 'afternoon' : 'sunset'
 }
 
+/** The search endpoint sends no fare (the real fares belong to each seat class), so 0 means "not known yet". */
+export const hasFare = (amountVnd: number): boolean => amountVnd > 0
+
 /** Short reference for a trip, the first 8 characters of its id (e.g. "3F2A9C1B"). */
 export function tripReference(id: string): string {
   return id.replace(/-/g, '').slice(0, 8).toUpperCase()
 }
 
 /** Date option for a `YYYY-MM-DD` id, formatted for the active language. */
-export function describeDate(id: string, today = toIsoDate(new Date())): DateOption {
+export function describeDate(id: string, today = toVietnamDate(new Date())): DateOption {
   const [year, month, day] = id.split('-').map(Number)
-  const date = new Date(year, month - 1, day)
+  // Noon UTC keeps the same calendar day in Vietnam (UTC+7) whatever the browser's time zone.
+  const date = new Date(Date.UTC(year, month - 1, day, 12))
   const locale = numberLocale()
+  const zone = 'Asia/Ho_Chi_Minh'
   return {
     id,
-    weekday: date.toLocaleDateString(locale, { weekday: 'short' }),
-    label: date.toLocaleDateString(locale, { month: 'short', day: 'numeric' }),
-    fullLabel: date.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' }),
+    weekday: date.toLocaleDateString(locale, { weekday: 'short', timeZone: zone }),
+    label: date.toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone: zone }),
+    fullLabel: date.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric', timeZone: zone }),
     isToday: id === today,
   }
 }
 
 /** The next `days` days starting today. */
 export function buildDateOptions(days = SEARCH_WINDOW_DAYS): DateOption[] {
-  const today = new Date()
-  return Array.from({ length: days }, (_, offset) => {
-    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset)
-    return describeDate(toIsoDate(date))
-  })
+  const [year, month, day] = toVietnamDate(new Date()).split('-').map(Number)
+  return Array.from({ length: days }, (_, offset) =>
+    describeDate(toVietnamDate(new Date(Date.UTC(year, month - 1, day + offset, 12)))),
+  )
 }
 
 /**
@@ -123,15 +132,120 @@ export function toTrip(dto: TripDto): Trip {
     arriveTime: formatClock(arrive),
     originGate: '',
     destinationGate: '',
-    durationMins: dto.durationMinutes,
+    durationMins: dto.durationMinutes ?? 0,
+    durationKnown: dto.durationMinutes !== null,
     crossingKind: kind === 'sightseeing' ? t('Sightseeing') : t('Regular'),
     direct: false,
     crossingCaption: dto.routeName,
     seatsCount: dto.availableSeatsCount,
     seatsLow: dto.availableSeatsCount <= LOW_SEATS_THRESHOLD,
-    band: timeBandOf(depart.getHours()),
+    band: timeBandOf(Math.floor(vietnamMinutesOfDay(depart) / 60)),
     amenities: [],
     fareVnd: dto.basePrice,
-    fareLabel: kind === 'sightseeing' ? t('Experience Fare') : t('Standard Fare'),
+    // basePrice is the lowest fare of the trip type; seats of other classes cost more.
+    fareLabel: t('Fares from'),
+  }
+}
+
+/**
+ * Chuyến đã rời bến: ngày đã qua, hoặc hôm nay mà giờ khởi hành không còn ở phía trước. Chuyến loại
+ * này không còn bán được (BR-SRCH-02, BR-TIME-01).
+ */
+export function isDeparted(trip: Pick<Trip, 'departTime'>, dateId: string, now = new Date()): boolean {
+  const today = toVietnamDate(now)
+  if (dateId !== today) return dateId < today
+  return minutesOfClock(trip.departTime) <= vietnamMinutesOfDay(now)
+}
+
+/**
+ * The boarding and alighting stops for the chosen piers: the first stop at the origin pier that
+ * allows boarding, followed later in the trip by a stop at the destination that allows alighting.
+ * Uses the trip's real stops, never the pier order (a loop trip can call at one pier twice).
+ */
+export function pickJourney(
+  stops: TripStopDto[],
+  originId: string,
+  destinationId: string,
+): { boarding: TripStopDto; disembarking: TripStopDto } | null {
+  const usable = stops.filter((stop) => stop.status !== 'Skipped')
+  const sameStation = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+  const boardings = usable
+    .filter((stop) => stop.canBoard && sameStation(stop.stationId, originId))
+    .sort((a, b) => a.visitOrder - b.visitOrder)
+  for (const boarding of boardings) {
+    const disembarking = usable
+      .filter(
+        (stop) =>
+          stop.canAlight &&
+          sameStation(stop.stationId, destinationId) &&
+          stop.visitOrder > boarding.visitOrder,
+      )
+      .sort((a, b) => a.visitOrder - b.visitOrder)[0]
+    if (disembarking) return { boarding, disembarking }
+  }
+  return null
+}
+
+/** The corridor shown on the maps: the piers at their coordinates. */
+/** Piers from `originId` to `destinationId` in river order, both included (either direction). */
+export function piersBetween(piers: PierOption[], originId: string, destinationId: string): PierOption[] {
+  const from = piers.findIndex((p) => p.id === originId)
+  const to = piers.findIndex((p) => p.id === destinationId)
+  if (from < 0 || to < 0) return piers
+  return piers.slice(Math.min(from, to), Math.max(from, to) + 1)
+}
+
+export function buildCorridorMap(piers: PierOption[]): CorridorMap {
+  const placed = piers.map((pier) => ({
+    id: pier.id,
+    name: pier.name,
+    subtitle: pier.district,
+    code: pier.code,
+    address: pier.subtitle,
+    latitude: pier.latitude,
+    longitude: pier.longitude,
+  }))
+  return { piers: placed }
+}
+
+/**
+ * Xếp các mốc lộ trình theo thời gian thật, để một khung check-in đóng sau giờ tàu chạy (dữ liệu
+ * cấu hình sai) không hiện lẫn thứ tự. Mốc không có thời gian (NaN) giữ nguyên vị trí tương đối.
+ */
+export function chronological(steps: (TimelineStep & { at: number })[]): TimelineStep[] {
+  const known = steps.every((step) => Number.isFinite(step.at))
+  const ordered = known ? [...steps].sort((a, b) => a.at - b.at) : steps
+  return ordered.map(({ time, title, description, tone }) => ({ time, title, description, tone }))
+}
+
+/** A departure leaves within this many minutes -> shown as "Departing soon". */
+const SOON_WINDOW_MINUTES = 15
+
+/**
+ * Row of an upcoming departure (home page, Explore). `origin` / `destination` are the piers of the
+ * search it came from. Only says "Departing soon" from the clock: the trip status itself (Boarding,
+ * EnRoute…) belongs to the backend (BR-OPS-01) and is not guessed here.
+ */
+export function toDeparture(
+  trip: Trip,
+  origin: PierOption,
+  destination: PierOption,
+  now = new Date(),
+  /** False for trips of another day: they cannot be "soon" just because the clock time is near. */
+  isToday = true,
+): Departure {
+  const minutesToGo = minutesOfClock(trip.departTime) - vietnamMinutesOfDay(now)
+  const soon = isToday && minutesToGo <= SOON_WINDOW_MINUTES
+  return {
+    id: `dep-${trip.id}`,
+    trip,
+    time: trip.departTime,
+    status: soon ? t('Departing soon') : t('Scheduled'),
+    statusKind: soon ? 'soon' : 'scheduled',
+    kind: trip.kind,
+    from: origin.shortName,
+    to: destination.shortName,
+    details: [...(trip.durationKnown === false ? [] : [t('{durationMins} min voyage', { durationMins: trip.durationMins })]), seatsLabel(trip)],
+    priceVnd: trip.fareVnd,
   }
 }

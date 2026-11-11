@@ -1,41 +1,35 @@
-import mapImage from '../../../assets/images/corridor-map.jpg'
+import { lazy, Suspense } from 'react'
 import { Icon } from '../../../components/ui'
-import type { TripDetail } from '../types'
 import { t } from '../../../i18n'
+import type { CorridorMap, TripDetail } from '../types'
 
-/** Right-hand column of the trip detail page: the crossing map. Fare and the seat CTA sit in the route card. */
-export default function TripAside({ trip }: { trip: TripDetail }) {
+// Leaflet is heavy, so the map loads after the rest of the trip page.
+const PierMap = lazy(() => import('./PierMap'))
+
+const MAP_PLACEHOLDER = 'h-[320px] rounded-2xl bg-surface-container sm:h-[380px]'
+
+/** Cột phải của trang chi tiết chuyến: bản đồ thật các bến trên đoạn khách đi (dữ liệu bến từ API). */
+export default function TripAside({ trip, map }: { trip: TripDetail; map: CorridorMap | undefined }) {
   return (
-    <aside className="space-y-space-lg lg:sticky lg:top-24 lg:col-span-5">
-      <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-[0_2px_16px_rgba(13,37,56,0.05)]">
-        <div className="p-space-md">
-          <div className="mb-space-sm flex items-center justify-between text-body-sm">
-            <span className="flex items-center gap-1 font-semibold text-deep-river">
-              <Icon name="explore" className="text-[16px] text-teal-flow" />
-              {t('Corridor Crossing Map')}
-            </span>
-            <span className="text-on-surface-variant">
-              {trip.originPierName} → {trip.destinationPierName}
-            </span>
-          </div>
-          <div className="relative overflow-hidden rounded-xl bg-mist">
-            <img
-              alt={t('Corridor crossing map')}
-              src={mapImage}
-              className="h-40 w-full object-cover"
-            />
-            <div className="absolute left-3 top-3 rounded-lg bg-white/95 px-2 py-1 text-xs font-bold text-deep-river shadow-sm">
-              {trip.originPierName}{' '}
-              <span className="font-normal text-teal-flow">{trip.departTime}</span>
-            </div>
-            <div className="absolute bottom-3 right-3 rounded-lg bg-white/95 px-2 py-1 text-xs font-bold text-deep-river shadow-sm">
-              {trip.destinationPierName}{' '}
-              <span className="font-normal text-teal-flow">{trip.arriveTime}</span>
-            </div>
-          </div>
+    <aside className="lg:sticky lg:top-24 lg:col-span-5">
+      <div className="rounded-2xl bg-surface-container-lowest p-space-md shadow-card">
+        <div className="mb-space-sm flex items-center justify-between gap-2 text-body-sm">
+          <span className="flex items-center gap-1 font-semibold text-deep-river">
+            <Icon name="map" className="text-base text-teal-flow" />
+            {t('Route map')}
+          </span>
+          <span className="truncate text-on-surface-variant">
+            {trip.originPierName} → {trip.destinationPierName}
+          </span>
         </div>
+        {map ? (
+          <Suspense fallback={<div className={MAP_PLACEHOLDER} />}>
+            <PierMap compact map={map} />
+          </Suspense>
+        ) : (
+          <div aria-hidden className={`${MAP_PLACEHOLDER} animate-pulse motion-reduce:animate-none`} />
+        )}
       </div>
-
     </aside>
   )
 }

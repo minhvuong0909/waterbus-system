@@ -1,4 +1,10 @@
-import { useState, useEffect } from 'react';
+/**
+ * Booking Detail & Passenger Check-In UI Modal
+ * Displays booking details, verified digital signature badge,
+ * passenger seat list, and per-passenger check-in checkboxes (BR-QR-03).
+ */
+
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -6,15 +12,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  SafeAreaView,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useScannerStore } from '../../store/useScannerStore';
 import { Ticket } from '../../types/scanner';
-import { BrandColors, Radius } from '../../../constants/theme';
-import { getSeatClassLabel } from '../../utils/scannerDisplayLabels';
 
 export default function BookingDetailModal() {
   const {
@@ -28,11 +32,10 @@ export default function BookingDetailModal() {
 
   const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const isQrVerified = verificationResult?.isValid === true;
 
+  // Initialize selected tickets: auto-select unchecked tickets by default
   useEffect(() => {
-    // Không chọn sẵn vé khi booking được mở bằng tra cứu tay chưa xác minh QR.
-    if (currentBooking && isQrVerified) {
+    if (currentBooking) {
       const uncheckedIds = currentBooking.tickets
         .filter((t) => t.boardingStatus === 'NotCheckedIn')
         .map((t) => t.id);
@@ -40,12 +43,12 @@ export default function BookingDetailModal() {
     } else {
       setSelectedTicketIds([]);
     }
-  }, [currentBooking, isQrVerified]);
+  }, [currentBooking]);
 
   if (!currentBooking) return null;
 
   const toggleSelectTicket = (ticket: Ticket) => {
-    if (ticket.boardingStatus === 'CheckedIn') return;
+    if (ticket.boardingStatus === 'CheckedIn') return; // Cannot un-check checked ticket here
 
     if (selectedTicketIds.includes(ticket.id)) {
       setSelectedTicketIds(selectedTicketIds.filter((id) => id !== ticket.id));
@@ -67,14 +70,8 @@ export default function BookingDetailModal() {
   };
 
   const handleConfirmCheckIn = async () => {
-    // Chặn check-in ở giao diện; store cũng kiểm tra lại để bảo vệ luồng nghiệp vụ.
-    if (!isQrVerified) {
-      Alert.alert('Chưa xác thực mã vé', 'Hãy quét mã QR hợp lệ trước khi xác nhận khách lên tàu.');
-      return;
-    }
-
     if (selectedTicketIds.length === 0) {
-      Alert.alert('Chưa chọn vé', 'Vui lòng chọn ít nhất một hành khách đang có mặt để xác nhận lên tàu.');
+      Alert.alert('Chưa chọn vé', 'Vui lòng tích chọn ít nhất một hành khách đang có mặt để check-in.');
       return;
     }
 
@@ -88,17 +85,17 @@ export default function BookingDetailModal() {
       if (result.success) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert(
-          'Đã xác nhận lên tàu',
-          `Đã ghi nhận ${result.count} hành khách lên tàu. Thông tin sẽ được gửi lên máy chủ khi có kết nối mạng.`,
-          [{ text: 'Đóng và quét tiếp', onPress: closeBookingModal }]
+          'Check-in Thành Công',
+          `Đã ghi nhận check-in cho ${result.count} hành khách vào bộ nhớ SQLite cục bộ.\nSự kiện được lưu vào hàng đợi đồng bộ an toàn (Idempotent Sync).`,
+          [{ text: 'Đóng / Quét tiếp', onPress: closeBookingModal }]
         );
       } else {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Không thể xác nhận lên tàu', result.error || 'Vui lòng thử lại.');
+        Alert.alert('Lỗi Check-in', result.error || 'Không thể thực hiện check-in');
       }
-    } catch {
+    } catch (e: any) {
       setIsSubmitting(false);
-      Alert.alert('Không thể ghi nhận', 'Vui lòng thử lại.');
+      Alert.alert('Lỗi', e.message);
     }
   };
 
@@ -108,25 +105,27 @@ export default function BookingDetailModal() {
   return (
     <Modal visible={isModalOpen} animationType="slide" transparent={false} onRequestClose={closeBookingModal}>
       <SafeAreaView style={styles.container}>
+        {/* Header Bar */}
         <View style={styles.header}>
           <TouchableOpacity onPress={closeBookingModal} style={styles.closeButton}>
             <Ionicons name="close" size={28} color="#0F172A" />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Chi tiết đơn đặt vé</Text>
+            <Text style={styles.headerTitle}>Chi Tiết Booking & Soát Vé</Text>
             <Text style={styles.headerSubtitle}>{currentBooking.bookingCode}</Text>
           </View>
           <View style={{ width: 40 }} />
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Digital Signature Verification Badge */}
           {verificationResult?.isValid ? (
             <View style={styles.verifiedBanner}>
               <Ionicons name="shield-checkmark" size={24} color="#059669" />
               <View style={styles.verifiedTextContainer}>
-                <Text style={styles.verifiedTitle}>MÃ VÉ ĐÃ ĐƯỢC XÁC THỰC</Text>
+                <Text style={styles.verifiedTitle}>CHỮ KÝ SỐ HỢP LỆ (XÁC THỰC OFFLINE)</Text>
                 <Text style={styles.verifiedSubtitle}>
-                  Mã vé hợp lệ và đã được kiểm tra an toàn trên thiết bị.
+                  Thuật toán: {verificationResult.algorithmUsed || 'RS256'} • Public Key: OK • Mã toàn vẹn
                 </Text>
               </View>
             </View>
@@ -134,17 +133,13 @@ export default function BookingDetailModal() {
             <View style={styles.invalidBanner}>
               <Ionicons name="alert-circle" size={24} color="#DC2626" />
               <View style={styles.verifiedTextContainer}>
-                <Text style={styles.invalidTitle}>
-                  {verificationResult ? 'CẢNH BÁO: KHÔNG THỂ XÁC THỰC MÃ VÉ' : 'TRA CỨU THỦ CÔNG — CHƯA XÁC THỰC QR'}
-                </Text>
-                <Text style={styles.invalidSubtitle}>
-                  {verificationResult?.error ||
-                    'Chỉ xem được thông tin vé. Cần quét QR hợp lệ để xác nhận khách lên tàu.'}
-                </Text>
+                <Text style={styles.invalidTitle}>CẢNH BÁO: CHỮ KÝ SỐ KHÔNG HỢP LỆ</Text>
+                <Text style={styles.invalidSubtitle}>{verificationResult?.error || 'QR không xác thực'}</Text>
               </View>
             </View>
           )}
 
+          {/* Booking & Trip Summary Card */}
           <View style={styles.card}>
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Khách hàng:</Text>
@@ -173,17 +168,18 @@ export default function BookingDetailModal() {
             </View>
           </View>
 
+          {/* Passenger Section Header */}
           <View style={styles.sectionHeader}>
             <View>
               <Text style={styles.sectionTitle}>
-                Danh sách vé ({currentBooking.tickets.length} khách)
+                Danh Sách Vé Trong Đơn ({currentBooking.tickets.length} khách)
               </Text>
               <Text style={styles.sectionSubtitle}>
-                Đã lên tàu: {checkedCount} • Chưa lên tàu: {uncheckedCount}
+                Đã lên: {checkedCount} • Chưa check-in: {uncheckedCount}
               </Text>
             </View>
 
-            {uncheckedCount > 0 && isQrVerified ? (
+            {uncheckedCount > 0 ? (
               <TouchableOpacity onPress={handleSelectAll} style={styles.selectAllButton}>
                 <Text style={styles.selectAllText}>
                   {selectedTicketIds.length === uncheckedCount ? 'Bỏ chọn' : 'Chọn tất cả'}
@@ -192,6 +188,7 @@ export default function BookingDetailModal() {
             ) : null}
           </View>
 
+          {/* List of Tickets / Passengers */}
           {currentBooking.tickets.map((ticket, index) => {
             const isCheckedIn = ticket.boardingStatus === 'CheckedIn';
             const isSelected = selectedTicketIds.includes(ticket.id);
@@ -205,9 +202,9 @@ export default function BookingDetailModal() {
                   isSelected && styles.ticketItemSelected,
                 ]}
                 onPress={() => toggleSelectTicket(ticket)}
-                disabled={!isQrVerified || isCheckedIn}
-                activeOpacity={!isQrVerified || isCheckedIn ? 1 : 0.7}
+                activeOpacity={isCheckedIn ? 1 : 0.7}
               >
+                {/* Checkbox */}
                 <View style={styles.checkboxContainer}>
                   {isCheckedIn ? (
                     <Ionicons name="checkmark-done-circle" size={26} color="#059669" />
@@ -218,6 +215,7 @@ export default function BookingDetailModal() {
                   )}
                 </View>
 
+                {/* Ticket Details */}
                 <View style={styles.ticketDetails}>
                   <View style={styles.ticketRowTop}>
                     <Text style={styles.passengerName}>{ticket.passengerName}</Text>
@@ -233,7 +231,7 @@ export default function BookingDetailModal() {
                           isCheckedIn ? styles.textGreen : styles.textAmber,
                         ]}
                       >
-                        {isCheckedIn ? 'ĐÃ LÊN TÀU' : 'CHƯA LÊN TÀU'}
+                        {isCheckedIn ? 'ĐÃ LÊN TÀU' : 'CHƯA CHECK-IN'}
                       </Text>
                     </View>
                   </View>
@@ -242,7 +240,7 @@ export default function BookingDetailModal() {
                     <View style={styles.seatBadge}>
                       <Text style={styles.seatBadgeText}>Ghế: {ticket.seatCode}</Text>
                     </View>
-                    <Text style={styles.seatClassText}>{getSeatClassLabel(ticket.seatClass)}</Text>
+                    <Text style={styles.seatClassText}>{ticket.seatClass}</Text>
                     <Text style={styles.ticketNumberText}>{ticket.ticketNumber}</Text>
                   </View>
                 </View>
@@ -251,22 +249,21 @@ export default function BookingDetailModal() {
           })}
         </ScrollView>
 
+        {/* Bottom Action Footer */}
         <View style={styles.footer}>
           <TouchableOpacity
             style={[
               styles.checkInButton,
-              (!isQrVerified || selectedTicketIds.length === 0 || isSubmitting) && styles.buttonDisabled,
+              (selectedTicketIds.length === 0 || isSubmitting) && styles.buttonDisabled,
             ]}
             onPress={handleConfirmCheckIn}
-            disabled={!isQrVerified || selectedTicketIds.length === 0 || isSubmitting}
+            disabled={selectedTicketIds.length === 0 || isSubmitting}
           >
             <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" style={{ marginRight: 8 }} />
             <Text style={styles.checkInButtonText}>
               {isSubmitting
                 ? 'ĐANG GHI NHẬN...'
-                : !isQrVerified
-                  ? 'QUÉT MÃ QR HỢP LỆ ĐỂ TIẾP TỤC'
-                : `XÁC NHẬN LÊN TÀU (${selectedTicketIds.length} VÉ)`}
+                : `XÁC NHẬN CHECK-IN (${selectedTicketIds.length} VÉ)`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -356,11 +353,11 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: Radius.card,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: BrandColors.border,
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -374,26 +371,26 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     fontSize: 14,
-    color: BrandColors.textSecondary,
+    color: '#64748B',
   },
   cardValue: {
     fontSize: 14,
-    color: BrandColors.ink,
+    color: '#1E293B',
     fontWeight: '500',
   },
   cardValueBold: {
     fontSize: 15,
-    color: BrandColors.ink,
+    color: '#0F172A',
     fontWeight: '700',
   },
   cardValueHighlight: {
     fontSize: 14,
-    color: BrandColors.tealFlow,
-    fontWeight: '700',
+    color: '#0284C7',
+    fontWeight: '600',
   },
   divider: {
     height: 1,
-    backgroundColor: BrandColors.border,
+    backgroundColor: '#F1F5F9',
     marginVertical: 8,
   },
   sectionHeader: {
@@ -405,37 +402,37 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: BrandColors.ink,
+    color: '#0F172A',
   },
   sectionSubtitle: {
     fontSize: 12,
-    color: BrandColors.textSecondary,
+    color: '#64748B',
     marginTop: 2,
   },
   selectAllButton: {
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    backgroundColor: BrandColors.sandLight,
-    borderRadius: Radius.sm,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    backgroundColor: '#E0F2FE',
+    borderRadius: 6,
   },
   selectAllText: {
     fontSize: 13,
-    color: BrandColors.tealFlow,
-    fontWeight: '700',
+    color: '#0284C7',
+    fontWeight: '600',
   },
   ticketItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: Radius.md,
+    borderRadius: 10,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1.5,
-    borderColor: BrandColors.border,
+    borderColor: '#E2E8F0',
   },
   ticketItemSelected: {
-    borderColor: BrandColors.tealFlow,
-    backgroundColor: '#F0FDF9',
+    borderColor: '#0284C7',
+    backgroundColor: '#F0F9FF',
   },
   ticketItemCheckedIn: {
     borderColor: '#D1FAE5',
@@ -457,15 +454,15 @@ const styles = StyleSheet.create({
   passengerName: {
     fontSize: 15,
     fontWeight: '700',
-    color: BrandColors.ink,
+    color: '#0F172A',
   },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: Radius.sm,
+    borderRadius: 6,
   },
   badgeGreen: {
-    backgroundColor: BrandColors.successBg,
+    backgroundColor: '#DCFCE7',
   },
   badgeAmber: {
     backgroundColor: '#FEF3C7',
@@ -475,7 +472,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   textGreen: {
-    color: BrandColors.success,
+    color: '#166534',
   },
   textAmber: {
     color: '#B45309',
@@ -486,10 +483,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   seatBadge: {
-    backgroundColor: BrandColors.deepRiver,
-    paddingHorizontal: 8,
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: Radius.sm,
+    borderRadius: 4,
   },
   seatBadgeText: {
     color: '#FFFFFF',
@@ -498,34 +495,34 @@ const styles = StyleSheet.create({
   },
   seatClassText: {
     fontSize: 12,
-    color: BrandColors.textSecondary,
+    color: '#64748B',
   },
   ticketNumberText: {
     fontSize: 11,
-    color: BrandColors.textMuted,
+    color: '#94A3B8',
     marginLeft: 'auto',
   },
   footer: {
     backgroundColor: '#FFFFFF',
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: BrandColors.border,
+    borderTopColor: '#E2E8F0',
   },
   checkInButton: {
-    backgroundColor: BrandColors.tealFlow,
+    backgroundColor: '#0284C7',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 14,
-    borderRadius: Radius.button,
-    shadowColor: BrandColors.tealFlow,
+    borderRadius: 10,
+    shadowColor: '#0284C7',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 3,
   },
   buttonDisabled: {
-    backgroundColor: BrandColors.textMuted,
+    backgroundColor: '#94A3B8',
     shadowOpacity: 0,
     elevation: 0,
   },
@@ -536,3 +533,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 });
+

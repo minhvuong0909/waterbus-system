@@ -7,11 +7,11 @@ File này tách các công việc cần hợp tác sau khi các thành viên ho�
 | Thành phần | Hiện trạng trong repo | Tác động tới Thịnh |
 |---|---|---|
 | POI/RoutePoi/AudioGuide/BoatPositionEvent | Đã có entity, DbSet, EF mapping và migration | Có thể viết core TTS/geofence trên model hiện có. |
-| BoatTrackingHub (`P3-BE-01`) | Đã có Hub, tracking REST/cache và GPS simulator; xem `docs/REALTIME_CONTRACT.md` | Có nguồn vị trí để bàn contract adapter, nhưng chưa có đường gọi geofence và Onboard Player/ACK. Simulator mặc định tắt. |
+| BoatTrackingHub (`P3-BE-01`) | Đã có Hub, tracking REST/cache và GPS simulator; xem `docs/REALTIME_CONTRACT.md` | Đã nối GPS được chấp nhận vào bộ đánh giá geofence qua adapter DB, chỉ bật opt-in cho local demo. Chưa có Onboard Player/ACK thật; simulator mặc định tắt. |
 | POI CRUD và quản lý kịch bản (`P3-BE-03`, `P3-WEB-02`) | Chưa thấy API/UI trong source; `AudioGuide` không có script text | Chưa thể quyết định cách lưu/duyệt kịch bản hay form Admin. |
-| Audio storage/Onboard Player | Có Azure Blob MP3 adapter và service nhận script đã duyệt → TTS → Blob; smoke test upload/đọc lại/xóa Blob và test nối Azure Speech → service → Blob → tải MP3 thật đã pass với tài nguyên dev cá nhân ngày 15/10/2026. Chưa có player/backend dispatch production | Cần account/container private cho môi trường nhóm, nguồn script/version của owner POI và contract player để truy cập URI, phát ra loa. Bài test dùng câu thử, không chứng minh kịch bản đã duyệt/AudioGuide/loa tàu chạy. |
+| Audio storage/Onboard Player | Có Azure Blob MP3 adapter và service nhận script đã duyệt → TTS → Blob; smoke test MP3 thật đã pass ngày 15/10/2026. Dispatcher local hiện chỉ ghi log và **không** ACK; chưa có player/backend dispatch production | Cần account/container private cho môi trường nhóm, nguồn script/version của owner POI và contract player để truy cập URI, phát ra loa. Bài test dùng câu thử, không chứng minh kịch bản đã duyệt/AudioGuide/loa tàu chạy. |
 | Trip Search | Có `SearchTripsQuery`/`GET /api/v1/trips/search`; giá đang là `0m` TODO, stop list suy từ Station.OrderIndex | AI chỉ được dùng sau khi owner Trip Search xác nhận dữ liệu giờ/giá/bến chính xác. |
-| Booking link/Trip Card/chat widget | Backend đã có Semantic Kernel adapter, hai tool adapter, DI và `POST /api/v1/AiAssistant/chat` (tắt mặc định); `assistantService.ts` vẫn trả canned/mock reply | Cần owner Trip Search xác nhận giá/bến, owner Web/Booking xác nhận template link, Viễn nối widget; không xem Web hiện tại là Semantic Kernel chạy thật. |
+| Booking link/Trip Card/chat widget | Backend có Semantic Kernel adapter, hai tool adapter, DI và `POST /api/v1/AiAssistant/chat`; widget FE đã gọi API thật và hiển thị card từ tool, không còn nhánh canned/mock cho Assistant | Cần owner Trip Search xác nhận giá/bến và owner Web/Booking xác nhận template link. Chỉ dùng cờ preview để demo Development; không coi giá `0` hay link chưa xác nhận là production-ready. |
 
 Initializer hiện seed một Trip demo loại `Commuter` với stop calls. Có Trip demo **không chứng minh** luồng Sightseeing/audio chạy được; test tích hợp phải tạo Trip Sightseeing hợp lệ theo BR FINAL.
 
@@ -54,7 +54,7 @@ Test end-to-end phần Thịnh: Boat trên Sightseeing Trip đi từ ngoài vào
 Cần chốt trước khi nối:
 
 1. `P4-WEB-03` optional trong roadmap được làm ở phase/kỳ nào, Thịnh phụ trách backend tool-calling tới đâu và Viễn phụ trách UI tới đâu?
-2. Thịnh đã chọn OpenAI `gpt-4.1-mini`; ai cấp key, giới hạn rate/quota và chi phí?
+2. Thịnh đã đổi sang Groq `openai/gpt-oss-20b`; nhóm có chấp nhận khác lựa chọn OpenAI/Gemini trên Drive không, ai cấp key, giới hạn rate/quota và chi phí?
 3. SearchTrips contract sau khi sửa các hạn chế hiện tại: giờ, bến thực sự phục vụ, loại chuyến, giá, số ghế có tin cậy không?
 4. Trip Card JSON schema và link đặt vé hợp lệ được tạo bởi service nào? AI không tự dựng URL từ phỏng đoán.
 5. Nếu khách hỏi hoàng hôn, có nguồn giờ hoàng hôn và vị trí đáng tin không? Nếu chưa có, assistant chỉ tư vấn theo lịch chuyến và nêu giới hạn dữ liệu.

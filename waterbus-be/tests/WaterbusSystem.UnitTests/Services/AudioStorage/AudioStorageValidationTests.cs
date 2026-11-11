@@ -1,15 +1,16 @@
+using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
 using FluentAssertions;
 using WaterbusSystem.Application.Common.Models;
-using WaterbusSystem.Application.Common.Validators;
+using WaterbusSystem.Application.Validators.SightseeingAudio;
 using Xunit;
 
 namespace WaterbusSystem.UnitTests.Services.AudioStorage;
 
 public class AudioStorageValidationTests
 {
-    private readonly StoreAudioCommandValidator _validator = new();
+    private readonly StoreAudioRequestValidator _validator = new();
 
-    private static StoreAudioCommand CreateValidCommand() => new()
+    private static StoreAudioRequest CreateValidCommand() => new()
     {
         AudioData = new byte[] { 0xFF, 0xFB, 0x90, 0x64 }, // sample MP3 bytes
         AssetKey = "pois/11111111-1111-1111-1111-111111111111/vi.mp3",

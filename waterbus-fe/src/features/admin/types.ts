@@ -1,29 +1,10 @@
-import type { StationDto } from '../trips/types'
+import type { StationDto, TripStatus, TripType } from '../trips/types'
 
 /** Station as the backend returns it (`GET /api/v1/stations`). */
 export type AdminStation = StationDto
 
-/** Route between two stations (BE `Route`). */
-export interface AdminRoute {
-  id: string
-  code: string
-  name: string
-  departureStationId: string
-  arrivalStationId: string
-  estimatedDurationMinutes: number
-  distanceKm: number
-  isActive: boolean
-}
-
-/** Seats of a boat per cabin; a boat's `totalSeats` is always their sum. */
-export interface SeatLayout {
-  frontCabinSeats: number
-  standardSeats: number
-  outdoorSeats: number
-}
-
-/** Boat (BE `Boat`) with the seat layout it was created from. */
-export interface AdminBoat extends SeatLayout {
+/** Boat (BE `BoatDto`). */
+export interface AdminBoat {
   id: string
   code: string
   name: string
@@ -32,67 +13,70 @@ export interface AdminBoat extends SeatLayout {
   manufacturer: string
   yearBuilt: number
   isActive: boolean
+  captainUserId: string | null
 }
 
-/** BE `TripType`. */
-export type AdminTripType = 'Commuter' | 'Sightseeing'
-
-/** BE `TripStatus`. */
-export type AdminTripStatus =
-  | 'Scheduled'
-  | 'Boarding'
-  | 'InTransit'
-  | 'Completed'
-  | 'Cancelled'
-  | 'Delayed'
-
-/** Fixed weekly timetable entry (BE `Schedule`). Days follow the backend: 1 = Monday ... 7 = Sunday. */
-export interface AdminSchedule {
-  id: string
-  routeId: string
-  /** `HH:mm` */
-  departureTime: string
-  daysOfWeek: number[]
-  tripType: AdminTripType
-  isActive: boolean
-}
-
-/** A real run of a boat (BE `Trip`). */
+/** A trip as the operations list returns it (BE `TripOperationItemDto`). */
 export interface AdminTrip {
   id: string
-  scheduleId: string | null
   routeId: string
+  routeCode: string
+  routeName: string
+  /** '' while no boat is assigned. */
   boatId: string
+  boatCode: string | null
   /** ISO 8601 */
   departureTime: string
   arrivalTime: string
-  tripType: AdminTripType
-  status: AdminTripStatus
-  basePrice: number
+  tripType: TripType
+  status: TripStatus
+  /** What the backend allows right now for this trip (BE `TripLifecycle`). */
+  allowedOperations: OperationType[]
 }
 
-/** The backend has no pricing table: a trip's base price is set when it is generated. */
-export interface FareSettings {
-  basePrice: Record<AdminTripType, number>
-  /** BE `Seat.PriceMultiplier` per cabin. */
-  cabinMultiplier: { front: number; standard: number; outdoor: number }
-}
-
+/** An open incident shown as a warning: weather alerts from the weather guard, or a captain's SOS. */
 export interface WeatherAlert {
   id: string
   /** 1 = warning, 2 = stop operations (BE severity Medium = 1, High = 2). */
   level: 1 | 2
-  /** Only known for mock alerts; a real alert carries the wind in its message. */
-  windSpeedKmh?: number
   message: string
   /** ISO 8601 */
   issuedAt: string
+  /** BE `IncidentType`. */
+  kind?: 'Weather' | 'Safety' | 'Technical' | 'Other'
   /** Trips linked to the alert (BE `IncidentTrip`), when known. */
   affectedTripCount?: number
+  /** Linked trips the admin has not decided about yet (BE `PendingDecisionCount`). */
+  pendingDecisionCount?: number
+  /** Route the alert is about, e.g. "RT01" (weather alerts are per route). */
+  routeCode?: string | null
+  /** Who raised it: `WeatherService` for the weather guard, otherwise a person (captain SOS). */
+  source?: string
+  /** The linked trips and what the admin decided for each (null = not decided yet). Only on request. */
+  trips?: AlertTrip[]
 }
 
-/** What a dispatcher or captain did, kept as an audit trail. */
-export type OperationType = 'Suspend' | 'Cancel' | 'Terminate' | 'Resume' | 'Start' | 'Arrive' | 'SOS'
+/** A trip an alert affects (BE `AffectedTripDto`). */
+export interface AlertTrip {
+  tripId: string
+  decision: string | null
+  departureTime?: string
+  tripStatus?: TripStatus
+  decisionAt?: string | null
+}
+
+/** What an admin or a captain did to a trip, kept as an audit trail (BE `TripOperationEvent`). */
+export type OperationType =
+  | 'OpenBoarding'
+  | 'Start'
+  | 'Arrive'
+  | 'Complete'
+  | 'Suspend'
+  | 'Resume'
+  | 'Cancel'
+  | 'Terminate'
+  | 'NoAction'
+  | 'SOS'
 
 export interface OperationLog {
   id: string
@@ -104,49 +88,12 @@ export interface OperationLog {
   at: string
 }
 
-/** Live position of a boat that is on the river. */
-export interface FleetPosition {
-  tripId: string
-  boatId: string
-  latitude: number
-  longitude: number
-  /** 0-1 along the route. */
-  progress: number
-  speedKmh: number
-}
-
 export type NewStation = Pick<
   AdminStation,
   'code' | 'name' | 'address' | 'latitude' | 'longitude' | 'orderIndex'
 >
 
-export type NewBoat = Pick<AdminBoat, 'code' | 'name' | 'registrationNumber' | 'manufacturer' | 'yearBuilt'> &
-  SeatLayout
-
-export interface NewSchedule {
-  routeId: string
-  departureTime: string
-  daysOfWeek: number[]
-  tripType: AdminTripType
-}
-
-/** Input of "generate trips": the schedule has no boat, so the admin picks one for the batch. */
-export interface GenerateTripsInput {
-  scheduleId: string
-  boatId: string
-  /** `YYYY-MM-DD` */
-  fromDate: string
-  toDate: string
-}
-
-/** A boat as `GET /api/v1/boats` returns it. */
-export interface FleetBoat {
-  id: string
-  code: string
-  name: string
-  isActive: boolean
-  captainUserId: string | null
-}
+export type NewBoat = Pick<AdminBoat, 'code' | 'name' | 'registrationNumber' | 'manufacturer' | 'yearBuilt' | 'totalSeats'>
 
 /** Last known position of a boat, from `GET /tracking/boats` or the `boatPosition` hub event. */
 export interface LiveBoatPosition {
@@ -165,5 +112,50 @@ export interface WeatherCheckResult {
   routesChecked: number
   incidentsCreated: number
   incidentsUpdated: number
+  /** Alerts the guard closed because the weather is calm again. */
+  incidentsResolved?: number
   observationFailures: number
+}
+
+/** Phần tiền hoàn của một Ticket (BE `RefundTicketAllocationDto`). */
+export interface RefundTicketAllocation {
+  ticketId: string
+  ticketCode: string
+  amount: number
+  reason: string
+}
+
+/** Kết quả `POST /refunds/request` (BE `RequestRefundResultDto`). */
+export interface RefundRequestResult {
+  refundTransactionId: string
+  orderId: string
+  bookingId: string
+  amount: number
+  currency: string
+  status: string
+  gateway: string
+  /** Cổng thanh toán không hoàn được: Admin phải hoàn tay rồi xác nhận kèm bằng chứng (BR-RF-10). */
+  requiresManualAction: boolean
+  tickets: RefundTicketAllocation[]
+  /** Chế độ Demo: hoàn tiền mô phỏng, KHÔNG có tiền thật được chuyển. */
+  isDemo?: boolean
+  notice?: string | null
+}
+
+/** Body of `POST /refunds/confirm-manual` (BE `ConfirmManualRefundRequest`). */
+export interface ManualRefundInput {
+  refundTransactionId: string
+  evidence: string
+  gatewayReference: string | null
+  confirmedAmount: number
+}
+
+/** Kết quả `POST /refunds/confirm-manual` (BE `ConfirmManualRefundResultDto`). */
+export interface ManualRefundResult {
+  refundTransactionId: string
+  amount: number
+  status: string
+  completedAt: string | null
+  isDemo?: boolean
+  notice?: string | null
 }

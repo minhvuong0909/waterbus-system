@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -6,7 +5,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Tracking;
-using WaterbusSystem.Application.Features.Tracking.Commands.RecordBoatPosition;
+using WaterbusSystem.Application.DTOs.Requests.Tracking;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.Infrastructure.Services.Tracking;
@@ -15,7 +15,7 @@ namespace WaterbusSystem.Infrastructure.BackgroundJobs;
 
 /// <summary>
 /// Giả lập GPS cho demo (BR-TRK-01). Mỗi chu kỳ, với mỗi Trip đang chạy có Boat, tính vị trí dọc các bến
-/// theo VisitOrder và gửi qua CHÍNH RecordBoatPositionCommand với Source = "Simulated" (cùng luồng với GPS thật).
+/// theo VisitOrder và gửi qua CHÍNH IBoatTrackingService.RecordPositionAsync với Source = "Simulated" (cùng luồng với GPS thật).
 /// Thời gian chuyến được lặp vòng để demo không phụ thuộc giờ khởi hành thật.
 /// Trip Suspended: tàu đứng yên, vẫn phát lại vị trí cuối (BR-INC-05).
 /// </summary>
@@ -68,7 +68,7 @@ public class BoatSimulatorService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var cache = scope.ServiceProvider.GetRequiredService<IBoatPositionCache>();
-        var mediator = scope.ServiceProvider.GetRequiredService<ISender>();
+        var tracking = scope.ServiceProvider.GetRequiredService<IBoatTrackingService>();
         var now = scope.ServiceProvider.GetRequiredService<IDateTimeService>().Now;
 
         var statuses = simulator.IncludeScheduledTrips
@@ -82,6 +82,7 @@ public class BoatSimulatorService : BackgroundService
                 t.Id,
                 BoatId = t.BoatId!.Value,
                 t.Status,
+                RouteCode = t.Route!.Code,
                 Start = t.ActualDepartureTime ?? t.DepartureTime,
                 t.ArrivalTime,
                 Stops = t.TripStopCalls
@@ -95,9 +96,9 @@ public class BoatSimulatorService : BackgroundService
         // Mỗi tàu chỉ giả lập 1 chuyến (chuyến khởi hành gần nhất)
         foreach (var trip in trips.GroupBy(t => t.BoatId).Select(g => g.OrderBy(t => t.Start).First()))
         {
-            var path = trip.Stops
-                .Select(s => new RoutePathInterpolator.GeoPoint(s.Latitude, s.Longitude))
-                .ToList();
+            // Đường đi dọc sông của tuyến nếu có (nối thẳng các bến sẽ cắt qua đất ở khúc cua), không thì nối các bến
+            IReadOnlyList<RoutePathInterpolator.GeoPoint> path = DemoRoutePaths.For(trip.RouteCode)
+                ?? trip.Stops.Select(s => new RoutePathInterpolator.GeoPoint(s.Latitude, s.Longitude)).ToList();
             if (path.Count < 2) continue;
 
             decimal lat, lng;
@@ -122,7 +123,7 @@ public class BoatSimulatorService : BackgroundService
                 speed = Math.Round((decimal)RoutePathInterpolator.AverageSpeedKnots(path, duration), 2);
             }
 
-            await mediator.Send(new RecordBoatPositionCommand(
+            await tracking.RecordPositionAsync(new RecordBoatPositionRequest(
                 trip.BoatId, lat, lng, speed, now, BoatPositionSources.Simulated, ReportedByCaptainId: null),
                 cancellationToken);
         }

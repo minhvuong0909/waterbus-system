@@ -6,7 +6,7 @@ Run from the repository root with Docker Desktop's Linux engine running:
 ./waterbus-be/tests/infrastructure/Run-IntegrationTests.ps1
 ```
 
-The script starts an isolated Compose project (`waterbus-integration`), waits for health checks, supplies the two test environment variables, and runs the 15 SQL/Redis tests. PR #13 has been merged into main, so the default solution path now includes all these tests.
+The script starts an isolated Compose project (`waterbus-integration`), waits for health checks, supplies the two test environment variables, and runs the 18 SQL/Redis cases currently in this branch. The results dated 16/10/2026 below are historical; see [commercial verification](../../docs/COMMERCIAL_REFACTORING_REPORT.md) for final synchronization results. PR #13 has been merged into main, so the default solution path now includes all these tests.
 
 To test a different checkout explicitly:
 

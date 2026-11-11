@@ -1,4 +1,5 @@
-export type DepartureStatusKind = 'ontime' | 'boarding' | 'scheduled' | 'twilight'
+/** `soon`: leaves within a few minutes (a hint from the clock, not the backend's trip status). */
+export type DepartureStatusKind = 'soon' | 'scheduled'
 
 export type DepartureKind = 'transit' | 'sightseeing'
 
@@ -33,18 +34,8 @@ export interface Pier {
   longitude: number
 }
 
-export interface Vessel {
-  code: string
-  status: string
-  speedKmh: number
-  nextPier: string
-  latitude: number
-  longitude: number
-}
-
 export interface CorridorMap {
   piers: Pier[]
-  vessel: Vessel
 }
 
 // ---- Trip search -----------------------------------------------------------
@@ -77,8 +68,8 @@ export interface SearchQuery {
   destinationId: string
   /** Selected date as `YYYY-MM-DD` (the id of a DateOption). */
   dateId: string
-  passengers: string
-  passengerNote: string
+  /** Return date for a round trip (BR-SRCH-01), never before `dateId`. */
+  returnDateId?: string
 }
 
 export interface DateOption {
@@ -92,15 +83,6 @@ export interface DateOption {
   fromFareVnd?: number
   isToday?: boolean
   tripCount?: number
-}
-
-export interface NetworkRoute {
-  id: string
-  originId: string
-  destinationId: string
-  badge: string
-  summary: string
-  fromFareVnd: number
 }
 
 export interface AmenityChip {
@@ -133,6 +115,8 @@ export interface Trip {
   originGate: string
   destinationGate: string
   durationMins: number
+  /** false when the timetable has no duration for the searched segment (durationMins is then 0). */
+  durationKnown?: boolean
   /** "Direct", "Leisure Speed", "Landmark Loop"... */
   crossingKind: string
   /** True for a non-stop direct crossing. */
@@ -154,17 +138,6 @@ export interface TimelineStep {
   tone: 'teal' | 'amber' | 'dark'
 }
 
-export interface AmenityDetail {
-  icon: string
-  title: string
-  description: string
-}
-
-export interface BoardingStep {
-  title: string
-  description: string
-}
-
 export interface TripDetail extends Trip {
   /** Full pier labels, e.g. "Bach Dang Pier (D1)". */
   originPierLabel: string
@@ -177,6 +150,8 @@ export interface TripDetail extends Trip {
   originDistrict: string
   destinationDistrict: string
   dateLabel: string
+  /** False when the backend has closed ticket sales for the trip (`canBook`, BR-SRCH-02/BR-TIME-01). */
+  salesOpen: boolean
   /** The day of the trip as `YYYY-MM-DD`. */
   dateId: string
   /** Full date with year, e.g. "Dec 16, 2025". */
@@ -184,8 +159,6 @@ export interface TripDetail extends Trip {
   /** Date without the year, e.g. "Dec 16". */
   dateShort: string
   timeline: TimelineStep[]
-  amenityDetails: AmenityDetail[]
-  boardingSteps: BoardingStep[]
 }
 
 // ---- Backend DTOs -----------------------------------------------------------
@@ -210,8 +183,86 @@ export interface TripDto {
   arrivalStationName: string
   departureTime: string
   arrivalTime: string
-  durationMinutes: number
+  /** null when the timetable has no data for the selected segment. */
+  durationMinutes: number | null
   tripType: string
   basePrice: number
   availableSeatsCount: number
+  canBook?: boolean
+  salesState?: string
+}
+
+/** BE `TripType`. */
+export type TripType = 'Commuter' | 'Sightseeing'
+
+/** BE `TripStatus` (BR-OPS-01). */
+export type TripStatus =
+  | 'Scheduled'
+  | 'Boarding'
+  | 'EnRoute'
+  | 'Suspended'
+  | 'Arrived'
+  | 'Completed'
+  | 'Cancelled'
+  | 'Terminated'
+
+// ---- Trip detail and seat map (`GET /trips/{id}`, `GET /trips/{id}/seats`) ----
+
+export interface TripSeatDto {
+  seatId: string
+  seatCode: string
+  rowNumber: number
+  columnNumber: number
+  seatClassId: string
+  seatClassName: string | null
+  price: number | null
+  currency: string
+  /** available | held | sold | unavailable */
+  status: string
+  unavailableReason: string | null
+  holdExpiresAt: string | null
+}
+
+export interface TripSeatMapDto {
+  tripId: string
+  boatId: string
+  boardingCallId: string
+  disembarkingCallId: string
+  boardingVisitOrder: number
+  disembarkingVisitOrder: number
+  canBook: boolean
+  salesState: string
+  availableSeatsCount: number
+  asOf: string
+  seats: TripSeatDto[]
+}
+
+export interface TripStopDto {
+  callId: string
+  stationId: string
+  stationName: string
+  visitOrder: number
+  canBoard: boolean
+  canAlight: boolean
+  status: string
+  estimatedArrivalTime?: string | null
+  estimatedDepartureTime?: string | null
+  /** Check-in window of this stop, set by operations (null while not configured). */
+  checkInOpenAt?: string | null
+  checkInCloseAt?: string | null
+}
+
+/** `GET /trips/{tripId}` (TripDetailDto), the parts used to pick the journey. */
+export interface TripDetailDto {
+  tripId: string
+  routeId: string
+  routeName: string
+  tripType: string
+  status: string
+  departureTime: string
+  arrivalTime: string
+  canBook: boolean
+  salesState: string
+  boat: { boatId: string; code: string; name: string } | null
+  stops: TripStopDto[]
 }

@@ -5,6 +5,8 @@ using WaterbusSystem.Application;
 using WaterbusSystem.Infrastructure;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.WebApi.BackgroundJobs;
+using WaterbusSystem.WebApi.Filters;
+using WaterbusSystem.WebApi.Health;
 using WaterbusSystem.WebApi.Middlewares;
 using WaterbusSystem.WebApi.Realtime;
 
@@ -17,6 +19,9 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 // 2. Cấu hình Controllers & JSON
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Filter validate request dùng chung cho Controller theo Clean Architecture thuần (không MediatR)
+builder.Services.AddScoped<ValidateRequestFilter>();
 
 // SignalR hubs + publisher realtime (BoatTracking, SeatSync)
 builder.Services.AddRealtime();
@@ -101,25 +106,54 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 
+    // M11: Chặn brute-force đăng nhập. Luôn theo IP (Login luôn là anonymous request nên không có
+    // User.Identity để partition theo tài khoản).
+    options.AddPolicy("AuthPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        // LƯU Ý: WriteAsJsonAsync(value, token) tự ghi đè ContentType về "application/json; charset=utf-8"
+        // nếu không truyền contentType qua tham số - set Response.ContentType trước đó sẽ bị bỏ qua lặng lẽ.
         if (context.HttpContext.Request.Path.StartsWithSegments("/api/v1/AiAssistant"))
         {
-            context.HttpContext.Response.ContentType = "application/problem+json";
-            await context.HttpContext.Response.WriteAsJsonAsync(new ProblemDetails
-            {
-                Status = StatusCodes.Status429TooManyRequests,
-                Title = "Quá nhiều yêu cầu tới trợ lý AI.",
-                Detail = "Vui lòng thử lại sau một phút.",
-                Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
-            }, token);
+            await context.HttpContext.Response.WriteAsJsonAsync(
+                new ProblemDetails
+                {
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Title = "Quá nhiều yêu cầu tới trợ lý AI.",
+                    Detail = "Vui lòng thử lại sau một phút.",
+                    Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
+                },
+                options: null, contentType: "application/problem+json", cancellationToken: token);
+            return;
+        }
+        if (context.HttpContext.Request.Path.StartsWithSegments("/api/v1/Auth"))
+        {
+            await context.HttpContext.Response.WriteAsJsonAsync(
+                new ProblemDetails
+                {
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Title = "Quá nhiều yêu cầu đăng nhập.",
+                    Detail = "Vui lòng thử lại sau một phút.",
+                    Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
+                },
+                options: null, contentType: "application/problem+json", cancellationToken: token);
             return;
         }
         await context.HttpContext.Response.WriteAsJsonAsync(new
         {
             success = false,
-            message = "Quá nhiều yêu cầu đặt vé. Vui lòng thử lại sau 1 phút.",
+            message = "Quá nhiều yêu cầu. Vui lòng thử lại sau 1 phút.",
             statusCode = 429
         }, token);
     };
@@ -131,16 +165,34 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var initializer = scope.ServiceProvider.GetRequiredService<ApplicationDbContextInitializer>();
-    try
+
+    // M07: migration lỗi (không kết nối được, hoặc bị từ chối vì dữ liệu cũ) PHẢI dừng ứng dụng,
+    // không được nuốt lỗi rồi phục vụ trên schema cũ. Compose sẽ khởi động lại container sau khi SQL sẵn sàng.
+    await initializer.InitialiseAsync();
+
+    // C01: Seed dữ liệu mẫu (gồm tài khoản Admin/Captain/Staff mật khẩu cố định) chỉ chạy ở
+    // Development, tránh tự tạo lại các tài khoản đặc quyền mặc định trên CSDL Production.
+    // Seed chỉ là dữ liệu demo nên lỗi seed không làm dừng API.
+    if (app.Environment.IsDevelopment())
     {
-        await initializer.InitialiseAsync();
-        await initializer.SeedAsync();
+        try
+        {
+            await initializer.SeedAsync();
+        }
+        catch (Exception ex)
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogWarning(ex, "Không nạp được dữ liệu mẫu (Seed Data); API vẫn chạy.");
+        }
     }
-    catch (Exception ex)
-    {
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        logger.LogWarning(ex, "Chưa thể kết nối SQL Server để chạy Seed Data. Hãy chắc chắn SQL Server container đang chạy!");
-    }
+}
+
+// Cấu hình thanh toán/QR rỗng không làm sập host (compose mặc định rỗng khi chưa có .env) nhưng sẽ bị từ chối khi dùng:
+// cảnh báo sớm để người vận hành thấy ngay lúc khởi động thay vì ở IPN đầu tiên.
+foreach (var key in new[] { "VnPay:TmnCode", "VnPay:HashSecret", "Qr:PrivateKeyPem" })
+{
+    if (string.IsNullOrWhiteSpace(app.Configuration[key]))
+        app.Logger.LogWarning("Thiếu cấu hình {ConfigKey}: thanh toán/phát vé sẽ bị từ chối cho đến khi cấu hình.", key);
 }
 
 // 6. Gắn kết Pipeline Middlewares
@@ -160,14 +212,26 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AppCorsPolicy");
 
-app.UseRateLimiter();
-app.UseMiddleware<GuestAccessMiddleware>();
+// M15: UseAuthentication phải đứng trước UseRateLimiter, vì BookingPolicy/AuthPolicy partition
+// theo HttpContext.User.Identity.IsAuthenticated (Program.cs) - nếu không, User luôn rỗng lúc
+// limiter chạy và mọi request bị gom theo IP thay vì theo tài khoản đã đăng nhập.
 app.UseAuthentication();
+app.UseMiddleware<GuestAccessMiddleware>();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 
 app.MapControllers();
 app.MapRealtimeHubs();
+
+// M07: readiness thật (SQL + schema); healthcheck của Docker dùng endpoint này thay vì chỉ kiểm cổng TCP.
+app.MapGet("/health/ready", async (ApplicationDbContext context, CancellationToken cancellationToken) =>
+{
+    var result = await ReadinessCheck.RunAsync(context, cancellationToken);
+    return result.IsReady
+        ? Results.Ok(new { status = "Ready" })
+        : Results.Json(new { status = "NotReady", reason = result.Reason }, statusCode: StatusCodes.Status503ServiceUnavailable);
+}).AllowAnonymous();
 app.UseBackgroundJobs();
 
 app.Run();

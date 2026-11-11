@@ -9,6 +9,9 @@ interface ErrorStateProps {
   message?: string
   /** Smaller, inline version for a card or panel instead of a whole page. */
   compact?: boolean
+  icon?: string
+  /** Where to go instead of retrying, e.g. back to the search when nothing was chosen. */
+  action?: { label: string; to: string }
 }
 
 /** Shown when loading data fails. Offers a retry and a way back home. */
@@ -17,6 +20,8 @@ export default function ErrorState({
   title = t('We couldn’t load this page'),
   message = t('Something went wrong while loading the data. Check your connection and try again.'),
   compact = false,
+  icon = 'cloud_off',
+  action,
 }: ErrorStateProps) {
   if (compact) {
     return (
@@ -25,7 +30,7 @@ export default function ErrorState({
         className="flex items-center justify-between gap-space-md rounded-xl border border-coral-glow/30 bg-coral-glow/10 px-space-md py-space-sm text-sm text-deep-river"
       >
         <span className="flex items-center gap-2">
-          <Icon name="error" className="text-[18px] text-coral-glow" />
+          <Icon name="error" className="text-lg text-coral-glow" />
           {message}
         </span>
         {onRetry && (
@@ -47,24 +52,32 @@ export default function ErrorState({
       className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center gap-space-md px-margin py-space-3xl text-center"
     >
       <span className="flex h-16 w-16 items-center justify-center rounded-full bg-coral-glow/15 text-coral-glow">
-        <Icon name="cloud_off" className="text-[34px]" />
+        <Icon name={icon} className="text-4xl" />
       </span>
-      <h1 className="font-headline-md text-headline-md text-deep-river">{title}</h1>
+      <h1 className="font-display text-headline-md text-deep-river">{title}</h1>
       <p className="text-body-md text-on-surface-variant">{message}</p>
       <div className="flex flex-wrap justify-center gap-space-sm pt-space-xs">
         {onRetry && (
           <button
             type="button"
             onClick={onRetry}
-            className="inline-flex items-center gap-2 rounded-full bg-teal-flow px-6 py-2.5 font-headline-sm text-body-md font-semibold text-on-primary shadow-sm transition-colors hover:bg-secondary"
+            className="inline-flex items-center gap-2 rounded-full bg-teal-flow px-6 py-2.5 font-display text-body-md font-semibold text-on-primary shadow-sm transition-colors hover:bg-secondary"
           >
-            <Icon name="refresh" className="text-[18px]" />
+            <Icon name="refresh" className="text-lg" />
             {t('Try again')}
           </button>
         )}
+        {action && (
+          <Link
+            to={action.to}
+            className="inline-flex items-center rounded-full bg-teal-flow px-6 py-2.5 font-display text-body-md font-semibold text-on-primary shadow-sm transition-colors hover:bg-secondary"
+          >
+            {action.label}
+          </Link>
+        )}
         <Link
           to={ROUTES.home}
-          className="inline-flex items-center rounded-full border border-teal-flow px-6 py-2.5 font-headline-sm text-body-md font-semibold text-teal-flow transition-colors hover:bg-sand-light"
+          className="inline-flex items-center rounded-full border border-teal-flow px-6 py-2.5 font-display text-body-md font-semibold text-teal-flow transition-colors hover:bg-sand-light"
         >
           {t('Back to home')}
         </Link>

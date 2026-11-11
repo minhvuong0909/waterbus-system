@@ -75,11 +75,52 @@ public class SignalRPublishersTests
         var (hub, clients, proxy) = CreateHub<BoatTrackingHub>();
         var message = new WeatherAlertMessage(Guid.NewGuid(), "High", Guid.NewGuid(), "Gió mạnh", DateTimeOffset.UtcNow);
 
-        await new SignalROperationsAlertPublisher(hub.Object).PublishWeatherAlertAsync(message);
+        await new SignalROperationsAlertPublisher(hub.Object, CreateHub<SeatSyncHub>().Hub.Object).PublishWeatherAlertAsync(message);
 
         clients.Verify(c => c.Group("fleet"), Times.Once);
         clients.Verify(c => c.Groups(It.IsAny<IReadOnlyList<string>>()), Times.Never);
         VerifySent(proxy, "weatherAlert", message);
+    }
+
+    [Fact]
+    public async Task IncidentRaised_ShouldGoOnlyToFleetGroup()
+    {
+        var (hub, clients, proxy) = CreateHub<BoatTrackingHub>();
+        var message = new IncidentRaisedMessage(Guid.NewGuid(), "Safety", "High", Guid.NewGuid(), Guid.NewGuid(), "SOS", DateTimeOffset.UtcNow);
+
+        await new SignalROperationsAlertPublisher(hub.Object, CreateHub<SeatSyncHub>().Hub.Object).PublishIncidentRaisedAsync(message);
+
+        clients.Verify(c => c.Group("fleet"), Times.Once);
+        VerifySent(proxy, "incidentRaised", message);
+    }
+
+    [Fact]
+    public async Task TripStatusChanged_ShouldGoToFleetBoatAndTripGroups()
+    {
+        var tracking = CreateHub<BoatTrackingHub>();
+        var seats = CreateHub<SeatSyncHub>();
+        var boatId = Guid.NewGuid();
+        var tripId = Guid.NewGuid();
+        var message = new TripStatusChangedMessage(tripId, boatId, "Suspended", "EnRoute", "Suspend", DateTimeOffset.UtcNow);
+
+        await new SignalROperationsAlertPublisher(tracking.Hub.Object, seats.Hub.Object).PublishTripStatusChangedAsync(message);
+
+        tracking.Clients.Verify(c => c.Groups(It.Is<IReadOnlyList<string>>(g =>
+            g.Count == 2 && g.Contains("fleet") && g.Contains($"boat:{boatId}"))), Times.Once);
+        seats.Clients.Verify(c => c.Group($"trip:{tripId}"), Times.Once);
+        VerifySent(tracking.Proxy, "tripStatusChanged", message);
+        VerifySent(seats.Proxy, "tripStatusChanged", message);
+    }
+
+    [Fact]
+    public async Task TripStatusChanged_WithoutBoat_ShouldSkipBoatGroup()
+    {
+        var tracking = CreateHub<BoatTrackingHub>();
+        var message = new TripStatusChangedMessage(Guid.NewGuid(), null, "Cancelled", "Scheduled", "Cancel", DateTimeOffset.UtcNow);
+
+        await new SignalROperationsAlertPublisher(tracking.Hub.Object, CreateHub<SeatSyncHub>().Hub.Object).PublishTripStatusChangedAsync(message);
+
+        tracking.Clients.Verify(c => c.Groups(It.Is<IReadOnlyList<string>>(g => g.Count == 1 && g[0] == "fleet")), Times.Once);
     }
 
     [Fact]

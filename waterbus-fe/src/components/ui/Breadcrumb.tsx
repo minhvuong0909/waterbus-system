@@ -24,7 +24,7 @@ export default function Breadcrumb({ items, className = '' }: BreadcrumbProps) {
         return (
           <span key={item.label} className="flex items-center gap-2">
             {item.to && !last ? (
-              <Link to={item.to} className="transition-colors hover:text-deep-river">
+              <Link to={item.to} className="tap-area transition-colors hover:text-deep-river">
                 {t(item.label)}
               </Link>
             ) : (
@@ -35,7 +35,7 @@ export default function Breadcrumb({ items, className = '' }: BreadcrumbProps) {
                 {t(item.label)}
               </span>
             )}
-            {!last && <Icon name="chevron_right" className="text-[14px] text-outline" />}
+            {!last && <Icon name="chevron_right" className="text-sm text-outline" />}
           </span>
         )
       })}

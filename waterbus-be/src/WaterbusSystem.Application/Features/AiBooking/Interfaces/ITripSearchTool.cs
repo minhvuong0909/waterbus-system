@@ -8,6 +8,8 @@ namespace WaterbusSystem.Application.Features.AiBooking.Interfaces;
 /// </summary>
 public interface ITripSearchTool
 {
+    Task<IReadOnlyList<string>> ListActiveStationsAsync(CancellationToken cancellationToken = default);
+
     Task<TripSearchResult> SearchTripsAsync(
         TripSearchCriteria criteria,
         CancellationToken cancellationToken = default);

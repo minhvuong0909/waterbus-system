@@ -24,3 +24,12 @@ public interface IDateTimeService
 {
     DateTimeOffset Now { get; }
 }
+
+/// <summary>
+/// Tra họ tên người dùng theo Id (nhật ký vận hành hiển thị "ai làm"). Tách riêng vì tài khoản nằm
+/// trong ASP.NET Identity ở tầng Infrastructure, không phải entity nghiệp vụ Application truy vấn qua Repository.
+/// </summary>
+public interface IUserDirectory
+{
+    Task<IReadOnlyDictionary<Guid, string>> GetFullNamesAsync(IEnumerable<Guid> userIds, CancellationToken cancellationToken = default);
+}
