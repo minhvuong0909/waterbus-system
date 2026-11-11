@@ -49,11 +49,17 @@ async function generate() {
   );
   const tampered = createTamperedQr(valid.compactQr);
 
+  const trangQr = QrVerifier.generateTestSignedQr('pub_wb_11f22e33', '8910cbe5-9d3f-48d7-aa66-372a617532cd', DEFAULT_KEY_INFO);
+
+  const huyQr = QrVerifier.generateTestSignedQr('pub_wb_44d55c66', '8910cbe5-9d3f-48d7-aa66-372a617532cd', DEFAULT_KEY_INFO);
+
   await Promise.all([
     writeQr('qr1-valid-rs256.png', valid.compactQr),
     writeQr('qr2-valid-json-rs256.png', valid.jsonQr),
     writeQr('qr3-tampered-rs256.png', tampered),
     writeQr('qr4-expired-rs256.png', expired.compactQr),
+    writeQr('qr-trang-b05.png', trangQr.compactQr),
+    writeQr('qr-huy-c10.png', huyQr.compactQr),
   ]);
 
   console.log(`Generated RS256 demo QR codes in ${outputDirectory}`);
