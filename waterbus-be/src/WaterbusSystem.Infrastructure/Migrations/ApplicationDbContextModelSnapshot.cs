@@ -872,6 +872,12 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
+                    b.Property<DateTimeOffset?>("ExportedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ExportedByAdminId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("FailureReason")
                         .HasColumnType("nvarchar(max)");
 
