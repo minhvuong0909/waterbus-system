@@ -180,9 +180,14 @@ interface TripOperationItemDto {
   allowedOperations: OperationType[]
 }
 
-/** Trips from 12 hours ago to 7 days ahead, with the operations the backend allows on each right now. */
-export async function getOperationTrips(): Promise<AdminTrip[]> {
-  const items = await apiRequest<TripOperationItemDto[]>(API_ENDPOINTS.trips.operations)
+/**
+ * Trips with the operations the backend allows on each right now: from 12 hours ago to 7 days
+ * ahead, or the 7 days starting at `from` (an ISO instant) when given.
+ */
+export async function getOperationTrips(from?: string): Promise<AdminTrip[]> {
+  const items = await apiRequest<TripOperationItemDto[]>(API_ENDPOINTS.trips.operations, {
+    query: { from },
+  })
   return items.map((t) => ({
     id: t.id,
     routeId: t.routeId,

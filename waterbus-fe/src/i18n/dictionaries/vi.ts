@@ -88,7 +88,8 @@ export const vi: Record<string, string> = {
   'Passenger site': 'Trang hành khách',
   'Piers along the Saigon River. Passengers pick from these when searching for a trip.': 'Các bến dọc sông Sài Gòn. Hành khách chọn bến này khi tìm chuyến.',
   'Position along the river, 1 is the first station.': 'Vị trí dọc sông, 1 là bến đầu tiên.',
-  'Trips from 12 hours ago to 7 days ahead, with their boat and status.': 'Các chuyến từ 12 giờ trước đến 7 ngày tới, kèm tàu và trạng thái.',
+  'Seven days of trips with their boat and status. A trip is on sale once it has a boat.':
+    'Các chuyến trong 7 ngày, kèm tàu và trạng thái. Chuyến chỉ mở bán khi đã có tàu.',
   'Reason': 'Lý do',
   'Registration': 'Số đăng ký',
   'Registration number': 'Số đăng ký',
@@ -1151,4 +1152,14 @@ export const vi: Record<string, string> = {
   '{count} departures were already in the past': '{count} giờ khởi hành đã qua',
   'Assign a boat to each trip on the Trips page; a trip without a boat is not on sale.':
     'Hãy gán tàu cho từng chuyến ở trang Chuyến; chuyến chưa có tàu thì chưa mở bán.',
+  'Add trip': 'Thêm chuyến',
+  'Create trip': 'Tạo chuyến',
+  'From': 'Từ ngày',
+  'No boat': 'Chưa có tàu',
+  'Assign boat': 'Gán tàu',
+  'Change boat': 'Đổi tàu',
+  'Seats already sold move to the same seats of the new boat.':
+    'Ghế đã bán được chuyển sang đúng ghế đó trên tàu mới.',
+  'Boat changed. {count} sold seats were moved to the new boat.':
+    'Đã đổi tàu. {count} ghế đã bán được chuyển sang tàu mới.',
 }
