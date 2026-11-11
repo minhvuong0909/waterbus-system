@@ -33,6 +33,8 @@ Các đường dẫn dưới đây có prefix `/api/v1`.
 | POST | `/payments/{orderId}/attempts/{paymentId}/reconcile` | Token; Querydr đúng payment attempt |
 | GET | `/checkouts/{orderId}/bookings/{bookingId}/qr` | Token; chỉ Booking Confirmed/Completed đã có Ticket |
 | GET | `/checkouts/qr-public-key` | Công khai; public PEM, key id, thuật toán |
+| GET | `/refunds/candidates?tripId=&page=&pageSize=` | AdminOnly, chỉ đọc; Booking của chuyến Cancelled/Terminated cần hoàn (409 nếu chuyến chưa hủy/chấm dứt). Xem `REFUND_MANUAL_MODE.md` |
+| POST | `/refunds/batch-request` | AdminOnly; body `{ "tripId": "GUID", "reason": "..."? }`; tạo refund cho mọi candidate, Booking lỗi ở `skippedItems`, idempotent |
 | POST | `/refunds/request` | AdminOnly; body `{ "bookingId": "GUID", "reason": "..." }` |
 | POST | `/refunds/{refundId}/reconcile` | AdminOnly; đối soát khoản hoàn đang Processing |
 | POST | `/refunds/confirm-manual` | AdminOnly; bằng chứng, reference và confirmedAmount chính xác |
