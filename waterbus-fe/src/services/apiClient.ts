@@ -3,6 +3,10 @@ import { getLocale } from '../i18n/translate'
 import { getToken } from './authStorage'
 
 /** Error raised for any failed request. `status` is 0 when the server could not be reached. */
+/** True when the backend answered that the thing does not exist or is not this user's (404/403). */
+export const isNotFound = (error: unknown): boolean =>
+  error instanceof ApiError && (error.status === 404 || error.status === 403)
+
 export class ApiError extends Error {
   readonly status: number
   /** Per-field validation messages from a 400 response, keyed by property name. */

@@ -6,7 +6,6 @@ import { CAPTAIN_ROLES } from '../constant/roles'
 import AdminLayout from '../layouts/admin/AdminLayout'
 import CaptainLayout from '../layouts/captain/CaptainLayout'
 import PrivateRoute from './PrivateRoute'
-import PublicRoute from './PublicRoute'
 import RouteWithLayout from './RouteWithLayout'
 import { ROUTES } from './routes'
 
@@ -72,11 +71,9 @@ export default function AppRoutes() {
           key={path}
           path={path}
           element={
-            <PublicRoute>
-              <RouteWithLayout>
-                <Page />
-              </RouteWithLayout>
-            </PublicRoute>
+            <RouteWithLayout>
+              <Page />
+            </RouteWithLayout>
           }
         />
       ))}

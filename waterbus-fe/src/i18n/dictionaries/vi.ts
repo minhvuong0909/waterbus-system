@@ -561,8 +561,6 @@ export const vi: Record<string, string> = {
   'Your e-tickets are ready. Show the QR code to staff when you board.':
     'Vé điện tử đã sẵn sàng. Xuất trình mã QR cho nhân viên khi lên tàu.',
   'Your Journey Is Confirmed': 'Hành trình của bạn đã được xác nhận',
-  'Your selected seat remains reserved while you complete payment.':
-    'Ghế bạn chọn vẫn được giữ trong lúc bạn thanh toán.',
   'Your Ticket': 'Vé của bạn',
   'Seat {id} ({tags})': 'Ghế {id} ({tags})',
   Help: 'Trợ giúp',
@@ -934,4 +932,16 @@ export const vi: Record<string, string> = {
   'Use the account issued to you by Smart Waterbus.': 'Dùng tài khoản do Smart Waterbus cấp cho bạn.',
   'Travellers do not need an account to book tickets.': 'Hành khách không cần tài khoản để đặt vé.',
   'Route map': 'Bản đồ tuyến',
+  // Trạng thái không có dữ liệu (thay cho lỗi kết nối chung)
+  'This booking is no longer active': 'Đơn đặt chỗ này không còn hiệu lực',
+  'The seats were released or the order was cancelled. Choose your seats again to continue.':
+    'Ghế đã được nhả hoặc đơn đã bị huỷ. Hãy chọn lại ghế để tiếp tục.',
+  'We could not verify this payment result': 'Không xác minh được kết quả thanh toán này',
+  'Check your booking in My Tickets; your tickets appear there once the payment is confirmed.':
+    'Hãy xem đơn trong Vé của tôi; vé sẽ hiện ở đó khi thanh toán được xác nhận.',
+  'No ticket to show': 'Không có vé để hiển thị',
+  'Open a ticket from My Tickets, or paste the booking link you saved after payment.':
+    'Hãy mở vé từ Vé của tôi, hoặc dán link quản lý vé bạn đã lưu sau khi thanh toán.',
+  'Trip not found': 'Không tìm thấy chuyến',
+  'Open the trip from one of your tickets.': 'Hãy mở chuyến từ một vé của bạn.',
 }

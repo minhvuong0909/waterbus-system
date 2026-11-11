@@ -1,4 +1,5 @@
-import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
+import { Navigate } from 'react-router-dom'
+import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
 import BookingProgress from '../../features/booking/components/BookingProgress'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import type { BookingStep } from '../../features/booking/types'
@@ -22,6 +23,19 @@ export default function PaymentPage() {
   const { trip, seats, purchaser } = outbound
 
   if (outbound.noTrip) return <NoTripSelected />
+  // Đơn đã huỷ hoặc hết hạn (vd quay lại bằng nút Back): không còn gì để thanh toán.
+  if (!hold) {
+    return (
+      <ErrorState
+        icon="event_busy"
+        title={t('This booking is no longer active')}
+        message={t('The seats were released or the order was cancelled. Choose your seats again to continue.')}
+        action={{ label: t('Choose seats again'), to: ROUTES.seatSelection }}
+      />
+    )
+  }
+  // Chưa gửi người mua và hành khách: bước xác nhận phải đi trước.
+  if (!hold.submitted) return <Navigate to={ROUTES.checkoutReview} replace />
   const error = outbound.error ?? back.error
   if (error) {
     return (
@@ -80,14 +94,7 @@ export default function PaymentPage() {
           </p>
         </div>
         <div className="self-start md:self-auto lg:hidden">
-          <HoldCountdown
-            fallback={
-              <span className="inline-flex items-center gap-2 rounded-xl bg-surface-container px-space-md py-2 text-xs text-on-surface-variant">
-                <Icon name="event_seat" className="text-base text-teal-flow" />
-                {t('Your selected seat remains reserved while you complete payment.')}
-              </span>
-            }
-          />
+          <HoldCountdown />
         </div>
       </div>
 
@@ -95,7 +102,7 @@ export default function PaymentPage() {
         <div className="lg:col-span-8">
           <PaymentMethodPanel
             amountVnd={totals.totalVnd}
-            reference={hold?.bookingCodes.join(', ') ?? ''}
+            reference={hold.bookingCodes.join(', ')}
           />
         </div>
         <div className="lg:col-span-4 lg:self-stretch">
