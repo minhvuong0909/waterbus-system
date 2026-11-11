@@ -105,6 +105,8 @@ public sealed class ScannerAssignmentMigrationSqlTests
         {
             base.OnModelCreating(builder);
             builder.Entity<FinancialTransaction>().Ignore(x => x.IsDemoRefund);
+            builder.Entity<FinancialTransaction>().Ignore(x => x.ExportedAt);
+            builder.Entity<FinancialTransaction>().Ignore(x => x.ExportedByAdminId);
         }
     }
 

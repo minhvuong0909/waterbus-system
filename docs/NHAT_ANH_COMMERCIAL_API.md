@@ -38,6 +38,8 @@ Các đường dẫn dưới đây có prefix `/api/v1`.
 | POST | `/refunds/request` | AdminOnly; body `{ "bookingId": "GUID", "reason": "..." }` |
 | POST | `/refunds/{refundId}/reconcile` | AdminOnly; đối soát khoản hoàn đang Processing |
 | POST | `/refunds/confirm-manual` | AdminOnly; bằng chứng, reference và confirmedAmount chính xác |
+| POST | `/refunds/confirm-manual/batch` | AdminOnly; body `{ "items": [confirm-manual...] }` (1–100, không trùng); khoản lỗi ở `items[].error`, không dừng cả lô |
+| POST | `/refunds/export` | AdminOnly; body `{ "tripId": "GUID"? }`; trả `text/csv` (UTF-8 BOM) các refund Manual đang chờ hoàn, header `X-Row-Count`, ghi dấu đã xuất, cho xuất lại; >5000 dòng → 409 |
 
 API thông thường camelCase. IPN trả **đúng** `{ "RspCode": "00", "Message": "Confirm Success" }` theo giao thức VNPay; replay đã xác nhận trả `02`, chữ ký sai `97`, amount sai `04`. HTTP POST IPN vẫn nhận tham số ở query string, như GET.
 

@@ -74,6 +74,8 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
+              // FE khác origin (Vite dev) cần đọc tên file và số dòng của CSV hoàn tiền.
+              .WithExposedHeaders("Content-Disposition", "X-Row-Count")
               .AllowCredentials();
     });
 });

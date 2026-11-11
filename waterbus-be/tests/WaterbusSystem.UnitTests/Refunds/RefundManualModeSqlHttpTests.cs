@@ -569,6 +569,188 @@ public sealed class RefundManualModeSqlHttpTests : IAsyncLifetime
         Assert.Equal(0, await c.FinancialTransactions.CountAsync(t => t.TransactionType == FinancialTransactionType.Refund));
     }
 
+    private static async Task<(HttpResponseMessage Response, string Text)> ExportCsv(HttpClient admin, Guid? tripId = null)
+    {
+        var response = await admin.PostAsJsonAsync("/api/v1/refunds/export", new ExportRefundsRequest(tripId));
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        return (response, Encoding.UTF8.GetString(bytes));
+    }
+
+    [SqlServerDomainFact]
+    public async Task ExportCsv_ListsPendingManualRefunds_MarksThem_AllowsReExport_AndDropsConfirmedOnes()
+    {
+        var seeded = await PaidRoundTripAsync();
+        await CancelTripAsync(seeded.OutboundTripId);
+        var adminId = Guid.NewGuid();
+        using var admin = As("Admin", adminId);
+        var refundId = (await Batch(admin, seeded.OutboundTripId)).Created.Single().RefundTransactionId;
+
+        var (first, text) = await ExportCsv(admin);
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal("text/csv", first.Content.Headers.ContentType!.MediaType);
+        Assert.StartsWith("hoan-tien-", first.Content.Headers.ContentDisposition!.FileName!.Trim('"'));
+        Assert.Equal("1", first.Headers.GetValues("X-Row-Count").Single());
+        Assert.StartsWith("﻿Mã hoàn tiền", text);                 // BOM + tiêu đề
+        Assert.Contains(refundId.ToString(), text);
+        Assert.Contains("buyer@example.com", text);
+        Assert.Contains(",15000,", text);
+        Assert.Contains("Chuyến bị hủy", text);
+
+        DateTimeOffset firstExport;
+        await using (var c = Context())
+        {
+            var refund = await c.FinancialTransactions.SingleAsync(t => t.Id == refundId);
+            Assert.NotNull(refund.ExportedAt);
+            Assert.Equal(adminId, refund.ExportedByAdminId);
+            Assert.Equal(FinancialTransactionStatus.Processing, refund.Status);       // xuất không đổi trạng thái tiền
+            firstExport = refund.ExportedAt!.Value;
+        }
+
+        // Cho phép xuất lại: vẫn còn dòng, dấu "xuất lần cuối" được cập nhật.
+        var (second, _) = await ExportCsv(admin);
+        Assert.Equal("1", second.Headers.GetValues("X-Row-Count").Single());
+        await using (var c = Context())
+            Assert.True((await c.FinancialTransactions.SingleAsync(t => t.Id == refundId)).ExportedAt >= firstExport);
+
+        // Sau khi Admin xác nhận đã hoàn: không còn trong danh sách và không bị ghi dấu thêm.
+        Assert.Equal(HttpStatusCode.OK, (await admin.PostAsJsonAsync("/api/v1/refunds/confirm-manual",
+            new ConfirmManualRefundRequest(refundId, "Mã GD hoàn 14055555", "14055555", 15000m))).StatusCode);
+        DateTimeOffset beforeThird;
+        await using (var c = Context()) beforeThird = (await c.FinancialTransactions.SingleAsync(t => t.Id == refundId)).ExportedAt!.Value;
+        var (third, thirdText) = await ExportCsv(admin);
+        Assert.Equal("0", third.Headers.GetValues("X-Row-Count").Single());
+        Assert.DoesNotContain(refundId.ToString(), thirdText);
+        await using (var c = Context())
+            Assert.Equal(beforeThird, (await c.FinancialTransactions.SingleAsync(t => t.Id == refundId)).ExportedAt);
+        AssertNoVnPayRefund();
+    }
+
+    [SqlServerDomainFact]
+    public async Task ExportCsv_CanBeLimitedToOneTrip_AndWithNothingPendingIsAnEmptyFileThatMarksNothing()
+    {
+        var seeded = await PaidRoundTripAsync();
+        using var admin = As("Admin");
+
+        var (empty, emptyText) = await ExportCsv(admin);
+        Assert.Equal(HttpStatusCode.OK, empty.StatusCode);
+        Assert.Equal("0", empty.Headers.GetValues("X-Row-Count").Single());
+        Assert.Single(emptyText.Split("\r\n", StringSplitOptions.RemoveEmptyEntries));        // chỉ tiêu đề
+
+        await CancelTripAsync(seeded.OutboundTripId);
+        await CancelTripAsync(seeded.ReturnTripId);
+        var outboundRefund = (await Batch(admin, seeded.OutboundTripId)).Created.Single().RefundTransactionId;
+        var returnRefund = (await Batch(admin, seeded.ReturnTripId)).Created.Single().RefundTransactionId;
+
+        var (one, oneText) = await ExportCsv(admin, seeded.OutboundTripId);
+        Assert.Equal("1", one.Headers.GetValues("X-Row-Count").Single());
+        Assert.Contains(outboundRefund.ToString(), oneText);
+        Assert.DoesNotContain(returnRefund.ToString(), oneText);
+        await using (var c = Context())
+            Assert.Null((await c.FinancialTransactions.SingleAsync(t => t.Id == returnRefund)).ExportedAt);   // chuyến kia chưa được xuất
+
+        var (all, _) = await ExportCsv(admin);
+        Assert.Equal("2", all.Headers.GetValues("X-Row-Count").Single());
+    }
+
+    [SqlServerDomainFact]
+    public async Task ExportCsv_RejectsNonAdmins_AndAnEmptyTripId()
+    {
+        await PaidRoundTripAsync();
+        using (var anonymous = As(null))
+            Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsJsonAsync("/api/v1/refunds/export", new ExportRefundsRequest())).StatusCode);
+        foreach (var role in new[] { "Passenger", "Staff", "Captain" })
+        {
+            using var other = As(role);
+            Assert.Equal(HttpStatusCode.Forbidden, (await other.PostAsJsonAsync("/api/v1/refunds/export", new ExportRefundsRequest())).StatusCode);
+        }
+        using var admin = As("Admin");
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync("/api/v1/refunds/export", new ExportRefundsRequest(Guid.Empty))).StatusCode);
+    }
+
+    [SqlServerDomainFact]
+    public async Task ExportCsv_NeverIncludesALegacyDemoRefund_SoStaffCannotPayOutSimulatedMoney()
+    {
+        var seeded = await PaidRoundTripAsync();
+        await CancelTripAsync(seeded.OutboundTripId);
+        using var admin = As("Admin");
+        var refundId = (await Batch(admin, seeded.OutboundTripId)).Created.Single().RefundTransactionId;
+        await using (var c = Context())
+        {
+            (await c.FinancialTransactions.SingleAsync(t => t.Id == refundId)).IsDemoRefund = true;      // dữ liệu cũ từ thời còn chế độ Demo
+            await c.SaveChangesAsync();
+        }
+
+        var (response, text) = await ExportCsv(admin);
+
+        Assert.Equal("0", response.Headers.GetValues("X-Row-Count").Single());
+        Assert.DoesNotContain(refundId.ToString(), text);
+        await using var check = Context();
+        Assert.Null((await check.FinancialTransactions.SingleAsync(t => t.Id == refundId)).ExportedAt);
+    }
+
+    private static Task<HttpResponseMessage> ConfirmBatch(HttpClient admin, params ConfirmManualRefundRequest[] items) =>
+        admin.PostAsJsonAsync("/api/v1/refunds/confirm-manual/batch", new BatchConfirmManualRefundsRequest(items));
+
+    [SqlServerDomainFact]
+    public async Task ConfirmManualBatch_ConfirmsValidItems_ReportsTheRest_AndNeverConfirmsTwice()
+    {
+        var seeded = await PaidRoundTripAsync();
+        await CancelTripAsync(seeded.OutboundTripId);
+        await CancelTripAsync(seeded.ReturnTripId);
+        using var admin = As("Admin");
+        var good = (await Batch(admin, seeded.OutboundTripId)).Created.Single();
+        var wrongAmount = (await Batch(admin, seeded.ReturnTripId)).Created.Single();
+        var unknown = Guid.NewGuid();
+
+        var response = await ConfirmBatch(admin,
+            new ConfirmManualRefundRequest(good.RefundTransactionId, "Mã GD hoàn 1", "REF-1", good.Amount),
+            new ConfirmManualRefundRequest(wrongAmount.RefundTransactionId, "Mã GD hoàn 2", "REF-2", wrongAmount.Amount + 1),
+            new ConfirmManualRefundRequest(unknown, "Mã GD hoàn 3", null, 1000m));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = (await response.Content.ReadFromJsonAsync<BatchConfirmManualRefundsResponse>())!;
+        Assert.Equal((1, 2), (result.Confirmed, result.Failed));
+        Assert.True(result.Items.Single(i => i.RefundTransactionId == good.RefundTransactionId).Succeeded);
+        Assert.False(result.Items.Single(i => i.RefundTransactionId == wrongAmount.RefundTransactionId).Succeeded);
+        Assert.False(result.Items.Single(i => i.RefundTransactionId == unknown).Succeeded);
+        Assert.All(result.Items.Where(i => !i.Succeeded), i => Assert.False(string.IsNullOrWhiteSpace(i.Error)));
+
+        await using (var c = Context())
+        {
+            Assert.Equal(FinancialTransactionStatus.Succeeded, (await c.FinancialTransactions.SingleAsync(t => t.Id == good.RefundTransactionId)).Status);
+            Assert.Equal(FinancialTransactionStatus.Processing, (await c.FinancialTransactions.SingleAsync(t => t.Id == wrongAmount.RefundTransactionId)).Status);
+            Assert.Equal(1, await c.EmailOutbox.CountAsync(m => m.NotificationType == EmailNotificationType.RefundSucceeded));
+        }
+
+        // Gửi lại khoản đã xác nhận: bị từ chối, không có email thứ hai.
+        var again = (await (await ConfirmBatch(admin, new ConfirmManualRefundRequest(good.RefundTransactionId, "lần hai", null, good.Amount)))
+            .Content.ReadFromJsonAsync<BatchConfirmManualRefundsResponse>())!;
+        Assert.Equal((0, 1), (again.Confirmed, again.Failed));
+        await using var check = Context();
+        Assert.Equal(1, await check.EmailOutbox.CountAsync(m => m.NotificationType == EmailNotificationType.RefundSucceeded));
+        AssertNoVnPayRefund();
+    }
+
+    [SqlServerDomainFact]
+    public async Task ConfirmManualBatch_RejectsBadInput_AndNonAdmins()
+    {
+        using var admin = As("Admin");
+        var id = Guid.NewGuid();
+        Assert.Equal(HttpStatusCode.BadRequest, (await ConfirmBatch(admin)).StatusCode);                                   // rỗng
+        Assert.Equal(HttpStatusCode.BadRequest, (await ConfirmBatch(admin,
+            new ConfirmManualRefundRequest(id, "e", null, 1m), new ConfirmManualRefundRequest(id, "e", null, 1m))).StatusCode);   // trùng
+        Assert.Equal(HttpStatusCode.BadRequest, (await ConfirmBatch(admin, new ConfirmManualRefundRequest(id, "", null, 1m))).StatusCode);  // thiếu bằng chứng
+        Assert.Equal(HttpStatusCode.BadRequest, (await ConfirmBatch(admin, Enumerable.Range(0, 101)
+            .Select(_ => new ConfirmManualRefundRequest(Guid.NewGuid(), "e", null, 1m)).ToArray())).StatusCode);              // quá 100
+
+        var body = new ConfirmManualRefundRequest(id, "e", null, 1m);
+        using (var anonymous = As(null)) Assert.Equal(HttpStatusCode.Unauthorized, (await ConfirmBatch(anonymous, body)).StatusCode);
+        foreach (var role in new[] { "Passenger", "Staff", "Captain" })
+        {
+            using var other = As(role);
+            Assert.Equal(HttpStatusCode.Forbidden, (await ConfirmBatch(other, body)).StatusCode);
+        }
+    }
+
     private sealed class TimeoutGateway : IRefundGateway
     {
         public string Name => "VNPAY";

@@ -36,6 +36,9 @@ public class FinancialTransaction : BaseEntity
     /// KHÔNG có tiền thật được chuyển. Code mới không bao giờ đặt true; giữ cột để không mất lịch sử và không phá dữ liệu.
     /// </summary>
     public bool IsDemoRefund { get; set; }
+    /// <summary>Lần gần nhất Admin xuất refund này vào CSV cho nhân viên hoàn tiền (cho phép xuất lại; chỉ để biết đã giao việc chưa).</summary>
+    public DateTimeOffset? ExportedAt { get; set; }
+    public Guid? ExportedByAdminId { get; set; }
     public DateTimeOffset? ProcessedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public ICollection<RefundTicketAllocation> RefundAllocations { get; set; } = new List<RefundTicketAllocation>();
