@@ -667,6 +667,27 @@ public sealed class RefundManualModeSqlHttpTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync("/api/v1/refunds/export", new ExportRefundsRequest(Guid.Empty))).StatusCode);
     }
 
+    [SqlServerDomainFact]
+    public async Task ExportCsv_NeverIncludesALegacyDemoRefund_SoStaffCannotPayOutSimulatedMoney()
+    {
+        var seeded = await PaidRoundTripAsync();
+        await CancelTripAsync(seeded.OutboundTripId);
+        using var admin = As("Admin");
+        var refundId = (await Batch(admin, seeded.OutboundTripId)).Created.Single().RefundTransactionId;
+        await using (var c = Context())
+        {
+            (await c.FinancialTransactions.SingleAsync(t => t.Id == refundId)).IsDemoRefund = true;      // dữ liệu cũ từ thời còn chế độ Demo
+            await c.SaveChangesAsync();
+        }
+
+        var (response, text) = await ExportCsv(admin);
+
+        Assert.Equal("0", response.Headers.GetValues("X-Row-Count").Single());
+        Assert.DoesNotContain(refundId.ToString(), text);
+        await using var check = Context();
+        Assert.Null((await check.FinancialTransactions.SingleAsync(t => t.Id == refundId)).ExportedAt);
+    }
+
     private static Task<HttpResponseMessage> ConfirmBatch(HttpClient admin, params ConfirmManualRefundRequest[] items) =>
         admin.PostAsJsonAsync("/api/v1/refunds/confirm-manual/batch", new BatchConfirmManualRefundsRequest(items));
 
