@@ -24,16 +24,15 @@ export class SqliteRepository {
     // Lưu khóa, chuyến và booking cùng transaction để cache không bị cập nhật dở dang.
     await db.withTransactionAsync(async () => {
       if (manifest.publicKey) {
-        const nowIso = new Date().toISOString();
         await db.runAsync(
           `INSERT OR REPLACE INTO public_keys (kid, algorithm, public_key_pem, valid_from, valid_to, is_active)
            VALUES (?, ?, ?, ?, ?, ?)`,
           [
             manifest.publicKey.kid,
-            manifest.publicKey.algorithm || 'RS256',
+            manifest.publicKey.algorithm,
             manifest.publicKey.publicKeyPem,
-            manifest.publicKey.validFrom || nowIso,
-            manifest.publicKey.validTo || '2099-12-31T23:59:59Z',
+            manifest.publicKey.validFrom ?? null,
+            manifest.publicKey.validTo ?? null,
             manifest.publicKey.isActive ? 1 : 0,
           ]
         );
@@ -97,11 +96,11 @@ export class SqliteRepository {
               ticket.id,
               ticket.bookingId,
               ticket.ticketNumber,
-              ticket.seatCode || '',
-              ticket.seatClass || '',
-              ticket.passengerName || '',
-              ticket.status || 'Valid',
-              ticket.boardingStatus || 'NotCheckedIn',
+              ticket.seatCode,
+              ticket.seatClass,
+              ticket.passengerName,
+              ticket.status,
+              ticket.boardingStatus,
               ticket.checkedInAt || null,
               ticket.checkedInByStaffId || null,
               ticket.faceFare ?? 0,

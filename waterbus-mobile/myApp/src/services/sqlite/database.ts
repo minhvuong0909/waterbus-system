@@ -374,10 +374,10 @@ async function initSchema(db: DatabaseAdapter): Promise<void> {
 
   // Migration an toàn cho các thiết bị đã tạo DB cũ trước đó:
   // Nếu bảng public_keys cũ còn dính constraint NOT NULL ở valid_from, recreate lại bảng
-  try {
-    const pkTableInfo = await db.getAllAsync<{ name: string; notnull: number }>('PRAGMA table_info(public_keys)');
-    const validFromCol = pkTableInfo.find(c => c.name === 'valid_from');
-    if (validFromCol && validFromCol.notnull === 1) {
+  const pkTableInfo = await db.getAllAsync<{ name: string; notnull: number }>('PRAGMA table_info(public_keys)');
+  const validFromColumn = pkTableInfo.find(column => column.name === 'valid_from');
+  if (validFromColumn?.notnull === 1) {
+    await db.withTransactionAsync(async () => {
       await db.execAsync(`
         CREATE TABLE IF NOT EXISTS public_keys_new (
           kid TEXT PRIMARY KEY,
@@ -387,13 +387,17 @@ async function initSchema(db: DatabaseAdapter): Promise<void> {
           valid_to TEXT,
           is_active INTEGER NOT NULL DEFAULT 1
         );
-        INSERT OR IGNORE INTO public_keys_new SELECT * FROM public_keys;
-        DROP TABLE public_keys;
-        ALTER TABLE public_keys_new RENAME TO public_keys;
       `);
-    }
-  } catch {
-    // Ignore migration fallback
+      await db.execAsync(`
+        INSERT OR IGNORE INTO public_keys_new (
+          kid, algorithm, public_key_pem, valid_from, valid_to, is_active
+        )
+        SELECT kid, algorithm, public_key_pem, valid_from, valid_to, is_active
+        FROM public_keys;
+      `);
+      await db.execAsync('DROP TABLE public_keys');
+      await db.execAsync('ALTER TABLE public_keys_new RENAME TO public_keys');
+    });
   }
 
   const bookingColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(manifest_bookings)');
