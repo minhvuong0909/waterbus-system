@@ -48,6 +48,17 @@ describe('RefundTripPanel', () => {
     expect(values).toEqual(['', 't-cancelled', 't-terminated'])
   })
 
+  it('searches a month of cancelled or terminated trips, not just the operations window', async () => {
+    render(<RefundTripPanel onCreated={() => {}} />)
+    await waitFor(() => expect(select().disabled).toBe(false))
+
+    const [query] = vi.mocked(getOperationTrips).mock.calls[0]
+    expect(query?.statuses).toEqual(['Cancelled', 'Terminated'])
+    const days = (new Date(query!.to!).getTime() - new Date(query!.from!).getTime()) / 86_400_000
+    expect(days).toBeLessThanOrEqual(31)                                  // BE từ chối khoảng dài hơn 31 ngày
+    expect(new Date(query!.from!).getTime()).toBeLessThan(Date.now() - 7 * 86_400_000)   // thấy cả chuyến huỷ từ tuần trước
+  })
+
   it('says so when no trip needs refunds', async () => {
     vi.mocked(getOperationTrips).mockResolvedValue([trip('t-ok', 'Scheduled', '2026-11-13T01:00:00Z')])
     render(<RefundTripPanel onCreated={() => {}} />)

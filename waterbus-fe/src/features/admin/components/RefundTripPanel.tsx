@@ -8,14 +8,29 @@ import { formatDateTime } from '../../../utils/time'
 import { useReload, useSubmit } from '../hooks/useAdmin'
 import { getOperationTrips } from '../services/operationsService'
 import { listRefundCandidates, requestRefundsForTrip } from '../services/refundService'
+import type { TripStatus } from '../../trips/types'
 import type { BatchRefundRequestResult, RefundCandidate } from '../types'
+
+/** Chuyến bị huỷ/chấm dứt vẫn cần hoàn tiền sau nhiều ngày: tìm trong 23 ngày qua và 7 ngày tới (BE cho tối đa 31 ngày). */
+const LOOKBACK_DAYS = 23
+const LOOKAHEAD_DAYS = 7
+const DAY_MS = 24 * 60 * 60 * 1000
+
+function refundableTripsQuery() {
+  const now = Date.now()
+  return {
+    from: new Date(now - LOOKBACK_DAYS * DAY_MS).toISOString(),
+    to: new Date(now + LOOKAHEAD_DAYS * DAY_MS).toISOString(),
+    statuses: ['Cancelled', 'Terminated'] as TripStatus[],
+  }
+}
 
 /**
  * Hoàn theo chuyến: chọn chuyến đã bị huỷ/chấm dứt, xem Booking cần hoàn (BR-RF-01..09), rồi tạo yêu cầu hoàn
  * hàng loạt. Bước này KHÔNG chuyển tiền: nhân viên hoàn qua cổng merchant theo file CSV, sau đó Admin xác nhận.
  */
 export default function RefundTripPanel({ onCreated }: { onCreated: () => void }) {
-  const trips = useFetch(getOperationTrips)
+  const trips = useFetch(() => getOperationTrips(refundableTripsQuery()))
   const [tripId, setTripId] = useState('')
   const [version, reload] = useReload()
   const [confirming, setConfirming] = useState(false)
