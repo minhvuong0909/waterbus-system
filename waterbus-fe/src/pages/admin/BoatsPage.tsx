@@ -5,6 +5,7 @@ import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import { createBoat, deleteBoat, getBoats } from '../../features/admin/services/boatService'
 import type { AdminBoat } from '../../features/admin/types'
 import { useDocumentTitle, useFetch } from '../../hooks'
+import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 import type { Column } from '../../components/ui'
 
@@ -109,9 +110,14 @@ export default function BoatsPage() {
       header: 'Actions',
       className: 'text-right',
       render: (b) => (
-        <Button size="sm" variant="neutral" icon="delete" onClick={() => { remove.clearError(); setDialog({ kind: 'delete', boat: b }) }}>
-          {t('Deactivate')}
-        </Button>
+        <span className="inline-flex gap-1">
+          <Button size="sm" variant="neutral" icon="event_seat" to={`${ROUTES.adminBoatSeats}?boatId=${b.id}`}>
+            {t('Seats')}
+          </Button>
+          <Button size="sm" variant="neutral" icon="delete" onClick={() => { remove.clearError(); setDialog({ kind: 'delete', boat: b }) }}>
+            {t('Deactivate')}
+          </Button>
+        </span>
       ),
     },
   ]

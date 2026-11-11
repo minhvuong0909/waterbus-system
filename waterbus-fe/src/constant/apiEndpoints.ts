@@ -9,6 +9,28 @@ export const API_ENDPOINTS = {
   boats: '/api/v1/boats',
   station: (id: string) => `/api/v1/stations/${id}`,
   boat: (id: string) => `/api/v1/boats/${id}`,
+  /** Admin: seats of a boat and how many of them are active. */
+  boatSeats: (boatId: string) => `/api/v1/boats/${boatId}/seats`,
+  boatSeat: (boatId: string, seatId: string) => `/api/v1/boats/${boatId}/seats/${seatId}`,
+  seatClasses: '/api/v1/seat-classes',
+  seatClass: (id: string) => `/api/v1/seat-classes/${id}`,
+  /** Admin catalogue. A route, schedule or fare is switched with `POST {item}/activate|deactivate`. */
+  admin: {
+    routes: '/api/v1/admin/routes',
+    route: (id: string) => `/api/v1/admin/routes/${id}`,
+    routeStops: (id: string) => `/api/v1/admin/routes/${id}/stops`,
+    schedules: '/api/v1/admin/schedules',
+    schedule: (id: string) => `/api/v1/admin/schedules/${id}`,
+    scheduleStops: (id: string) => `/api/v1/admin/schedules/${id}/stops`,
+    fares: '/api/v1/admin/fares',
+    fare: (id: string) => `/api/v1/admin/fares/${id}`,
+    /** Creates the trips of a schedule for a range of days. */
+    generateTrips: '/api/v1/admin/trips/generate',
+    /** Creates one trip outside any schedule (BR-SCH-10). */
+    trips: '/api/v1/admin/trips',
+    /** Assigns or replaces the boat of a trip that is still `Scheduled`. */
+    tripBoat: (tripId: string) => `/api/v1/admin/trips/${tripId}/boat`,
+  },
   assistant: '/api/v1/aiassistant/chat',
   textToSpeech: {
     /** Admin: Vietnamese script → MP3 with Azure TTS, stored in private Blob storage. */

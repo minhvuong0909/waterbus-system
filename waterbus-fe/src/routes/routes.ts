@@ -28,6 +28,11 @@ export const ROUTES = {
   adminTrips: '/admin/trips',
   adminStations: '/admin/stations',
   adminBoats: '/admin/boats',
+  /** Seats of one boat, `?boatId=`. */
+  adminBoatSeats: '/admin/boats/seats',
+  adminSeatClasses: '/admin/seat-classes',
+  adminRoutes: '/admin/routes',
+  adminSchedules: '/admin/schedules',
   adminFares: '/admin/fares',
   adminIncidents: '/admin/incidents',
   adminRefunds: '/admin/refunds',

@@ -36,12 +36,16 @@ const ADMIN_PAGES: Record<string, ComponentType> = {
   [ROUTES.adminTrips]: lazy(() => import('../pages/admin/TripsPage')),
   [ROUTES.adminStations]: lazy(() => import('../pages/admin/StationsPage')),
   [ROUTES.adminBoats]: lazy(() => import('../pages/admin/BoatsPage')),
+  [ROUTES.adminSeatClasses]: lazy(() => import('../pages/admin/SeatClassesPage')),
+  [ROUTES.adminRoutes]: lazy(() => import('../pages/admin/RoutesPage')),
+  [ROUTES.adminSchedules]: lazy(() => import('../pages/admin/SchedulesPage')),
   [ROUTES.adminFares]: lazy(() => import('../pages/admin/FaresPage')),
   [ROUTES.adminIncidents]: lazy(() => import('../pages/admin/IncidentsPage')),
   [ROUTES.adminRefunds]: lazy(() => import('../pages/admin/RefundsPage')),
   [ROUTES.adminCheckIn]: lazy(() => import('../pages/admin/CheckInPage')),
   [ROUTES.adminAudioGuides]: lazy(() => import('../pages/admin/AudioGuidesPage')),
 }
+const BoatSeatsPage = lazy(() => import('../pages/admin/BoatSeatsPage'))
 const CaptainPortalPage = lazy(() => import('../pages/captain/CaptainPortalPage'))
 
 const PAGES = [
@@ -96,6 +100,16 @@ export default function AppRoutes() {
           />
         )
       })}
+      <Route
+        path={ROUTES.adminBoatSeats}
+        element={
+          <PrivateRoute roles={[ROLES.admin]}>
+            <RouteWithLayout layout={AdminLayout}>
+              <BoatSeatsPage />
+            </RouteWithLayout>
+          </PrivateRoute>
+        }
+      />
       <Route
         path={ROUTES.orderHistory}
         element={
