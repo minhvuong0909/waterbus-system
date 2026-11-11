@@ -50,7 +50,8 @@ public sealed class RefundExportRepository(ApplicationDbContext context) : IRefu
 
     private IQueryable<WaterbusSystem.Domain.Entities.FinancialTransaction> PendingManual(Guid? tripId) =>
         context.FinancialTransactions.AsNoTracking()
-            .Where(r => r.TransactionType == FinancialTransactionType.Refund && r.GatewayName == "Manual" &&
+            // IsDemoRefund: refund mô phỏng cũ (chế độ Demo đã gỡ) KHÔNG BAO GIỜ được đưa cho nhân viên hoàn tiền thật.
+            .Where(r => r.TransactionType == FinancialTransactionType.Refund && r.GatewayName == "Manual" && !r.IsDemoRefund &&
                 (r.Status == FinancialTransactionStatus.Requested || r.Status == FinancialTransactionStatus.Processing) &&
                 (tripId == null || r.RefundBooking!.TripId == tripId));
 
