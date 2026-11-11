@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, apiRequest, setUnauthorizedHandler } from './apiClient'
+import { ApiError, apiRequest, fileNameFromDisposition, setUnauthorizedHandler } from './apiClient'
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -67,5 +67,50 @@ describe('apiRequest', () => {
     window.sessionStorage.setItem('waterbus.session', JSON.stringify({ token }))
     await apiRequest('/x').catch(() => undefined)
     expect(handler).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('apiRequest download', () => {
+  it('returns the blob with the file name and row count the server sends', async () => {
+    fetchMock.mockResolvedValue(
+      new Response('a,b', {
+        status: 200,
+        headers: { 'Content-Disposition': 'attachment; filename=hoan-tien-20261112-1005.csv', 'X-Row-Count': '7' },
+      }),
+    )
+    const file = await apiRequest<{ blob: Blob; fileName?: string; rowCount?: number }>('/api/v1/refunds/export', {
+      method: 'POST',
+      responseType: 'download',
+    })
+    expect(await file.blob.text()).toBe('a,b')
+    expect(file.fileName).toBe('hoan-tien-20261112-1005.csv')
+    expect(file.rowCount).toBe(7)
+    expect((fetchMock.mock.calls[0][1] as RequestInit).headers).toMatchObject({ Accept: '*/*' })
+  })
+
+  it('leaves the details undefined when the server sends no headers', async () => {
+    fetchMock.mockResolvedValue(new Response('x', { status: 200 }))
+    const file = await apiRequest<{ fileName?: string; rowCount?: number }>('/x', { responseType: 'download' })
+    expect(file.fileName).toBeUndefined()
+    expect(file.rowCount).toBeUndefined()
+  })
+
+  it('still maps an error response to ApiError', async () => {
+    fetchMock.mockResolvedValue(json({ title: 'Conflict', detail: 'Quá nhiều dòng' }, 409))
+    await expect(apiRequest('/x', { method: 'POST', responseType: 'download' })).rejects.toMatchObject({ status: 409 })
+  })
+})
+
+describe('fileNameFromDisposition', () => {
+  it.each([
+    ['attachment; filename=a.csv', 'a.csv'],
+    ['attachment; filename="b c.csv"', 'b c.csv'],
+    ["attachment; filename=a.csv; filename*=UTF-8''h%E1%BB%99.csv", 'a.csv'],
+    ["attachment; filename*=UTF-8''h%E1%BB%99.csv", 'hộ.csv'],
+  ])('reads %s', (header, expected) => expect(fileNameFromDisposition(header)).toBe(expected))
+
+  it('returns undefined without a header', () => {
+    expect(fileNameFromDisposition(null)).toBeUndefined()
+    expect(fileNameFromDisposition('inline')).toBeUndefined()
   })
 })

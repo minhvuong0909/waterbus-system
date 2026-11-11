@@ -1,7 +1,7 @@
 namespace WaterbusSystem.Application.DTOs.Responses.Refunds;
 
-/// <summary>Một dòng CSV: một refund Manual đang chờ hoàn. Chứa dữ liệu cá nhân của người mua nên chỉ Admin được xuất.</summary>
-public sealed record RefundExportRow(
+/// <summary>Một refund Manual đang chờ nhân viên hoàn: dùng cho dòng CSV và danh sách chờ trên giao diện. Chứa dữ liệu cá nhân của người mua nên chỉ Admin được xem.</summary>
+public sealed record PendingManualRefund(
     Guid RefundId, string BookingCode, Guid OrderId,
     string PurchaserName, string PurchaserEmail, string? PurchaserPhone,
     decimal Amount, string Currency, IReadOnlyList<string> TicketCodes,
