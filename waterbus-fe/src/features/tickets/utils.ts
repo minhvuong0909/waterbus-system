@@ -74,3 +74,46 @@ export function parseManageLink(input: string): { orderId: string; accessToken: 
     return null
   }
 }
+
+/** Đường dẫn trang quản lý của một đơn thuộc tài khoản đang đăng nhập (mở bằng JWT, không cần token). */
+export function accountOrderPath(orderId: string): string {
+  return `${ROUTES.manageBooking}?orderId=${encodeURIComponent(orderId)}`
+}
+
+/** Link đầy đủ của một Passenger TripAccess Link để người mua gửi cho hành khách đi cùng (BR-ID-05). */
+export function sharedTripUrl(token: string): string {
+  return `${window.location.origin}${ROUTES.sharedTrip.replace(':token', encodeURIComponent(token))}`
+}
+
+export type StatusTone = 'positive' | 'pending' | 'negative' | 'neutral'
+
+export interface StatusLook {
+  label: string
+  tone: StatusTone
+}
+
+const ORDER_STATUS: Record<string, StatusLook> = {
+  PendingPayment: { label: 'Awaiting payment', tone: 'pending' },
+  Confirmed: { label: 'Paid', tone: 'positive' },
+  Cancelled: { label: 'Cancelled', tone: 'negative' },
+  Expired: { label: 'Expired', tone: 'neutral' },
+}
+
+const BOOKING_STATUS: Record<string, StatusLook> = {
+  PendingPayment: { label: 'Awaiting payment', tone: 'pending' },
+  Confirmed: { label: 'Confirmed', tone: 'positive' },
+  Completed: { label: 'Completed', tone: 'neutral' },
+  Cancelled: { label: 'Cancelled', tone: 'negative' },
+  Terminated: { label: 'Trip ended early', tone: 'negative' },
+}
+
+const look = (table: Record<string, StatusLook>, status: string): StatusLook => {
+  const known = table[status]
+  return known ? { ...known, label: t(known.label) } : { label: status, tone: 'neutral' }
+}
+
+/** Nhãn và sắc thái của BE `OrderStatus`; `Confirmed` nghĩa là thanh toán đã được xác minh. */
+export const orderStatusLook = (status: string): StatusLook => look(ORDER_STATUS, status)
+
+/** Nhãn và sắc thái của BE `BookingStatus`. */
+export const bookingStatusLook = (status: string): StatusLook => look(BOOKING_STATUS, status)

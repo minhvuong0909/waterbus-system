@@ -1,5 +1,5 @@
 import { getTripDetail } from '../../trips/services/tripService'
-import { manageLinkPath, manageLinkUrl, ticketStatusLabel } from '../utils'
+import { accountOrderPath, manageLinkPath, manageLinkUrl, ticketStatusLabel } from '../utils'
 import type { ManageBooking, Ticket, TicketWallet } from '../types'
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { ApiError, apiRequest } from '../../../services/apiClient'
@@ -9,36 +9,68 @@ import type { TripDetailDto } from '../../trips/types'
 import { toTrip } from '../../trips/utils'
 import { toVietnamDate } from '../../../utils/time'
 import { forgetOrder, loadSavedOrders, saveOrder } from '../orderStorage'
+import { isPassenger } from '../../authentication/utils'
+import { loadSession } from '../../../services/authStorage'
+import { getAccountOrders } from './orderAccessService'
 
 interface OrderRef {
   orderId: string
   accessToken: string | null
 }
 
-/** Đơn mở bằng link quản lý vé: token nằm trong đường dẫn, mã đơn trong query `orderId`. */
-function linkOrder(token: string): OrderRef | null {
+/** Số đơn của tài khoản được đọc cho "Vé của tôi"; đơn cũ hơn nằm trong lịch sử đơn hàng. */
+const ACCOUNT_WALLET_ORDERS = 20
+
+const signedInAsPassenger = () => isPassenger(loadSession()?.user ?? null)
+
+/**
+ * Đơn mà trang quản lý đặt chỗ được yêu cầu mở:
+ * - link quản lý vé: token trong đường dẫn, mã đơn trong query `orderId` (BR-ID-02);
+ * - `?orderId=` không kèm token: đơn thuộc tài khoản Passenger đang đăng nhập (BR-ID-04);
+ * - không có gì: đơn vừa đặt trong tab này.
+ */
+function requestedOrder(token?: string): OrderRef | null {
   const orderId = new URLSearchParams(window.location.search).get('orderId')
-  return orderId ? { orderId, accessToken: token } : null
+  if (token) return orderId ? { orderId, accessToken: token } : null
+  if (orderId) return signedInAsPassenger() ? { orderId, accessToken: null } : null
+  return sessionOrder()
 }
 
-/** Đơn vừa đặt trong tab này (giữ qua lượt chuyển sang VNPay). */
+/**
+ * Đơn vừa đặt trong tab này (giữ qua lượt chuyển sang VNPay). Token đã lưu trên thiết bị được ưu
+ * tiên vì nó là token mới nhất sau khi khách đổi link.
+ */
 function sessionOrder(): OrderRef | null {
   const order = loadBooking().order
-  return order?.orderId ? { orderId: order.orderId, accessToken: order.accessToken ?? null } : null
+  if (!order?.orderId) return null
+  const saved = loadSavedOrders().find((x) => x.orderId === order.orderId)
+  return { orderId: order.orderId, accessToken: saved?.accessToken ?? order.accessToken ?? null }
 }
 
 /** True khi trang quản lý đặt chỗ có đơn để mở mà không cần khách dán link. */
 export function hasOrderToManage(token?: string): boolean {
-  return token ? linkOrder(token) !== null : sessionOrder() !== null
+  return requestedOrder(token) !== null
 }
 
 /**
- * Mọi đơn trên thiết bị: đơn của tab này rồi các đơn đã lưu, không trùng. Backend chưa có API
- * lịch sử theo tài khoản (BR-ID-04 chưa làm), nên đây là "Vé của tôi" của cả Guest lẫn Passenger.
+ * Các đơn đã có vé của tài khoản Passenger đang đăng nhập (BR-ID-04). Chúng được mở bằng JWT của
+ * chủ đơn nên không cần token Guest, và hiện trên mọi thiết bị đã đăng nhập.
  */
-function deviceOrders(): OrderRef[] {
+async function accountOrders(): Promise<OrderRef[]> {
+  if (!signedInAsPassenger()) return []
+  const page = await getAccountOrders(1, ACCOUNT_WALLET_ORDERS)
+  return page.items
+    .filter((order) => order.bookings.some((booking) => booking.ticketCount > 0))
+    .map((order) => ({ orderId: order.orderId, accessToken: null }))
+}
+
+/**
+ * Mọi đơn mở được ở đây, không trùng: đơn của tài khoản, đơn của tab này, rồi các đơn Guest đã lưu
+ * trên thiết bị. Đơn vừa thuộc tài khoản vừa có trên thiết bị thì mở bằng tài khoản.
+ */
+async function knownOrders(): Promise<OrderRef[]> {
   const refs: OrderRef[] = []
-  for (const ref of [sessionOrder(), ...loadSavedOrders()]) {
+  for (const ref of [...(await accountOrders()), sessionOrder(), ...loadSavedOrders()]) {
     if (ref && !refs.some((x) => x.orderId === ref.orderId)) refs.push(ref)
   }
   return refs
@@ -49,11 +81,11 @@ const isGone = (error: unknown) =>
   error instanceof ApiError && (error.status === 403 || error.status === 404)
 
 /**
- * Vé của mọi đơn trên thiết bị. Một đơn không còn mở được thì bị bỏ khỏi thiết bị thay vì làm hỏng
+ * Vé của mọi đơn mở được. Một đơn không còn mở được thì bị bỏ khỏi thiết bị thay vì làm hỏng
  * cả danh sách; lỗi mạng/máy chủ vẫn báo ra để người dùng thử lại.
  */
-async function deviceTickets(): Promise<Ticket[]> {
-  const refs = deviceOrders()
+async function knownTickets(): Promise<Ticket[]> {
+  const refs = await knownOrders()
   const results = await Promise.allSettled(refs.map(ticketsOfOrder))
   const tickets: Ticket[] = []
   results.forEach((result, i) => {
@@ -120,6 +152,7 @@ async function ticketsOfOrder({ orderId, accessToken }: OrderRef): Promise<Ticke
           tripCode: raw.boat?.code ?? raw.tripId,
           lineName: raw.routeName,
           routeTag: raw.tripType,
+          bookingId: booking.bookingId,
           bookingRef: booking.bookingCode,
           status: ticketStatusLabel(ticket.status, ticket.boardingStatus),
           departTime: trip.departTime,
@@ -142,7 +175,7 @@ async function ticketsOfOrder({ orderId, accessToken }: OrderRef): Promise<Ticke
           fareVnd: ticket.paidFare,
           vesselNote: raw.boat?.name ?? '',
           gate: boarding.stationName,
-          manageLink: accessToken ? manageLinkPath(orderId, accessToken) : undefined,
+          manageLink: accessToken ? manageLinkPath(orderId, accessToken) : accountOrderPath(orderId),
         }),
       )
     }),
@@ -155,9 +188,9 @@ async function ticketsOfOrder({ orderId, accessToken }: OrderRef): Promise<Ticke
 /** Khoá sắp xếp theo giờ khởi hành (ngày `YYYY-MM-DD` rồi giờ `HH:mm`, giờ Việt Nam). */
 const departureKey = (ticket: Ticket) => `${ticket.dateId} ${ticket.departTime}`
 
-/** The tickets of every order on this device: upcoming soonest first, past most recent first. */
+/** The tickets of every known order: upcoming soonest first, past most recent first. */
 export async function getTicketWallet(): Promise<TicketWallet> {
-  const tickets = await deviceTickets()
+  const tickets = await knownTickets()
   const upcoming = tickets
     .filter((t) => !t.completed)
     .sort((a, b) => departureKey(a).localeCompare(departureKey(b)))
@@ -169,7 +202,7 @@ export async function getTicketWallet(): Promise<TicketWallet> {
 
 /** The ticket with this id; the first ticket of the order when `id` is not one of them. */
 export async function getTicket(id: string | null): Promise<Ticket> {
-  const tickets = await deviceTickets()
+  const tickets = await knownTickets()
   // The success page may select an id that is not a backend ticket id: show the first ticket then.
   const ticket = (id ? tickets.find((t) => t.id === id) : undefined) ?? tickets[0]
   if (!ticket) throw new ApiError(404, 'Chưa có vé đã phát cho đơn hàng nào trên thiết bị này.')
@@ -177,11 +210,11 @@ export async function getTicket(id: string | null): Promise<Ticket> {
 }
 
 /**
- * The order behind a Manage Order secure link (`token` + `?orderId=`, BR-ID-02) or, without a
- * token, the order of this tab. The backend has no booking lookup by account or booking code yet.
+ * The order behind a Manage Order secure link (`token` + `?orderId=`, BR-ID-02), an order of the
+ * signed-in account (`?orderId=` alone, BR-ID-04) or, with neither, the order of this tab.
  */
 export async function getManageBooking(token?: string): Promise<ManageBooking> {
-  const ref = token ? linkOrder(token) : sessionOrder()
+  const ref = requestedOrder(token)
   if (!ref) throw new ApiError(404, 'Link quản lý vé thiếu mã đơn hàng.')
   const tickets = await ticketsOfOrder(ref)
   if (!tickets[0]) throw new ApiError(404, 'Đơn hàng chưa có vé đã phát.')
@@ -189,6 +222,7 @@ export async function getManageBooking(token?: string): Promise<ManageBooking> {
     bookingCode: tickets[0].bookingRef,
     ticket: tickets[0],
     orderId: ref.orderId,
+    accessToken: ref.accessToken,
     manageUrl: ref.accessToken ? manageLinkUrl(ref.orderId, ref.accessToken) : undefined,
   }
 }

@@ -33,7 +33,22 @@ export const API_ENDPOINTS = {
     submit: (orderId: string) => `/api/v1/checkouts/${orderId}/submit`,
     qr: (orderId: string, bookingId: string) =>
       `/api/v1/checkouts/${orderId}/bookings/${bookingId}/qr`,
+    /** Passenger: links an order bought as a guest to the signed-in account (BR-ID-04). */
+    claim: (orderId: string) => `/api/v1/checkouts/${orderId}/claim`,
+    /** Replaces the Manage Order link; the old token stops working at once (BR-ID-07). */
+    rotateAccess: (orderId: string) => `/api/v1/checkouts/${orderId}/access/rotate`,
+    /** Revokes every Manage Order and TripAccess link of the order. */
+    revokeAccess: (orderId: string) => `/api/v1/checkouts/${orderId}/access/revoke`,
+    /** Issues a Passenger TripAccess link for one paid booking (BR-ID-05). */
+    tripAccess: (orderId: string, bookingId: string) =>
+      `/api/v1/checkouts/${orderId}/bookings/${bookingId}/trip-access`,
   },
+  me: {
+    /** Passenger: orders of the signed-in account, newest first, paged. */
+    orders: '/api/v1/me/orders',
+  },
+  /** Journey behind a TripAccess link; the token travels in `X-Trip-Access-Token`. */
+  tripAccess: '/api/v1/tripaccess',
   payments: {
     createVnPayUrl: '/api/v1/payments/create-vnpay-url',
     vnPayReturn: '/api/v1/payments/vnpay-return',

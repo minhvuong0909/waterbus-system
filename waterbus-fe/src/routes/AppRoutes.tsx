@@ -2,7 +2,7 @@ import { lazy } from 'react'
 import type { ComponentType } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { ADMIN_NAV } from '../features/admin/navigation'
-import { CAPTAIN_ROLES } from '../constant/roles'
+import { CAPTAIN_ROLES, ROLES } from '../constant/roles'
 import AdminLayout from '../layouts/admin/AdminLayout'
 import CaptainLayout from '../layouts/captain/CaptainLayout'
 import PrivateRoute from './PrivateRoute'
@@ -23,6 +23,8 @@ const BookingSuccessPage = lazy(() => import('../pages/payment/BookingSuccessPag
 const MyTicketsPage = lazy(() => import('../pages/tickets/MyTicketsPage'))
 const TicketDetailPage = lazy(() => import('../pages/tickets/TicketDetailPage'))
 const ManageBookingPage = lazy(() => import('../pages/tickets/ManageBookingPage'))
+const OrderHistoryPage = lazy(() => import('../pages/tickets/OrderHistoryPage'))
+const SharedTripPage = lazy(() => import('../pages/tickets/SharedTripPage'))
 const LiveTrackingPage = lazy(() => import('../pages/tracking/LiveTrackingPage'))
 const ExplorePage = lazy(() => import('../pages/explore/ExplorePage'))
 const HelpPage = lazy(() => import('../pages/help/HelpPage'))
@@ -57,6 +59,7 @@ const PAGES = [
   { path: ROUTES.ticketDetail, Page: TicketDetailPage },
   { path: ROUTES.manageBooking, Page: ManageBookingPage },
   { path: ROUTES.manageByLink, Page: ManageBookingPage },
+  { path: ROUTES.sharedTrip, Page: SharedTripPage },
   { path: ROUTES.liveTracking, Page: LiveTrackingPage },
   { path: ROUTES.explore, Page: ExplorePage },
   { path: ROUTES.help, Page: HelpPage },
@@ -93,6 +96,16 @@ export default function AppRoutes() {
           />
         )
       })}
+      <Route
+        path={ROUTES.orderHistory}
+        element={
+          <PrivateRoute roles={[ROLES.passenger]}>
+            <RouteWithLayout>
+              <OrderHistoryPage />
+            </RouteWithLayout>
+          </PrivateRoute>
+        }
+      />
       <Route
         path={ROUTES.captain}
         element={

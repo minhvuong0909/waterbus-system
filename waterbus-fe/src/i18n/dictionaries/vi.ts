@@ -944,4 +944,61 @@ export const vi: Record<string, string> = {
     'Hãy mở vé từ Vé của tôi, hoặc dán link quản lý vé bạn đã lưu sau khi thanh toán.',
   'Trip not found': 'Không tìm thấy chuyến',
   'Open the trip from one of your tickets.': 'Hãy mở chuyến từ một vé của bạn.',
+  // Đơn của tài khoản, link quản lý vé và link chia sẻ hành trình (BR-ID-02..07)
+  'Order history': 'Lịch sử đơn hàng',
+  'No orders in your account yet': 'Tài khoản chưa có đơn nào',
+  'Bookings you make while signed in appear here. To add one you bought as a guest, open its booking link and save it to your account.':
+    'Đơn bạn đặt khi đã đăng nhập sẽ hiện ở đây. Để thêm đơn đã mua khi chưa đăng nhập, hãy mở link quản lý vé của đơn đó rồi lưu vào tài khoản.',
+  'Ordered {date}': 'Đặt ngày {date}',
+  '1 ticket': '1 vé',
+  '{count} tickets': '{count} vé',
+  'View booking': 'Xem đơn',
+  'Paid': 'Đã thanh toán',
+  'Pages': 'Phân trang',
+  'Newer': 'Mới hơn',
+  'Older': 'Cũ hơn',
+  'Page {page} of {total}': 'Trang {page}/{total}',
+  'No tickets yet': 'Chưa có vé nào',
+  'Tickets of the bookings in your account appear here once payment is confirmed.':
+    'Vé của các đơn trong tài khoản sẽ hiện ở đây khi thanh toán được xác nhận.',
+  'Saved to your account': 'Đã lưu vào tài khoản',
+  'Sign in on any device to find this booking in My Tickets. A booking link opens it without signing in.':
+    'Đăng nhập trên thiết bị bất kỳ để thấy đơn này trong Vé của tôi. Link quản lý vé cho phép mở đơn mà không cần đăng nhập.',
+  'Keep this link to open the booking on another device. Anyone who has it can see this booking.':
+    'Hãy giữ link này để mở đơn trên thiết bị khác. Ai có link đều xem được đơn.',
+  'Copy this link now; it is shown only once.': 'Hãy sao chép link ngay; link chỉ hiện một lần.',
+  'Save to my account': 'Lưu vào tài khoản',
+  'Create a booking link': 'Tạo link quản lý vé',
+  'Create link': 'Tạo link',
+  'Replace link': 'Đổi link mới',
+  'Revoke all links': 'Thu hồi mọi link',
+  'Any booking link issued before stops working right away.':
+    'Mọi link quản lý vé đã cấp trước đó sẽ ngừng hoạt động ngay.',
+  'Every booking link and shared journey link of this booking stops working. You keep access through your account.':
+    'Mọi link quản lý vé và link chia sẻ hành trình của đơn này sẽ ngừng hoạt động. Bạn vẫn mở được đơn bằng tài khoản.',
+  'The link was replaced. Keep the new one.': 'Đã đổi link. Hãy lưu lại link mới.',
+  'Every link to this booking has been revoked.': 'Đã thu hồi mọi link của đơn này.',
+  'This booking has no active links.': 'Đơn này không còn link nào đang hoạt động.',
+  'This booking is already saved to another account.': 'Đơn này đã được lưu vào một tài khoản khác.',
+  'This booking link is no longer valid.': 'Link quản lý vé này không còn hiệu lực.',
+  'That did not work. Please try again.': 'Thao tác chưa thành công. Vui lòng thử lại.',
+  'Share this journey': 'Chia sẻ hành trình',
+  'Send fellow passengers a link to follow the trip. It shows the journey and seats, never the price, payment or boarding QR.':
+    'Gửi cho hành khách đi cùng một link để theo dõi chuyến. Link chỉ hiện hành trình và ghế, không có giá, thanh toán hay mã QR lên tàu.',
+  'Create share link': 'Tạo link chia sẻ',
+  'Valid until {date}.': 'Có hiệu lực đến {date}.',
+  'Only a paid booking can be shared.': 'Chỉ chia sẻ được đơn đã thanh toán.',
+  'Shared journey': 'Hành trình được chia sẻ',
+  'Ask the person who booked the trip to send you a new link.':
+    'Hãy nhờ người đặt vé gửi lại cho bạn một link mới.',
+  'This booking was cancelled.': 'Đặt chỗ này đã bị huỷ.',
+  'This trip ended before reaching every stop.': 'Chuyến đã kết thúc trước khi đến hết các bến.',
+  'Board at': 'Lên tàu tại',
+  'Get off at': 'Xuống tàu tại',
+  'Trip departs': 'Chuyến khởi hành',
+  'Trip arrives': 'Chuyến cập bến cuối',
+  'Booking code': 'Mã đặt chỗ',
+  'No ticket has been issued for this booking.': 'Đặt chỗ này chưa được phát vé.',
+  'The boarding QR stays with the person who booked. Board together with them.':
+    'Mã QR lên tàu do người đặt vé giữ. Hãy lên tàu cùng họ.',
 }

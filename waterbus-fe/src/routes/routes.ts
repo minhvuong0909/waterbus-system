@@ -15,6 +15,10 @@ export const ROUTES = {
   manageBooking: '/tickets/manage',
   /** Secure link to one booking, sent to the traveler. `:token` is issued by the backend. */
   manageByLink: '/manage/:token',
+  /** Passenger: every order of the signed-in account. */
+  orderHistory: '/account/orders',
+  /** Passenger TripAccess Link shared by the buyer; shows the journey only (BR-ID-05). */
+  sharedTrip: '/shared-trip/:token',
   liveTracking: '/tracking',
   explore: '/explore',
   help: '/help',

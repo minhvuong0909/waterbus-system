@@ -94,4 +94,53 @@ describe('live ticket detail', () => {
     expect(manage.manageUrl).toMatch(/\/manage\/guest-token\?orderId=order-1$/)
     expect(fetchMock.mock.calls.some(([, init]) => (init as RequestInit)?.headers && JSON.stringify((init as RequestInit).headers).includes('guest-token'))).toBe(true)
   })
+
+  const signIn = (role: string) =>
+    window.localStorage.setItem('waterbus.session', JSON.stringify({ token: '', user: { id: 'u1', fullName: 'An', email: 'an@example.test', roles: [role] } }))
+  const accountOrders = { items: [
+    { orderId: 'order-1', bookings: [{ ticketCount: 1 }] },
+    { orderId: 'unpaid-order', bookings: [{ ticketCount: 0 }] },
+  ] }
+  const serveAccount = () =>
+    fetchMock.mockImplementation(async (url: string) => {
+      if (/\/me\/orders/.test(String(url))) return new Response(JSON.stringify(accountOrders))
+      const hit = routes.find(([pattern]) => pattern.test(String(url)))
+      return new Response(JSON.stringify(hit ? hit[1] : {}), { status: hit ? 200 : 404 })
+    })
+  const sentGuestToken = () =>
+    fetchMock.mock.calls.some(([, init]) => JSON.stringify((init as RequestInit)?.headers ?? {}).includes('X-Guest-Token'))
+
+  it('shows a passenger the tickets of the account without any guest token', async () => {
+    signIn('Passenger')
+    serveAccount()
+    const wallet = await getTicketWallet()
+    expect(wallet.next).toMatchObject({ id: 'ticket-guid', bookingId: 'b1', manageLink: '/tickets/manage?orderId=order-1' })
+    expect(sentGuestToken()).toBe(false)
+    expect(fetchMock.mock.calls.some(([url]) => /unpaid-order/.test(String(url)))).toBe(false)
+    expect(loadSavedOrders()).toEqual([])
+  })
+
+  it('does not ask for account orders unless a passenger is signed in', async () => {
+    signIn('Admin')
+    serveAccount()
+    await getTicketWallet()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('opens an order of the account by its id only for a signed-in passenger', async () => {
+    window.history.replaceState(null, '', '/tickets/manage?orderId=order-1')
+    expect(hasOrderToManage()).toBe(false)
+
+    signIn('Passenger')
+    serveAccount()
+    expect(hasOrderToManage()).toBe(true)
+    expect(await getManageBooking()).toMatchObject({ orderId: 'order-1', accessToken: null, manageUrl: undefined })
+  })
+
+  it('uses the token saved on the device for the order of this tab after its link was replaced', async () => {
+    window.sessionStorage.setItem('waterbus.booking', JSON.stringify({ order: { orderId: 'order-1', accessToken: 'old-token' } }))
+    saveOrder('order-1', 'new-token')
+    serve()
+    expect((await getManageBooking()).accessToken).toBe('new-token')
+  })
 })
