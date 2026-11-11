@@ -11,6 +11,7 @@
  */
 
 import { SqliteRepository } from '../sqlite/sqliteRepository';
+import { getSessionEpoch } from '../auth/sessionEpoch';
 import { DEFAULT_KEY_INFO } from '../crypto/qrVerifier';
 import { fetchScannerManifest } from '../checkin/manifestService';
 import { fetchQrPublicKey } from '../checkin/qrPublicKeyService';
@@ -138,7 +139,10 @@ class SyncService {
    * dừng (TripStopCallId) Staff được phân công, lưu vào SQLite. KHÔNG fallback sang dữ liệu demo
    * khi lỗi - ném lỗi để màn hình báo rõ cho Staff (tránh tác nghiệp nhầm trên dữ liệu giả).
    */
-  public async preloadManifest(tripStopCallId: string): Promise<{ manifest: PreloadManifest; message: string }> {
+  public async preloadManifest(
+    tripStopCallId: string,
+    expectedEpoch?: number
+  ): Promise<{ manifest: PreloadManifest; message: string }> {
     console.log(`[SyncService] Preloading REAL manifest for TripStopCallId: ${tripStopCallId}...`);
 
     const [manifestResponse, publicKeyResponse] = await Promise.all([
@@ -146,9 +150,20 @@ class SyncService {
       fetchQrPublicKey(),
     ]);
 
+    // Review PR #57 (3rd round, High): kiểm tra sớm NGAY SAU 2 request mạng (có thể mất vài giây)
+    // - nếu logout (hoặc 1 phiên khác) xảy ra TRONG LÚC đang chờ, epoch đã đổi và kết quả thuộc về
+    // 1 phiên đã kết thúc. Đây chỉ là fast-path (tránh map dữ liệu vô ích) - check THẬT SỰ quyết
+    // định có ghi hay không nằm BÊN TRONG SqliteRepository.saveManifest's exclusive transaction
+    // (review PR #57, 4th round: check ở đây xong vẫn còn 1 await thật - mở native exclusive
+    // transaction - trước khi ghi chữ thực sự chạy, logout có thể bump+purge xong HOÀN TOÀN ngay
+    // trong khoảng hở đó).
+    if (expectedEpoch !== undefined && getSessionEpoch() !== expectedEpoch) {
+      throw new Error('Phiên đăng nhập đã kết thúc trong lúc tải trước - bỏ qua kết quả, không ghi vào máy.');
+    }
+
     const manifest = mapScannerManifestToPreloadManifest(manifestResponse, publicKeyResponse);
 
-    await SqliteRepository.saveManifest(manifest);
+    await SqliteRepository.saveManifest(manifest, expectedEpoch);
 
     this.lastMessage = `Đã tải trước thành công ${manifest.bookings.length} đơn đặt, ${
       manifest.bookings.flatMap((b) => b.tickets).length

@@ -22,6 +22,19 @@ export interface DatabaseAdapter {
   getAllAsync<T = any>(sql: string, params?: any[]): Promise<T[]>;
   getFirstAsync<T = any>(sql: string, params?: any[]): Promise<T | null>;
   withTransactionAsync<T>(callback: () => Promise<T>): Promise<T>;
+  /**
+   * Review PR #57 (2nd round, High - "Cache deletion is not fully isolated"): withTransactionAsync
+   * KHÔNG exclusive trên native (chính doc của expo-sqlite ghi rõ: "This transaction is not
+   * exclusive and can be interrupted by other async queries") - 1 lần check-in khác vẫn có thể
+   * chen statement của nó vào GIỮA các câu lệnh của transaction này trên CÙNG kết nối. Dùng
+   * `db.withExclusiveTransactionAsync` thật của expo-sqlite (BEGIN EXCLUSIVE - caller khác ghi vào
+   * cùng lúc sẽ nhận lỗi "database is locked" thay vì chen vào im lặng), truyền vào callback 1
+   * adapter chạy trên `txn` (không phải `db` ngoài) như expo-sqlite yêu cầu ("Any queries inside
+   * the transaction must be executed on the txn object"). Không hỗ trợ trên web - fallback dưới
+   * chỉ cần delegate qua withTransactionAsync vì môi trường đó không có kết nối thật nào khác để
+   * chen vào (đơn luồng JS, không phải lo race thật).
+   */
+  withExclusiveTransactionAsync<T>(callback: (txn: DatabaseAdapter) => Promise<T>): Promise<T>;
 }
 
 class InMemoryFallbackDatabase implements DatabaseAdapter {
@@ -40,6 +53,24 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
 
   async runAsync(sql: string, params: any[] = []): Promise<{ lastInsertRowId: number; changes: number }> {
     const trimmed = sql.trim().toUpperCase();
+    const configInsertMatch = trimmed.match(
+      /INSERT(?: OR REPLACE)? INTO SCANNER_CONFIG \(KEY, VALUE\) VALUES\s*\('([^']+)',\s*\?\)/
+    );
+    if (configInsertMatch) {
+      const key = configInsertMatch[1];
+      const value = params[0];
+      const filtered = this.tables.scanner_config.filter((c: any) => c.key !== key);
+      filtered.push({ key, value });
+      this.tables.scanner_config = filtered;
+      return { lastInsertRowId: 1, changes: 1 };
+    }
+    const configDeleteMatch = trimmed.match(/DELETE FROM SCANNER_CONFIG WHERE KEY = '([^']+)'/);
+    if (configDeleteMatch) {
+      const key = configDeleteMatch[1];
+      const before = this.tables.scanner_config.length;
+      this.tables.scanner_config = this.tables.scanner_config.filter((c: any) => c.key !== key);
+      return { lastInsertRowId: 0, changes: before - this.tables.scanner_config.length };
+    }
     if (trimmed.startsWith('INSERT INTO PUBLIC_KEYS') || trimmed.startsWith('INSERT OR REPLACE INTO PUBLIC_KEYS')) {
       const [kid, algo, pem, from, to, active] = params;
       const filtered = this.tables.public_keys.filter(k => k.kid !== kid);
@@ -186,6 +217,9 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       if (trimmed.includes("SYNC_STATUS = 'PENDING'") || (trimmed.includes('SYNC_STATUS = ?') && params[0] === 'Pending')) {
         return this.tables.offline_checkin_events.filter(e => e.sync_status === 'Pending') as any;
       }
+      if (trimmed.includes("SYNC_STATUS = 'CONFLICT'") || (trimmed.includes('SYNC_STATUS = ?') && params[0] === 'Conflict')) {
+        return this.tables.offline_checkin_events.filter(e => e.sync_status === 'Conflict') as any;
+      }
       return [...this.tables.offline_checkin_events] as any;
     }
     if (trimmed.includes('FROM MANIFEST_TRIPS')) {
@@ -200,6 +234,13 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
     if (trimmed.includes('FROM PUBLIC_KEYS')) {
       return [...this.tables.public_keys] as any;
     }
+    if (trimmed.includes('FROM SCANNER_CONFIG')) {
+      const keyMatch = trimmed.match(/KEY = '([^']+)'/);
+      if (keyMatch) {
+        return this.tables.scanner_config.filter((c: any) => c.key === keyMatch[1]) as any;
+      }
+      return [...this.tables.scanner_config] as any;
+    }
     return [];
   }
 
@@ -210,6 +251,12 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
 
   async withTransactionAsync<T>(callback: () => Promise<T>): Promise<T> {
     return await callback();
+  }
+
+  // Môi trường web/test đơn luồng JS, không có kết nối SQLite thật nào khác để chen vào - không
+  // cần mô phỏng exclusivity, delegate thẳng qua `this` (đã implement DatabaseAdapter đầy đủ).
+  async withExclusiveTransactionAsync<T>(callback: (txn: DatabaseAdapter) => Promise<T>): Promise<T> {
+    return await callback(this);
   }
 }
 
@@ -245,17 +292,39 @@ export async function getDatabase(): Promise<DatabaseAdapter> {
         });
         return result!;
       },
+      withExclusiveTransactionAsync: async <T>(callback: (txn: DatabaseAdapter) => Promise<T>): Promise<T> => {
+        let result: T;
+        await nativeDb.withExclusiveTransactionAsync(async (txn) => {
+          // expo-sqlite yêu cầu MỌI câu lệnh trong transaction exclusive phải chạy trên `txn`
+          // (không phải `nativeDb`/`adapter` ngoài) - bọc lại đúng DatabaseAdapter nhưng trỏ vào
+          // txn để code gọi callback (SqliteRepository) không cần biết sự khác biệt này.
+          const txnAdapter: DatabaseAdapter = {
+            execAsync: (sql: string) => txn.execAsync(sql),
+            runAsync: (sql: string, params?: any[]) => txn.runAsync(sql, ...(params || [])),
+            getAllAsync: <U = any>(sql: string, params?: any[]) => txn.getAllAsync<U>(sql, ...(params || [])),
+            getFirstAsync: <U = any>(sql: string, params?: any[]) => txn.getFirstAsync<U>(sql, ...(params || [])),
+            withTransactionAsync: async <U>(cb: () => Promise<U>): Promise<U> => cb(),
+            withExclusiveTransactionAsync: async <U>(cb: (t: DatabaseAdapter) => Promise<U>): Promise<U> => cb(txnAdapter),
+          };
+          result = await callback(txnAdapter);
+        });
+        return result!;
+      },
     };
 
     await initSchema(adapter);
     dbInstance = adapter;
     return dbInstance;
   } catch (error) {
-    console.warn('[SQLite] Failed to open native database, falling back to in-memory adapter:', error);
-    const fallback = new InMemoryFallbackDatabase();
-    await initSchema(fallback);
-    dbInstance = fallback;
-    return dbInstance;
+    // Fail closed trên Android/iOS (MOB-01): KHÔNG fallback sang in-memory ở đây - dữ liệu
+    // check-in/manifest sẽ mất hoàn toàn nếu app bị kill trước khi sync, mà Staff không hề biết
+    // vì UI vẫn chạy như bình thường. Fallback in-memory chỉ hợp lệ cho Web/Test (nhánh !isNativeApp()
+    // ở trên) - không phải khi thiết bị thật không mở được bộ nhớ bền.
+    console.error('[SQLite] Failed to open native database - refusing to fall back to in-memory storage:', error);
+    throw new Error(
+      'Không thể mở bộ nhớ offline trên thiết bị (SQLite). Không được phép soát vé khi dữ liệu không thể lưu bền - ' +
+        'vui lòng khởi động lại ứng dụng hoặc liên hệ kỹ thuật trước khi tiếp tục.'
+    );
   }
 }
 
