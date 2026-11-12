@@ -74,7 +74,7 @@ export default function DepartureCard({ departure, onSelect }: DepartureCardProp
             : t('Price shown when you choose a seat')}
         </span>
         <Link
-          to={ROUTES.tripDetail}
+          to={ROUTES.seatSelection}
           onClick={() => onSelect(departure.trip)}
           className={`mt-1 rounded-full px-3.5 py-1 text-xs font-semibold text-on-primary transition-colors ${
             sightseeing ? 'bg-coral-glow hover:opacity-90' : 'bg-teal-flow hover:bg-secondary'

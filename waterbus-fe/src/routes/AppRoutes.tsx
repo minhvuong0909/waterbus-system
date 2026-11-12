@@ -13,7 +13,6 @@ import { ROUTES } from './routes'
 const HomePage = lazy(() => import('../pages/home/HomePage'))
 const SignInPage = lazy(() => import('../pages/auth/SignInPage'))
 const SearchResultsPage = lazy(() => import('../pages/trips/SearchResultsPage'))
-const TripDetailPage = lazy(() => import('../pages/trips/TripDetailPage'))
 const SeatSelectionPage = lazy(() => import('../pages/booking/SeatSelectionPage'))
 const PassengerDetailsPage = lazy(() => import('../pages/booking/PassengerDetailsPage'))
 const CheckoutReviewPage = lazy(() => import('../pages/booking/CheckoutReviewPage'))
@@ -52,7 +51,6 @@ const PAGES = [
   { path: ROUTES.home, Page: HomePage },
   { path: ROUTES.signIn, Page: SignInPage },
   { path: ROUTES.searchResults, Page: SearchResultsPage },
-  { path: ROUTES.tripDetail, Page: TripDetailPage },
   { path: ROUTES.seatSelection, Page: SeatSelectionPage },
   { path: ROUTES.passengerDetails, Page: PassengerDetailsPage },
   { path: ROUTES.checkoutReview, Page: CheckoutReviewPage },

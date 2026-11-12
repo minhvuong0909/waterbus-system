@@ -18,11 +18,6 @@ export const vi: Record<string, string> = {
   '© {year} Smart Waterbus. River Connects Greater Stories.': '© {year} Smart Waterbus. Dòng sông kết nối những câu chuyện lớn.',
   'Next Departure': 'Chuyến tiếp theo',
   'All Trips': 'Tất cả chuyến',
-  'Digital QR Pass:': 'Vé QR điện tử:',
-  'Your e-ticket is issued as soon as the payment is confirmed.': 'Vé điện tử được phát hành ngay khi thanh toán được xác nhận.',
-  'Seat Hold:': 'Giữ chỗ:',
-  'Your seat is held for a limited time while you complete payment.':
-    'Ghế được giữ trong thời gian giới hạn để bạn hoàn tất thanh toán.',
   'From {pier}': 'Khởi hành từ {pier}',
   'Pay online through VNPay; your e-ticket is issued once the payment is confirmed.':
     'Thanh toán trực tuyến qua VNPay; vé điện tử được phát hành khi thanh toán được xác nhận.',
@@ -191,8 +186,6 @@ export const vi: Record<string, string> = {
   '{departDistrict} • Departure': '{departDistrict} • Khởi hành',
   '{destinationGate} • Park Promenade': '{destinationGate} • Công viên ven sông',
   '{durationMins} min': '{durationMins} phút',
-  '{durationMins} min {crossingKind}': '{durationMins} phút {crossingKind}',
-  '{durationMins} min • {crossingKind}': '{durationMins} phút • {crossingKind}',
   '{durationMins} min crossing': '{durationMins} phút qua sông',
   '{durationMins} min river crossing': '{durationMins} phút qua sông',
   '{durationMins} Minutes': '{durationMins} phút',
@@ -214,8 +207,6 @@ export const vi: Record<string, string> = {
   Afternoon: 'Buổi chiều',
   Aisle: 'Lối đi',
   'All taxes & fees included': 'Đã gồm mọi thuế và phí',
-  'All Times': 'Mọi giờ',
-  'All Types': 'Tất cả loại',
   'Amount to pay': 'Số tiền cần thanh toán',
   Arrival: 'Đến nơi',
   'Arrival at {pier}': 'Đến {pier}',
@@ -276,7 +267,6 @@ export const vi: Record<string, string> = {
   'Destination Pier': 'Bến đến',
   Details: 'Chi tiết',
   Direct: 'Trực tiếp',
-  'Direct Crossing': 'Chuyến trực tiếp',
   'Direct Pier-to-Pier Water Transit Corridor': 'Hành lang vận tải thủy trực tiếp giữa các bến',
   'District 1': 'Quận 1',
   Done: 'Xong',
@@ -290,7 +280,6 @@ export const vi: Record<string, string> = {
   'Explore Along the River': 'Khám phá dọc sông',
   'Explore River Journeys': 'Khám phá hành trình trên sông',
   'Skip to main content': 'Bỏ qua tới nội dung chính',
-  'Before you book': 'Trước khi đặt vé',
   'Express Line 1': 'Tuyến 1 Tốc hành',
   Fare: 'Giá vé',
   'Fare Paid': 'Giá vé đã trả',
@@ -308,7 +297,6 @@ export const vi: Record<string, string> = {
   'I confirm that the booking details above are correct. I accept the':
     'Tôi xác nhận thông tin đặt chỗ ở trên là chính xác và chấp nhận',
   'Journey Details': 'Chi tiết hành trình',
-  'Journey Timeline': 'Lộ trình hành trình',
   'Keep me signed in on this device': 'Giữ đăng nhập trên thiết bị này',
   'Keep your QR ticket ready on your screen before boarding.':
     'Chuẩn bị sẵn vé QR trên màn hình trước khi lên tàu.',
@@ -363,7 +351,10 @@ export const vi: Record<string, string> = {
   'Leaves before your outbound trip arrives': 'Khởi hành trước khi chuyến đi đến nơi',
   'Choose your return seats': 'Chọn ghế chiều về',
   'Choose your outbound seats': 'Chọn ghế chiều đi',
+  'Sightseeing trips only.': 'Chỉ hiện chuyến ngắm cảnh.',
   'Show all trips': 'Xem tất cả chuyến',
+  'No sightseeing trips on this day.': 'Ngày này không có chuyến ngắm cảnh.',
+  'Stop times are not available for this trip.': 'Chưa có giờ các bến của chuyến này.',
   'Bow': 'Mũi tàu',
   'Not available': 'Không chọn được',
   'Back to Passenger Details': 'Quay lại thông tin hành khách',
@@ -398,7 +389,6 @@ export const vi: Record<string, string> = {
   'My Tickets': 'Vé của tôi',
   'name@example.com': 'name@example.com',
   'Next Departure • Today': 'Chuyến kế tiếp • Hôm nay',
-  'No departures match these filters.': 'Không có chuyến nào khớp với bộ lọc.',
   'Operational Hours': 'Giờ hoạt động',
   'Awaiting payment': 'Chờ thanh toán',
   'Order Summary': 'Tóm tắt đơn hàng',
@@ -435,9 +425,7 @@ export const vi: Record<string, string> = {
   'Return Route': 'Tuyến về',
   'Return to seat map': 'Quay lại sơ đồ ghế',
   'Review Your Booking': 'Xem lại đặt chỗ của bạn',
-  'Review Your Journey': 'Xem lại hành trình của bạn',
   'River Connects Greater Stories': 'Dòng sông kết nối những câu chuyện lớn',
-  'River Corridor Non-stop': 'Hành lang sông không dừng',
   'River Crossing Corridor': 'Hành lang qua sông',
   Riverside: 'Ven sông',
   'Saigon River {line} • {code}': 'Sông Sài Gòn {line} • {code}',
@@ -447,7 +435,6 @@ export const vi: Record<string, string> = {
   Scheduled: 'Theo lịch',
   'Scheduled Crossing': 'Thời gian qua sông',
   'Scheduled docking at {pier}.': 'Dự kiến đến {pier}.',
-  'Search Results': 'Kết quả tìm kiếm',
   Seat: 'Ghế',
   'Seat {id}': 'Ghế {id}',
   'See the City Differently from the River': 'Ngắm thành phố khác đi từ dòng sông',
@@ -502,15 +489,12 @@ export const vi: Record<string, string> = {
   'Trip {code}': 'Chuyến {code}',
   'Trip {code} • {kind}': 'Chuyến {code} • {kind}',
   'Trip {tripCode}': 'Chuyến {tripCode}',
-  'Trip {vesselCode}': 'Chuyến {vesselCode}',
   'Trip detail': 'Chi tiết chuyến',
   'Trip Detail': 'Chi tiết chuyến',
-  'Trip Detail ({code})': 'Chi tiết chuyến ({code})',
   'Trip Details': 'Chi tiết chuyến',
   'Try again': 'Thử lại',
   Upcoming: 'Sắp tới',
   Vessel: 'Tàu',
-  'Trip type:': 'Loại chuyến:',
   'Vessel: {vesselNote}': 'Tàu: {vesselNote}',
   'View Booking Details': 'Xem chi tiết đặt chỗ',
   'View Full Ticket': 'Xem vé đầy đủ',
@@ -579,10 +563,6 @@ export const vi: Record<string, string> = {
   'Back to payment': 'Quay lại thanh toán',
   'On sightseeing journeys, stories about the places you pass play over the boat’s speakers.':
     'Trên các chuyến tham quan, câu chuyện về những nơi tàu đi qua được phát qua loa trên tàu.',
-  'Check-in:':
-    'Check-in:',
-  'Show your booking QR to the pier staff at your boarding pier before check-in closes.':
-    'Đưa mã QR của đặt chỗ cho nhân viên tại bến lên tàu trước khi hết giờ check-in.',
   'Plan a trip from here':
     'Đặt chuyến từ bến này',
   'Depart from here':
@@ -648,8 +628,6 @@ export const vi: Record<string, string> = {
   'No departures on this day.': 'Không có chuyến nào trong ngày này.',
   'Try another day in the date strip above, or change the piers.':
     'Hãy chọn ngày khác ở thanh ngày phía trên, hoặc đổi bến đi/bến đến.',
-  'Try “All Times” and “All Types” to see every departure.':
-    'Hãy chọn “Mọi giờ” và “Tất cả loại” để xem mọi chuyến.',
   'Sold out': 'Hết chỗ',
   'Checked in at pier': 'Đã check-in tại bến',
   'No-show': 'Vắng mặt (NoShow)',
@@ -695,8 +673,6 @@ export const vi: Record<string, string> = {
   Tomorrow: 'Ngày mai',
   'Departed': 'Đã khởi hành',
   'No trips': 'Hết chuyến',
-  'River bus': 'Tàu buýt sông',
-  'Sightseeing tour': 'Tour ngắm cảnh',
   'No trips left to book on this day. Choose another day above.': 'Ngày này không còn chuyến để đặt. Hãy chọn ngày khác ở trên.',
   '{length} trips with seats left': '{length} chuyến còn chỗ',
   'Audio guides': 'Thuyết minh',
@@ -836,8 +812,6 @@ export const vi: Record<string, string> = {
   'Remove from this device': 'Xoá khỏi thiết bị này',
   // Rà soát nghiệp vụ FE theo BR v2.0
   'Seats are held once you continue': 'Ghế được giữ khi bạn bấm tiếp tục',
-  'Sales closed': 'Đã đóng bán vé',
-  'See other trips': 'Xem chuyến khác',
   'Ticket sales are closed for this trip. Please choose another trip.':
     'Chuyến này đã đóng bán vé. Vui lòng chọn chuyến khác.',
   'Check-in must close no later than the boat leaves this stop ({time}).':
@@ -895,7 +869,6 @@ export const vi: Record<string, string> = {
   'Later trips': 'Các chuyến sau',
   'Use the account issued to you by Smart Waterbus.': 'Dùng tài khoản do Smart Waterbus cấp cho bạn.',
   'Travellers do not need an account to book tickets.': 'Hành khách không cần tài khoản để đặt vé.',
-  'Route map': 'Bản đồ tuyến',
   // Trạng thái không có dữ liệu (thay cho lỗi kết nối chung)
   'This booking is no longer active': 'Đơn đặt chỗ này không còn hiệu lực',
   'The seats were released or the order was cancelled. Choose your seats again to continue.':

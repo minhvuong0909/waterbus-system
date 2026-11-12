@@ -3,7 +3,6 @@ export const ROUTES = {
   home: '/',
   signIn: '/sign-in',
   searchResults: '/search/results',
-  tripDetail: '/trip',
   seatSelection: '/booking/seats',
   passengerDetails: '/booking/passenger',
   checkoutReview: '/booking/review',

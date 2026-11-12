@@ -1,22 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ErrorState, PageLoader } from '../../components/ui'
 import { CONTACT } from '../../constant/contact'
-import CorridorSidebar from '../../features/trips/components/CorridorSidebar'
 import ReturnLegBar from '../../features/booking/components/ReturnLegBar'
 import { isRoundTrip, leavesAfterArrival } from '../../features/booking/legs'
 import type { Leg } from '../../features/booking/legs'
 import { ROUTES } from '../../routes/routes'
 import { useAppSelector } from '../../store/hooks'
+import ChoiceDropdown from '../../features/trips/components/ChoiceDropdown'
 import DateStrip from '../../features/trips/components/DateStrip'
-import ResultFilters from '../../features/trips/components/ResultFilters'
-import type { KindFilter, SortKey, TimeFilter } from '../../features/trips/components/ResultFilters'
 import SearchForm from '../../features/booking/components/SearchForm'
 import TripCard from '../../features/trips/components/TripCard'
 import { formatDateLabel, isDeparted } from '../../features/trips/utils'
 import { useSearchResults } from '../../features/booking/hooks/useTripSearch'
 import { useDocumentTitle } from '../../hooks'
 import { t } from '../../i18n'
+
+type SortKey = 'time' | 'speed' | 'price'
+
+const SORTS: { id: SortKey; label: string }[] = [
+  { id: 'time', label: 'Earliest Departure' },
+  { id: 'speed', label: 'Fastest Crossing' },
+  { id: 'price', label: 'Lowest Fare' },
+]
 
 export default function SearchResultsPage() {
   useDocumentTitle('Available Departures')
@@ -33,11 +39,8 @@ export default function SearchResultsPage() {
     () => (leg === 'return' ? allDates?.filter((d) => d.id >= outboundQuery.dateId) : allDates),
     [leg, allDates, outboundQuery.dateId],
   )
-  const [time, setTime] = useState<TimeFilter>('all')
-  // `?type=sightseeing` (from the Explore page) opens the list already filtered to sightseeing trips.
-  const [kind, setKind] = useState<KindFilter>(() =>
-    searchParams.get('type') === 'sightseeing' ? 'sightseeing' : 'all',
-  )
+  // `?type=sightseeing` (from the Explore page) lists the sightseeing trips only.
+  const sightseeingOnly = searchParams.get('type') === 'sightseeing'
   const [sort, setSort] = useState<SortKey>('time')
 
   // Vào trang khi hôm nay đã hết chuyến thì chuyển sang ngày gần nhất còn chuyến (một lần).
@@ -80,9 +83,7 @@ export default function SearchResultsPage() {
 
   const visible = useMemo(() => {
     if (!trips) return []
-    const list = trips.filter(
-      (trip) => (time === 'all' || trip.band === time) && (kind === 'all' || trip.kind === kind),
-    )
+    const list = sightseeingOnly ? trips.filter((trip) => trip.kind === 'sightseeing') : trips
     const by: Record<SortKey, (a: (typeof list)[number], b: (typeof list)[number]) => number> = {
       time: (a, b) => a.departTime.localeCompare(b.departTime),
       speed: (a, b) => (a.durationKnown === false ? Infinity : a.durationMins) - (b.durationKnown === false ? Infinity : b.durationMins),
@@ -94,7 +95,7 @@ export default function SearchResultsPage() {
       ...sorted.filter((trip) => !isDeparted(trip, query.dateId)),
       ...sorted.filter((trip) => isDeparted(trip, query.dateId)),
     ]
-  }, [trips, time, kind, sort, priceVaries, query.dateId])
+  }, [trips, sightseeingOnly, sort, priceVaries, query.dateId])
 
   if (error) return <ErrorState onRetry={retry} />
 
@@ -111,7 +112,7 @@ export default function SearchResultsPage() {
 
   return (
     <div className="bg-mist pb-16 pt-4">
-      <div className="mx-auto flex max-w-7xl flex-col gap-space-xl px-margin">
+      <div className="mx-auto flex max-w-5xl flex-col gap-space-lg px-margin">
         <section className="flex w-full flex-col gap-space-md">
           <div className="flex flex-col justify-between gap-space-md pt-2 md:flex-row md:items-end">
             <div>
@@ -167,30 +168,34 @@ export default function SearchResultsPage() {
               updateQuery({ dateId: id })
             }}
           />
-          <ResultFilters
-            time={time}
-            kind={kind}
-            sort={sort}
-            onTime={setTime}
-            onKind={setKind}
-            onSort={setSort}
-            showPriceSort={priceVaries}
-          />
         </section>
 
-        <div className="grid grid-cols-1 items-start gap-space-xl lg:grid-cols-12">
-          <div
-            className={`flex flex-col gap-space-md transition-opacity lg:col-span-8 ${
-              searching ? 'opacity-60' : ''
-            }`}
-          >
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-space-xs text-sm text-deep-river">
-                <span className="font-bold text-teal-flow">
-                  {t('{length} trips with seats left', { length: bookableCount })}
+        <section className={`flex flex-col gap-space-md transition-opacity ${searching ? 'opacity-60' : ''}`}>
+          <div className="flex flex-wrap items-center justify-between gap-space-sm px-1">
+            <p className="text-sm font-bold text-teal-flow">
+              {t('{length} trips with seats left', { length: bookableCount })}
+              {sightseeingOnly && (
+                <span className="ml-space-sm font-normal text-on-surface-variant">
+                  {t('Sightseeing trips only.')}{' '}
+                  <Link to={ROUTES.searchResults} className="font-semibold text-teal-flow hover:underline">
+                    {t('Show all trips')}
+                  </Link>
                 </span>
-              </div>
-            </div>
+              )}
+            </p>
+            {visible.length > 1 && (
+              <ChoiceDropdown
+                label={t('Sort:')}
+                icon="swap_vert"
+                options={SORTS.filter((s) => s.id !== 'price' || priceVaries).map((s) => ({
+                  id: s.id,
+                  label: t(s.label),
+                }))}
+                value={sort}
+                onChange={(id) => setSort(id as SortKey)}
+              />
+            )}
+          </div>
 
             {visible.length > 0 && dayBookable === 0 && !noTripsAtAll && (
               <p
@@ -216,23 +221,18 @@ export default function SearchResultsPage() {
             ) : (
               <div className="rounded-2xl border border-dashed border-outline-variant bg-white p-space-xl text-center">
                 <p className="font-semibold text-deep-river">
-                  {trips.length === 0
-                    ? t('No departures on this day.')
-                    : t('No departures match these filters.')}
+                  {sightseeingOnly && trips.length > 0
+                    ? t('No sightseeing trips on this day.')
+                    : t('No departures on this day.')}
                 </p>
                 <p className="mt-1 text-sm text-on-surface-variant">
-                  {trips.length === 0
-                    ? noTripsAtAll
-                      ? t('Try another pair of piers or call the hotline.')
-                      : t('Try another day in the date strip above, or change the piers.')
-                    : t('Try “All Times” and “All Types” to see every departure.')}
+                  {noTripsAtAll
+                    ? t('Try another pair of piers or call the hotline.')
+                    : t('Try another day in the date strip above, or change the piers.')}
                 </p>
               </div>
             )}
-          </div>
-          <CorridorSidebar />
-        </div>
-
+        </section>
       </div>
     </div>
   )
