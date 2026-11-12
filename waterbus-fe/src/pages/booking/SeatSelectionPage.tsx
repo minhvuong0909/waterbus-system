@@ -87,13 +87,8 @@ export default function SeatSelectionPage() {
 
       <div className="mt-space-lg grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="rounded-2xl bg-white p-space-lg shadow-card lg:col-span-8">
-          <div className="mb-space-md flex flex-wrap items-start justify-between gap-space-md">
-            <div>
-              <h2 className="font-display text-headline-sm text-deep-river">{seatMap.vesselName}</h2>
-              <p className="text-xs text-on-surface-variant">
-                {t('{count} seats • live availability', { count: seatMap.seats.length })}
-              </p>
-            </div>
+          <div className="mb-space-md flex flex-wrap items-center justify-between gap-space-md">
+            <h2 className="font-display text-headline-sm text-deep-river">{seatMap.vesselName}</h2>
             <SeatLegend />
           </div>
           <SeatMapView
