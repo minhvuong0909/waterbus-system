@@ -204,7 +204,6 @@ export const vi: Record<string, string> = {
   Afternoon: 'Buổi chiều',
   Aisle: 'Lối đi',
   'All taxes & fees included': 'Đã gồm mọi thuế và phí',
-  'Amount to pay': 'Số tiền cần thanh toán',
   Arrival: 'Đến nơi',
   'Arrival at {pier}': 'Đến {pier}',
   'Arrival Pier': 'Bến đến',
@@ -345,6 +344,7 @@ export const vi: Record<string, string> = {
   'Leaves before your outbound trip arrives': 'Khởi hành trước khi chuyến đi đến nơi',
   'Choose your return seats': 'Chọn ghế chiều về',
   'Choose your outbound seats': 'Chọn ghế chiều đi',
+  'After paying you come back here to see the result.': 'Thanh toán xong, bạn được đưa về đây để xem kết quả.',
   'No departures are scheduled yet.': 'Chưa có chuyến nào được lên lịch.',
   'Sightseeing trips only.': 'Chỉ hiện chuyến ngắm cảnh.',
   'Show all trips': 'Xem tất cả chuyến',
@@ -395,7 +395,6 @@ export const vi: Record<string, string> = {
   Password: 'Mật khẩu',
   'Past Journeys': 'Chuyến đã đi',
   Payment: 'Thanh toán',
-  'Payment Method': 'Phương thức thanh toán',
   'Payment Received • Booking Confirmed': 'Đã nhận thanh toán • Đặt chỗ thành công',
   'Phone Number': 'Số điện thoại',
   'Please accept the Waterway Carriage Rules to continue.':
@@ -778,9 +777,6 @@ export const vi: Record<string, string> = {
     'Giờ đóng check-in không được muộn hơn giờ tàu rời bến này ({time}).',
   'Stops where nobody boards (such as the last stop) have no check-in window.':
     'Bến không có khách lên (như bến cuối) không có khung giờ check-in.',
-  'Payment status: Not paid yet': 'Trạng thái thanh toán: Chưa thanh toán',
-  'Your seats stay held until the timer ends. After paying on VNPay you come back here to see the result.':
-    'Ghế được giữ đến khi hết giờ đếm ngược. Thanh toán xong trên VNPay, bạn sẽ được đưa về đây để xem kết quả.',
   'Cancel and release seats': 'Huỷ đơn và nhả ghế',
   'Cancel this booking?': 'Huỷ đơn đặt chỗ này?',
   'Your held seats are released for other travelers. Nothing has been charged.':
@@ -806,7 +802,6 @@ export const vi: Record<string, string> = {
     'Tuân theo hướng dẫn của thuyền viên trên tàu; thông báo an toàn luôn được ưu tiên.',
   // Khám phá: chuyến ngắm cảnh thật và POI có thuyết minh (content/explore.ts)
   'Upcoming sightseeing trips': 'Chuyến ngắm cảnh sắp chạy',
-  'No sightseeing trips can be booked in the next few days.': 'Vài ngày tới chưa có chuyến ngắm cảnh nào còn bán vé.',
   'Explore along the river': 'Khám phá dọc dòng sông',
   'Departing soon': 'Sắp khởi hành',
   '{durationMins} min voyage': '{durationMins} phút di chuyển',

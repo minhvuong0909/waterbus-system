@@ -13,7 +13,10 @@ interface SightseeingDeparturesSectionProps {
   onRetry: () => void
 }
 
-/** Các chuyến ngắm cảnh thật sắp chạy (từ API tìm chuyến), chọn một chuyến là mở chi tiết chuyến đó. */
+/**
+ * Các chuyến ngắm cảnh thật sắp chạy (từ API tìm chuyến); chọn một chuyến là vào chọn ghế của chuyến
+ * đó. Khi không có chuyến nào đặt được thì cả khối ẩn đi thay vì chiếm chỗ bằng một dòng thông báo.
+ */
 export default function SightseeingDeparturesSection({
   departures,
   error,
@@ -21,8 +24,10 @@ export default function SightseeingDeparturesSection({
 }: SightseeingDeparturesSectionProps) {
   const dispatch = useAppDispatch()
 
+  if (departures?.length === 0 && !error) return null
+
   return (
-    <section className="bg-surface py-space-3xl">
+    <section className="bg-surface pt-space-3xl">
       <div className={SECTION}>
         <div className="mb-space-lg flex flex-col justify-between gap-space-sm md:flex-row md:items-end">
           <h2 className="font-display text-headline-lg tracking-tight text-deep-river">
@@ -48,10 +53,6 @@ export default function SightseeingDeparturesSection({
               />
             ))}
           </div>
-        ) : departures.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-outline-variant bg-white p-space-lg text-center text-sm text-on-surface-variant">
-            {t('No sightseeing trips can be booked in the next few days.')}
-          </p>
         ) : (
           <div data-reveal className="grid grid-cols-1 gap-space-sm md:grid-cols-2">
             {departures.map(({ departure, search }) => (
@@ -59,7 +60,7 @@ export default function SightseeingDeparturesSection({
                 key={departure.id}
                 departure={departure}
                 onSelect={(trip) => {
-                  // The trip page reads the piers and the day from the search, so set them first.
+                  // Seat selection reads the piers and the day from the search, so set them first.
                   dispatch(setQuery(search))
                   dispatch(selectTrip(trip))
                 }}

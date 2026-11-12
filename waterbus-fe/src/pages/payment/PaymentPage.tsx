@@ -64,10 +64,7 @@ export default function PaymentPage() {
 
       <div className="mt-space-lg grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="lg:col-span-8">
-          <PaymentMethodPanel
-            amountVnd={totals.totalVnd}
-            reference={hold.bookingCodes.join(', ')}
-          />
+          <PaymentMethodPanel reference={hold.bookingCodes.join(', ')} />
         </div>
         <div className="lg:col-span-4 lg:self-stretch">
           <OrderSummary
