@@ -215,6 +215,24 @@ async function runVerification() {
   // Khôi phục đúng key demo cho các bước còn lại của suite.
   await SqliteRepository.savePublicKey(DEFAULT_KEY_INFO);
 
+  // 1.1c QR khai báo kid KHÔNG TỒN TẠI trong máy, nhưng ký THẬT bằng demo private key (kẻ tấn
+  // công biết private key demo - nó nằm trong source app - có thể tự đặt kid bất kỳ vào header,
+  // vì không có gì ràng buộc kid phải khớp với key thực sự dùng để ký). Đây chính là lỗ hổng do
+  // verifyQrCode() cũ: getActivePublicKey(payload.kid) trả null vì không khớp kid -> code CŨ gọi
+  // lại getActivePublicKey() KHÔNG kid -> vô tình lấy đúng key demo (đang active từ dòng trên, vd
+  // do Staff từng bấm "Test QR") -> verify "thành công" dù kid khai báo sai hoàn toàn. Repository
+  // đã tự xử lý đúng trường hợp QR không khai báo kid (payload.kid undefined) ngay trong
+  // getActivePublicKey(); verifyQrCode() KHÔNG được tự ý retry không-kid khi 1 kid cụ thể đã tra
+  // không khớp.
+  const unknownKidKeyInfo = { ...DEFAULT_KEY_INFO, kid: 'totally-unknown-kid-999' };
+  const unknownKidQr = QrVerifier.generateTestSignedQr(sampleBookingId, sampleTripId, unknownKidKeyInfo);
+  const unknownKidResult = await QrVerifier.verifyQrCode(unknownKidQr.compactQr);
+  assert(
+    !unknownKidResult.isValid && unknownKidResult.error?.includes('Chưa có Public Key') === true,
+    '1.1c Reject QR declaring an unknown kid, even when signed with the demo private key and a DIFFERENT key is active',
+    `Error: ${unknownKidResult.error}`
+  );
+
   // 1.3 Verify JSON format QR
   const jsonResult = await QrVerifier.verifyQrCode(signed.jsonQr);
   assert(

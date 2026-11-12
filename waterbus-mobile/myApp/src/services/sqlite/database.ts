@@ -193,7 +193,23 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       return [...this.tables.manifest_tickets] as any;
     }
     if (trimmed.includes('FROM PUBLIC_KEYS')) {
-      return [...this.tables.public_keys] as any;
+      // Phải lọc đúng theo WHERE thật của getActivePublicKey() - từng trả CẢ BẢNG không lọc, khiến
+      // mọi lookup theo kid cụ thể (kể cả kid KHÔNG tồn tại) vẫn âm thầm trả về key đầu tiên trong
+      // bảng, che mất chính lỗ hổng "kid không khớp vẫn được verify bằng key khác" mà regression
+      // test ở scripts/verify-staff-scanner.ts cần bắt được (môi trường Node/test chỉ có fallback
+      // in-memory này - không có SQLite thật để tự lọc đúng WHERE).
+      let rows = [...this.tables.public_keys];
+      if (trimmed.includes('KID = ?')) {
+        const kid = params[0];
+        rows = rows.filter((r) => r.kid === kid);
+      }
+      if (trimmed.includes('IS_ACTIVE = 1')) {
+        rows = rows.filter((r) => r.is_active === 1);
+      }
+      if (trimmed.includes('ORDER BY VALID_FROM DESC')) {
+        rows = rows.slice().sort((a, b) => String(b.valid_from).localeCompare(String(a.valid_from)));
+      }
+      return rows as any;
     }
     return [];
   }

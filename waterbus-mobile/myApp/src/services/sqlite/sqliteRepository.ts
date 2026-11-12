@@ -522,7 +522,9 @@ export class SqliteRepository {
   }
 
   /**
-   * Clear all local tables (Reset Cache)
+   * Clear all local tables (Reset Cache) - PHẢI xoá luôn public_keys: trước đây sót lại key demo
+   * (vd Staff từng bấm "Test QR") sau khi bấm "Xoá Toàn Bộ Dữ Liệu SQLite Cục Bộ", trái với đúng
+   * tên nút - khiến phiên E2E/thật kế tiếp không hoàn toàn sạch trạng thái demo.
    */
   static async clearCache(): Promise<void> {
     const db = await getDatabase();
@@ -532,6 +534,7 @@ export class SqliteRepository {
       DELETE FROM manifest_trips;
       DELETE FROM offline_checkin_events;
       DELETE FROM scanner_config;
+      DELETE FROM public_keys;
     `);
   }
 }

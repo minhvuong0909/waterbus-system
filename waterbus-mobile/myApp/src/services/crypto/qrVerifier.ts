@@ -113,10 +113,15 @@ export class QrVerifier {
     // khiến verify "thành công" dù SQLite trống hoàn toàn (miễn QR thiếu kid hoặc mang đúng kid demo),
     // phá vỡ bất biến "QR thật phải được xác minh bằng key đã preload từ Backend" - mọi QR phải
     // fail-closed khi chưa có key nào trong máy.
-    let keyInfo = await SqliteRepository.getActivePublicKey(payload.kid);
-    if (!keyInfo) {
-      keyInfo = await SqliteRepository.getActivePublicKey();
-    }
+    //
+    // CHỈ gọi getActivePublicKey ĐÚNG MỘT LẦN với payload.kid - KHÔNG retry không-kid khi kid cụ
+    // thể không khớp bất kỳ key nào trong máy. Repository tự xử lý trường hợp QR không khai báo kid
+    // (payload.kid undefined -> lấy key active gần nhất) ngay trong getActivePublicKey(); một lần
+    // gọi lại không-kid ở ĐÂY sau khi kid cụ thể đã tra KHÔNG thấy từng là lỗ hổng riêng: QR khai
+    // báo một kid KHÔNG TỒN TẠI (vd ký bằng demo private key, publicly biết trước, với kid bất kỳ)
+    // vẫn có thể được chấp nhận bằng MỘT key active khác đang có trong máy (vd key demo còn active
+    // từ lần bấm "Test QR" trước) - bỏ qua hoàn toàn việc kid QR khai báo phải khớp đúng key.
+    const keyInfo = await SqliteRepository.getActivePublicKey(payload.kid);
     if (!keyInfo) {
       return {
         isValid: false,
