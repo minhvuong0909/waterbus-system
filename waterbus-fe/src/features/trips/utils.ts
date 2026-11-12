@@ -187,14 +187,6 @@ export function pickJourney(
 }
 
 /** The corridor shown on the maps: the piers at their coordinates. */
-/** Piers from `originId` to `destinationId` in river order, both included (either direction). */
-export function piersBetween(piers: PierOption[], originId: string, destinationId: string): PierOption[] {
-  const from = piers.findIndex((p) => p.id === originId)
-  const to = piers.findIndex((p) => p.id === destinationId)
-  if (from < 0 || to < 0) return piers
-  return piers.slice(Math.min(from, to), Math.max(from, to) + 1)
-}
-
 export function buildCorridorMap(piers: PierOption[]): CorridorMap {
   const placed = piers.map((pier) => ({
     id: pier.id,

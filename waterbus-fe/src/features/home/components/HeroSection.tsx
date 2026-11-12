@@ -49,8 +49,7 @@ export default function HeroSection() {
             playsInline
             preload="metadata"
           />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_75%_65%_at_0%_100%,rgba(13,37,56,0.78),rgba(13,37,56,0.35)_55%,transparent_80%)]" />
-          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-deep-river/45 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-deep-river/85 via-deep-river/35 to-deep-river/10" />
         </div>
 
         <div className="relative z-10 mx-auto w-full max-w-7xl px-5 pb-10 sm:px-8 xl:pb-20">

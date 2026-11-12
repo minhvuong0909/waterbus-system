@@ -232,3 +232,45 @@ export async function getTripDetail(
   }
   return localize(detail)
 }
+
+/** One stop of a journey, with the time the boat is expected there (Vietnam clock, "HH:mm"). */
+export interface JourneyStop {
+  callId: string
+  stationName: string
+  time: string
+}
+
+/**
+ * The stops a traveler passes from the origin pier to the destination pier of a trip, from
+ * `GET /trips/{id}`. The search result only has the first departure and the last arrival of the
+ * whole trip, so this is where the times at the traveler's own piers come from.
+ */
+export async function getJourneyStops(
+  tripId: string,
+  originId: string,
+  destinationId: string,
+): Promise<JourneyStop[]> {
+  const trip = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
+  const journey = pickJourney(trip.stops, originId, destinationId)
+  if (!journey) return []
+  return trip.stops
+    .filter(
+      (stop) =>
+        stop.status !== 'Skipped' &&
+        stop.visitOrder >= journey.boarding.visitOrder &&
+        stop.visitOrder <= journey.disembarking.visitOrder,
+    )
+    .sort((a, b) => a.visitOrder - b.visitOrder)
+    .map((stop) => {
+      // The boat leaves the boarding pier and arrives at every pier after it.
+      const instant =
+        stop.callId === journey.boarding.callId
+          ? stop.estimatedDepartureTime ?? stop.estimatedArrivalTime
+          : stop.estimatedArrivalTime ?? stop.estimatedDepartureTime
+      return {
+        callId: stop.callId,
+        stationName: stop.stationName,
+        time: instant ? formatClock(new Date(instant)) : '',
+      }
+    })
+}

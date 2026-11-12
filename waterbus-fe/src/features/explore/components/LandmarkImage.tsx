@@ -5,7 +5,7 @@ import type { Landmark, PoiCategory } from '../types'
 const CATEGORY_ICON: Record<PoiCategory, string> = {
   Skyline: 'location_city',
   Heritage: 'account_balance',
-  Riverside: 'park',
+  Riverside: 'waves',
 }
 
 /** The landmark's photo, or a tile with its category icon while no photo of the place is available. */
@@ -16,7 +16,7 @@ export default function LandmarkImage({ landmark, className = '' }: { landmark: 
   return (
     <div
       aria-hidden="true"
-      className={`flex items-center justify-center bg-gradient-to-br from-deep-river to-teal-flow text-white/80 ${className}`}
+      className={`flex items-center justify-center bg-secondary-container text-teal-flow ${className}`}
     >
       <Icon name={CATEGORY_ICON[landmark.category] ?? 'location_on'} className="text-5xl" />
     </div>

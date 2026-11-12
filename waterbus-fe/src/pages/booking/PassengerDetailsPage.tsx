@@ -1,17 +1,16 @@
 import type { ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
-import BookingProgress from '../../features/booking/components/BookingProgress'
-import CrossingSummary from '../../features/booking/components/CrossingSummary'
-import HoldCountdown from '../../features/booking/components/HoldCountdown'
+import { Link, useNavigate } from 'react-router-dom'
+import { ErrorState, Icon, PageLoader } from '../../components/ui'
+import BookingStepHeader from '../../features/booking/components/BookingStepHeader'
+import OrderSummary from '../../features/booking/components/OrderSummary'
+import SummaryAction, { SUMMARY_LINK_CLASS } from '../../features/booking/components/SummaryAction'
 import PassengerFormCard from '../../features/booking/components/PassengerFormCard'
 import BuyerCard from '../../features/booking/components/BuyerCard'
 import PassengerFormNote from '../../features/booking/components/PassengerFormNote'
 import { copyPassengersToReturn, holdCleared, setBuyerTravels } from '../../features/booking/bookingSlice'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import { isRoundTrip } from '../../features/booking/legs'
-import type { BookingStep } from '../../features/booking/types'
-import { addTotals, isBookingComplete, seatCodes } from '../../features/booking/utils'
+import { addTotals, isBookingComplete } from '../../features/booking/utils'
 import type { TripDetail } from '../../features/trips/types'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
@@ -64,48 +63,28 @@ export default function PassengerDetailsPage() {
 
   const totals = addTotals(outbound.totals, roundTrip ? back.totals : undefined)
   const returnLeg = roundTrip && back.trip ? { trip: back.trip, seats: back.seats } : undefined
-  const seatDetail = returnLeg ? `${seatCodes(seats)} · ${seatCodes(returnLeg.seats)}` : seatCodes(seats)
   const outboundNamed = seats.some((seat) => passengers[seat.id]?.fullName.trim())
-
-  const steps: BookingStep[] = [
-    { label: 'Trip', detail: 'Trip' },
-    { label: 'Seat', detail: t('Seat ({id})', { id: seatDetail }) },
-    { label: 'Passenger Details', detail: 'Passengers' },
-    { label: 'Checkout', detail: 'Checkout' },
-    { label: 'Payment', detail: 'Payment' },
-  ]
+  const complete = isBookingComplete(
+    purchaser,
+    seatIds,
+    passengers,
+    returnLeg ? { seatIds: back.seatIds, passengers: back.passengers } : undefined,
+  )
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
-      <Breadcrumb
-        items={[
-          { label: 'Home', to: ROUTES.home },
-          { label: 'Booking', to: ROUTES.seatSelection },
-          { label: 'Passenger Details' },
-        ]}
+    <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-lg">
+      <BookingStepHeader
+        step="Passengers"
+        title={t('Passenger Details')}
+        description={
+          roundTrip
+            ? t('Enter who travels on each seat, for both trips.')
+            : t('Please enter traveler information for this crossing.')
+        }
       />
-      <div className="mt-space-md">
-        <BookingProgress steps={steps} current={2} variant="circles" />
-      </div>
 
-      <div className="mt-space-lg flex flex-col justify-between gap-space-md md:flex-row md:items-end">
-        <div>
-          <h1 className="font-display text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-lg">
-            {t('Passenger Details')}
-          </h1>
-          <p className="text-body-md text-on-surface-variant">
-            {roundTrip
-              ? t('Enter who travels on each seat, for both trips.')
-              : t('Please enter traveler information for this crossing.')}
-          </p>
-        </div>
-        <div className="self-start md:self-auto lg:hidden">
-          <HoldCountdown />
-        </div>
-      </div>
-
-      <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
-        <div className="space-y-space-md lg:col-span-7">
+      <div className="mt-space-lg grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
+        <div className="space-y-space-md lg:col-span-8">
           {submitted && (
             <div
               role="status"
@@ -170,19 +149,29 @@ export default function PassengerDetailsPage() {
             <PassengerFormNote />
           </fieldset>
         </div>
-        <div className="lg:col-span-5 lg:self-stretch">
-          <CrossingSummary
-            trip={trip}
-            seats={seats}
-            totals={totals}
-            returnLeg={returnLeg}
-            canContinue={isBookingComplete(
-              purchaser,
-              seatIds,
-              passengers,
-              returnLeg ? { seatIds: back.seatIds, passengers: back.passengers } : undefined,
-            )}
-          />
+        <div className="lg:col-span-4 lg:self-stretch">
+          <OrderSummary trip={trip} seats={seats} totals={totals} returnLeg={returnLeg}>
+            <SummaryAction
+              label={t('Continue to Checkout')}
+              to={ROUTES.checkoutReview}
+              disabled={!complete}
+              note={
+                complete
+                  ? undefined
+                  : t('Enter a name for every passenger and the buyer’s name and email to continue.')
+              }
+            />
+            <div className="mt-space-sm flex flex-wrap justify-center gap-x-space-md gap-y-1">
+              <Link to={ROUTES.seatSelection} className={SUMMARY_LINK_CLASS}>
+                {returnLeg ? t('Change outbound seats') : t('Change Seat')}
+              </Link>
+              {returnLeg && (
+                <Link to={`${ROUTES.seatSelection}?leg=return`} className={SUMMARY_LINK_CLASS}>
+                  {t('Change return seats')}
+                </Link>
+              )}
+            </div>
+          </OrderSummary>
         </div>
       </div>
     </div>

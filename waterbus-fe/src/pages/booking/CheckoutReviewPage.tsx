@@ -1,14 +1,14 @@
-import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
-import HoldCountdown from '../../features/booking/components/HoldCountdown'
-import BookingProgress from '../../features/booking/components/BookingProgress'
+import { Link } from 'react-router-dom'
+import { ErrorState, PageLoader } from '../../components/ui'
+import BookingStepHeader from '../../features/booking/components/BookingStepHeader'
 import JourneyDetailsCard from '../../features/booking/components/JourneyDetailsCard'
 import OrderSummary from '../../features/booking/components/OrderSummary'
 import PassengerInfoCard from '../../features/booking/components/PassengerInfoCard'
+import SummaryAction, { SUMMARY_LINK_CLASS } from '../../features/booking/components/SummaryAction'
 import TermsConfirm from '../../features/booking/components/TermsConfirm'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import { useSubmitCheckout } from '../../features/booking/hooks/useCheckout'
 import { isRoundTrip } from '../../features/booking/legs'
-import type { BookingStep } from '../../features/booking/types'
 import { addTotals, isBookingComplete } from '../../features/booking/utils'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
@@ -42,47 +42,22 @@ export default function CheckoutReviewPage() {
 
   const returnTrip = roundTrip ? back.trip : undefined
   const totals = addTotals(outbound.totals, roundTrip ? back.totals : undefined)
-  const seatCount = seats.length + (returnTrip ? back.seats.length : 0)
-
-  const steps: BookingStep[] = [
-    { label: 'Trip', detail: returnTrip ? t('Round trip') : trip.lineLabel },
-    { label: 'Seat', detail: t('{count} Seats Selected', { count: seatCount }) },
-    { label: 'Passengers', detail: purchaser.fullName },
-    { label: 'Checkout', detail: 'Review Order' },
-    { label: 'Payment', detail: 'VNPay' },
-  ]
+  const complete = isBookingComplete(
+    purchaser,
+    seatIds,
+    passengers,
+    returnTrip ? { seatIds: back.seatIds, passengers: back.passengers } : undefined,
+  )
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
-      <div>
-        <Breadcrumb
-          items={[
-            { label: 'Home', to: ROUTES.home },
-            { label: 'Booking', to: ROUTES.seatSelection },
-            { label: 'Checkout' },
-          ]}
-        />
-      </div>
+    <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-lg">
+      <BookingStepHeader
+        step="Checkout"
+        title={t('Review Your Booking')}
+        description={t('Confirm your trip, passenger, seat, and fare before proceeding to payment.')}
+      />
 
-      <div className="mt-space-md">
-        <BookingProgress steps={steps} current={3} variant="bars" />
-      </div>
-
-      <div className="mt-space-xl flex flex-col justify-between gap-space-md md:flex-row md:items-end">
-        <div>
-          <h1 className="font-display text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-xl">
-            {t('Review Your Booking')}
-          </h1>
-          <p className="text-body-md text-on-surface-variant">
-            {t('Confirm your trip, passenger, seat, and fare before proceeding to payment.')}
-          </p>
-        </div>
-        <div className="self-start md:self-auto lg:hidden">
-          <HoldCountdown />
-        </div>
-      </div>
-
-      <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
+      <div className="mt-space-lg grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="space-y-space-md lg:col-span-8">
           <JourneyDetailsCard trip={trip} seats={seats} title={returnTrip ? t('Outbound trip') : undefined} />
           {returnTrip && (
@@ -113,21 +88,36 @@ export default function CheckoutReviewPage() {
         <div className="lg:col-span-4 lg:self-stretch">
           <OrderSummary
             trip={trip}
-            returnTrip={returnTrip}
+            seats={seats}
             totals={totals}
-            canContinue={
-              termsAccepted &&
-              isBookingComplete(
-                purchaser,
-                seatIds,
-                passengers,
-                returnTrip ? { seatIds: back.seatIds, passengers: back.passengers } : undefined,
-              )
-            }
-            busy={busy}
-            failure={failure}
-            onContinue={submit}
-          />
+            returnLeg={returnTrip ? { trip: returnTrip, seats: back.seats } : undefined}
+            buyerName={purchaser.fullName}
+          >
+            <SummaryAction
+              label={busy ? t('Preparing your order…') : t('Continue to Payment')}
+              onClick={submit}
+              disabled={!termsAccepted || !complete || busy}
+              note={termsAccepted ? undefined : t('Please accept the Waterway Carriage Rules to continue.')}
+              error={
+                failure && (
+                  <>
+                    {failure.message ||
+                      t('We couldn’t prepare your order just now. Please check your connection and try again.')}{' '}
+                    {failure.seatTaken && (
+                      <Link to={ROUTES.seatSelection} className="font-semibold underline">
+                        {t('Choose another seat')}
+                      </Link>
+                    )}
+                  </>
+                )
+              }
+            />
+            <div className="mt-space-sm text-center">
+              <Link to={ROUTES.passengerDetails} className={SUMMARY_LINK_CLASS}>
+                {t('Back to Passenger Details')}
+              </Link>
+            </div>
+          </OrderSummary>
         </div>
       </div>
     </div>

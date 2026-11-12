@@ -1,7 +1,5 @@
-import CorridorSection from '../../features/home/components/CorridorSection'
 import DeparturesSection from '../../features/home/components/DeparturesSection'
 import HeroSection from '../../features/home/components/HeroSection'
-import HowItWorksSection from '../../features/home/components/HowItWorksSection'
 import PiersSection from '../../features/home/components/PiersSection'
 import StoriesSection from '../../features/home/components/StoriesSection'
 import { useHomeData } from '../../features/home/hooks/useHomeData'
@@ -21,7 +19,7 @@ function SectionError({ onRetry }: { onRetry: () => void }) {
 
 export default function HomePage() {
   useDocumentTitle('River Connects Greater Stories')
-  const { home, departures, corridor } = useHomeData()
+  const { departures, corridor } = useHomeData()
 
   return (
     <Reveal className="flex w-full flex-col">
@@ -29,26 +27,16 @@ export default function HomePage() {
       {departures.error ? (
         <SectionError onRetry={departures.retry} />
       ) : (
-        departures.data && home.data && (
-          <DeparturesSection
-            filters={home.data.routeFilters}
-            departures={departures.data}
-            pierName={corridor.data?.piers[0]?.name ?? ''}
-          />
+        departures.data && (
+          <DeparturesSection departures={departures.data} pierName={corridor.data?.piers[0]?.name ?? ''} />
         )
       )}
-      {home.data && <HowItWorksSection steps={home.data.steps} />}
-      <StoriesSection places={getFeaturedPlaces()} />
       {corridor.error ? (
         <SectionError onRetry={corridor.retry} />
       ) : (
-        corridor.data && (
-          <>
-            <PiersSection piers={corridor.data.piers} />
-            <CorridorSection map={corridor.data} />
-          </>
-        )
+        corridor.data && <PiersSection map={corridor.data} />
       )}
+      <StoriesSection places={getFeaturedPlaces()} />
     </Reveal>
   )
 }

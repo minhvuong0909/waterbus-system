@@ -1,96 +1,42 @@
-import { useEffect, useRef, useState } from 'react'
-import type { KeyboardEvent, PointerEvent } from 'react'
-import { Link } from 'react-router-dom'
-import { Icon } from '../../../components/ui'
-import { usePrefersReducedMotion } from '../../../hooks'
-import { ROUTES } from '../../../routes/routes'
+import { lazy, Suspense, useRef, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import { useSearchQuery } from '../../booking/hooks/useTripSearch'
-import { pierPhotos } from '../../../content/pierImages'
-import ecoPhoto from '../../../assets/images/home/story-eco.jpg'
-import heritagePhoto from '../../../assets/images/home/story-heritage.jpg'
-import sunsetPhoto from '../../../assets/images/home/story-sunset.jpg'
-import vesselPhoto from '../../../assets/images/vessel.jpg'
-import waterwayPhoto from '../../../assets/images/waterway.jpg'
-import { PIER_INFO } from '../../../content/piers'
-import PierGallery from './PierGallery'
-import type { GallerySlide } from './PierGallery'
-import type { Pier } from '../../trips/types'
-import { getLocale, t } from '../../../i18n'
+import type { CorridorMap, Pier } from '../../trips/types'
+import { t } from '../../../i18n'
+import PierDetails from './PierDetails'
 
-/** Quãng kéo ngang tối thiểu (px) để tính là một cú vuốt sang bến khác. */
-const SWIPE_PX = 60
+// The map pulls in Leaflet and its styles, so it loads after the rest of the page.
+const PierMap = lazy(() => import('../../trips/components/PierMap'))
 
-/** Ảnh dùng chung cho mọi bến khi bến chưa đủ ảnh riêng; chú thích ghi rõ là ảnh dọc sông. */
-const RIVER_PHOTOS = [vesselPhoto, waterwayPhoto, sunsetPhoto, heritagePhoto, ecoPhoto]
-
-function slidesOf(pier: Pier): GallerySlide[] {
-  const own = pierPhotos(pier.code).map((src) => ({ src, caption: pier.name }))
-  const river = RIVER_PHOTOS.map((src) => ({ src, caption: t('Along the Saigon River') }))
-  return [...own, ...river]
-}
-
-function distanceLabel(distance: string): string {
-  if (distance === 'inside') return t('Inside the pier')
-  if (distance === 'opposite') return t('Opposite the pier')
-  return t('About {distance}', { distance })
-}
+const shortName = (pier: Pier) => pier.name.replace(/^Bến\s+/i, '')
 
 /**
- * Hệ thống bến tàu: dãy bến nằm ngang theo thứ tự dọc sông (như một tuyến đường). Bấm một bến,
- * hoặc vuốt/ bấm mũi tên, thì phần mô tả bên dưới trượt ngang sang bến đó.
+ * The piers of the corridor in river order. One pier is open at a time, chosen from the strip or
+ * from the map: its details are on the left and the map marks where it is on the right.
  */
-export default function PiersSection({ piers }: { piers: Pier[] }) {
-  const reducedMotion = usePrefersReducedMotion()
+export default function PiersSection({ map }: { map: CorridorMap }) {
+  const { piers } = map
   const { query, updateQuery } = useSearchQuery()
-  const [active, setActive] = useState(0)
+  const [activeId, setActiveId] = useState(piers[0]?.id)
   const tabs = useRef<(HTMLButtonElement | null)[]>([])
-  const stripRef = useRef<HTMLDivElement>(null)
-  const swipeStart = useRef<number | null>(null)
+
+  const activeIndex = Math.max(0, piers.findIndex((pier) => pier.id === activeId))
+  const active = piers[activeIndex]
+  if (!active) return null
   const last = piers.length - 1
-
-  // Khi dãy bến phải cuộn ngang (màn hình hẹp), đưa bến đang chọn vào giữa dãy. Chỉ cuộn bên trong dãy
-  // (không dùng scrollIntoView vì nó cuộn cả trang) và bỏ qua lần hiện đầu để không kéo trang xuống.
-  const mounted = useRef(false)
-  useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true
-      return
-    }
-    const strip = stripRef.current
-    const tab = tabs.current[active]
-    if (!strip || !tab || strip.scrollWidth <= strip.clientWidth) return
-    strip.scrollTo({
-      left: tab.offsetLeft - (strip.clientWidth - tab.clientWidth) / 2,
-      behavior: reducedMotion ? 'auto' : 'smooth',
-    })
-  }, [active, reducedMotion])
-
-  if (piers.length === 0) return null
-
-  const go = (index: number) => setActive(Math.min(last, Math.max(0, index)))
 
   const onKeyDown = (event: KeyboardEvent) => {
     const target =
-      event.key === 'ArrowRight' ? active + 1
-      : event.key === 'ArrowLeft' ? active - 1
+      event.key === 'ArrowRight' ? activeIndex + 1
+      : event.key === 'ArrowLeft' ? activeIndex - 1
       : event.key === 'Home' ? 0
       : event.key === 'End' ? last
       : null
     if (target === null) return
     event.preventDefault()
     const index = Math.min(last, Math.max(0, target))
-    go(index)
+    setActiveId(piers[index].id)
     tabs.current[index]?.focus({ preventScroll: true })
-  }
-
-  const onPointerDown = (event: PointerEvent) => {
-    swipeStart.current = event.clientX
-  }
-  const onPointerUp = (event: PointerEvent) => {
-    if (swipeStart.current === null) return
-    const delta = event.clientX - swipeStart.current
-    swipeStart.current = null
-    if (Math.abs(delta) >= SWIPE_PX) go(active + (delta < 0 ? 1 : -1))
   }
 
   // Một chuyến cần hai bến khác nhau: chọn bến đi trùng bến đến thì đảo hai bến cho nhau.
@@ -118,29 +64,15 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
           </p>
         </div>
 
-        <div
-          ref={stripRef}
-          data-reveal
-          className="relative -mx-5 overflow-x-auto px-5 pb-2 sm:mx-0 sm:px-0 [scrollbar-width:none]"
-        >
+        <div data-reveal className="-mx-5 overflow-x-auto px-5 pb-2 sm:mx-0 sm:px-0 [scrollbar-width:none]">
           <div role="tablist" aria-label={t('Pier list')} className="relative flex min-w-[560px]">
             <span
               aria-hidden="true"
               className="absolute top-[19px] h-0.5 rounded-full bg-outline-variant/60"
               style={{ left: lineInset, right: lineInset }}
             />
-            <span
-              aria-hidden="true"
-              className={`absolute top-[19px] h-0.5 rounded-full bg-teal-flow ${
-                reducedMotion ? '' : 'transition-[width] duration-500 ease-out'
-              }`}
-              style={{
-                left: lineInset,
-                width: `calc((100% - 2 * ${lineInset}) * ${last > 0 ? active / last : 0})`,
-              }}
-            />
             {piers.map((pier, i) => {
-              const selected = i === active
+              const selected = i === activeIndex
               return (
                 <button
                   key={pier.id}
@@ -151,18 +83,16 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
                   role="tab"
                   id={`pier-tab-${pier.id}`}
                   aria-selected={selected}
-                  aria-controls={`pier-panel-${pier.id}`}
+                  aria-controls="pier-panel"
                   tabIndex={selected ? 0 : -1}
-                  onClick={() => go(i)}
+                  onClick={() => setActiveId(pier.id)}
                   onKeyDown={onKeyDown}
                   className="group relative flex min-w-[112px] flex-1 flex-col items-center gap-2 px-2 pb-1 text-center focus:outline-none"
                 >
                   <span
-                    className={`flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-sm font-bold transition-all duration-300 group-focus-visible:ring-4 group-focus-visible:ring-teal-flow/30 ${
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-sm font-bold transition-colors group-focus-visible:ring-4 group-focus-visible:ring-teal-flow/25 ${
                       selected
-                        ? 'scale-110 border-teal-flow bg-teal-flow text-on-primary shadow-md'
-                        : i < active
-                        ? 'border-teal-flow bg-white text-teal-flow'
+                        ? 'border-teal-flow bg-teal-flow text-on-primary shadow-md'
                         : 'border-outline-variant bg-white text-on-surface-variant group-hover:border-teal-flow/60'
                     }`}
                   >
@@ -170,10 +100,12 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
                   </span>
                   <span
                     className={`text-sm leading-tight transition-colors ${
-                      selected ? 'font-bold text-deep-river' : 'font-medium text-on-surface-variant group-hover:text-deep-river'
+                      selected
+                        ? 'font-bold text-deep-river'
+                        : 'font-medium text-on-surface-variant group-hover:text-deep-river'
                     }`}
                   >
-                    {pier.name.replace(/^Bến\s+/i, '')}
+                    {shortName(pier)}
                   </span>
                 </button>
               )
@@ -183,134 +115,21 @@ export default function PiersSection({ piers }: { piers: Pier[] }) {
 
         <div
           data-reveal
-          className="relative touch-pan-y select-none overflow-hidden rounded-panel border border-outline-variant/30 bg-white shadow-sm"
-          onPointerDown={onPointerDown}
-          onPointerUp={onPointerUp}
-          onPointerCancel={() => {
-            swipeStart.current = null
-          }}
+          role="tabpanel"
+          id="pier-panel"
+          aria-labelledby={`pier-tab-${active.id}`}
+          className="grid grid-cols-1 items-start gap-6 rounded-panel border border-outline-variant/30 bg-white p-5 shadow-sm sm:p-8 lg:grid-cols-2 lg:gap-10"
         >
-          <div
-            className={`flex ${reducedMotion ? '' : 'transition-transform duration-500 ease-out'}`}
-            style={{ transform: `translateX(-${active * 100}%)` }}
+          <PierDetails pier={active} onBook={() => bookFrom(active)} />
+          <Suspense
+            fallback={
+              <div className="flex h-[360px] items-center justify-center rounded-2xl bg-surface-container text-sm text-on-surface-variant lg:h-[460px]">
+                {t('Loading map…')}
+              </div>
+            }
           >
-            {piers.map((pier, i) => {
-              const selected = i === active
-              const role =
-                i === 0 ? t('First pier') : i === last ? t('Last pier') : t('Intermediate pier')
-              const previous = piers[i - 1]
-              const next = piers[i + 1]
-              return (
-                <div
-                  key={pier.id}
-                  role="tabpanel"
-                  id={`pier-panel-${pier.id}`}
-                  aria-labelledby={`pier-tab-${pier.id}`}
-                  aria-hidden={!selected}
-                  className="grid w-full shrink-0 grid-cols-1 items-center gap-6 p-5 sm:p-8 md:grid-cols-2 md:gap-10"
-                >
-                  <div className="space-y-5">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container">
-                      <Icon name="anchor" className="text-sm" />
-                      {t('Pier {n} of {total}', { n: i + 1, total: piers.length })} · {role}
-                    </span>
-                    <div className="space-y-1.5">
-                      <h3 className="font-display text-2xl font-bold text-deep-river sm:text-3xl">
-                        {pier.name}
-                      </h3>
-                      <p className="flex items-center gap-1.5 text-sm font-medium text-teal-flow">
-                        <Icon name="location_city" className="text-lg" />
-                        {pier.subtitle}
-                      </p>
-                      <p className="flex items-start gap-1.5 text-sm text-on-surface-variant">
-                        <Icon name="pin_drop" className="mt-0.5 text-lg text-teal-flow" />
-                        {pier.address}
-                      </p>
-                    </div>
-
-                    {PIER_INFO[pier.code] && (
-                      <>
-                        <p className="text-sm leading-relaxed text-on-surface sm:text-base">
-                          {PIER_INFO[pier.code].story[getLocale()]}
-                        </p>
-                        <div className="space-y-2">
-                          <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-on-surface-variant">
-                            {t('Nearby')}
-                          </h4>
-                          <ul className="space-y-1.5 text-sm">
-                            {PIER_INFO[pier.code].nearby.map((place) => (
-                              <li key={place.name.en} className="flex items-baseline justify-between gap-3 border-b border-surface-container pb-1.5">
-                                <span className="font-medium text-deep-river">{place.name[getLocale()]}</span>
-                                <span className="shrink-0 text-xs text-on-surface-variant">
-                                  {distanceLabel(place.distance)}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                          <p className="text-2xs text-on-surface-variant">
-                            {t('Distances are approximate.')}
-                          </p>
-                        </div>
-                      </>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-3">
-                      <Link
-                        to={ROUTES.searchResults}
-                        tabIndex={selected ? 0 : -1}
-                        onClick={() => bookFrom(pier)}
-                        className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-teal-flow px-6 py-2.5 text-sm font-semibold text-on-primary shadow-sm transition-colors hover:bg-secondary"
-                      >
-                        {t('Plan a trip from here')}
-                        <Icon name="arrow_forward" className="text-lg" />
-                      </Link>
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${pier.latitude},${pier.longitude}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        tabIndex={selected ? 0 : -1}
-                        className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-teal-flow px-5 py-2.5 text-sm font-semibold text-teal-flow transition-colors hover:bg-sand-light"
-                      >
-                        <Icon name="directions" className="text-lg" />
-                        {t('Get directions')}
-                      </a>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-surface-container pt-4 text-sm">
-                      {previous && (
-                        <button
-                          type="button"
-                          tabIndex={selected ? 0 : -1}
-                          onClick={() => go(i - 1)}
-                          className="tap-area inline-flex items-center gap-1 font-medium text-on-surface-variant hover:text-teal-flow"
-                        >
-                          <Icon name="arrow_back" className="text-base" />
-                          {t('Previous pier')}: {previous.name.replace(/^Bến\s+/i, '')}
-                        </button>
-                      )}
-                      {next && (
-                        <button
-                          type="button"
-                          tabIndex={selected ? 0 : -1}
-                          onClick={() => go(i + 1)}
-                          className="tap-area inline-flex items-center gap-1 font-medium text-on-surface-variant hover:text-teal-flow"
-                        >
-                          {t('Next pier')}: {next.name.replace(/^Bến\s+/i, '')}
-                          <Icon name="arrow_forward" className="text-base" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <PierGallery
-                    slides={slidesOf(pier)}
-                    label={t('{name}, photo gallery', { name: pier.name })}
-                    active={selected}
-                  />
-                </div>
-              )
-            })}
-          </div>
+            <PierMap map={map} selectedId={active.id} onSelect={setActiveId} className="h-[360px] lg:h-[460px]" />
+          </Suspense>
         </div>
       </div>
     </section>

@@ -5,6 +5,7 @@ import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import { createBoat, deleteBoat, getBoats } from '../../features/admin/services/boatService'
 import type { AdminBoat } from '../../features/admin/types'
 import { useDocumentTitle, useFetch } from '../../hooks'
+import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 import type { Column } from '../../components/ui'
 
@@ -101,17 +102,22 @@ export default function BoatsPage() {
     { header: 'Built', render: (b) => `${b.manufacturer} ${b.yearBuilt}`.trim() },
     {
       header: 'Seats',
-      render: (b) => (
-        <span>{b.totalSeats}</span>
-      ),
+      // Seats set up on the boat out of its capacity; a boat without seats cannot be sold (BR-SCH-04).
+      render: (b) =>
+        b.configuredSeats === undefined ? b.totalSeats : `${b.configuredSeats} / ${b.totalSeats}`,
     },
     {
       header: 'Actions',
       className: 'text-right',
       render: (b) => (
-        <Button size="sm" variant="neutral" icon="delete" onClick={() => { remove.clearError(); setDialog({ kind: 'delete', boat: b }) }}>
-          {t('Deactivate')}
-        </Button>
+        <span className="inline-flex gap-1">
+          <Button size="sm" variant="neutral" icon="event_seat" to={`${ROUTES.adminBoatSeats}?boatId=${b.id}`}>
+            {t('Seats')}
+          </Button>
+          <Button size="sm" variant="neutral" icon="delete" onClick={() => { remove.clearError(); setDialog({ kind: 'delete', boat: b }) }}>
+            {t('Deactivate')}
+          </Button>
+        </span>
       ),
     },
   ]

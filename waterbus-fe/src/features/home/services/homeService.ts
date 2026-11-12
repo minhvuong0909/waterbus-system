@@ -1,19 +1,11 @@
 import { EXPLORE_DATA } from '../../../content/explore'
-import { HOME_DATA } from '../../../content/home'
-import { localize } from '../../../i18n'
 import { getPierOptions, getUpcomingTrips } from '../../trips/services/tripService'
 import type { CorridorMap, Departure, SearchQuery } from '../../trips/types'
 import { translateLandmark } from '../../explore/services/exploreService'
 import type { Landmark } from '../../explore/types'
-import type { HomeData } from '../types'
 import { buildCorridorMap, toDeparture } from '../../trips/utils'
 
 const MAX_DEPARTURES = 4
-
-/** Editorial content of the home page (timetable filters, how it works); no backend source. */
-export function getHomeData(): Promise<HomeData> {
-  return Promise.resolve(localize(HOME_DATA))
-}
 
 /** Places narrated on sightseeing trips that have a photo, shown as a teaser of the Explore page. */
 export function getFeaturedPlaces(count = 3): Landmark[] {

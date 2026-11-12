@@ -48,7 +48,7 @@ export default function LandmarksSection({
             {t('No places in this category yet.')}
           </p>
         )}
-        <div className="grid grid-cols-1 gap-space-md sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-space-md sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {visible.map((l) => (
             <button
               key={l.id}
