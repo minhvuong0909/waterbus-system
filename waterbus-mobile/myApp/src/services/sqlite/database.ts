@@ -2,19 +2,15 @@
  * SQLite Local Database Service
  * Provides offline-first persistence for preloaded trips, bookings, tickets, public keys,
  * and offline check-in event queues.
- * Supports Expo SQLite (SDK 54) with cross-platform fallback for Web/Unit Tests.
+ * Supports Expo SQLite with an in-memory adapter only for Web/Unit Tests.
  */
 
-function isNativeApp(): boolean {
-  try {
-    const RN = require('react-native');
-    return RN?.Platform?.OS === 'android' || RN?.Platform?.OS === 'ios';
-  } catch {
-    return false;
-  }
-}
-
 const DB_NAME = 'waterbus_scanner.db';
+const PUBLIC_KEYS_MIGRATION_TABLE = 'public_keys_legacy_migration';
+
+function isNodeTestEnvironment(): boolean {
+  return typeof process !== 'undefined' && process.release?.name === 'node';
+}
 
 export interface DatabaseAdapter {
   execAsync(sql: string): Promise<void>;
@@ -34,8 +30,7 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
     scanner_config: [],
   };
 
-  async execAsync(sql: string): Promise<void> {
-    // In-memory schema initialized
+  async execAsync(): Promise<void> {
   }
 
   async runAsync(sql: string, params: any[] = []): Promise<{ lastInsertRowId: number; changes: number }> {
@@ -198,7 +193,23 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       return [...this.tables.manifest_tickets] as any;
     }
     if (trimmed.includes('FROM PUBLIC_KEYS')) {
-      return [...this.tables.public_keys] as any;
+      // Phải lọc đúng theo WHERE thật của getActivePublicKey() - từng trả CẢ BẢNG không lọc, khiến
+      // mọi lookup theo kid cụ thể (kể cả kid KHÔNG tồn tại) vẫn âm thầm trả về key đầu tiên trong
+      // bảng, che mất chính lỗ hổng "kid không khớp vẫn được verify bằng key khác" mà regression
+      // test ở scripts/verify-staff-scanner.ts cần bắt được (môi trường Node/test chỉ có fallback
+      // in-memory này - không có SQLite thật để tự lọc đúng WHERE).
+      let rows = [...this.tables.public_keys];
+      if (trimmed.includes('KID = ?')) {
+        const kid = params[0];
+        rows = rows.filter((r) => r.kid === kid);
+      }
+      if (trimmed.includes('IS_ACTIVE = 1')) {
+        rows = rows.filter((r) => r.is_active === 1);
+      }
+      if (trimmed.includes('ORDER BY VALID_FROM DESC')) {
+        rows = rows.slice().sort((a, b) => String(b.valid_from).localeCompare(String(a.valid_from)));
+      }
+      return rows as any;
     }
     return [];
   }
@@ -214,49 +225,84 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
 }
 
 let dbInstance: DatabaseAdapter | null = null;
+let dbInitialization: Promise<DatabaseAdapter> | null = null;
 
 export async function getDatabase(): Promise<DatabaseAdapter> {
-  if (dbInstance) {
+  if (dbInstance) return dbInstance;
+  if (dbInitialization) return dbInitialization;
+
+  dbInitialization = initializeDatabase();
+  try {
+    dbInstance = await dbInitialization;
     return dbInstance;
+  } finally {
+    dbInitialization = null;
+  }
+}
+
+async function initializeDatabase(): Promise<DatabaseAdapter> {
+  if (isNodeTestEnvironment()) {
+    return createInMemoryDatabase();
   }
 
-  if (!isNativeApp()) {
-    console.log('[SQLite] Running in Web/Test environment — using InMemory SQLite Fallback');
-    const fallback = new InMemoryFallbackDatabase();
-    await initSchema(fallback);
-    dbInstance = fallback;
-    return dbInstance;
+  let platformOS: string;
+  try {
+    const { Platform } = await import('react-native');
+    platformOS = Platform.OS;
+  } catch (error) {
+    throw new Error(
+      `Không thể xác định nền tảng để khởi tạo SQLite offline; không sử dụng bộ nhớ tạm. Chi tiết: ${getErrorMessage(error)}`
+    );
   }
 
+  if (platformOS === 'web') {
+    return createInMemoryDatabase();
+  }
+  if (platformOS !== 'android' && platformOS !== 'ios') {
+    throw new Error(`SQLite offline không hỗ trợ nền tảng "${platformOS || 'không xác định'}".`);
+  }
+
+  let nativeDb: import('expo-sqlite').SQLiteDatabase;
   try {
     const SQLite = await import('./sqliteDriver');
-    const nativeDb = await SQLite.openDatabaseAsync(DB_NAME);
-
-    // Wrapper matching DatabaseAdapter interface
-    const adapter: DatabaseAdapter = {
-      execAsync: (sql: string) => nativeDb.execAsync(sql),
-      runAsync: (sql: string, params?: any[]) => nativeDb.runAsync(sql, ...(params || [])),
-      getAllAsync: <T = any>(sql: string, params?: any[]) => nativeDb.getAllAsync<T>(sql, ...(params || [])),
-      getFirstAsync: <T = any>(sql: string, params?: any[]) => nativeDb.getFirstAsync<T>(sql, ...(params || [])),
-      withTransactionAsync: async <T>(callback: () => Promise<T>): Promise<T> => {
-        let result: T;
-        await nativeDb.withTransactionAsync(async () => {
-          result = await callback();
-        });
-        return result!;
-      },
-    };
-
-    await initSchema(adapter);
-    dbInstance = adapter;
-    return dbInstance;
+    nativeDb = await SQLite.openDatabaseAsync(DB_NAME);
   } catch (error) {
-    console.warn('[SQLite] Failed to open native database, falling back to in-memory adapter:', error);
-    const fallback = new InMemoryFallbackDatabase();
-    await initSchema(fallback);
-    dbInstance = fallback;
-    return dbInstance;
+    throw new Error(
+      `Không thể mở cơ sở dữ liệu offline "${DB_NAME}". Ứng dụng sẽ không chuyển sang bộ nhớ tạm để tránh mất dữ liệu check-in. ` +
+      `Chi tiết: ${getErrorMessage(error)}`
+    );
   }
+
+  const adapter: DatabaseAdapter = {
+    execAsync: (sql: string) => nativeDb.execAsync(sql),
+    runAsync: (sql: string, params?: any[]) => nativeDb.runAsync(sql, ...(params || [])),
+    getAllAsync: <T = any>(sql: string, params?: any[]) => nativeDb.getAllAsync<T>(sql, ...(params || [])),
+    getFirstAsync: <T = any>(sql: string, params?: any[]) => nativeDb.getFirstAsync<T>(sql, ...(params || [])),
+    withTransactionAsync: async <T>(callback: () => Promise<T>): Promise<T> => {
+      let result: T;
+      await nativeDb.withTransactionAsync(async () => {
+        result = await callback();
+      });
+      return result!;
+    },
+  };
+
+  try {
+    await initSchema(adapter);
+    return adapter;
+  } catch (error) {
+    throw new Error(
+      `Không thể nâng cấp cơ sở dữ liệu offline "${DB_NAME}". Dữ liệu hiện có được giữ nguyên; ` +
+      `không xóa hoặc cài lại ứng dụng. Chi tiết: ${getErrorMessage(error)}`
+    );
+  }
+}
+
+async function createInMemoryDatabase(): Promise<DatabaseAdapter> {
+  console.log('[SQLite] Running in Web/Test environment — using InMemory SQLite adapter');
+  const fallback = new InMemoryFallbackDatabase();
+  await initSchema(fallback);
+  return fallback;
 }
 
 /**
@@ -363,36 +409,75 @@ async function initSchema(db: DatabaseAdapter): Promise<void> {
   `;
 
   await db.execAsync(schemaSql);
+  await migratePublicKeysSchema(db);
+}
 
-  const publicKeyColumns = await db.getAllAsync<{ name: string; notnull: number }>(
-    'PRAGMA table_info(public_keys)'
-  );
-  const hasRequiredValidityWindow = publicKeyColumns.some(
-    column => (column.name === 'valid_from' || column.name === 'valid_to') && column.notnull === 1
-  );
+/**
+ * Migrate known legacy public-key column names in place, preserving every key row.
+ * The table swap runs transactionally; unsupported schemas fail without dropping the source.
+ */
+export async function migratePublicKeysSchema(db: DatabaseAdapter): Promise<void> {
+  const columns = await db.getAllAsync<{ name: string; notnull: number }>('PRAGMA table_info(public_keys)');
+  if (columns.length === 0) return;
 
-  if (hasRequiredValidityWindow) {
-    await db.withTransactionAsync(async () => {
-      await db.execAsync(`
-        DROP TABLE IF EXISTS public_keys_migration;
-        CREATE TABLE public_keys_migration (
-          kid TEXT PRIMARY KEY,
-          algorithm TEXT NOT NULL,
-          public_key_pem TEXT NOT NULL,
-          valid_from TEXT,
-          valid_to TEXT,
-          is_active INTEGER NOT NULL DEFAULT 1
-        );
-      `);
-      await db.execAsync(`
-        INSERT OR IGNORE INTO public_keys_migration (
-          kid, algorithm, public_key_pem, valid_from, valid_to, is_active
-        )
-        SELECT kid, algorithm, public_key_pem, valid_from, valid_to, is_active
-        FROM public_keys;
-      `);
-      await db.execAsync('DROP TABLE public_keys');
-      await db.execAsync('ALTER TABLE public_keys_migration RENAME TO public_keys');
-    });
+  const columnNames = new Set(columns.map((column) => column.name));
+  const currentColumns = ['kid', 'algorithm', 'public_key_pem', 'valid_from', 'valid_to', 'is_active'];
+  const hasCurrentColumns = currentColumns.every((column) => columnNames.has(column));
+  const hasRequiredValidityWindow = columns.some(
+    (column) => (column.name === 'valid_from' || column.name === 'valid_to') && column.notnull === 1
+  );
+  if (hasCurrentColumns && !hasRequiredValidityWindow) return;
+
+  const migrationTable = await db.getFirstAsync<{ name: string }>(
+    `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`,
+    [PUBLIC_KEYS_MIGRATION_TABLE]
+  );
+  if (migrationTable) {
+    throw new Error(`Tồn tại bảng migration ${PUBLIC_KEYS_MIGRATION_TABLE}; cần kiểm tra thủ công trước khi tiếp tục.`);
   }
+
+  const expressions: Record<string, string | null> = {
+    kid: firstColumn(columnNames, ['kid', 'key_id', 'keyId', 'id']),
+    algorithm: firstColumn(columnNames, ['algorithm', 'alg']) || "'RS256'",
+    public_key_pem: firstColumn(columnNames, ['public_key_pem', 'publicKeyPem', 'public_key', 'publicKey', 'pem']),
+    valid_from: firstColumn(columnNames, ['valid_from', 'validFrom']) || "'1970-01-01T00:00:00.000Z'",
+    valid_to: firstColumn(columnNames, ['valid_to', 'validTo']) || "'9999-12-31T23:59:59.999Z'",
+    is_active: firstColumn(columnNames, ['is_active', 'isActive', 'active']) || '1',
+  };
+
+  if (!expressions.kid || !expressions.public_key_pem) {
+    throw new Error(
+      'Schema public_keys không được hỗ trợ; cần có định danh khóa (kid/key_id/id) và nội dung public key.'
+    );
+  }
+
+  await db.withTransactionAsync(async () => {
+    await db.execAsync(`ALTER TABLE public_keys RENAME TO ${PUBLIC_KEYS_MIGRATION_TABLE}`);
+    await db.execAsync(`
+      CREATE TABLE public_keys (
+        kid TEXT PRIMARY KEY,
+        algorithm TEXT NOT NULL,
+        public_key_pem TEXT NOT NULL,
+        valid_from TEXT,
+        valid_to TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1
+      )
+    `);
+    await db.execAsync(`
+      INSERT INTO public_keys (kid, algorithm, public_key_pem, valid_from, valid_to, is_active)
+      SELECT ${expressions.kid}, ${expressions.algorithm}, ${expressions.public_key_pem},
+             ${expressions.valid_from}, ${expressions.valid_to}, ${expressions.is_active}
+      FROM ${PUBLIC_KEYS_MIGRATION_TABLE}
+    `);
+    await db.execAsync(`DROP TABLE ${PUBLIC_KEYS_MIGRATION_TABLE}`);
+  });
+}
+
+function firstColumn(columnNames: Set<string>, candidates: string[]): string | null {
+  const column = candidates.find((candidate) => columnNames.has(candidate));
+  return column ? `"${column}"` : null;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

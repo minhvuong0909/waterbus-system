@@ -205,9 +205,13 @@ jobs:
         with:
           version: 10
 
+      # Expo SDK 58 / React Native 0.88 khai báo "engines.node": "^22.13.0 || ^24.3.0 || ^26.0.0 ||
+      # >=27.0.0" - Node 20 (dùng trước khi nâng SDK) nằm NGOÀI dải này. pnpm không chặn cứng
+      # (không set engine-strict) nên CI vẫn "chạy được" trên Node 20, nhưng không đúng dải hỗ trợ
+      # chính thức của bản SDK đang dùng - chuyển hẳn sang Node 22 (nằm trong "^22.13.0").
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
           cache-dependency-path: waterbus-mobile/myApp/pnpm-lock.yaml
 

@@ -4,7 +4,6 @@ import { Ionicons } from "@expo/vector-icons";
 export default function TabLayout() {
   return (
     <Tabs
-      initialRouteName="scanner"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#0284C7",
@@ -15,7 +14,7 @@ export default function TabLayout() {
         options={{
           title: "Soát Vé",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="qr-code-outline" size={size} color={color} />
+            <Ionicons name="qr-code-outline" size={size} color={color as string} />
           ),
         }}
       />
@@ -24,7 +23,7 @@ export default function TabLayout() {
         options={{
           title: "Tải Vé",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cloud-download-outline" size={size} color={color} />
+            <Ionicons name="cloud-download-outline" size={size} color={color as string} />
           ),
         }}
       />
@@ -33,7 +32,7 @@ export default function TabLayout() {
         options={{
           title: "Cài Đặt",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
+            <Ionicons name="settings-outline" size={size} color={color as string} />
           ),
         }}
       />
