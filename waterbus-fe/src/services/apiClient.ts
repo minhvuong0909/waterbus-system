@@ -2,6 +2,10 @@ import { API_BASE_URL } from '../constant/env'
 import { getLocale } from '../i18n/translate'
 import { getToken } from './authStorage'
 
+/** True when the backend answered that the thing does not exist or is not this user's (404/403). */
+export const isNotFound = (error: unknown): boolean =>
+  error instanceof ApiError && (error.status === 404 || error.status === 403)
+
 /** Error raised for any failed request. `status` is 0 when the server could not be reached. */
 export class ApiError extends Error {
   readonly status: number

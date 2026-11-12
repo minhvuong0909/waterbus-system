@@ -7,6 +7,7 @@ export interface Ticket {
   lineName: string
   /** Short label next to the trip code, e.g. "Return Route". */
   routeTag: string
+  bookingId: string
   bookingRef: string
   /** Code encoded in the boarding QR. */
   ticketCode: string
@@ -58,8 +59,74 @@ export interface ManageBooking {
   bookingCode: string
   ticket: Ticket
   orderId: string
+  /** Token Guest đang dùng để mở đơn; null khi đơn được mở bằng tài khoản Passenger sở hữu nó. */
+  accessToken: string | null
   /** Link quản lý vé để khách lưu lại; không có khi đơn không có token Guest. */
   manageUrl?: string
+}
+
+/** Token của một secure link vừa cấp (BE `AccessTokenResponse`); backend chỉ trả một lần. */
+export interface AccessLink {
+  accessToken: string
+  expiresAt: string
+}
+
+/** Một trang kết quả (BE `PaginatedList<T>`). */
+export interface Page<T> {
+  items: T[]
+  pageNumber: number
+  totalPages: number
+  totalCount: number
+}
+
+/** BE `MyOrderBookingDto`. */
+export interface AccountOrderBooking {
+  bookingId: string
+  bookingCode: string
+  tripId: string
+  routeName: string
+  departureTime: string
+  bookingStatus: string
+  paymentStatus: string
+  ticketCount: number
+}
+
+/** Một đơn trong lịch sử của tài khoản Passenger (BE `MyOrderSummaryDto`). */
+export interface AccountOrder {
+  orderId: string
+  orderStatus: string
+  purchaseMode: 'OneWay' | 'RoundTrip'
+  quotedTotal: number
+  currency: string
+  createdAt: string
+  confirmedAt: string | null
+  bookings: AccountOrderBooking[]
+}
+
+/** BE `TripAccessTicketDto`. */
+export interface SharedTripPassenger {
+  passengerName: string
+  seatCode: string
+  ticketStatus: string
+  boardingStatus: string
+}
+
+/**
+ * Hành trình xem qua Passenger TripAccess Link (BE `TripAccessDto`, BR-ID-05): không có giá,
+ * thanh toán, thông tin người mua hay QR.
+ */
+export interface SharedTrip {
+  bookingCode: string
+  tripId: string
+  routeName: string
+  /** Giờ khởi hành và cập bến cuối của cả chuyến, không phải của riêng chặng đã đặt. */
+  departureTime: string
+  arrivalTime: string
+  tripStatus: string
+  boardingStation: string
+  disembarkingStation: string
+  bookingStatus: string
+  tickets: SharedTripPassenger[]
 }
 
 /** Một đơn đã mua trên thiết bị này, kèm token Guest để mở lại (BR-ID-02). */

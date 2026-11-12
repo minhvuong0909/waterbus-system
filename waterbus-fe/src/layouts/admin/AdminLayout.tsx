@@ -22,7 +22,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth()
   const items = ADMIN_NAV.filter((item) => hasAnyRole(user, item.roles))
   const { pathname } = useLocation()
-  const current = items.find((item) => item.to === pathname)
+  // A sub-page such as the seats of a boat belongs to the section it was opened from.
+  const current =
+    items.find((item) => item.to === pathname) ??
+    items.find((item) => item.to !== ROUTES.admin && pathname.startsWith(`${item.to}/`))
   const [menuPath, setMenuPath] = useState<string | null>(null)
   const menuOpen = menuPath === pathname
   const menuButton = useRef<HTMLButtonElement>(null)

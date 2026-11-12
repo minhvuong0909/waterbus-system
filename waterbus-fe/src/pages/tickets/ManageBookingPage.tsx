@@ -1,12 +1,14 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Breadcrumb, Button, ErrorState, PageLoader } from '../../components/ui'
 import BookingSummaryCard from '../../features/tickets/components/BookingSummaryCard'
-import ManageLinkCard from '../../features/tickets/components/ManageLinkCard'
 import BookingLinkPrompt from '../../features/tickets/components/BookingLinkPrompt'
+import OrderAccessCard from '../../features/tickets/components/OrderAccessCard'
+import ShareTripCard from '../../features/tickets/components/ShareTripCard'
 import RefundPolicyCard from '../../features/tickets/components/RefundPolicyCard'
 import { useManageBooking } from '../../features/tickets/hooks/useTickets'
 import { forgetOrder } from '../../features/tickets/orderStorage'
 import { hasOrderToManage } from '../../features/tickets/services/ticketService'
+import { useAuth } from '../../features/authentication/hooks/useAuth'
 import { useDocumentTitle } from '../../hooks'
 import { ApiError } from '../../services/apiClient'
 import { ROUTES } from '../../routes/routes'
@@ -16,7 +18,14 @@ export default function ManageBookingPage() {
   useDocumentTitle('Manage Booking')
   const navigate = useNavigate()
   const { token } = useParams()
+  const { pathname, search } = useLocation()
+  const { user } = useAuth()
   const { manage, loading, error, retry } = useManageBooking(token)
+
+  // Đơn của tài khoản (`?orderId=` không kèm token) chỉ mở được sau khi đăng nhập.
+  if (!token && !user && new URLSearchParams(search).has('orderId')) {
+    return <Navigate to={ROUTES.signIn} state={{ from: pathname + search }} replace />
+  }
 
   // Không có link và tab này chưa đặt đơn nào: cho khách dán link đã lưu thay vì báo lỗi.
   if (!hasOrderToManage(token)) {
@@ -82,29 +91,34 @@ export default function ManageBookingPage() {
         <BookingSummaryCard ticket={manage.ticket} />
       </div>
 
-      {manage.manageUrl && (
-        <div className="mt-space-md">
-          <ManageLinkCard url={manage.manageUrl} />
-        </div>
-      )}
+      <div className="mt-space-md grid grid-cols-1 items-start gap-space-md lg:grid-cols-2">
+        <ShareTripCard
+          orderId={manage.orderId}
+          bookingId={manage.ticket.bookingId}
+          accessToken={manage.accessToken}
+        />
+        <OrderAccessCard orderId={manage.orderId} accessToken={manage.accessToken} />
+      </div>
 
       <div className="mt-space-md">
         <RefundPolicyCard />
       </div>
 
-      <div className="mt-space-lg flex justify-end">
-        <Button
-          variant="text"
-          size="sm"
-          icon="delete"
-          onClick={() => {
-            forgetOrder(manage.orderId)
-            navigate(ROUTES.myTickets)
-          }}
-        >
-          {t('Remove from this device')}
-        </Button>
-      </div>
+      {manage.accessToken !== null && (
+        <div className="mt-space-lg flex justify-end">
+          <Button
+            variant="text"
+            size="sm"
+            icon="delete"
+            onClick={() => {
+              forgetOrder(manage.orderId)
+              navigate(ROUTES.myTickets)
+            }}
+          >
+            {t('Remove from this device')}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

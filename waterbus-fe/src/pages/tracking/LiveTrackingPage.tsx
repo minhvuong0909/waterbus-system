@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import FleetMap from '../../components/map/FleetMap'
 import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
+import { isNotFound } from '../../services/apiClient'
 import { isGuid } from '../../utils/guid'
 import StopTimeline from '../../features/tracking/components/StopTimeline'
 import { useTripTracking } from '../../features/tracking/hooks/useTripTracking'
@@ -29,6 +30,16 @@ function NoTripChosen() {
 function TripTracking({ tripId }: { tripId: string }) {
   const { data: trip, error, retry, position, signedIn } = useTripTracking(tripId)
 
+  if (isNotFound(error)) {
+    return (
+      <ErrorState
+        icon="directions_boat"
+        title={t('Trip not found')}
+        message={t('Open the trip from one of your tickets.')}
+        action={{ label: t('My Tickets'), to: ROUTES.myTickets }}
+      />
+    )
+  }
   if (error) return <ErrorState onRetry={retry} />
   if (!trip) return <PageLoader />
 

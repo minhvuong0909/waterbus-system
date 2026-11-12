@@ -7,6 +7,7 @@ import TicketBoardingPass from '../../features/tickets/components/TicketBoarding
 import TicketCorridorCard from '../../features/tickets/components/TicketCorridorCard'
 import { useTicketDetail } from '../../features/tickets/hooks/useTickets'
 import { useDocumentTitle } from '../../hooks'
+import { isNotFound } from '../../services/apiClient'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 
@@ -15,6 +16,18 @@ export default function TicketDetailPage() {
   const { ticket, loading, error, retry } = useTicketDetail()
   const [qrOpen, setQrOpen] = useState(false)
 
+  if (isNotFound(error)) {
+    return (
+      <ErrorState
+        icon="confirmation_number"
+        title={t('No ticket to show')}
+        message={t(
+          'Open a ticket from My Tickets, or paste the booking link you saved after payment.',
+        )}
+        action={{ label: t('My Tickets'), to: ROUTES.myTickets }}
+      />
+    )
+  }
   if (error) return <ErrorState onRetry={retry} />
 
   if (loading || !ticket) return <PageLoader />

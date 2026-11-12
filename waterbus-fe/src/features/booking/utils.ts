@@ -69,30 +69,6 @@ export function seatTags(seat: Seat | undefined): string {
     .join(' • ')
 }
 
-/** "Seat S01 (Window)" for one seat, "Seats S01, F03" for several. */
-export function selectedSeatsLabel(seats: Seat[]): string {
-  if (seats.length === 1) {
-    const tags = seatTags(seats[0])
-    return tags
-      ? t('Seat {id} ({tags})', { id: seats[0].code, tags })
-      : t('Seat {id}', { id: seats[0].code })
-  }
-  return t('Seats {ids}', { ids: seatCodes(seats) })
-}
-
-/** "Portside Window", "Starboard Aisle"... */
-export function seatPosition(seat: Seat | undefined): string {
-  if (!seat) return t('Main Saloon')
-  const side = seat.column === 'A' || seat.column === 'B' ? 'Portside' : 'Starboard'
-  const kind = seat.window ? 'Window' : 'Aisle'
-  return t(`${side} ${kind}`)
-}
-
-/** Cabin the seat is in, e.g. "Front Cabin"; "Main Saloon" until the seat is known. */
-export function seatZone(seat: Seat | undefined): string {
-  return seat ? cabinLabel(seat.category) : t('Main Saloon')
-}
-
 /** Purchaser phone as the backend expects it: digits only with a leading 0, or undefined when none. */
 export function toCustomerPhone(purchaser: Pick<PurchaserForm, 'phone'>): string | undefined {
   const digits = purchaser.phone.replace(/\D/g, '')

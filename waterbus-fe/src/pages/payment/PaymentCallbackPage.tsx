@@ -4,6 +4,7 @@ import { useOrderConfirmation } from '../../features/payment/hooks/useOrderConfi
 import { verifyVnPayReturn } from '../../features/payment/services/paymentService'
 import { vnPayFailureMessage } from '../../features/payment/utils'
 import { useFetch, useDocumentTitle } from '../../hooks'
+import { ApiError } from '../../services/apiClient'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 
@@ -24,12 +25,8 @@ export default function PaymentCallbackPage() {
   const confirmation = useOrderConfirmation()
   const { phase } = confirmation
 
-  if (result.error) return <ErrorState onRetry={result.retry} />
   if (phase === 'confirmed') return <Navigate to={ROUTES.bookingSuccess} replace />
-  if (result.loading || !result.data) return <PageLoader />
-
-  const { success, merchantReference, responseCode } = result.data
-
+  // Không có đơn nào trong tab này (mở link cũ, tab khác): kết quả VNPay không gắn được với đơn nào.
   if (phase === 'none') {
     return (
       <Notice
@@ -43,6 +40,22 @@ export default function PaymentCallbackPage() {
       </Notice>
     )
   }
+  if (result.error) {
+    // Backend từ chối kết quả (sai chữ ký, thiếu tham số): không phải lỗi mạng nên không cần "thử lại".
+    return result.error instanceof ApiError && result.error.status !== 0 ? (
+      <ErrorState
+        icon="gpp_maybe"
+        title={t('We could not verify this payment result')}
+        message={t('Check your booking in My Tickets; your tickets appear there once the payment is confirmed.')}
+        action={{ label: t('My Tickets'), to: ROUTES.myTickets }}
+      />
+    ) : (
+      <ErrorState onRetry={result.retry} />
+    )
+  }
+  if (result.loading || !result.data) return <PageLoader />
+
+  const { success, merchantReference, responseCode } = result.data
 
   if (success && phase === 'pending') {
     return (

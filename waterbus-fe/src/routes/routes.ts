@@ -3,7 +3,6 @@ export const ROUTES = {
   home: '/',
   signIn: '/sign-in',
   searchResults: '/search/results',
-  tripDetail: '/trip',
   seatSelection: '/booking/seats',
   passengerDetails: '/booking/passenger',
   checkoutReview: '/booking/review',
@@ -15,6 +14,10 @@ export const ROUTES = {
   manageBooking: '/tickets/manage',
   /** Secure link to one booking, sent to the traveler. `:token` is issued by the backend. */
   manageByLink: '/manage/:token',
+  /** Passenger: every order of the signed-in account. */
+  orderHistory: '/account/orders',
+  /** Passenger TripAccess Link shared by the buyer; shows the journey only (BR-ID-05). */
+  sharedTrip: '/shared-trip/:token',
   liveTracking: '/tracking',
   explore: '/explore',
   help: '/help',
@@ -24,6 +27,11 @@ export const ROUTES = {
   adminTrips: '/admin/trips',
   adminStations: '/admin/stations',
   adminBoats: '/admin/boats',
+  /** Seats of one boat, `?boatId=`. */
+  adminBoatSeats: '/admin/boats/seats',
+  adminSeatClasses: '/admin/seat-classes',
+  adminRoutes: '/admin/routes',
+  adminSchedules: '/admin/schedules',
   adminFares: '/admin/fares',
   adminIncidents: '/admin/incidents',
   adminRefunds: '/admin/refunds',
