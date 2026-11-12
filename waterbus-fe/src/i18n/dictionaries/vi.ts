@@ -17,10 +17,7 @@ export const vi: Record<string, string> = {
   'This trip is no longer available. Please search again.': 'Chuyến này không còn khả dụng. Vui lòng tìm lại.',
   '© {year} Smart Waterbus. River Connects Greater Stories.': '© {year} Smart Waterbus. Dòng sông kết nối những câu chuyện lớn.',
   'Next Departure': 'Chuyến tiếp theo',
-  'All Trips': 'Tất cả chuyến',
   'From {pier}': 'Khởi hành từ {pier}',
-  'Pay online through VNPay; your e-ticket is issued once the payment is confirmed.':
-    'Thanh toán trực tuyến qua VNPay; vé điện tử được phát hành khi thanh toán được xác nhận.',
   'A boat needs at least one seat.': 'Tàu cần có ít nhất một ghế.',
   'Actions': 'Thao tác',
   'Add boat': 'Thêm tàu',
@@ -221,7 +218,6 @@ export const vi: Record<string, string> = {
   'Bach Dang Pier (D1)': 'Bến Bạch Đằng (Q1)',
   'Back to home': 'Về trang chủ',
   'Back to My Tickets': 'Về Vé của tôi',
-  'Board with QR': 'Lên tàu bằng mã QR',
   Boarding: 'Lên tàu',
   'Boarding Guidance': 'Hướng dẫn lên tàu',
   'Boarding QR': 'Mã QR lên tàu',
@@ -237,7 +233,6 @@ export const vi: Record<string, string> = {
   'Change Trip': 'Đổi chuyến',
   'Change Trip / Seat': 'Đổi chuyến / ghế',
   Checkout: 'Xác nhận',
-  'Choose Seat': 'Chọn ghế',
   'Choose Your Seat': 'Chọn ghế của bạn',
   Close: 'Đóng',
   'Complete Your Payment': 'Hoàn tất thanh toán',
@@ -293,7 +288,6 @@ export const vi: Record<string, string> = {
   'Hold near scanner or present to boarding staff':
     'Đưa gần máy quét hoặc xuất trình cho nhân viên',
   Home: 'Trang chủ',
-  'How It Works': 'Cách hoạt động',
   'I confirm that the booking details above are correct. I accept the':
     'Tôi xác nhận thông tin đặt chỗ ở trên là chính xác và chấp nhận',
   'Journey Details': 'Chi tiết hành trình',
@@ -351,6 +345,7 @@ export const vi: Record<string, string> = {
   'Leaves before your outbound trip arrives': 'Khởi hành trước khi chuyến đi đến nơi',
   'Choose your return seats': 'Chọn ghế chiều về',
   'Choose your outbound seats': 'Chọn ghế chiều đi',
+  'No departures are scheduled yet.': 'Chưa có chuyến nào được lên lịch.',
   'Sightseeing trips only.': 'Chỉ hiện chuyến ngắm cảnh.',
   'Show all trips': 'Xem tất cả chuyến',
   'No sightseeing trips on this day.': 'Ngày này không có chuyến ngắm cảnh.',
@@ -399,14 +394,10 @@ export const vi: Record<string, string> = {
   Passengers: 'Hành khách',
   Password: 'Mật khẩu',
   'Past Journeys': 'Chuyến đã đi',
-  'Pay Securely': 'Thanh toán an toàn',
   Payment: 'Thanh toán',
   'Payment Method': 'Phương thức thanh toán',
   'Payment Received • Booking Confirmed': 'Đã nhận thanh toán • Đặt chỗ thành công',
   'Phone Number': 'Số điện thoại',
-  'Pick your departure station, destination pier, and preferred schedule.':
-    'Chọn bến đi, bến đến và giờ đi mong muốn.',
-  'Plan Journey': 'Lên hành trình',
   'Please accept the Waterway Carriage Rules to continue.':
     'Vui lòng chấp nhận Quy tắc vận chuyển đường thủy để tiếp tục.',
   'Please enter traveler information for this crossing.':
@@ -430,8 +421,6 @@ export const vi: Record<string, string> = {
   Riverside: 'Ven sông',
   'Saigon River {line} • {code}': 'Sông Sài Gòn {line} • {code}',
   'Scan at turnstile barrier': 'Quét tại cổng soát vé',
-  'Show your QR code to the staff at your boarding pier within its check-in window, then board.':
-    'Đưa mã QR cho nhân viên tại bến lên trong khung giờ check-in của bến, rồi lên tàu.',
   Scheduled: 'Theo lịch',
   'Scheduled Crossing': 'Thời gian qua sông',
   'Scheduled docking at {pier}.': 'Dự kiến đến {pier}.',
@@ -439,8 +428,6 @@ export const vi: Record<string, string> = {
   'Seat {id}': 'Ghế {id}',
   'See the City Differently from the River': 'Ngắm thành phố khác đi từ dòng sông',
   Select: 'Chọn',
-  'Pick a seat in the front cabin, the standard cabin or on the open deck; each class has its own fare.':
-    'Chọn ghế ở khoang trước, khoang tiêu chuẩn hoặc boong ngoài trời; mỗi hạng ghế có giá riêng.',
   'Select Trip': 'Chọn chuyến',
   'Select your river crossing across the Saigon River transit corridor.':
     'Chọn chuyến phù hợp với giờ bạn muốn đi.',
@@ -565,18 +552,6 @@ export const vi: Record<string, string> = {
     'Trên các chuyến tham quan, câu chuyện về những nơi tàu đi qua được phát qua loa trên tàu.',
   'Plan a trip from here':
     'Đặt chuyến từ bến này',
-  'Depart from here':
-    'Đi từ bến này',
-  'Photos coming soon':
-    'Ảnh sẽ sớm được cập nhật',
-  '{name}, photo {current} of {total}':
-    '{name}, ảnh {current}/{total}',
-  'Previous photo':
-    'Ảnh trước',
-  'Next photo':
-    'Ảnh tiếp theo',
-  'Photo {number}':
-    'Ảnh {number}',
   'This trip does not stop at both of the chosen piers.': 'Chuyến này không dừng ở cả hai bến đã chọn.',
   'Preparing your order…': 'Đang chuẩn bị đơn hàng…',
   'We couldn’t prepare your order just now. Please check your connection and try again.': 'Chưa chuẩn bị được đơn hàng. Vui lòng kiểm tra kết nối và thử lại.',
@@ -644,32 +619,17 @@ export const vi: Record<string, string> = {
   'Book the return trip': 'Đặt chuyến về',
   'Upcoming departures': 'Chuyến sắp khởi hành',
   'No more departures today. Here is tomorrow’s timetable from {pier}.': 'Hôm nay không còn chuyến nào. Đây là lịch ngày mai từ {pier}.',
-  'No departures of this type are scheduled yet.': 'Chưa có chuyến nào thuộc loại này.',
   'View the full timetable': 'Xem toàn bộ lịch chạy',
-  'River corridor map': 'Bản đồ hành lang sông',
   'Support Hotline': 'Hotline hỗ trợ',
   'Saigon River Waterbus': 'Tàu buýt đường sông Sài Gòn',
   'Pier network': 'Hệ thống bến tàu',
   'Piers along the Saigon River, from {first} to {last}. Choose a pier to see where it is.': 'Các bến dọc sông Sài Gòn, từ {first} đến {last}. Chọn một bến để xem vị trí và đặt vé.',
   'Pier list': 'Danh sách bến',
-  'Pier {n} of {total}': 'Bến {n}/{total}',
-  'First pier': 'Bến đầu tuyến',
-  'Last pier': 'Bến cuối tuyến',
-  'Intermediate pier': 'Bến trung gian',
   'Get directions': 'Chỉ đường',
-  'Previous pier': 'Bến trước',
-  'Next pier': 'Bến kế tiếp',
-  'Photo {n}': 'Ảnh {n}',
   'Nearby': 'Gần bến',
   'About {distance}': 'Khoảng {distance}',
   'Inside the pier': 'Ngay trong bến',
   'Opposite the pier': 'Đối diện bến',
-  'Distances are approximate.': 'Khoảng cách chỉ mang tính tham khảo.',
-  'Along the Saigon River': 'Dọc sông Sài Gòn',
-  'Play slideshow': 'Chạy trình chiếu',
-  'Pause slideshow': 'Dừng trình chiếu',
-  '{name}, photo gallery': '{name}, thư viện ảnh',
-  'photo {current} of {total}': 'ảnh {current}/{total}',
   Tomorrow: 'Ngày mai',
   'Departed': 'Đã khởi hành',
   'No trips': 'Hết chuyến',
