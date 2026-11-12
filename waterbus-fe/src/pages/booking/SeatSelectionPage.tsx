@@ -1,20 +1,20 @@
-import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
-import HoldCountdown from '../../features/booking/components/HoldCountdown'
-import SeatMapView from '../../features/booking/components/SeatMapView'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ErrorState, Icon, PageLoader } from '../../components/ui'
+import BookingStepHeader from '../../features/booking/components/BookingStepHeader'
+import NoTripSelected from '../../features/booking/components/NoTripSelected'
+import OrderSummary from '../../features/booking/components/OrderSummary'
 import SeatLegend from '../../features/booking/components/SeatLegend'
-import BookingSummary from '../../features/booking/components/BookingSummary'
-import TripStrip from '../../features/booking/components/TripStrip'
+import SeatMapView from '../../features/booking/components/SeatMapView'
+import SummaryAction, { SUMMARY_LINK_CLASS } from '../../features/booking/components/SummaryAction'
+import { useBooking } from '../../features/booking/hooks/useBooking'
 import { RETURN_RESULTS, useSeatHold } from '../../features/booking/hooks/useCheckout'
 import { isRoundTrip } from '../../features/booking/legs'
 import type { Leg } from '../../features/booking/legs'
-import { useSearchParams } from 'react-router-dom'
-import { useAppSelector } from '../../store/hooks'
-import { useBooking } from '../../features/booking/hooks/useBooking'
 import { MAX_SEATS_PER_BOOKING, seatCodes } from '../../features/booking/utils'
 import { useDocumentTitle } from '../../hooks'
-import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
-import NoTripSelected from '../../features/booking/components/NoTripSelected'
+import { ROUTES } from '../../routes/routes'
+import { useAppSelector } from '../../store/hooks'
 
 export default function SeatSelectionPage() {
   useDocumentTitle('Choose Your Seat')
@@ -34,56 +34,35 @@ export default function SeatSelectionPage() {
   if (loading || !trip || !seatMap || !totals) return <PageLoader />
   // BR-TIME-01: sales close before the trip leaves its first pier; seats can no longer be picked.
   const salesOpen = seatMap.canBook !== false
+  const takenSeats = seats.filter((seat) => seat.status !== 'available')
+  // An empty selection, or one with a seat somebody else took, must not reach checkout.
+  const canContinue = salesOpen && seats.length > 0 && takenSeats.length === 0
+  const heldOnContinue = (
+    <span className="inline-flex items-center gap-1 rounded-xl bg-surface-container px-space-md py-2 text-xs font-semibold text-teal-flow">
+      <Icon name="timer" className="text-sm" /> {t('Seats are held once you continue')}
+    </span>
+  )
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
-      <Breadcrumb
-        items={[
-          { label: 'Home', to: ROUTES.home },
-          { label: 'Search Results', to: leg === 'return' ? RETURN_RESULTS : ROUTES.searchResults },
-          ...(leg === 'return' ? [] : [{ label: t('Trip {code}', { code: trip.vesselCode }), to: ROUTES.tripDetail }]),
-          { label: 'Choose Your Seat' },
-        ]}
+    <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-lg">
+      <BookingStepHeader
+        step="Seat"
+        title={
+          roundTrip
+            ? leg === 'return'
+              ? t('Choose your return seats')
+              : t('Choose your outbound seats')
+            : t('Choose Your Seat')
+        }
+        description={
+          leg === 'return' && outboundSeatCount > 0
+            ? t('You picked {count} seats for the outbound trip.', { count: outboundSeatCount })
+            : t('Tap an available seat to select it. Up to {max} seats per booking.', {
+                max: MAX_SEATS_PER_BOOKING,
+              })
+        }
+        countdownFallback={heldOnContinue}
       />
-      <div className="mt-2 flex flex-col justify-between gap-space-md md:flex-row md:items-end">
-        <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-flow/20 bg-secondary-container/60 px-2.5 py-0.5 text-xs font-semibold text-teal-flow">
-            <Icon name="airline_seat_recline_extra" className="text-sm" />
-            {roundTrip
-              ? leg === 'return'
-                ? t('Return trip · seats')
-                : t('Outbound trip · seats')
-              : t('Step 2 of 5: Seat Selection')}
-          </span>
-          <h1 className="mt-1 font-display text-headline-lg tracking-tight text-deep-river">
-            {leg === 'return' ? t('Choose your return seats') : t('Choose Your Seat')}
-          </h1>
-          {leg === 'return' && outboundSeatCount > 0 && (
-            <p className="mt-1 text-sm text-on-surface-variant">
-              {t('You picked {count} seats for the outbound trip.', { count: outboundSeatCount })}
-            </p>
-          )}
-        </div>
-        <div className="self-start md:self-auto lg:hidden">
-          <HoldCountdown
-            fallback={
-              <span className="inline-flex items-center gap-1 rounded-xl bg-white px-space-md py-2 text-xs font-semibold text-teal-flow shadow-sm">
-                <Icon name="timer" className="text-sm" /> {t('Seats are held once you continue')}
-              </span>
-            }
-          />
-        </div>
-      </div>
-
-      <div className="mt-space-md space-y-space-md">
-        <TripStrip trip={trip} seats={seats} totalVnd={totals.totalVnd} />
-        <p className="flex items-center gap-2 rounded-xl border border-teal-flow/20 bg-sand-light/60 px-space-md py-2 text-xs text-on-surface-variant">
-          <Icon name="touch_app" className="text-lg text-teal-flow" />
-          {t('Tap an available seat to select it. Up to {max} seats per booking.', {
-            max: MAX_SEATS_PER_BOOKING,
-          })}
-        </p>
-      </div>
 
       {!salesOpen && (
         <p
@@ -95,55 +74,66 @@ export default function SeatSelectionPage() {
         </p>
       )}
 
-      {seats.some((s) => s.status !== 'available') && (
+      {takenSeats.length > 0 && (
         <p
           role="alert"
           className="mt-space-md rounded-xl border border-coral-glow/30 bg-coral-glow/10 px-space-md py-2 text-sm text-deep-river"
         >
           {t('Seat {id} was just taken by another traveler. Please choose another seat.', {
-            id: seatCodes(seats.filter((s) => s.status !== 'available')),
+            id: seatCodes(takenSeats),
           })}
         </p>
       )}
 
-      <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
-        <div className="space-y-space-md lg:col-span-7">
-          <div className="rounded-2xl bg-white p-space-lg shadow-card">
-            <div className="mb-space-md flex flex-wrap items-start justify-between gap-space-md">
-              <div>
-                <h2 className="flex items-center gap-2 font-display text-headline-sm text-deep-river">
-                  <span className="h-2 w-2 rounded-full bg-teal-flow" />
-                  {seatMap.vesselName}
-                </h2>
-                <p className="text-xs text-on-surface-variant">
-                  {t('{count} seats • live availability', { count: seatMap.seats.length })}
-                </p>
-              </div>
-              <SeatLegend />
+      <div className="mt-space-lg grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
+        <div className="rounded-2xl bg-white p-space-lg shadow-card lg:col-span-8">
+          <div className="mb-space-md flex flex-wrap items-start justify-between gap-space-md">
+            <div>
+              <h2 className="font-display text-headline-sm text-deep-river">{seatMap.vesselName}</h2>
+              <p className="text-xs text-on-surface-variant">
+                {t('{count} seats • live availability', { count: seatMap.seats.length })}
+              </p>
             </div>
-            <SeatMapView
-              seatMap={seatMap}
-              selectedIds={seatIds}
-              onSelect={salesOpen ? toggleSeat : () => undefined}
-            />
+            <SeatLegend />
           </div>
-        </div>
-        <div className="lg:col-span-5 lg:self-stretch">
-          <BookingSummary
-            trip={trip}
-            seats={seats}
-            totals={totals}
-            limitReached={seatLimitReached}
-            canBook={salesOpen}
-            onContinue={() => hold.submit(leg, trip.id, seatMap.journey)}
-            continueLabel={roundTrip && leg === 'outbound' ? t('Continue to the return trip') : undefined}
-            changeTripTo={leg === 'return' ? RETURN_RESULTS : undefined}
-            busy={hold.busy}
-            failure={hold.failure}
+          <SeatMapView
+            seatMap={seatMap}
+            selectedIds={seatIds}
+            onSelect={salesOpen ? toggleSeat : () => undefined}
           />
         </div>
+        <div className="lg:col-span-4 lg:self-stretch">
+          <OrderSummary trip={trip} seats={seats} totals={totals} countdownFallback={heldOnContinue}>
+            {seatLimitReached && (
+              <p role="status" className="mt-space-sm text-xs text-coral-glow">
+                {t('You can book up to {max} seats at a time.', { max: MAX_SEATS_PER_BOOKING })}
+              </p>
+            )}
+            <SummaryAction
+              label={
+                hold.busy
+                  ? t('Holding your seat…')
+                  : roundTrip && leg === 'outbound'
+                    ? t('Continue to the return trip')
+                    : t('Continue to Passenger Details')
+              }
+              onClick={() => hold.submit(leg, trip.id, seatMap.journey)}
+              disabled={!canContinue || hold.busy}
+              note={salesOpen ? undefined : t('Ticket sales are closed for this trip.')}
+              error={
+                hold.failure &&
+                (hold.failure.message ||
+                  t('We couldn’t hold your seat just now. Please check your connection and try again.'))
+              }
+            />
+            <div className="mt-space-sm text-center">
+              <Link to={leg === 'return' ? RETURN_RESULTS : ROUTES.searchResults} className={SUMMARY_LINK_CLASS}>
+                {t('Change Trip')}
+              </Link>
+            </div>
+          </OrderSummary>
+        </div>
       </div>
-
     </div>
   )
 }

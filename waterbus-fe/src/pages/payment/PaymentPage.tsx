@@ -1,13 +1,12 @@
 import { Navigate } from 'react-router-dom'
-import { Breadcrumb, ErrorState, PageLoader } from '../../components/ui'
-import BookingProgress from '../../features/booking/components/BookingProgress'
+import { ErrorState, PageLoader } from '../../components/ui'
+import BookingStepHeader from '../../features/booking/components/BookingStepHeader'
+import OrderSummary from '../../features/booking/components/OrderSummary'
 import { useBooking } from '../../features/booking/hooks/useBooking'
-import type { BookingStep } from '../../features/booking/types'
-import { addTotals, seatCodes } from '../../features/booking/utils'
+import { addTotals } from '../../features/booking/utils'
 import { isRoundTrip } from '../../features/booking/legs'
+import PaymentActions from '../../features/payment/components/PaymentActions'
 import PaymentMethodPanel from '../../features/payment/components/PaymentMethodPanel'
-import HoldCountdown from '../../features/booking/components/HoldCountdown'
-import PaymentOrderSummary from '../../features/payment/components/PaymentOrderSummary'
 import { useDocumentTitle } from '../../hooks'
 import { useAppSelector } from '../../store/hooks'
 import { ROUTES } from '../../routes/routes'
@@ -55,50 +54,15 @@ export default function PaymentPage() {
   const totals = addTotals(outbound.totals, roundTrip ? back.totals : undefined)
   const returnLeg = roundTrip && back.trip ? { trip: back.trip, seats: back.seats } : undefined
 
-  const steps: BookingStep[] = [
-    { label: 'Trip', detail: trip.lineLabel },
-    {
-      label: 'Seat',
-      detail: returnLeg ? `${seatCodes(seats)} · ${seatCodes(returnLeg.seats)}` : seatCodes(seats),
-    },
-    { label: 'Passengers', detail: purchaser.fullName },
-    { label: 'Checkout', detail: 'Awaiting payment' },
-    { label: 'Payment', detail: 'VNPay' },
-  ]
-
   return (
-    <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
-      <div>
-        <Breadcrumb
-          items={[
-            { label: 'Home', to: ROUTES.home },
-            { label: 'Booking', to: ROUTES.seatSelection },
-            { label: 'Payment' },
-          ]}
-        />
-      </div>
+    <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-lg">
+      <BookingStepHeader
+        step="Payment"
+        title={t('Complete Your Payment')}
+        description={t('Pay through VNPay to receive your e-ticket.')}
+      />
 
-      <div className="mt-space-md">
-        <BookingProgress steps={steps} current={4} variant="circles" numbered />
-      </div>
-
-      <div className="mt-space-lg flex flex-col justify-between gap-space-md md:flex-row md:items-end">
-        <div>
-          <h1 className="font-display text-headline-xl-mobile tracking-tight text-deep-river md:text-headline-lg">
-            {t('Complete Your Payment')}
-          </h1>
-          <p className="text-body-md text-on-surface-variant">
-            {t(
-              'Choose your payment method to finalize your river crossing reservation and issue your ticket.',
-            )}
-          </p>
-        </div>
-        <div className="self-start md:self-auto lg:hidden">
-          <HoldCountdown />
-        </div>
-      </div>
-
-      <div className="mt-space-md grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
+      <div className="mt-space-lg grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="lg:col-span-8">
           <PaymentMethodPanel
             amountVnd={totals.totalVnd}
@@ -106,13 +70,15 @@ export default function PaymentPage() {
           />
         </div>
         <div className="lg:col-span-4 lg:self-stretch">
-          <PaymentOrderSummary
+          <OrderSummary
             trip={trip}
             seats={seats}
-            purchaser={purchaser}
             totals={totals}
             returnLeg={returnLeg}
-          />
+            buyerName={purchaser.fullName}
+          >
+            <PaymentActions />
+          </OrderSummary>
         </div>
       </div>
     </div>
