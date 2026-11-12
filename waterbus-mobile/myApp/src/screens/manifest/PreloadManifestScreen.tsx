@@ -18,7 +18,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useScannerStore } from '../../store/useScannerStore';
-import { QrVerifier } from '../../services/crypto/qrVerifier';
+import { QrVerifier, DEFAULT_KEY_INFO } from '../../services/crypto/qrVerifier';
+import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
 import { getMyScannerAssignments } from '../../services/checkin/scannerAssignmentService';
 import { MyScannerAssignment } from '../../types/checkin';
 import { ApiError } from '../../services/api/apiClient';
@@ -99,7 +100,11 @@ export default function PreloadManifestScreen() {
     }
   };
 
-  const handleGenerateTestQr = () => {
+  const handleGenerateTestQr = async () => {
+    // Preload tường minh khoá demo trước khi ký - QrVerifier không còn tự fallback sang
+    // DEFAULT_KEY_INFO khi SQLite trống (xem qrVerifier.ts), nên chuỗi demo sinh ra ở đây sẽ bị
+    // từ chối (fail-closed) khi quét lại nếu không chủ động preload khoá này trước.
+    await SqliteRepository.savePublicKey(DEFAULT_KEY_INFO);
     const test = QrVerifier.generateTestSignedQr('pub_wb_98a76b5c', 'TRIP-BD-BA-01');
     setTestQrInfo({ compact: test.compactQr, signature: test.signature });
   };

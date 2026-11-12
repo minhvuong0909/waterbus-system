@@ -7,6 +7,7 @@
  * 4. Idempotent Batch Sync with UUID Deduplication (BR-OFF-03)
  */
 
+import crypto from 'crypto';
 import { QrVerifier, DEFAULT_KEY_INFO } from '../src/services/crypto/qrVerifier';
 import { SqliteRepository } from '../src/services/sqlite/sqliteRepository';
 import { syncService } from '../src/services/sync/syncService';
@@ -169,6 +170,18 @@ async function runVerification() {
   const sampleBookingId = 'pub_wb_98a76b5c';
   const sampleTripId = 'TRIP-BD-BA-01';
 
+  // 1.0b Fail-closed khi SQLite CHƯA có bất kỳ Public Key nào (trước mọi preload ở dưới) - đây là
+  // chính bug đã sửa: verifyQrCode() TỪNG tự fallback sang DEFAULT_KEY_INFO khi SQLite trống và QR
+  // thiếu kid hoặc mang đúng kid demo, khiến QR "xác thực thành công" dù chưa preload gì cả. Phải
+  // từ chối rõ ràng, không được âm thầm chấp nhận.
+  const qrBeforeAnyPreload = QrVerifier.generateTestSignedQr(sampleBookingId, sampleTripId);
+  const noKeyResult = await QrVerifier.verifyQrCode(qrBeforeAnyPreload.compactQr);
+  assert(
+    !noKeyResult.isValid && noKeyResult.error?.includes('Chưa có Public Key') === true,
+    '1.0b Reject QR verification when NO Public Key has been preloaded yet (fail-closed, no silent demo fallback)',
+    `Error: ${noKeyResult.error}`
+  );
+
   // 1.0 Mô phỏng bước "Tải trước Cache": lưu Public Key thật (ở đây là key demo) vào SQLite
   // trước khi soát vé - verify phải fail-closed nếu thiếu bước này (không còn fallback ngầm).
   await SqliteRepository.saveManifest({
@@ -187,6 +200,20 @@ async function runVerification() {
     '1.1 Verify valid signed QR offline with Public Key',
     `Algorithm: ${validResult.algorithmUsed}, VerifiedOffline: ${validResult.verifiedOffline}`
   );
+
+  // 1.1b Public Key preloaded nhưng KHÁC key đã ký QR (vd rotate key mà Staff chưa preload lại) -
+  // verify PHẢI fail, không được chấp nhận chỉ vì "có một key nào đó" trong máy.
+  const wrongKeyPair = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const wrongPublicKeyPem = wrongKeyPair.publicKey.export({ type: 'spki', format: 'pem' }).toString();
+  await SqliteRepository.savePublicKey({ ...DEFAULT_KEY_INFO, publicKeyPem: wrongPublicKeyPem });
+  const wrongKeyResult = await QrVerifier.verifyQrCode(signed.compactQr);
+  assert(
+    !wrongKeyResult.isValid && wrongKeyResult.error?.includes('Chữ ký số KHÔNG HỢP LỆ') === true,
+    '1.1b Reject QR when the ONLY preloaded key does not match the real signer (wrong/rotated key)',
+    `Error: ${wrongKeyResult.error}`
+  );
+  // Khôi phục đúng key demo cho các bước còn lại của suite.
+  await SqliteRepository.savePublicKey(DEFAULT_KEY_INFO);
 
   // 1.3 Verify JSON format QR
   const jsonResult = await QrVerifier.verifyQrCode(signed.jsonQr);

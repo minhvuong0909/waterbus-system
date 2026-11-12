@@ -34,18 +34,7 @@ export class SqliteRepository {
     await db.withTransactionAsync(async () => {
       // 1. Save or update Public Key
       if (manifest.publicKey) {
-        await db.runAsync(
-          `INSERT OR REPLACE INTO public_keys (kid, algorithm, public_key_pem, valid_from, valid_to, is_active)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [
-            manifest.publicKey.kid,
-            manifest.publicKey.algorithm,
-            manifest.publicKey.publicKeyPem,
-            manifest.publicKey.validFrom ?? null,
-            manifest.publicKey.validTo ?? null,
-            manifest.publicKey.isActive ? 1 : 0,
-          ]
-        );
+        await this.savePublicKeyOnDb(db, manifest.publicKey);
       }
 
       // 2. Save trips
@@ -131,6 +120,32 @@ export class SqliteRepository {
         [manifest.stationId]
       );
     });
+  }
+
+  /**
+   * Preload/ghi đè MỘT Public Key xác thực QR vào SQLite, không đụng tới manifest/trips/bookings
+   * đã có (khác saveManifest - dùng khi chỉ cần nạp key, vd nút tạo QR demo/test, không phải một
+   * lần tải trước dữ liệu chuyến đi thật). Đây là đường DUY NHẤT để một key trở thành "active" -
+   * QrVerifier không còn tự fallback sang key demo khi SQLite trống (xem qrVerifier.ts).
+   */
+  static async savePublicKey(keyInfo: PublicKeyInfo): Promise<void> {
+    const db = await getDatabase();
+    await this.savePublicKeyOnDb(db, keyInfo);
+  }
+
+  private static async savePublicKeyOnDb(db: Awaited<ReturnType<typeof getDatabase>>, keyInfo: PublicKeyInfo): Promise<void> {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO public_keys (kid, algorithm, public_key_pem, valid_from, valid_to, is_active)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        keyInfo.kid,
+        keyInfo.algorithm,
+        keyInfo.publicKeyPem,
+        keyInfo.validFrom ?? null,
+        keyInfo.validTo ?? null,
+        keyInfo.isActive ? 1 : 0,
+      ]
+    );
   }
 
   /**

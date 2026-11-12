@@ -22,7 +22,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useScannerStore } from '../../store/useScannerStore';
-import { QrVerifier } from '../../services/crypto/qrVerifier';
+import { QrVerifier, DEFAULT_KEY_INFO } from '../../services/crypto/qrVerifier';
 import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
 import { QrVerificationResult } from '../../types/scanner';
 import BookingDetailModal from '../booking/BookingDetailModal';
@@ -172,10 +172,13 @@ export default function StaffScannerScreen() {
     setManualCode('');
   };
 
-  const triggerTestQrScan = (publicBookingId: string) => {
+  const triggerTestQrScan = async (publicBookingId: string) => {
     setTestModalOpen(false);
+    // Preload tường minh khoá demo trước khi ký/verify - QrVerifier không còn tự fallback sang
+    // DEFAULT_KEY_INFO khi SQLite trống (xem qrVerifier.ts), nên nút test phải tự làm bước này.
+    await SqliteRepository.savePublicKey(DEFAULT_KEY_INFO);
     const test = QrVerifier.generateTestSignedQr(publicBookingId);
-    processScannedQr(test.compactQr);
+    await processScannedQr(test.compactQr);
   };
 
   // Render Camera Permission fallback

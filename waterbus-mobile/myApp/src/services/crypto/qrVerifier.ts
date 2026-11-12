@@ -58,7 +58,11 @@ fBNLom484uflH3w9d1ByMfWJoaOCN8SwXP2wpTPjU/A1Vljux+HI4T1/foNcUOEf
 EwIDAQAB
 -----END PUBLIC KEY-----`;
 
-/** Public key demo dùng khi chưa preload key thật từ backend (chỉ cho nút giả lập/test). */
+/**
+ * Public key demo chỉ dùng cho nút "Test QR"/giả lập quét - KHÔNG tự động active. Nơi gọi
+ * generateTestSignedQr phải tự gọi SqliteRepository.savePublicKey(DEFAULT_KEY_INFO) tường minh
+ * trước khi verify, nếu không verifyQrCode sẽ fail-closed như mọi key chưa preload khác.
+ */
 export const DEFAULT_KEY_INFO: PublicKeyInfo = {
   kid: 'waterbus-demo-2026',
   algorithm: 'RS256',
@@ -103,14 +107,15 @@ export class QrVerifier {
       };
     }
 
-    // 2. Fetch Public Key from SQLite local cache (đã preload từ backend thật trước giờ mở cổng)
+    // 2. Fetch Public Key from SQLite local cache - PHẢI đã được preload TƯỜNG MINH từ trước (qua
+    // backend thật - SyncService.preloadManifest, hoặc qua khoá demo - SqliteRepository.savePublicKey
+    // gọi từ nút "Test QR"). KHÔNG còn fallback ngầm sang DEFAULT_KEY_INFO ở đây: fallback cũ từng
+    // khiến verify "thành công" dù SQLite trống hoàn toàn (miễn QR thiếu kid hoặc mang đúng kid demo),
+    // phá vỡ bất biến "QR thật phải được xác minh bằng key đã preload từ Backend" - mọi QR phải
+    // fail-closed khi chưa có key nào trong máy.
     let keyInfo = await SqliteRepository.getActivePublicKey(payload.kid);
     if (!keyInfo) {
       keyInfo = await SqliteRepository.getActivePublicKey();
-    }
-    // Nếu là key demo hoặc chưa có key trong DB, fallback dùng DEFAULT_KEY_INFO để demo/test không bị chặn
-    if (!keyInfo && (!payload.kid || payload.kid === DEFAULT_KEY_INFO.kid)) {
-      keyInfo = DEFAULT_KEY_INFO;
     }
     if (!keyInfo) {
       return {
