@@ -14,6 +14,8 @@ export interface AdminBoat {
   yearBuilt: number
   isActive: boolean
   captainUserId: string | null
+  /** Active seats set up on the boat; at most `totalSeats`. */
+  configuredSeats?: number
 }
 
 /** A trip as the operations list returns it (BE `TripOperationItemDto`). */

@@ -67,7 +67,7 @@ export default function FaresPage() {
               {t('Edit')}
             </Button>
             <Button size="sm" variant="neutral" onClick={() => setDialog({ kind: 'deactivate', rule: f })}>
-              {t('Deactivate')}
+              {t('Switch off')}
             </Button>
           </span>
         ),

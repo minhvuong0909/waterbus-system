@@ -46,7 +46,7 @@ export default function RoutesPage() {
     { header: 'Code', render: (r) => <span className="font-mono font-semibold">{r.code}</span> },
     {
       header: 'Route',
-      className: 'min-w-[15rem]',
+      className: 'min-w-[13rem]',
       render: (r) => (
         <>
           <div className="font-semibold">{r.name}</div>

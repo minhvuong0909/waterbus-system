@@ -15,11 +15,11 @@ export default function ActiveToggle({
 }) {
   return active ? (
     <Button size="sm" variant="neutral" onClick={onDeactivate}>
-      {t('Deactivate')}
+      {t('Switch off')}
     </Button>
   ) : (
     <Button size="sm" variant="neutral" disabled={busy} onClick={onActivate}>
-      {t('Activate')}
+      {t('Switch on')}
     </Button>
   )
 }

@@ -102,9 +102,9 @@ export default function BoatsPage() {
     { header: 'Built', render: (b) => `${b.manufacturer} ${b.yearBuilt}`.trim() },
     {
       header: 'Seats',
-      render: (b) => (
-        <span>{b.totalSeats}</span>
-      ),
+      // Seats set up on the boat out of its capacity; a boat without seats cannot be sold (BR-SCH-04).
+      render: (b) =>
+        b.configuredSeats === undefined ? b.totalSeats : `${b.configuredSeats} / ${b.totalSeats}`,
     },
     {
       header: 'Actions',

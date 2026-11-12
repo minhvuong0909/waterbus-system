@@ -21,6 +21,17 @@ type Dialog =
   | { kind: 'deactivate'; schedule: ScheduleListItem }
   | null
 
+/**
+ * The days a schedule is valid for. A schedule saved without a start carries the backend's
+ * minimum date (year 1), which is shown as having no start rather than as a date.
+ */
+function validity({ effectiveFrom, effectiveTo }: ScheduleListItem): string {
+  const to = effectiveTo ? formatLongDate(effectiveTo) : null
+  if (effectiveFrom.startsWith('0001')) return to ? t('Until {date}', { date: to }) : t('No end date')
+  const from = formatLongDate(effectiveFrom)
+  return to ? `${from} – ${to}` : t('From {date}', { date: from })
+}
+
 /** Schedules: when a route runs. Trips are created from a schedule for a range of days. */
 export default function SchedulesPage() {
   useDocumentTitle('Schedules')
@@ -52,7 +63,7 @@ export default function SchedulesPage() {
     },
     {
       header: 'Route',
-      className: 'min-w-[15rem]',
+      className: 'min-w-[13rem]',
       render: (s) => (
         <>
           <div className="font-semibold">{s.routeName}</div>
@@ -67,10 +78,7 @@ export default function SchedulesPage() {
     {
       header: 'Valid',
       className: 'whitespace-nowrap',
-      render: (s) =>
-        s.effectiveTo
-          ? `${formatLongDate(s.effectiveFrom)} – ${formatLongDate(s.effectiveTo)}`
-          : t('From {date}', { date: formatLongDate(s.effectiveFrom) }),
+      render: validity,
     },
     { header: 'Status', render: (s) => <ActiveBadge active={s.isActive} /> },
     {
