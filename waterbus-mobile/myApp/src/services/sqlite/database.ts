@@ -271,8 +271,8 @@ async function initSchema(db: DatabaseAdapter): Promise<void> {
       kid TEXT PRIMARY KEY,
       algorithm TEXT NOT NULL,
       public_key_pem TEXT NOT NULL,
-      valid_from TEXT NOT NULL,
-      valid_to TEXT NOT NULL,
+      valid_from TEXT,
+      valid_to TEXT,
       is_active INTEGER NOT NULL DEFAULT 1
     );
 
@@ -363,4 +363,36 @@ async function initSchema(db: DatabaseAdapter): Promise<void> {
   `;
 
   await db.execAsync(schemaSql);
+
+  const publicKeyColumns = await db.getAllAsync<{ name: string; notnull: number }>(
+    'PRAGMA table_info(public_keys)'
+  );
+  const hasRequiredValidityWindow = publicKeyColumns.some(
+    column => (column.name === 'valid_from' || column.name === 'valid_to') && column.notnull === 1
+  );
+
+  if (hasRequiredValidityWindow) {
+    await db.withTransactionAsync(async () => {
+      await db.execAsync(`
+        DROP TABLE IF EXISTS public_keys_migration;
+        CREATE TABLE public_keys_migration (
+          kid TEXT PRIMARY KEY,
+          algorithm TEXT NOT NULL,
+          public_key_pem TEXT NOT NULL,
+          valid_from TEXT,
+          valid_to TEXT,
+          is_active INTEGER NOT NULL DEFAULT 1
+        );
+      `);
+      await db.execAsync(`
+        INSERT OR IGNORE INTO public_keys_migration (
+          kid, algorithm, public_key_pem, valid_from, valid_to, is_active
+        )
+        SELECT kid, algorithm, public_key_pem, valid_from, valid_to, is_active
+        FROM public_keys;
+      `);
+      await db.execAsync('DROP TABLE public_keys');
+      await db.execAsync('ALTER TABLE public_keys_migration RENAME TO public_keys');
+    });
+  }
 }

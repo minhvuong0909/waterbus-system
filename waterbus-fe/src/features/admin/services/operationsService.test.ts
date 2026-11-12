@@ -59,6 +59,27 @@ describe('operateTrip', () => {
   })
 })
 
+describe('getOperationTrips with a query', () => {
+  it('sends the window and the status filter as query parameters', async () => {
+    fetchMock.mockResolvedValue(json([]))
+
+    await getOperationTrips({ from: '2026-10-20T00:00:00.000Z', to: '2026-11-12T00:00:00.000Z', statuses: ['Cancelled', 'Terminated'] })
+
+    const url = lastCall().url
+    expect(url).toContain('/api/v1/trips/operations?')
+    expect(url).toContain('from=2026-10-20T00%3A00%3A00.000Z')
+    expect(url).toContain('statuses=Cancelled&statuses=Terminated')
+  })
+
+  it('keeps the plain request when no query is given', async () => {
+    fetchMock.mockResolvedValue(json([]))
+
+    await getOperationTrips()
+
+    expect(lastCall().url).toMatch(/\/api\/v1\/trips\/operations$/)
+  })
+})
+
 describe('getOperationTrips', () => {
   it('maps the backend list and keeps the operations it allows', async () => {
     fetchMock.mockResolvedValue(

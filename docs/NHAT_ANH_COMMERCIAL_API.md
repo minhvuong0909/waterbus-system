@@ -33,9 +33,14 @@ Các đường dẫn dưới đây có prefix `/api/v1`.
 | POST | `/payments/{orderId}/attempts/{paymentId}/reconcile` | Token; Querydr đúng payment attempt |
 | GET | `/checkouts/{orderId}/bookings/{bookingId}/qr` | Token; chỉ Booking Confirmed/Completed đã có Ticket |
 | GET | `/checkouts/qr-public-key` | Công khai; public PEM, key id, thuật toán |
+| GET | `/refunds/candidates?tripId=&page=&pageSize=` | AdminOnly, chỉ đọc; Booking của chuyến Cancelled/Terminated cần hoàn (409 nếu chuyến chưa hủy/chấm dứt). Xem `REFUND_MANUAL_MODE.md` |
+| POST | `/refunds/batch-request` | AdminOnly; body `{ "tripId": "GUID", "reason": "..."? }`; tạo refund cho mọi candidate, Booking lỗi ở `skippedItems`, idempotent |
 | POST | `/refunds/request` | AdminOnly; body `{ "bookingId": "GUID", "reason": "..." }` |
 | POST | `/refunds/{refundId}/reconcile` | AdminOnly; đối soát khoản hoàn đang Processing |
 | POST | `/refunds/confirm-manual` | AdminOnly; bằng chứng, reference và confirmedAmount chính xác |
+| POST | `/refunds/confirm-manual/batch` | AdminOnly; body `{ "items": [confirm-manual...] }` (1–100, không trùng); khoản lỗi ở `items[].error`, không dừng cả lô |
+| GET | `/refunds/pending?tripId=&page=&pageSize=` | AdminOnly, chỉ đọc; refund Manual đang chờ hoàn (cùng dữ liệu với CSV), phân trang 1–100, không ghi dấu đã xuất |
+| POST | `/refunds/export` | AdminOnly; body `{ "tripId": "GUID"? }`; trả `text/csv` (UTF-8 BOM) các refund Manual đang chờ hoàn, header `X-Row-Count`, ghi dấu đã xuất, cho xuất lại; >5000 dòng → 409 |
 
 API thông thường camelCase. IPN trả **đúng** `{ "RspCode": "00", "Message": "Confirm Success" }` theo giao thức VNPay; replay đã xác nhận trả `02`, chữ ký sai `97`, amount sai `04`. HTTP POST IPN vẫn nhận tham số ở query string, như GET.
 

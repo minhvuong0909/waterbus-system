@@ -38,7 +38,7 @@ export default function TripsPage() {
   // Empty: the default window (12 hours ago to 7 days ahead). A day: the 7 days from that day, Vietnam time.
   const [weekFrom, setWeekFrom] = useState('')
   const trips = useFetch(
-    () => getOperationTrips(weekFrom ? new Date(`${weekFrom}T00:00:00+07:00`).toISOString() : undefined),
+    () => getOperationTrips(weekFrom ? { from: new Date(`${weekFrom}T00:00:00+07:00`).toISOString() } : undefined),
     [weekFrom, version],
   )
   const boats = useFetch(getBoats)

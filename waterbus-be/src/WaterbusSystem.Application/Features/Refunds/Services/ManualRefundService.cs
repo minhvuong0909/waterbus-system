@@ -37,6 +37,31 @@ public sealed class ManualRefundService : IManualRefundService
         return await _transactions.RunAsync(() => ConfirmWithinTransactionAsync(request, cancellationToken), cancellationToken);
     }
 
+    public async Task<BatchConfirmManualRefundsResponse> ConfirmBatchAsync(
+        BatchConfirmManualRefundsRequest request, CancellationToken cancellationToken = default)
+    {
+        var results = new List<BatchConfirmItemResult>(request.Items.Count);
+        foreach (var item in request.Items)
+        {
+            try
+            {
+                var done = await ConfirmAsync(item, cancellationToken);
+                results.Add(new BatchConfirmItemResult(item.RefundTransactionId, true, done.Status, null));
+            }
+            // Một khoản sai (thiếu bằng chứng, sai số tiền, đã xác nhận, không tìm thấy...) không làm mất các khoản đã xác nhận trước đó.
+            catch (ValidationException e)
+            {
+                results.Add(new BatchConfirmItemResult(item.RefundTransactionId, false, null, string.Join(" | ", e.Errors.SelectMany(x => x.Value))));
+            }
+            catch (DomainException e)
+            {
+                results.Add(new BatchConfirmItemResult(item.RefundTransactionId, false, null, e.Message));
+            }
+        }
+        var confirmed = results.Count(r => r.Succeeded);
+        return new BatchConfirmManualRefundsResponse(confirmed, results.Count - confirmed, results);
+    }
+
     private async Task<ConfirmManualRefundResultDto> ConfirmWithinTransactionAsync(ConfirmManualRefundRequest request, CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(_currentUserService.UserId, out var adminId))

@@ -41,8 +41,8 @@ export class SqliteRepository {
             manifest.publicKey.kid,
             manifest.publicKey.algorithm,
             manifest.publicKey.publicKeyPem,
-            manifest.publicKey.validFrom,
-            manifest.publicKey.validTo,
+            manifest.publicKey.validFrom ?? null,
+            manifest.publicKey.validTo ?? null,
             manifest.publicKey.isActive ? 1 : 0,
           ]
         );
@@ -520,4 +520,3 @@ export class SqliteRepository {
     `);
   }
 }
-

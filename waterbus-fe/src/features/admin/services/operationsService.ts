@@ -180,14 +180,21 @@ interface TripOperationItemDto {
   allowedOperations: OperationType[]
 }
 
+/** Window and filter of `getOperationTrips`; the backend allows at most 31 days between `from` and `to`. */
+export interface OperationTripsQuery {
+  /** ISO 8601 */
+  from?: string
+  /** ISO 8601 */
+  to?: string
+  statuses?: TripStatus[]
+}
+
 /**
- * Trips with the operations the backend allows on each right now: from 12 hours ago to 7 days
- * ahead, or the 7 days starting at `from` (an ISO instant) when given.
+ * Trips with the operations the backend allows on each right now. Without a query: from 12 hours ago to
+ * 7 days ahead (the backend default).
  */
-export async function getOperationTrips(from?: string): Promise<AdminTrip[]> {
-  const items = await apiRequest<TripOperationItemDto[]>(API_ENDPOINTS.trips.operations, {
-    query: { from },
-  })
+export async function getOperationTrips(query?: OperationTripsQuery): Promise<AdminTrip[]> {
+  const items = await apiRequest<TripOperationItemDto[]>(API_ENDPOINTS.trips.operations, query ? { query: { ...query } } : undefined)
   return items.map((t) => ({
     id: t.id,
     routeId: t.routeId,

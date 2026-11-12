@@ -51,7 +51,7 @@ describe('trip planning', () => {
     fetchMock.mockImplementation(async () => answer([]))
     await getOperationTrips()
     expect(lastCall().url).toMatch(/\/trips\/operations$/)
-    await getOperationTrips('2026-12-01T17:00:00.000Z')
+    await getOperationTrips({ from: '2026-12-01T17:00:00.000Z' })
     expect(lastCall().url).toContain('/trips/operations?from=2026-12-01T17')
   })
 })

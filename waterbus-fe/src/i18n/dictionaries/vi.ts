@@ -733,8 +733,8 @@ export const vi: Record<string, string> = {
   'Demo mode: do NOT transfer real money. Record the simulated refund with a demo reference.':
     'Chế độ demo: KHÔNG chuyển tiền thật. Hãy ghi nhận khoản hoàn mô phỏng kèm mã tham chiếu demo.',
   'Confirm demo refund': 'Xác nhận hoàn tiền DEMO',
-  'The gateway could not refund this payment. Refund it by hand, then confirm with proof.':
-    'Cổng thanh toán không hoàn được giao dịch này. Hãy hoàn tiền thủ công rồi xác nhận kèm bằng chứng.',
+  'Refund it through the VNPay merchant portal, then confirm with proof.':
+    'Hãy hoàn tiền qua cổng quản trị merchant VNPay rồi xác nhận kèm bằng chứng.',
   Evidence: 'Bằng chứng',
   'e.g. bank transfer slip number': 'VD: số uỷ nhiệm chi',
   'Gateway reference': 'Mã tham chiếu cổng',
@@ -748,6 +748,46 @@ export const vi: Record<string, string> = {
   Processing: 'Đang xử lý',
   Succeeded: 'Thành công',
   Failed: 'Thất bại',
+  'Refund a cancelled or terminated trip': 'Hoàn tiền chuyến bị huỷ hoặc chấm dứt',
+  'Creating requests does not move money. Staff refund each buyer through the VNPay merchant portal using the CSV below, then you confirm.':
+    'Tạo yêu cầu không chuyển tiền. Nhân viên hoàn cho từng người mua qua cổng merchant VNPay theo file CSV bên dưới, sau đó bạn xác nhận.',
+  'No cancelled or terminated trips.': 'Chưa có chuyến nào bị huỷ hoặc chấm dứt.',
+  'Select a trip…': 'Chọn chuyến…',
+  'Could not load the bookings to refund.': 'Không tải được danh sách booking cần hoàn.',
+  'Tickets': 'Vé',
+  'No bookings are waiting for a refund.': 'Không có booking nào đang chờ hoàn tiền.',
+  'Only the first {count} bookings are shown.': 'Chỉ hiển thị {count} booking đầu tiên.',
+  '{count} bookings • {amount}': '{count} booking • {amount}',
+  'Yes, create the refund requests': 'Đúng, tạo các yêu cầu hoàn tiền',
+  'Tickets and bookings are cancelled as soon as the requests are created.':
+    'Vé và booking bị huỷ ngay khi các yêu cầu được tạo.',
+  'Create refund requests': 'Tạo yêu cầu hoàn tiền',
+  'Created {created} refund requests, skipped {skipped}.':
+    'Đã tạo {created} yêu cầu hoàn tiền, bỏ qua {skipped}.',
+  'Refunds waiting for staff': 'Khoản hoàn đang chờ nhân viên',
+  'Downloaded {count} refunds to hand to staff.':
+    'Đã tải {count} khoản hoàn để giao cho nhân viên.',
+  'Select refund {code}': 'Chọn khoản hoàn {code}',
+  'Late payment (no ticket)': 'Tiền về muộn (không có vé)',
+  'Trip terminated': 'Chuyến bị chấm dứt',
+  'Trip cancelled': 'Chuyến bị huỷ',
+  'VNPay reference': 'Mã tham chiếu VNPay',
+  'Exported': 'Đã xuất',
+  'Not yet': 'Chưa',
+  'Preparing…': 'Đang chuẩn bị…',
+  'Download CSV': 'Tải CSV',
+  '{count} refunds waiting': '{count} khoản hoàn đang chờ',
+  'No refunds are waiting for staff.': 'Không có khoản hoàn nào đang chờ nhân viên.',
+  'Only the first {count} refunds are shown. Confirm these first.':
+    'Chỉ hiển thị {count} khoản đầu tiên. Hãy xác nhận các khoản này trước.',
+  'Only select refunds staff have already paid out. Confirming emails each buyer that the money arrives in about 2–3 working days.':
+    'Chỉ chọn các khoản nhân viên đã hoàn xong. Khi xác nhận, hệ thống gửi email cho từng người mua rằng tiền về trong khoảng 2–3 ngày làm việc.',
+  'Select all': 'Chọn tất cả',
+  'e.g. VNPay refund batch of 12 Nov': 'VD: đợt hoàn VNPay ngày 12/11',
+  'Applied to every selected refund.': 'Áp dụng cho mọi khoản đã chọn.',
+  'Confirm {count} as refunded': 'Xác nhận đã hoàn {count} khoản',
+  'Confirm at most 100 refunds at a time.': 'Mỗi lần xác nhận tối đa 100 khoản.',
+  'Confirmed {confirmed}, failed {failed}.': 'Đã xác nhận {confirmed}, lỗi {failed}.',
   // Vé của tôi / link quản lý vé (BR-ID-02)
   'Booking link': 'Link quản lý vé',
   'The link shown on the confirmation page after payment.': 'Link hiện ở trang xác nhận sau khi thanh toán.',
