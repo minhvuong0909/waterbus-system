@@ -12,18 +12,22 @@ namespace WaterbusSystem.UnitTests.Refunds;
 
 public sealed class RefundExportServiceTests
 {
-    private sealed class FakeRepository(IReadOnlyList<RefundExportRow> rows) : IRefundExportRepository
+    private sealed class FakeRepository(IReadOnlyList<PendingManualRefund> rows) : IRefundExportRepository
     {
         public Guid? RequestedTripId { get; private set; }
+        public int RequestedSkip { get; private set; }
         public int RequestedLimit { get; private set; }
         public List<(IReadOnlyCollection<Guid> Ids, Guid Admin, DateTimeOffset At)> Marks { get; } = [];
 
-        public Task<IReadOnlyList<RefundExportRow>> ListPendingManualAsync(Guid? tripId, int limit, CancellationToken ct)
+        public Task<IReadOnlyList<PendingManualRefund>> ListPendingManualAsync(Guid? tripId, int skip, int take, CancellationToken ct)
         {
             RequestedTripId = tripId;
-            RequestedLimit = limit;
-            return Task.FromResult(rows);
+            RequestedSkip = skip;
+            RequestedLimit = take;
+            return Task.FromResult<IReadOnlyList<PendingManualRefund>>(rows.Skip(skip).Take(take).ToList());
         }
+
+        public Task<int> CountPendingManualAsync(Guid? tripId, CancellationToken ct) => Task.FromResult(rows.Count);
 
         public Task MarkExportedAsync(IReadOnlyCollection<Guid> refundIds, Guid adminId, DateTimeOffset exportedAt, CancellationToken ct)
         {
@@ -43,7 +47,7 @@ public sealed class RefundExportServiceTests
         public DateTimeOffset Now => now;
     }
 
-    private static RefundExportRow Row(Guid? id = null) =>
+    private static PendingManualRefund Row(Guid? id = null) =>
         new(id ?? Guid.NewGuid(), "BK", Guid.NewGuid(), "An", "an@example.com", null, 1000m, "VND", ["T1"],
             "Tuyến", DateTimeOffset.UtcNow, false, "Cancelled", "REF", "NO", DateTimeOffset.UtcNow, "Processing", DateTimeOffset.UtcNow, null);
 
@@ -127,5 +131,33 @@ public sealed class RefundExportServiceTests
         await service.Invoking(s => s.ExportAsync(new())).Should().ThrowAsync<ForbiddenAccessException>();
 
         repository.Marks.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ListPending_IsPaged_ReportsTheTotal_AndNeverMarksAnything()
+    {
+        var rows = Enumerable.Range(0, 5).Select(_ => Row()).ToList();
+        var repository = new FakeRepository(rows);
+
+        var page = await Service(repository).ListPendingAsync(new(null, Page: 2, PageSize: 2));
+
+        page.TotalCount.Should().Be(5);
+        page.TotalPages.Should().Be(3);
+        page.Items.Select(i => i.RefundId).Should().Equal(rows[2].RefundId, rows[3].RefundId);
+        repository.RequestedSkip.Should().Be(2);
+        repository.Marks.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ListPending_PassesTheTripFilter_AndClampsThePageSize()
+    {
+        var tripId = Guid.NewGuid();
+        var repository = new FakeRepository([Row()]);
+
+        await Service(repository).ListPendingAsync(new(tripId, Page: 0, PageSize: 1000));
+
+        repository.RequestedTripId.Should().Be(tripId);
+        repository.RequestedSkip.Should().Be(0);
+        repository.RequestedLimit.Should().Be(100);
     }
 }

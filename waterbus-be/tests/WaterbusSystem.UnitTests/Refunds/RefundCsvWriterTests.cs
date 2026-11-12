@@ -8,7 +8,7 @@ namespace WaterbusSystem.UnitTests.Refunds;
 
 public sealed class RefundCsvWriterTests
 {
-    private static RefundExportRow Row(
+    private static PendingManualRefund Row(
         string name = "Nguyễn An", string email = "an@example.com", string? phone = "0901234567",
         decimal amount = 80000m, string[]? tickets = null, bool late = false, string tripStatus = "Cancelled",
         DateTimeOffset? departure = null, DateTimeOffset? lastExported = null) =>

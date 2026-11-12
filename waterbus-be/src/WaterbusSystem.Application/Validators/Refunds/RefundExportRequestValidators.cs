@@ -11,6 +11,16 @@ public sealed class ExportRefundsRequestValidator : AbstractValidator<ExportRefu
     }
 }
 
+public sealed class ListPendingRefundsRequestValidator : AbstractValidator<ListPendingRefundsRequest>
+{
+    public ListPendingRefundsRequestValidator()
+    {
+        RuleFor(x => x.TripId).NotEqual(Guid.Empty).When(x => x.TripId.HasValue);
+        RuleFor(x => x.Page).GreaterThanOrEqualTo(1);
+        RuleFor(x => x.PageSize).InclusiveBetween(1, 100);
+    }
+}
+
 public sealed class BatchConfirmManualRefundsRequestValidator : AbstractValidator<BatchConfirmManualRefundsRequest>
 {
     public const int MaxItems = 100;

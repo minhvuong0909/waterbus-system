@@ -22,12 +22,14 @@ Chuyến phải đang `Cancelled` hoặc `Terminated` (BR-RF-01/02); chuyến �
 3. `POST /api/v1/refunds/export` body `{ tripId? }` (AdminOnly): trả file CSV (`text/csv`, UTF-8 có BOM, tên `hoan-tien-yyyyMMdd-HHmm.csv`, header `X-Row-Count`) gồm các refund Manual đang chờ hoàn (`Requested`/`Processing`), cũ nhất trước, tối đa 5000 dòng (vượt thì 409: lọc theo `tripId`). Mỗi dòng: mã hoàn tiền, mã đặt chỗ, mã đơn, người mua (tên, email, SĐT), số tiền, mã vé, tuyến, giờ khởi hành, lý do (chuyến bị hủy / chấm dứt / tiền về muộn), `vnp_TxnRef`, `vnp_TransactionNo` của thanh toán gốc, thời điểm thanh toán, trạng thái, thời điểm tạo yêu cầu, xuất lần cuối. Giờ hiển thị GMT+7. Khoản tiền về muộn xuất hiện sau khi Admin tạo refund cho nó bằng `POST /refunds/request`.
    - **Cho phép xuất lại**; mỗi lần xuất ghi `ExportedAt` + `ExportedByAdminId` (dấu "đã giao việc", không đổi trạng thái tiền). Khoản đã `Succeeded` không xuất nữa.
    - Dữ liệu cá nhân: chỉ Admin; log chỉ ghi số lượng, không ghi nội dung. Ô chuỗi được escape RFC 4180 và chống công thức Excel (ô bắt đầu bằng `= + - @` được thêm dấu `'`, nên SĐT dạng `+84…` hiện kèm `'`).
+   - `GET /api/v1/refunds/pending?tripId=&page=&pageSize=` (AdminOnly, chỉ đọc, không ghi dấu): cùng tiêu chí và dữ liệu với CSV nhưng phân trang (1–100), dùng cho giao diện để chọn các khoản đã hoàn.
 4. Nhân viên hoàn tiền qua cổng quản trị merchant VNPay theo `vnp_TxnRef` / `vnp_TransactionNo` trong CSV.
 5. `POST /api/v1/refunds/confirm-manual` (AdminOnly): bắt buộc bằng chứng + đúng số tiền, một lần duy nhất → `Succeeded`, gửi email hoàn tiền cho người mua (nêu khoản hoàn về trong khoảng 2–3 ngày làm việc). Hoặc `POST /api/v1/refunds/confirm-manual/batch` body `{ items: [{ refundTransactionId, evidence, gatewayReference?, confirmedAmount }] }` (1–100 khoản, không trùng): mỗi khoản được kiểm tra và ghi độc lập như `confirm-manual`; khoản lỗi nằm ở `items[].error`, không làm mất khoản đã xác nhận.
 
 Yêu cầu hoàn lặp lại cho cùng booking trả đúng refund cũ; sau khi `Succeeded`, `requiresManualAction = false`.
 
-Tiếp theo (chưa làm): giao diện Admin cho luồng này.
+## Giao diện Admin
+Trang **Refunds** (`/admin/refunds`) theo thứ tự: (1) *Hoàn tiền chuyến bị huỷ hoặc chấm dứt*: chọn chuyến, xem Booking cần hoàn và tổng tiền, bấm tạo yêu cầu (có bước xác nhận vì vé và booking bị huỷ ngay); (2) *Khoản hoàn đang chờ nhân viên*: tải CSV (tải lại được), chọn các khoản nhân viên đã hoàn xong, nhập bằng chứng dùng chung và xác nhận hàng loạt (tối đa 100); (3) form hoàn một Booking cho trường hợp lẻ (vd tiền về muộn không có vé).
 
 ## Vai trò
 Chỉ `Admin` (không có role nhân viên hoàn tiền riêng; `Staff` là nhân viên soát vé). Cùng một Admin tạo yêu cầu và xác nhận.

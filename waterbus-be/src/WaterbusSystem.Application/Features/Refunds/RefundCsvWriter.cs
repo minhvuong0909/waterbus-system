@@ -23,7 +23,7 @@ public static class RefundCsvWriter
         "Trạng thái", "Tạo yêu cầu lúc (GMT+7)", "Xuất lần cuối (GMT+7)"
     ];
 
-    public static byte[] Write(IEnumerable<RefundExportRow> rows)
+    public static byte[] Write(IEnumerable<PendingManualRefund> rows)
     {
         var sb = new StringBuilder();
         AppendLine(sb, Headers);
@@ -42,7 +42,7 @@ public static class RefundCsvWriter
         return [.. encoding.GetPreamble(), .. encoding.GetBytes(sb.ToString())];
     }
 
-    private static string Reason(RefundExportRow r) =>
+    private static string Reason(PendingManualRefund r) =>
         r.IsLatePayment ? "Tiền về sau khi đơn hết hạn (không phát vé)"
         : r.TripStatus switch
         {

@@ -46,6 +46,16 @@ export const API_ENDPOINTS = {
     /** Admin: xác nhận đã hoàn tay khi cổng thanh toán không hoàn được. */
     confirmManual: '/api/v1/refunds/confirm-manual',
     reconcile: (refundId: string) => `/api/v1/refunds/${refundId}/reconcile`,
+    /** Admin: Booking của một chuyến bị huỷ/chấm dứt cần hoàn (chỉ đọc, phân trang). */
+    candidates: '/api/v1/refunds/candidates',
+    /** Admin: tạo yêu cầu hoàn cho mọi Booking đủ điều kiện của một chuyến. */
+    batchRequest: '/api/v1/refunds/batch-request',
+    /** Admin: các khoản hoàn đang chờ nhân viên hoàn (chỉ đọc, phân trang). */
+    pending: '/api/v1/refunds/pending',
+    /** Admin: tải CSV các khoản đang chờ hoàn. */
+    exportCsv: '/api/v1/refunds/export',
+    /** Admin: xác nhận đã hoàn nhiều khoản một lần. */
+    confirmManualBatch: '/api/v1/refunds/confirm-manual/batch',
   },
   trips: {
     search: '/api/v1/trips/search',

@@ -667,6 +667,55 @@ public sealed class RefundManualModeSqlHttpTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync("/api/v1/refunds/export", new ExportRefundsRequest(Guid.Empty))).StatusCode);
     }
 
+    private sealed record PendingPage(List<PendingManualRefund> Items, int TotalCount);
+
+    [SqlServerDomainFact]
+    public async Task PendingList_ShowsManualRefundsWaitingForStaff_WithoutMarkingThemExported()
+    {
+        var seeded = await PaidRoundTripAsync();
+        await CancelTripAsync(seeded.OutboundTripId);
+        await CancelTripAsync(seeded.ReturnTripId);
+        using var admin = As("Admin");
+        var outbound = (await Batch(admin, seeded.OutboundTripId)).Created.Single().RefundTransactionId;
+        await Batch(admin, seeded.ReturnTripId);
+
+        var all = (await (await admin.GetAsync("/api/v1/refunds/pending")).Content.ReadFromJsonAsync<PendingPage>())!;
+        Assert.Equal(2, all.TotalCount);
+        Assert.All(all.Items, i => { Assert.Equal(15000m, i.Amount); Assert.Equal("buyer@example.com", i.PurchaserEmail); Assert.Null(i.LastExportedAt); });
+
+        var paged = (await (await admin.GetAsync("/api/v1/refunds/pending?page=2&pageSize=1")).Content.ReadFromJsonAsync<PendingPage>())!;
+        Assert.Equal(2, paged.TotalCount);
+        Assert.Single(paged.Items);
+
+        var one = (await (await admin.GetAsync($"/api/v1/refunds/pending?tripId={seeded.OutboundTripId}")).Content.ReadFromJsonAsync<PendingPage>())!;
+        Assert.Equal(outbound, one.Items.Single().RefundId);
+
+        await using (var c = Context())
+            Assert.All(await c.FinancialTransactions.Where(t => t.TransactionType == FinancialTransactionType.Refund).ToListAsync(), t => Assert.Null(t.ExportedAt));
+
+        // Đã xác nhận hoàn thì rời danh sách.
+        Assert.Equal(HttpStatusCode.OK, (await admin.PostAsJsonAsync("/api/v1/refunds/confirm-manual",
+            new ConfirmManualRefundRequest(outbound, "Mã GD hoàn 1", null, 15000m))).StatusCode);
+        var after = (await (await admin.GetAsync("/api/v1/refunds/pending")).Content.ReadFromJsonAsync<PendingPage>())!;
+        Assert.Equal(1, after.TotalCount);
+        Assert.DoesNotContain(after.Items, i => i.RefundId == outbound);
+    }
+
+    [SqlServerDomainFact]
+    public async Task PendingList_RejectsNonAdmins_AndBadPaging()
+    {
+        using (var anonymous = As(null)) Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/v1/refunds/pending")).StatusCode);
+        foreach (var role in new[] { "Passenger", "Staff", "Captain" })
+        {
+            using var other = As(role);
+            Assert.Equal(HttpStatusCode.Forbidden, (await other.GetAsync("/api/v1/refunds/pending")).StatusCode);
+        }
+        using var admin = As("Admin");
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.GetAsync("/api/v1/refunds/pending?pageSize=0")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.GetAsync("/api/v1/refunds/pending?page=0")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.GetAsync($"/api/v1/refunds/pending?tripId={Guid.Empty}")).StatusCode);
+    }
+
     [SqlServerDomainFact]
     public async Task ExportCsv_NeverIncludesALegacyDemoRefund_SoStaffCannotPayOutSimulatedMoney()
     {

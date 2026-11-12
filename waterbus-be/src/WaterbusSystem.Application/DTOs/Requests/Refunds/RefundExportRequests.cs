@@ -5,3 +5,6 @@ public record ExportRefundsRequest(Guid? TripId = null);
 
 /// <summary>Xác nhận đã hoàn nhiều khoản một lần; mỗi dòng được xử lý độc lập như <c>confirm-manual</c>.</summary>
 public record BatchConfirmManualRefundsRequest(IReadOnlyList<ConfirmManualRefundRequest> Items);
+
+/// <summary>Danh sách (chỉ đọc, phân trang) các refund Manual đang chờ hoàn; không ghi dấu "đã xuất".</summary>
+public record ListPendingRefundsRequest(Guid? TripId = null, int Page = 1, int PageSize = 50);

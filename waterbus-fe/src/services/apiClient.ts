@@ -30,8 +30,25 @@ interface RequestOptions {
   query?: Record<string, QueryValue>
   body?: unknown
   signal?: AbortSignal
-  /** `blob` for a file response (e.g. an MP3) instead of JSON. */
-  responseType?: 'json' | 'blob'
+  /**
+   * `blob` for a file response (e.g. an MP3) instead of JSON; `download` also returns the file name and
+   * row count the server sends in `Content-Disposition` / `X-Row-Count` (see `DownloadedFile`).
+   */
+  responseType?: 'json' | 'blob' | 'download'
+}
+
+/** A file response with the details the server sends in its headers. */
+export interface DownloadedFile {
+  blob: Blob
+  fileName: string | undefined
+  /** `X-Row-Count`, when the server sends it. */
+  rowCount: number | undefined
+}
+
+/** File name of a `Content-Disposition: attachment` header, or undefined. */
+export function fileNameFromDisposition(header: string | null): string | undefined {
+  const match = header?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i)
+  return match ? decodeURIComponent(match[1]) : undefined
 }
 
 // Called when a request that carried a token comes back 401, so the app can sign the user out.
@@ -78,7 +95,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const token = getToken()
 
   const headers: Record<string, string> = {
-    Accept: responseType === 'blob' ? '*/*' : 'application/json',
+    Accept: responseType === 'json' ? 'application/json' : '*/*',
     'Accept-Language': getLocale(),
     ...extraHeaders,
   }
@@ -114,5 +131,13 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   if (response.status === 204) return undefined as T
   if (responseType === 'blob') return (await response.blob()) as T
+  if (responseType === 'download') {
+    const rows = Number(response.headers.get('X-Row-Count'))
+    return {
+      blob: await response.blob(),
+      fileName: fileNameFromDisposition(response.headers.get('Content-Disposition')),
+      rowCount: response.headers.get('X-Row-Count') !== null && Number.isFinite(rows) ? rows : undefined,
+    } as T
+  }
   return (await response.json()) as T
 }
