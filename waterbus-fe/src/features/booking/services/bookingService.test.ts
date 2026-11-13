@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildHoldRequest } from '../utils'
+import { clearTripReads } from '../../trips/services/tripService'
 import { createHold, getBookingQr, getCheckout, getSeatMap, submitCheckout } from './bookingService'
 
 const GUID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -23,6 +24,7 @@ const stop = (callId: string, stationId: string, visitOrder: number) => ({
 
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock)
+  clearTripReads()
 })
 afterEach(() => {
   fetchMock.mockReset()
@@ -61,6 +63,24 @@ describe('getSeatMap', () => {
       `boardingCallId=${GUID(11)}&disembarkingCallId=${GUID(12)}`,
     )
     expect(map.journey?.boardingCallId).toBe(GUID(11))
+  })
+
+  it('shares the trip and seat requests between callers that ask at the same time', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      String(url).includes('/seats')
+        ? json({ tripId: GUID(1), boatId: GUID(8), boardingCallId: GUID(11), disembarkingCallId: GUID(12),
+            boardingVisitOrder: 1, disembarkingVisitOrder: 2, canBook: true, salesState: 'open',
+            availableSeatsCount: 0, asOf: '', seats: [] })
+        : json({ tripId: GUID(1), canBook: true, salesState: 'open', boat: null,
+            stops: [stop(GUID(11), GUID(2), 1), stop(GUID(12), GUID(3), 2)] }),
+    )
+    await Promise.all([getSeatMap(GUID(1), GUID(2), GUID(3)), getSeatMap(GUID(1), GUID(2), GUID(3))])
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    // A later step (or a retry) reads fresh availability again.
+    clearTripReads()
+    await getSeatMap(GUID(1), GUID(2), GUID(3))
+    expect(fetchMock).toHaveBeenCalledTimes(4)
   })
 
   it('rejects a trip that does not stop at both piers', async () => {

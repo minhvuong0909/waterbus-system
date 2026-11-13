@@ -32,6 +32,6 @@ export const FAQ: FaqItem[] = [
   {
     question: 'When does boarding open?',
     answer:
-      'Each pier has its own check-in window, shown on the trip page. Come to the waiting area of your boarding pier within that window and show your QR code to the staff, who check in each passenger. Passengers who miss the window cannot board and are not refunded.',
+      'Each pier has its own check-in window. Come to the waiting area of your boarding pier within that window and show your QR code to the staff, who check in each passenger. Passengers who miss the window cannot board and are not refunded.',
   },
 ]

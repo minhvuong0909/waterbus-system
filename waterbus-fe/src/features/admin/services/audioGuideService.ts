@@ -1,6 +1,6 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
-import type { NarrationPoi, NarrationVoice } from '../audioGuide'
+import type { NarrationPoi, NarrationVoice } from '../utils/audioGuide'
 
 /** Response of `POST /texttospeech/generate` (BE `SynthesizeAudioDto`). */
 export interface GeneratedNarration {

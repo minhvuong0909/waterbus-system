@@ -31,6 +31,39 @@ const pierCache = createRequestCache<PierOption[]>(60_000)
 /** A page asks for the same day from several places (list, day strip, home); seats change, so briefly. */
 const tripSearchCache = createRequestCache<Trip[]>(15_000)
 
+/**
+ * A booking page reads the same trip and seat map from two places at once (the trip summary and the
+ * seat map). The requests in flight are shared; one second is short enough that every new step and
+ * every retry still reads fresh availability.
+ */
+const SHARED_READ_MS = 1_000
+const tripReadCache = createRequestCache<TripDetailDto>(SHARED_READ_MS)
+const seatReadCache = createRequestCache<TripSeatMapDto>(SHARED_READ_MS)
+
+/** `GET /trips/{id}`. */
+export function readTrip(tripId: string): Promise<TripDetailDto> {
+  return tripReadCache.get(tripId, () => apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId)))
+}
+
+/** `GET /trips/{id}/seats` for the segment between two stop calls. */
+export function readTripSeats(
+  tripId: string,
+  boardingCallId: string,
+  disembarkingCallId: string,
+): Promise<TripSeatMapDto> {
+  return seatReadCache.get(`${tripId}|${boardingCallId}|${disembarkingCallId}`, () =>
+    apiRequest<TripSeatMapDto>(API_ENDPOINTS.trips.seats(tripId), {
+      query: { boardingCallId, disembarkingCallId },
+    }),
+  )
+}
+
+/** Forgets the shared trip and seat reads, so the next read asks the backend again. */
+export function clearTripReads() {
+  tripReadCache.clear()
+  seatReadCache.clear()
+}
+
 /** Forgets the cached piers, e.g. after an Admin changed a station. */
 export function clearPierCache() {
   pierCache.clear()
@@ -123,8 +156,7 @@ export async function getUpcomingTrips(
  * result has no sales state, so a list that invites to book checks it first (BR-SRCH-02).
  */
 export async function isTripOnSale(tripId: string): Promise<boolean> {
-  const trip = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
-  return trip.canBook
+  return (await readTrip(tripId)).canBook
 }
 
 /**
@@ -145,12 +177,10 @@ export async function getTripDetail(
   let departAt = Number.NaN
   let arriveAt = Number.NaN
   if (tripId) {
-    const raw = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
+    const raw = await readTrip(tripId)
     const journey = pickJourney(raw.stops, query.originId, query.destinationId)
     if (!journey) throw new ApiError(409, 'Chuyến không phục vụ đoạn bến đã chọn. Hãy tìm chuyến lại.')
-    const seats = await apiRequest<TripSeatMapDto>(API_ENDPOINTS.trips.seats(tripId), {
-      query: { boardingCallId: journey.boarding.callId, disembarkingCallId: journey.disembarking.callId },
-    })
+    const seats = await readTripSeats(tripId, journey.boarding.callId, journey.disembarking.callId)
     const prices = seats.seats.flatMap((seat) => seat.price === null ? [] : [seat.price])
     salesOpen = raw.canBook && seats.canBook
     checkIn = { openAt: journey.boarding.checkInOpenAt ?? null, closeAt: journey.boarding.checkInCloseAt ?? null }

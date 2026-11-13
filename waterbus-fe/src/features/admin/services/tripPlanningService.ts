@@ -1,11 +1,6 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
-import type {
-  AdHocTripInput,
-  AssignBoatResult,
-  GenerateTripsInput,
-  GenerateTripsResult,
-} from '../types'
+import type { AdHocTripInput, AssignBoatResult, GenerateTripsInput, GenerateTripsResult } from '../types'
 
 // New trips start `Scheduled` and without a boat, so they are not on sale until one is assigned
 // (BR-SCH-04). Status changes stay with the operations service.

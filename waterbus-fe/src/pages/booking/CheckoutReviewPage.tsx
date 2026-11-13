@@ -8,6 +8,7 @@ import SummaryAction, { SUMMARY_LINK_CLASS } from '../../features/booking/compon
 import TermsConfirm from '../../features/booking/components/TermsConfirm'
 import { useBooking } from '../../features/booking/hooks/useBooking'
 import { useSubmitCheckout } from '../../features/booking/hooks/useCheckout'
+import { useHoldCountdown } from '../../features/booking/hooks/useHoldCountdown'
 import { isRoundTrip } from '../../features/booking/legs'
 import { addTotals, isBookingComplete } from '../../features/booking/utils'
 import { useDocumentTitle } from '../../hooks'
@@ -23,6 +24,7 @@ export default function CheckoutReviewPage() {
   const back = useBooking({ leg: 'return', enabled: roundTrip })
   const { trip, seats, seatIds, purchaser, passengers, termsAccepted, setTerms } = outbound
   const { submit, busy, failure } = useSubmitCheckout()
+  const { expired } = useHoldCountdown()
 
   if (outbound.noTrip) return <NoTripSelected />
   const error = outbound.error ?? back.error
@@ -96,8 +98,8 @@ export default function CheckoutReviewPage() {
             <SummaryAction
               label={busy ? t('Preparing your order…') : t('Continue to Payment')}
               onClick={submit}
-              disabled={!termsAccepted || !complete || busy}
-              note={termsAccepted ? undefined : t('Please accept the Waterway Carriage Rules to continue.')}
+              disabled={!termsAccepted || !complete || busy || expired}
+              note={termsAccepted || expired ? undefined : t('Please accept the Waterway Carriage Rules to continue.')}
               error={
                 failure && (
                   <>

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button, DataTable, ErrorState, Modal, Notice, PageHeader, PageLoader, TextField } from '../../components/ui'
-import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import {
   createStation,
   deleteStation,
@@ -9,7 +8,7 @@ import {
   updateStation,
 } from '../../features/admin/services/stationService'
 import type { AdminStation, NewStation } from '../../features/admin/types'
-import { useDocumentTitle, useFetch } from '../../hooks'
+import { useDocumentTitle, useFetch, useReload, useSubmit } from '../../hooks'
 import { t } from '../../i18n'
 import type { Column } from '../../components/ui'
 

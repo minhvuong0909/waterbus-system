@@ -1,4 +1,4 @@
-import { t } from '../../i18n'
+import { t } from '../../../i18n'
 
 /** The two optional marks of a new trip, as typed: minutes before its departure. */
 export interface TripTiming {

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import QrCode from '../../../components/ticket/QrCode'
+import QrCode from './QrCode'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { formatVndSuffix } from '../../../utils/format'

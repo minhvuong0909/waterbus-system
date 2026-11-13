@@ -9,6 +9,7 @@ import BuyerCard from '../../features/booking/components/BuyerCard'
 import PassengerFormNote from '../../features/booking/components/PassengerFormNote'
 import { copyPassengersToReturn, holdCleared, setBuyerTravels } from '../../features/booking/bookingSlice'
 import { useBooking } from '../../features/booking/hooks/useBooking'
+import { useHoldCountdown } from '../../features/booking/hooks/useHoldCountdown'
 import { isRoundTrip } from '../../features/booking/legs'
 import { addTotals, isBookingComplete } from '../../features/booking/utils'
 import type { TripDetail } from '../../features/trips/types'
@@ -41,6 +42,8 @@ export default function PassengerDetailsPage() {
   // Once sent with the order (review step), the backend no longer accepts changes to these details.
   const submitted = useAppSelector((s) => s.booking.hold?.submitted ?? false)
   const buyerTravels = useAppSelector((s) => s.booking.buyerTravels)
+  // An expired hold has released the seats: the summary says so, and the step cannot go on.
+  const { expired } = useHoldCountdown()
   const outbound = useBooking()
   const back = useBooking({ leg: 'return', enabled: roundTrip })
   const { trip, seats, seatIds, purchaser, passengers, editPurchaser, editSeatPassenger } = outbound
@@ -154,9 +157,9 @@ export default function PassengerDetailsPage() {
             <SummaryAction
               label={t('Continue to Checkout')}
               to={ROUTES.checkoutReview}
-              disabled={!complete}
+              disabled={!complete || expired}
               note={
-                complete
+                complete || expired
                   ? undefined
                   : t('Enter a name for every passenger and the buyer’s name and email to continue.')
               }

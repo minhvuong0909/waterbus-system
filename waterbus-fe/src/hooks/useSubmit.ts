@@ -1,12 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
-import { ApiError } from '../../../services/apiClient'
-import { t } from '../../../i18n'
-
-/** A counter to pass as a `useFetch` dependency; calling `reload` refetches and keeps old data on screen. */
-export function useReload(): [number, () => void] {
-  const [version, setVersion] = useState(0)
-  return [version, useCallback(() => setVersion((v) => v + 1), [])]
-}
+import { useCallback, useState } from 'react'
+import { t } from '../i18n'
+import { ApiError } from '../services/apiClient'
 
 /** Text to show for a failed action: the server's message, or a generic one when it is unreachable. */
 export function errorText(error: unknown): string {
@@ -38,14 +32,3 @@ export function useSubmit() {
 
   return { run, busy, error, clearError: () => setError(null) }
 }
-
-/** The current time in ms, refreshed every `ms`, so a component can compare against "now" purely. */
-export function useNow(ms: number): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), ms)
-    return () => window.clearInterval(timer)
-  }, [ms])
-  return now
-}
-

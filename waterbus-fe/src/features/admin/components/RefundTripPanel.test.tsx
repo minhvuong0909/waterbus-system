@@ -1,12 +1,13 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setActiveLocale } from '../../../i18n/translate'
-import { getOperationTrips } from '../services/operationsService'
+import { getOperationTrips } from '../../operations/services/operationsService'
 import { listRefundCandidates, requestRefundsForTrip } from '../services/refundService'
-import type { AdminTrip, RefundCandidate } from '../types'
+import type { RefundCandidate } from '../types'
+import type { AdminTrip } from '../../operations/types'
 import RefundTripPanel from './RefundTripPanel'
 
-vi.mock('../services/operationsService')
+vi.mock('../../operations/services/operationsService')
 vi.mock('../services/refundService')
 
 const trip = (id: string, status: AdminTrip['status'], departureTime: string): AdminTrip => ({

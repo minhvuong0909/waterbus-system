@@ -5,7 +5,8 @@ import { translateLandmark } from '../../explore/services/exploreService'
 import type { Landmark } from '../../explore/types'
 import { buildCorridorMap, toDeparture } from '../../trips/utils'
 
-const MAX_DEPARTURES = 4
+/** The next departure on its own row, then two rows of two. */
+const MAX_DEPARTURES = 5
 
 /** Places narrated on sightseeing trips that have a photo, shown as a teaser of the Explore page. */
 export function getFeaturedPlaces(count = 3): Landmark[] {

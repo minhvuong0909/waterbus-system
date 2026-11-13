@@ -9,36 +9,51 @@ import { hasFare } from '../utils'
 interface DepartureCardProps {
   departure: Departure
   onSelect: (trip: Departure['trip']) => void
+  /** The next departure of a list: a full-width row with a larger time and action. */
+  featured?: boolean
 }
 
 /** Compact departure row: time/status tile, route + details, price and a select action. */
-export default function DepartureCard({ departure, onSelect }: DepartureCardProps) {
+export default function DepartureCard({ departure, onSelect, featured = false }: DepartureCardProps) {
   const sightseeing = departure.kind === 'sightseeing'
 
   return (
     <div
-      className={`group flex items-center justify-between gap-3 rounded-2xl border p-4 shadow-sm transition-all hover:shadow-md ${
+      className={`group flex items-center justify-between gap-3 rounded-2xl border shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md motion-reduce:hover:translate-y-0 ${
+        featured ? 'p-5 md:col-span-2 md:p-6' : 'p-4'
+      } ${
         sightseeing
           ? 'border-coral-glow/30 bg-gradient-to-r from-surface to-mist'
-          : 'border-outline-variant/50 bg-surface hover:border-teal-flow/40'
+          : featured
+            ? 'border-teal-flow/40 bg-surface'
+            : 'border-outline-variant/50 bg-surface hover:border-teal-flow/40'
       }`}
     >
       <div className="flex items-center gap-3.5">
         <div
-          className={`flex h-12 w-12 flex-shrink-0 flex-col items-center justify-center rounded-xl border ${
+          className={`flex flex-shrink-0 flex-col items-center justify-center rounded-xl border ${
+            featured ? 'h-16 w-20' : 'h-12 w-12'
+          } ${
             sightseeing
               ? 'border-coral-glow/30 bg-coral-glow/15 text-coral-glow'
               : 'border-outline-variant/30 bg-mist text-deep-river'
           }`}
         >
-          <span className="font-display text-sm font-bold">{departure.time}</span>
+          <span className={`font-display font-bold ${featured ? 'text-2xl' : 'text-sm'}`}>{departure.time}</span>
           {/* Chỉ nhắc khi sắp chạy; "Theo lịch" ở mọi dòng chỉ là nhiễu. */}
           {departure.statusKind === 'soon' && (
             <span className="text-2xs font-semibold">{departure.status}</span>
           )}
         </div>
         <div>
-          <div className="flex items-center gap-1.5 font-display text-sm font-bold text-deep-river">
+          {featured && (
+            <div className="mb-0.5 text-2xs font-semibold uppercase tracking-wider text-teal-flow">
+              {t('Next departure')}
+            </div>
+          )}
+          <div
+            className={`flex items-center gap-1.5 font-display font-bold text-deep-river ${featured ? 'text-lg' : 'text-sm'}`}
+          >
             <span>{departure.from}</span>
             {departure.to && (
               <>
@@ -68,7 +83,7 @@ export default function DepartureCard({ departure, onSelect }: DepartureCardProp
         </div>
       </div>
       <div className="flex flex-col items-end text-right">
-        <span className="max-w-[9rem] font-display text-sm font-bold text-deep-river">
+        <span className={`max-w-[9rem] font-display font-bold text-deep-river ${featured ? 'text-lg' : 'text-sm'}`}>
           {hasFare(departure.priceVnd)
             ? formatVnd(departure.priceVnd)
             : t('Price shown when you choose a seat')}
@@ -76,7 +91,9 @@ export default function DepartureCard({ departure, onSelect }: DepartureCardProp
         <Link
           to={ROUTES.seatSelection}
           onClick={() => onSelect(departure.trip)}
-          className={`mt-1 rounded-full px-3.5 py-1 text-xs font-semibold text-on-primary transition-colors ${
+          className={`mt-1 rounded-full font-semibold text-on-primary transition-colors ${
+            featured ? 'px-5 py-2 text-sm' : 'px-3.5 py-1 text-xs'
+          } ${
             sightseeing ? 'bg-coral-glow hover:opacity-90' : 'bg-teal-flow hover:bg-secondary'
           }`}
         >

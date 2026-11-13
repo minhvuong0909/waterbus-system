@@ -2,20 +2,6 @@ import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
 import type { AdminBoat, NewBoat } from '../types'
 
-const PAGE_SIZE = 100
-
-/** `GET /boats`: every active boat, reading all pages. */
-export async function getBoats(): Promise<AdminBoat[]> {
-  const boats: AdminBoat[] = []
-  for (let pageNumber = 1; ; pageNumber++) {
-    const page = await apiRequest<{ items: AdminBoat[]; totalCount: number }>(API_ENDPOINTS.boats, {
-      query: { pageNumber, pageSize: PAGE_SIZE, isActiveOnly: true },
-    })
-    boats.push(...page.items)
-    if (!page.items.length || boats.length >= page.totalCount) return boats
-  }
-}
-
 /** `POST /boats` without a captain, then reads the saved boat back. */
 export async function createBoat(input: NewBoat): Promise<AdminBoat> {
   const id = await apiRequest<string>(API_ENDPOINTS.boats, { method: 'POST', body: { ...input, captainUserId: null } })

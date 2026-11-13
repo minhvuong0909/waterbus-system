@@ -44,7 +44,7 @@ export default function PaymentCallbackPage() {
     // Backend từ chối kết quả (sai chữ ký, thiếu tham số): không phải lỗi mạng nên không cần "thử lại".
     return result.error instanceof ApiError && result.error.status !== 0 ? (
       <ErrorState
-        icon="gpp_maybe"
+        icon="warning"
         title={t('We could not verify this payment result')}
         message={t('Check your booking in My Tickets; your tickets appear there once the payment is confirmed.')}
         action={{ label: t('My Tickets'), to: ROUTES.myTickets }}

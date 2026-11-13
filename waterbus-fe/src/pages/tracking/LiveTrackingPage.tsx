@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom'
-import FleetMap from '../../components/map/FleetMap'
+import FleetMap from '../../features/tracking/components/FleetMap'
 import { Breadcrumb, ErrorState, Icon, PageLoader } from '../../components/ui'
 import { isNotFound } from '../../services/apiClient'
 import { isGuid } from '../../utils/guid'

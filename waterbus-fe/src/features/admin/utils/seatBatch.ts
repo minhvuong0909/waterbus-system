@@ -1,4 +1,4 @@
-import type { SeatInput } from './types'
+import type { SeatInput } from '../types'
 
 export interface SeatBatch {
   seatClassId: string
