@@ -18,7 +18,7 @@ export default function TotalRow({
         {caption && <div className="text-xs text-on-surface-variant">{caption}</div>}
       </div>
       {/* The amount and its unit stay together; the caption on the left wraps instead. */}
-      <div className="shrink-0 whitespace-nowrap font-display text-numeric-lg font-bold leading-none text-deep-river">
+      <div className="shrink-0 whitespace-nowrap font-display text-2xl font-bold xl:text-numeric-lg leading-none text-deep-river">
         {t('{amount} VND', { amount: formatNumber(amountVnd) })}
       </div>
     </div>

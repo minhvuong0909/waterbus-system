@@ -55,9 +55,16 @@ export interface TicketWallet {
   past: Ticket[]
 }
 
-export interface ManageBooking {
+/** One booking of an order: the tickets of one trip, one per passenger. */
+export interface ManagedBooking {
+  bookingId: string
   bookingCode: string
-  ticket: Ticket
+  tickets: Ticket[]
+}
+
+export interface ManageBooking {
+  /** Every booking of the order in travel order: one for a one-way order, two for a round trip. */
+  bookings: ManagedBooking[]
   orderId: string
   /** Token Guest đang dùng để mở đơn; null khi đơn được mở bằng tài khoản Passenger sở hữu nó. */
   accessToken: string | null

@@ -90,9 +90,45 @@ describe('live ticket detail', () => {
     window.history.replaceState(null, '', '/manage/guest-token?orderId=order-1')
     expect(hasOrderToManage('guest-token')).toBe(true)
     const manage = await getManageBooking('guest-token')
-    expect(manage).toMatchObject({ bookingCode: 'WB1', orderId: 'order-1' })
+    expect(manage).toMatchObject({ bookings: [{ bookingCode: 'WB1' }], orderId: 'order-1' })
     expect(manage.manageUrl).toMatch(/\/manage\/guest-token\?orderId=order-1$/)
     expect(fetchMock.mock.calls.some(([, init]) => (init as RequestInit)?.headers && JSON.stringify((init as RequestInit).headers).includes('guest-token'))).toBe(true)
+  })
+
+  it('lists every booking of a round-trip order in travel order, with all its tickets', async () => {
+    const ticketOf = (id: string, seatCode: string) => ({
+      ticketId: id, ticketCode: id, passengerName: 'An', seatCode, status: 'Valid', boardingStatus: 'NotBoarded', paidFare: 15000,
+    })
+    const booking = (bookingId: string, bookingCode: string, tripId: string, tickets: unknown[]) => ({
+      bookingId, bookingCode, publicBookingId: bookingId, tripId, boardingCallId: 'c1', disembarkingCallId: 'c2',
+      status: 'Confirmed', quotedTotal: 15000 * tickets.length, tickets,
+    })
+    const [, trip] = routes.find(([pattern]) => pattern.test('/trips/t1'))!
+    const roundTrip: [RegExp, unknown][] = [
+      [/\/checkouts\/order-rt\/bookings\/[\w-]+\/qr$/, { payload: 'QR', algorithm: 'RS256', keyId: 'k', credentialVersion: 1 }],
+      // The backend lists the return leg first here; the page must still show the outbound one first.
+      [/\/checkouts\/order-rt$/, { orderId: 'order-rt', status: 'Confirmed', quotedTotal: 45000, expiresAt: null, payments: [],
+        bookings: [
+          booking('b-back', 'WB-BACK', 't2', [ticketOf('t-3', 'S03')]),
+          booking('b-out', 'WB-OUT', 't1', [ticketOf('t-1', 'S01'), ticketOf('t-2', 'S02')]),
+        ] }],
+      [/\/trips\/t2\/seats/, { seats: [], availableSeatsCount: 0 }],
+      [/\/trips\/t2$/, { ...(trip as object), tripId: 't2', departureTime: '2026-10-23T09:00:00Z', arrivalTime: '2026-10-23T09:45:00Z',
+        stops: [stop('c1', 'A', 1), stop('c2', 'B', 2)].map((s) => ({
+          ...s, estimatedDepartureTime: '2026-10-23T09:00:00Z', estimatedArrivalTime: '2026-10-23T09:40:00Z',
+        })) }],
+    ]
+    fetchMock.mockImplementation(async (url: string) => {
+      const hit = [...roundTrip, ...routes].find(([pattern]) => pattern.test(String(url)))
+      return new Response(JSON.stringify(hit ? hit[1] : {}), { status: hit ? 200 : 404 })
+    })
+    window.history.replaceState(null, '', '/manage/guest-token?orderId=order-rt')
+
+    const { bookings } = await getManageBooking('guest-token')
+    expect(bookings.map((b) => [b.bookingId, b.bookingCode, b.tickets.map((t) => t.seat)])).toEqual([
+      ['b-out', 'WB-OUT', ['S01', 'S02']],
+      ['b-back', 'WB-BACK', ['S03']],
+    ])
   })
 
   const signIn = (role: string) =>

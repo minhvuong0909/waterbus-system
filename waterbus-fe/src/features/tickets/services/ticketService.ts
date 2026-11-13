@@ -1,5 +1,5 @@
 import { getTripDetail } from '../../trips/services/tripService'
-import { accountOrderPath, manageLinkPath, manageLinkUrl, ticketStatusLabel } from '../utils'
+import { accountOrderPath, groupByBooking, manageLinkPath, manageLinkUrl, ticketStatusLabel } from '../utils'
 import type { ManageBooking, Ticket, TicketWallet } from '../types'
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { ApiError, apiRequest } from '../../../services/apiClient'
@@ -218,9 +218,11 @@ export async function getManageBooking(token?: string): Promise<ManageBooking> {
   if (!ref) throw new ApiError(404, 'Link quản lý vé thiếu mã đơn hàng.')
   const tickets = await ticketsOfOrder(ref)
   if (!tickets[0]) throw new ApiError(404, 'Đơn hàng chưa có vé đã phát.')
+  const departure = (ticket: Ticket) => `${ticket.dateId} ${ticket.departTime}`
   return {
-    bookingCode: tickets[0].bookingRef,
-    ticket: tickets[0],
+    bookings: groupByBooking(tickets)
+      .map((group) => ({ bookingId: group[0].bookingId, bookingCode: group[0].bookingRef, tickets: group }))
+      .sort((a, b) => departure(a.tickets[0]).localeCompare(departure(b.tickets[0]))),
     orderId: ref.orderId,
     accessToken: ref.accessToken,
     manageUrl: ref.accessToken ? manageLinkUrl(ref.orderId, ref.accessToken) : undefined,
