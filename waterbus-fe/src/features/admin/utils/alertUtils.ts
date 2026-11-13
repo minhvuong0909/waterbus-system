@@ -1,7 +1,7 @@
-import { t } from '../../i18n'
-import type { OperationType, WeatherAlert } from './types'
-import { formatDateTime } from '../../utils/time'
-import { weatherAlertTitle } from './utils'
+import { t } from '../../../i18n'
+import type { OperationType, WeatherAlert } from '../../operations/types'
+import { formatDateTime } from '../../../utils/time'
+import { weatherAlertTitle } from '../../operations/utils'
 
 export interface AlertMetrics {
   /** Sky condition as the weather service words it, e.g. "mưa nhẹ". */

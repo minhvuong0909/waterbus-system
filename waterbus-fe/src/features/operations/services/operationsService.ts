@@ -1,13 +1,6 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
-import type {
-  AdminTrip,
-  LiveBoatPosition,
-  OperationLog,
-  OperationType,
-  WeatherAlert,
-  WeatherCheckResult,
-} from '../types'
+import type { AdminTrip, LiveBoatPosition, OperationLog, OperationType, WeatherAlert, WeatherCheckResult } from '../types'
 import type { TripStatus, TripType } from '../../trips/types'
 
 // Operations backed by the real API: trips and their status, boat tracking and incidents.

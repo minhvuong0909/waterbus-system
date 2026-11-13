@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildStopRows, stopRowsError, toStopInputs } from '../scheduleStops'
-import { timingErrors, toTimingInput } from '../tripTiming'
+import { buildStopRows, stopRowsError, toStopInputs } from '../utils/scheduleStops'
+import { timingErrors, toTimingInput } from '../utils/tripTiming'
 import type { RouteStop } from '../types'
-import { getOperationTrips } from './operationsService'
+import { getOperationTrips } from '../../operations/services/operationsService'
 import { assignTripBoat, createAdHocTrip } from './tripPlanningService'
 
 const fetchMock = vi.fn()

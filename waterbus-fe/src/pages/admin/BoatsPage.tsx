@@ -3,10 +3,10 @@ import type { FormEvent } from 'react'
 import { Button, DataTable, ErrorState, FilterBar, FilterChips, Modal, Notice, PageHeader, PageLoader, TextField } from '../../components/ui'
 import ActiveToggle from '../../features/admin/components/ActiveToggle'
 import { ActiveBadge } from '../../features/admin/components/StatusBadge'
-import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
-import { createBoat, getBoats, setBoatActive } from '../../features/admin/services/boatService'
+import { createBoat, setBoatActive } from '../../features/admin/services/boatService'
+import { getBoats } from '../../features/operations/services/fleetService'
 import type { AdminBoat } from '../../features/admin/types'
-import { useDocumentTitle, useFetch } from '../../hooks'
+import { useDocumentTitle, useFetch, useReload, useSubmit } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 import type { Column } from '../../components/ui'
@@ -92,7 +92,7 @@ export default function BoatsPage() {
   const [version, reload] = useReload()
   // Tải HẾT (cả active lẫn inactive) - trước đây luôn gọi isActiveOnly:true, nên 1 tàu bị ngừng
   // biến mất hoàn toàn khỏi trang, không có cách nào xem lại hay bật lại qua UI này.
-  const boats = useFetch(() => getBoats(), [version])
+  const boats = useFetch(() => getBoats(false), [version])
   const [dialog, setDialog] = useState<Dialog>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')

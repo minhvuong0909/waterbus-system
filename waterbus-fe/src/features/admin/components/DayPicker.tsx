@@ -1,5 +1,5 @@
 import { t } from '../../../i18n'
-import { WEEK_DAYS, dayName } from '../scheduleDays'
+import { WEEK_DAYS, dayName } from '../utils/scheduleDays'
 
 /** The weekdays a schedule runs on, as seven toggles. */
 export default function DayPicker({

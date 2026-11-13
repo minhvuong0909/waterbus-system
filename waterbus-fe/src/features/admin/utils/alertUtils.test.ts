@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { alertMetrics, alertNote, decisionOperation, pendingCountOf, sortAlerts, timeAgo } from './alertUtils'
-import type { WeatherAlert } from './types'
+import type { WeatherAlert } from '../../operations/types'
 
 const REAL =
   'Cảnh báo thời tiết tuyến RT01: trời quang, gió 43,2 km/h, gió giật 68,4 km/h. ' +

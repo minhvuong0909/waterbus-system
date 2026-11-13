@@ -1,5 +1,5 @@
 import { TextField } from '../../../components/ui'
-import type { TripTiming } from '../tripTiming'
+import type { TripTiming } from '../utils/tripTiming'
 
 /** When sales close and check-in opens for the trips being created; both may stay empty. */
 export default function TripTimingFields({

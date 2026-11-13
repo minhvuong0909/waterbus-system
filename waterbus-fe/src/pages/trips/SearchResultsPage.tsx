@@ -132,7 +132,7 @@ export default function SearchResultsPage() {
             </div>
           </div>
 
-          {leg === 'return' ? <ReturnLegBar piers={piers} /> : <SearchForm piers={piers} dates={dates} variant="bar" />}
+          {leg === 'return' ? <ReturnLegBar piers={piers} /> : <SearchForm piers={piers} dates={dates} variant="bar" submit={false} />}
           {noTripsAtAll && dates && (
             <p
               role="status"

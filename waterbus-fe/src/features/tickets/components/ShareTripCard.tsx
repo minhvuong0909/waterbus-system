@@ -10,16 +10,20 @@ import LinkField from './LinkField'
 
 interface ShareTripCardProps {
   orderId: string
-  bookingId: string
   accessToken: string | null
+  /** The bookings that can be shared; `label` tells them apart when there is more than one. */
+  bookings: { bookingId: string; label?: string }[]
 }
 
 /**
  * Passenger TripAccess Link (BR-ID-05): người mua gửi cho hành khách đi cùng để họ xem hành trình.
- * Người nhận không thấy giá, thanh toán hay QR lên tàu (BR-ID-03, BR-NOT-02).
+ * Người nhận không thấy giá, thanh toán hay QR lên tàu (BR-ID-03, BR-NOT-02). Link cấp theo từng
+ * đặt chỗ, nên đơn khứ hồi chọn chiều cần chia sẻ.
  */
-export default function ShareTripCard({ orderId, bookingId, accessToken }: ShareTripCardProps) {
-  const [link, setLink] = useState<AccessLink>()
+export default function ShareTripCard({ orderId, accessToken, bookings }: ShareTripCardProps) {
+  const [bookingId, setBookingId] = useState(bookings[0].bookingId)
+  const [links, setLinks] = useState<Record<string, AccessLink>>({})
+  const link = links[bookingId]
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
 
@@ -27,7 +31,8 @@ export default function ShareTripCard({ orderId, bookingId, accessToken }: Share
     setBusy(true)
     setError(undefined)
     try {
-      setLink(await createTripShareLink(orderId, bookingId, accessToken))
+      const created = await createTripShareLink(orderId, bookingId, accessToken)
+      setLinks((current) => ({ ...current, [bookingId]: created }))
     } catch (cause) {
       setError(
         cause instanceof ApiError && cause.status === 409
@@ -48,6 +53,29 @@ export default function ShareTripCard({ orderId, bookingId, accessToken }: Share
       <p className="mt-space-sm text-sm text-on-surface-variant">
         {t('Send fellow passengers a link to follow the trip. It shows the journey and seats, never the price, payment or boarding QR.')}
       </p>
+
+      {bookings.length > 1 && (
+        <div className="mt-space-md inline-flex rounded-full bg-surface-container p-1">
+          {bookings.map((booking) => (
+            <button
+              key={booking.bookingId}
+              type="button"
+              aria-pressed={booking.bookingId === bookingId}
+              onClick={() => {
+                setBookingId(booking.bookingId)
+                setError(undefined)
+              }}
+              className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                booking.bookingId === bookingId
+                  ? 'bg-deep-river text-white'
+                  : 'text-on-surface-variant hover:text-deep-river'
+              }`}
+            >
+              {booking.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="mt-space-md">
         {link ? (

@@ -1,84 +1,56 @@
-import { useEffect, useRef } from 'react'
-import heroVideo from '../../../assets/videos/saigon-waterbus.mp4'
-import heroPoster from '../../../assets/videos/saigon-waterbus-poster.jpg'
 import { t } from '../../../i18n'
-import { usePrefersReducedMotion } from '../../../hooks'
 import HeroSearch from './HeroSearch'
+import HeroVideo from './HeroVideo'
 
-export default function HeroSection() {
-  // With reduced motion the poster stays still instead of a looping video.
-  const reducedMotion = usePrefersReducedMotion()
-  const videoRef = useRef<HTMLVideoElement>(null)
-  useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
-    let visible = false
-    const updatePlayback = () => {
-      if (visible && !document.hidden && !reducedMotion) {
-        void video.play().catch(() => {
-          /* Giữ ảnh bìa nếu trình duyệt chặn tự phát. */
-        })
-      } else video.pause()
-    }
-    const observer = new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting
-      updatePlayback()
-    })
-    observer.observe(video)
-    document.addEventListener('visibilitychange', updatePlayback)
-    return () => {
-      observer.disconnect()
-      document.removeEventListener('visibilitychange', updatePlayback)
-      video.pause()
-    }
-  }, [reducedMotion])
+/** One figure under the headline, e.g. "From 15.000 VND · per ticket". */
+export interface HeroFact {
+  value: string
+  label: string
+}
+
+/**
+ * First screen of the home page: the river video fills it, with what the service is and the figures
+ * that matter on the left and the trip search along the bottom, all in view without scrolling.
+ */
+export default function HeroSection({ facts }: { facts: HeroFact[] }) {
   return (
-    <div id="top" className="relative bg-mist xl:pb-11">
-      <section className="relative flex min-h-[480px] w-full flex-col justify-end bg-deep-river sm:min-h-[560px] lg:h-[calc(100svh-5rem-4.5rem)] lg:max-h-[780px] lg:min-h-[540px]">
-        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-          <video
-            ref={videoRef}
-            aria-label={t(
-              'Smart Waterbus electric catamaran gliding across the Saigon River with the city skyline',
-            )}
-            className="h-full w-full object-cover object-[62%_center] saturate-[1.08] lg:object-[68%_center]"
-            src={heroVideo}
-            poster={heroPoster}
-            muted
-            loop={!reducedMotion}
-            playsInline
-            preload="metadata"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-deep-river/85 via-deep-river/35 to-deep-river/10" />
-        </div>
+    <section
+      id="top"
+      className="relative isolate flex min-h-[600px] flex-col bg-deep-river text-white lg:h-[calc(100svh-5rem)] lg:max-h-[860px]"
+    >
+      <HeroVideo />
 
-        <div className="relative z-10 mx-auto w-full max-w-7xl px-5 pb-10 sm:px-8 xl:pb-20">
-          <div className="flex flex-wrap items-end justify-between gap-space-md">
-            <div className="relative max-w-[900px] sm:pl-5">
-              <span
-                aria-hidden="true"
-                className="absolute bottom-1 left-0 top-9 hidden w-1 rounded-full bg-gradient-to-b from-sky-aqua to-teal-flow sm:block"
-              />
-              <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/30 bg-deep-river/40 px-3.5 py-1.5 text-2xs font-semibold uppercase tracking-[0.18em] text-white/95 backdrop-blur-sm">
-                <span className="h-1.5 w-1.5 rounded-full bg-sky-aqua" />
-                {t('Saigon River Waterbus')}
-              </p>
-              <h1 className="font-display text-4xl font-extrabold leading-[1.08] tracking-[-0.02em] drop-shadow-[0_3px_18px_rgba(13,37,56,0.55)] sm:text-5xl lg:text-6xl xl:text-6xl">
-                <span className="block text-white">{t('A Smarter Journey,')}</span>
-                {/* pb giữ vùng nền gradient đủ sâu cho dấu nặng (Một, rạng), nếu không dấu bị cắt mất. */}
-                <span className="-mb-[0.15em] block bg-gradient-to-r from-sky-aqua via-secondary-container to-white bg-clip-text pb-[0.15em] text-transparent">
-                  {t('A Brighter Saigon')}
-                </span>
-              </h1>
-            </div>
-          </div>
-        </div>
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center px-5 pb-8 pt-12 sm:px-8">
+        <p className="mb-4 inline-flex items-center gap-2 self-start rounded-full border border-white/30 bg-deep-river/40 px-3.5 py-1.5 text-2xs font-semibold uppercase tracking-[0.18em] text-white/95 backdrop-blur-sm">
+          <span className="h-1.5 w-1.5 rounded-full bg-sky-aqua" />
+          {t('Saigon River Waterbus')}
+        </p>
+        <h1 className="font-display text-4xl font-extrabold leading-[1.08] tracking-[-0.02em] drop-shadow-[0_2px_16px_rgba(13,37,56,0.5)] sm:text-5xl xl:text-6xl">
+          <span className="block">{t('A Smarter Journey,')}</span>
+          {/* pb giữ vùng nền gradient đủ sâu cho dấu nặng (Một, rạng), nếu không dấu bị cắt mất. */}
+          <span className="-mb-[0.15em] block bg-gradient-to-r from-sky-aqua to-white bg-clip-text pb-[0.15em] text-transparent">
+            {t('A Brighter Saigon')}
+          </span>
+        </h1>
+        <p className="mt-4 max-w-xl text-body-lg text-white/90">
+          {t('Pick a trip, choose your seat and pay online. No account needed.')}
+        </p>
 
-      </section>
+        {facts.length > 0 && (
+          <dl className="mt-8 flex flex-wrap gap-x-8 gap-y-4">
+            {facts.map((fact) => (
+              <div key={fact.label} className="border-l-2 border-sky-aqua/70 pl-4">
+                <dd className="font-display text-2xl font-bold leading-tight">{fact.value}</dd>
+                <dt className="mt-0.5 text-xs text-white/80">{fact.label}</dt>
+              </div>
+            ))}
+          </dl>
+        )}
+      </div>
 
-      <div className="relative z-20 mx-auto -mt-6 w-full max-w-6xl px-5 pb-6 sm:px-8 xl:absolute xl:inset-x-0 xl:bottom-11 xl:mt-0 xl:pb-0 xl:translate-y-1/2">
+      <div className="mx-auto w-full max-w-7xl px-5 pb-8 sm:px-8">
         <HeroSearch />
       </div>
-    </div>
+    </section>
   )
 }

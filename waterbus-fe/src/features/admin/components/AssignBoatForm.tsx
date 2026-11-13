@@ -3,9 +3,10 @@ import type { FormEvent } from 'react'
 import { SelectField } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { formatDateTime } from '../../../utils/time'
-import { useSubmit } from '../hooks/useAdmin'
+import { useSubmit } from '../../../hooks'
 import { assignTripBoat } from '../services/tripPlanningService'
-import type { AdminBoat, AdminTrip, AssignBoatResult } from '../types'
+import type { AdminBoat, AssignBoatResult } from '../types'
+import type { AdminTrip } from '../../operations/types'
 import FormActions from './FormActions'
 
 /**

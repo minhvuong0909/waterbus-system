@@ -212,11 +212,16 @@ export const vi: Record<string, string> = {
   '05 Confirmed': '05 Đã xác nhận',
   '1 Pass ({seat})': '1 vé ({seat})',
   '1 Passenger': '1 hành khách',
+  '{count} passengers': '{count} hành khách',
   '12 min voyage': 'Hành trình 12 phút',
   'A Brighter Saigon': 'Một Sài Gòn rạng rỡ hơn',
-  'A Different Perspective on Saigon’s Skyline & Heritage':
-    'Góc nhìn khác về đường chân trời và di sản Sài Gòn',
   'A Smarter Journey,': 'Hành trình thông minh hơn,',
+  'Places you pass on the river': 'Những nơi tàu đi qua',
+  'Next departure': 'Chuyến gần nhất',
+  'Pick a trip, choose your seat and pay online. No account needed.': 'Chọn chuyến, chọn ghế và thanh toán trực tuyến. Không cần tài khoản.',
+  'per ticket': 'mỗi vé',
+  '{count} piers': '{count} bến',
+  'along the Saigon River': 'dọc sông Sài Gòn',
   'Access QR Ticket': 'Mở vé QR',
   Active: 'Đang thực hiện',
   Afternoon: 'Buổi chiều',
@@ -239,7 +244,6 @@ export const vi: Record<string, string> = {
   'Boarding Guidance': 'Hướng dẫn lên tàu',
   'Boarding QR': 'Mã QR lên tàu',
   'Boarding QR Code': 'Mã QR lên tàu',
-  'Book a Trip': 'Đặt vé',
   Booking: 'Đặt chỗ',
   'Booking Code:': 'Mã đặt chỗ:',
   'Booking Confirmed': 'Đặt chỗ thành công',
@@ -431,7 +435,6 @@ export const vi: Record<string, string> = {
   Regular: 'Thường',
   Reserve: 'Đặt chỗ',
   'Return Route': 'Tuyến về',
-  'Return to seat map': 'Quay lại sơ đồ ghế',
   'Review Your Booking': 'Xem lại đặt chỗ của bạn',
   'River Connects Greater Stories': 'Dòng sông kết nối những câu chuyện lớn',
   'River Crossing Corridor': 'Hành lang qua sông',
@@ -527,8 +530,8 @@ export const vi: Record<string, string> = {
   'Refunds happen when a trip is cancelled, or ends early before you reach your stop: 100% of what you paid for the affected tickets goes back to your original payment method. Tickets of passengers who miss check-in are not refunded.':
     'Hoàn tiền khi chuyến bị huỷ, hoặc kết thúc sớm trước khi bạn tới bến xuống: hoàn 100% số tiền bạn đã trả cho các vé bị ảnh hưởng về phương thức thanh toán ban đầu. Vé của hành khách bỏ lỡ check-in không được hoàn tiền.',
   'When does boarding open?': 'Khi nào bắt đầu lên tàu?',
-  'Each pier has its own check-in window, shown on the trip page. Come to the waiting area of your boarding pier within that window and show your QR code to the staff, who check in each passenger. Passengers who miss the window cannot board and are not refunded.':
-    'Mỗi bến có khung giờ check-in riêng, hiển thị ở trang chi tiết chuyến. Hãy đến khu vực chờ của bến lên trong khung giờ đó và đưa mã QR cho nhân viên để check-in từng hành khách. Hành khách bỏ lỡ khung giờ sẽ không được lên tàu và không được hoàn tiền.',
+  'Each pier has its own check-in window. Come to the waiting area of your boarding pier within that window and show your QR code to the staff, who check in each passenger. Passengers who miss the window cannot board and are not refunded.':
+    'Mỗi bến có khung giờ check-in riêng. Hãy đến khu vực chờ của bến lên trong khung giờ đó và đưa mã QR cho nhân viên để check-in từng hành khách. Hành khách bỏ lỡ khung giờ sẽ không được lên tàu và không được hoàn tiền.',
   'Refunds':
     'Hoàn tiền',
   'If this trip is cancelled or ends early before you reach your stop, the amount you paid for the affected tickets is refunded to your original payment method. Any refund appears here with its status.':
@@ -545,7 +548,6 @@ export const vi: Record<string, string> = {
   'Please enter the passenger’s full name.': 'Vui lòng nhập họ tên hành khách.',
   'Enter a name for every passenger and the buyer’s name and email to continue.': 'Nhập tên cho từng hành khách cùng họ tên và email người mua để tiếp tục.',
   'Passenger {number}': 'Hành khách {number}',
-  'Who will travel on this seat': 'Người sẽ ngồi ở ghế này',
   'Optional': 'Không bắt buộc',
   'One ticket per passenger, issued in each passenger’s name': 'Mỗi hành khách một vé, phát hành theo tên từng hành khách',
   'Buyer': 'Người mua',
@@ -833,7 +835,7 @@ export const vi: Record<string, string> = {
     'Hãy kiểm tra bạn đã sao chép đủ cả link, hoặc gọi hotline kèm mã đặt chỗ.',
   'Remove from this device': 'Xoá khỏi thiết bị này',
   // Rà soát nghiệp vụ FE theo BR v2.0
-  'Seats are held once you continue': 'Ghế được giữ khi bạn bấm tiếp tục',
+  'Seats are held once you continue': 'Ghế được giữ khi bạn sang bước tiếp theo',
   'Ticket sales are closed for this trip. Please choose another trip.':
     'Chuyến này đã đóng bán vé. Vui lòng chọn chuyến khác.',
   'Check-in must close no later than the boat leaves this stop ({time}).':

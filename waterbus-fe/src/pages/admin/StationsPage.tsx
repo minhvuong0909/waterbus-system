@@ -3,7 +3,6 @@ import type { FormEvent } from 'react'
 import { Button, DataTable, ErrorState, FilterBar, FilterChips, Modal, Notice, PageHeader, PageLoader, TextField } from '../../components/ui'
 import ActiveToggle from '../../features/admin/components/ActiveToggle'
 import { ActiveBadge } from '../../features/admin/components/StatusBadge'
-import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import {
   createStation,
   getStations,
@@ -11,7 +10,7 @@ import {
   updateStation,
 } from '../../features/admin/services/stationService'
 import type { AdminStation, NewStation } from '../../features/admin/types'
-import { useDocumentTitle, useFetch } from '../../hooks'
+import { useDocumentTitle, useFetch, useReload, useSubmit } from '../../hooks'
 import { t } from '../../i18n'
 import type { Column } from '../../components/ui'
 

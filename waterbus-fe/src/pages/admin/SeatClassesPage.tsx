@@ -5,10 +5,9 @@ import ActiveToggle from '../../features/admin/components/ActiveToggle'
 import ConfirmModal from '../../features/admin/components/ConfirmModal'
 import SeatClassForm from '../../features/admin/components/SeatClassForm'
 import { ActiveBadge } from '../../features/admin/components/StatusBadge'
-import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import { getSeatClasses, setSeatClassActive } from '../../features/admin/services/seatClassService'
 import type { SeatClass } from '../../features/admin/types'
-import { useDocumentTitle, useFetch } from '../../hooks'
+import { useDocumentTitle, useFetch, useReload, useSubmit } from '../../hooks'
 import { t } from '../../i18n'
 
 type Dialog = { kind: 'form'; seatClass?: SeatClass } | { kind: 'deactivate'; seatClass: SeatClass } | null
