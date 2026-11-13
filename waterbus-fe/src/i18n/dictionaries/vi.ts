@@ -75,6 +75,7 @@ export const vi: Record<string, string> = {
   'Overview': 'Tổng quan',
   'Passenger site': 'Trang hành khách',
   'Piers along the Saigon River. Passengers pick from these when searching for a trip.': 'Các bến dọc sông Sài Gòn. Hành khách chọn bến này khi tìm chuyến.',
+  'No stations match this filter.': 'Không có bến nào khớp bộ lọc.',
   'Position along the river, 1 is the first station.': 'Vị trí dọc sông, 1 là bến đầu tiên.',
   'Seven days of trips with their boat and status. A trip is on sale once it has a boat.':
     'Các chuyến trong 7 ngày, kèm tàu và trạng thái. Chuyến chỉ mở bán khi đã có tàu.',
@@ -100,7 +101,8 @@ export const vi: Record<string, string> = {
   'Stations': 'Bến tàu',
   'Suspend': 'Tạm hoãn',
   'Terminate': 'Kết thúc khẩn cấp',
-  'The active boats of the fleet and their number of seats.': 'Các tàu đang hoạt động và số ghế của từng tàu.',
+  'The boats of the fleet and their number of seats.': 'Các tàu của đội tàu và số ghế của từng tàu.',
+  'No boats match this filter.': 'Không có tàu nào khớp bộ lọc.',
   'This alerts the admin right away. Only use it in an emergency.': 'Admin sẽ được báo ngay. Chỉ dùng khi khẩn cấp.',
   'Time': 'Thời gian',
   'Trip of {time}.': 'Chuyến lúc {time}.',
@@ -591,6 +593,12 @@ export const vi: Record<string, string> = {
   'Terminated': 'Kết thúc sớm',
   'Needs your decision': 'Chờ bạn quyết định',
   'Open alerts': 'Cảnh báo đang mở',
+  'Incident type': 'Loại sự cố',
+  'No open incidents match this filter.': 'Không có sự cố đang mở nào khớp bộ lọc.',
+  'Weather': 'Thời tiết',
+  'Safety': 'An toàn',
+  'Technical': 'Kỹ thuật',
+  'Other': 'Khác',
   'Captain emergency report': 'Báo khẩn cấp của thuyền trưởng',
   'The trip is put on hold until you resume it. Tickets stay valid and nothing is refunded.': 'Chuyến tạm dừng cho tới khi bạn cho chạy lại. Vé vẫn còn hiệu lực và không hoàn tiền.',
   'The trip goes back to where it was.': 'Chuyến quay lại trạng thái trước khi tạm ngưng.',
@@ -756,8 +764,9 @@ export const vi: Record<string, string> = {
   'Could not load the bookings to refund.': 'Không tải được danh sách booking cần hoàn.',
   'Tickets': 'Vé',
   'No bookings are waiting for a refund.': 'Không có booking nào đang chờ hoàn tiền.',
-  'Only the first {count} bookings are shown.': 'Chỉ hiển thị {count} booking đầu tiên.',
   '{count} bookings • {amount}': '{count} booking • {amount}',
+  '{count} bookings on this page • {amount}': '{count} booking ở trang này • {amount}',
+  '{count} bookings in total across all pages': 'Tổng cộng {count} booking trên mọi trang',
   'Yes, create the refund requests': 'Đúng, tạo các yêu cầu hoàn tiền',
   'Tickets and bookings are cancelled as soon as the requests are created.':
     'Vé và booking bị huỷ ngay khi các yêu cầu được tạo.',
@@ -778,8 +787,6 @@ export const vi: Record<string, string> = {
   'Download CSV': 'Tải CSV',
   '{count} refunds waiting': '{count} khoản hoàn đang chờ',
   'No refunds are waiting for staff.': 'Không có khoản hoàn nào đang chờ nhân viên.',
-  'Only the first {count} refunds are shown. Confirm these first.':
-    'Chỉ hiển thị {count} khoản đầu tiên. Hãy xác nhận các khoản này trước.',
   'Only select refunds staff have already paid out. Confirming emails each buyer that the money arrives in about 2–3 working days.':
     'Chỉ chọn các khoản nhân viên đã hoàn xong. Khi xác nhận, hệ thống gửi email cho từng người mua rằng tiền về trong khoảng 2–3 ngày làm việc.',
   'Select all': 'Chọn tất cả',
@@ -933,6 +940,15 @@ export const vi: Record<string, string> = {
   'No ticket has been issued for this booking.': 'Đặt chỗ này chưa được phát vé.',
   'The boarding QR stays with the person who booked. Board together with them.':
     'Mã QR lên tàu do người đặt vé giữ. Hãy lên tàu cùng họ.',
+  // Bộ lọc dùng chung cho các trang danh sách Admin
+  'Clear filters': 'Xoá bộ lọc',
+  'All statuses': 'Mọi trạng thái',
+  'All types': 'Mọi loại',
+  'Active only': 'Chỉ đang hoạt động',
+  'Inactive only': 'Chỉ đã ngừng',
+  'Search': 'Tìm kiếm',
+  'Search by name or code': 'Tìm theo tên hoặc mã',
+
   // Quản trị danh mục: hạng ghế, ghế của tàu, giá vé, tuyến, lịch chạy
   'Schedules': 'Lịch chạy',
   'Routes': 'Tuyến',
@@ -948,6 +964,7 @@ export const vi: Record<string, string> = {
   'Edit seat class': 'Sửa hạng ghế',
   'Deactivate seat class': 'Ngừng hạng ghế',
   'No seat classes yet.': 'Chưa có hạng ghế nào.',
+  'No seat classes match this filter.': 'Không có hạng ghế nào khớp bộ lọc.',
   'Cabin classes of the fleet. Each seat belongs to one class, and fares are set per class.':
     'Các hạng khoang của đội tàu. Mỗi ghế thuộc một hạng, và giá vé đặt theo hạng.',
   'Optional. Shown to staff only.': 'Không bắt buộc. Chỉ nhân viên nhìn thấy.',
@@ -987,6 +1004,7 @@ export const vi: Record<string, string> = {
   'Edit fare': 'Sửa giá vé',
   'Deactivate fare': 'Ngừng giá vé',
   'No fares yet.': 'Chưa có giá vé nào.',
+  'No fares match this filter.': 'Không có giá vé nào khớp bộ lọc.',
   'Starts': 'Bắt đầu',
   'Ends': 'Kết thúc',
   'No end': 'Không kết thúc',
@@ -1006,6 +1024,7 @@ export const vi: Record<string, string> = {
   'Edit route': 'Sửa tuyến',
   'Deactivate route': 'Ngừng tuyến',
   'No routes yet.': 'Chưa có tuyến nào.',
+  'No routes match this filter.': 'Không có tuyến nào khớp bộ lọc.',
   'Service': 'Dịch vụ',
   'Duration': 'Thời lượng',
   'Distance': 'Quãng đường',
@@ -1033,6 +1052,7 @@ export const vi: Record<string, string> = {
   'Edit schedule': 'Sửa lịch chạy',
   'Deactivate schedule': 'Ngừng lịch chạy',
   'No schedules yet.': 'Chưa có lịch chạy nào.',
+  'No schedules match this filter.': 'Không có lịch chạy nào khớp bộ lọc.',
   'Departs': 'Khởi hành',
   'Days': 'Ngày chạy',
   'Valid': 'Hiệu lực',

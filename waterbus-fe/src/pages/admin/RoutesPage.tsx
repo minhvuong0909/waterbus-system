@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DataTable, ErrorState, Modal, Notice, PageHeader, PageLoader } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterBar, Modal, Notice, PageHeader, PageLoader, SelectField, TextField } from '../../components/ui'
 import type { Column } from '../../components/ui'
 import ActiveToggle from '../../features/admin/components/ActiveToggle'
 import ConfirmModal from '../../features/admin/components/ConfirmModal'
@@ -25,6 +25,9 @@ export default function RoutesPage() {
   const routes = useFetch(() => getRoutes(), [version])
   const stations = useFetch(getStations)
   const [dialog, setDialog] = useState<Dialog>(null)
+  const [search, setSearch] = useState('')
+  const [serviceType, setServiceType] = useState('')
+  const [status, setStatus] = useState('')
   const action = useSubmit()
 
   const all = combineFetches(routes, stations)
@@ -35,6 +38,20 @@ export default function RoutesPage() {
     setDialog(null)
     reload()
   }
+
+  const hasFilters = search.trim() !== '' || serviceType !== '' || status !== ''
+  const resetFilters = () => {
+    setSearch('')
+    setServiceType('')
+    setStatus('')
+  }
+  const needle = search.trim().toLowerCase()
+  const filteredRoutes = routes.data.filter(
+    (r) =>
+      (needle === '' || r.code.toLowerCase().includes(needle) || r.name.toLowerCase().includes(needle)) &&
+      (serviceType === '' || r.serviceType === serviceType) &&
+      (status === '' || (status === 'active') === r.isActive),
+  )
 
   // The list has no stops, so the editor opens on the full route.
   const edit = async (id: string) => {
@@ -102,7 +119,25 @@ export default function RoutesPage() {
           <Notice tone="error">{action.error}</Notice>
         </div>
       )}
-      <DataTable columns={columns} rows={routes.data} rowKey={(r) => r.id} empty="No routes yet." />
+      <FilterBar onReset={hasFilters ? resetFilters : undefined}>
+        <TextField
+          label="Search"
+          placeholder={t('Search by name or code')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <SelectField label="Service" value={serviceType} onChange={(e) => setServiceType(e.target.value)}>
+          <option value="">{t('All types')}</option>
+          <option value="Regular">{t('Regular')}</option>
+          <option value="Sightseeing">{t('Sightseeing')}</option>
+        </SelectField>
+        <SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="">{t('All statuses')}</option>
+          <option value="active">{t('Active only')}</option>
+          <option value="inactive">{t('Inactive only')}</option>
+        </SelectField>
+      </FilterBar>
+      <DataTable columns={columns} rows={filteredRoutes} rowKey={(r) => r.id} empty="No routes match this filter." />
 
       {dialog?.kind === 'form' && (
         <Modal title={dialog.route ? 'Edit route' : 'Add route'} onClose={() => setDialog(null)}>

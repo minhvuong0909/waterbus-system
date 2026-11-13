@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Button, DataTable, ErrorState, Modal, Notice, PageHeader, PageLoader, TextField } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterBar, Modal, Notice, PageHeader, PageLoader, SelectField, TextField } from '../../components/ui'
+import ActiveToggle from '../../features/admin/components/ActiveToggle'
+import { ActiveBadge } from '../../features/admin/components/StatusBadge'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import {
   createStation,
-  deleteStation,
   getStations,
+  setStationActive,
   updateStation,
 } from '../../features/admin/services/stationService'
 import type { AdminStation, NewStation } from '../../features/admin/types'
@@ -119,10 +121,25 @@ export default function StationsPage() {
   const [version, reload] = useReload()
   const stations = useFetch(getStations, [version])
   const [dialog, setDialog] = useState<Dialog>(null)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
   const remove = useSubmit()
+  const activate = useSubmit()
 
   if (stations.error) return <ErrorState onRetry={stations.retry} />
   if (stations.loading || !stations.data) return <PageLoader />
+
+  const hasFilters = search.trim() !== '' || status !== ''
+  const resetFilters = () => {
+    setSearch('')
+    setStatus('')
+  }
+  const needle = search.trim().toLowerCase()
+  const filteredStations = stations.data.filter(
+    (s) =>
+      (needle === '' || s.code.toLowerCase().includes(needle) || s.name.toLowerCase().includes(needle)) &&
+      (status === '' || (status === 'active') === s.isActive),
+  )
 
   const columns: Column<AdminStation>[] = [
     { header: 'Order', render: (s) => s.orderIndex, className: 'w-16' },
@@ -130,6 +147,7 @@ export default function StationsPage() {
     { header: 'Name', render: (s) => s.name },
     { header: 'Address', render: (s) => <span className="text-on-surface-variant">{s.address}</span> },
     { header: 'Coordinates', render: (s) => `${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}` },
+    { header: 'Status', render: (s) => <ActiveBadge active={s.isActive} /> },
     {
       header: 'Actions',
       className: 'text-right',
@@ -138,9 +156,14 @@ export default function StationsPage() {
           <Button size="sm" variant="neutral" icon="edit" onClick={() => setDialog({ kind: 'form', station: s })}>
             {t('Edit')}
           </Button>
-          <Button size="sm" variant="neutral" icon="delete" onClick={() => { remove.clearError(); setDialog({ kind: 'delete', station: s }) }}>
-            {t('Deactivate')}
-          </Button>
+          <ActiveToggle
+            active={s.isActive}
+            busy={activate.busy}
+            onDeactivate={() => { remove.clearError(); setDialog({ kind: 'delete', station: s }) }}
+            onActivate={async () => {
+              if (await activate.run(() => setStationActive(s.id, true).then(() => true))) reload()
+            }}
+          />
         </span>
       ),
     },
@@ -162,7 +185,20 @@ export default function StationsPage() {
           </Button>
         }
       />
-      <DataTable columns={columns} rows={stations.data} rowKey={(s) => s.id} />
+      <FilterBar onReset={hasFilters ? resetFilters : undefined}>
+        <TextField
+          label="Search"
+          placeholder={t('Search by name or code')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="">{t('All statuses')}</option>
+          <option value="active">{t('Active only')}</option>
+          <option value="inactive">{t('Inactive only')}</option>
+        </SelectField>
+      </FilterBar>
+      <DataTable columns={columns} rows={filteredStations} rowKey={(s) => s.id} empty="No stations match this filter." />
 
       {dialog?.kind === 'form' && (
         <Modal title={dialog.station ? 'Edit station' : 'Add station'} onClose={() => setDialog(null)}>
@@ -189,7 +225,7 @@ export default function StationsPage() {
               disabled={remove.busy}
               onClick={async () => {
                 const done = await remove.run(async () => {
-                  await deleteStation(dialog.station.id)
+                  await setStationActive(dialog.station.id, false)
                   return true
                 })
                 if (done) closeAndReload()

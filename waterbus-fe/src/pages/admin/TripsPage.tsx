@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DataTable, ErrorState, Modal, Notice, PageHeader, PageLoader } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterBar, Modal, Notice, PageHeader, PageLoader, SelectField, TextField } from '../../components/ui'
 import AdHocTripForm from '../../features/admin/components/AdHocTripForm'
 import AssignBoatForm from '../../features/admin/components/AssignBoatForm'
 import StatusBadge from '../../features/admin/components/StatusBadge'
@@ -27,8 +27,6 @@ const STATUSES: TripStatus[] = [
   'Cancelled',
   'Terminated',
 ]
-
-const FILTER_CLASS = 'rounded-lg border border-outline-variant bg-white px-2 py-1.5 text-sm text-deep-river'
 
 type Dialog = { kind: 'boat'; trip: AdminTrip } | { kind: 'trip' } | null
 
@@ -108,40 +106,14 @@ export default function TripsPage() {
         title="Trips"
         description="Seven days of trips with their boat and status. A trip is on sale once it has a boat."
         actions={
-          <>
-            <label className="flex items-center gap-2 text-sm text-on-surface-variant">
-              {t('From')}
-              <input
-                type="date"
-                value={weekFrom}
-                onChange={(e) => setWeekFrom(e.target.value)}
-                className={FILTER_CLASS}
-              />
-            </label>
-            <label className="flex items-center gap-2 text-sm text-on-surface-variant">
-              {t('Status')}
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value as 'all' | TripStatus)}
-                className={FILTER_CLASS}
-              >
-                <option value="all">{t('All')}</option>
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {t(s === 'EnRoute' ? 'In transit' : s)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button
-              size="sm"
-              icon="add"
-              disabled={routes.data.length === 0}
-              onClick={() => setDialog({ kind: 'trip' })}
-            >
-              {t('Add trip')}
-            </Button>
-          </>
+          <Button
+            size="sm"
+            icon="add"
+            disabled={routes.data.length === 0}
+            onClick={() => setDialog({ kind: 'trip' })}
+          >
+            {t('Add trip')}
+          </Button>
         }
       />
       {movedSeats > 0 && (
@@ -151,6 +123,17 @@ export default function TripsPage() {
           </Notice>
         </div>
       )}
+      <FilterBar onReset={weekFrom !== '' || filter !== 'all' ? () => { setWeekFrom(''); setFilter('all') } : undefined}>
+        <TextField label="From" type="date" value={weekFrom} onChange={(e) => setWeekFrom(e.target.value)} />
+        <SelectField label="Status" value={filter} onChange={(e) => setFilter(e.target.value as 'all' | TripStatus)}>
+          <option value="all">{t('All')}</option>
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {t(s === 'EnRoute' ? 'In transit' : s)}
+            </option>
+          ))}
+        </SelectField>
+      </FilterBar>
       <DataTable columns={columns} rows={rows} rowKey={(x) => x.id} empty="No trips match this filter." />
 
       {dialog?.kind === 'boat' && (

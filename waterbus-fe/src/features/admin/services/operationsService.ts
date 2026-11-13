@@ -118,18 +118,27 @@ function tripStatusOf(value: number | string | undefined): TripStatus | undefine
   return TRIP_STATUS_BY_NUMBER.find((status) => status === value)
 }
 
-const KINDS = ['Weather', 'Safety', 'Technical', 'Other'] as const
+export const INCIDENT_KINDS = ['Weather', 'Safety', 'Technical', 'Other'] as const
+const KINDS = INCIDENT_KINDS
 
 /**
- * Open incidents, newest first: weather alerts from the weather guard and captains' SOS reports.
- * `withTrips` also loads the trips each incident affects and what the admin decided for them.
+ * Every open incident, newest first: weather alerts from the weather guard and captains' SOS reports.
+ * Reads every page from the backend (previously stopped at the first 20, silently hiding the rest
+ * whenever more than 20 were open at once - this also fed `awaitingDecision`, so a hidden incident
+ * meant its trips silently lost their action buttons). `incidentType` narrows at the server; `withTrips`
+ * also loads the trips each incident affects and what the admin decided for them.
  */
-export async function getOpenIncidents(withTrips = false): Promise<WeatherAlert[]> {
-  const page = await apiRequest<Paged<IncidentSummaryFull>>(API_ENDPOINTS.incidents.list, {
-    query: { status: 'Open', pageSize: 20 },
-  })
+export async function getOpenIncidents(withTrips = false, incidentType?: string): Promise<WeatherAlert[]> {
+  const items: IncidentSummaryFull[] = []
+  for (let pageNumber = 1; ; pageNumber++) {
+    const page = await apiRequest<Paged<IncidentSummaryFull>>(API_ENDPOINTS.incidents.list, {
+      query: { status: 'Open', incidentType, pageNumber, pageSize: 100 },
+    })
+    items.push(...page.items)
+    if (!page.items.length || items.length >= page.totalCount) break
+  }
   return Promise.all(
-    page.items.map(async (i): Promise<WeatherAlert> => {
+    items.map(async (i): Promise<WeatherAlert> => {
       const trips = withTrips
         ? (await apiRequest<IncidentDetailDto>(API_ENDPOINTS.incidents.detail(i.id))).affectedTrips.map((t) => ({
             tripId: t.tripId,

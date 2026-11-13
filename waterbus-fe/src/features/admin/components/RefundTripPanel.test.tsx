@@ -74,7 +74,7 @@ describe('RefundTripPanel', () => {
 
     expect(await screen.findByText('BK1')).toBeTruthy()
     expect(screen.getByText('BK2')).toBeTruthy()
-    expect(listRefundCandidates).toHaveBeenCalledWith('t-cancelled')
+    expect(listRefundCandidates).toHaveBeenCalledWith('t-cancelled', 1, 20)
     expect(screen.getByText(/2 bookings/)).toBeTruthy()
   })
 

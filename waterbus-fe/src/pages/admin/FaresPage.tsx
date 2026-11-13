@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DataTable, ErrorState, Modal, PageHeader, PageLoader } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterBar, Modal, PageHeader, PageLoader, SelectField } from '../../components/ui'
 import type { Column } from '../../components/ui'
 import ConfirmModal from '../../features/admin/components/ConfirmModal'
 import FareRuleForm from '../../features/admin/components/FareRuleForm'
@@ -35,6 +35,9 @@ export default function FaresPage() {
   const rules = useFetch(getFareRules, [version])
   const seatClasses = useFetch(() => getSeatClasses(true))
   const [dialog, setDialog] = useState<Dialog>(null)
+  const [tripType, setTripType] = useState('')
+  const [seatClassId, setSeatClassId] = useState('')
+  const [status, setStatus] = useState('')
 
   const all = combineFetches(rules, seatClasses)
   if (all.error) return <ErrorState onRetry={all.retry} />
@@ -44,6 +47,24 @@ export default function FaresPage() {
     setDialog(null)
     reload()
   }
+
+  const hasFilters = tripType !== '' || seatClassId !== '' || status !== ''
+  const resetFilters = () => {
+    setTripType('')
+    setSeatClassId('')
+    setStatus('')
+  }
+  const filteredRules = rules.data.filter(
+    (f) =>
+      (tripType === '' || f.tripType === tripType) &&
+      (seatClassId === '' || f.seatClassId === seatClassId) &&
+      (status === '' || f.status === status),
+  )
+  // Xây từ CHÍNH dữ liệu giá vé hiện có (không phải `seatClasses.data`, vốn chỉ chứa hạng ghế đang
+  // hoạt động) - để lọc được cả theo hạng ghế đã ngừng nếu vẫn còn giá vé cũ gắn với hạng đó.
+  const seatClassOptions = Array.from(
+    new Map(rules.data.map((f) => [f.seatClassId, f.seatClassName])).entries(),
+  ).sort((a, b) => a[1].localeCompare(b[1]))
 
   const columns: Column<FareRule>[] = [
     { header: 'Trip type', render: tripTypeLabel },
@@ -90,7 +111,29 @@ export default function FaresPage() {
           </Button>
         }
       />
-      <DataTable columns={columns} rows={rules.data} rowKey={(f) => f.id} empty="No fares yet." />
+      <FilterBar onReset={hasFilters ? resetFilters : undefined}>
+        <SelectField label="Trip type" value={tripType} onChange={(e) => setTripType(e.target.value)}>
+          <option value="">{t('All types')}</option>
+          <option value="Commuter">{t('Regular')}</option>
+          <option value="Sightseeing">{t('Sightseeing')}</option>
+        </SelectField>
+        <SelectField label="Seat class" value={seatClassId} onChange={(e) => setSeatClassId(e.target.value)}>
+          <option value="">{t('All')}</option>
+          {seatClassOptions.map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="">{t('All statuses')}</option>
+          <option value="Active">{t(STATUS_BADGE.Active.label)}</option>
+          <option value="Upcoming">{t(STATUS_BADGE.Upcoming.label)}</option>
+          <option value="Expired">{t(STATUS_BADGE.Expired.label)}</option>
+          <option value="Inactive">{t(STATUS_BADGE.Inactive.label)}</option>
+        </SelectField>
+      </FilterBar>
+      <DataTable columns={columns} rows={filteredRules} rowKey={(f) => f.id} empty="No fares match this filter." />
 
       {dialog?.kind === 'form' && (
         <Modal title={dialog.rule ? 'Edit fare' : 'Add fare'} onClose={() => setDialog(null)}>

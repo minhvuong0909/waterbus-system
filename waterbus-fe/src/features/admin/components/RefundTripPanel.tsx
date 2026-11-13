@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Button, DataTable, Notice, Panel, SelectField } from '../../../components/ui'
+import { Button, DataTable, Notice, Pagination, Panel, SelectField } from '../../../components/ui'
 import type { Column } from '../../../components/ui'
 import { useFetch } from '../../../hooks'
 import { t } from '../../../i18n'
@@ -32,6 +32,7 @@ function refundableTripsQuery() {
 export default function RefundTripPanel({ onCreated }: { onCreated: () => void }) {
   const trips = useFetch(() => getOperationTrips(refundableTripsQuery()))
   const [tripId, setTripId] = useState('')
+  const [pageNumber, setPageNumber] = useState(1)
   const [version, reload] = useReload()
   const [confirming, setConfirming] = useState(false)
   const [result, setResult] = useState<BatchRefundRequestResult | null>(null)
@@ -45,16 +46,16 @@ export default function RefundTripPanel({ onCreated }: { onCreated: () => void }
     [trips.data],
   )
   const candidates = useFetch(
-    () => (tripId ? listRefundCandidates(tripId) : Promise.resolve(undefined)),
-    [tripId, version],
+    () => (tripId ? listRefundCandidates(tripId, pageNumber, 20) : Promise.resolve(undefined)),
+    [tripId, pageNumber, version],
   )
 
   const rows = candidates.data?.items ?? []
   const total = rows.reduce((sum, row) => sum + row.amount, 0)
-  const truncated = (candidates.data?.totalCount ?? 0) > rows.length
 
   const chooseTrip = (id: string) => {
     setTripId(id)
+    setPageNumber(1)
     setConfirming(false)
     setResult(null)
   }
@@ -115,12 +116,26 @@ export default function RefundTripPanel({ onCreated }: { onCreated: () => void }
       {tripId && candidates.data && (
         <div className="mt-4 space-y-4">
           <DataTable columns={columns} rows={rows} rowKey={(x) => x.bookingId} empty="No bookings are waiting for a refund." />
-          {truncated && <Notice tone="error">{t('Only the first {count} bookings are shown.', { count: rows.length })}</Notice>}
+          {candidates.data && (
+            <Pagination
+              pageNumber={candidates.data.pageNumber}
+              totalPages={candidates.data.totalPages}
+              onChange={setPageNumber}
+              busy={candidates.fetching}
+            />
+          )}
           {rows.length > 0 && (
             <div className="flex flex-wrap items-center gap-3">
               <p className="text-sm font-semibold text-deep-river">
-                {t('{count} bookings • {amount}', { count: candidates.data.totalCount, amount: formatVnd(total) })}
+                {candidates.data.totalPages > 1
+                  ? t('{count} bookings on this page • {amount}', { count: rows.length, amount: formatVnd(total) })
+                  : t('{count} bookings • {amount}', { count: candidates.data.totalCount, amount: formatVnd(total) })}
               </p>
+              {candidates.data.totalPages > 1 && (
+                <span className="text-xs text-on-surface-variant">
+                  {t('{count} bookings in total across all pages', { count: candidates.data.totalCount })}
+                </span>
+              )}
               {confirming ? (
                 <>
                   <Button variant="danger" icon="receipt_long" onClick={create} disabled={busy}>

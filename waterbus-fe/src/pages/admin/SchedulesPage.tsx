@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DataTable, ErrorState, Modal, Notice, PageHeader, PageLoader } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterBar, Modal, Notice, PageHeader, PageLoader, SelectField } from '../../components/ui'
 import type { Column } from '../../components/ui'
 import ActiveToggle from '../../features/admin/components/ActiveToggle'
 import ConfirmModal from '../../features/admin/components/ConfirmModal'
@@ -39,6 +39,8 @@ export default function SchedulesPage() {
   const schedules = useFetch(getSchedules, [version])
   const routes = useFetch(() => getRoutes(true))
   const [dialog, setDialog] = useState<Dialog>(null)
+  const [routeFilter, setRouteFilter] = useState('')
+  const [status, setStatus] = useState('')
   const action = useSubmit()
 
   const all = combineFetches(schedules, routes)
@@ -49,6 +51,22 @@ export default function SchedulesPage() {
     setDialog(null)
     reload()
   }
+
+  const hasFilters = routeFilter !== '' || status !== ''
+  const resetFilters = () => {
+    setRouteFilter('')
+    setStatus('')
+  }
+  const filteredSchedules = schedules.data.filter(
+    (s) =>
+      (routeFilter === '' || s.routeId === routeFilter) &&
+      (status === '' || (status === 'active') === s.isActive),
+  )
+  // Xây từ CHÍNH dữ liệu lịch chạy hiện có (không phải `routes.data`, vốn chỉ chứa tuyến đang hoạt
+  // động) - để lọc được cả theo tuyến đã ngừng nếu vẫn còn lịch chạy cũ gắn với tuyến đó.
+  const routeOptions = Array.from(
+    new Map(schedules.data.map((s) => [s.routeId, s.routeName])).entries(),
+  ).sort((a, b) => a[1].localeCompare(b[1]))
 
   // The list has no stops, so the editor opens on the full schedule.
   const edit = async (id: string) => {
@@ -128,7 +146,22 @@ export default function SchedulesPage() {
           <Notice tone="error">{action.error}</Notice>
         </div>
       )}
-      <DataTable columns={columns} rows={schedules.data} rowKey={(s) => s.id} empty="No schedules yet." />
+      <FilterBar onReset={hasFilters ? resetFilters : undefined}>
+        <SelectField label="Route" value={routeFilter} onChange={(e) => setRouteFilter(e.target.value)}>
+          <option value="">{t('All')}</option>
+          {routeOptions.map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="">{t('All statuses')}</option>
+          <option value="active">{t('Active only')}</option>
+          <option value="inactive">{t('Inactive only')}</option>
+        </SelectField>
+      </FilterBar>
+      <DataTable columns={columns} rows={filteredSchedules} rowKey={(s) => s.id} empty="No schedules match this filter." />
 
       {dialog?.kind === 'form' && (
         <Modal title={dialog.schedule ? 'Edit schedule' : 'Add schedule'} onClose={() => setDialog(null)}>

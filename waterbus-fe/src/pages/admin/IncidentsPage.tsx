@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Button, DataTable, ErrorState, Modal, Notice, PageHeader, PageLoader } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterBar, Modal, Notice, PageHeader, PageLoader, Pagination, SelectField } from '../../components/ui'
 import AlertCard from '../../features/admin/components/AlertCard'
 import AlertsEmpty from '../../features/admin/components/AlertsEmpty'
 import { pendingCountOf, sortAlerts } from '../../features/admin/alertUtils'
 import type { WeatherAlert } from '../../features/admin/types'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
 import {
+  INCIDENT_KINDS,
   getOpenIncidents,
   getOperationLogs,
   getOperationTrips,
@@ -22,12 +23,20 @@ import OperationForm from '../../features/admin/components/OperationForm'
 import type { Column } from '../../components/ui'
 import TripStatusBadge from '../../features/trips/components/TripStatusBadge'
 
+const ALERTS_PAGE_SIZE = 10
+
 export default function IncidentsPage() {
   useDocumentTitle('Incidents')
   const [version, reload] = useReload()
   const trips = useFetch(getOperationTrips, [version])
   const logs = useFetch(getOperationLogs, [version])
   const [alertVersion, reloadAlerts] = useReload()
+  const [kindFilter, setKindFilter] = useState('')
+  const [alertsPage, setAlertsPage] = useState(1)
+  // Luôn tải HẾT mọi loại sự cố mở (không lọc ở BE): `awaitingDecision`/`waitingTrips` bên dưới phải
+  // tính trên TOÀN BỘ sự cố đang mở, không phụ thuộc bộ lọc hiển thị - nếu lọc ở BE, 1 sự cố loại
+  // khác đang chờ quyết định sẽ bị ẩn mất nút hành động khỏi "Trips in operation" một cách sai lệch.
+  // Lọc theo loại chỉ áp dụng cho phần HIỂN THỊ card bên dưới, ở client.
   const alerts = useFetch(() => getOpenIncidents(true), [alertVersion])
   const [pending, setPending] = useState<{ trip: AdminTrip; type: OperationType; incidentId?: string } | null>(null)
   const weatherCheck = useSubmit()
@@ -54,6 +63,18 @@ export default function IncidentsPage() {
   const active = trips.data.filter((x) => !isFinished(x.status))
   const openAlerts = sortAlerts(alerts.data)
   const waitingTrips = openAlerts.reduce((sum, alert) => sum + pendingCountOf(alert), 0)
+
+  const filteredAlerts = kindFilter ? openAlerts.filter((a) => a.kind === kindFilter) : openAlerts
+  const alertsTotalPages = Math.max(1, Math.ceil(filteredAlerts.length / ALERTS_PAGE_SIZE))
+  const alertsPageClamped = Math.min(alertsPage, alertsTotalPages)
+  const pagedAlerts = filteredAlerts.slice(
+    (alertsPageClamped - 1) * ALERTS_PAGE_SIZE,
+    alertsPageClamped * ALERTS_PAGE_SIZE,
+  )
+  const chooseKindFilter = (value: string) => {
+    setKindFilter(value)
+    setAlertsPage(1)
+  }
 
   // Trips an open alert affects and the admin has not decided about yet: tripId -> alert id.
   const awaitingDecision = new Map<string, string>()
@@ -193,10 +214,28 @@ export default function IncidentsPage() {
       )}
 
       <section className="mb-8 space-y-3" aria-label={t('Open alerts')}>
+        {openAlerts.length > 0 && (
+          <FilterBar onReset={kindFilter ? () => chooseKindFilter('') : undefined}>
+            <SelectField
+              label="Incident type"
+              value={kindFilter}
+              onChange={(e) => chooseKindFilter(e.target.value)}
+            >
+              <option value="">{t('All types')}</option>
+              {INCIDENT_KINDS.map((kind) => (
+                <option key={kind} value={kind}>
+                  {t(kind)}
+                </option>
+              ))}
+            </SelectField>
+          </FilterBar>
+        )}
         {openAlerts.length === 0 ? (
           <AlertsEmpty />
+        ) : filteredAlerts.length === 0 ? (
+          <Notice tone="success">{t('No open incidents match this filter.')}</Notice>
         ) : (
-          openAlerts.map((alert) => (
+          pagedAlerts.map((alert) => (
             <AlertCard
               key={alert.id}
               alert={alert}
@@ -207,6 +246,7 @@ export default function IncidentsPage() {
             />
           ))
         )}
+        <Pagination pageNumber={alertsPageClamped} totalPages={alertsTotalPages} onChange={setAlertsPage} />
       </section>
 
       <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-deep-river">{t('Trips in operation')}</h2>

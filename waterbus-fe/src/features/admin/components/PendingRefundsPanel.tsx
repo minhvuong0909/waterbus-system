@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DataTable, ErrorState, Notice, Panel, TextField } from '../../../components/ui'
+import { Button, DataTable, ErrorState, Notice, Pagination, Panel, TextField } from '../../../components/ui'
 import type { Column } from '../../../components/ui'
 import { useFetch } from '../../../hooks'
 import { t } from '../../../i18n'
@@ -17,7 +17,8 @@ import type { BatchConfirmResult, PendingRefund } from '../types'
  */
 export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number }) {
   const [version, reload] = useReload()
-  const pending = useFetch(() => listPendingRefunds(), [version, refreshKey])
+  const [pageNumber, setPageNumber] = useState(1)
+  const pending = useFetch(() => listPendingRefunds(pageNumber, 20), [version, refreshKey, pageNumber])
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [evidence, setEvidence] = useState('')
   const [downloaded, setDownloaded] = useState<string | null>(null)
@@ -111,10 +112,13 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
       </div>
 
       <DataTable columns={columns} rows={rows} rowKey={(x) => x.refundId} empty="No refunds are waiting for staff." />
-      {pending.data && pending.data.totalCount > rows.length && (
-        <div className="mt-3">
-          <Notice tone="error">{t('Only the first {count} refunds are shown. Confirm these first.', { count: rows.length })}</Notice>
-        </div>
+      {pending.data && (
+        <Pagination
+          pageNumber={pending.data.pageNumber}
+          totalPages={pending.data.totalPages}
+          onChange={setPageNumber}
+          busy={pending.fetching}
+        />
       )}
 
       {rows.length > 0 && (
