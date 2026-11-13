@@ -1,5 +1,5 @@
-import { t } from '../../i18n'
-import type { RouteStop, ScheduleDirection, ScheduleStopInput } from './types'
+import { t } from '../../../i18n'
+import type { RouteStop, ScheduleDirection, ScheduleStopInput } from '../types'
 
 /** One stop of the route as a form edits it; the offsets are the minutes the admin typed. */
 export interface ScheduleStopRow {

@@ -4,7 +4,6 @@ import { apiRequest } from '../../../services/apiClient'
 import { getCurrentWeather, toKmh } from './weatherService'
 
 vi.mock('../../../services/apiClient', () => ({ apiRequest: vi.fn() }))
-vi.mock('../../../constant/env', () => ({ USE_MOCK: false }))
 
 describe('weatherService', () => {
   afterEach(() => { vi.clearAllMocks() })

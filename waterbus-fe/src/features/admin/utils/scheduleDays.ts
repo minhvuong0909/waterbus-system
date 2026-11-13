@@ -1,4 +1,4 @@
-import { t } from '../../i18n'
+import { t } from '../../../i18n'
 
 /** ISO weekdays as the backend stores them: 1 = Monday … 7 = Sunday. */
 export const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 7] as const

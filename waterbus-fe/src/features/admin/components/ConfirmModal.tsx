@@ -1,6 +1,6 @@
 import { Button, Modal, Notice } from '../../../components/ui'
 import { t } from '../../../i18n'
-import { useSubmit } from '../hooks/useAdmin'
+import { useSubmit } from '../../../hooks'
 
 interface ConfirmModalProps {
   title: string

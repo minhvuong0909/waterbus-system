@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import QRCode from 'qrcode'
-import { t } from '../../i18n'
+import { t } from '../../../i18n'
 
 interface QrCodeProps {
   /** Text encoded in the code: the signed booking credential from the backend (RS256 token). */

@@ -4,7 +4,7 @@ import { Button, Notice, TextField } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { formatClock, fromVietnamDateTimeInput, toVietnamDateTimeInput } from '../../../utils/time'
 import type { TripStopDto } from '../../trips/types'
-import { useSubmit } from '../hooks/useAdmin'
+import { useSubmit } from '../../../hooks'
 import { setCheckInWindow } from '../services/checkInService'
 
 /** A stop that has left or was skipped keeps its window: the backend refuses to change it. */

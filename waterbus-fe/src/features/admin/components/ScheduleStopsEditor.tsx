@@ -1,6 +1,6 @@
 import { INPUT_CLASS } from '../../../components/ui/styles'
 import { t } from '../../../i18n'
-import type { ScheduleStopRow } from '../scheduleStops'
+import type { ScheduleStopRow } from '../utils/scheduleStops'
 
 const OFFSET_CLASS = `${INPUT_CLASS} !min-h-[36px] !w-20 !px-2 text-right`
 

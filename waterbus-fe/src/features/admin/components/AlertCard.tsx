@@ -1,9 +1,9 @@
 import { Icon } from '../../../components/ui'
 import { t } from '../../../i18n'
-import { alertMetrics, alertNote, alertTone, decisionOperation, formatKmh, isCaptainReport, pendingCountOf, timeAgo, titleOf } from '../alertUtils'
-import type { AdminTrip, OperationType, WeatherAlert } from '../types'
+import { alertMetrics, alertNote, alertTone, decisionOperation, formatKmh, isCaptainReport, pendingCountOf, timeAgo, titleOf } from '../utils/alertUtils'
+import type { AdminTrip, OperationType, WeatherAlert } from '../../operations/types'
 import { formatDateTime } from '../../../utils/time'
-import { OPERATION_LABEL } from '../utils'
+import { OPERATION_LABEL } from '../../operations/utils'
 import TripStatusBadge from '../../trips/components/TripStatusBadge'
 
 /** Decisions that answer an alert for one trip (Resume and Close are routine trip operations). */

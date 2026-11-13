@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { t } from '../../../i18n'
-import { OPERATION_LABEL } from '../utils'
-import type { AdminTrip, OperationType } from '../types'
+import { OPERATION_LABEL } from '../../operations/utils'
+import type { AdminTrip, OperationType } from '../../operations/types'
 import { formatDateTime } from '../../../utils/time'
-import { useSubmit } from '../hooks/useAdmin'
-import { operateTrip } from '../services/operationsService'
+import { useSubmit } from '../../../hooks'
+import { operateTrip } from '../../operations/services/operationsService'
 import { Button, Notice } from '../../../components/ui'
 
 

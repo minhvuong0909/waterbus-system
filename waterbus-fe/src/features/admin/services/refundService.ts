@@ -1,16 +1,7 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
 import type { DownloadedFile } from '../../../services/apiClient'
-import type {
-  BatchConfirmResult,
-  BatchRefundRequestResult,
-  ManualRefundInput,
-  ManualRefundResult,
-  Paged,
-  PendingRefund,
-  RefundCandidate,
-  RefundRequestResult,
-} from '../types'
+import type { BatchConfirmResult, BatchRefundRequestResult, ManualRefundInput, ManualRefundResult, Paged, PendingRefund, RefundCandidate, RefundRequestResult } from '../types'
 
 /**
  * Tạo yêu cầu hoàn tiền cho một Booking của chuyến bị huỷ/chấm dứt (BR-RF-07). Đơn khứ hồi chỉ
