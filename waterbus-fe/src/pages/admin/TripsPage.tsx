@@ -150,7 +150,7 @@ export default function TripsPage() {
           </Notice>
         </div>
       )}
-      <DataTable columns={columns} rows={rows} rowKey={(x) => x.id} empty="No trips match this filter." />
+      <DataTable columns={columns} rows={rows} rowKey={(x) => x.id} empty="No trips match this filter." pageSize={15} />
 
       {dialog?.kind === 'boat' && (
         <Modal title={dialog.trip.boatId ? 'Change boat' : 'Assign boat'} onClose={() => setDialog(null)}>

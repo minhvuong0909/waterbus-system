@@ -14,6 +14,13 @@ public sealed class StationRepository(ApplicationDbContext context) : IStationRe
     public Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default) =>
         context.Stations.AnyAsync(s => s.Code == code && !s.IsDeleted, cancellationToken);
 
+    /// <summary>Cột lưu decimal(10,7): hai tọa độ chỉ khác nhau dưới nửa đơn vị thập phân thứ 7 là cùng một điểm.</summary>
+    private const double CoordinateEpsilon = 0.00000005;
+
+    public Task<bool> ExistsAtCoordinatesAsync(double latitude, double longitude, Guid? excludeId, CancellationToken cancellationToken = default) =>
+        context.Stations.AnyAsync(s => !s.IsDeleted && (excludeId == null || s.Id != excludeId) &&
+            Math.Abs(s.Latitude - latitude) < CoordinateEpsilon && Math.Abs(s.Longitude - longitude) < CoordinateEpsilon, cancellationToken);
+
     public async Task<Station> GetRequiredByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         await context.Stations.FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted, cancellationToken)
         ?? throw new NotFoundException(nameof(Station), id);

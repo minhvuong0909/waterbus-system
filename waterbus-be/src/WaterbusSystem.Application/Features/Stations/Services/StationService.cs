@@ -21,6 +21,8 @@ public sealed class StationService(IStationRepository stations, IUnitOfWork unit
             });
         }
 
+        await EnsureCoordinatesAreFreeAsync(request.Latitude, request.Longitude, null, cancellationToken);
+
         var station = new Station
         {
             Code = request.Code,
@@ -42,6 +44,9 @@ public sealed class StationService(IStationRepository stations, IUnitOfWork unit
     {
         var station = await stations.GetRequiredByIdAsync(id, cancellationToken);
 
+        // Ngừng hoạt động một bến vẫn được phép dù tọa độ trùng bến khác (dữ liệu cũ); chỉ chặn bến đang hoạt động.
+        if (request.IsActive) await EnsureCoordinatesAreFreeAsync(request.Latitude, request.Longitude, id, cancellationToken);
+
         station.Name = request.Name;
         station.Address = request.Address;
         station.Latitude = request.Latitude;
@@ -51,6 +56,18 @@ public sealed class StationService(IStationRepository stations, IUnitOfWork unit
         station.UpdatedAt = DateTimeOffset.UtcNow;
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>Hai bến không được nằm cùng một điểm: gần như chắc chắn là nhập nhầm tọa độ và làm sai bản đồ, geofence.</summary>
+    private async Task EnsureCoordinatesAreFreeAsync(double latitude, double longitude, Guid? excludeId, CancellationToken cancellationToken)
+    {
+        if (!await stations.ExistsAtCoordinatesAsync(latitude, longitude, excludeId, cancellationToken)) return;
+        const string message = "Đã có một bến khác nằm đúng tọa độ này. Hãy kiểm tra lại vĩ độ và kinh độ.";
+        throw new ValidationException(new List<FluentValidation.Results.ValidationFailure>
+        {
+            new(nameof(CreateStationRequest.Latitude), message),
+            new(nameof(CreateStationRequest.Longitude), message)
+        });
     }
 
     public Task<StationResponse> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>

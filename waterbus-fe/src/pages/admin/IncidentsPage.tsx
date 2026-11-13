@@ -209,10 +209,10 @@ export default function IncidentsPage() {
       </section>
 
       <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-deep-river">{t('Trips in operation')}</h2>
-      <DataTable columns={columns} rows={active} rowKey={(x) => x.id} empty="No trips are scheduled or running." />
+      <DataTable columns={columns} rows={active} rowKey={(x) => x.id} empty="No trips are scheduled or running." pageSize={10} />
 
       <h2 className="mb-2 mt-8 text-sm font-bold uppercase tracking-wide text-deep-river">{t('Operation log')}</h2>
-      <DataTable columns={logColumns} rows={logs.data} rowKey={(l) => l.id} empty="Nothing has been done yet." />
+      <DataTable columns={logColumns} rows={logs.data} rowKey={(l) => l.id} empty="Nothing has been done yet." pageSize={10} />
 
       {confirmClose && (
         <Modal title={t('Close this alert?')} onClose={() => setConfirmClose(null)}>

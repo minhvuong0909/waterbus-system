@@ -3,6 +3,9 @@ import type { ReactNode } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { Logo } from '../../components/brand'
 import { Icon } from '../../components/ui'
+import { ROLES } from '../../constant/roles'
+import AdminAlertBar from '../../features/operations/components/AdminAlertBar'
+import { useOpenAlertSummary } from '../../features/operations/hooks/useOpenAlertSummary'
 import { ADMIN_NAV } from '../../features/admin/navigation'
 import { hasAnyRole } from '../../features/authentication/utils'
 import { useAuth } from '../../features/authentication/hooks/useAuth'
@@ -21,6 +24,8 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth()
   const items = ADMIN_NAV.filter((item) => hasAnyRole(user, item.roles))
+  // Alerts are for the admin only (the incident endpoints are AdminOnly); a captain in this shell sees none.
+  const alertSummary = useOpenAlertSummary(hasAnyRole(user, [ROLES.admin]))
   const { pathname } = useLocation()
   // A sub-page such as the seats of a boat belongs to the section it was opened from.
   const current =
@@ -90,6 +95,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <span className="min-w-0 whitespace-normal leading-snug lg:truncate lg:whitespace-nowrap">
                 {t(item.label)}
               </span>
+              {item.to === ROUTES.adminIncidents && alertSummary && (
+                <span
+                  aria-label={`${t('Open alerts')}: ${alertSummary.open}`}
+                  className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-coral-glow px-1.5 text-2xs font-bold text-white"
+                >
+                  {alertSummary.open}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -144,6 +157,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
         <main id="admin-content" className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">
+          <AdminAlertBar summary={alertSummary} pathname={pathname} />
           {children}
         </main>
       </div>
