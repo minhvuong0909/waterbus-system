@@ -25,6 +25,7 @@ const stop: TripStopDto = {
   canBoard: true, canAlight: false, status: 'Pending', estimatedDepartureTime: trip.departureTime,
   checkInOpenAt: '2090-01-01T01:00:00Z', checkInCloseAt: '2090-01-01T01:50:00Z',
 }
+const otherStop = { ...stop, callId: 'call-2', stationName: 'Other station' }
 const scanner = { id: 'device-1', deviceCode: 'SC-01', label: 'Gate 1', isActive: true }
 const staff = { id: 'staff-1', fullName: 'Nguyen An', staffCode: 'ST01', email: null }
 const assignment: ScannerAssignment = {
@@ -36,6 +37,7 @@ const change = (label: string, value: string) => fireEvent.change(screen.getByLa
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 
 beforeEach(() => {
+  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
   vi.mocked(getOperationTrips).mockResolvedValue([trip, { ...trip, id: 'trip-2', routeName: 'Second route' }])
   vi.mocked(getTripStops).mockResolvedValue([stop, {
     ...stop, callId: 'terminal', stationName: 'Terminal', visitOrder: 2, canBoard: false,
@@ -48,12 +50,20 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.resetAllMocks()
+  vi.unstubAllGlobals()
 })
+
+async function chooseTrip(routeName: string) {
+  const input = await screen.findByRole('combobox', { name: 'Trip' })
+  fireEvent.change(input, { target: { value: routeName } })
+  await screen.findByRole('option', { name: new RegExp(routeName) })
+  fireEvent.keyDown(input, { key: 'ArrowDown' })
+  fireEvent.keyDown(input, { key: 'Enter' })
+}
 
 async function chooseStop() {
   render(<CheckInPage />)
-  await screen.findByLabelText('Trip')
-  change('Trip', trip.id)
+  await chooseTrip('River route')
   const boarding = await screen.findByLabelText('Boarding stop')
   expect(within(boarding).queryByRole('option', { name: /Terminal/ })).toBeNull()
   change('Boarding stop', stop.callId)
@@ -144,8 +154,7 @@ describe('Admin check-in scanner assignments', () => {
       assignmentId: assignment.assignmentId, activeUntil: assignment.activeFrom,
     })
     render(<CheckInPage />)
-    await screen.findByLabelText('Trip')
-    change('Trip', trip.id)
+    await chooseTrip('River route')
     await screen.findByLabelText('Boarding stop')
     change('Boarding stop', stop.callId)
     await screen.findByText(assignment.assignmentId)
@@ -161,23 +170,86 @@ describe('Admin check-in scanner assignments', () => {
     expect(await screen.findByText('No current or upcoming assignments at this stop.')).toBeTruthy()
   })
 
-  it('removes old stop actions as soon as the trip changes', async () => {
+  it.each(['Confirm revoke', 'Confirm assignment'])('clears %s and old window controls while the next trip loads', async (confirm) => {
     vi.mocked(listStopAssignments).mockResolvedValueOnce(page([assignment]))
     render(<CheckInPage />)
-    await screen.findByLabelText('Trip')
-    change('Trip', trip.id)
+    await chooseTrip('River route')
     await screen.findByLabelText('Boarding stop')
     change('Boarding stop', stop.callId)
     await screen.findByText(assignment.assignmentId)
-    click('Revoke assignment')
+    if (confirm === 'Confirm assignment') {
+      await selectAssignmentOptions()
+      click('Review assignment')
+    } else {
+      click('Revoke assignment')
+    }
+    expect(screen.getByRole('button', { name: confirm })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
     let resolveStops!: (stops: TripStopDto[]) => void
     vi.mocked(getTripStops).mockImplementationOnce(() => new Promise<TripStopDto[]>((resolve) => { resolveStops = resolve }))
-    change('Trip', 'trip-2')
+    await chooseTrip('Second route')
     expect(screen.queryByLabelText('Boarding stop')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Confirm revoke' })).toBeNull()
+    expect(screen.queryByRole('button', { name: confirm })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
-    await act(async () => resolveStops([{ ...stop, callId: 'call-2', stationName: 'Other station' }]))
+    await act(async () => resolveStops([otherStop]))
     expect(screen.getByRole('option', { name: /Other station/ })).toBeTruthy()
+    expect(screen.queryByText(assignment.assignmentId)).toBeNull()
+    expect(screen.queryByRole('button', { name: confirm })).toBeNull()
+    expect(revokeScannerAssignment).not.toHaveBeenCalled()
+    expect(assignScanner).not.toHaveBeenCalled()
+    expect(setCheckInWindow).not.toHaveBeenCalled()
+  })
+
+  it('ignores the late stop response for a trip that was left before its stops loaded', async () => {
+    let resolveOldStops!: (stops: TripStopDto[]) => void
+    vi.mocked(getTripStops)
+      .mockImplementationOnce(() => new Promise<TripStopDto[]>((resolve) => { resolveOldStops = resolve }))
+      .mockResolvedValueOnce([otherStop])
+    render(<CheckInPage />)
+    await chooseTrip('River route')
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
+    await chooseTrip('Second route')
+    await screen.findByRole('option', { name: /Other station/ })
+
+    await act(async () => resolveOldStops([stop]))
+    expect(screen.queryByText(stop.stationName, { exact: true })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Save' })).toHaveLength(1)
+    change('Boarding stop', otherStop.callId)
+    await screen.findByText('No current or upcoming assignments at this stop.')
+    expect(listStopAssignments).toHaveBeenCalledTimes(1)
+    expect(listStopAssignments).toHaveBeenCalledWith(otherStop.callId, 1)
+  })
+
+  it('keeps the new trip isolated from an old window save and an old assignment read completing late', async () => {
+    let resolveWindow!: (window: Awaited<ReturnType<typeof setCheckInWindow>>) => void
+    vi.mocked(setCheckInWindow).mockImplementation(() =>
+      new Promise<Awaited<ReturnType<typeof setCheckInWindow>>>((resolve) => { resolveWindow = resolve }))
+    let resolveOldAssignments!: (result: ReturnType<typeof page>) => void
+    vi.mocked(listStopAssignments).mockImplementationOnce(() =>
+      new Promise<ReturnType<typeof page>>((resolve) => { resolveOldAssignments = resolve }))
+    render(<CheckInPage />)
+    await chooseTrip('River route')
+    await screen.findByLabelText('Boarding stop')
+    change('Boarding stop', stop.callId)
+    click('Save')
+    expect(setCheckInWindow).toHaveBeenCalledTimes(1)
+    expect(setCheckInWindow).toHaveBeenCalledWith(stop.callId, '2090-01-01T01:00:00.000Z', '2090-01-01T01:50:00.000Z')
+
+    vi.mocked(getTripStops).mockResolvedValueOnce([otherStop])
+    await chooseTrip('Second route')
+    await screen.findByRole('option', { name: /Other station/ })
+    change('Boarding stop', otherStop.callId)
+    await screen.findByText('No current or upcoming assignments at this stop.')
+
+    await act(async () => {
+      resolveWindow({ tripStopCallId: stop.callId, checkInOpenAt: '2090-01-01T01:30:00Z', checkInCloseAt: '2090-01-01T01:50:00Z' })
+      resolveOldAssignments(page([assignment]))
+    })
+    expect(screen.queryByText(assignment.assignmentId)).toBeNull()
+    expect(screen.queryByText('Check-in window saved.')).toBeNull()
+    expect((screen.getByLabelText('Active from') as HTMLInputElement).value).toBe('2090-01-01T08:00')
+    expect(screen.queryByRole('button', { name: 'Revoke assignment' })).toBeNull()
+    expect(assignScanner).not.toHaveBeenCalled()
     expect(revokeScannerAssignment).not.toHaveBeenCalled()
   })
 })

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Button, DataTable, Notice, Panel, SelectField } from '../../../components/ui'
+import { Button, DataTable, ErrorState, Notice, Pagination, Panel, SearchSelect } from '../../../components/ui'
 import type { Column } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { formatVnd } from '../../../utils/format'
@@ -31,6 +31,7 @@ function refundableTripsQuery() {
 export default function RefundTripPanel({ onCreated }: { onCreated: () => void }) {
   const trips = useFetch(() => getOperationTrips(refundableTripsQuery()))
   const [tripId, setTripId] = useState('')
+  const [pageNumber, setPageNumber] = useState(1)
   const [version, reload] = useReload()
   const [confirming, setConfirming] = useState(false)
   const [result, setResult] = useState<BatchRefundRequestResult | null>(null)
@@ -44,20 +45,23 @@ export default function RefundTripPanel({ onCreated }: { onCreated: () => void }
     [trips.data],
   )
   const candidates = useFetch(
-    () => (tripId ? listRefundCandidates(tripId) : Promise.resolve(undefined)),
-    [tripId, version],
+    () => (tripId ? listRefundCandidates(tripId, pageNumber, 20) : Promise.resolve(undefined)),
+    [tripId, pageNumber, version],
   )
 
-  const rows = candidates.data?.items ?? []
+  const preview = !candidates.fetching && !candidates.error ? candidates.data : undefined
+  const rows = preview?.items ?? []
   const total = rows.reduce((sum, row) => sum + row.amount, 0)
-  const truncated = (candidates.data?.totalCount ?? 0) > rows.length
 
   const chooseTrip = (id: string) => {
+    if (busy) return
     setTripId(id)
+    setPageNumber(1)
     setConfirming(false)
     setResult(null)
   }
   const create = async () => {
+    if (busy || !confirming || rows.length === 0) return
     const created = await run(() => requestRefundsForTrip(tripId))
     setConfirming(false)
     if (!created) return
@@ -90,36 +94,44 @@ export default function RefundTripPanel({ onCreated }: { onCreated: () => void }
       {trips.error ? (
         <Notice tone="error">{t('Something went wrong. Please check your connection and try again.')}</Notice>
       ) : (
-        <SelectField
-          label="Trip"
-          value={tripId}
-          onChange={(e) => chooseTrip(e.target.value)}
-          disabled={!trips.data}
-          hint={trips.data && refundable.length === 0 ? t('No cancelled or terminated trips.') : undefined}
-        >
-          <option value="">{t('Select a trip…')}</option>
-          {refundable.map((trip) => (
-            <option key={trip.id} value={trip.id}>
-              {formatDateTime(trip.departureTime)} • {trip.routeName} • {t(trip.status)}
-            </option>
-          ))}
-        </SelectField>
+        <SearchSelect label="Trip" value={tripId} onChange={chooseTrip} disabled={!trips.data || busy}
+          placeholder="Select a trip…"
+          hint={trips.data && refundable.length === 0 ? t('No cancelled or terminated trips.') : t('Search by route, boat or departure time.')}
+          options={refundable.map((trip) => ({ value: trip.id, label: trip.routeName,
+            description: formatDateTime(trip.departureTime), badge: trip.boatCode ?? t(trip.status),
+          }))} />
       )}
 
       {tripId && candidates.error && (
         <div className="mt-4">
-          <Notice tone="error">{t('Could not load the bookings to refund.')}</Notice>
+          <ErrorState compact message={t('Could not load the bookings to refund.')} onRetry={candidates.retry} />
         </div>
       )}
-      {tripId && candidates.data && (
+      {tripId && candidates.fetching && <p role="status" className="mt-4">{t('Loading')}</p>}
+      {tripId && preview && (
         <div className="mt-4 space-y-4">
           <DataTable columns={columns} rows={rows} rowKey={(x) => x.bookingId} empty="No bookings are waiting for a refund." />
-          {truncated && <Notice tone="error">{t('Only the first {count} bookings are shown.', { count: rows.length })}</Notice>}
+            <Pagination
+            pageNumber={preview.pageNumber}
+            totalPages={preview.totalPages}
+            onChange={(page) => {
+              setConfirming(false)
+              setPageNumber(page)
+            }}
+            busy={busy}
+          />
           {rows.length > 0 && (
             <div className="flex flex-wrap items-center gap-3">
               <p className="text-sm font-semibold text-deep-river">
-                {t('{count} bookings • {amount}', { count: candidates.data.totalCount, amount: formatVnd(total) })}
+                {preview.totalPages > 1
+                  ? t('{count} bookings on this page • {amount}', { count: rows.length, amount: formatVnd(total) })
+                  : t('{count} bookings • {amount}', { count: preview.totalCount, amount: formatVnd(total) })}
               </p>
+              {preview.totalPages > 1 && (
+                <span className="text-xs text-on-surface-variant">
+                  {t('{count} bookings in total across all pages', { count: preview.totalCount })}
+                </span>
+              )}
               {confirming ? (
                 <>
                   <Button variant="danger" icon="receipt_long" onClick={create} disabled={busy}>
@@ -129,6 +141,7 @@ export default function RefundTripPanel({ onCreated }: { onCreated: () => void }
                     {t('Cancel')}
                   </Button>
                   <p className="basis-full text-sm text-on-surface-variant">
+                    {t('This action covers all eligible bookings for the trip, across all pages.')}{' '}
                     {t('Tickets and bookings are cancelled as soon as the requests are created.')}
                   </p>
                 </>

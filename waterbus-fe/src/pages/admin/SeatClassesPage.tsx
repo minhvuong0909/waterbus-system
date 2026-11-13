@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DataTable, ErrorState, Modal, Notice, PageHeader, PageLoader } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterBar, FilterChips, Modal, Notice, PageHeader, PageLoader, TextField } from '../../components/ui'
 import type { Column } from '../../components/ui'
 import ActiveToggle from '../../features/admin/components/ActiveToggle'
 import ConfirmModal from '../../features/admin/components/ConfirmModal'
@@ -18,6 +18,8 @@ export default function SeatClassesPage() {
   const [version, reload] = useReload()
   const classes = useFetch(() => getSeatClasses(), [version])
   const [dialog, setDialog] = useState<Dialog>(null)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
   const activate = useSubmit()
 
   if (classes.error) return <ErrorState onRetry={classes.retry} />
@@ -27,6 +29,18 @@ export default function SeatClassesPage() {
     setDialog(null)
     reload()
   }
+
+  const hasFilters = search.trim() !== '' || status !== ''
+  const resetFilters = () => {
+    setSearch('')
+    setStatus('')
+  }
+  const needle = search.trim().toLowerCase()
+  const filteredClasses = classes.data.filter(
+    (c) =>
+      (needle === '' || c.code.toLowerCase().includes(needle) || c.name.toLowerCase().includes(needle)) &&
+      (status === '' || (status === 'active') === c.isActive),
+  )
 
   const columns: Column<SeatClass>[] = [
     { header: 'Code', render: (c) => <span className="font-mono font-semibold">{c.code}</span> },
@@ -74,7 +88,18 @@ export default function SeatClassesPage() {
           <Notice tone="error">{activate.error}</Notice>
         </div>
       )}
-      <DataTable columns={columns} rows={classes.data} rowKey={(c) => c.id} empty="No seat classes yet." />
+      <FilterBar onReset={hasFilters ? resetFilters : undefined}>
+        <TextField
+          label="Search"
+          placeholder={t('Search by name or code')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <FilterChips label="Status" value={status} onChange={setStatus} options={[
+          { value: '', label: 'All statuses' }, { value: 'active', label: 'Active only' }, { value: 'inactive', label: 'Inactive only' },
+        ]} />
+      </FilterBar>
+      <DataTable paginate columns={columns} rows={filteredClasses} rowKey={(c) => c.id} empty="No seat classes match this filter." />
 
       {dialog?.kind === 'form' && (
         <Modal title={dialog.seatClass ? 'Edit seat class' : 'Add seat class'} onClose={() => setDialog(null)}>

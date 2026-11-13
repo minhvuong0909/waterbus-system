@@ -4,6 +4,8 @@ export const API_ENDPOINTS = {
     login: '/api/v1/auth/login',
   },
   stations: '/api/v1/stations',
+  /** Admin: every station (active and inactive), paged. */
+  stationsPaged: '/api/v1/stations/paged',
   /** Active fares per trip type and seat class (public, read only). */
   fares: '/api/v1/fares',
   boats: '/api/v1/boats',
