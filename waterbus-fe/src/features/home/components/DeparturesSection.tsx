@@ -44,8 +44,13 @@ export default function DeparturesSection({ departures, pierName }: DeparturesSe
 
         {departures.items.length > 0 ? (
           <div data-reveal className="grid grid-cols-1 gap-space-sm md:grid-cols-2">
-            {departures.items.map((d) => (
-              <DepartureCard key={d.id} departure={d} onSelect={(trip) => dispatch(selectTrip(trip))} />
+            {departures.items.map((d, index) => (
+              <DepartureCard
+                key={d.id}
+                departure={d}
+                featured={index === 0}
+                onSelect={(trip) => dispatch(selectTrip(trip))}
+              />
             ))}
           </div>
         ) : (
