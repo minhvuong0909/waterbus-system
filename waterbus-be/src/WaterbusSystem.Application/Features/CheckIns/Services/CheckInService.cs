@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using WaterbusSystem.Application.Common.Models;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.DTOs.Requests.CheckIns;
@@ -30,10 +31,24 @@ public sealed class CheckInService(
     /// <summary>Thời gian chờ 1 request khác đang giữ khoá cùng TripStopCallId xong.</summary>
     private static readonly TimeSpan AssignmentLockWait = TimeSpan.FromSeconds(10);
 
+    public Task<PaginatedList<ScannerStaffResponse>> ListScannerStaffAsync(
+        int pageNumber, int pageSize, CancellationToken cancellationToken = default) =>
+        checkIns.ListScannerStaffAsync(pageNumber, pageSize, cancellationToken);
+
+    public async Task<PaginatedList<ScannerAssignmentAdminResponse>> ListScannerAssignmentsAsync(
+        Guid tripStopCallId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    {
+        await checkIns.GetRequiredStopCallAsync(tripStopCallId, cancellationToken);
+        return await checkIns.ListScannerAssignmentsAsync(tripStopCallId, dateTime.Now, pageNumber, pageSize, cancellationToken);
+    }
+
     // ---------------- AssignScanner ----------------
 
     public async Task<AssignScannerResponse> AssignScannerAsync(AssignScannerRequest request, CancellationToken cancellationToken = default)
     {
+        if (!await checkIns.IsEligibleScannerStaffAsync(request.StaffAccountId, cancellationToken))
+            throw new ValidationException([new("staffAccountId", "Chọn tài khoản Staff đang hoạt động.")]);
+
         // Review PR #63: khoá DeviceId (mọi loại phân công, kể cả Secondary) TRƯỚC khi đọc/kiểm tra thiết bị, giữ tới khi
         // SaveChanges xong - loại trừ với ScannerDeviceAdminService.DeactivateAsync. Thứ tự: DeviceId -> TripStopCallId.
         await using var deviceGate = await assignmentLock.TryAcquireDeviceAsync(request.DeviceId, AssignmentLockWait, cancellationToken)
@@ -113,12 +128,12 @@ public sealed class CheckInService(
 
         var now = dateTime.Now;
 
-        if (assignment.ActiveFrom > now)
+        if (assignment.ActiveFrom >= now && (assignment.ActiveUntil is null || assignment.ActiveUntil > assignment.ActiveFrom))
         {
             // Chưa từng có hiệu lực (phân công cho tương lai) - thu hồi hẳn, không để lại cửa sổ ảo.
             assignment.ActiveUntil = assignment.ActiveFrom;
         }
-        else if (assignment.ActiveUntil is null || assignment.ActiveUntil > now)
+        else if (assignment.ActiveUntil is null || (assignment.ActiveFrom < now && assignment.ActiveUntil > now))
         {
             assignment.ActiveUntil = now;
         }

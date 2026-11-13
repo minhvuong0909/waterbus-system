@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using WaterbusSystem.Application.Common.Models;
+using WaterbusSystem.Infrastructure.Identity;
 using WaterbusSystem.Application.DTOs.Responses.CheckIns;
 using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Domain.Entities;
@@ -11,6 +13,37 @@ namespace WaterbusSystem.Infrastructure.Repositories;
 public sealed class CheckInRepository(ApplicationDbContext context) : ICheckInRepository
 {
     // ---------------- Scanner devices / assignments ----------------
+
+    private IQueryable<ApplicationUser> EligibleScannerStaff() =>
+        from user in context.Users.AsNoTracking()
+        join userRole in context.UserRoles on user.Id equals userRole.UserId
+        join role in context.Roles on userRole.RoleId equals role.Id
+        where user.IsActive && role.NormalizedName == "STAFF"
+        select user;
+
+    public Task<bool> IsEligibleScannerStaffAsync(Guid staffId, CancellationToken cancellationToken = default) =>
+        EligibleScannerStaff().AnyAsync(user => user.Id == staffId, cancellationToken);
+
+    public Task<PaginatedList<ScannerStaffResponse>> ListScannerStaffAsync(
+        int pageNumber, int pageSize, CancellationToken cancellationToken = default) =>
+        EligibleScannerStaff().OrderBy(user => user.FullName).ThenBy(user => user.Id)
+            .Select(user => new ScannerStaffResponse(user.Id, user.FullName, user.StaffCode, user.Email))
+            .ToPaginatedListAsync(pageNumber, pageSize, cancellationToken);
+
+    public Task<PaginatedList<ScannerAssignmentAdminResponse>> ListScannerAssignmentsAsync(
+        Guid tripStopCallId, DateTimeOffset now, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var query = from assignment in context.ScannerAssignments.AsNoTracking()
+                    where !assignment.IsDeleted && assignment.TripStopCallId == tripStopCallId &&
+                          (assignment.ActiveUntil == null || (assignment.ActiveUntil > now && assignment.ActiveUntil > assignment.ActiveFrom))
+                    join user in context.Users on assignment.StaffAccountId equals user.Id into staff
+                    from user in staff.DefaultIfEmpty()
+                    orderby assignment.ActiveFrom, assignment.Id
+                    select new ScannerAssignmentAdminResponse(
+                        assignment.Id, assignment.StaffAccountId, user == null ? null : user.FullName,
+                        assignment.Device!.DeviceCode, assignment.IsPrimaryOffline, assignment.ActiveFrom, assignment.ActiveUntil);
+        return query.ToPaginatedListAsync(pageNumber, pageSize, cancellationToken);
+    }
 
     public async Task<ScannerDevice> GetRequiredDeviceAsync(Guid deviceId, CancellationToken cancellationToken = default)
     {
@@ -37,6 +70,7 @@ public sealed class CheckInRepository(ApplicationDbContext context) : ICheckInRe
                 !a.IsDeleted &&
                 a.TripStopCallId == tripStopCallId &&
                 a.IsPrimaryOffline &&
+                (a.ActiveUntil == null || a.ActiveUntil > a.ActiveFrom) &&
                 a.ActiveFrom < requestedEnd &&
                 (a.ActiveUntil ?? DateTimeOffset.MaxValue) > activeFrom,
             cancellationToken);
@@ -50,17 +84,17 @@ public sealed class CheckInRepository(ApplicationDbContext context) : ICheckInRe
 
     public Task<bool> HasActiveAssignmentAsync(Guid staffId, Guid tripStopCallId, DateTimeOffset now, CancellationToken cancellationToken = default) =>
         context.ScannerAssignments.AsNoTracking().AnyAsync(a =>
-                a.StaffAccountId == staffId &&
+                !a.IsDeleted && a.StaffAccountId == staffId &&
                 a.TripStopCallId == tripStopCallId &&
                 a.ActiveFrom <= now &&
-                (a.ActiveUntil == null || a.ActiveUntil >= now),
+                (a.ActiveUntil == null || (a.ActiveUntil > a.ActiveFrom && a.ActiveUntil > now)),
             cancellationToken);
 
     public Task<List<MyScannerAssignmentResponse>> ListMyAssignmentsAsync(
         Guid staffId, DateTimeOffset now, CancellationToken cancellationToken = default) =>
         context.ScannerAssignments.AsNoTracking()
             .Where(a => !a.IsDeleted && a.StaffAccountId == staffId &&
-                        (a.ActiveUntil == null || a.ActiveUntil >= now))
+                        (a.ActiveUntil == null || (a.ActiveUntil > a.ActiveFrom && a.ActiveUntil > now)))
             .OrderBy(a => a.ActiveFrom)
             .Select(a => new MyScannerAssignmentResponse(
                 a.Id,

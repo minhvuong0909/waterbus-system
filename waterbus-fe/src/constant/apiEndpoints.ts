@@ -16,6 +16,7 @@ export const API_ENDPOINTS = {
   seatClass: (id: string) => `/api/v1/seat-classes/${id}`,
   /** Admin catalogue. A route, schedule or fare is switched with `POST {item}/activate|deactivate`. */
   admin: {
+    scannerDevices: '/api/v1/admin/scanner-devices',
     routes: '/api/v1/admin/routes',
     route: (id: string) => `/api/v1/admin/routes/${id}`,
     routeStops: (id: string) => `/api/v1/admin/routes/${id}/stops`,
@@ -45,6 +46,10 @@ export const API_ENDPOINTS = {
     publish: '/api/v1/audioguides/publish',
   },
   checkIns: {
+    scannerStaff: '/api/v1/checkins/assignments/staff',
+    assignments: '/api/v1/checkins/assignments',
+    stopAssignments: (callId: string) => '/api/v1/checkins/assignments/stops/' + callId,
+    revokeAssignment: (id: string) => '/api/v1/checkins/assignments/' + id + '/revoke',
     /** Admin: the check-in window of one stop (`TripStopCall`). */
     window: (tripStopCallId: string) => `/api/v1/checkins/windows/${tripStopCallId}`,
   },

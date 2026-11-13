@@ -27,8 +27,15 @@ check-in gồm DI, DbContext/interface, Hangfire và cấu hình mẫu; không s
 | Payments IPN GET/POST | Chỉ dành cho gateway, không có nút tự tạo bằng chứng thanh toán. Return đi qua luồng callback thực tế. |
 | Refund request/manual-confirm/reconcile | Form Test API dành cho Admin, body dựng từ hợp đồng Swagger. Không thêm nút refund tự phục vụ cho Passenger. |
 | CheckIns submit/sync/manifest/assignments-mine | Mobile đăng nhập Staff → lấy phân công → tải manifest + RSA public key → xác thực QR offline → lưu hàng đợi → sync. Mobile mặc định ghi offline theo lô; submit đơn có trong Test API để kiểm hợp đồng, vẫn yêu cầu Staff. |
-| CheckIns window/assign/revoke | Admin Test API có form tham số và JSON. Cần DeviceId đã tồn tại; backend chưa có API tạo ScannerDevice. |
+| CheckIns window/assign/revoke | Admin dùng /admin/check-in để đặt khung giờ, chọn nhân viên Staff, đăng ký/chọn scanner và xem hoặc thu hồi phân công theo bến. |
 | AiAssistant chat | Widget gọi API thật và hiển thị lời đáp + trip cards được server trả về. Card có `boardingStationId`/`disembarkingStationId` để nút **Xem chuyến** mở trang chi tiết/chọn ghế của đúng đoạn; không tự bịa URL. Nếu AI chưa được cấu hình, hiển thị lỗi thay vì câu trả lời mock. |
+
+### Phân công Staff Scanner
+
+- GET /api/v1/checkins/assignments/staff chỉ dành cho Admin. Kết quả phân trang gồm id, fullName, staffCode và email của tài khoản Staff đang hoạt động.
+- GET /api/v1/checkins/assignments/stops/{tripStopCallId} chỉ dành cho Admin. Kết quả phân trang gồm phân công đang hiệu lực hoặc sắp bắt đầu tại điểm dừng. Hai API nhận pageNumber và pageSize.
+- Admin dùng GET/POST /api/v1/admin/scanner-devices để chọn thiết bị hoạt động hoặc đăng ký mã. POST /api/v1/checkins/assignments kiểm tra tài khoản Staff và thiết bị. Giờ nhập theo giờ Việt Nam được gửi dưới dạng UTC. Khi bỏ trống Active Until, phân công có hiệu lực đến khi thu hồi.
+- Staff lấy dữ liệu qua GET /api/v1/checkins/assignments/mine và dùng tripStopCallId để tải manifest khi phân công có hiệu lực. Sau khi thu hồi, Staff cần làm mới danh sách trên ứng dụng.
 
 ### AI Trip Card trong Development
 
