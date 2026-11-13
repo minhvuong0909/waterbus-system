@@ -25,14 +25,27 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
   const exporting = useSubmit()
   const confirming = useSubmit()
 
+  const data = !pending.fetching && !pending.error ? pending.data : undefined
+  const [selectionPage, setSelectionPage] = useState(data)
+  if (selectionPage !== data) {
+    setSelectionPage(data)
+    setSelected(new Set())
+  }
+  if (data && pageNumber > Math.max(1, data.totalPages)) {
+    setPageNumber(Math.max(1, data.totalPages))
+  }
+
   if (pending.error) return <ErrorState onRetry={pending.retry} />
 
-  const rows = pending.data?.items ?? []
+  const rows = data?.items ?? []
+  const busy = exporting.busy || confirming.busy
+  const canExport = !busy && rows.length > 0
   const byId = new Map(rows.map((row) => [row.refundId, row]))
-  // Giữ lại các lựa chọn còn trong danh sách (khoản vừa xác nhận đã rời đi).
   const chosen = rows.filter((row) => selected.has(row.refundId))
   const chosenTotal = chosen.reduce((sum, row) => sum + row.amount, 0)
   const allSelected = rows.length > 0 && chosen.length === rows.length
+
+  const canConfirm = !busy && chosen.length > 0 && chosen.length <= 100 && evidence.trim().length > 0
 
   const toggle = (id: string) =>
     setSelected((current) => {
@@ -42,6 +55,7 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
     })
 
   const download = async () => {
+    if (!canExport) return
     setDownloaded(null)
     const file = await exporting.run(() => exportPendingRefundsCsv())
     if (!file) return
@@ -51,6 +65,7 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
   }
 
   const confirm = async () => {
+    if (!canConfirm) return
     const done = await confirming.run(() =>
       confirmRefundsBatch(
         chosen.map((row) => ({
@@ -63,7 +78,6 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
     )
     if (!done) return
     setResult(done)
-    setSelected(new Set(done.items.filter((item) => !item.succeeded).map((item) => item.refundTransactionId)))
     reload()
   }
 
@@ -75,6 +89,7 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
           type="checkbox"
           aria-label={t('Select refund {code}', { code: x.bookingCode })}
           checked={selected.has(x.refundId)}
+          disabled={busy}
           onChange={() => toggle(x.refundId)}
         />
       ),
@@ -102,21 +117,25 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
   return (
     <Panel title="Refunds waiting for staff" className="mt-4">
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Button icon="download" variant="dark" onClick={download} disabled={exporting.busy || !pending.data || rows.length === 0}>
+        <Button icon="download" variant="dark" onClick={download} disabled={!canExport}>
           {exporting.busy ? t('Preparing…') : t('Download CSV')}
         </Button>
-        {pending.data && <span className="text-sm text-on-surface-variant">{t('{count} refunds waiting', { count: pending.data.totalCount })}</span>}
+        {data && <span className="text-sm text-on-surface-variant">{t('{count} refunds waiting', { count: data.totalCount })}</span>}
         {exporting.error && <Notice tone="error">{exporting.error}</Notice>}
         {downloaded && <Notice tone="success">{downloaded}</Notice>}
       </div>
 
-      <DataTable columns={columns} rows={rows} rowKey={(x) => x.refundId} empty="No refunds are waiting for staff." />
-      {pending.data && (
+      {pending.fetching ? (
+        <p role="status">{t('Loading')}</p>
+      ) : (
+        <DataTable columns={columns} rows={rows} rowKey={(x) => x.refundId} empty="No refunds are waiting for staff." />
+      )}
+      {data && (
         <Pagination
-          pageNumber={pending.data.pageNumber}
-          totalPages={pending.data.totalPages}
+          pageNumber={data.pageNumber}
+          totalPages={data.totalPages}
           onChange={setPageNumber}
-          busy={pending.fetching}
+          busy={busy}
         />
       )}
 
@@ -129,6 +148,7 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
             <input
               type="checkbox"
               checked={allSelected}
+              disabled={busy}
               onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((row) => row.refundId)))}
             />
             {t('Select all')}
@@ -146,7 +166,7 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
               variant="dark"
               icon="task_alt"
               onClick={confirm}
-              disabled={confirming.busy || chosen.length === 0 || evidence.trim().length === 0 || chosen.length > 100}
+              disabled={!canConfirm}
             >
               {confirming.busy ? t('Sending…') : t('Confirm {count} as refunded', { count: chosen.length })}
             </Button>

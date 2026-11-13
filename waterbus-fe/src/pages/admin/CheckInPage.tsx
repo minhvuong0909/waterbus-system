@@ -37,7 +37,7 @@ export default function CheckInPage() {
         <Panel title="Stops" className="mt-4">
           {stops.error ? (
             <ErrorState compact onRetry={stops.retry} />
-          ) : !stops.data ? (
+          ) : stops.fetching || !stops.data ? (
             <PageLoader />
           ) : (
             <>

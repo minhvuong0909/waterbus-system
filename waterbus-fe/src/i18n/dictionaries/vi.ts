@@ -786,6 +786,8 @@ export const vi: Record<string, string> = {
   '{count} bookings on this page • {amount}': '{count} booking ở trang này • {amount}',
   '{count} bookings in total across all pages': 'Tổng cộng {count} booking trên mọi trang',
   'Yes, create the refund requests': 'Đúng, tạo các yêu cầu hoàn tiền',
+  'This action covers all eligible bookings for the trip, across all pages.':
+    'Thao tác này áp dụng cho tất cả đặt chỗ đủ điều kiện của chuyến, trên mọi trang.',
   'Tickets and bookings are cancelled as soon as the requests are created.':
     'Vé và booking bị huỷ ngay khi các yêu cầu được tạo.',
   'Create refund requests': 'Tạo yêu cầu hoàn tiền',

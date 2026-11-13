@@ -82,14 +82,7 @@ describe('apiRequest download', () => {
       method: 'POST',
       responseType: 'download',
     })
-    // FileReader hoạt động với Blob của jsdom; jsdom chưa triển khai Blob.text().
-    const content = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(String(reader.result))
-      reader.onerror = () => reject(reader.error)
-      reader.readAsText(file.blob)
-    })
-    expect(content).toBe('a,b')
+    await expect(file.blob.text()).resolves.toBe('a,b')
     expect(file.fileName).toBe('hoan-tien-20261112-1005.csv')
     expect(file.rowCount).toBe(7)
     expect((fetchMock.mock.calls[0][1] as RequestInit).headers).toMatchObject({ Accept: '*/*' })

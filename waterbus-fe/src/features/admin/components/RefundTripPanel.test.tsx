@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setActiveLocale } from '../../../i18n/translate'
 import { getOperationTrips } from '../../operations/services/operationsService'
@@ -104,7 +104,8 @@ describe('RefundTripPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Create refund requests' }))
     expect(requestRefundsForTrip).not.toHaveBeenCalled()          // mới chỉ hỏi xác nhận
-    expect(screen.getByText('Tickets and bookings are cancelled as soon as the requests are created.')).toBeTruthy()
+    expect(screen.getByText(/covers all eligible bookings for the trip, across all pages/)).toBeTruthy()
+    expect(screen.getByText(/Tickets and bookings are cancelled as soon as the requests are created/)).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Yes, create the refund requests' }))
 
@@ -151,6 +152,52 @@ describe('RefundTripPanel', () => {
 
     expect(await screen.findByRole('alert')).toBeTruthy()
     expect(onCreated).not.toHaveBeenCalled()
+  })
+
+  it('clears the preview and confirmation while another trip loads, including an empty result', async () => {
+    let resolveTripB!: (value: ReturnType<typeof candidates>) => void
+    vi.mocked(listRefundCandidates).mockImplementation((id) => id === 't-cancelled'
+      ? Promise.resolve(candidates([candidate('a', 'Booking A', 100)]))
+      : new Promise((resolve) => { resolveTripB = resolve }))
+    render(<RefundTripPanel onCreated={() => {}} />)
+    await waitFor(() => expect(select().disabled).toBe(false))
+    await chooseTrip(0)
+    await screen.findByText('Booking A')
+    fireEvent.click(screen.getByRole('button', { name: 'Create refund requests' }))
+
+    await chooseTrip(1)
+    expect(screen.queryByText('Booking A')).toBeNull()
+    expect(screen.queryByRole('button', { name: /create.*refund requests/i })).toBeNull()
+    expect(requestRefundsForTrip).not.toHaveBeenCalled()
+
+    await act(async () => resolveTripB(candidates([])))
+    expect(screen.getByText('No bookings are waiting for a refund.')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /create.*refund requests/i })).toBeNull()
+  })
+
+  it('hides previous pages and ignores a late page response after switching trips', async () => {
+    let resolveOldPage!: (value: ReturnType<typeof candidates>) => void
+    vi.mocked(listRefundCandidates)
+      .mockResolvedValueOnce({ ...candidates([candidate('a', 'Booking A', 100)]), totalPages: 2 })
+      .mockImplementationOnce(() => new Promise<ReturnType<typeof candidates>>((resolve) => { resolveOldPage = resolve }))
+      .mockResolvedValueOnce(candidates([candidate('b', 'Booking B', 200)]))
+    render(<RefundTripPanel onCreated={() => {}} />)
+    await waitFor(() => expect(select().disabled).toBe(false))
+    await chooseTrip(0)
+    await screen.findByText('Booking A')
+    fireEvent.click(screen.getByRole('button', { name: 'Create refund requests' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+
+    expect(screen.queryByText('Booking A')).toBeNull()
+    expect(screen.queryByRole('button', { name: /create.*refund requests/i })).toBeNull()
+    expect(listRefundCandidates).toHaveBeenLastCalledWith('t-cancelled', 2, 20)
+
+    await chooseTrip(1)
+    await screen.findByText('Booking B')
+    await act(async () => resolveOldPage(candidates([candidate('late', 'Late booking', 300)])))
+    expect(screen.queryByText('Late booking')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Create refund requests' })).toBeTruthy()
+    expect(requestRefundsForTrip).not.toHaveBeenCalled()
   })
 
   it('shows an error when the trips cannot be loaded', async () => {
