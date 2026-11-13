@@ -85,6 +85,7 @@ function BoatSeats({ boatId }: { boatId: string }) {
           <AddSeatsForm
             boatId={boatId}
             seatClasses={seatClasses.data}
+            existingSeats={seats}
             room={room}
             onDone={closeAndReload}
             onCancel={() => setDialog(null)}

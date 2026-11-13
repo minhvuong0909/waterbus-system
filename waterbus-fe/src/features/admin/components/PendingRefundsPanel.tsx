@@ -117,7 +117,7 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
   return (
     <Panel title="Refunds waiting for staff" className="mt-4">
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Button icon="download" variant="dark" onClick={download} disabled={!canExport}>
+        <Button icon="arrow_downward" variant="dark" onClick={download} disabled={!canExport}>
           {exporting.busy ? t('Preparing…') : t('Download CSV')}
         </Button>
         {data && <span className="text-sm text-on-surface-variant">{t('{count} refunds waiting', { count: data.totalCount })}</span>}
@@ -164,7 +164,7 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Button
               variant="dark"
-              icon="task_alt"
+              icon="check_circle"
               onClick={confirm}
               disabled={!canConfirm}
             >

@@ -9,6 +9,12 @@ public interface IStationRepository
 {
     Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Đã có bến (chưa xóa) khác nằm đúng tọa độ này, sai khác dưới nửa đơn vị ở chữ số thập phân thứ 7 (độ chính xác lưu trữ).
+    /// <paramref name="excludeId"/> loại chính bến đang sửa.
+    /// </summary>
+    Task<bool> ExistsAtCoordinatesAsync(double latitude, double longitude, Guid? excludeId, CancellationToken cancellationToken = default);
+
     /// <summary>Bến (có theo dõi để sửa) hoặc ném NotFoundException.</summary>
     Task<Station> GetRequiredByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
