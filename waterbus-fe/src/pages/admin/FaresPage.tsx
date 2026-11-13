@@ -117,8 +117,9 @@ export default function FaresPage() {
         <SearchSelect label="Seat class" value={seatClassId} onChange={setSeatClassId} options={[
           { value: '', label: t('All') }, ...seatClassOptions.map(([value, label]) => ({ value, label })),
         ]} />
-        <FilterChips label="Status" value={status} onChange={setStatus} options={[
-          { value: '', label: 'All statuses' }, ...(['Active', 'Upcoming', 'Expired', 'Inactive'] as const).map((value) => ({ value, label: STATUS_BADGE[value].label })),
+        {/* SearchSelect, không phải FilterChips: 5 lựa chọn làm tràn dòng khi chia đều 3 cột với 2 bộ lọc kia. */}
+        <SearchSelect label="Status" value={status} onChange={setStatus} options={[
+          { value: '', label: t('All statuses') }, ...(['Active', 'Upcoming', 'Expired', 'Inactive'] as const).map((value) => ({ value, label: t(STATUS_BADGE[value].label) })),
         ]} />
       </FilterBar>
       <DataTable paginate columns={columns} rows={filteredRules} rowKey={(f) => f.id} empty="No fares match this filter." />
