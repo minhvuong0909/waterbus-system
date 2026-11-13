@@ -5,13 +5,14 @@ import { t } from '../../../i18n'
 import { formatClock, fromVietnamDateTimeInput, toVietnamDateTimeInput } from '../../../utils/time'
 import type { TripStopDto } from '../../trips/types'
 import { useSubmit } from '../../../hooks'
+import type { CheckInWindow } from '../services/checkInService'
 import { setCheckInWindow } from '../services/checkInService'
 
 /** A stop that has left or was skipped keeps its window: the backend refuses to change it. */
 const LOCKED_STATUSES = ['Departed', 'Skipped']
 
 /** One stop of the trip: its planned departure and the check-in window staff work in. */
-export default function CheckInWindowRow({ stop }: { stop: TripStopDto }) {
+export default function CheckInWindowRow({ stop, onSaved }: { stop: TripStopDto; onSaved?: (window: CheckInWindow) => void }) {
   const [openAt, setOpenAt] = useState(stop.checkInOpenAt ? toVietnamDateTimeInput(stop.checkInOpenAt) : '')
   const [closeAt, setCloseAt] = useState(stop.checkInCloseAt ? toVietnamDateTimeInput(stop.checkInCloseAt) : '')
   const [invalid, setInvalid] = useState<string | null>(null)
@@ -33,7 +34,10 @@ export default function CheckInWindowRow({ stop }: { stop: TripStopDto }) {
     }
     setInvalid(null)
     const done = await run(() => setCheckInWindow(stop.callId, fromVietnamDateTimeInput(openAt), fromVietnamDateTimeInput(closeAt)))
-    if (done) setSaved(true)
+    if (done) {
+      setSaved(true)
+      onSaved?.(done)
+    }
   }
 
   return (
