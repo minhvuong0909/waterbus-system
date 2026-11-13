@@ -247,7 +247,17 @@ async function initializeDatabase(): Promise<DatabaseAdapter> {
 
   let platformOS: string;
   try {
-    const { Platform } = await import('react-native');
+    // Import ĐÚNG submodule Platform (không phải cả gói 'react-native') - Metro biên dịch
+    // `import('react-native')` động thành nạp TOÀN BỘ barrel index.js của react-native làm một
+    // chunk (xem asyncRequireModule.ts: importAll), kéo theo cả Libraries/PushNotificationIOS.js -
+    // module cũ không ai dùng ở đây nhưng vẫn tạo NativeEventEmitter() ngay khi nạp, và native
+    // module của nó không có sẵn trong Expo Go -> throw Invariant Violation ngay khi khởi tạo DB,
+    // crash hẳn app trên thiết bị thật (đã tái hiện qua Expo Go, không xảy ra trên bản Web).
+    // Platform.js không kéo theo PushNotificationIOS, an toàn trên mọi runtime.
+    // @ts-expect-error -- deep-import nội bộ của react-native: file .js tồn tại thật (đã xác minh
+    // thủ công trong node_modules) nhưng react-native chỉ phát hành Flow types (.js.flow) cho
+    // đường dẫn này, không có .d.ts public nên TS không resolve được khai báo kiểu.
+    const { default: Platform } = await import('react-native/Libraries/Utilities/Platform');
     platformOS = Platform.OS;
   } catch (error) {
     throw new Error(
