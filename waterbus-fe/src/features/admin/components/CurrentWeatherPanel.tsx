@@ -7,6 +7,8 @@ import { useReload } from '../hooks/useAdmin'
 import { getCurrentWeather, toKmh } from '../services/weatherService'
 import type { RouteWeather, RouteWeatherStatus } from '../services/weatherService'
 import { formatClock } from '../../../utils/time'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
+import { useFleetHub } from '../hooks/useFleetHub'
 
 const STATUS: Record<RouteWeatherStatus, { label: string; icon: string; className: string }> = {
   Normal: { label: 'Normal', icon: 'check_circle', className: 'bg-teal-flow/10 text-teal-flow' },
@@ -67,6 +69,8 @@ function RouteRow({ route }: { route: RouteWeather }) {
 export default function CurrentWeatherPanel() {
   const [version, reload] = useReload()
   const weather = useFetch(getCurrentWeather, [version])
+  useAutoRefresh(reload, weather.fetching)
+  const connection = useFleetHub({ onAlert: reload, onReconnected: reload })
   const observedAt = weather.data
     ?.map((r) => r.observedAt)
     .filter((x): x is string => Boolean(x))
@@ -91,17 +95,13 @@ export default function CurrentWeatherPanel() {
           >
             {t('Weather alerts')}
           </Link>
-          <button
-            type="button"
-            onClick={reload}
-            disabled={weather.loading}
-            className="inline-flex min-h-[36px] items-center gap-1 rounded-full bg-deep-river px-3 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
-          >
-            <Icon name="refresh" className="text-base" />
-            {weather.loading ? t('Updating…') : t('Refresh')}
-          </button>
+          <span role="status" className="inline-flex items-center gap-2 rounded-full bg-teal-flow/10 px-3 py-2 text-xs font-semibold text-teal-flow">
+            <span className={`h-2 w-2 rounded-full ${weather.error ? 'bg-coral-glow' : 'bg-teal-flow'}`} />
+            {weather.error ? t('Weather update interrupted. Retrying automatically.') : weather.fetching ? t('Updating…') : t('Auto-updates every minute')}
+          </span>
         </div>
       </div>
+      {connection !== 'live' && <p className="mb-3 text-xs text-on-surface-variant">{t('Reconnecting to live alerts. Periodic updates remain active.')}</p>}
 
       {weather.error && !weather.data ? (
         <p role="alert" className="rounded-lg bg-coral-glow/10 px-3 py-2 text-sm text-deep-river">

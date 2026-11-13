@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DataTable, ErrorState, FilterBar, Modal, Notice, PageHeader, PageLoader, SelectField } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterBar, FilterChips, Modal, Notice, PageHeader, PageLoader, SearchSelect } from '../../components/ui'
 import type { Column } from '../../components/ui'
 import ActiveToggle from '../../features/admin/components/ActiveToggle'
 import ConfirmModal from '../../features/admin/components/ConfirmModal'
@@ -147,21 +147,14 @@ export default function SchedulesPage() {
         </div>
       )}
       <FilterBar onReset={hasFilters ? resetFilters : undefined}>
-        <SelectField label="Route" value={routeFilter} onChange={(e) => setRouteFilter(e.target.value)}>
-          <option value="">{t('All')}</option>
-          {routeOptions.map(([id, name]) => (
-            <option key={id} value={id}>
-              {name}
-            </option>
-          ))}
-        </SelectField>
-        <SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">{t('All statuses')}</option>
-          <option value="active">{t('Active only')}</option>
-          <option value="inactive">{t('Inactive only')}</option>
-        </SelectField>
+        <SearchSelect label="Route" value={routeFilter} onChange={setRouteFilter} options={[
+          { value: '', label: t('All') }, ...routeOptions.map(([value, label]) => ({ value, label })),
+        ]} />
+        <FilterChips label="Status" value={status} onChange={setStatus} options={[
+          { value: '', label: 'All statuses' }, { value: 'active', label: 'Active only' }, { value: 'inactive', label: 'Inactive only' },
+        ]} />
       </FilterBar>
-      <DataTable columns={columns} rows={filteredSchedules} rowKey={(s) => s.id} empty="No schedules match this filter." />
+      <DataTable paginate columns={columns} rows={filteredSchedules} rowKey={(s) => s.id} empty="No schedules match this filter." />
 
       {dialog?.kind === 'form' && (
         <Modal title={dialog.schedule ? 'Edit schedule' : 'Add schedule'} onClose={() => setDialog(null)}>

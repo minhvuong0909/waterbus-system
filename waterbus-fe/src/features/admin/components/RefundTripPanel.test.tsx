@@ -22,6 +22,7 @@ const candidate = (id: string, code: string, amount: number): RefundCandidate =>
 const candidates = (items: RefundCandidate[]) => ({ items, totalCount: items.length, pageNumber: 1, totalPages: 1 })
 
 beforeEach(() => {
+  vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
   vi.mocked(getOperationTrips).mockResolvedValue([
     trip('t-ok', 'Scheduled', '2026-11-13T01:00:00Z'),
     trip('t-cancelled', 'Cancelled', '2026-11-12T01:00:00Z'),
@@ -33,19 +34,30 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  vi.unstubAllGlobals()
   vi.clearAllMocks()
   setActiveLocale('en')
 })
 
-const select = () => screen.getByLabelText('Trip') as HTMLSelectElement
+const select = () => screen.getByLabelText('Trip') as HTMLInputElement
+
+async function chooseTrip(index: number) {
+  fireEvent.keyDown(select(), { key: 'ArrowDown' })
+  await screen.findAllByRole('option')
+  if (index > 0) fireEvent.keyDown(select(), { key: 'ArrowDown' })
+  fireEvent.keyDown(select(), { key: 'Enter' })
+}
 
 describe('RefundTripPanel', () => {
   it('offers only cancelled or terminated trips, newest first', async () => {
     render(<RefundTripPanel onCreated={() => {}} />)
 
     await waitFor(() => expect(select().disabled).toBe(false))
-    const values = Array.from(select().options).map((o) => o.value)
-    expect(values).toEqual(['', 't-cancelled', 't-terminated'])
+    fireEvent.keyDown(select(), { key: 'ArrowDown' })
+    const choices = await screen.findAllByRole('option')
+    expect(choices).toHaveLength(2)
+    expect(choices[0].textContent).toContain('12')
+    expect(choices[1].textContent).toContain('11')
   })
 
   it('searches a month of cancelled or terminated trips, not just the operations window', async () => {
@@ -70,7 +82,7 @@ describe('RefundTripPanel', () => {
     render(<RefundTripPanel onCreated={() => {}} />)
     await waitFor(() => expect(select().disabled).toBe(false))
 
-    fireEvent.change(select(), { target: { value: 't-cancelled' } })
+    await chooseTrip(0)
 
     expect(await screen.findByText('BK1')).toBeTruthy()
     expect(screen.getByText('BK2')).toBeTruthy()
@@ -86,7 +98,7 @@ describe('RefundTripPanel', () => {
     })
     render(<RefundTripPanel onCreated={onCreated} />)
     await waitFor(() => expect(select().disabled).toBe(false))
-    fireEvent.change(select(), { target: { value: 't-cancelled' } })
+    await chooseTrip(0)
     await screen.findByText('BK1')
 
     fireEvent.click(screen.getByRole('button', { name: 'Create refund requests' }))
@@ -104,7 +116,7 @@ describe('RefundTripPanel', () => {
   it('can back out of the confirmation without creating anything', async () => {
     render(<RefundTripPanel onCreated={() => {}} />)
     await waitFor(() => expect(select().disabled).toBe(false))
-    fireEvent.change(select(), { target: { value: 't-terminated' } })
+    await chooseTrip(1)
     await screen.findByText('BK1')
 
     fireEvent.click(screen.getByRole('button', { name: 'Create refund requests' }))
@@ -119,7 +131,7 @@ describe('RefundTripPanel', () => {
     render(<RefundTripPanel onCreated={() => {}} />)
     await waitFor(() => expect(select().disabled).toBe(false))
 
-    fireEvent.change(select(), { target: { value: 't-cancelled' } })
+    await chooseTrip(0)
 
     expect(await screen.findByText('No bookings are waiting for a refund.')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Create refund requests' })).toBeNull()
@@ -130,7 +142,7 @@ describe('RefundTripPanel', () => {
     vi.mocked(requestRefundsForTrip).mockRejectedValue(new Error('down'))
     render(<RefundTripPanel onCreated={onCreated} />)
     await waitFor(() => expect(select().disabled).toBe(false))
-    fireEvent.change(select(), { target: { value: 't-cancelled' } })
+    await chooseTrip(0)
     await screen.findByText('BK1')
 
     fireEvent.click(screen.getByRole('button', { name: 'Create refund requests' }))

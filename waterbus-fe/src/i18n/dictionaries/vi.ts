@@ -1,6 +1,22 @@
 // Vietnamese translations. The key is the exact English source string.
 // Placeholders such as {count} must be kept as they are.
 export const vi: Record<string, string> = {
+  'Search and select…': 'Tìm kiếm và chọn…',
+  'Show options': 'Mở danh sách lựa chọn',
+  'No matching options.': 'Không tìm thấy lựa chọn phù hợp.',
+  'Search by route, boat or departure time.': 'Tìm theo tuyến, mã tàu hoặc thời gian khởi hành.',
+  'Filters': 'Bộ lọc',
+  'Rows per page': 'Số dòng mỗi trang',
+  'Showing {from}–{to} of {total}': 'Hiển thị {from}–{to} trên {total} kết quả',
+  'Previous page': 'Trang trước',
+  'Next page': 'Trang sau',
+  'Go to page {page}': 'Đến trang {page}',
+  'Auto-updates every minute': 'Tự cập nhật mỗi phút',
+  'Weather update interrupted. Retrying automatically.': 'Cập nhật thời tiết bị gián đoạn. Đang tự thử lại.',
+  'Reconnecting to live alerts. Periodic updates remain active.': 'Đang kết nối lại cảnh báo trực tiếp. Dữ liệu vẫn được cập nhật định kỳ.',
+  'Live alerts connected': 'Đã kết nối cảnh báo trực tiếp',
+  'Reconnecting to live alerts': 'Đang kết nối lại cảnh báo trực tiếp',
+  'Weather is monitored automatically. Alerts appear here without a manual check.': 'Thời tiết được theo dõi tự động. Cảnh báo xuất hiện tại đây mà không cần kiểm tra thủ công.',
   'What is the difference between the cabins?': 'Các khoang trên tàu khác nhau thế nào?',
   'The boat has a front cabin, a standard cabin and an outdoor deck. Each seat class has its own fare, shown on the seat map, and the fare is the same whichever piers you travel between.':
     'Tàu có khoang trước, khoang tiêu chuẩn và boong ngoài trời. Mỗi hạng ghế có giá riêng, hiển thị trên sơ đồ ghế, và giá như nhau dù bạn đi giữa hai bến nào.',

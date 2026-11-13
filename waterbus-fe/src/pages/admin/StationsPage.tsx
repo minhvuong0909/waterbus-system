@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Button, DataTable, ErrorState, FilterBar, Modal, Notice, PageHeader, PageLoader, SelectField, TextField } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterBar, FilterChips, Modal, Notice, PageHeader, PageLoader, TextField } from '../../components/ui'
 import ActiveToggle from '../../features/admin/components/ActiveToggle'
 import { ActiveBadge } from '../../features/admin/components/StatusBadge'
 import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
@@ -192,13 +192,11 @@ export default function StationsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">{t('All statuses')}</option>
-          <option value="active">{t('Active only')}</option>
-          <option value="inactive">{t('Inactive only')}</option>
-        </SelectField>
+        <FilterChips label="Status" value={status} onChange={setStatus} options={[
+          { value: '', label: 'All statuses' }, { value: 'active', label: 'Active only' }, { value: 'inactive', label: 'Inactive only' },
+        ]} />
       </FilterBar>
-      <DataTable columns={columns} rows={filteredStations} rowKey={(s) => s.id} empty="No stations match this filter." />
+      <DataTable paginate columns={columns} rows={filteredStations} rowKey={(s) => s.id} empty="No stations match this filter." />
 
       {dialog?.kind === 'form' && (
         <Modal title={dialog.station ? 'Edit station' : 'Add station'} onClose={() => setDialog(null)}>

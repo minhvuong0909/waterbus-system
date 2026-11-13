@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DataTable, ErrorState, FilterBar, Modal, Notice, PageHeader, PageLoader, SelectField, TextField } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterBar, FilterChips, Modal, Notice, PageHeader, PageLoader, TextField } from '../../components/ui'
 import type { Column } from '../../components/ui'
 import ActiveToggle from '../../features/admin/components/ActiveToggle'
 import ConfirmModal from '../../features/admin/components/ConfirmModal'
@@ -96,13 +96,11 @@ export default function SeatClassesPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">{t('All statuses')}</option>
-          <option value="active">{t('Active only')}</option>
-          <option value="inactive">{t('Inactive only')}</option>
-        </SelectField>
+        <FilterChips label="Status" value={status} onChange={setStatus} options={[
+          { value: '', label: 'All statuses' }, { value: 'active', label: 'Active only' }, { value: 'inactive', label: 'Inactive only' },
+        ]} />
       </FilterBar>
-      <DataTable columns={columns} rows={filteredClasses} rowKey={(c) => c.id} empty="No seat classes match this filter." />
+      <DataTable paginate columns={columns} rows={filteredClasses} rowKey={(c) => c.id} empty="No seat classes match this filter." />
 
       {dialog?.kind === 'form' && (
         <Modal title={dialog.seatClass ? 'Edit seat class' : 'Add seat class'} onClose={() => setDialog(null)}>

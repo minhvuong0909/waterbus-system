@@ -134,7 +134,7 @@ export default function TripsPage() {
           ))}
         </SelectField>
       </FilterBar>
-      <DataTable columns={columns} rows={rows} rowKey={(x) => x.id} empty="No trips match this filter." />
+      <DataTable paginate columns={columns} rows={rows} rowKey={(x) => x.id} empty="No trips match this filter." />
 
       {dialog?.kind === 'boat' && (
         <Modal title={dialog.trip.boatId ? 'Change boat' : 'Assign boat'} onClose={() => setDialog(null)}>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DataTable, ErrorState, FilterBar, Modal, PageHeader, PageLoader, SelectField } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterBar, FilterChips, Modal, PageHeader, PageLoader, SearchSelect } from '../../components/ui'
 import type { Column } from '../../components/ui'
 import ConfirmModal from '../../features/admin/components/ConfirmModal'
 import FareRuleForm from '../../features/admin/components/FareRuleForm'
@@ -112,28 +112,17 @@ export default function FaresPage() {
         }
       />
       <FilterBar onReset={hasFilters ? resetFilters : undefined}>
-        <SelectField label="Trip type" value={tripType} onChange={(e) => setTripType(e.target.value)}>
-          <option value="">{t('All types')}</option>
-          <option value="Commuter">{t('Regular')}</option>
-          <option value="Sightseeing">{t('Sightseeing')}</option>
-        </SelectField>
-        <SelectField label="Seat class" value={seatClassId} onChange={(e) => setSeatClassId(e.target.value)}>
-          <option value="">{t('All')}</option>
-          {seatClassOptions.map(([id, name]) => (
-            <option key={id} value={id}>
-              {name}
-            </option>
-          ))}
-        </SelectField>
-        <SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">{t('All statuses')}</option>
-          <option value="Active">{t(STATUS_BADGE.Active.label)}</option>
-          <option value="Upcoming">{t(STATUS_BADGE.Upcoming.label)}</option>
-          <option value="Expired">{t(STATUS_BADGE.Expired.label)}</option>
-          <option value="Inactive">{t(STATUS_BADGE.Inactive.label)}</option>
-        </SelectField>
+        <FilterChips label="Trip type" value={tripType} onChange={setTripType} options={[
+          { value: '', label: 'All types' }, { value: 'Commuter', label: 'Regular' }, { value: 'Sightseeing', label: 'Sightseeing' },
+        ]} />
+        <SearchSelect label="Seat class" value={seatClassId} onChange={setSeatClassId} options={[
+          { value: '', label: t('All') }, ...seatClassOptions.map(([value, label]) => ({ value, label })),
+        ]} />
+        <FilterChips label="Status" value={status} onChange={setStatus} options={[
+          { value: '', label: 'All statuses' }, ...(['Active', 'Upcoming', 'Expired', 'Inactive'] as const).map((value) => ({ value, label: STATUS_BADGE[value].label })),
+        ]} />
       </FilterBar>
-      <DataTable columns={columns} rows={filteredRules} rowKey={(f) => f.id} empty="No fares match this filter." />
+      <DataTable paginate columns={columns} rows={filteredRules} rowKey={(f) => f.id} empty="No fares match this filter." />
 
       {dialog?.kind === 'form' && (
         <Modal title={dialog.rule ? 'Edit fare' : 'Add fare'} onClose={() => setDialog(null)}>

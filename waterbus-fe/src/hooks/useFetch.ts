@@ -36,7 +36,7 @@ export function useFetch<T>(
     let cancelled = false
     loader()
       .then((data) => !cancelled && setResult({ data, request }))
-      .catch((error: Error) => !cancelled && setResult({ error, request }))
+      .catch((error: Error) => !cancelled && setResult((previous) => ({ data: previous.data, error, request })))
     return () => {
       cancelled = true
     }

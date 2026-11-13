@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Button, DataTable, Notice, Pagination, Panel, SelectField } from '../../../components/ui'
+import { Button, DataTable, Notice, Pagination, Panel, SearchSelect } from '../../../components/ui'
 import type { Column } from '../../../components/ui'
 import { useFetch } from '../../../hooks'
 import { t } from '../../../i18n'
@@ -92,20 +92,12 @@ export default function RefundTripPanel({ onCreated }: { onCreated: () => void }
       {trips.error ? (
         <Notice tone="error">{t('Something went wrong. Please check your connection and try again.')}</Notice>
       ) : (
-        <SelectField
-          label="Trip"
-          value={tripId}
-          onChange={(e) => chooseTrip(e.target.value)}
-          disabled={!trips.data}
-          hint={trips.data && refundable.length === 0 ? t('No cancelled or terminated trips.') : undefined}
-        >
-          <option value="">{t('Select a trip…')}</option>
-          {refundable.map((trip) => (
-            <option key={trip.id} value={trip.id}>
-              {formatDateTime(trip.departureTime)} • {trip.routeName} • {t(trip.status)}
-            </option>
-          ))}
-        </SelectField>
+        <SearchSelect label="Trip" value={tripId} onChange={chooseTrip} disabled={!trips.data}
+          placeholder="Select a trip…"
+          hint={trips.data && refundable.length === 0 ? t('No cancelled or terminated trips.') : t('Search by route, boat or departure time.')}
+          options={refundable.map((trip) => ({ value: trip.id, label: trip.routeName,
+            description: formatDateTime(trip.departureTime), badge: trip.boatCode ?? t(trip.status),
+          }))} />
       )}
 
       {tripId && candidates.error && (

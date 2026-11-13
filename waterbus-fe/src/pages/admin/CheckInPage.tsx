@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ErrorState, PageHeader, PageLoader, Panel, SelectField } from '../../components/ui'
+import { ErrorState, PageHeader, PageLoader, Panel, SearchSelect } from '../../components/ui'
 import CheckInWindowRow from '../../features/admin/components/CheckInWindowRow'
 import { getTripStops } from '../../features/admin/services/checkInService'
 import { getOperationTrips } from '../../features/admin/services/operationsService'
@@ -23,14 +23,11 @@ export default function CheckInPage() {
     <>
       <PageHeader title="Check-in" description="When staff may check passengers in at each stop of a trip." />
       <Panel>
-        <SelectField label="Trip" value={tripId} onChange={(e) => setTripId(e.target.value)}>
-          <option value="">{t('Choose a trip')}</option>
-          {upcoming.map((x) => (
-            <option key={x.id} value={x.id}>
-              {formatDateTime(x.departureTime)} • {x.routeName} • {x.boatCode ?? '—'}
-            </option>
-          ))}
-        </SelectField>
+        <SearchSelect label="Trip" value={tripId} onChange={setTripId} placeholder="Choose a trip"
+          hint="Search by route, boat or departure time."
+          options={upcoming.map((trip) => ({ value: trip.id, label: trip.routeName,
+            description: formatDateTime(trip.departureTime), badge: trip.boatCode ?? '—',
+          }))} />
         {upcoming.length === 0 && (
           <p className="mt-3 text-sm text-on-surface-variant">{t('No trips are scheduled or running.')}</p>
         )}
