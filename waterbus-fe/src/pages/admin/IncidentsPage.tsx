@@ -1,17 +1,17 @@
 import { useState } from 'react'
-import { Button, DataTable, ErrorState, Modal, Notice, PageHeader, PageLoader } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterChips, Modal, Notice, PageHeader, PageLoader, Pagination } from '../../components/ui'
 import AlertCard from '../../features/admin/components/AlertCard'
 import AlertsEmpty from '../../features/admin/components/AlertsEmpty'
 import { pendingCountOf, sortAlerts } from '../../features/admin/utils/alertUtils'
 import type { WeatherAlert } from '../../features/operations/types'
 import {
+  INCIDENT_KINDS,
   getOpenIncidents,
   getOperationLogs,
   getOperationTrips,
   resolveIncident,
-  runWeatherCheck,
 } from '../../features/operations/services/operationsService'
-import type { AdminTrip, OperationType, WeatherCheckResult } from '../../features/operations/types'
+import type { AdminTrip, OperationType } from '../../features/operations/types'
 import { DISPATCH_OPERATIONS, OPERATION_LABEL, isFinished } from '../../features/operations/utils'
 import { useFleetHub } from '../../features/operations/hooks/useFleetHub'
 import { formatDateTime } from '../../utils/time'
@@ -19,7 +19,11 @@ import { combineFetches, useDocumentTitle, useFetch, useReload, useSubmit } from
 import { t } from '../../i18n'
 import OperationForm from '../../features/admin/components/OperationForm'
 import type { Column } from '../../components/ui'
+import CurrentWeatherPanel from '../../features/admin/components/CurrentWeatherPanel'
+import { useAutoRefresh } from '../../features/admin/hooks/useAutoRefresh'
 import TripStatusBadge from '../../features/trips/components/TripStatusBadge'
+
+const ALERTS_PAGE_SIZE = 10
 
 export default function IncidentsPage() {
   useDocumentTitle('Incidents')
@@ -27,20 +31,25 @@ export default function IncidentsPage() {
   const trips = useFetch(getOperationTrips, [version])
   const logs = useFetch(getOperationLogs, [version])
   const [alertVersion, reloadAlerts] = useReload()
+  const [kindFilter, setKindFilter] = useState('')
+  const [alertsPage, setAlertsPage] = useState(1)
+  // Luôn tải HẾT mọi loại sự cố mở (không lọc ở BE): `awaitingDecision`/`waitingTrips` bên dưới phải
+  // tính trên TOÀN BỘ sự cố đang mở, không phụ thuộc bộ lọc hiển thị - nếu lọc ở BE, 1 sự cố loại
+  // khác đang chờ quyết định sẽ bị ẩn mất nút hành động khỏi "Trips in operation" một cách sai lệch.
+  // Lọc theo loại chỉ áp dụng cho phần HIỂN THỊ card bên dưới, ở client.
   const alerts = useFetch(() => getOpenIncidents(true), [alertVersion])
   const [pending, setPending] = useState<{ trip: AdminTrip; type: OperationType; incidentId?: string } | null>(null)
-  const weatherCheck = useSubmit()
   const closing = useSubmit()
-  const [checkResult, setCheckResult] = useState<WeatherCheckResult | null>(null)
   const [confirmClose, setConfirmClose] = useState<WeatherAlert | null>(null)
   // New alerts, emergencies and every status change (by any admin or a captain) show up without reloading.
   const refresh = () => {
     reload()
     reloadAlerts()
   }
-  useFleetHub(
+  const connection = useFleetHub(
     { onAlert: reloadAlerts, onIncident: reloadAlerts, onTripStatus: refresh, onReconnected: refresh },
   )
+  useAutoRefresh(refresh, trips.fetching || logs.fetching || alerts.fetching)
   const state = combineFetches(trips, logs, alerts)
 
   if (state.error) return <ErrorState onRetry={state.retry} />
@@ -53,6 +62,18 @@ export default function IncidentsPage() {
   const active = trips.data.filter((x) => !isFinished(x.status))
   const openAlerts = sortAlerts(alerts.data)
   const waitingTrips = openAlerts.reduce((sum, alert) => sum + pendingCountOf(alert), 0)
+
+  const filteredAlerts = kindFilter ? openAlerts.filter((a) => a.kind === kindFilter) : openAlerts
+  const alertsTotalPages = Math.max(1, Math.ceil(filteredAlerts.length / ALERTS_PAGE_SIZE))
+  const alertsPageClamped = Math.min(alertsPage, alertsTotalPages)
+  const pagedAlerts = filteredAlerts.slice(
+    (alertsPageClamped - 1) * ALERTS_PAGE_SIZE,
+    alertsPageClamped * ALERTS_PAGE_SIZE,
+  )
+  const chooseKindFilter = (value: string) => {
+    setKindFilter(value)
+    setAlertsPage(1)
+  }
 
   // Trips an open alert affects and the admin has not decided about yet: tripId -> alert id.
   const awaitingDecision = new Map<string, string>()
@@ -147,44 +168,12 @@ export default function IncidentsPage() {
             {waitingTrips}
           </div>
         </div>
-        <div className="flex flex-col justify-between gap-2 rounded-2xl border border-outline-variant/40 bg-white p-4">
-          <Button size="sm"
-            icon="cloud_sync"
-            variant="neutral"
-            disabled={weatherCheck.busy}
-            onClick={async () => {
-              setCheckResult(null)
-              const result = await weatherCheck.run(runWeatherCheck)
-              if (result) {
-                setCheckResult(result)
-                reloadAlerts()
-              }
-            }}
-          >
-            {weatherCheck.busy ? t('Working…') : t('Check the weather now')}
-          </Button>
-          <span className="text-xs text-on-surface-variant">
-            {checkResult
-              ? t(
-                  checkResult.incidentsResolved
-                    ? 'Checked {routes} routes: {created} new, {updated} updated, {resolved} closed alerts.'
-                    : 'Checked {routes} routes: {created} new, {updated} updated alerts.',
-                  {
-                    routes: checkResult.routesChecked,
-                    created: checkResult.incidentsCreated,
-                    updated: checkResult.incidentsUpdated,
-                    resolved: checkResult.incidentsResolved ?? 0,
-                  },
-                )
-              : t('The weather is also checked on a schedule.')}
-          </span>
+        <div className="flex flex-col justify-center gap-2 rounded-2xl border border-teal-flow/20 bg-teal-flow/5 p-4" role="status">
+          <span className="text-sm font-semibold text-teal-flow">{connection === 'live' ? t('Live alerts connected') : t('Reconnecting to live alerts')}</span>
+          <p className="text-xs leading-relaxed text-on-surface-variant">{t('Weather is monitored automatically. Alerts appear here without a manual check.')}</p>
         </div>
       </div>
-      {weatherCheck.error && (
-        <div className="mb-3">
-          <Notice tone="error">{weatherCheck.error}</Notice>
-        </div>
-      )}
+      <div className="mb-6"><CurrentWeatherPanel /></div>
       {closing.error && (
         <div className="mb-3">
           <Notice tone="error">{closing.error}</Notice>
@@ -192,10 +181,17 @@ export default function IncidentsPage() {
       )}
 
       <section className="mb-8 space-y-3" aria-label={t('Open alerts')}>
+        {openAlerts.length > 0 && (
+          <FilterChips label="Incident type" value={kindFilter} onChange={chooseKindFilter} options={[
+            { value: '', label: 'All types' }, ...INCIDENT_KINDS.map((kind) => ({ value: kind, label: kind })),
+          ]} />
+        )}
         {openAlerts.length === 0 ? (
           <AlertsEmpty />
+        ) : filteredAlerts.length === 0 ? (
+          <Notice tone="success">{t('No open incidents match this filter.')}</Notice>
         ) : (
-          openAlerts.map((alert) => (
+          pagedAlerts.map((alert) => (
             <AlertCard
               key={alert.id}
               alert={alert}
@@ -206,13 +202,14 @@ export default function IncidentsPage() {
             />
           ))
         )}
+        <Pagination pageNumber={alertsPageClamped} totalPages={alertsTotalPages} onChange={setAlertsPage} />
       </section>
 
       <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-deep-river">{t('Trips in operation')}</h2>
-      <DataTable columns={columns} rows={active} rowKey={(x) => x.id} empty="No trips are scheduled or running." />
+      <DataTable paginate columns={columns} rows={active} rowKey={(x) => x.id} empty="No trips are scheduled or running." />
 
       <h2 className="mb-2 mt-8 text-sm font-bold uppercase tracking-wide text-deep-river">{t('Operation log')}</h2>
-      <DataTable columns={logColumns} rows={logs.data} rowKey={(l) => l.id} empty="Nothing has been done yet." />
+      <DataTable paginate columns={logColumns} rows={logs.data} rowKey={(l) => l.id} empty="Nothing has been done yet." />
 
       {confirmClose && (
         <Modal title={t('Close this alert?')} onClose={() => setConfirmClose(null)}>
