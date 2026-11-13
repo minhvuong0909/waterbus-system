@@ -10,14 +10,16 @@ describe('fleetService', () => {
     vi.stubGlobal('fetch', fetchMock)
     fetchMock.mockResolvedValueOnce(json({ items: [{ id: 'one', totalSeats: 10 }], totalCount: 2 }))
       .mockResolvedValueOnce(json({ items: [{ id: 'two', totalSeats: 12 }], totalCount: 2 }))
-    expect((await getBoats()).map((boat) => boat.id)).toEqual(['one', 'two'])
+    expect((await getBoats(true)).map((boat) => boat.id)).toEqual(['one', 'two'])
     expect(fetchMock.mock.calls[1][0]).toContain('pageNumber=2')
     expect(fetchMock.mock.calls[0][0]).toContain('isActiveOnly=true')
   })
-  it('includes inactive boats when the admin requests the full catalogue', async () => {
+  it('omits isActiveOnly (not false) when the admin requests the full catalogue, since the backend treats false as inactive-only', async () => {
     vi.stubGlobal('fetch', fetchMock)
-    fetchMock.mockResolvedValueOnce(json({ items: [{ id: 'inactive', isActive: false }], totalCount: 1 }))
-    expect((await getBoats(false)).map((boat) => boat.id)).toEqual(['inactive'])
-    expect(fetchMock.mock.calls[0][0]).toContain('isActiveOnly=false')
+    fetchMock.mockResolvedValueOnce(json({
+      items: [{ id: 'active', isActive: true }, { id: 'inactive', isActive: false }], totalCount: 2,
+    }))
+    expect((await getBoats()).map((boat) => boat.id)).toEqual(['active', 'inactive'])
+    expect(fetchMock.mock.calls[0][0]).not.toContain('isActiveOnly')
   })
 })

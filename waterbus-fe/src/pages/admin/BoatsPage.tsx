@@ -90,9 +90,10 @@ function BoatForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => vo
 export default function BoatsPage() {
   useDocumentTitle('Boats')
   const [version, reload] = useReload()
-  // Tải HẾT (cả active lẫn inactive) - trước đây luôn gọi isActiveOnly:true, nên 1 tàu bị ngừng
-  // biến mất hoàn toàn khỏi trang, không có cách nào xem lại hay bật lại qua UI này.
-  const boats = useFetch(() => getBoats(false), [version])
+  // Tải HẾT (cả active lẫn inactive) - không truyền isActiveOnly (false nghĩa là "chỉ tàu đã
+  // ngừng" theo hợp đồng BE, không phải "cả hai"), trước đây gọi isActiveOnly:true nên 1 tàu bị
+  // ngừng biến mất hoàn toàn khỏi trang, không có cách nào xem lại hay bật lại qua UI này.
+  const boats = useFetch(() => getBoats(), [version])
   const [dialog, setDialog] = useState<Dialog>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')

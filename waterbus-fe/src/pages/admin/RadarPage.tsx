@@ -54,7 +54,7 @@ export default function RadarPage() {
   useDocumentTitle('Live Operations')
   const [alertVersion, reloadAlerts] = useReload()
   const stations = useFetch(getStations)
-  const boats = useFetch(getBoats)
+  const boats = useFetch(() => getBoats(true))
   const alerts = useFetch(() => getOpenIncidents(), [alertVersion])
   const fleet = useLiveFleet(reloadAlerts)
   const now = useNow(15_000) // re-evaluate "stale" labels

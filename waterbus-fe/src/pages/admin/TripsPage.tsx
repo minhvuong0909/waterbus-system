@@ -38,7 +38,8 @@ export default function TripsPage() {
     () => getOperationTrips(weekFrom ? { from: new Date(`${weekFrom}T00:00:00+07:00`).toISOString() } : undefined),
     [weekFrom, version],
   )
-  const boats = useFetch(getBoats)
+  // Chỉ tàu đang hoạt động: không gán được chuyến cho tàu đã ngừng hoạt động.
+  const boats = useFetch(() => getBoats(true))
   const routes = useFetch(() => getRoutes(true))
   // Lowest active fare of each trip type from `GET /fares` (BR-FARE-01: price depends on type and seat class only).
   const fares = useFetch<Partial<Record<TripType, number>>>(() =>

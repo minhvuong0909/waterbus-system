@@ -46,7 +46,7 @@ export default function OverviewPage() {
   useDocumentTitle('Overview')
   const [version, reload] = useReload()
   const trips = useFetch(getOperationTrips, [version])
-  const boats = useFetch(getBoats)
+  const boats = useFetch(() => getBoats(true))
   const alerts = useFetch(() => getOpenIncidents(), [version])
   // Counts and the next trips follow status changes and new alerts as they happen.
   useFleetHub(

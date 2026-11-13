@@ -19,7 +19,7 @@ const MS_TO_KNOTS = 1.943844
  * captain assigned to the boat. Browsers allow geolocation only on HTTPS or localhost.
  */
 export default function GpsSharePanel({ userId }: { userId: string }) {
-  const boats = useFetch(getBoats)
+  const boats = useFetch(() => getBoats(true))
   const boat = boats.data?.find((b) => b.captainUserId?.toLowerCase() === userId.toLowerCase())
   const [sharing, setSharing] = useState(false)
   const [status, setStatus] = useState<RealtimeStatus>('connecting')
