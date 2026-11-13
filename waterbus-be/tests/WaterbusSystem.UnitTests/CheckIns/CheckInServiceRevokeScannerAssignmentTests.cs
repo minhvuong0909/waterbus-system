@@ -44,7 +44,7 @@ public class CheckInServiceRevokeScannerAssignmentTests
         var now = DateTimeOffset.UtcNow;
         var service = CreateService(context, now);
         var created = await service.AssignScannerAsync(
-            new AssignScannerRequest(device.Id, Guid.NewGuid(), stopCall.Id, true, now.AddHours(-1), now.AddHours(2)),
+            new AssignScannerRequest(device.Id, TestDbContextFactory.AddScannerStaff(context), stopCall.Id, true, now.AddHours(-1), now.AddHours(2)),
             CancellationToken.None);
 
         var result = await service.RevokeScannerAssignmentAsync(created.AssignmentId, CancellationToken.None);
@@ -65,7 +65,7 @@ public class CheckInServiceRevokeScannerAssignmentTests
         var now = DateTimeOffset.UtcNow;
         var service = CreateService(context, now);
         var created = await service.AssignScannerAsync(
-            new AssignScannerRequest(device.Id, Guid.NewGuid(), stopCall.Id, true, now.AddHours(-1), now.AddHours(2)),
+            new AssignScannerRequest(device.Id, TestDbContextFactory.AddScannerStaff(context), stopCall.Id, true, now.AddHours(-1), now.AddHours(2)),
             CancellationToken.None);
 
         await service.RevokeScannerAssignmentAsync(created.AssignmentId, CancellationToken.None);
@@ -75,10 +75,34 @@ public class CheckInServiceRevokeScannerAssignmentTests
         context.SaveChanges();
 
         var act = () => service.AssignScannerAsync(
-            new AssignScannerRequest(device2.Id, Guid.NewGuid(), stopCall.Id, true, now, now.AddHours(2)),
+            new AssignScannerRequest(device2.Id, TestDbContextFactory.AddScannerStaff(context), stopCall.Id, true, now, now.AddHours(2)),
             CancellationToken.None);
 
         await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task RevokedFutureAssignment_DoesNotBlockAReplacement_AndRepeatedRevokePreservesWindow()
+    {
+        using var context = TestDbContextFactory.CreateDbContext();
+        var seed = TestDbContextFactory.SeedTrip(context);
+        var stopCall = seed.Trip.TripStopCalls.Single(c => c.VisitOrder == 1);
+        var device = new ScannerDevice { DeviceCode = "DEV-01", IsActive = true };
+        context.ScannerDevices.Add(device);
+        var staffId = TestDbContextFactory.AddScannerStaff(context);
+        var now = DateTimeOffset.UtcNow;
+        var service = CreateService(context, now);
+        var request = new AssignScannerRequest(device.Id, staffId, stopCall.Id, true, now.AddHours(1), now.AddHours(2));
+        var future = await service.AssignScannerAsync(request);
+
+        await service.RevokeScannerAssignmentAsync(future.AssignmentId);
+        var revoked = await service.RevokeScannerAssignmentAsync(future.AssignmentId);
+        revoked.ActiveUntil.Should().Be(request.ActiveFrom);
+        (await service.ListScannerAssignmentsAsync(stopCall.Id, 1, 20)).Items.Should().BeEmpty();
+
+        var replacement = await service.AssignScannerAsync(request with { ActiveFrom = now });
+        (await service.ListScannerAssignmentsAsync(stopCall.Id, 1, 20)).Items
+            .Should().ContainSingle().Which.AssignmentId.Should().Be(replacement.AssignmentId);
     }
 
     [Fact]

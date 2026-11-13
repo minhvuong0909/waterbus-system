@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.Common.Models;
 using WaterbusSystem.Application.DTOs.Requests.CheckIns;
 using WaterbusSystem.Application.DTOs.Responses.CheckIns;
 
@@ -5,6 +6,11 @@ namespace WaterbusSystem.Application.Interfaces.Services;
 
 public interface ICheckInService
 {
+    Task<PaginatedList<ScannerStaffResponse>> ListScannerStaffAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default);
+
+    Task<PaginatedList<ScannerAssignmentAdminResponse>> ListScannerAssignmentsAsync(
+        Guid tripStopCallId, int pageNumber, int pageSize, CancellationToken cancellationToken = default);
+
     /// <summary>Admin phân công thiết bị quét + Staff cho một điểm dừng cụ thể (BR-CFG-01, BR-OFF-02).</summary>
     Task<AssignScannerResponse> AssignScannerAsync(AssignScannerRequest request, CancellationToken cancellationToken = default);
 

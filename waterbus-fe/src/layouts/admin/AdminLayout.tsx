@@ -106,22 +106,26 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
-        <div className="hidden space-y-2 border-t border-white/10 p-5 lg:block">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-sm font-bold text-sky-aqua">
-            {user?.fullName?.trim().charAt(0).toUpperCase()}
-          </span>
-          <div className="truncate text-sm font-semibold text-white" title={user?.email}>
-            {user?.fullName}
-          </div>
-          <div className="text-xs text-white/50">{user?.roles.join(', ')}</div>
-          <div className="flex gap-2 pt-1 text-xs font-semibold">
-            <Link to={ROUTES.home} className="text-white/70 hover:text-white">
-              {t('Passenger site')}
-            </Link>
-            <span className="text-outline">•</span>
-            <button type="button" onClick={signOut} className="text-white/70 hover:text-white">
-              {t('Sign out')}
-            </button>
+        <div className="hidden border-t border-white/10 p-3 lg:block">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-aqua/15 text-base font-bold text-sky-aqua">
+                {user?.fullName?.trim().charAt(0).toUpperCase()}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold text-white" title={user?.fullName}>{user?.fullName}</div>
+                <div className="mt-1 truncate text-xs text-white/65">{user?.roles.join(', ')}</div>
+              </div>
+            </div>
+            <div className="mt-3 grid gap-1 border-t border-white/10 pt-2">
+              <Link to={ROUTES.home} className="flex min-h-[44px] min-w-0 items-center gap-2 rounded-xl px-2 text-xs font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0"><path d="M14 3h7v7M10 14 21 3M10 3H3v18h18v-7" /></svg>
+                <span className="min-w-0 flex-1 whitespace-nowrap">{t('Passenger site')}</span>
+              </Link>
+              <button type="button" onClick={signOut} className="flex min-h-[44px] items-center gap-2 rounded-xl px-3 text-xs font-medium text-white/80 transition-colors hover:bg-coral-glow/15 hover:text-white">
+                <Icon name="logout" className="shrink-0 text-lg" />{t('Sign out')}
+              </button>
+            </div>
           </div>
         </div>
       </aside>

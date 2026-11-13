@@ -12,12 +12,12 @@ Cách dùng: làm theo "Cách làm", so với "Mong đợi", đánh dấu `[x]`.
 | # | Việc | Cách làm |
 |---|---|---|
 | 0.1 | Chạy hệ thống | `docker compose up -d --build`, web http://localhost:8080 |
-| 0.2 | Bật Swagger (cho 0.5 đến 0.7) | `.env`: `ASPNETCORE_ENVIRONMENT=Development`, rồi `docker compose up -d`. Swagger: http://localhost:5000/swagger → **Authorize** → `Bearer <token>` |
+| 0.2 | Bật Swagger (cho 0.5 và mục 3.C) | `.env`: `ASPNETCORE_ENVIRONMENT=Development`, rồi `docker compose up -d`. Swagger: http://localhost:5000/swagger → **Authorize** → `Bearer <token>` |
 | 0.3 | Lấy token | `POST /api/v1/auth/login` → lấy `token` và `userId` |
 | 0.4 | Tài khoản seed | `admin@waterbus.vn`, `captain@waterbus.vn`, `staff@waterbus.vn` (mật khẩu trong `ApplicationDbContextInitializer.cs`). Khách vãng lai không cần tài khoản. **Chưa có tài khoản Passenger** (không có API đăng ký) |
 | 0.5 | Gán Captain cho tàu (web chưa có ô chọn) | Token Admin → `GET /api/v1/boats` → `PUT /api/v1/boats/{id}` gửi đủ thông tin tàu + `"captainUserId": "<userId captain>"`. Seed đã gán sẵn 1 tàu |
-| 0.6 | Đăng ký máy quét (web chưa có trang) | `POST /api/v1/admin/scanner-devices` `{ "deviceCode": "scanner-01", "label": "Máy bến Bạch Đằng" }` → lấy `id` |
-| 0.7 | Phân công Staff vào điểm dừng (web chưa có trang) | `callId` từ `GET /api/v1/trips/{tripId}` (`stops[].callId`), rồi `POST /api/v1/checkins/assignments` `{ "deviceId": "...", "staffAccountId": "<userId staff>", "tripStopCallId": "<callId>", "isPrimaryOffline": true, "activeFrom": "<ISO hiện tại>", "activeUntil": null }` |
+| 0.6 | Đăng ký máy quét | Web: Admin → **Check-in** → chọn chuyến → khối **Phân công máy quét** → đăng ký máy mới (mã máy, nhãn). Máy đã đăng ký xuất hiện trong danh sách chọn máy |
+| 0.7 | Phân công Staff vào điểm dừng | Web: cùng khối **Phân công máy quét** trên trang Check-in: chọn bến lên tàu, Staff, máy, giờ hiệu lực (mặc định theo khung check-in của bến), tick máy chính nếu cần → xem lại → xác nhận. Thu hồi ở danh sách phân công của cùng bến |
 | 0.8 | App mobile kết nối API | API Docker chỉ mở `127.0.0.1:5000`, điện thoại không vào được. `waterbus-mobile/myApp/.env`: `EXPO_PUBLIC_API_BASE_URL=http://<IP LAN máy tính>:8080`, rồi `pnpm start`, mở bằng Expo Go |
 | 0.9 | Nhiều role cùng lúc | Phiên đăng nhập lưu trong trình duyệt nên 2 tab cùng trình duyệt đè nhau. Admin: Chrome thường · Captain: Chrome ẩn danh · Khách: Edge |
 | 0.10 | Thời tiết tự động (cho mục 2.3) | `.env`: `WEATHER_FAKE_WIND_MS=12` (≥10.6 là cảnh báo mức vừa; `WEATHER_FAKE_GUST_MS=20` là mức cao), `WEATHER_CRON=* * * * *` (mỗi phút). Phải có **chuyến khởi hành trong 3 giờ tới** (`WEATHER_LOOKAHEAD_HOURS`, mặc định 3), không có chuyến thì hệ thống không tạo cảnh báo. Chạy lại: `docker compose up -d` |
@@ -36,6 +36,8 @@ Logic CRUD, validate, xóa mềm, giá, ghế, vòng đời chuyến đã có te
 - [x] **Fares**: sửa giá một hạng ghế (nút Sửa), rồi đặt vé mới ở trang khách thấy giá mới; vé đã mua giữ giá cũ.
 - [x] **Trips**: nút thao tác chỉ hiện những gì cho phép theo trạng thái chuyến (vd chuyến đang chạy không có nút Cancel).
 - [x] **Check-in**: chọn chuyến, sửa giờ mở/đóng của một điểm dừng, lưu được; giờ đóng trước giờ mở báo lỗi.
+- [ ] **Phân công máy quét** (0.6, 0.7): đăng ký máy, phân công một Staff vào bến lên tàu, thấy phân công trong danh sách; chọn Staff hoặc máy không hợp lệ thì không xác nhận được; thu hồi xong phân công biến khỏi danh sách (và Staff trên app không còn thấy điểm dừng đó).
+- [ ] **Phân trang và bộ lọc**: các trang Admin có danh sách dài (Chuyến, Sự cố, Hoàn tiền, ...) chia trang được, ô tìm kiếm/lọc hoạt động, đổi trang không làm mất lựa chọn đang làm dở.
 
 ## 2. Realtime và dịch vụ ngoài (chỉ kiểm bằng cách chạy thật)
 

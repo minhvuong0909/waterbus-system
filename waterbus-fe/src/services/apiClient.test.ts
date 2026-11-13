@@ -82,7 +82,7 @@ describe('apiRequest download', () => {
       method: 'POST',
       responseType: 'download',
     })
-    expect(await file.blob.text()).toBe('a,b')
+    await expect(file.blob.text()).resolves.toBe('a,b')
     expect(file.fileName).toBe('hoan-tien-20261112-1005.csv')
     expect(file.rowCount).toBe(7)
     expect((fetchMock.mock.calls[0][1] as RequestInit).headers).toMatchObject({ Accept: '*/*' })

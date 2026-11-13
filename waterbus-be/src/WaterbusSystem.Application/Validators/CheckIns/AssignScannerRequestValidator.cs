@@ -10,6 +10,7 @@ public class AssignScannerRequestValidator : AbstractValidator<AssignScannerRequ
         RuleFor(x => x.DeviceId).NotEmpty().WithMessage("Thiếu mã thiết bị.");
         RuleFor(x => x.StaffAccountId).NotEmpty().WithMessage("Thiếu mã nhân viên.");
         RuleFor(x => x.TripStopCallId).NotEmpty().WithMessage("Thiếu mã điểm dừng.");
+        RuleFor(x => x.ActiveFrom).NotEmpty().WithMessage("Thiếu thời điểm bắt đầu phân công.");
         RuleFor(x => x.ActiveUntil)
             .GreaterThan(x => x.ActiveFrom)
             .When(x => x.ActiveUntil.HasValue)

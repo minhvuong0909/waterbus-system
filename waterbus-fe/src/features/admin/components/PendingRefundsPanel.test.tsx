@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setActiveLocale } from '../../../i18n/translate'
 import { saveBlob } from '../../../utils/download'
@@ -110,6 +110,39 @@ describe('PendingRefundsPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm 1 as refunded' }))
 
     expect(await screen.findByRole('alert')).toBeTruthy()
+  })
+
+  it('discards selection on a page change and confirms only validated rows after a delayed refresh', async () => {
+    const firstPage = { ...page([refund('r1', 'BK1', 40000)]), totalPages: 2 }
+    const secondPage = { ...page([refund('r2', 'BK2', 60000)]), pageNumber: 2, totalPages: 2 }
+    let resolveStale!: (value: typeof secondPage) => void
+    vi.mocked(listPendingRefunds)
+      .mockResolvedValueOnce(firstPage)
+      .mockImplementationOnce(() => new Promise<typeof secondPage>((resolve) => { resolveStale = resolve }))
+      .mockResolvedValue(secondPage)
+    vi.mocked(confirmRefundsBatch).mockResolvedValue({ confirmed: 1, failed: 0, items: [] })
+    const { rerender } = render(<PendingRefundsPanel refreshKey={0} />)
+    await screen.findByText('BK1')
+    fireEvent.click(screen.getByLabelText('Select refund BK1'))
+    fireEvent.change(screen.getByLabelText('Evidence'), { target: { value: 'evidence' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+
+    expect(screen.queryByText('BK1')).toBeNull()
+    expect(screen.queryByRole('button', { name: /as refunded/ })).toBeNull()
+    expect((screen.getByRole('button', { name: 'Download CSV' }) as HTMLButtonElement).disabled).toBe(true)
+    rerender(<PendingRefundsPanel refreshKey={1} />)
+    await screen.findByText('BK2')
+    await act(async () => resolveStale({ ...secondPage, items: [refund('stale', 'Stale booking', 1)] }))
+    expect(screen.queryByText('Stale booking')).toBeNull()
+    expect((screen.getByLabelText('Select refund BK2') as HTMLInputElement).checked).toBe(false)
+    expect(confirmRefundsBatch).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByLabelText('Select refund BK2'))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm 1 as refunded' }))
+    expect(confirmRefundsBatch).toHaveBeenCalledWith([
+      { refundTransactionId: 'r2', evidence: 'evidence', gatewayReference: null, confirmedAmount: 60000 },
+    ])
+    await screen.findByText('Confirmed 1, failed 0.')
   })
 
   it('reloads when a refund is created elsewhere on the page', async () => {

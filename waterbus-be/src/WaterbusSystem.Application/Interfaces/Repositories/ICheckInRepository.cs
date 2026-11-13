@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.Common.Models;
 using WaterbusSystem.Application.DTOs.Responses.CheckIns;
 using WaterbusSystem.Domain.Entities;
 
@@ -6,6 +7,14 @@ namespace WaterbusSystem.Application.Interfaces.Repositories;
 public interface ICheckInRepository
 {
     // ---------------- Scanner devices / assignments ----------------
+
+    Task<bool> IsEligibleScannerStaffAsync(Guid staffId, CancellationToken cancellationToken = default);
+
+    Task<PaginatedList<ScannerStaffResponse>> ListScannerStaffAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default);
+
+    Task<PaginatedList<ScannerAssignmentAdminResponse>> ListScannerAssignmentsAsync(
+        Guid tripStopCallId, DateTimeOffset now, int pageNumber, int pageSize, CancellationToken cancellationToken = default);
+
 
     /// <summary>Thiết bị quét (có theo dõi để sửa) hoặc ném NotFoundException.</summary>
     Task<ScannerDevice> GetRequiredDeviceAsync(Guid deviceId, CancellationToken cancellationToken = default);

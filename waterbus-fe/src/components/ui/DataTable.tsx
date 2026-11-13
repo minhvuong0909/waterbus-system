@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
+import Pagination from './Pagination'
 import { t } from '../../i18n'
-import Button from './Button'
 
 export interface Column<T> {
   header: string
@@ -9,32 +9,34 @@ export interface Column<T> {
   className?: string
 }
 
-/**
- * Dense table for the admin lists. Give `pageSize` to show a long list a page at a time, with Previous / Next
- * below the table; without it every row is shown.
- */
+/** Dense table for the admin lists. */
 export default function DataTable<T>({
   columns,
   rows,
   rowKey,
   empty = 'Nothing here yet.',
-  pageSize,
+  paginate = false,
 }: {
   columns: Column<T>[]
   rows: T[]
   rowKey: (row: T) => string
   empty?: string
-  pageSize?: number
+  paginate?: boolean
 }) {
-  const [requestedPage, setRequestedPage] = useState(1)
-  const totalPages = pageSize ? Math.max(1, Math.ceil(rows.length / pageSize)) : 1
-  // A filter or a refresh can leave fewer rows than the page we were on: fall back to the last page that exists.
-  const page = Math.min(requestedPage, totalPages)
-  const shown = pageSize ? rows.slice((page - 1) * pageSize, page * pageSize) : rows
-
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const identity = rows.map(rowKey).join(',')
+  const [previousIdentity, setPreviousIdentity] = useState(identity)
+  if (identity !== previousIdentity) {
+    setPreviousIdentity(identity)
+    setPage(1)
+  }
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize))
+  const currentPage = Math.min(page, totalPages)
+  const visibleRows = paginate ? rows.slice((currentPage - 1) * pageSize, currentPage * pageSize) : rows
   return (
     <div>
-      <div className="overflow-x-auto rounded-2xl border border-outline-variant/30 bg-white shadow-card">
+    <div className="overflow-x-auto rounded-2xl border border-outline-variant/30 bg-white shadow-card">
       <table className="w-full min-w-[40rem] text-left text-sm">
         <thead className="border-b border-outline-variant/30 bg-mist text-2xs uppercase tracking-wider text-on-surface-variant">
           <tr>
@@ -50,7 +52,7 @@ export default function DataTable<T>({
           </tr>
         </thead>
         <tbody className="divide-y divide-outline-variant/30">
-          {shown.length === 0 ? (
+          {rows.length === 0 ? (
             <tr>
               <td
                 colSpan={columns.length}
@@ -60,7 +62,7 @@ export default function DataTable<T>({
               </td>
             </tr>
           ) : (
-            shown.map((row) => (
+            visibleRows.map((row) => (
               <tr
                 key={rowKey(row)}
                 className="transition-colors hover:bg-teal-flow/[0.035] focus-within:bg-teal-flow/[0.035]"
@@ -80,20 +82,21 @@ export default function DataTable<T>({
           )}
         </tbody>
       </table>
+    </div>
+    {paginate && rows.length > 0 && (
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-b-2xl border border-t-0 border-outline-variant/30 bg-white px-4 py-3">
+        <span className="text-xs text-on-surface-variant" aria-live="polite">
+          {t('Showing {from}–{to} of {total}', { from: (currentPage - 1) * pageSize + 1, to: Math.min(currentPage * pageSize, rows.length), total: rows.length })}
+        </span>
+        <label className="flex items-center gap-2 text-xs text-on-surface-variant">
+          {t('Rows per page')}
+          <select className="min-h-[44px] rounded-xl border-outline-variant/50 text-sm text-deep-river focus:ring-teal-flow" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1) }}>
+            {[10, 20, 50].map((size) => <option key={size} value={size}>{size}</option>)}
+          </select>
+        </label>
+        <Pagination pageNumber={currentPage} totalPages={totalPages} onChange={setPage} />
       </div>
-      {totalPages > 1 && (
-        <nav aria-label={t('Pages')} className="mt-3 flex items-center justify-between gap-3">
-          <Button variant="neutral" size="sm" icon="chevron_left" onClick={() => setRequestedPage(page - 1)} disabled={page <= 1}>
-            {t('Previous')}
-          </Button>
-          <span className="text-sm text-on-surface-variant">
-            {t('Page {page} of {total}', { page, total: totalPages })} · {rows.length}
-          </span>
-          <Button variant="neutral" size="sm" icon="chevron_right" onClick={() => setRequestedPage(page + 1)} disabled={page >= totalPages}>
-            {t('Next')}
-          </Button>
-        </nav>
-      )}
+    )}
     </div>
   )
 }

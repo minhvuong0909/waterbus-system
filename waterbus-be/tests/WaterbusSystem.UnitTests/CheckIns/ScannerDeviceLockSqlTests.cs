@@ -103,7 +103,7 @@ public sealed class ScannerDeviceLockSqlTests : IAsyncLifetime
             inner.TryAcquireDeviceAsync(deviceId, TimeSpan.FromMilliseconds(300), ct);
     }
 
-    private sealed record Seeded(Guid StopCallId, Guid DeviceA, Guid DeviceB, DateTimeOffset Now);
+    private sealed record Seeded(Guid StopCallId, Guid DeviceA, Guid DeviceB, Guid StaffId, DateTimeOffset Now);
 
     private async Task<Seeded> SeedAsync()
     {
@@ -113,7 +113,8 @@ public sealed class ScannerDeviceLockSqlTests : IAsyncLifetime
         var b = new ScannerDevice { DeviceCode = "LOCK-B", IsActive = true };
         seed.ScannerDevices.AddRange(a, b);
         await seed.SaveChangesAsync();
-        return new Seeded(scenario.BoardingCall.Id, a.Id, b.Id, scenario.Now);
+        var staffId = TestDbContextFactory.AddScannerStaff(seed);
+        return new Seeded(scenario.BoardingCall.Id, a.Id, b.Id, staffId, scenario.Now);
     }
 
     private static IDateTimeService Clock(DateTimeOffset now)
@@ -146,7 +147,7 @@ public sealed class ScannerDeviceLockSqlTests : IAsyncLifetime
     }
 
     private static AssignScannerRequest Request(Seeded s, Guid deviceId, bool primary) =>
-        new(deviceId, Guid.NewGuid(), s.StopCallId, primary, s.Now.AddHours(-1), null);
+        new(deviceId, s.StaffId, s.StopCallId, primary, s.Now.AddHours(-1), null);
 
     /// <summary>Chờ tới khi có ĐÚNG ít nhất 1 session đang xếp hàng chờ 1 applock trong DB test này.</summary>
     private async Task WaitForApplockWaiterAsync()

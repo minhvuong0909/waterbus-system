@@ -1,3 +1,4 @@
+using WaterbusSystem.Application.Common.Models;
 using FluentAssertions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -91,6 +92,16 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
             await gate.Arrive();
             return result;
         }
+
+        public Task<bool> IsEligibleScannerStaffAsync(Guid staffId, CancellationToken cancellationToken = default) =>
+            inner.IsEligibleScannerStaffAsync(staffId, cancellationToken);
+
+        public Task<PaginatedList<ScannerStaffResponse>> ListScannerStaffAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default) =>
+            inner.ListScannerStaffAsync(pageNumber, pageSize, cancellationToken);
+
+        public Task<PaginatedList<ScannerAssignmentAdminResponse>> ListScannerAssignmentsAsync(
+            Guid tripStopCallId, DateTimeOffset now, int pageNumber, int pageSize, CancellationToken cancellationToken = default) =>
+            inner.ListScannerAssignmentsAsync(tripStopCallId, now, pageNumber, pageSize, cancellationToken);
 
         public Task<ScannerDevice> GetRequiredDeviceAsync(Guid deviceId, CancellationToken cancellationToken = default) =>
             inner.GetRequiredDeviceAsync(deviceId, cancellationToken);
@@ -397,6 +408,8 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
         await using (var seed = Context())
         {
             var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, _staffId, withAssignment: false);
+            TestDbContextFactory.AddScannerStaff(seed, staffA);
+            TestDbContextFactory.AddScannerStaff(seed, staffB);
             stopCallId = scenario.BoardingCall.Id;
             activeFrom = scenario.Now.AddHours(-1);
 
@@ -453,6 +466,8 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
         await using (var seed = Context())
         {
             var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, _staffId, withAssignment: false);
+            TestDbContextFactory.AddScannerStaff(seed, staffA);
+            TestDbContextFactory.AddScannerStaff(seed, staffB);
             stopCallId = scenario.BoardingCall.Id;
             activeFrom = scenario.Now.AddHours(-1);
 
@@ -505,6 +520,8 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
         await using (var seed = Context())
         {
             var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, _staffId, withAssignment: false);
+            TestDbContextFactory.AddScannerStaff(seed, staffA);
+            TestDbContextFactory.AddScannerStaff(seed, staffB);
             stopCallId = scenario.BoardingCall.Id;
             activeFrom = scenario.Now.AddHours(-1);
 
@@ -554,6 +571,8 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
         await using (var seed = Context())
         {
             var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, _staffId, withAssignment: false);
+            TestDbContextFactory.AddScannerStaff(seed, staffA);
+            TestDbContextFactory.AddScannerStaff(seed, staffB);
             stopCallId = scenario.BoardingCall.Id;
             activeFrom = scenario.Now.AddHours(-1);
 
@@ -603,6 +622,8 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
         await using (var seed = Context())
         {
             var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, _staffId, withAssignment: false);
+            TestDbContextFactory.AddScannerStaff(seed, staffOld);
+            TestDbContextFactory.AddScannerStaff(seed, staffNew);
             stopCallId = scenario.BoardingCall.Id;
             activeFrom = scenario.Now.AddHours(-1);
 
@@ -661,6 +682,8 @@ public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
         await using (var seed = Context())
         {
             var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, _staffId, withAssignment: false);
+            TestDbContextFactory.AddScannerStaff(seed, staffPrimary);
+            TestDbContextFactory.AddScannerStaff(seed, staffSecondary);
             stopCallId = scenario.BoardingCall.Id;
             activeFrom = scenario.Now.AddHours(-1);
 
