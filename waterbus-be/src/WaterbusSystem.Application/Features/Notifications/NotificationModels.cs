@@ -23,7 +23,7 @@ public sealed record TripDisruptionData(
 public sealed record RefundSuccessData(
     Guid RefundId, Guid OrderId, string PurchaserName, string PurchaserEmail, FinancialTransactionStatus Status,
     decimal Amount, decimal PaymentAmount, string Currency, string? GatewayReference, DateTimeOffset? CompletedAt,
-    BookingLeg Leg, IReadOnlyList<PassengerLine> Allocations);
+    BookingLeg Leg, IReadOnlyList<PassengerLine> Allocations, bool IsDemo = false);
 
 public sealed record InlineImage(string ContentId, byte[] Content, string MediaType, string FileName);
 

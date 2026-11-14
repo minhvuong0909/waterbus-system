@@ -76,6 +76,7 @@ services:
       VnPay__BaseUrl: ${VNPAY_BASE_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
       VnPay__ReturnUrl: ${PUBLIC_URL:-http://localhost:8080}/payment/callback
       # API truy vấn/hoàn tiền của VNPay: phải cùng môi trường với VNPAY_BASE_URL (cùng sandbox hoặc cùng production)
+      Refunds__Mode: ${REFUND_MODE:-Demo}
       VnPay__WebApiUrl: ${VNPAY_WEBAPI_URL:-https://sandbox.vnpayment.vn/merchant_webapi/api/transaction}
       Checkout__SessionTtlMinutes: ${Checkout__SessionTtlMinutes:-10}
       Checkout__PaymentPendingTtlMinutes: ${Checkout__PaymentPendingTtlMinutes:-15}

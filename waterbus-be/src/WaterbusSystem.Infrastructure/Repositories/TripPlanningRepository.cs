@@ -21,6 +21,11 @@ public sealed class TripPlanningRepository(ApplicationDbContext context) : ITrip
             .Where(t => t.ScheduleId == scheduleId && t.DepartureTime >= fromUtc && t.DepartureTime <= toUtc)
             .Select(t => t.DepartureTime).ToListAsync(cancellationToken)).ToHashSet();
 
+    public async Task<Route> GetRouteWithStopsAsync(Guid routeId, CancellationToken cancellationToken = default) =>
+        await context.Routes.AsNoTracking().Include(r => r.Stops.Where(s => !s.IsDeleted))
+            .FirstOrDefaultAsync(r => r.Id == routeId && !r.IsDeleted, cancellationToken)
+        ?? throw new NotFoundException(nameof(Route), routeId);
+
     public void AddTrip(Trip trip) => context.Trips.Add(trip);
 
     public async Task<Trip> GetTripTrackedAsync(Guid tripId, CancellationToken cancellationToken = default) =>

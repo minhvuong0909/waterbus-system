@@ -10,6 +10,9 @@ public interface ITripPlanningRepository
     /// <summary>Giờ khởi hành đã có Trip của lịch trong khoảng, KỂ CẢ Trip xoá mềm (unique (ScheduleId, DepartureTime) tính cả chúng).</summary>
     Task<HashSet<DateTimeOffset>> ListExistingDeparturesAsync(Guid scheduleId, DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken cancellationToken = default);
 
+    /// <summary>Route (chỉ đọc, chưa xoá) kèm RouteStop chưa xoá, hoặc NotFound.</summary>
+    Task<Route> GetRouteWithStopsAsync(Guid routeId, CancellationToken cancellationToken = default);
+
     void AddTrip(Trip trip);
 
     /// <summary>Trip (có theo dõi, chưa xoá) hoặc NotFound.</summary>

@@ -32,7 +32,8 @@ public sealed class CommercialCheckoutTests
         public bool ValidateSignature(IReadOnlyDictionary<string, string> q) => true;
         public bool IsValidTmnCode(string code) => true;
         public Task<VnPayQueryResult> QueryTransactionAsync(string r, string d, string ip, CancellationToken ct = default) => Task.FromResult(QueryResult);
-        public Task<VnPayRefundResult> RefundAsync(VnPayRefundRequest r, CancellationToken ct = default) => throw new NotSupportedException();
+        public int VnPayRefundApiCalls;
+        public Task<VnPayRefundResult> RefundAsync(VnPayRefundRequest r, CancellationToken ct = default) { VnPayRefundApiCalls++; throw new NotSupportedException(); }
         public Task<RefundGatewayResult> RefundAsync(RefundGatewayRequest r, CancellationToken ct = default)
         { RefundCalls++; BeforeRefund?.Invoke(); return Task.FromResult(Outcome); }
     }

@@ -56,6 +56,7 @@ public sealed class CommercialHttpTests : IAsyncLifetime
         {
             ["ConnectionStrings:DefaultConnection"] = "Server=127.0.0.1;Database=NotUsed;Integrated Security=True",
             ["JwtSettings:Secret"] = _jwtSecret,
+            ["Refunds:Mode"] = "Gateway",
             ["VnPay:TmnCode"] = CallbackTmnCode,
             ["VnPay:HashSecret"] = _callbackSecret,
             ["Qr:PrivateKeyPem"] = signingKey.ExportPkcs8PrivateKeyPem()

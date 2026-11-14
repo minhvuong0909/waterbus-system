@@ -15,6 +15,9 @@ namespace WaterbusSystem.Application.Features.Refunds.Services;
 public sealed class RefundReconciliationService(IFinancialTransactionRepository refunds, IUnitOfWork unitOfWork,
     IVnPayService gateway, ICommercialTransactionRunner transactions, INotificationOutbox notifications) : IRefundReconciliationService
 {
+    public Task<WaterbusSystem.Application.Common.Models.PaginatedList<ReconciliationItemResponse>> ListPendingAsync(int page, int pageSize, CancellationToken ct = default) =>
+        refunds.ListReconciliationAsync(Math.Max(1, page), Math.Clamp(pageSize, 1, 100), ct);
+
     public async Task<string> ReconcileAsync(Guid refundId, string ipAddress, CancellationToken ct = default)
     {
         var snapshot = await refunds.GetRefundSnapshotAsync(refundId, ct);

@@ -137,6 +137,9 @@ export interface RefundRequestResult {
   /** Cổng thanh toán không hoàn được: Admin phải hoàn tay rồi xác nhận kèm bằng chứng (BR-RF-10). */
   requiresManualAction: boolean
   tickets: RefundTicketAllocation[]
+  /** Chế độ Demo: hoàn tiền mô phỏng, KHÔNG có tiền thật được chuyển. */
+  isDemo?: boolean
+  notice?: string | null
 }
 
 /** Body of `POST /refunds/confirm-manual` (BE `ConfirmManualRefundRequest`). */
@@ -153,4 +156,6 @@ export interface ManualRefundResult {
   amount: number
   status: string
   completedAt: string | null
+  isDemo?: boolean
+  notice?: string | null
 }

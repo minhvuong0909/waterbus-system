@@ -31,6 +31,8 @@ public class FinancialTransaction : BaseEntity
     public string? FailureReason { get; set; }
     public string? ManualRefundEvidence { get; set; }
     public Guid? ManualProcessedByAdminId { get; set; }
+    /// <summary>true = refund tạo ở chế độ Demo: hoàn thành nghĩa là Admin xác nhận mô phỏng, KHÔNG có tiền thật được chuyển.</summary>
+    public bool IsDemoRefund { get; set; }
     public DateTimeOffset? ProcessedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public ICollection<RefundTicketAllocation> RefundAllocations { get; set; } = new List<RefundTicketAllocation>();

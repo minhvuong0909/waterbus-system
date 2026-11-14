@@ -9,6 +9,45 @@ namespace WaterbusSystem.Infrastructure.Repositories;
 
 public sealed class FinancialTransactionRepository(ApplicationDbContext context) : IFinancialTransactionRepository
 {
+    private sealed class ReconRow
+    {
+        public string Kind { get; set; } = "";
+        public Guid TransactionId { get; set; }
+        public Guid OrderId { get; set; }
+        public Guid? BookingId { get; set; }
+        public decimal Amount { get; set; }
+        public string? MerchantReference { get; set; }
+        public string? GatewayReference { get; set; }
+        public FinancialTransactionStatus Status { get; set; }
+        public string? Reason { get; set; }
+        public DateTimeOffset OccurredAt { get; set; }
+        public Guid? RefundId { get; set; }
+        public FinancialTransactionStatus? RefundStatus { get; set; }
+    }
+
+    public async Task<Application.Common.Models.PaginatedList<Application.DTOs.Responses.Refunds.ReconciliationItemResponse>> ListReconciliationAsync(
+        int page, int pageSize, CancellationToken ct)
+    {
+        var late = context.FinancialTransactions.AsNoTracking()
+            .Where(p => p.TransactionType == FinancialTransactionType.Payment && p.Status == FinancialTransactionStatus.Succeeded &&
+                p.FailureReason != null && (p.FailureReason.StartsWith("ReconciliationRequired:") || p.FailureReason.Contains("VerifiedOutcomeConflict")))
+            .Select(p => new ReconRow { Kind = "LatePayment", TransactionId = p.Id, OrderId = p.OrderId,
+                BookingId = p.Order!.Bookings.Select(b => (Guid?)b.Id).FirstOrDefault(), Amount = p.Amount, MerchantReference = p.MerchantReference,
+                GatewayReference = p.GatewayReference, Status = p.Status, Reason = p.FailureReason, OccurredAt = p.CompletedAt ?? p.CreatedAt,
+                RefundId = p.Refunds.Select(r => (Guid?)r.Id).FirstOrDefault(),
+                RefundStatus = p.Refunds.Select(r => (FinancialTransactionStatus?)r.Status).FirstOrDefault() });
+        var stuck = context.FinancialTransactions.AsNoTracking()
+            .Where(r => r.TransactionType == FinancialTransactionType.Refund && r.Status == FinancialTransactionStatus.Processing && r.GatewayName == "VNPAY")
+            .Select(r => new ReconRow { Kind = "RefundProcessing", TransactionId = r.Id, OrderId = r.OrderId, BookingId = r.RefundBookingId,
+                Amount = r.Amount, MerchantReference = r.MerchantReference, GatewayReference = r.GatewayReference, Status = r.Status,
+                Reason = r.FailureReason, OccurredAt = r.ProcessedAt ?? r.CreatedAt, RefundId = null, RefundStatus = null });
+        var rows = await late.Concat(stuck).OrderByDescending(x => x.OccurredAt).ThenBy(x => x.TransactionId)
+            .ToPaginatedListAsync(page, pageSize, ct);
+        return new(rows.Items.Select(x => new Application.DTOs.Responses.Refunds.ReconciliationItemResponse(x.Kind, x.TransactionId, x.OrderId,
+            x.BookingId, x.Amount, x.MerchantReference, x.GatewayReference, x.Status.ToString(), x.Reason, x.OccurredAt, x.RefundId,
+            x.RefundStatus?.ToString())).ToList(), rows.TotalCount, rows.PageNumber, pageSize);
+    }
+
     public void Add(FinancialTransaction transaction) => context.FinancialTransactions.Add(transaction);
 
     public Task<FinancialTransaction?> GetRequestedPaymentAsync(Guid orderId, CancellationToken ct) =>

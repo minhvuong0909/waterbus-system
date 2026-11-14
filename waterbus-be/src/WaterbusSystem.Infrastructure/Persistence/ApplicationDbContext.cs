@@ -53,6 +53,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
     public DbSet<RoutePoi> RoutePois => Set<RoutePoi>();
     public DbSet<AudioGuide> AudioGuides => Set<AudioGuide>();
     public DbSet<EmailOutboxMessage> EmailOutbox => Set<EmailOutboxMessage>();
+    public DbSet<AudioPlaybackRequest> AudioPlaybackRequests => Set<AudioPlaybackRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

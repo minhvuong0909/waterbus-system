@@ -98,7 +98,7 @@ internal static class CommercialHandlerFactory
         ICommercialTransactionRunner? transactions = null) => Payment(context, gateway, transactions);
 
     internal static RefundRequestService Refund(ApplicationDbContext context, IEnumerable<IRefundGateway> gateways,
-        ICommercialTransactionRunner? transactions = null) => new(new FinancialTransactionRepository(context), new BookingRepository(context), new EfUnitOfWork(context), new RequestRefundRequestValidator(), gateways, transactions ?? new DirectCommercialTransactionRunner(), TestNotifications.Outbox(context));
+        ICommercialTransactionRunner? transactions = null) => new(new FinancialTransactionRepository(context), new BookingRepository(context), new EfUnitOfWork(context), new RequestRefundRequestValidator(), gateways, transactions ?? new DirectCommercialTransactionRunner(), TestNotifications.Outbox(context), RefundTestOptions.Gateway);
 
     internal static ManualRefundService ManualRefund(ApplicationDbContext context, ICurrentUserService currentUser,
         ICommercialTransactionRunner? transactions = null) => new(new FinancialTransactionRepository(context), new EfUnitOfWork(context), new ConfirmManualRefundRequestValidator(), currentUser, transactions ?? new DirectCommercialTransactionRunner(), TestNotifications.Outbox(context));

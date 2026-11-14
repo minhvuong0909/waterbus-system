@@ -58,7 +58,7 @@ public sealed class NotificationDataRepository(ApplicationDbContext context) : I
             .Select(a => Line(a.Ticket!, a.Amount)).OrderBy(l => l.SeatCode).ToList();
         return new(refund.Id, refund.OrderId, refund.Order.PurchaserName, refund.Order.PurchaserEmail, refund.Status,
             refund.Amount, refund.OriginalPayment.Amount, refund.Currency, refund.GatewayReference, refund.CompletedAt,
-            ToLeg(booking, []), allocations);
+            ToLeg(booking, []), allocations, refund.IsDemoRefund);
     }
 
     private IQueryable<Booking> Legs() => context.Bookings.AsNoTracking().AsSplitQuery()

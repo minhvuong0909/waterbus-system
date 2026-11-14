@@ -22,7 +22,7 @@ public class PaymentsController(IPaymentService service) : BaseApiController
     public async Task<IActionResult> CreateVnPayUrl([FromBody] CreateVnPayUrlRequest request,
         [FromHeader(Name = "X-Guest-Token")] string? accessToken)
     {
-        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+        var ipAddress = ClientIp();
 
         var result = await service.CreateVnPayUrlAsync(request.OrderId, ipAddress, accessToken, HttpContext.RequestAborted);
 
@@ -55,5 +55,5 @@ public class PaymentsController(IPaymentService service) : BaseApiController
     [HttpPost("{orderId:guid}/attempts/{paymentId:guid}/reconcile")]
     public async Task<IActionResult> Reconcile(Guid orderId, Guid paymentId,
         [FromHeader(Name = "X-Guest-Token")] string? accessToken) => Ok(await service.ReconcileAsync(orderId, paymentId,
-            accessToken, HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1", HttpContext.RequestAborted));
+            accessToken, ClientIp(), HttpContext.RequestAborted));
 }

@@ -25,4 +25,7 @@ public record AudioTriggerRequest
     /// Định danh lượt ghé (visit) nếu có cho tuyến vòng.
     /// </summary>
     public string? VisitId { get; init; }
+
+    /// <summary>Epoch (fencing token) của reservation mà evaluation đang giữ; bắt buộc để ghi nhận lượt gửi thật.</summary>
+    public int? ReservationEpoch { get; init; }
 }

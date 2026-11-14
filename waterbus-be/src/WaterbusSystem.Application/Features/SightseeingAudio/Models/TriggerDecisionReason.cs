@@ -57,5 +57,8 @@ public enum TriggerDecisionReason
     PoiCoordinatesInvalid = 17,
 
     /// <summary>Nhiều vùng POI chồng nhau nhưng chưa biết thứ tự RoutePoi tiếp theo.</summary>
-    AmbiguousRouteProgress = 18
+    AmbiguousRouteProgress = 18,
+
+    /// <summary>Mẫu GPS quá cũ so với ngưỡng cấu hình; không kích hoạt audio theo vị trí lỗi thời.</summary>
+    StalePosition = 19
 }

@@ -95,6 +95,23 @@ public sealed class ScannerAssignmentMigrationSqlTests
         new(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(connectionString).Options);
 
     /// <summary>
+    /// Context chỉ dùng để SEED vào database baseline (schema của SHA cũ bb1bf0c, TRƯỚC các migration mới).
+    /// Model hiện tại có cột mới trên bảng cũ mà baseline chưa có (vd FinancialTransactions.IsDemoRefund) nên INSERT bằng
+    /// model đầy đủ sẽ lỗi "Invalid column name". Mỗi cột thêm vào bảng CÓ SẴN ở baseline phải được Ignore tại đây.
+    /// </summary>
+    private sealed class BaselineSeedContext(DbContextOptions<ApplicationDbContext> options) : ApplicationDbContext(options)
+    {
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+            base.OnModelCreating(builder);
+            builder.Entity<FinancialTransaction>().Ignore(x => x.IsDemoRefund);
+        }
+    }
+
+    private static ApplicationDbContext SeedContext(string connectionString) =>
+        new BaselineSeedContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(connectionString).Options);
+
+    /// <summary>
     /// Xoá sạch database baseline sau khi test xong (thành công hay thất bại) để lần CI kế tiếp dựng
     /// lại từ đầu sạch sẽ - guard cùng pattern "chỉ xoá đúng tên test DB" dùng ở các lớp test khác.
     /// </summary>
@@ -174,7 +191,8 @@ public sealed class ScannerAssignmentMigrationSqlTests
             await using var c = Context(tempConnection);
             await c.GetService<IMigrator>().MigrateAsync(LastMigrationBeforeBothPRs);
             var pending = (await c.Database.GetPendingMigrationsAsync()).ToList();
-            pending.Should().Equal(ExpectedNewMigrationsInOrder,
+            // Các migration thêm SAU 3 migration của PR #58/#59 (vd AddAudioPlaybackRequests) không làm sai tiền đề baseline.
+            pending.Take(ExpectedNewMigrationsInOrder.Length).Should().Equal(ExpectedNewMigrationsInOrder,
                 "LastMigrationBeforeBothPRs phải là migration NGAY TRƯỚC 3 migration mới của PR #58/#59, theo đúng thứ tự áp dụng thật");
         }
         finally
@@ -194,7 +212,7 @@ public sealed class ScannerAssignmentMigrationSqlTests
         try
         {
             Guid stopCallId, assignmentId;
-            await using (var seed = Context(connectionString))
+            await using (var seed = SeedContext(connectionString))
             {
                 var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, Guid.NewGuid(), withAssignment: false);
                 stopCallId = scenario.BoardingCall.Id;
@@ -270,7 +288,7 @@ public sealed class ScannerAssignmentMigrationSqlTests
         try
         {
             Guid stopCallId, assignmentId;
-            await using (var seed = Context(connectionString))
+            await using (var seed = SeedContext(connectionString))
             {
                 var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, Guid.NewGuid(), withAssignment: false);
                 stopCallId = scenario.BoardingCall.Id;
@@ -293,7 +311,8 @@ public sealed class ScannerAssignmentMigrationSqlTests
             await using (var c = Context(connectionString))
             {
                 var pendingBeforeUpgrade = (await c.Database.GetPendingMigrationsAsync()).ToList();
-                pendingBeforeUpgrade.Should().Equal(
+                // Migration phát sinh SAU 2 migration ScannerAssignment (vd AddAudioPlaybackRequests) cũng pending nhưng không thuộc tiền đề của test này.
+                pendingBeforeUpgrade.Take(2).Should().Equal(
                     "20261106031430_AddScannerAssignmentOpenEndedPrimaryUniqueIndex",
                     "20261106090321_RestoreScannerAssignmentTripStopCallIdIndex");
 
@@ -340,7 +359,7 @@ public sealed class ScannerAssignmentMigrationSqlTests
         try
         {
             Guid stopCallId;
-            await using (var seed = Context(connectionString))
+            await using (var seed = SeedContext(connectionString))
             {
                 var scenario = CheckInScenarioFactory.SeedCheckInScenario(seed, Guid.NewGuid(), withAssignment: false);
                 stopCallId = scenario.BoardingCall.Id;

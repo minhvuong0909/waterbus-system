@@ -85,14 +85,14 @@ public sealed class TripSearchTool : ITripSearchTool
         {
             // Một bến không xác định chiều: tìm cả chuyến xuất phát và chuyến đến bến đó.
             var stationId = departureId ?? arrivalId;
-            var departing = await _tripService.SearchAsync(new SearchTripsRequest(stationId, null, date, tripType), cancellationToken);
-            var arriving = await _tripService.SearchAsync(new SearchTripsRequest(null, stationId, date, tripType), cancellationToken);
+            var departing = await SearchAllPagesAsync(stationId, null, date, tripType, cancellationToken);
+            var arriving = await SearchAllPagesAsync(null, stationId, date, tripType, cancellationToken);
             trips = departing.Concat(arriving).DistinctBy(t => t.Id).OrderBy(t => t.DepartureTime).ToList();
         }
         else
         {
             // Không nêu bến: lấy danh sách chuyến sắp tới; đủ hai bến: tìm đúng chiều khách yêu cầu.
-            trips = await _tripService.SearchAsync(new SearchTripsRequest(departureId, arrivalId, date, tripType), cancellationToken);
+            trips = await SearchAllPagesAsync(departureId, arrivalId, date, tripType, cancellationToken);
         }
 
         // Query gốc chưa loại chuyến đã qua giờ; AI chỉ giới thiệu những chuyến còn ở phía trước.
@@ -186,6 +186,21 @@ public sealed class TripSearchTool : ITripSearchTool
                 builder.Append(character is 'đ' or 'Đ' ? 'd' : character);
         }
         return builder.ToString().Normalize(NormalizationForm.FormC);
+    }
+
+    /// <summary>SearchTrips nay có chặn (tối đa 100/trang); AI còn lọc cục bộ theo giờ nên phải gom đủ các trang (tối đa 5 trang).</summary>
+    private async Task<List<Application.DTOs.Responses.Trips.TripSearchResponse>> SearchAllPagesAsync(
+        Guid? departureId, Guid? arrivalId, DateTime? date, TripType? tripType, CancellationToken cancellationToken)
+    {
+        const int pageSize = 100, maxPages = 5;
+        var all = new List<Application.DTOs.Responses.Trips.TripSearchResponse>();
+        for (var page = 1; page <= maxPages; page++)
+        {
+            var items = await _tripService.SearchAsync(new SearchTripsRequest(departureId, arrivalId, date, tripType, page, pageSize), cancellationToken);
+            all.AddRange(items);
+            if (items.Count < pageSize) break;
+        }
+        return all;
     }
 
     private static TimeOnly LocalTime(DateTimeOffset value) => TimeOnly.FromTimeSpan(value.ToOffset(TimeSpan.FromHours(7)).TimeOfDay);

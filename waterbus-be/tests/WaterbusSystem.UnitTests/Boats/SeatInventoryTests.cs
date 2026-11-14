@@ -29,7 +29,7 @@ public class SeatInventoryTests
     private SeatClassService Classes() =>
         new(new SeatClassRepository(_context), new EfUnitOfWork(_context), new DirectCommercialTransactionRunner());
 
-    private BoatService Boats() => new(new BoatRepository(_context), new EfUnitOfWork(_context));
+    private BoatService Boats() => new(new BoatRepository(_context), new EfUnitOfWork(_context), new DirectCommercialTransactionRunner());
 
     /// <summary>Tàu mới chưa có ghế, khai báo sức chứa <paramref name="total"/>.</summary>
     private Boat NewBoat(int total)

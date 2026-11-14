@@ -325,7 +325,8 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
             DistanceMeters = bestMatch.DistanceMeters,
             TriggerRadiusMeters = bestMatch.Candidate.TriggerRadiusM!.Value,
             TriggeredAt = position.ObservedAt != default ? position.ObservedAt : DateTimeOffset.UtcNow,
-            VisitId = tripContext.VisitId
+            VisitId = tripContext.VisitId,
+            ReservationEpoch = _deduplicationService.GetReservationEpoch(tripContext.TripId, deduplicationId, tripContext.VisitId)
         };
 
         // 11. Gửi yêu cầu phát tới Onboard Player (BR-EXP-03)
@@ -352,8 +353,10 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
         if (!dispatchResult.IsDispatched || !dispatchResult.IsAcceptedByPlayer
             || dispatchResult.RequestId != triggerRequest.RequestId)
         {
-            await _deduplicationService.ReleaseReservationAsync(
-                tripContext.TripId, deduplicationId, tripContext.VisitId, CancellationToken.None);
+            // "ReservationLost": lease đã hết và evaluation khác có thể đang sở hữu lượt ghé — không nhả của họ.
+            if (dispatchResult.Message != "ReservationLost")
+                await _deduplicationService.ReleaseReservationAsync(
+                    tripContext.TripId, deduplicationId, tripContext.VisitId, CancellationToken.None);
             _logger?.LogWarning("Gửi yêu cầu phát audio cho POI {PoiId} trên Trip {TripId} thất bại.",
                 bestMatch.Candidate.PoiId, tripContext.TripId);
 
@@ -394,12 +397,8 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
         candidate.RoutePoiId == Guid.Empty ? candidate.PoiId : candidate.RoutePoiId;
 
     // Cùng lượt ghé retry dùng cùng RequestId để player có thể khử trùng lệnh đã nhận.
-    private static Guid StableRequestId(Guid tripId, Guid routePoiId, string? visitId)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(
-            $"{tripId:N}:{routePoiId:N}:{(visitId is null ? "0" : "1:" + visitId)}"));
-        return new Guid(bytes.AsSpan(0, 16));
-    }
+    private static Guid StableRequestId(Guid tripId, Guid routePoiId, string? visitId) =>
+        Features.SightseeingAudio.AudioRequestIds.For(tripId, routePoiId, visitId);
 
     private static bool IsStableAssetIdentifier(string? assetUri) =>
         !string.IsNullOrWhiteSpace(assetUri)
