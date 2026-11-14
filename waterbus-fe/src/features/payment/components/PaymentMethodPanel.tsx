@@ -1,51 +1,34 @@
 import { CopyButton, Icon } from '../../../components/ui'
-import { formatVndSuffix } from '../../../utils/format'
 import { t } from '../../../i18n'
 
-interface PaymentMethodPanelProps {
-  amountVnd: number
-  /** Booking code shown as the payment reference. */
-  reference: string
-}
-
 /**
- * The only payment method is VNPay (BR-PAY): the traveler pays on the VNPay page, which offers QR,
- * bank card and e-wallet. The payment is confirmed by the backend, not by anything done here.
+ * How the order is paid. VNPay is the only method (BR-PAY): the traveler pays on the VNPay page,
+ * which offers QR, bank card and e-wallet, and the backend confirms the payment, not this page.
+ * The amount is in the order summary beside it, so it is not repeated here.
  */
-export default function PaymentMethodPanel({ amountVnd, reference }: PaymentMethodPanelProps) {
+export default function PaymentMethodPanel({ reference }: { /** Booking code(s) shown as the payment reference. */ reference: string }) {
   return (
-    <div className="rounded-2xl bg-surface-container-lowest p-space-lg shadow-card md:p-space-xl">
-      <h2 className="font-display text-headline-md text-deep-river">{t('Payment Method')}</h2>
-
-      <div className="mt-space-md flex items-start gap-space-md rounded-2xl border-2 border-teal-flow bg-sand-light/50 p-space-lg">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white text-teal-flow">
+    <div className="rounded-2xl bg-surface-container-lowest p-space-lg shadow-card">
+      <div className="flex items-start gap-space-md">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary-container text-teal-flow">
           <Icon name="account_balance" className="text-2xl" />
         </span>
         <div>
-          <h3 className="font-display text-xl font-bold text-deep-river">VNPay</h3>
-          <p className="text-sm text-on-surface-variant">
-            {t('Pay by QR code, bank card or e-wallet on the secure VNPay page.')}
+          <h2 className="font-display text-headline-sm text-deep-river">VNPay</h2>
+          <p className="mt-1 text-sm text-on-surface-variant">
+            {t('Pay by QR code, bank card or e-wallet on the secure VNPay page.')}{' '}
+            {t('After paying you come back here to see the result.')}
           </p>
-          <dl className="mt-space-md grid grid-cols-2 gap-x-space-lg gap-y-1 text-sm">
-            <dt className="text-on-surface-variant">{t('Amount to pay')}</dt>
-            <dd className="text-right font-bold text-deep-river">{formatVndSuffix(amountVnd)}</dd>
-            <dt className="text-on-surface-variant">{t('Booking Reference')}</dt>
-            <dd className="flex items-center justify-end gap-2 font-mono font-bold text-deep-river">
-              {reference}
-              <CopyButton value={reference} />
-            </dd>
-          </dl>
         </div>
       </div>
 
-      <div className="mt-space-md flex items-start gap-3 rounded-xl bg-surface-container px-space-md py-space-md text-xs text-on-surface-variant">
-        <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-signal-amber" />
-        <div>
-          {/* Trang này chỉ mở cổng thanh toán; trạng thái thật do backend xác nhận ở trang kết quả. */}
-          <div className="font-semibold text-deep-river">{t('Payment status: Not paid yet')}</div>
-          {t('Your seats stay held until the timer ends. After paying on VNPay you come back here to see the result.')}
-        </div>
-      </div>
+      <dl className="mt-space-lg flex flex-wrap items-center justify-between gap-2 border-t border-surface-container pt-space-md text-sm">
+        <dt className="text-on-surface-variant">{t('Booking Reference')}</dt>
+        <dd className="flex items-center gap-2 font-mono font-bold text-deep-river">
+          {reference}
+          <CopyButton value={reference} />
+        </dd>
+      </dl>
     </div>
   )
 }

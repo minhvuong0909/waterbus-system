@@ -29,13 +29,21 @@ pnpm dev
 
 ## 🧪 Kiểm Thử Nghiệp Vụ Tự Động
 
-Chạy bộ kiểm thử tự động 13 kịch bản offline QR, SQLite cache và sync worker:
+Chạy bộ kiểm thử tự động các kịch bản offline QR, migration SQLite, cache và sync worker:
 
 ```bash
 pnpm run test:scanner
 ```
 
-Kết quả: **13/13 tests passed (100%)**.
+## 🔐 QR Demo
+
+Tạo ảnh QR dùng khóa RS256 demo/test (không dùng khóa ký thật của Backend):
+
+```bash
+pnpm run generate:qr
+```
+
+Ảnh được tạo trong `test-qr-codes/`, gồm QR hợp lệ, QR giả mạo và QR hết hạn.
 
 ---
 

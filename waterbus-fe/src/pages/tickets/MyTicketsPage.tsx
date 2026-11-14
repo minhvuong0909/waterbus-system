@@ -4,6 +4,8 @@ import NextDepartureCard from '../../features/tickets/components/NextDepartureCa
 import PastJourneyRow from '../../features/tickets/components/PastJourneyRow'
 import UpcomingTripCard from '../../features/tickets/components/UpcomingTripCard'
 import { useTicketWallet } from '../../features/tickets/hooks/useTickets'
+import { useAuth } from '../../features/authentication/hooks/useAuth'
+import { isPassenger } from '../../features/authentication/utils'
 import { groupByBooking, isTicketToday } from '../../features/tickets/utils'
 import { useDocumentTitle } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
@@ -12,6 +14,13 @@ import { t } from '../../i18n'
 export default function MyTicketsPage() {
   useDocumentTitle('My Tickets')
   const { wallet, loading, error, retry, openTicket } = useTicketWallet()
+  // Passenger đã đăng nhập thấy vé của tài khoản trên mọi thiết bị; Guest chỉ thấy vé mua trên máy này.
+  const hasAccount = isPassenger(useAuth().user)
+  const orderHistoryLink = hasAccount && (
+    <Button to={ROUTES.orderHistory} variant="text" size="sm" icon="receipt_long">
+      {t('Order history')}
+    </Button>
+  )
 
   if (error) return <ErrorState onRetry={retry} />
 
@@ -26,16 +35,19 @@ export default function MyTicketsPage() {
             <Icon name="confirmation_number" className="text-3xl" />
           </span>
           <h1 className="mt-space-md font-display text-headline-md text-deep-river">
-            {t('No tickets on this device yet')}
+            {hasAccount ? t('No tickets yet') : t('No tickets on this device yet')}
           </h1>
           <p className="mt-space-xs text-body-md text-on-surface-variant">
-            {t(
-              'Tickets you buy in this browser appear here once payment is confirmed — no account needed.',
-            )}
+            {hasAccount
+              ? t('Tickets of the bookings in your account appear here once payment is confirmed.')
+              : t(
+                  'Tickets you buy in this browser appear here once payment is confirmed — no account needed.',
+                )}
           </p>
           <Button to={ROUTES.searchResults} className="mt-space-lg w-full sm:w-auto">
             {t('Find a trip')}
           </Button>
+          {orderHistoryLink && <div className="mt-space-xs">{orderHistoryLink}</div>}
           <div className="mt-space-xl w-full border-t border-outline-variant/40 pt-space-lg">
             <OtherDeviceLookup />
           </div>
@@ -46,9 +58,12 @@ export default function MyTicketsPage() {
   return (
     <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
       <Breadcrumb items={[{ label: 'Home', to: ROUTES.home }, { label: 'My Tickets' }]} />
-      <h1 className="mt-space-sm font-display text-4xl font-bold tracking-tight text-deep-river">
-        {t('My Tickets')}
-      </h1>
+      <div className="mt-space-sm flex flex-wrap items-center justify-between gap-space-sm">
+        <h1 className="font-display text-4xl font-bold tracking-tight text-deep-river">
+          {t('My Tickets')}
+        </h1>
+        {orderHistoryLink}
+      </div>
 
       {wallet.next && (
         <section className="mt-space-lg">

@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { View, ActivityIndicator } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, ActivityIndicator, Text } from "react-native";
 import {
   DarkTheme,
   DefaultTheme,
@@ -22,25 +22,25 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const refreshStats = useScannerStore((s) => s.refreshStats);
   const { user, isRestoring, restoreSession } = useAuthStore();
+  const [databaseError, setDatabaseError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1. Initialize SQLite schema on boot
     getDatabase()
       .then(() => {
-        console.log("[Waterbus] SQLite initialized successfully.");
         refreshStats();
       })
-      .catch((err) => console.error("[Waterbus] DB Init failed:", err));
+      .catch((err) => {
+        console.error("[Waterbus] DB Init failed:", err);
+        setDatabaseError(err instanceof Error ? err.message : String(err));
+      });
 
-    // 2. Start idempotent batch sync background worker
-
-    // 3. Khôi phục phiên đăng nhập Staff đã lưu (nếu có) trước khi quyết định route đầu tiên
+    // Khôi phục phiên Staff trước khi quyết định route đầu tiên.
     restoreSession();
 
     return () => {
       syncService.stopBackgroundWorker();
     };
-  }, []);
+  }, [refreshStats, restoreSession]);
 
   useEffect(() => {
     if (user && !isRestoring) syncService.startBackgroundWorker(15000);
@@ -50,7 +50,21 @@ export default function RootLayout() {
       refreshStats();
     });
     return () => { unsubscribe(); syncService.stopBackgroundWorker(); };
-  }, [user, isRestoring]);
+  }, [user, isRestoring, refreshStats]);
+
+  if (databaseError) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#F8FAFC" }}>
+        <Text style={{ color: "#991B1B", fontSize: 20, fontWeight: "700", marginBottom: 12 }}>
+          Không thể khởi tạo cơ sở dữ liệu offline
+        </Text>
+        <Text style={{ color: "#334155", fontSize: 15, lineHeight: 22 }}>
+          {databaseError}
+          {"\n\n"}Dữ liệu hiện có không bị xoá. Không gỡ hoặc cài lại ứng dụng; vui lòng báo quản trị viên để xử lý.
+        </Text>
+      </View>
+    );
+  }
 
   if (isRestoring) {
     return (

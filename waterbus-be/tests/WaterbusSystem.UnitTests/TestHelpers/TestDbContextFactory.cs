@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Identity;
+using WaterbusSystem.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
@@ -19,6 +21,28 @@ public static class TestDbContextFactory
 
         // currentUserService = null -> CreatedBy/LastModifiedBy sẽ là null, không ảnh hưởng test
         return new ApplicationDbContext(options, currentUserService: null);
+    }
+
+    public static Guid AddScannerStaff(ApplicationDbContext context, Guid? id = null, bool isActive = true, string roleName = "Staff")
+    {
+        var role = context.Roles.Local.SingleOrDefault(role => role.Name == roleName);
+        if (role is null)
+        {
+            role = new ApplicationRole(roleName) { Id = Guid.NewGuid(), NormalizedName = roleName.ToUpperInvariant() };
+            context.Roles.Add(role);
+        }
+
+        var staffId = id ?? Guid.NewGuid();
+        context.Users.Add(new ApplicationUser
+        {
+            Id = staffId,
+            FullName = "Scanner " + staffId,
+            StaffCode = "SC-" + staffId.ToString("N")[..8],
+            IsActive = isActive
+        });
+        context.UserRoles.Add(new IdentityUserRole<Guid> { UserId = staffId, RoleId = role.Id });
+        context.SaveChanges();
+        return staffId;
     }
 
     /// <summary>Giá vé chuẩn dùng trong test, theo BR-FARE-01 (phẳng theo TripType x SeatClass).</summary>

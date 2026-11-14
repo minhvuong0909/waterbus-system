@@ -17,12 +17,12 @@ describe('ManualRefundForm', () => {
     expect(screen.getByText('DEMO: giao dịch mô phỏng')).toBeTruthy()
     expect(screen.getByText(/do NOT transfer real money/i)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Confirm demo refund' })).toBeTruthy()
-    expect(screen.queryByText(/Refund it by hand/i)).toBeNull()
+    expect(screen.queryByText(/merchant portal/i)).toBeNull()
   })
 
   it('keeps the real manual-transfer wording for a non-demo refund', () => {
     render(<ManualRefundForm refund={refund} />)
-    expect(screen.getByText(/Refund it by hand/i)).toBeTruthy()
+    expect(screen.getByText(/VNPay merchant portal/i)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Confirm manual refund' })).toBeTruthy()
     expect(screen.queryByText(/do NOT transfer real money/i)).toBeNull()
   })

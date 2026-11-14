@@ -5,17 +5,20 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import type { ReactNode } from 'react'
 import {
   DEFAULT_LOCALE,
+  getLocale,
   hasDictionary,
   isLocale,
   loadDictionary,
   setActiveLocale,
 } from './translate'
 import type { Locale } from './translate'
+import { holdScrollPosition } from '../utils/scroll'
 
 const STORAGE_KEY = 'waterbus.locale'
 const INITIAL_LOCALE: Locale = 'vi'
@@ -62,16 +65,28 @@ function initialState(): State {
 /**
  * Holds the chosen language. The subtree is keyed by locale, so switching remounts every page and
  * all text, data requests and number formats are produced again in the new language.
- * Translations are downloaded before switching, so the screen never shows a mix of languages.
+ * Translations are downloaded before switching, so the screen never shows a mix of languages. The
+ * visitor stays where they were on the page: the remount would otherwise start again at the top.
  */
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [{ locale, pending }, setState] = useState<State>(initialState)
+  // Scroll position at the moment of a switch, put back once the page shows in the new language.
+  const scrollToKeep = useRef<number | null>(null)
 
   // Must happen before children render so `t()` already sees the new language.
   setActiveLocale(locale)
 
   useEffect(() => {
     document.documentElement.lang = locale
+  }, [locale])
+
+  // Runs after the pages' own effects (a parent's effects come after its children's), so it wins
+  // over the scroll to the top that a freshly mounted page does.
+  useEffect(() => {
+    const y = scrollToKeep.current
+    if (y === null) return
+    scrollToKeep.current = null
+    return holdScrollPosition(y)
   }, [locale])
 
   // First load with a saved non-English language: wait for its dictionary.
@@ -93,6 +108,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       } catch {
         // Not persisted, still applies for this visit.
       }
+      if (next === getLocale()) return
+      scrollToKeep.current = window.scrollY
       setState({ locale: next, pending: null })
     })
   }, [])

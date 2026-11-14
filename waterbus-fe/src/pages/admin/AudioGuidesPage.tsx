@@ -1,9 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button, ErrorState, Icon, Notice, PageHeader, PageLoader, Panel, SelectField } from '../../components/ui'
-import { MAX_NARRATION_LENGTH, NARRATION_VOICES } from '../../features/admin/audioGuide'
-import type { NarrationPoi, NarrationVoice } from '../../features/admin/audioGuide'
-import { useReload, useSubmit } from '../../features/admin/hooks/useAdmin'
+import { MAX_NARRATION_LENGTH, NARRATION_VOICES } from '../../features/admin/utils/audioGuide'
+import type { NarrationPoi, NarrationVoice } from '../../features/admin/utils/audioGuide'
 import {
   fetchNarrationAudio,
   generateNarration,
@@ -11,7 +10,7 @@ import {
   publishNarration,
 } from '../../features/admin/services/audioGuideService'
 import type { GeneratedNarration } from '../../features/admin/services/audioGuideService'
-import { useDocumentTitle, useFetch } from '../../hooks'
+import { useDocumentTitle, useFetch, useReload, useSubmit } from '../../hooks'
 import { t } from '../../i18n'
 
 interface Draft {

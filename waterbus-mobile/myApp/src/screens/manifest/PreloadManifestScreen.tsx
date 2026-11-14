@@ -18,7 +18,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useScannerStore } from '../../store/useScannerStore';
-import { QrVerifier } from '../../services/crypto/qrVerifier';
+import { QrVerifier, DEFAULT_KEY_INFO } from '../../services/crypto/qrVerifier';
+import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
 import { getMyScannerAssignments } from '../../services/checkin/scannerAssignmentService';
 import { MyScannerAssignment } from '../../types/checkin';
 import { ApiError } from '../../services/api/apiClient';
@@ -37,32 +38,36 @@ export default function PreloadManifestScreen() {
   } = useScannerStore();
 
   const [assignments, setAssignments] = useState<MyScannerAssignment[]>([]);
-  const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(true);
   const [assignmentsError, setAssignmentsError] = useState<string | null>(null);
   // deviceInfo.stationId giữ TripStopCallId thật của lần preload gần nhất (xem useScannerStore).
   const [selectedTripStopCallId, setSelectedTripStopCallId] = useState<string>(deviceInfo.stationId);
   const [testQrInfo, setTestQrInfo] = useState<{ compact: string; signature: string } | null>(null);
 
   const loadAssignments = useCallback(async () => {
-    setIsLoadingAssignments(true);
-    setAssignmentsError(null);
     try {
       const result = await getMyScannerAssignments();
       setAssignments(result);
-      if (!selectedTripStopCallId && result.length > 0) {
-        setSelectedTripStopCallId(result[0].tripStopCallId);
+      setAssignmentsError(null);
+      if (result.length > 0) {
+        setSelectedTripStopCallId((current) => current || result[0].tripStopCallId);
       }
     } catch (err) {
       setAssignmentsError(err instanceof ApiError ? err.message : 'Không tải được phân công. Kiểm tra kết nối mạng.');
     } finally {
       setIsLoadingAssignments(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const refreshAssignments = () => {
+    setIsLoadingAssignments(true);
+    setAssignmentsError(null);
+    void loadAssignments();
+  };
 
   useEffect(() => {
     refreshStats();
-    loadAssignments();
+    void Promise.resolve().then(loadAssignments);
   }, [loadAssignments, refreshStats]);
 
   const handlePreload = async () => {
@@ -95,7 +100,11 @@ export default function PreloadManifestScreen() {
     }
   };
 
-  const handleGenerateTestQr = () => {
+  const handleGenerateTestQr = async () => {
+    // Preload tường minh khoá demo trước khi ký - QrVerifier không còn tự fallback sang
+    // DEFAULT_KEY_INFO khi SQLite trống (xem qrVerifier.ts), nên chuỗi demo sinh ra ở đây sẽ bị
+    // từ chối (fail-closed) khi quét lại nếu không chủ động preload khoá này trước.
+    await SqliteRepository.savePublicKey(DEFAULT_KEY_INFO);
     const test = QrVerifier.generateTestSignedQr('pub_wb_98a76b5c', 'TRIP-BD-BA-01');
     setTestQrInfo({ compact: test.compactQr, signature: test.signature });
   };
@@ -133,7 +142,7 @@ export default function PreloadManifestScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeaderRow}>
             <Text style={styles.cardTitle}>Chọn Điểm Dừng Được Phân Công</Text>
-            <TouchableOpacity onPress={loadAssignments} disabled={isLoadingAssignments}>
+            <TouchableOpacity onPress={refreshAssignments} disabled={isLoadingAssignments}>
               <Ionicons name="refresh" size={18} color="#0284C7" />
             </TouchableOpacity>
           </View>

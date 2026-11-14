@@ -77,9 +77,17 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
   refreshStats: async () => {
     try {
       const stats = await SqliteRepository.getManifestStats();
-      set({ stats });
+      set((state) => ({
+        stats,
+        syncMessage: state.syncMessage?.startsWith('Lỗi cơ sở dữ liệu offline:') ? null : state.syncMessage,
+      }));
     } catch (err) {
       console.warn('[Store] Could not load stats:', err);
+      set({
+        syncMessage: err instanceof Error
+          ? `Lỗi cơ sở dữ liệu offline: ${err.message}`
+          : 'Lỗi cơ sở dữ liệu offline. Vui lòng liên hệ quản trị viên trước khi tiếp tục check-in.',
+      });
     }
   },
 
@@ -239,4 +247,3 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
     set({ syncMessage: 'Đã xoá sạch bộ nhớ đệm cục bộ' });
   },
 }));
-

@@ -65,11 +65,6 @@ export interface SeatPassengerForm {
   phone: string
 }
 
-export interface BookingStep {
-  label: string
-  detail: string
-}
-
 // ---- Backend seat map (GET /trips/{tripId}/seats) ------------------------------------
 
 

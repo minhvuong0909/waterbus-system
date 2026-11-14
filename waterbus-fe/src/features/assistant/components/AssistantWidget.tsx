@@ -166,7 +166,7 @@ export default function AssistantWidget() {
     )
     dispatch(selectTrip(card.tripId))
     setOpen(false)
-    navigate(ROUTES.tripDetail)
+    navigate(ROUTES.seatSelection)
   }
 
   const submit = (e: FormEvent) => {

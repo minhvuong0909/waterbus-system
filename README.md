@@ -23,7 +23,7 @@ WaterbusSystem/
 ├── waterbus-be/             # Backend .NET 8 Web API (Clean Architecture)
 │   ├── src/
 │   │   ├── WaterbusSystem.Domain/          # Entities, Enums, Domain Rules, Exceptions
-│   │   ├── WaterbusSystem.Application/     # CQRS Feature Slices (MediatR), Validators, DTOs
+│   │   ├── WaterbusSystem.Application/     # Service layer (Controller → IService → Service → IRepository), Validators, DTOs
 │   │   ├── WaterbusSystem.Infrastructure/  # EF Core, SQL Server, Redis, VNPay, SignalR, AI
 │   │   └── WaterbusSystem.WebApi/          # Controllers, Hubs, Middlewares, Program.cs
 │   └── tests/

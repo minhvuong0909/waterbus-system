@@ -13,9 +13,14 @@ interface SearchFormProps {
   dates: DateOption[]
   /** `bar`: thanh một hàng đặt đè lên mép hero; `card`: khối đầy đủ ở trang tìm chuyến. */
   variant?: 'card' | 'bar'
+  /**
+   * False where the results already follow the form as it changes (the timetable page): a "Find
+   * trips" button there would do nothing.
+   */
+  submit?: boolean
 }
 
-export default function SearchForm({ piers, dates, variant = 'card' }: SearchFormProps) {
+export default function SearchForm({ piers, dates, variant = 'card', submit = true }: SearchFormProps) {
   const bar = variant === 'bar'
   const navigate = useNavigate()
   const { query, updateQuery } = useSearchQuery()
@@ -92,7 +97,11 @@ export default function SearchForm({ piers, dates, variant = 'card' }: SearchFor
       <form
         onSubmit={handleSubmit}
         className={`grid grid-cols-1 items-stretch md:grid-cols-2 ${
-          bar
+          bar && !submit
+            ? roundTrip
+              ? 'gap-2 xl:grid-cols-[minmax(0,1.4fr)_40px_minmax(0,1.4fr)_minmax(0,1.9fr)]'
+              : 'gap-2 xl:grid-cols-[minmax(0,1.5fr)_40px_minmax(0,1.5fr)_minmax(0,1.1fr)]'
+          : bar
             ? roundTrip
               ? 'gap-2 xl:grid-cols-[minmax(0,1.4fr)_40px_minmax(0,1.4fr)_minmax(0,1.9fr)_auto]'
               : 'gap-2 xl:grid-cols-[minmax(0,1.5fr)_40px_minmax(0,1.5fr)_minmax(0,1.1fr)_auto]'
@@ -154,6 +163,7 @@ export default function SearchForm({ piers, dates, variant = 'card' }: SearchFor
             />
           )}
         </div>
+        {submit && (
         <div className="flex items-stretch md:col-span-2 xl:col-span-1">
           <button
             type="submit"
@@ -166,6 +176,7 @@ export default function SearchForm({ piers, dates, variant = 'card' }: SearchFor
             />
           </button>
         </div>
+        )}
       </form>
     </div>
   )

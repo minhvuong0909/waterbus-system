@@ -2,9 +2,9 @@ import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { t } from '../../../i18n'
 import { ApiError, apiRequest } from '../../../services/apiClient'
 import type { CheckoutDetail, CheckoutResponse, CreateHoldRequest, SeatMap, SubmitCheckoutRequest } from '../types'
-import type { TripDetailDto, TripSeatMapDto } from '../../trips/types'
 import { toSeatMap } from '../utils'
 import { isGuid } from '../../../utils/guid'
+import { readTrip, readTripSeats } from '../../trips/services/tripService'
 import { pickJourney } from '../../trips/utils'
 
 /** Header that proves the caller owns a guest order (BE `CheckoutAccessService`). */
@@ -29,17 +29,12 @@ export async function getSeatMap(
   if (!isLiveTrip(tripId, originId, destinationId) || tripId === null) {
     throw new ApiError(400, 'Vui lòng chọn chuyến và hai bến từ kết quả tìm kiếm.')
   }
-  const detail = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
+  const detail = await readTrip(tripId)
   const journey = pickJourney(detail.stops, originId, destinationId)
   if (!journey) {
     throw new ApiError(409, t('This trip does not stop at both of the chosen piers.'))
   }
-  const dto = await apiRequest<TripSeatMapDto>(API_ENDPOINTS.trips.seats(tripId), {
-    query: {
-      boardingCallId: journey.boarding.callId,
-      disembarkingCallId: journey.disembarking.callId,
-    },
-  })
+  const dto = await readTripSeats(tripId, journey.boarding.callId, journey.disembarking.callId)
   return toSeatMap(dto, detail)
 }
 

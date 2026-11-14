@@ -163,7 +163,6 @@ public sealed class RefundRequestService : IRefundRequestService
             Currency = payment.Currency,
             Status = FinancialTransactionStatus.Processing,
             GatewayName = gateway.Name,
-            IsDemoRefund = _mode == RefundMode.Demo,
             MerchantReference = payment.MerchantReference,
             IdempotencyKey = $"REFUND_{booking.Id:N}",
             ProcessedAt = now
@@ -222,7 +221,7 @@ public sealed class RefundRequestService : IRefundRequestService
         var refund = new FinancialTransaction { Order = booking.Order, OrderId = booking.OrderId,
             RefundBooking = booking, RefundBookingId = booking.Id, OriginalPayment = payment, OriginalPaymentId = payment.Id,
             TransactionType = FinancialTransactionType.Refund, Status = FinancialTransactionStatus.Processing,
-            Amount = payment.Amount, Currency = payment.Currency, GatewayName = gateway.Name, IsDemoRefund = _mode == RefundMode.Demo,
+            Amount = payment.Amount, Currency = payment.Currency, GatewayName = gateway.Name,
             IdempotencyKey = "LATE_REFUND_" + payment.Id.ToString("N"), MerchantReference = payment.MerchantReference };
         var date = payment.GatewayRequestCreatedAt ?? throw new ConcurrencyException("Thiếu thời điểm payment gốc.");
         _refunds.Add(refund);
@@ -259,13 +258,13 @@ public sealed class RefundRequestService : IRefundRequestService
         }
     }
     /// <summary>
-    /// Demo: chỉ chọn gateway KHÔNG tự động (Manual) — không bao giờ chạm API Refund của VNPay, kể cả khi
-    /// VnPayRefundGateway được đăng ký. Gateway: hành vi cũ (ưu tiên gateway tự động).
+    /// Manual: chỉ chọn gateway KHÔNG tự động (Manual) — không bao giờ chạm API Refund của VNPay, kể cả khi
+    /// VnPayRefundGateway được đăng ký. Gateway: ưu tiên gateway tự động.
     /// </summary>
     private IRefundGateway SelectGateway() => _mode switch
     {
-        RefundMode.Demo => _refundGateways.FirstOrDefault(g => !g.SupportsAutomaticRefund)
-            ?? throw new InvalidOperationException("Chế độ Refunds:Mode=Demo cần một IRefundGateway thủ công (Manual)."),
+        RefundMode.Manual => _refundGateways.FirstOrDefault(g => !g.SupportsAutomaticRefund)
+            ?? throw new InvalidOperationException("Chế độ Refunds:Mode=Manual cần một IRefundGateway thủ công (Manual)."),
         RefundMode.Gateway => _refundGateways.FirstOrDefault(g => g.SupportsAutomaticRefund)
             ?? _refundGateways.FirstOrDefault()
             ?? throw new InvalidOperationException("Chưa đăng ký IRefundGateway nào."),

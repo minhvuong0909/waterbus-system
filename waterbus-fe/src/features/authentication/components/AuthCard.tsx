@@ -1,9 +1,7 @@
 import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
 import { ApiError } from '../../../services/apiClient'
 import type { SignInPayload } from '../types'
-import { landingRouteFor } from '../../../routes/landingRoute'
 import { useAuth } from '../hooks/useAuth'
 import { signIn } from '../services/authenticationService'
 import SignInForm from './SignInForm'
@@ -11,22 +9,18 @@ import { t } from '../../../i18n'
 
 /** Sign-in with an account the operator issued (the backend has no self-registration). */
 export default function AuthCard() {
-  const navigate = useNavigate()
-  const location = useLocation()
   const { startSession } = useAuth()
   const [submitting, setSubmitting] = useState(false)
   // Message from the server (e.g. wrong password), or '' for the generic connection error.
   const [failure, setFailure] = useState<string | null>(null)
-
-  const from = (location.state as { from?: string } | null)?.from
 
   const submit = async (payload: SignInPayload) => {
     setSubmitting(true)
     setFailure(null)
     try {
       const session = await signIn(payload)
+      // Trang đăng nhập tự chuyển đi khi đã có phiên (về trang đang định vào hoặc khu làm việc).
       startSession(session, payload.remember)
-      navigate(from ?? landingRouteFor(session.user.roles), { replace: true })
     } catch (error) {
       setSubmitting(false)
       // Only server-sent messages are shown as they are; a status of 0 means no connection.

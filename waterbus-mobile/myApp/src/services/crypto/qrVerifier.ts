@@ -58,7 +58,11 @@ fBNLom484uflH3w9d1ByMfWJoaOCN8SwXP2wpTPjU/A1Vljux+HI4T1/foNcUOEf
 EwIDAQAB
 -----END PUBLIC KEY-----`;
 
-/** Public key demo dùng khi chưa preload key thật từ backend (chỉ cho nút giả lập/test). */
+/**
+ * Public key demo chỉ dùng cho nút "Test QR"/giả lập quét - KHÔNG tự động active. Nơi gọi
+ * generateTestSignedQr phải tự gọi SqliteRepository.savePublicKey(DEFAULT_KEY_INFO) tường minh
+ * trước khi verify, nếu không verifyQrCode sẽ fail-closed như mọi key chưa preload khác.
+ */
 export const DEFAULT_KEY_INFO: PublicKeyInfo = {
   kid: 'waterbus-demo-2026',
   algorithm: 'RS256',
@@ -103,14 +107,22 @@ export class QrVerifier {
       };
     }
 
-    // 2. Fetch Public Key from SQLite local cache (đã preload từ backend thật trước giờ mở cổng)
-    let keyInfo = await SqliteRepository.getActivePublicKey(payload.kid);
+    // 2. Fetch Public Key from SQLite local cache - PHẢI đã được preload TƯỜNG MINH từ trước (qua
+    // backend thật - SyncService.preloadManifest, hoặc qua khoá demo - SqliteRepository.savePublicKey
+    // gọi từ nút "Test QR"). KHÔNG còn fallback ngầm sang DEFAULT_KEY_INFO ở đây: fallback cũ từng
+    // khiến verify "thành công" dù SQLite trống hoàn toàn (miễn QR thiếu kid hoặc mang đúng kid demo),
+    // phá vỡ bất biến "QR thật phải được xác minh bằng key đã preload từ Backend" - mọi QR phải
+    // fail-closed khi chưa có key nào trong máy.
+    //
+    // CHỈ gọi getActivePublicKey ĐÚNG MỘT LẦN với payload.kid - KHÔNG retry không-kid khi kid cụ
+    // thể không khớp bất kỳ key nào trong máy. Repository tự xử lý trường hợp QR không khai báo kid
+    // (payload.kid undefined -> lấy key active gần nhất) ngay trong getActivePublicKey(); một lần
+    // gọi lại không-kid ở ĐÂY sau khi kid cụ thể đã tra KHÔNG thấy từng là lỗ hổng riêng: QR khai
+    // báo một kid KHÔNG TỒN TẠI (vd ký bằng demo private key, publicly biết trước, với kid bất kỳ)
+    // vẫn có thể được chấp nhận bằng MỘT key active khác đang có trong máy (vd key demo còn active
+    // từ lần bấm "Test QR" trước) - bỏ qua hoàn toàn việc kid QR khai báo phải khớp đúng key.
+    const keyInfo = await SqliteRepository.getActivePublicKey(payload.kid);
     if (!keyInfo) {
-      keyInfo = await SqliteRepository.getActivePublicKey();
-    }
-    if (!keyInfo) {
-      // Chưa preload public key thật -> không có gì để verify, KHÔNG dùng key demo làm fallback
-      // ngầm cho dữ liệu thật (demo key chỉ hợp lệ khi gọi QrVerifier.generateTestSignedQr).
       return {
         isValid: false,
         publicBookingId: payload.pbid,
@@ -242,9 +254,10 @@ export class QrVerifier {
     const jwsParts = raw.split('.');
     if (jwsParts.length === 3) {
       try {
+        const headerObj = JSON.parse(this.base64UrlDecode(jwsParts[0]));
         const payloadJson = this.base64UrlDecode(jwsParts[1]);
         const payloadObj = JSON.parse(payloadJson);
-        if (payloadObj.pbid || payloadObj.sub) {
+        if (headerObj.alg === 'RS256' && (payloadObj.pbid || payloadObj.sub)) {
           const pbid = payloadObj.pbid || payloadObj.sub;
           const signable = `${jwsParts[0]}.${jwsParts[1]}`;
           return {
@@ -254,7 +267,7 @@ export class QrVerifier {
               tid: payloadObj.tid,
               iat: payloadObj.iat,
               exp: payloadObj.exp,
-              kid: payloadObj.kid,
+              kid: headerObj.kid || payloadObj.kid,
             },
             signature: jwsParts[2],
             rawSignableData: signable,
@@ -293,7 +306,8 @@ export class QrVerifier {
   static generateTestSignedQr(
     publicBookingId: string,
     tripId?: string,
-    keyInfo: PublicKeyInfo = DEFAULT_KEY_INFO
+    keyInfo: PublicKeyInfo = DEFAULT_KEY_INFO,
+    expiresAt?: number
   ): {
     compactQr: string;
     jsonQr: string;
@@ -301,20 +315,23 @@ export class QrVerifier {
   } {
     const ver = 1;
     const iat = Math.floor(Date.now() / 1000);
-    const signable = `WB1.${publicBookingId}.${ver}.${iat}`;
-
-    const signature = this.signWithDemoPrivateKey(signable);
-    const compactQr = `${signable}.${signature}`;
-
-    const jsonObj = {
+    const header = { alg: 'RS256', typ: 'JWT', kid: keyInfo.kid };
+    const payload = {
       pbid: publicBookingId,
       ver,
-      tid: tripId,
       iat,
-      kid: keyInfo.kid,
-      sig: signature,
+      ...(tripId ? { tid: tripId } : {}),
+      ...(expiresAt !== undefined ? { exp: expiresAt } : {}),
     };
-    const jsonQr = JSON.stringify(jsonObj);
+    const encodedHeader = this.encodeBase64Url(JSON.stringify(header));
+    const encodedPayload = this.encodeBase64Url(JSON.stringify(payload));
+    const compactSignable = `${encodedHeader}.${encodedPayload}`;
+    const signature = this.signWithDemoPrivateKey(compactSignable);
+    const compactQr = `${compactSignable}.${signature}`;
+
+    const jsonPayload = { ...payload, kid: keyInfo.kid };
+    const jsonSignature = this.signWithDemoPrivateKey(this.canonicalStringify(jsonPayload));
+    const jsonQr = JSON.stringify({ ...jsonPayload, sig: jsonSignature });
 
     return { compactQr, jsonQr, signature };
   }
@@ -354,5 +371,9 @@ export class QrVerifier {
 
   private static base64ToBase64Url(input: string): string {
     return input.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  private static encodeBase64Url(input: string): string {
+    return this.base64ToBase64Url(forge.util.encode64(forge.util.encodeUtf8(input)));
   }
 }

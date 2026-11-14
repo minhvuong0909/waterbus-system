@@ -15,9 +15,9 @@ const COLUMNS_LEFT = ['A', 'B'] as const
 
 const COLUMNS_RIGHT = ['C', 'D'] as const
 
-// Seats shrink on narrow screens (up to 62px wide) so the four columns always fit inside the hull.
+// Two seats, the aisle, two seats. Seats shrink on narrow screens so the four columns always fit the hull.
 const GRID =
-  'grid grid-cols-[repeat(2,minmax(0,62px))_minmax(20px,28px)_repeat(2,minmax(0,62px))] items-center justify-center gap-x-1.5 sm:gap-x-2'
+  'grid grid-cols-[repeat(2,minmax(0,64px))_minmax(20px,32px)_repeat(2,minmax(0,64px))] justify-center gap-x-2'
 
 const SeatButton = memo(function SeatButton({
   seat,
@@ -28,162 +28,102 @@ const SeatButton = memo(function SeatButton({
   selected: boolean
   onSelect: (id: string) => void
 }) {
-  const sold = seat.status === 'sold'
-  const held = seat.status === 'held'
-  const unavailable = sold || held
+  const unavailable = seat.status === 'sold' || seat.status === 'held'
   const tags = seatTags(seat)
-  const state = sold ? t('sold') : held ? t('held by another traveler') : ''
+  // Sold and held seats look the same (neither can be chosen); the label still says which it is.
+  const state =
+    seat.status === 'sold' ? t('sold') : seat.status === 'held' ? t('held by another traveler') : ''
 
   return (
-    <div className="relative">
-      {seat.window && (
-        <span
-          className={`absolute -right-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full text-3xs font-bold text-white ${
-            unavailable ? 'bg-outline' : 'bg-sky-aqua'
-          }`}
-        >
-          {t('W')}
-        </span>
-      )}
-      {selected && (
-        // One line and click-through: a wrapped label ("ĐÃ CHỌN") covered the seat and swallowed the click that removes it.
-        <span className="pointer-events-none absolute -top-2 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-signal-amber px-1 text-3xs font-bold uppercase text-deep-river">
-          {t('Selected')}
-        </span>
-      )}
-      <button
-        type="button"
-        // A chosen seat can always be removed, even if someone else took it meanwhile.
-        disabled={unavailable && !selected}
-        aria-pressed={selected}
-        aria-label={`${t('Seat {id}', { id: seat.code })}${tags ? `, ${tags}` : ''}${
-          state ? `, ${state}` : ''
-        }`}
-        onClick={() => onSelect(seat.id)}
-        className={`flex h-[46px] w-full flex-col items-center justify-center rounded-lg border-2 text-2xs font-semibold transition-all ${
-          selected
-            ? 'border-teal-flow bg-teal-flow text-white shadow-md'
-            : sold
-            ? 'cursor-not-allowed border-transparent bg-outline-variant/50 text-outline'
-            : held
-            ? 'cursor-not-allowed border-dashed border-signal-amber bg-signal-amber/15 text-deep-river/70'
-            : 'border-teal-flow/40 bg-white text-deep-river hover:border-teal-flow hover:bg-sand-light'
-        }`}
-      >
-        <Icon name={held ? 'hourglass_top' : 'airline_seat_recline_normal'} className="text-base" />
-        {seat.code}
-      </button>
-    </div>
+    <button
+      type="button"
+      // A chosen seat can always be removed, even if someone else took it meanwhile.
+      disabled={unavailable && !selected}
+      aria-pressed={selected}
+      aria-label={[t('Seat {id}', { id: seat.code }), tags, state].filter(Boolean).join(', ')}
+      onClick={() => onSelect(seat.id)}
+      className={`flex h-11 w-full items-center justify-center rounded-lg border text-xs font-semibold transition-colors ${
+        selected
+          ? 'border-teal-flow bg-teal-flow text-white shadow-sm'
+          : unavailable
+            ? 'cursor-not-allowed border-transparent bg-surface-container text-outline line-through'
+            : 'border-outline-variant bg-white text-deep-river hover:border-teal-flow hover:bg-sand-light'
+      }`}
+    >
+      {seat.code}
+    </button>
   )
 })
 
-function CabinHeading({ category, priceVnd }: { category: SeatCategory; /** Fare of a seat in this cabin. */ priceVnd?: number }) {
+function CabinHeading({
+  category,
+  priceVnd,
+}: {
+  category: SeatCategory
+  /** Fare of a seat in this cabin. */
+  priceVnd?: number
+}) {
   return (
-    <div className="flex items-center gap-2 pt-1 text-2xs font-bold uppercase tracking-wider text-teal-flow">
-      <span className="h-px flex-1 bg-teal-flow/30" />
-      {cabinLabel(category)}
-      {priceVnd !== undefined && <span className="text-deep-river">• {formatVndSuffix(priceVnd)}</span>}
-      <span className="h-px flex-1 bg-teal-flow/30" />
+    <div className="flex items-baseline justify-between gap-2 border-b border-surface-container pb-1.5">
+      <h3 className="text-sm font-semibold text-deep-river">{cabinLabel(category)}</h3>
+      {priceVnd !== undefined && (
+        <span className="text-xs font-semibold text-teal-flow">{formatVndSuffix(priceVnd)}</span>
+      )}
     </div>
   )
 }
 
-/** Top-down plan of the boat: front cabin, standard cabin and outdoor deck, seats A-B | aisle | C-D. */
+/**
+ * Top-down plan of the boat, bow at the top: one block per cabin with its fare, seats A-B, the
+ * aisle, then C-D. The outer columns are the window seats, which the caption above them says once
+ * instead of a badge on every seat.
+ */
 export default function SeatMapView({ seatMap, selectedIds, onSelect }: SeatMapViewProps) {
   const cabins = useMemo(
     () =>
       CABIN_ORDER.map((category) => {
         const seats = seatMap.seats.filter((s) => s.category === category)
         const rows = [...new Set(seats.map((s) => s.row))].sort((a, b) => a - b)
-        return {
-          category,
-          seats,
-          rows,
-          priceVnd: seats[0]?.priceVnd,
-        }
+        return { category, seats, rows, priceVnd: seats[0]?.priceVnd }
       }).filter((cabin) => cabin.seats.length > 0),
     [seatMap.seats],
   )
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-teal-flow/20 bg-gradient-to-b from-sky-aqua/10 via-mist to-sand-light p-space-sm sm:p-space-lg">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(#147a7e_1px,transparent_1px)] opacity-30 [background-size:18px_18px]" />
-      <div className="pointer-events-none absolute inset-y-8 left-4 hidden w-4 rounded-full bg-teal-flow/30 md:block" />
-      <div className="pointer-events-none absolute inset-y-8 right-4 hidden w-4 rounded-full bg-teal-flow/30 md:block" />
-
-      <div className="relative mx-auto max-w-sm rounded-t-[80px] rounded-b-3xl border border-outline-variant/40 bg-white px-space-sm pb-space-md pt-space-lg shadow-lg sm:px-space-md">
-        <div className="mx-auto mb-space-sm flex w-fit items-center gap-2 rounded-full border border-outline-variant/40 bg-white px-4 py-1.5 text-2xs font-bold uppercase tracking-wider text-deep-river shadow-sm">
+    <div className="rounded-2xl bg-mist/60 p-space-sm sm:p-space-lg">
+      <div className="mx-auto max-w-sm rounded-b-3xl rounded-t-[72px] border border-outline-variant/50 bg-white px-space-md pb-space-lg pt-space-lg">
+        <p className="flex items-center justify-center gap-1 text-2xs font-semibold uppercase tracking-wider text-on-surface-variant">
           <Icon name="navigation" className="text-sm" />
-          {t('Forward / Bow • River Cruise Direction')}
+          {t('Bow')}
+        </p>
+        <div className={`${GRID} mt-space-md text-center text-2xs text-on-surface-variant`}>
+          <span>{t('Window')}</span>
+          <span className="col-start-5">{t('Window')}</span>
         </div>
 
-        <div className="mb-2 flex items-center justify-between text-2xs font-semibold uppercase tracking-wider text-teal-flow">
-          <span className="flex items-center gap-1">
-            <Icon name="waves" className="text-xs" /> {t('Portside Panoramic Window')}
-          </span>
-          <span className="flex items-center gap-1">
-            {t('Starboard Window')} <Icon name="waves" className="text-xs" />
-          </span>
-        </div>
-        <div
-          className={`${GRID} text-center text-2xs font-semibold text-on-surface-variant`}
-        >
-          <span>{t('Port A')}</span>
-          <span>{t('Aisle B')}</span>
-          <span className="flex items-center justify-center">
-            <Icon name="keyboard_double_arrow_down" className="text-xs" />
-          </span>
-          <span>{t('Aisle C')}</span>
-          <span>{t('Starboard D')}</span>
-        </div>
-
-        <div className="mt-2 space-y-3">
-          {cabins.map(({ category, seats, rows, priceVnd }) => {
-            const seatAt = (row: number, column: Seat['column']) =>
-              seats.find((s) => s.row === row && s.column === column)
-            const renderSeat = (row: number, column: Seat['column']) => {
-              const seat = seatAt(row, column)
-              return seat ? (
-                <SeatButton
-                  key={column}
-                  seat={seat}
-                  selected={selectedIds.includes(seat.id)}
-                  onSelect={onSelect}
-                />
-              ) : (
-                <span key={column} />
-              )
-            }
-            return (
-              <div key={category} className="space-y-3">
-                <CabinHeading category={category} priceVnd={priceVnd} />
-                {rows.map((row) => (
-                  <div key={row} className={GRID}>
-                    {COLUMNS_LEFT.map((c) => renderSeat(row, c))}
-                    <span className="flex h-6 items-center justify-center rounded bg-mist text-3xs font-bold text-outline">
-                      {t('R{row}', { row })}
-                    </span>
-                    {COLUMNS_RIGHT.map((c) => renderSeat(row, c))}
-                  </div>
-                ))}
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="mt-space-md flex items-center gap-2 border-t border-dashed border-outline-variant pt-space-md text-2xs font-semibold text-on-surface-variant">
-          <span className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-outline-variant/40 bg-mist px-2 py-2">
-            <Icon name="luggage" className="text-sm" /> {t('Luggage Compartment')}
-          </span>
-          <span className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-outline-variant/40 bg-mist px-2 py-2">
-            <Icon name="door_open" className="text-sm text-signal-amber" />{' '}
-            {t('Stern Boarding Gate / Entry')}
-          </span>
-        </div>
-        <div className="mt-2 flex items-center justify-center gap-1 text-2xs font-semibold uppercase tracking-wider text-teal-flow">
-          <Icon name="arrow_downward" className="text-xs" />
-          {t('Aft Gangway • Disembarkation Point')}
-          <Icon name="arrow_downward" className="text-xs" />
+        <div className="mt-2 space-y-space-md">
+          {cabins.map(({ category, seats, rows, priceVnd }) => (
+            <section key={category} className="space-y-2">
+              <CabinHeading category={category} priceVnd={priceVnd} />
+              {rows.map((row) => (
+                <div key={row} className={GRID}>
+                  {[...COLUMNS_LEFT, null, ...COLUMNS_RIGHT].map((column) => {
+                    const seat = column && seats.find((s) => s.row === row && s.column === column)
+                    return seat ? (
+                      <SeatButton
+                        key={seat.id}
+                        seat={seat}
+                        selected={selectedIds.includes(seat.id)}
+                        onSelect={onSelect}
+                      />
+                    ) : (
+                      <span key={column ?? 'aisle'} />
+                    )
+                  })}
+                </div>
+              ))}
+            </section>
+          ))}
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import QrCode from '../../../components/ticket/QrCode'
+import QrCode from './QrCode'
 import { Icon } from '../../../components/ui'
 import { formatVnd } from '../../../utils/format'
 import { isTicketToday } from '../utils'

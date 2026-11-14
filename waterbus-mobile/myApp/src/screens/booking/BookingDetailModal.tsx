@@ -4,7 +4,7 @@
  * passenger seat list, and per-passenger check-in checkboxes (BR-QR-03).
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
@@ -30,20 +30,15 @@ export default function BookingDetailModal() {
     deviceInfo,
   } = useScannerStore();
 
-  const [selectedTicketIds, setSelectedTicketIds] = useState<string[]>([]);
+  const [ticketSelection, setTicketSelection] = useState<{ bookingId: string; ticketIds: string[] } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Initialize selected tickets: auto-select unchecked tickets by default
-  useEffect(() => {
-    if (currentBooking) {
-      const uncheckedIds = currentBooking.tickets
-        .filter((t) => t.boardingStatus === 'NotCheckedIn')
-        .map((t) => t.id);
-      setSelectedTicketIds(uncheckedIds);
-    } else {
-      setSelectedTicketIds([]);
-    }
-  }, [currentBooking]);
+  const selectedTicketIds = currentBooking
+    ? ticketSelection?.bookingId === currentBooking.id
+      ? ticketSelection.ticketIds
+      : currentBooking.tickets
+        .filter((ticket) => ticket.boardingStatus === 'NotCheckedIn')
+        .map((ticket) => ticket.id)
+    : [];
 
   if (!currentBooking) return null;
 
@@ -51,9 +46,15 @@ export default function BookingDetailModal() {
     if (ticket.boardingStatus === 'CheckedIn') return; // Cannot un-check checked ticket here
 
     if (selectedTicketIds.includes(ticket.id)) {
-      setSelectedTicketIds(selectedTicketIds.filter((id) => id !== ticket.id));
+      setTicketSelection({
+        bookingId: currentBooking.id,
+        ticketIds: selectedTicketIds.filter((id) => id !== ticket.id),
+      });
     } else {
-      setSelectedTicketIds([...selectedTicketIds, ticket.id]);
+      setTicketSelection({
+        bookingId: currentBooking.id,
+        ticketIds: [...selectedTicketIds, ticket.id],
+      });
     }
   };
 
@@ -63,9 +64,9 @@ export default function BookingDetailModal() {
       .map((t) => t.id);
 
     if (selectedTicketIds.length === uncheckedIds.length) {
-      setSelectedTicketIds([]);
+      setTicketSelection({ bookingId: currentBooking.id, ticketIds: [] });
     } else {
-      setSelectedTicketIds(uncheckedIds);
+      setTicketSelection({ bookingId: currentBooking.id, ticketIds: uncheckedIds });
     }
   };
 
@@ -533,4 +534,3 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 });
-

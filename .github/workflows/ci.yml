@@ -191,10 +191,41 @@ jobs:
       - name: Build (tsc + vite)
         run: pnpm build
 
+  mobile:
+    name: Mobile Staff Scanner (verify suite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: waterbus-mobile/myApp
+    steps:
+      - uses: actions/checkout@v4
+
+      # waterbus-mobile/myApp không khai báo packageManager; lockfileVersion 9 dùng pnpm 10
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      # Expo SDK 58 / React Native 0.88 khai báo "engines.node": "^22.13.0 || ^24.3.0 || ^26.0.0 ||
+      # >=27.0.0" - Node 20 (dùng trước khi nâng SDK) nằm NGOÀI dải này. pnpm không chặn cứng
+      # (không set engine-strict) nên CI vẫn "chạy được" trên Node 20, nhưng không đúng dải hỗ trợ
+      # chính thức của bản SDK đang dùng - chuyển hẳn sang Node 22 (nằm trong "^22.13.0").
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: waterbus-mobile/myApp/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Verify QR RSA offline, đồng bộ lô theo ACK, cửa sổ check-in, thiết bị phụ
+      - name: Scanner verification suite
+        run: pnpm test:scanner
+
   docker:
     name: Docker images (build)
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [backend, frontend, mobile]
     steps:
       - uses: actions/checkout@v4
 

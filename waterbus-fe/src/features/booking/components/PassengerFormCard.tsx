@@ -38,11 +38,7 @@ export default function PassengerFormCard({
         return (
           <BookingCard key={seat.id} className="p-space-lg md:p-space-xl">
             <div className="mb-space-md flex flex-wrap items-center justify-between gap-space-md">
-              <FormSectionTitle
-                icon="person"
-                title={t('Passenger {number}', { number: index + 1 })}
-                subtitle={t('Who will travel on this seat')}
-              />
+              <FormSectionTitle icon="person" title={t('Passenger {number}', { number: index + 1 })} />
               <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container">
                 <Icon name="airline_seat_recline_extra" className="text-sm" />
                 {t('Seat {id}', { id: seat.code })}

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearPierCache, getPierOptions, getTripDetail } from './tripService'
+import { clearPierCache, clearTripReads, getPierOptions, getTripDetail } from './tripService'
 
 const station = {
   id: 'st-1',
@@ -19,6 +19,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-10-20T08:00:00Z'))
   clearPierCache()
+  clearTripReads()
 })
 afterEach(() => {
   fetchMock.mockReset()

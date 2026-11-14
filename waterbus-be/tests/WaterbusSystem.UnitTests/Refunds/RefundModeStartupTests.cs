@@ -59,14 +59,16 @@ public sealed class RefundModeStartupTests
 
     [Theory]
     [InlineData(null)]
-    [InlineData("Demo")]
+    [InlineData("Manual")]
     [InlineData("Gateway")]
     public async Task ValidModes_StartTheRealHost(string? mode) => Assert.Null(await StartAsync(mode));
 
     [Theory]
-    [InlineData("2")]
+    [InlineData("0")]
+    [InlineData("3")]
     [InlineData("-1")]
     [InlineData("Banana")]
+    [InlineData("Demo")]   // chế độ Demo đã bị gỡ: cấu hình cũ phải làm host không khởi động, không âm thầm đổi hành vi
     [InlineData("demo-ish")]
     public async Task InvalidMode_PreventsHostStartup(string mode)
     {
@@ -81,35 +83,9 @@ public sealed class RefundModeStartupTests
 
     [Theory]
     [InlineData("https://pay.vnpay.vn/vpcpay.html", null)]
-    [InlineData("https://vnpayment.vn/paymentv2/vpcpay.html", null)]
     [InlineData(null, "https://merchant.vnpayment.vn/merchant_webapi/api/transaction")]
-    [InlineData("https://pay.vnpay.vn./vpcpay.html", null)]
-    [InlineData(null, "https://merchant.vnpayment.vn./merchant_webapi/api/transaction")]
-    [InlineData("HTTPS://PAY.VNPAY.VN./x", null)]
-    public async Task DemoMode_IsRefusedForLiveMoneyVnPayEndpoints(string? baseUrl, string? webApiUrl)
-    {
-        var error = await StartAsync("Demo", baseUrl, webApiUrl);
-        Assert.NotNull(error);
-        Assert.Contains("Demo", error!.ToString());
-        Assert.Null(await StartAsync("Gateway", baseUrl, webApiUrl));   // Gateway vẫn được phép (đã có quyền Refund)
-    }
-
-    [Theory]
     [InlineData("https://sandbox.vnpayment.vn/paymentv2/vpcpay.html", "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction")]
-    [InlineData("http://localhost:5173/payment/callback", null)]
     [InlineData(null, null)]
-    public async Task DemoMode_StillStartsOnSandboxAndLocalEndpoints(string? baseUrl, string? webApiUrl) =>
-        Assert.Null(await StartAsync("Demo", baseUrl, webApiUrl));
-
-    [Theory]
-    [InlineData("https://sandbox.vnpayment.vn/x", false)]
-    [InlineData("https://pay.vnpay.vn/x", true)]
-    [InlineData("https://vnpayment.vn/x", true)]
-    [InlineData("https://pay.vnpay.vn./x", true)]
-    [InlineData("https://sandbox.vnpayment.vn./x", false)]
-    [InlineData("https://www.vnpay.vn/x", true)]
-    [InlineData("http://127.0.0.1:9000/x", false)]
-    [InlineData("", false)]
-    [InlineData(null, false)]
-    public void LiveVnPayUrlDetection(string? url, bool expected) => Assert.Equal(expected, RefundOptions.IsLiveVnPayUrl(url));
+    public async Task ManualMode_StartsWithAnyVnPayEndpoint_BecauseItIsTheRealProcessAndNeverCallsRefund(string? baseUrl, string? webApiUrl) =>
+        Assert.Null(await StartAsync("Manual", baseUrl, webApiUrl));
 }

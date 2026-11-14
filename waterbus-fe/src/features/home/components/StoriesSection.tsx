@@ -19,7 +19,7 @@ export default function StoriesSection({ places }: { places: Landmark[] }) {
         >
           <div className="max-w-2xl space-y-space-xs">
             <h2 className="font-display text-2xl font-bold tracking-tight text-deep-river sm:text-3xl lg:text-4xl">
-              {t('A Different Perspective on Saigon’s Skyline & Heritage')}
+              {t('Places you pass on the river')}
             </h2>
             <p className="text-body-md text-on-surface-variant">
               {t(

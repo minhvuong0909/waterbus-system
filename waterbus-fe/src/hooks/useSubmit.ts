@@ -1,0 +1,34 @@
+import { useCallback, useState } from 'react'
+import { t } from '../i18n'
+import { ApiError } from '../services/apiClient'
+
+/** Text to show for a failed action: the server's message, or a generic one when it is unreachable. */
+export function errorText(error: unknown): string {
+  if (error instanceof ApiError && error.status !== 0) {
+    const fields = Object.values(error.fieldErrors).flat()
+    return fields.length > 0 ? fields.join(' ') : error.message
+  }
+  return t('Something went wrong. Please check your connection and try again.')
+}
+
+/** Runs an async action while tracking whether it is busy and why it failed. */
+export function useSubmit() {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  /** Resolves with the action's result, or undefined when it failed (the message is in `error`). */
+  const run = useCallback(async <T,>(action: () => Promise<T>): Promise<T | undefined> => {
+    setBusy(true)
+    setError(null)
+    try {
+      return await action()
+    } catch (e) {
+      setError(errorText(e))
+      return undefined
+    } finally {
+      setBusy(false)
+    }
+  }, [])
+
+  return { run, busy, error, clearError: () => setError(null) }
+}

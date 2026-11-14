@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Button, Notice, Panel, TextField } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { isGuid } from '../../../utils/guid'
-import { useSubmit } from '../hooks/useAdmin'
+import { useSubmit } from '../../../hooks'
 import { requestRefund } from '../services/refundService'
 import type { RefundRequestResult } from '../types'
 

@@ -109,9 +109,6 @@ export default function Header() {
               </Button>
             )
           )}
-          <Button to={ROUTES.searchResults} className="whitespace-nowrap !px-4 sm:!px-6">
-            {t('Book a Trip')}
-          </Button>
           <button
             ref={menuButton}
             type="button"
@@ -168,13 +165,6 @@ export default function Header() {
                   {t('Sign in')}
                 </Button>
               )}
-              <Button
-                to={ROUTES.searchResults}
-                className={staffArea ? 'col-span-2' : ''}
-                onClick={() => setOpenPath(null)}
-              >
-                {t('Book a Trip')}
-              </Button>
             </li>
           </ul>
         </nav>

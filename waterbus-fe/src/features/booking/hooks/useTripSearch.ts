@@ -8,7 +8,6 @@ import {
   getDateOptions,
   getDayTripCounts,
   getPierOptions,
-  getTripDetail,
   getTrips,
 } from '../../trips/services/tripService'
 import type { DateOption, PierOption, SearchQuery, Trip } from '../../trips/types'
@@ -111,20 +110,5 @@ export function useSearchResults(leg: Leg = 'outbound') {
     searching: trips.fetching,
     ...combineFetches(piers, dates, trips),
     chooseTrip: (trip: Trip) => dispatch(leg === 'outbound' ? selectTrip(trip) : selectReturnTrip(trip)),
-  }
-}
-
-/** The chosen trip of a leg, with its real stops and fares for that leg's piers. */
-export function useTripDetail(leg: Leg = 'outbound') {
-  const booking = useAppSelector((s) => s.booking)
-  const view = useMemo(() => legView(booking, leg), [booking, leg])
-  const detail = useFetch(() => getTripDetail(view.trip, view.tripId, view.query), [leg, view.tripId])
-  return {
-    detail: detail.data,
-    loading: detail.loading,
-    error: detail.error,
-    retry: detail.retry,
-    /** No trip chosen in this session (the page was opened directly). */
-    noTrip: !view.tripId,
   }
 }

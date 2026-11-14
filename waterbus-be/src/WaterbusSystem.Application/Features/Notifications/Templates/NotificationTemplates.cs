@@ -97,7 +97,7 @@ public static class NotificationTemplates
         LegFacts(b, leg);
         if (d.Allocations.Count > 0) Passengers(b, d.Allocations, d.Currency, showAmount: true);
         else b.Paragraph("Khoản hoàn này là hoàn toàn bộ khoản thanh toán nhận muộn của đặt chỗ; không có vé nào được phát hành.");
-        if (!d.IsDemo) b.Notice("Thời gian tiền hiển thị trong tài khoản/ thẻ của bạn phụ thuộc vào ngân hàng hoặc đơn vị phát hành thẻ.");
+        if (!d.IsDemo) b.Notice("Khoản hoàn sẽ hiển thị trong tài khoản/thẻ của bạn trong khoảng 2–3 ngày làm việc.");
         var (html, text) = b.Render(d.IsDemo ? "Hoàn tiền (DEMO)" : "Hoàn tiền thành công");
         return new($"{(d.IsDemo ? "[DEMO] " : "")}Hoàn tiền thành công {EmailFormat.Money(d.Amount, d.Currency)} – {leg.BookingCode}", html, text);
     }

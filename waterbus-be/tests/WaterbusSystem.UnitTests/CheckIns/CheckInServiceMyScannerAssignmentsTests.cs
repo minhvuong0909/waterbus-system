@@ -47,11 +47,11 @@ public class CheckInServiceMyScannerAssignmentsTests
         context.SaveChanges();
 
         var now = DateTimeOffset.UtcNow;
-        var myStaffId = Guid.NewGuid();
-        var otherStaffId = Guid.NewGuid();
+        var myStaffId = TestDbContextFactory.AddScannerStaff(context);
+        var otherStaffId = TestDbContextFactory.AddScannerStaff(context);
 
         var assignService = CreateService(context, myStaffId, now);
-        await assignService.AssignScannerAsync(
+        var created = await assignService.AssignScannerAsync(
             new AssignScannerRequest(device.Id, myStaffId, stopCall.Id, true, now.AddHours(-1), now.AddHours(2)),
             CancellationToken.None);
 
@@ -70,6 +70,14 @@ public class CheckInServiceMyScannerAssignmentsTests
         result[0].StationName.Should().Be(seed.StationA.Name);
         result[0].RouteName.Should().Be(seed.Route.Name);
         result[0].IsPrimaryOffline.Should().BeTrue();
+        result[0].DeviceCode.Should().Be(device.DeviceCode);
+        var manifest = await service.GetScannerManifestAsync(result[0].TripStopCallId);
+        manifest.TripStopCallId.Should().Be(stopCall.Id);
+
+        await assignService.RevokeScannerAssignmentAsync(created.AssignmentId);
+        (await service.GetMyScannerAssignmentsAsync()).Should().BeEmpty();
+        var denied = () => service.GetScannerManifestAsync(stopCall.Id);
+        await denied.Should().ThrowAsync<ForbiddenAccessException>();
     }
 
     [Fact]
@@ -83,7 +91,7 @@ public class CheckInServiceMyScannerAssignmentsTests
         context.SaveChanges();
 
         var now = DateTimeOffset.UtcNow;
-        var staffId = Guid.NewGuid();
+        var staffId = TestDbContextFactory.AddScannerStaff(context);
 
         var assignService = CreateService(context, staffId, now);
         await assignService.AssignScannerAsync(

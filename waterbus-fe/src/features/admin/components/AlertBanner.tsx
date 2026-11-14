@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { ROUTES } from '../../../routes/routes'
-import { alertMetrics, alertTone, formatKmh, pendingCountOf, timeAgo, titleOf } from '../alertUtils'
-import type { WeatherAlert } from '../types'
+import { alertMetrics, alertTone, formatKmh, pendingCountOf, timeAgo, titleOf } from '../utils/alertUtils'
+import type { WeatherAlert } from '../../operations/types'
 
 /** Compact strip for the live radar: how serious, where, and how many trips still need a decision. */
 export default function AlertBanner({ alert }: { alert: WeatherAlert }) {

@@ -1,8 +1,9 @@
-import { Link } from 'react-router-dom'
-import { Icon } from '../../../components/ui'
+import { useId, useState } from 'react'
+import { Button, ErrorState, Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
-import type { PierOption, Trip } from '../types'
 import { formatNumber } from '../../../utils/format'
+import { useJourneyStops } from '../hooks/useJourneyStops'
+import type { PierOption, Trip } from '../types'
 import { hasFare, seatsLabel } from '../utils'
 import { t } from '../../../i18n'
 
@@ -13,146 +14,95 @@ interface TripCardProps {
   onSelect: (trip: Trip) => void
   /** Chuyến đã rời bến: không chọn được nữa. */
   departed?: boolean
-  /** Where "Select Trip" leads; the trip detail page by default. */
+  /** Where "Select Trip" leads; seat selection by default. */
   to?: string
   /** Not selectable for another reason, with the text shown instead of the button. */
   blockedReason?: string
 }
 
-const CARD: Record<Trip['variant'], string> = {
-  featured: 'border-2 border-teal-flow/40 shadow-card',
-  default: 'border border-deep-river/10 shadow-xs',
-  sunset: 'border-2 border-coral-glow/40 shadow-card',
+/** The piers the boat calls at between the traveler's two piers, read when the card is opened. */
+function JourneyStops({ tripId, originId, destinationId }: { tripId: string; originId: string; destinationId: string }) {
+  const { stops, loading, error, retry } = useJourneyStops(tripId, originId, destinationId)
+
+  if (error) return <ErrorState compact onRetry={retry} />
+  if (loading || !stops) {
+    return <p className="text-sm text-on-surface-variant">{t('Loading')}…</p>
+  }
+  if (stops.length === 0) {
+    return <p className="text-sm text-on-surface-variant">{t('Stop times are not available for this trip.')}</p>
+  }
+  return (
+    <ol className="relative space-y-2 border-l border-outline-variant pl-space-md">
+      {stops.map((stop, i) => {
+        const end = i === 0 || i === stops.length - 1
+        return (
+          <li key={stop.callId} className="relative flex items-baseline gap-3 text-sm">
+            <span
+              className={`absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-teal-flow ${
+                end ? 'bg-teal-flow' : 'bg-white'
+              }`}
+            />
+            <span className="w-11 shrink-0 font-display font-bold text-deep-river">{stop.time}</span>
+            <span className={end ? 'font-semibold text-deep-river' : 'text-on-surface-variant'}>
+              {stop.stationName}
+            </span>
+          </li>
+        )
+      })}
+    </ol>
+  )
 }
 
+/**
+ * One trip of the search results: when it leaves and arrives, how long it takes, what it costs
+ * and how many seats are left. The stops in between open on demand, so the list stays short.
+ */
 export default function TripCard({
   trip,
   origin,
   destination,
   onSelect,
   departed = false,
-  to = ROUTES.tripDetail,
+  to = ROUTES.seatSelection,
   blockedReason,
 }: TripCardProps) {
-  const sunset = trip.variant === 'sunset'
-  const accent = sunset ? 'text-coral-glow' : 'text-teal-flow'
+  const [showStops, setShowStops] = useState(false)
+  const stopsId = useId()
   const soldOut = trip.seatsCount <= 0
   const closed = soldOut || departed || Boolean(blockedReason)
 
   return (
-    <article
-      className={`rounded-2xl bg-white p-space-lg transition-all duration-200 hover:shadow-md ${
-        CARD[trip.variant]
-      } ${departed || blockedReason ? 'opacity-60' : ''}`}
-    >
-      <div className="mb-space-md flex flex-wrap items-center justify-between gap-space-sm">
-        <div className="flex flex-wrap items-center gap-space-xs">
-          {trip.highlight && (
-            <span
-              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold tracking-wide ${
-                sunset
-                  ? 'bg-coral-glow/15 text-coral-glow'
-                  : 'bg-secondary-container text-on-secondary-container'
-              }`}
-            >
-              <Icon name={trip.highlight.icon} className="text-sm" />
-              {trip.highlight.label}
-            </span>
-          )}
-        </div>
-        <div
-          className={`flex items-center gap-1.5 text-xs font-bold ${
-            closed ? 'text-on-surface-variant' : trip.seatsLow ? 'text-coral-glow' : 'text-teal-flow'
-          }`}
-        >
-          <span
-            className={`h-2 w-2 rounded-full ${
-              closed ? 'bg-outline' : trip.seatsLow ? 'bg-coral-glow' : 'bg-teal-flow'
-            }`}
-          />
-          {departed ? t('Departed') : seatsLabel(trip)}
-        </div>
-      </div>
-
-      {/* Price column sized by its content so the button never wraps; the route name gives way first. */}
-      <div className="grid grid-cols-1 items-center gap-space-md md:grid-cols-[minmax(0,1fr)_minmax(0,3fr)_auto]">
-        <div className="flex min-w-0 items-center gap-space-sm md:flex-col md:items-start">
+    <article className={`rounded-2xl bg-white shadow-card ${departed || blockedReason ? 'opacity-60' : ''}`}>
+      <div className="grid grid-cols-1 items-center gap-space-md p-space-lg md:grid-cols-[minmax(0,1fr)_auto] md:gap-space-xl">
+        <div className="flex items-center gap-space-md">
           <div>
-            <span className="block font-display text-base font-bold text-deep-river">
-              {trip.kind === 'sightseeing' ? t('Sightseeing tour') : t('River bus')}
-            </span>
-            <span className="text-xs font-medium text-on-surface-variant">{trip.vesselName}</span>
+            <div className="font-display text-2xl font-bold text-deep-river">{trip.departTime}</div>
+            <div className="text-sm text-on-surface-variant">{origin.name}</div>
           </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-space-sm py-1">
-          <div className="text-left">
-            <div className="font-display text-xl font-bold text-deep-river md:text-2xl">
-              {trip.departTime}
-            </div>
-            <div className="text-xs font-semibold text-deep-river md:whitespace-nowrap">{origin.name}</div>
-            {trip.originGate && (
-              <div className="text-2xs text-on-surface-variant">{trip.originGate}</div>
+          <div className="flex min-w-[4rem] flex-1 flex-col items-center gap-1">
+            {trip.durationKnown !== false && (
+              <span className="whitespace-nowrap text-xs font-semibold text-teal-flow">
+                {t('{durationMins} min', { durationMins: trip.durationMins })}
+              </span>
             )}
-          </div>
-          <div className="flex flex-1 flex-col items-center px-2">
-            <span className={`mb-1 whitespace-nowrap text-center text-xs font-bold ${accent}`}>
-              {trip.durationKnown === false
-                ? trip.crossingKind
-                : t('{durationMins} min • {crossingKind}', {
-                    durationMins: trip.durationMins,
-                    crossingKind: trip.crossingKind,
-                  })}
-            </span>
-            <div className="relative flex w-full items-center">
-              <div
-                className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-                  sunset ? 'bg-coral-glow' : 'bg-teal-flow'
-                }`}
-              />
-              <div
-                className={`relative h-0.5 flex-1 ${
-                  sunset
-                    ? 'bg-gradient-to-r from-coral-glow via-signal-amber to-coral-glow'
-                    : 'bg-gradient-to-r from-teal-flow via-sky-aqua to-teal-flow'
-                }`}
-              >
-                <div
-                  className={`absolute -top-2 left-1/2 flex h-4 w-4 -translate-x-1/2 items-center justify-center rounded-full border bg-white shadow-xs ${
-                    sunset ? 'border-coral-glow text-coral-glow' : 'border-teal-flow text-teal-flow'
-                  }`}
-                >
-                  <Icon name={sunset ? 'sailing' : 'directions_boat'} className="text-2xs" />
-                </div>
-              </div>
-              <div
-                className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-                  sunset ? 'bg-coral-glow' : 'bg-teal-flow'
-                }`}
-              />
-            </div>
+            <span className="h-px w-full bg-outline-variant" />
           </div>
           <div className="text-right">
-            <div className="font-display text-xl font-bold text-deep-river md:text-2xl">
-              {trip.arriveTime}
-            </div>
-            <div className="text-xs font-semibold text-deep-river md:whitespace-nowrap">{destination.name}</div>
-            {trip.destinationGate && (
-              <div className="text-2xs text-on-surface-variant">{trip.destinationGate}</div>
-            )}
+            <div className="font-display text-2xl font-bold text-deep-river">{trip.arriveTime}</div>
+            <div className="text-sm text-on-surface-variant">{destination.name}</div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-end justify-between gap-2 rounded-xl bg-sand-light/60 p-space-sm md:flex-col md:flex-nowrap md:justify-center md:bg-transparent md:p-0 md:text-right">
-          <div>
-            <span className="block text-2xs font-semibold uppercase tracking-wider text-outline">
-              {trip.fareLabel}
-            </span>
+        <div className="flex items-center justify-between gap-space-lg md:border-l md:border-surface-container md:pl-space-xl">
+          <div className="md:text-right">
             {hasFare(trip.fareVnd) ? (
-              <div className="whitespace-nowrap font-display text-xl font-bold text-deep-river">
-                {formatNumber(trip.fareVnd)}{' '}
-                <span className="text-xs font-medium text-on-surface-variant">{t('VND')}</span>
-              </div>
+              <>
+                <div className="text-2xs font-semibold uppercase tracking-wider text-outline">{trip.fareLabel}</div>
+                <div className="whitespace-nowrap font-display text-xl font-bold text-deep-river">
+                  {formatNumber(trip.fareVnd)}{' '}
+                  <span className="text-xs font-medium text-on-surface-variant">{t('VND')}</span>
+                </div>
+              </>
             ) : (
               <div className="max-w-[10rem] text-sm font-semibold leading-snug text-deep-river">
                 {t('Price shown when you choose a seat')}
@@ -162,29 +112,49 @@ export default function TripCard({
           {closed ? (
             <span
               aria-disabled="true"
-              className="inline-flex cursor-not-allowed items-center justify-center whitespace-nowrap rounded-full bg-surface-container px-space-lg py-2 text-sm font-semibold text-on-surface-variant"
+              className="inline-flex cursor-not-allowed items-center whitespace-nowrap rounded-full bg-surface-container px-space-lg py-2.5 text-sm font-semibold text-on-surface-variant"
             >
               {departed ? t('Departed') : soldOut ? t('Sold out') : blockedReason}
             </span>
           ) : (
-          <Link
-            to={to}
-            onClick={() => onSelect(trip)}
-            className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-all sm:px-space-lg ${
-              sunset
-                ? 'bg-coral-glow text-on-primary shadow-md shadow-coral-glow/30 hover:opacity-90'
-                : trip.variant === 'featured'
-                ? 'bg-teal-flow text-on-primary shadow-glow hover:bg-secondary'
-                : 'border border-teal-flow/15 bg-sand-light text-deep-river hover:bg-sand-light'
-            }`}
-          >
-            {t('Select Trip')}
-            <Icon name="arrow_forward" className="text-base" />
-          </Link>
+            <Button to={to} onClick={() => onSelect(trip)}>
+              {t('Select Trip')}
+              <Icon name="arrow_forward" className="text-lg" />
+            </Button>
           )}
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-surface-container px-space-lg py-2 text-xs">
+        <button
+          type="button"
+          aria-expanded={showStops}
+          aria-controls={stopsId}
+          onClick={() => setShowStops((open) => !open)}
+          className="tap-area inline-flex items-center gap-1 font-semibold text-teal-flow hover:text-deep-river"
+        >
+          {t('Stops')}
+          <Icon name="expand_more" className={`text-base transition-transform ${showStops ? 'rotate-180' : ''}`} />
+        </button>
+        <span className="flex items-center gap-space-sm">
+          {trip.kind === 'sightseeing' && (
+            <span className="rounded-full bg-coral-glow/15 px-2.5 py-0.5 font-semibold text-coral-glow">
+              {t('Sightseeing')}
+            </span>
+          )}
+          {!departed && (
+            <span className={`font-semibold ${trip.seatsLow && !soldOut ? 'text-coral-glow' : 'text-on-surface-variant'}`}>
+              {seatsLabel(trip)}
+            </span>
+          )}
+        </span>
+      </div>
+
+      {showStops && (
+        <div id={stopsId} className="border-t border-surface-container px-space-lg py-space-md">
+          <JourneyStops tripId={trip.id} originId={origin.id} destinationId={destination.id} />
+        </div>
+      )}
     </article>
   )
 }

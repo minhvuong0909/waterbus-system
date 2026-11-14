@@ -41,6 +41,16 @@ export function formatDateTime(iso: string): string {
   })
 }
 
+/** "Oct 12, 2026" in Vietnam time and the active language. */
+export function formatLongDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(numberLocale(), {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
 /** "07:30:15" in Vietnam time, for live data that changes every few seconds. */
 export function formatClockWithSeconds(iso: string): string {
   return new Date(iso).toLocaleTimeString(numberLocale(), {

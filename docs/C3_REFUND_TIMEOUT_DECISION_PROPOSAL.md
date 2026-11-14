@@ -1,5 +1,7 @@
 # Đề xuất quyết định nghiệp vụ C3 — Refund VNPay timeout (`Processing`, chưa có `GatewayReference`) — BẢN 3
 
+> **KHÔNG CÒN ÁP DỤNG (10/11/2026).** Nhóm đã chốt với thầy hướng khác: hệ thống không tự động hoàn tiền và không gọi API Refund của VNPay; Admin tạo yêu cầu, nhân viên hoàn qua cổng merchant, Admin xác nhận kèm bằng chứng (`Refunds:Mode=Manual`, xem `docs/REFUND_MANUAL_MODE.md`). Vì không có lệnh hoàn gửi sang VNPay nên tình huống timeout không phát sinh mới. Tài liệu giữ lại để tham khảo nếu sau này bật `Gateway` sau khi VNPay cấp quyền Refund.
+
 Trạng thái: **ĐỀ XUẤT BẢN 3 (sau review v2: 09 không đủ cho B; B nguyên tử + chặn tái nhập), chờ phê duyệt tường minh.** Chưa thay đổi bất kỳ chuyển trạng thái tài chính nào trong code; không triển khai hỗ trợ gateway mang tính suy đoán. Hướng đã duyệt: *đối soát thủ công có kiểm soát, dựa trên bằng chứng*. Căn cứ BR: BR-PAY-03, BR-PAY-06, BR-RF-07, BR-RF-10.
 
 Thay đổi so với bản 1: (1) không còn tuyên bố `querydr` tra được theo mã giao dịch hoàn — **chưa được xác minh**; (2) 24 giờ chỉ là ngưỡng *rà soát vận hành*, không là bằng chứng; (3) tách 3 kết cục độc lập; (4) quy tắc tương quan bằng chứng; (5) audit bất biến, 2 người duyệt, ràng buộc DB; (6) test xác định.

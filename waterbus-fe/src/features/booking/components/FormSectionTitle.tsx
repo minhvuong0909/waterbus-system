@@ -7,7 +7,7 @@ export default function FormSectionTitle({
 }: {
   icon: string
   title: string
-  subtitle: string
+  subtitle?: string
 }) {
   return (
     <div className="mb-space-md flex items-center gap-space-sm">
@@ -16,7 +16,7 @@ export default function FormSectionTitle({
       </div>
       <div>
         <h2 className="font-display text-headline-sm text-deep-river">{title}</h2>
-        <p className="text-xs text-on-surface-variant">{subtitle}</p>
+        {subtitle && <p className="text-xs text-on-surface-variant">{subtitle}</p>}
       </div>
     </div>
   )

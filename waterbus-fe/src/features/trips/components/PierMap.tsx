@@ -1,18 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
+import { useEffect, useMemo } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import { MAP_TILE_ATTRIBUTION, MAP_TILE_URL } from '../../../constant/env'
-import type { CorridorMap, Pier } from '../types'
-import PierPopup from './PierPopup'
+import type { CorridorMap } from '../types'
 
 interface PierMapProps {
   map: CorridorMap
+  /** The pier shown as chosen; its pin is larger and dark. */
+  selectedId?: string
+  onSelect?: (pierId: string) => void
   className?: string
-  compact?: boolean
-  /** Buttons shown in the card of the clicked pier. */
-  pierActions?: (pier: Pier) => ReactNode
 }
 
 // Used until there are piers to fit the view to: the middle of the Saigon River corridor.
@@ -43,53 +41,32 @@ function FitToPiers({ points }: { points: [number, number][] }) {
 }
 
 /**
- * The corridor on a street map: the piers at their coordinates, the line joining them in river
- * order (a guide to the route, not the exact course of the river) and the vessel. Clicking a pier
- * opens a panel with its photos and the actions the page offers.
+ * The corridor on a street map: the piers at their coordinates and the line joining them in river
+ * order (a guide to the route, not the exact course of the river). Clicking a pier selects it; the
+ * page shows its details next to the map.
  */
-export default function PierMap({
-  map,
-  className = '',
-  compact = false,
-  pierActions,
-}: PierMapProps) {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const selected = map.piers.find((p) => p.id === selectedId)
+export default function PierMap({ map, selectedId, onSelect, className = '' }: PierMapProps) {
   const line = useMemo(
     () => map.piers.map((p): [number, number] => [p.latitude, p.longitude]),
     [map.piers],
   )
 
   return (
-    <div
-      className={`relative ${
-        compact ? 'h-[320px] sm:h-[380px]' : 'h-[470px]'
-      } w-full overflow-hidden rounded-2xl border border-teal-flow/15 ${className}`.trim()}
-    >
-      <MapContainer
-        center={DEFAULT_CENTER}
-        zoom={12}
-        scrollWheelZoom={false}
-        className="z-0 h-full w-full"
-      >
+    <div className={`relative w-full overflow-hidden rounded-2xl border border-teal-flow/15 ${className}`.trim()}>
+      <MapContainer center={DEFAULT_CENTER} zoom={12} scrollWheelZoom={false} className="z-0 h-full w-full">
         <FitToPiers points={line} />
         <TileLayer attribution={MAP_TILE_ATTRIBUTION} url={MAP_TILE_URL} />
         <Polyline
           positions={line}
-          pathOptions={{
-            color: '#147A7E',
-            weight: 5,
-            opacity: 0.75,
-            dashArray: '2 10',
-            lineCap: 'round',
-          }}
+          pathOptions={{ color: '#147A7E', weight: 5, opacity: 0.75, dashArray: '2 10', lineCap: 'round' }}
         />
         {map.piers.map((pier) => (
           <Marker
             key={pier.id}
             position={[pier.latitude, pier.longitude]}
             icon={pierIcon(pier.id === selectedId)}
-            eventHandlers={{ click: () => setSelectedId(pier.id) }}
+            zIndexOffset={pier.id === selectedId ? 1000 : 0}
+            eventHandlers={{ click: () => onSelect?.(pier.id) }}
           >
             <Tooltip direction="top" offset={[0, -16]}>
               {pier.name}
@@ -97,14 +74,6 @@ export default function PierMap({
           </Marker>
         ))}
       </MapContainer>
-
-      {selected && (
-        <PierPopup
-          pier={selected}
-          onClose={() => setSelectedId(null)}
-          actions={pierActions?.(selected)}
-        />
-      )}
     </div>
   )
 }

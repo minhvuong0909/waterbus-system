@@ -1,5 +1,7 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using WaterbusSystem.Application.Common.Models;
 using WaterbusSystem.Application.DTOs.Requests.CheckIns;
 using WaterbusSystem.Application.DTOs.Responses.CheckIns;
 using WaterbusSystem.Application.Interfaces.Services;
@@ -53,6 +55,20 @@ public class CheckInsController(ICheckInService checkInService) : BaseApiControl
     [Authorize(Policy = "StaffOnly")]
     public async Task<ActionResult<IReadOnlyList<MyScannerAssignmentResponse>>> GetMyScannerAssignments() =>
         Ok(await checkInService.GetMyScannerAssignmentsAsync(HttpContext.RequestAborted));
+
+    /// <summary>Admin chọn nhân viên Staff đang hoạt động để phân công.</summary>
+    [HttpGet("assignments/staff")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult<PaginatedList<ScannerStaffResponse>>> ListScannerStaff(
+        [FromQuery, Range(1, 1000000)] int pageNumber = 1, [FromQuery, Range(1, 100)] int pageSize = 50) =>
+        Ok(await checkInService.ListScannerStaffAsync(pageNumber, pageSize, HttpContext.RequestAborted));
+
+    /// <summary>Admin xem phân công hiện hành và sắp tới tại một điểm dừng.</summary>
+    [HttpGet("assignments/stops/{tripStopCallId:guid}")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult<PaginatedList<ScannerAssignmentAdminResponse>>> ListScannerAssignments(
+        Guid tripStopCallId, [FromQuery, Range(1, 1000000)] int pageNumber = 1, [FromQuery, Range(1, 100)] int pageSize = 50) =>
+        Ok(await checkInService.ListScannerAssignmentsAsync(tripStopCallId, pageNumber, pageSize, HttpContext.RequestAborted));
 
     /// <summary>
     /// Admin phân công thiết bị quét + Staff cho một điểm dừng.

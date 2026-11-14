@@ -1,3 +1,6 @@
 export { useDocumentTitle } from './useDocumentTitle'
 export { combineFetches, useFetch } from './useFetch'
+export { useNow } from './useNow'
 export { usePrefersReducedMotion } from './usePrefersReducedMotion'
+export { useReload } from './useReload'
+export { useSubmit } from './useSubmit'
