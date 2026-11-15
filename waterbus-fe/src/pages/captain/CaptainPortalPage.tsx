@@ -60,13 +60,18 @@ export default function CaptainPortalPage() {
   const boatIds = [...new Set((trips.data ?? []).map((x) => x.boatId).filter(Boolean))]
   useFleetHub({ onTripStatus: reload, onReconnected: reload }, boatIds.length > 0, boatIds)
 
-  if (trips.error) return <ErrorState onRetry={trips.retry} />
-  if (!trips.data) return <PageLoader />
-
-  const open = trips.data.filter((x) => isUpcomingOrRunning(x.status))
+  const open = (trips.data ?? []).filter((x) => isUpcomingOrRunning(x.status))
   // Default to the trip on the river, otherwise the next one.
   const trip: AdminTrip | undefined =
     open.find((x) => x.id === selectedId) ?? open.find((x) => x.status === 'EnRoute') ?? open[0]
+
+  const narrating = audioOverride ?? trip?.tripType === 'Sightseeing'
+
+  // Quản lý phát âm thanh buồng lái tự động theo hành trình tàu (gọi trên đầu theo chuẩn Rules of Hooks)
+  const { isPlaying, nowPlaying } = useCockpitAudio({ trip, narrating })
+
+  if (trips.error) return <ErrorState onRetry={trips.retry} />
+  if (!trips.data) return <PageLoader />
 
   if (!trip) {
     return (
@@ -82,10 +87,6 @@ export default function CaptainPortalPage() {
     if (done) reload()
     return Boolean(done)
   }
-  const narrating = audioOverride ?? trip.tripType === 'Sightseeing'
-
-  // Quản lý phát âm thanh buồng lái tự động theo hành trình tàu
-  const { isPlaying, nowPlaying } = useCockpitAudio({ trip, narrating })
 
   return (
     <div className="space-y-4">
