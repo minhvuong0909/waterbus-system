@@ -17,11 +17,14 @@ import type { LiveBoatPosition } from '../types'
 export interface StopAnnouncementEvent {
   tripId: string
   tripType: string
-  eventType: 'departing' | 'near' | 'arrived'
+  boatId?: string
+  stationId?: string
+  type?: 'departing' | 'near' | 'arrived'
+  eventType?: 'departing' | 'near' | 'arrived'
   stationName: string
   nextStationName?: string | null
-  message: string
-  timestamp: string
+  message?: string
+  timestamp?: string
 }
 
 interface FleetHubHandlers {

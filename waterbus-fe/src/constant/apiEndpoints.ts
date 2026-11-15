@@ -130,12 +130,19 @@ export const API_ENDPOINTS = {
     /** Closes an open incident without changing any trip (Admin). */
     resolve: (id: string) => `/api/v1/incidents/${id}/resolve`,
   },
+  onboardAudio: {
+    state: '/api/v1/onboard-audio/state',
+    audio: (requestId: string) => `/api/v1/onboard-audio/requests/${requestId}/audio`,
+    accept: (requestId: string) => `/api/v1/onboard-audio/requests/${requestId}/accept`,
+    stateReport: (requestId: string) => `/api/v1/onboard-audio/requests/${requestId}/state`,
+  },
 } as const
 
 /** SignalR hubs (see docs/REALTIME_CONTRACT.md). */
 export const HUBS = {
   boatTracking: '/hubs/boat-tracking',
   seatSync: '/hubs/seat-sync',
+  onboardAudio: '/hubs/onboard-audio',
 } as const
 
 /** Event names the hubs push to the browser. */
@@ -148,4 +155,7 @@ export const HUB_EVENTS = {
   seatHeld: 'seatHeld',
   seatReleased: 'seatReleased',
   seatSold: 'seatSold',
+  audioTrigger: 'audioTrigger',
+  audioControl: 'audioControl',
+  audioState: 'audioState',
 } as const
