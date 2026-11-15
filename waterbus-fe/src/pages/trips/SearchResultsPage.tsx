@@ -32,15 +32,15 @@ export default function SearchResultsPage() {
   const roundTrip = isRoundTrip(outboundQuery)
   // `?leg=return`: the return-trip step of a round trip; the same page lists the trips back.
   const leg: Leg = roundTrip && searchParams.get('leg') === 'return' ? 'return' : 'outbound'
+  // `?type=sightseeing` (from the Explore page) lists the sightseeing tours only; each runs its whole route.
+  const sightseeingOnly = searchParams.get('type') === 'sightseeing'
   const { query, updateQuery, piers, dates: allDates, counts, trips, searching, loading, error, retry, chooseTrip } =
-    useSearchResults(leg)
+    useSearchResults(leg, sightseeingOnly)
   // The way back can only be on the outbound day or later.
   const dates = useMemo(
     () => (leg === 'return' ? allDates?.filter((d) => d.id >= outboundQuery.dateId) : allDates),
     [leg, allDates, outboundQuery.dateId],
   )
-  // `?type=sightseeing` (from the Explore page) lists the sightseeing trips only.
-  const sightseeingOnly = searchParams.get('type') === 'sightseeing'
   const [sort, setSort] = useState<SortKey>('time')
 
   // Vào trang khi hôm nay đã hết chuyến thì chuyển sang ngày gần nhất còn chuyến (một lần).
@@ -221,7 +221,7 @@ export default function SearchResultsPage() {
             ) : (
               <div className="rounded-2xl border border-dashed border-outline-variant bg-white p-space-xl text-center">
                 <p className="font-semibold text-deep-river">
-                  {sightseeingOnly && trips.length > 0
+                  {sightseeingOnly
                     ? t('No sightseeing trips on this day.')
                     : t('No departures on this day.')}
                 </p>

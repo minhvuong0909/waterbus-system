@@ -129,6 +129,11 @@ export interface Trip {
   amenities: AmenityChip[]
   fareVnd: number
   fareLabel: string
+  /**
+   * Chuyến ngắm cảnh chạy trọn hành trình (BR-ROUTE-05): bến lên là điểm đầu, bến xuống là điểm cuối, kể cả khi hai
+   * bến là một (chuyến vòng, BR-ROUTE-06). Chuyến thường không có trường này.
+   */
+  tour?: { originId: string; destinationId: string; originName: string; destinationName: string }
 }
 
 export interface TimelineStep {
@@ -190,6 +195,8 @@ export interface TripDto {
   availableSeatsCount: number
   canBook?: boolean
   salesState?: string
+  /** Điểm dừng của chuyến theo thứ tự (`orderIndex` = thứ tự ghé). */
+  stops?: { stationId: string; stationName: string; orderIndex: number }[]
 }
 
 /** BE `TripType`. */

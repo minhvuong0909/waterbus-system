@@ -226,3 +226,13 @@ describe('withOwnHold', () => {
     expect(withOwnHold(map, null, 't1', now)).toBe(map)
   })
 })
+
+describe('buildHoldRequest for a sightseeing tour', () => {
+  it('names the stations of the stops the seat map was read for, not the searched piers', () => {
+    const { legs } = buildHoldRequest({
+      tripId: 't', originId: 'searched-from', destinationId: 'searched-to', seatIds: ['s1'],
+      journey: { boardingStationId: 'tour-first', disembarkingStationId: 'tour-last', boardingCallId: 'c1', disembarkingCallId: 'c4', boardingVisitOrder: 1, disembarkingVisitOrder: 4 },
+    })
+    expect(legs[0]).toMatchObject({ boardingStationId: 'tour-first', disembarkingStationId: 'tour-last' })
+  })
+})

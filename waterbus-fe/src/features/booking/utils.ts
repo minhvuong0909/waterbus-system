@@ -138,8 +138,8 @@ export function buildHoldRequest(input: HoldInput | HoldInput[]): CreateHoldRequ
     legs: legs.map(({ tripId, originId, destinationId, seatIds, journey }) => ({
       tripId,
       seatIds,
-      boardingStationId: originId,
-      disembarkingStationId: destinationId,
+      boardingStationId: journey?.boardingStationId ?? originId,
+      disembarkingStationId: journey?.disembarkingStationId ?? destinationId,
       boardingCallId: journey?.boardingCallId,
       disembarkingCallId: journey?.disembarkingCallId,
     })),
@@ -250,12 +250,14 @@ export function withOwnHold(
 }
 
 /** Maps the backend seat map of one journey segment to the seat map the pages use. */
-export function toSeatMap(dto: TripSeatMapDto, detail: Pick<TripDetailDto, 'boat'>): SeatMap {
+export function toSeatMap(dto: TripSeatMapDto, detail: Pick<TripDetailDto, 'boat'> & Partial<Pick<TripDetailDto, 'stops'>>): SeatMap {
   return {
     vesselName: detail.boat?.name ?? '',
     seats: dto.seats.map(toSeat),
     canBook: dto.canBook,
     journey: {
+      boardingStationId: detail.stops?.find((stop) => stop.callId === dto.boardingCallId)?.stationId,
+      disembarkingStationId: detail.stops?.find((stop) => stop.callId === dto.disembarkingCallId)?.stationId,
       boardingCallId: dto.boardingCallId,
       disembarkingCallId: dto.disembarkingCallId,
       boardingVisitOrder: dto.boardingVisitOrder,
