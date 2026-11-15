@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { ErrorState, SelectField, TextField } from '../../../components/ui'
+import { ErrorState, SelectField, TextField, Notice } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { toVietnamDate } from '../../../utils/time'
 import { useFetch, useSubmit } from '../../../hooks'
@@ -15,9 +15,9 @@ import FormActions from './FormActions'
 import ScheduleStopsEditor from './ScheduleStopsEditor'
 
 /**
- * Adds a schedule or edits one. A schedule belongs to one route and one direction for good; its
- * trip type follows the service of the route. Once it has produced trips (`structureLocked`) its
- * stops are fixed (BR-SCH-06) and only the times, days and validity can change.
+ * Thêm hoặc sửa một lịch chạy. Lịch chạy gắn cố định với một tuyến và một chiều; loại chuyến theo loại dịch vụ của
+ * tuyến. Khi đã sinh chuyến (`structureLocked`) thì bến dừng cố định (BR-SCH-06), chỉ đổi được giờ, ngày chạy và
+ * thời hạn.
  */
 export default function ScheduleForm({
   schedule,
@@ -38,7 +38,7 @@ export default function ScheduleForm({
     effectiveTo: schedule?.effectiveTo ?? '',
   })
   const [days, setDays] = useState(() => (schedule ? parseDays(schedule.daysOfWeek) : [1, 2, 3, 4, 5, 6, 7]))
-  // Only the stops the admin touched; untouched ones keep the schedule's values (or the defaults).
+  // Chỉ các bến Admin đã sửa; bến chưa đụng tới giữ giá trị của lịch chạy (hoặc mặc định).
   const [edits, setEdits] = useState<Record<string, StopEdit>>({})
   const [showErrors, setShowErrors] = useState(false)
   const { run, busy, error } = useSubmit()
@@ -49,7 +49,7 @@ export default function ScheduleForm({
   if (route.error) return <ErrorState compact onRetry={route.retry} />
 
   const locked = schedule?.structureLocked ?? false
-  // Until the chosen route has loaded there are no stops to show.
+  // Khi tuyến đã chọn chưa tải xong thì chưa có bến để hiện.
   const rows = buildStopRows(
     route.data?.id === form.routeId ? route.data.stops : [],
     form.direction,
@@ -152,9 +152,10 @@ export default function ScheduleForm({
         </p>
       )}
       {locked && (
-        <p className="rounded-lg bg-mist px-3 py-2 text-sm text-on-surface-variant">
-          {t('This schedule has already produced trips, so its stops are fixed. Add a new schedule to change them.')}
-        </p>
+        <Notice tone="info">
+          {t('This schedule has already produced trips, so its stops are fixed. Add a new schedule to change them.')}{' '}
+          {t('Changes to the time, days or validity only apply to trips created afterwards.')}
+        </Notice>
       )}
       <FormActions error={error} busy={busy} disabled={!route.data} onCancel={onCancel} />
     </form>

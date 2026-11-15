@@ -48,6 +48,15 @@ export const vi: Record<string, string> = {
   'Boat': 'Tàu',
   'Boats': 'Tàu',
   'Boats on the river': 'Tàu đang trên sông',
+  'Boats in service': 'Tàu đang phục vụ',
+  'The code cannot be changed after the station is created.': 'Không đổi được mã sau khi đã tạo bến.',
+  'Open on the map': 'Mở trên bản đồ',
+  '{name} already has river order {order}.': '{name} đã có thứ tự {order} dọc sông.',
+  '{count} open alerts': '{count} cảnh báo đang mở',
+  'Review alerts': 'Xem các cảnh báo',
+  'No position yet': 'Chưa có vị trí',
+  '{count} without a signal': '{count} tàu không có tín hiệu',
+  'No boat is on a trip right now.': 'Hiện không có tàu nào đang chạy chuyến.',
   'Built': 'Đóng',
   'Cancel': 'Hủy',
   'Cancel trip': 'Hủy chuyến',
@@ -740,12 +749,19 @@ export const vi: Record<string, string> = {
   'No active route to watch.': 'Không có tuyến nào đang hoạt động.',
   'Seat fares ({count} seats)': 'Giá vé ({count} ghế)',
   'Seat fare': 'Giá vé',
-  'Fares from (VND)': 'Giá từ (VND)',
+  'Past departure time': 'Quá giờ khởi hành',
+  'All routes': 'Tất cả tuyến',
+  'All boats': 'Tất cả tàu',
   'Deactivate': 'Ngừng hoạt động',
   'Deactivate station': 'Ngừng hoạt động bến',
   'Deactivate boat': 'Ngừng hoạt động tàu',
-  'Deactivate {name}? Passengers will no longer see this station.': 'Ngừng hoạt động {name}? Bến sẽ không còn được hiển thị cho khách.',
-  'Deactivate {name}? The boat will no longer be listed as active.': 'Ngừng hoạt động {name}? Tàu sẽ không còn trong danh sách đang hoạt động.',
+  'Deactivate {name}? Trips already assigned to this boat are not changed; assign another boat on the Trips page if it can no longer sail.': 'Ngừng hoạt động {name}? Các chuyến đã gán tàu này không tự đổi; nếu tàu không chạy được nữa, hãy gán tàu khác ở trang Chuyến đi.',
+  'Edit boat': 'Sửa tàu',
+  'The code cannot be changed after the boat is created.': 'Không đổi được mã sau khi đã tạo tàu.',
+  'The boat already has {count} active seats. Deactivate some seats first.': 'Tàu đang có {count} ghế hoạt động. Hãy ngừng bớt ghế trước.',
+  'No seats set up yet, so trips on this boat cannot be sold.': 'Tàu chưa thiết lập ghế nên chuyến dùng tàu này chưa bán được.',
+  'No seats yet': 'Chưa có ghế',
+  'Seats set up / declared capacity': 'Ghế đã thiết lập / sức chứa khai báo',
   'These details were sent with your order and can no longer be edited here.': 'Thông tin này đã gửi kèm đơn hàng nên không sửa trực tiếp được.',
   'Edit details': 'Sửa thông tin',
   'No trip selected yet': 'Bạn chưa chọn chuyến',
@@ -798,9 +814,11 @@ export const vi: Record<string, string> = {
   "Review assignment": "Xem lại phân công",
   "Confirm assignment": "Xác nhận phân công",
   "Confirm revoke": "Xác nhận thu hồi",
-  "Revoke assignment {id} for scanner {code}?": "Thu hồi phân công {id} của máy quét {code}?",
+  "Revoke {staff} on scanner {code}?": "Thu hồi phân công của {staff} trên máy quét {code}?",
   "The server may have saved the change. Check the refreshed assignments before trying again.": "Máy chủ có thể đã lưu thay đổi. Kiểm tra danh sách phân công sau khi tải lại trước khi thử lại.",
-  "Created assignment {id}.": "Đã tạo phân công {id}.",
+  "Assignment created.": "Đã tạo phân công.",
+  "Close at departure": "Đóng lúc tàu rời bến",
+  "Assign scanners": "Phân công soát vé",
   "Current and upcoming assignments": "Phân công hiện tại và sắp tới",
   "No current or upcoming assignments at this stop.": "Bến này chưa có phân công hiện tại hoặc sắp tới.",
   "Staff account unavailable": "Không tìm thấy tài khoản Staff",
@@ -881,6 +899,8 @@ export const vi: Record<string, string> = {
   'e.g. VNPay refund batch of 12 Nov': 'VD: đợt hoàn VNPay ngày 12/11',
   'Applied to every selected refund.': 'Áp dụng cho mọi khoản đã chọn.',
   'Confirm {count} as refunded': 'Xác nhận đã hoàn {count} khoản',
+  'Yes, staff have refunded them': 'Đúng, nhân viên đã hoàn xong',
+  'This emails {count} buyers that their refund is on the way and cannot be undone.': 'Hệ thống sẽ gửi email cho {count} người mua rằng tiền hoàn đang về và không hoàn tác được.',
   'Confirm at most 100 refunds at a time.': 'Mỗi lần xác nhận tối đa 100 khoản.',
   'Confirmed {confirmed}, failed {failed}.': 'Đã xác nhận {confirmed}, lỗi {failed}.',
   // Vé của tôi / link quản lý vé (BR-ID-02)
@@ -1029,11 +1049,10 @@ export const vi: Record<string, string> = {
   'The boarding QR stays with the person who booked. Board together with them.':
     'Mã QR lên tàu do người đặt vé giữ. Hãy lên tàu cùng họ.',
   // Bộ lọc dùng chung cho các trang danh sách Admin
-  'Clear filters': 'Xoá bộ lọc',
   'All statuses': 'Mọi trạng thái',
   'All types': 'Mọi loại',
-  'Active only': 'Chỉ đang hoạt động',
-  'Inactive only': 'Chỉ đã ngừng',
+  'Active only': 'Đang hoạt động',
+  'Inactive only': 'Đã ngừng',
   'Search': 'Tìm kiếm',
   'Search by name or code': 'Tìm theo tên hoặc mã',
 
@@ -1056,16 +1075,22 @@ export const vi: Record<string, string> = {
   'Cabin classes of the fleet. Each seat belongs to one class, and fares are set per class.':
     'Các hạng khoang của đội tàu. Mỗi ghế thuộc một hạng, và giá vé đặt theo hạng.',
   'Optional. Shown to staff only.': 'Không bắt buộc. Chỉ nhân viên nhìn thấy.',
-  'Deactivate {name}? New seats and fares can no longer use this class.':
-    'Ngừng {name}? Ghế và giá vé mới sẽ không dùng được hạng này nữa.',
+  'Deactivate {name}? New seats and fares can no longer use this class. This is refused while one of its seats is booked or held on an unfinished trip.':
+    'Ngừng {name}? Ghế và giá vé mới sẽ không dùng được hạng này. Hệ thống từ chối nếu còn ghế của hạng này đang được đặt hoặc giữ trên chuyến chưa kết thúc.',
+  'Seats in fleet': 'Ghế trên đội tàu',
+  'These seats still belong to a switched-off class. Change their class on the boat seats page.': 'Các ghế này vẫn thuộc hạng đã ngừng. Hãy đổi hạng ở trang ghế của tàu.',
+  'Seats of this class across all boats, including switched-off seats.': 'Số ghế của hạng này trên mọi tàu, kể cả ghế đã tắt.',
   'Boat seats': 'Ghế của tàu',
   'Add seats': 'Thêm ghế',
   'Edit seat': 'Sửa ghế',
   '{total} seats active': '{total} ghế đang hoạt động',
   '{count} seats': '{count} ghế',
-  'No seats yet': 'Chưa có ghế',
-  'Seat plan incomplete': 'Sơ đồ ghế chưa đủ',
-  'Seat plan complete': 'Sơ đồ ghế đã đủ',
+  'Fewer seats than capacity': 'Chưa tạo đủ ghế so với sức chứa',
+  'Seats match capacity': 'Đã đủ ghế theo sức chứa',
+  'Boat switched off': 'Tàu đã ngừng',
+  '{count} seats ({off} switched off)': '{count} ghế ({off} đã tắt)',
+  'Create a seat class first, then add seats.': 'Hãy tạo hạng ghế trước, rồi mới thêm ghế.',
+  'All {total} seats of the declared capacity are set up. Raise the capacity on the Boats page to add more.': 'Đã tạo đủ {total} ghế theo sức chứa khai báo. Muốn thêm, hãy tăng sức chứa ở trang Tàu.',
   'This boat has no seats yet. Add its seats so trips on it can be sold.':
     'Tàu này chưa có ghế. Hãy thêm ghế để bán được vé cho các chuyến của tàu.',
   'No boat chosen': 'Chưa chọn tàu',
@@ -1099,13 +1124,16 @@ export const vi: Record<string, string> = {
   'Price (VND)': 'Giá (VND)',
   'Leave empty for no end.': 'Để trống nếu không có ngày kết thúc.',
   'Choose a seat class.': 'Hãy chọn hạng ghế.',
-  'Enter a price in VND.': 'Nhập giá bằng VND.',
   'Choose when the fare starts.': 'Hãy chọn thời điểm giá bắt đầu áp dụng.',
   'The end must be after the start.': 'Thời điểm kết thúc phải sau thời điểm bắt đầu.',
   'This fare is already in effect: only its end can be brought forward. To change the price, add a new fare.':
     'Giá này đã có hiệu lực: chỉ có thể kết thúc sớm hơn. Muốn đổi giá, hãy thêm giá vé mới.',
-  'Deactivate the {type} fare for {seatClass}? It cannot be switched back on; add a new fare instead.':
-    'Ngừng giá {type} của hạng {seatClass}? Giá đã ngừng không bật lại được; khi cần hãy thêm giá vé mới.',
+  'Deactivate the {type} fare for {seatClass}? It cannot be switched back on; add a new fare instead. If it is the only fare in effect for this seat class, that class can no longer be sold.':
+    'Ngừng giá {type} của hạng {seatClass}? Giá đã ngừng không bật lại được; khi cần hãy thêm giá vé mới. Nếu đây là giá đang áp dụng duy nhất của hạng ghế này thì hạng đó sẽ không bán được.',
+  'No fare in effect for: {list}. These cannot be sold until a fare is added.': 'Chưa có giá đang áp dụng cho: {list}. Các hạng này chưa bán được cho đến khi thêm giá vé.',
+  'This fare is in effect: its end can only be brought earlier.': 'Giá đang áp dụng: chỉ được đưa ngày kết thúc sớm hơn.',
+  'Can only be brought earlier.': 'Chỉ được đưa sớm hơn.',
+  'Enter a price in VND, with at most 2 decimals.': 'Nhập giá bằng VND, tối đa 2 chữ số thập phân.',
   'The stations a boat calls at, in order. Schedules and trips are built on a route.':
     'Các bến tàu ghé theo thứ tự. Lịch chạy và chuyến được tạo trên một tuyến.',
   'Add route': 'Thêm tuyến',
@@ -1124,16 +1152,22 @@ export const vi: Record<string, string> = {
   'Choose a station for every stop.': 'Hãy chọn bến cho mọi điểm dừng.',
   'Schedules or trips already use this route, so its service and stops are fixed. Add a new route to change them.':
     'Tuyến đã có lịch chạy hoặc chuyến nên không đổi được dịch vụ và điểm dừng. Muốn đổi, hãy thêm tuyến mới.',
-  'Deactivate {name}? No new schedule or trip can use this route.':
-    'Ngừng {name}? Lịch chạy và chuyến mới sẽ không dùng được tuyến này.',
+  'Deactivate {name}? No new schedule or trip can use this route. This is refused while an active schedule or an unfinished trip still uses it.':
+    'Ngừng {name}? Lịch chạy và chuyến mới sẽ không dùng được tuyến này. Hệ thống từ chối nếu còn lịch chạy đang hoạt động hoặc chuyến chưa kết thúc.',
+  'Route stops': 'Các bến dừng của tuyến',
+  'A regular route must end at a different station than it starts.': 'Tuyến thường phải kết thúc ở bến khác bến xuất phát.',
+  'A regular route calls at each station only once.': 'Tuyến thường chỉ ghé mỗi bến một lần.',
+  'Every station is already on this route. A regular route calls at each station once.': 'Tuyến đã có đủ mọi bến. Tuyến thường chỉ ghé mỗi bến một lần.',
+  'View stops': 'Xem các bến dừng',
+  'View stops of {name}': 'Xem các bến dừng của {name}',
+  'Use suggested name: {name}': 'Dùng tên gợi ý: {name}',
+  'The route details were saved, but the stops were not changed: {reason}': 'Thông tin tuyến đã lưu, nhưng các bến dừng chưa được đổi: {reason}',
   'Station of stop {number}': 'Bến của điểm dừng {number}',
   'Choose a station': 'Chọn bến',
   'Move up': 'Chuyển lên',
   'Move down': 'Chuyển xuống',
   'Remove stop': 'Bỏ điểm dừng',
   'Add stop': 'Thêm điểm dừng',
-  'Passengers board': 'Khách lên tàu',
-  'Passengers get off': 'Khách xuống tàu',
   'When each route runs. Create the trips of a schedule for the days you want to sell.':
     'Giờ chạy của từng tuyến. Hãy tạo chuyến từ lịch cho những ngày muốn mở bán.',
   'Add schedule': 'Thêm lịch chạy',
@@ -1177,6 +1211,8 @@ export const vi: Record<string, string> = {
   'Minutes until departure from {station}': 'Số phút rời {station}',
   'This schedule has already produced trips, so its stops are fixed. Add a new schedule to change them.':
     'Lịch này đã sinh chuyến nên không đổi được điểm dừng. Muốn đổi, hãy thêm lịch chạy mới.',
+  'Changes to the time, days or validity only apply to trips created afterwards.': 'Thay đổi giờ, ngày chạy hay thời hạn chỉ áp dụng cho chuyến tạo sau này; chuyến đã tạo giữ nguyên.',
+  'Activate the schedule to create trips.': 'Hãy bật lại lịch chạy để tạo chuyến.',
   'Deactivate the {time} schedule of {route}? No new trips are created from it; trips already created stay.':
     'Ngừng lịch {time} của tuyến {route}? Sẽ không tạo thêm chuyến từ lịch này; các chuyến đã tạo vẫn giữ nguyên.',
   'Create trips': 'Tạo chuyến',
@@ -1205,4 +1241,112 @@ export const vi: Record<string, string> = {
     'Ghế đã bán được chuyển sang đúng ghế đó trên tàu mới.',
   'Boat changed. {count} sold seats were moved to the new boat.':
     'Đã đổi tàu. {count} ghế đã bán được chuyển sang tàu mới.',
+  // Admin P0: sự cố, chuyến, đối soát hoàn tiền.
+  '{count} selected':
+    'Đã chọn {count}',
+  'Waiting for a decision ({count})':
+    'Chờ quyết định ({count})',
+  'Decide for the selected trips':
+    'Quyết định cho các chuyến đã chọn',
+  'Already decided ({count})':
+    'Đã quyết định ({count})',
+  'No trip is linked to this alert.':
+    'Cảnh báo này chưa gắn với chuyến nào.',
+  'Hide trips':
+    'Ẩn danh sách chuyến',
+  'Show {count} trips':
+    'Xem {count} chuyến',
+  'Done for {count} trips.':
+    'Đã xử lý {count} chuyến.',
+  '{count} trips were not changed:':
+    '{count} chuyến không đổi được:',
+  '{count} trips selected.':
+    'Đã chọn {count} chuyến.',
+  '{action} for {count} trips':
+    '{action} {count} chuyến',
+  'Payment arrived after the order had expired':
+    'Tiền về sau khi đơn đã hết hạn',
+  'Refund {amount} paid at {time}.':
+    'Hoàn {amount} đã thanh toán lúc {time}.',
+  'Checking…':
+    'Đang kiểm tra…',
+  'Refund already requested':
+    'Đã có lệnh hoàn',
+  'No booking to refund':
+    'Không có booking để hoàn',
+  'Payments that arrived after their order expired, and gateway refunds still waiting for a result.':
+    'Tiền về sau khi đơn đã hết hạn, và lệnh hoàn qua cổng chưa có kết quả.',
+  'Needs reconciling':
+    'Cần đối soát',
+  'Refund a late payment':
+    'Hoàn khoản tiền về muộn',
+  'Late payment':
+    'Tiền về muộn',
+  'Refund in progress':
+    'Lệnh hoàn đang xử lý',
+  'To answer a weather alert for this trip, decide on the Incidents page so the decision is recorded against the alert.':
+    'Nếu chuyến đang có cảnh báo thời tiết, hãy quyết định ở trang Sự cố để quyết định được ghi vào cảnh báo đó.',
+  'Seven days of trips: assign a boat, then hold, resume, cancel or close a trip. A trip is on sale once it has a boat.':
+    'Các chuyến trong 7 ngày: gán tàu, tạm hoãn, tiếp tục, hủy hoặc đóng chuyến. Chuyến chỉ mở bán khi đã có tàu.',
+  'Trip actions':
+    'Thao tác chuyến',
+  'By':
+    'Người thực hiện',
+  'Decide for each affected trip. An alert never changes a trip by itself; routine trip operations are on the Trips page.':
+    'Quyết định cho từng chuyến bị ảnh hưởng. Cảnh báo không tự đổi trạng thái chuyến; thao tác thường ngày của chuyến nằm ở trang Chuyến.',
+  '{alerts} open alerts': '{alerts} cảnh báo đang mở',
+  '{count} trips waiting for a decision': '{count} chuyến chờ quyết định',
+  // Admin P1: sidebar theo nhóm, việc cần xử lý, tab hoàn tiền.
+  'Catalogue':
+    'Danh mục',
+  'Finance':
+    'Tài chính',
+  'Content':
+    'Nội dung',
+  'Needs your attention':
+    'Cần xử lý',
+  'Nothing is waiting for you.':
+    'Không có việc nào đang chờ bạn.',
+  'Decide':
+    'Quyết định',
+  'Assign boats':
+    'Gán tàu',
+  'Reconcile':
+    'Đối soát',
+  'Open refunds':
+    'Mở hoàn tiền',
+  '{count} trips are waiting for your decision on an alert':
+    '{count} chuyến đang chờ bạn quyết định theo cảnh báo',
+  '{count} trips are suspended and need a decision':
+    '{count} chuyến đang tạm ngưng, cần bạn quyết định',
+  'Review trips':
+    'Xem chuyến',
+  '{count} trips awaiting your decision':
+    '{count} chuyến chờ bạn quyết định',
+  '{count} trips have no boat and are not on sale':
+    '{count} chuyến chưa có tàu nên chưa mở bán',
+  '{count} payments or refunds need reconciling':
+    '{count} khoản thanh toán hoặc hoàn tiền cần đối soát',
+  '{count} refunds are waiting for staff':
+    '{count} khoản hoàn đang chờ nhân viên',
+  '1. Request for a trip':
+    '1. Tạo yêu cầu theo chuyến',
+  '2. Refund and confirm':
+    '2. Hoàn và xác nhận',
+  'Request refunds for a cancelled or terminated trip, hand them to staff with the CSV, then confirm with evidence.':
+    'Tạo yêu cầu hoàn cho chuyến bị huỷ hoặc chấm dứt, giao nhân viên hoàn theo file CSV, rồi xác nhận kèm bằng chứng.',
+  'Refund steps':
+    'Các bước hoàn tiền',
+  'No boat (not on sale)':
+    'Chưa có tàu (chưa mở bán)',
+  // Admin P2: hệ thống thiết kế.
+  '{from}–{to} of {total}':
+    '{from}–{to} / {total}',
+  'Per page':
+    'Mỗi trang',
+  'Write what the boat says at each landmark, pick a voice, listen to it and publish it.':
+    'Viết lời thuyết minh cho từng địa danh, chọn giọng, nghe thử rồi xuất bản.',
+  'This landmark is not on any sightseeing route yet, so its audio will not be played.': 'Địa danh này chưa thuộc tuyến ngắm cảnh nào nên audio sẽ không được phát.',
+  'Publishing replaces the current audio of this landmark straight away and cannot be undone.': 'Xuất bản sẽ thay audio hiện tại của địa danh này ngay lập tức và không hoàn tác được.',
+  'Publish and replace current audio': 'Xuất bản và thay audio hiện tại',
 }

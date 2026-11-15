@@ -21,8 +21,8 @@ type Dialog =
   | null
 
 /**
- * The days a schedule is valid for. A schedule saved without a start carries the backend's
- * minimum date (year 1), which is shown as having no start rather than as a date.
+ * Các ngày lịch chạy còn hiệu lực. Lịch lưu không có ngày bắt đầu sẽ mang ngày nhỏ nhất của backend (năm 1), hiển
+ * thị là không có ngày bắt đầu chứ không phải một ngày.
  */
 function validity({ effectiveFrom, effectiveTo }: ScheduleListItem): string {
   const to = effectiveTo ? formatLongDate(effectiveTo) : null
@@ -31,7 +31,7 @@ function validity({ effectiveFrom, effectiveTo }: ScheduleListItem): string {
   return to ? `${from} – ${to}` : t('From {date}', { date: from })
 }
 
-/** Schedules: when a route runs. Trips are created from a schedule for a range of days. */
+/** Lịch chạy: khi nào một tuyến chạy. Chuyến được tạo từ lịch chạy cho một khoảng ngày. */
 export default function SchedulesPage() {
   useDocumentTitle('Schedules')
   const [version, reload] = useReload()
@@ -51,11 +51,6 @@ export default function SchedulesPage() {
     reload()
   }
 
-  const hasFilters = routeFilter !== '' || status !== ''
-  const resetFilters = () => {
-    setRouteFilter('')
-    setStatus('')
-  }
   const filteredSchedules = schedules.data.filter(
     (s) =>
       (routeFilter === '' || s.routeId === routeFilter) &&
@@ -67,7 +62,7 @@ export default function SchedulesPage() {
     new Map(schedules.data.map((s) => [s.routeId, s.routeName])).entries(),
   ).sort((a, b) => a[1].localeCompare(b[1]))
 
-  // The list has no stops, so the editor opens on the full schedule.
+  // Danh sách không kèm bến dừng nên trình sửa mở trên lịch chạy đầy đủ.
   const edit = async (id: string) => {
     const schedule = await action.run(() => getSchedule(id))
     if (schedule) setDialog({ kind: 'form', schedule })
@@ -85,29 +80,33 @@ export default function SchedulesPage() {
         <>
           <div className="font-semibold">{s.routeName}</div>
           <div className="text-xs text-on-surface-variant">
-            <span className="font-mono">{s.routeCode}</span> · {t(s.direction)} ·{' '}
+            <span className="font-mono">{s.routeCode}</span> ·{' '}
+            {s.direction === 'Inbound' && <>{t(s.direction)} · </>}
             {t('{count} stops', { count: s.stopCount })}
           </div>
         </>
       ),
     },
     { header: 'Days', render: (s) => daysLabel(s.daysOfWeek), className: 'whitespace-nowrap' },
-    {
-      header: 'Valid',
-      className: 'whitespace-nowrap',
-      render: validity,
-    },
+    // Chỉ hiện khi có lịch bị giới hạn thời hạn; còn lại cột toàn "Không giới hạn" chỉ làm bảng rối.
+    ...(schedules.data.some((s) => s.effectiveTo || !s.effectiveFrom.startsWith('0001') )
+      ? [{ header: 'Valid', className: 'whitespace-nowrap', render: validity } satisfies Column<ScheduleListItem>]
+      : []),
     { header: 'Status', render: (s) => <ActiveBadge active={s.isActive} /> },
     {
       header: 'Actions',
       className: 'text-right',
       render: (s) => (
         <span className="inline-flex gap-1">
-          {s.isActive && (
-            <Button size="sm" variant="secondary" onClick={() => setDialog({ kind: 'generate', schedule: s })}>
-              {t('Create trips')}
-            </Button>
-          )}
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!s.isActive}
+            title={s.isActive ? undefined : t('Activate the schedule to create trips.')}
+            onClick={() => setDialog({ kind: 'generate', schedule: s })}
+          >
+            {t('Create trips')}
+          </Button>
           <Button size="sm" variant="neutral" icon="edit" disabled={action.busy} onClick={() => edit(s.id)}>
             {t('Edit')}
           </Button>
@@ -145,7 +144,7 @@ export default function SchedulesPage() {
           <Notice tone="error">{action.error}</Notice>
         </div>
       )}
-      <FilterBar onReset={hasFilters ? resetFilters : undefined}>
+      <FilterBar>
         <SearchSelect label="Route" value={routeFilter} onChange={setRouteFilter} options={[
           { value: '', label: t('All') }, ...routeOptions.map(([value, label]) => ({ value, label })),
         ]} />

@@ -1,7 +1,7 @@
 import { Button, Notice } from '../../../components/ui'
 import { t } from '../../../i18n'
 
-/** Foot of an admin form: the server's refusal, if any, then Cancel and the submit button. */
+/** Chân form quản trị: lý do server từ chối (nếu có), rồi nút Huỷ và nút gửi. */
 export default function FormActions({
   error,
   busy,

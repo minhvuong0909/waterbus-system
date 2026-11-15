@@ -18,8 +18,8 @@ type Dialog = { kind: 'add' } | { kind: 'seat'; seat: BoatSeat } | null
 
 const STATE_BADGE: Record<BoatSeatInventory['state'], { tone: BadgeTone; label: string }> = {
   NotConfigured: { tone: 'muted', label: 'No seats yet' },
-  Partial: { tone: 'upcoming', label: 'Seat plan incomplete' },
-  Complete: { tone: 'active', label: 'Seat plan complete' },
+  Partial: { tone: 'muted', label: 'Fewer seats than capacity' },
+  Complete: { tone: 'active', label: 'Seats match capacity' },
 }
 
 function BoatSeats({ boatId }: { boatId: string }) {
@@ -62,14 +62,26 @@ function BoatSeats({ boatId }: { boatId: string }) {
         }
       />
 
+      {(room <= 0 || seatClasses.data.length === 0) && (
+        <p className="mb-3 text-sm text-on-surface-variant">
+          {seatClasses.data.length === 0
+            ? t('Create a seat class first, then add seats.')
+            : t('All {total} seats of the declared capacity are set up. Raise the capacity on the Boats page to add more.', {
+                total: totalSeats,
+              })}
+        </p>
+      )}
       <Panel>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-surface-container pb-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-outline-variant/30 pb-4">
           <p className="text-sm text-on-surface-variant">
             <span className="font-display text-2xl font-bold text-deep-river">{activeSeats}</span>
             {' / '}
             {t('{total} seats active', { total: totalSeats })}
           </p>
-          <StatusBadge {...STATE_BADGE[state]} />
+          <span className="flex flex-wrap items-center gap-2">
+            {!boat.data.isActive && <StatusBadge tone="muted" label="Boat switched off" />}
+            <StatusBadge {...STATE_BADGE[state]} />
+          </span>
         </div>
         {seats.length === 0 ? (
           <p className="py-6 text-center text-sm text-on-surface-variant">
@@ -105,7 +117,7 @@ function BoatSeats({ boatId }: { boatId: string }) {
   )
 }
 
-/** Seat plan of one boat (`?boatId=`), opened from the Boats page. */
+/** Sơ đồ ghế của một tàu (`?boatId=`), mở từ trang Tàu. */
 export default function BoatSeatsPage() {
   useDocumentTitle('Boat seats')
   const boatId = useSearchParams()[0].get('boatId')

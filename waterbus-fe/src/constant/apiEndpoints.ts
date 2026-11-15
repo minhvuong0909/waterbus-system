@@ -99,6 +99,8 @@ export const API_ENDPOINTS = {
     /** Admin: xác nhận đã hoàn tay khi cổng thanh toán không hoàn được. */
     confirmManual: '/api/v1/refunds/confirm-manual',
     reconcile: (refundId: string) => `/api/v1/refunds/${refundId}/reconcile`,
+    /** Admin: tiền về muộn/xung đột kết quả và lệnh hoàn VNPay còn Processing cần đối soát (chỉ đọc, phân trang). */
+    reconciliationRequired: '/api/v1/refunds/reconciliation-required',
     /** Admin: Booking của một chuyến bị huỷ/chấm dứt cần hoàn (chỉ đọc, phân trang). */
     candidates: '/api/v1/refunds/candidates',
     /** Admin: tạo yêu cầu hoàn cho mọi Booking đủ điều kiện của một chuyến. */

@@ -2,7 +2,7 @@ import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
 import type { NarrationPoi, NarrationVoice } from '../utils/audioGuide'
 
-/** Response of `POST /texttospeech/generate` (BE `SynthesizeAudioDto`). */
+/** Phản hồi của `POST /texttospeech/generate` (BE `SynthesizeAudioDto`). */
 export interface GeneratedNarration {
   audioUrl: string
   assetKey: string
@@ -12,7 +12,7 @@ export interface GeneratedNarration {
   voiceName: string
 }
 
-/** Turns a Vietnamese script into an MP3 with Azure TTS; the file is kept in private Blob storage. */
+/** Chuyển kịch bản tiếng Việt thành MP3 bằng Azure TTS; file lưu trong Blob storage riêng tư. */
 export function generateNarration(text: string, voiceName: NarrationVoice): Promise<GeneratedNarration> {
   return apiRequest<GeneratedNarration>(API_ENDPOINTS.textToSpeech.generate, {
     method: 'POST',
@@ -20,7 +20,7 @@ export function generateNarration(text: string, voiceName: NarrationVoice): Prom
   })
 }
 
-/** The MP3 of a generated narration, read through the backend because the Blob container is private. */
+/** MP3 của một bài thuyết minh đã tạo, đọc qua backend vì Blob container là riêng tư. */
 export function fetchNarrationAudio(assetKey: string): Promise<Blob> {
   return apiRequest<Blob>(API_ENDPOINTS.textToSpeech.audio, { query: { assetKey }, responseType: 'blob' })
 }
@@ -34,7 +34,7 @@ interface PoisPage {
 
 const POIS_PAGE_SIZE = 50
 
-/** `GET /audioguides/pois`: every POI, reading all pages. */
+/** `GET /audioguides/pois`: mọi POI, đọc hết các trang. */
 export async function getNarrationPois(): Promise<NarrationPoi[]> {
   const pois: NarrationPoi[] = []
   for (let page = 1; ; page++) {
@@ -46,7 +46,7 @@ export async function getNarrationPois(): Promise<NarrationPoi[]> {
   }
 }
 
-/** Response of `POST /audioguides/publish` (BE `PublishedAudioGuideResponse`). */
+/** Phản hồi của `POST /audioguides/publish` (BE `PublishedAudioGuideResponse`). */
 export interface PublishedNarration {
   audioGuideId: string
   poiId: string
@@ -56,7 +56,7 @@ export interface PublishedNarration {
   isPublished: boolean
 }
 
-/** Links a generated narration (its Blob `audioUrl`) to a POI and publishes it. */
+/** Gắn bài thuyết minh đã tạo (`audioUrl` trên Blob) vào một POI và xuất bản. */
 export function publishNarration(poiId: string, narration: GeneratedNarration): Promise<PublishedNarration> {
   return apiRequest<PublishedNarration>(API_ENDPOINTS.audioGuides.publish, {
     method: 'POST',

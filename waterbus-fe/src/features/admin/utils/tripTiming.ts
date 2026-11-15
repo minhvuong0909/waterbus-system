@@ -1,6 +1,6 @@
 import { t } from '../../../i18n'
 
-/** The two optional marks of a new trip, as typed: minutes before its departure. */
+/** Hai mốc tuỳ chọn của chuyến mới, như Admin nhập: số phút trước giờ khởi hành. */
 export interface TripTiming {
   salesClose: string
   checkInOpen: string
@@ -23,8 +23,8 @@ export function timingErrors(timing: TripTiming) {
 const minutesOrNull = (value: string) => (value.trim() ? Number(value) : null)
 
 /**
- * The marks as the trip-planning requests take them. Left empty, sales close at the departure
- * (BR-TIME-01) and the check-in opening is set later per stop (BR-CFG-01).
+ * Các mốc ở dạng request lập chuyến cần. Để trống thì đóng bán đúng giờ khởi hành (BR-TIME-01) và giờ mở check-in
+ * được đặt sau theo từng bến (BR-CFG-01).
  */
 export const toTimingInput = (timing: TripTiming) => ({
   salesCloseMinutesBeforeDeparture: minutesOrNull(timing.salesClose),

@@ -1,13 +1,13 @@
 import { t } from '../../../i18n'
 
-/** ISO weekdays as the backend stores them: 1 = Monday … 7 = Sunday. */
+/** Thứ trong tuần theo ISO như backend lưu: 1 = thứ Hai … 7 = Chủ nhật. */
 export const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 7] as const
 
 const DAY_NAME = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
 export const dayName = (day: number): string => t(DAY_NAME[day - 1])
 
-/** "1,2,5" → [1, 2, 5]; anything that is not an ISO weekday is dropped. */
+/** "1,2,5" → [1, 2, 5]; giá trị không phải thứ ISO bị bỏ. */
 export function parseDays(daysOfWeek: string): number[] {
   return daysOfWeek
     .split(',')
@@ -16,11 +16,11 @@ export function parseDays(daysOfWeek: string): number[] {
     .sort((a, b) => a - b)
 }
 
-/** [5, 1, 2] → "1,2,5": sorted and without repeats, as `DaysOfWeek` expects. */
+/** [5, 1, 2] → "1,2,5": đã sắp xếp và bỏ trùng, đúng dạng `DaysOfWeek` cần. */
 export const formatDays = (days: number[]): string =>
   [...new Set(days)].sort((a, b) => a - b).join(',')
 
-/** Operating days in words: "Every day", a range such as "Mon – Fri", or the days listed. */
+/** Ngày chạy bằng chữ: "Hằng ngày", một khoảng như "T2 – T6", hoặc liệt kê từng ngày. */
 export function daysLabel(daysOfWeek: string): string {
   const days = parseDays(daysOfWeek)
   if (days.length === 7) return t('Every day')

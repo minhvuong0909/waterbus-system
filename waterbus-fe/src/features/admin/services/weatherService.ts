@@ -1,10 +1,10 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
 
-/** Same thresholds as the weather check: Caution = Medium alert, Danger = High alert. */
+/** Cùng ngưỡng với lượt kiểm tra thời tiết: Caution = cảnh báo Medium, Danger = cảnh báo High. */
 export type RouteWeatherStatus = 'Normal' | 'Caution' | 'Danger' | 'Unknown'
 
-/** `GET /incidents/weather-now` item (BE `RouteWeatherDto`). Wind speeds are in m/s. */
+/** Một mục của `GET /incidents/weather-now` (BE `RouteWeatherDto`). Tốc độ gió tính bằng m/s. */
 export interface RouteWeather {
   routeId: string
   routeCode: string
@@ -19,10 +19,10 @@ export interface RouteWeather {
   pointsFailed: number
 }
 
-/** Weather now on each active route, worst pier first per route; never creates an alert. */
+/** Thời tiết hiện tại trên từng tuyến đang hoạt động, bến xấu nhất của mỗi tuyến; không bao giờ tạo cảnh báo. */
 export function getCurrentWeather(): Promise<RouteWeather[]> {
   return apiRequest<RouteWeather[]>(API_ENDPOINTS.incidents.weatherNow)
 }
 
-/** m/s → km/h, one decimal, as the weather alerts show it. */
+/** m/s → km/h, một chữ số thập phân, giống cách cảnh báo thời tiết hiển thị. */
 export const toKmh = (ms: number) => Math.round(ms * 3.6 * 10) / 10

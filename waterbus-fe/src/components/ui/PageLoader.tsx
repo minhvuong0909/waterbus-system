@@ -1,4 +1,4 @@
-import { t } from '../../i18n' /** Placeholder shown while a page's data (or code chunk) loads. Keeps the layout from jumping. */
+import { t } from '../../i18n' /** Khung giữ chỗ trong lúc tải dữ liệu (hoặc chunk code) của trang, để bố cục không bị nhảy. */
 export default function PageLoader() {
   return (
     <div

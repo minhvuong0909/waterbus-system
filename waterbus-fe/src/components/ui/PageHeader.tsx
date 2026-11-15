@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { t } from '../../i18n'
 
-/** Title of a back-office page, with an optional description and actions on the right. */
+/** Tiêu đề trang quản trị, kèm mô tả và nút bên phải (tuỳ chọn). */
 export default function PageHeader({
   title,
   description,

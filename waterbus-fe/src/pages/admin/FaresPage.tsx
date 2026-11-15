@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DataTable, ErrorState, FilterBar, FilterChips, Modal, PageHeader, PageLoader, SearchSelect } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterBar, FilterChips, Modal, Notice, PageHeader, PageLoader, SearchSelect } from '../../components/ui'
 import type { Column } from '../../components/ui'
 import ConfirmModal from '../../features/admin/components/ConfirmModal'
 import FareRuleForm from '../../features/admin/components/FareRuleForm'
@@ -22,12 +22,12 @@ const STATUS_BADGE: Record<FareRule['status'], { tone: BadgeTone; label: string 
   Inactive: { tone: 'muted', label: 'Switched off' },
 }
 
-/** Fares run for months, so their start and end are shown with the year. */
+/** Giá vé áp dụng nhiều tháng nên ngày bắt đầu và kết thúc hiện kèm năm. */
 const moment = (iso: string) => `${formatLongDate(iso)}, ${formatClock(new Date(iso))}`
 
 const tripTypeLabel = (rule: FareRule) => t(rule.tripType === 'Commuter' ? 'Regular' : 'Sightseeing')
 
-/** Fare rules (BR-FARE-01): one price per trip type and seat class, whichever piers are travelled. */
+/** Quy tắc giá (BR-FARE-01): một giá cho mỗi loại chuyến và hạng ghế, đi bến nào cũng vậy. */
 export default function FaresPage() {
   useDocumentTitle('Fares')
   const [version, reload] = useReload()
@@ -47,12 +47,6 @@ export default function FaresPage() {
     reload()
   }
 
-  const hasFilters = tripType !== '' || seatClassId !== '' || status !== ''
-  const resetFilters = () => {
-    setTripType('')
-    setSeatClassId('')
-    setStatus('')
-  }
   const filteredRules = rules.data.filter(
     (f) =>
       (tripType === '' || f.tripType === tripType) &&
@@ -64,6 +58,15 @@ export default function FaresPage() {
   const seatClassOptions = Array.from(
     new Map(rules.data.map((f) => [f.seatClassId, f.seatClassName])).entries(),
   ).sort((a, b) => a[1].localeCompare(b[1]))
+
+  // Hạng ghế đang hoạt động chưa có giá đang áp dụng cho một loại chuyến thì không bán được (tìm chuyến và sơ đồ ghế ẩn).
+  const allRules = rules.data
+  const activeClasses = seatClasses.data
+  const unpriced = (['Commuter', 'Sightseeing'] as const).flatMap((type) =>
+    activeClasses
+      .filter((c) => !allRules.some((f) => f.tripType === type && f.seatClassId === c.id && f.status === 'Active'))
+      .map((c) => `${t(type === 'Commuter' ? 'Regular' : 'Sightseeing')} · ${c.name}`),
+  )
 
   const columns: Column<FareRule>[] = [
     { header: 'Trip type', render: tripTypeLabel },
@@ -81,7 +84,7 @@ export default function FaresPage() {
       header: 'Actions',
       className: 'text-right',
       render: (f) =>
-        f.isActive && (
+        f.isActive && f.status !== 'Expired' && (
           <span className="inline-flex gap-1">
             <Button size="sm" variant="neutral" icon="edit" onClick={() => setDialog({ kind: 'form', rule: f })}>
               {t('Edit')}
@@ -110,7 +113,14 @@ export default function FaresPage() {
           </Button>
         }
       />
-      <FilterBar onReset={hasFilters ? resetFilters : undefined}>
+      {unpriced.length > 0 && (
+        <div className="mb-3">
+          <Notice tone="warning">
+            {t('No fare in effect for: {list}. These cannot be sold until a fare is added.', { list: unpriced.join('; ') })}
+          </Notice>
+        </div>
+      )}
+      <FilterBar>
         <FilterChips label="Trip type" value={tripType} onChange={setTripType} options={[
           { value: '', label: 'All types' }, { value: 'Commuter', label: 'Regular' }, { value: 'Sightseeing', label: 'Sightseeing' },
         ]} />
@@ -136,7 +146,7 @@ export default function FaresPage() {
       {dialog?.kind === 'deactivate' && (
         <ConfirmModal
           title="Deactivate fare"
-          message={t('Deactivate the {type} fare for {seatClass}? It cannot be switched back on; add a new fare instead.', {
+          message={t('Deactivate the {type} fare for {seatClass}? It cannot be switched back on; add a new fare instead. If it is the only fare in effect for this seat class, that class can no longer be sold.', {
             type: tripTypeLabel(dialog.rule),
             seatClass: dialog.rule.seatClassName,
           })}

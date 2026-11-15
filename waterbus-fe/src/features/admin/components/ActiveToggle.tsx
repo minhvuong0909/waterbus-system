@@ -1,7 +1,7 @@
 import { Button } from '../../../components/ui'
 import { t } from '../../../i18n'
 
-/** Row action that switches a catalogue item off (after a confirmation by the caller) or back on. */
+/** Thao tác trên dòng: tắt một mục danh mục (sau khi nơi gọi đã hỏi lại) hoặc bật lại. */
 export default function ActiveToggle({
   active,
   busy,

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { SelectField, TextField } from '../../../components/ui'
+import { SelectField, TextField, Notice } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { useSubmit } from '../../../hooks'
 import { buildSeatBatch, seatCode } from '../utils/seatBatch'
@@ -8,7 +8,7 @@ import { addBoatSeats } from '../services/boatSeatService'
 import type { SeatClass } from '../types'
 import FormActions from './FormActions'
 
-/** The backend takes at most this many seats in one request. */
+/** Số ghế tối đa backend nhận trong một lần gửi. */
 const MAX_BATCH = 200
 
 const wholeNumber = (value: string, min: number, max: number) => {
@@ -17,8 +17,8 @@ const wholeNumber = (value: string, min: number, max: number) => {
 }
 
 /**
- * Adds a run of seats of one class, numbered in sequence and laid out row by row. `room` is how
- * many more active seats the boat can take (its total seats minus the active ones).
+ * Thêm một loạt ghế cùng hạng, đánh số liên tiếp và xếp theo từng hàng. `room` là số ghế đang hoạt động tàu còn
+ * nhận thêm được (tổng ghế trừ ghế đang hoạt động).
  */
 export default function AddSeatsForm({
   boatId,
@@ -100,7 +100,7 @@ export default function AddSeatsForm({
         <TextField label="First row" inputMode="numeric" value={form.firstRow} onChange={set('firstRow')} error={shown.firstRow} />
         <TextField label="Seats per row" inputMode="numeric" value={form.seatsPerRow} onChange={set('seatsPerRow')} error={shown.seatsPerRow} />
       </div>
-      <p className="rounded-lg bg-mist px-3 py-2 text-sm text-on-surface-variant">
+      <Notice tone="info">
         {valid
           ? count === 1
             ? t('Adds seat {code}.', { code: seatCode(prefix, first) })
@@ -109,7 +109,7 @@ export default function AddSeatsForm({
                 last: seatCode(prefix, first + count - 1),
               })
           : t('This boat has room for {count} more active seats.', { count: room })}
-      </p>
+      </Notice>
       <FormActions error={error} busy={busy} submitLabel="Add seats" onCancel={onCancel} />
     </form>
   )

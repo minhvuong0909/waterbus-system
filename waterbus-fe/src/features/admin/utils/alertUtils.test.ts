@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { alertMetrics, alertNote, decisionOperation, pendingCountOf, sortAlerts, timeAgo } from './alertUtils'
-import type { WeatherAlert } from '../../operations/types'
+import { alertMetrics, alertNote, commonDecisions, decisionOperation, pendingCountOf, sortAlerts, timeAgo } from './alertUtils'
+import type { OperationType, WeatherAlert } from '../../operations/types'
 
 const REAL =
   'Cảnh báo thời tiết tuyến RT01: trời quang, gió 43,2 km/h, gió giật 68,4 km/h. ' +
@@ -73,5 +73,21 @@ describe('decisionOperation', () => {
     expect(decisionOperation('Suspend')).toBe('Suspend')
     expect(decisionOperation('Cancel')).toBe('Cancel')
     expect(decisionOperation('Whatever')).toBeNull()
+  })
+})
+
+describe('commonDecisions', () => {
+  it('offers only what every selected trip allows, plus no action', () => {
+    const scheduled = { allowedOperations: ['Suspend', 'Cancel'] as OperationType[] }
+    const sailing = { allowedOperations: ['Suspend', 'Terminate'] as OperationType[] }
+    expect(commonDecisions([scheduled, sailing])).toEqual(['Suspend', 'NoAction'])
+  })
+
+  it('never offers routine operations such as resume', () => {
+    expect(commonDecisions([{ allowedOperations: ['Resume', 'Cancel'] }])).toEqual(['Cancel', 'NoAction'])
+  })
+
+  it('offers nothing when no trip is selected', () => {
+    expect(commonDecisions([])).toEqual([])
   })
 })

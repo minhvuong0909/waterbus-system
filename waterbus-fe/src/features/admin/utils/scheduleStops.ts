@@ -1,7 +1,7 @@
 import { t } from '../../../i18n'
 import type { RouteStop, ScheduleDirection, ScheduleStopInput } from '../types'
 
-/** One stop of the route as a form edits it; the offsets are the minutes the admin typed. */
+/** Một bến của tuyến như form đang sửa; độ lệch là số phút Admin nhập. */
 export interface ScheduleStopRow {
   routeStopId: string
   stationName: string
@@ -10,7 +10,7 @@ export interface ScheduleStopRow {
   departure: string
 }
 
-/** What the admin changed on one stop, keyed by route stop in the form state. */
+/** Những gì Admin đã đổi ở một bến, theo khoá bến của tuyến trong state của form. */
 export type StopEdit = Pick<ScheduleStopRow, 'included' | 'arrival' | 'departure'>
 
 const minutes = (value: number | null) => (value === null ? '' : String(value))
@@ -21,9 +21,9 @@ const isOffset = (value: string) => {
 }
 
 /**
- * The stops of a route in travel order, ready to edit. The route lists its stops outbound, so an
- * inbound run goes through them backwards. `saved` are the stops of the schedule being edited:
- * route stops it does not serve start unticked. Without `saved` every stop starts ticked and empty.
+ * Các bến của tuyến theo thứ tự đi, sẵn sàng để sửa. Tuyến liệt kê bến theo chiều đi, nên chiều về đi ngược lại.
+ * `saved` là các bến của lịch đang sửa: bến của tuyến mà lịch không phục vụ thì bắt đầu ở trạng thái bỏ chọn. Không
+ * có `saved` thì mọi bến đều được chọn và để trống.
  */
 export function buildStopRows(
   routeStops: RouteStop[],
@@ -47,8 +47,8 @@ export function buildStopRows(
 }
 
 /**
- * The rows as the stops the backend expects (BR-STOP-01): only the served stops, in order. The
- * first leaves at the departure time (offset 0), the last only arrives, the others do both.
+ * Các dòng ở dạng bến dừng backend cần (BR-STOP-01): chỉ bến được phục vụ, theo thứ tự. Bến đầu rời đúng giờ khởi
+ * hành (lệch 0), bến cuối chỉ có giờ đến, các bến giữa có cả hai.
  */
 export function toStopInputs(rows: ScheduleStopRow[]): ScheduleStopInput[] {
   const served = rows.filter((row) => row.included)
@@ -59,7 +59,7 @@ export function toStopInputs(rows: ScheduleStopRow[]): ScheduleStopInput[] {
   }))
 }
 
-/** Why the stops cannot be sent yet, or undefined when at least two are served and all are timed. */
+/** Lý do chưa gửi được bến dừng, hoặc undefined khi có ít nhất hai bến được phục vụ và tất cả đã có giờ. */
 export function stopRowsError(rows: ScheduleStopRow[]): string | undefined {
   const served = rows.filter((row) => row.included)
   if (served.length < 2) return t('At least two stops must be served.')
