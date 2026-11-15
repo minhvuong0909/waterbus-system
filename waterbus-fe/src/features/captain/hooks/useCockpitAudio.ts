@@ -60,7 +60,8 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
 
   const currentAudioRef = useRef<HTMLAudioElement | null>(null)
   const onboardHubConnectionRef = useRef<HubConnection | null>(null)
-  const boatTrackingConnectionRef = useRef<HubConnection | null>(null)
+  const lastAnnouncementRef = useRef<{ key: string; at: number } | null>(null)
+  const isStationAnnouncingRef = useRef(false)
 
   const tripRef = useRef(trip)
   useEffect(() => {
@@ -69,10 +70,13 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
     if (trip?.status !== 'EnRoute') {
       stopCurrentAudio()
       if (currentAudioRef.current) {
-        currentAudioRef.current.pause()
-        currentAudioRef.current.currentTime = 0
+        try {
+          currentAudioRef.current.pause()
+          currentAudioRef.current.currentTime = 0
+        } catch {}
         currentAudioRef.current = null
       }
+      isStationAnnouncingRef.current = false
       setIsPlaying(false)
       setNowPlaying(null)
     }
@@ -84,10 +88,13 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
   }, [narrating])
 
   const stopAll = useCallback(() => {
+    isStationAnnouncingRef.current = false
     stopCurrentAudio()
     if (currentAudioRef.current) {
-      currentAudioRef.current.pause()
-      currentAudioRef.current.currentTime = 0
+      try {
+        currentAudioRef.current.pause()
+        currentAudioRef.current.currentTime = 0
+      } catch {}
       currentAudioRef.current = null
     }
     setIsPlaying(false)
@@ -97,6 +104,12 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
   // Phát audio file MP3 (thuyết minh du lịch POI)
   const playPoiAudio = useCallback(
     async (message: AudioTriggerMessage) => {
+      // Thông báo trạm bến an toàn có quyền ưu tiên cao nhất: nếu đang thông báo trạm bến thì không phát đè POI
+      if (isStationAnnouncingRef.current) {
+        console.log(`[Cockpit Audio] Đang phát thông báo trạm bến, bỏ qua thuyết minh POI: ${message.poiName}`)
+        return
+      }
+
       stopAll()
       const item: CockpitNowPlaying = {
         type: 'poi',
@@ -117,6 +130,12 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
 
         const blob = await apiRequest<Blob>(message.playbackPath, { responseType: 'blob' })
         const blobUrl = URL.createObjectURL(blob)
+
+        // Kiểm tra lại nếu trong lúc tải blob mà có thông báo trạm bến phát ra thì hủy ngay
+        if (isStationAnnouncingRef.current) {
+          URL.revokeObjectURL(blobUrl)
+          return
+        }
 
         if (onboardHubConnectionRef.current) {
           try {
@@ -183,6 +202,15 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
       if (event.tripId && event.tripId !== currentTrip.id) return
       if (event.boatId && currentTrip.boatId && event.boatId !== currentTrip.boatId) return
 
+      // Khử trùng sự kiện: cùng loại sự kiện của cùng bến trong vòng 4 giây -> bỏ qua (chống 2 loa phát cùng lúc)
+      const eventKey = `${event.tripId}-${event.type ?? event.eventType}-${event.stationName}`
+      const now = Date.now()
+      if (lastAnnouncementRef.current?.key === eventKey && now - lastAnnouncementRef.current.at < 4000) {
+        console.log(`[Cockpit Audio] Bỏ qua sự kiện trạm trùng lặp: ${eventKey}`)
+        return
+      }
+      lastAnnouncementRef.current = { key: eventKey, at: now }
+
       const sentence = getAnnouncementSentence(event)
       const label =
         event.type === 'departing'
@@ -192,6 +220,10 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
             : 'Cập bến'
 
       console.log(`[Cockpit Audio] Nhận sự kiện (${label}): ${event.stationName} -> Đang phát câu: "${sentence}"`)
+
+      // Dừng ngay mọi âm thanh khác (kể cả POI du lịch) để ưu tiên thông báo an toàn hành trình
+      stopAll()
+      isStationAnnouncingRef.current = true
 
       const item: CockpitNowPlaying = {
         type: 'station',
@@ -205,11 +237,12 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
 
       // Azure TTS Hoài My (Nữ miền Nam tự nhiên, chuẩn tiếng Việt Saigon Waterbus)
       void playAzureAnnouncement(sentence, 'vi-VN-HoaiMyNeural', 0.95, () => {
+        isStationAnnouncingRef.current = false
         setIsPlaying(false)
         setNowPlaying(null)
       })
     },
-    [],
+    [stopAll],
   )
 
   // Kết nối OnboardAudioHub để nhận sự kiện POI thuyết minh du lịch
@@ -242,40 +275,6 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
       stopAll()
     }
   }, [playPoiAudio, stopAll])
-
-  // Lắng nghe StopAnnouncement trên BoatTrackingHub & tự động JoinBoat khi boatId có/thay đổi
-  useEffect(() => {
-    const unsub = connectHub(HUBS.boatTracking, {
-      handlers: {
-        [HUB_EVENTS.stopAnnouncement]: handleStopAnnouncement,
-        [HUB_EVENTS.boatPosition]: () => {},
-        [HUB_EVENTS.tripStatusChanged]: () => {},
-      },
-      onConnected: async (connection) => {
-        boatTrackingConnectionRef.current = connection
-        const boatId = tripRef.current?.boatId
-        if (boatId) {
-          try {
-            await connection.invoke('JoinBoat', boatId)
-          } catch {}
-        }
-      },
-    })
-
-    return () => {
-      unsub()
-      boatTrackingConnectionRef.current = null
-    }
-  }, [handleStopAnnouncement])
-
-  // Đảm bảo luôn gia nhập group Boat khi trip.boatId xuất hiện hoặc thay đổi
-  useEffect(() => {
-    const boatId = trip?.boatId
-    const conn = boatTrackingConnectionRef.current
-    if (conn && boatId && conn.state === 'Connected') {
-      void conn.invoke('JoinBoat', boatId).catch(() => {})
-    }
-  }, [trip?.boatId])
 
   return { isPlaying, nowPlaying, stopAll, handleStopAnnouncement }
 }

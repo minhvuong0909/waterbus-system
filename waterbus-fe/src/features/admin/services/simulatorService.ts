@@ -25,22 +25,36 @@ export async function updateSimulatorConfig(payload: StopAnnouncementConfig): Pr
 
 const ttsCache = new Map<string, string>()
 let currentAudio: HTMLAudioElement | null = null
+let currentAudioEpoch = 0
+let lastSpokenText = ''
+let lastSpokenTime = 0
 
-/** Dừng âm thanh đang phát (cả Azure Audio lẫn SpeechSynthesis fallback). */
-export function stopCurrentAudio(): void {
+function pauseCurrentMedia(): void {
   if (currentAudio) {
-    currentAudio.pause()
-    currentAudio.currentTime = 0
+    try {
+      currentAudio.pause()
+      currentAudio.currentTime = 0
+      currentAudio.src = ''
+    } catch {}
     currentAudio = null
   }
   if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel()
+    try {
+      window.speechSynthesis.cancel()
+    } catch {}
   }
+}
+
+/** Dừng âm thanh đang phát (cả Azure Audio lẫn SpeechSynthesis fallback). */
+export function stopCurrentAudio(): void {
+  currentAudioEpoch++
+  pauseCurrentMedia()
 }
 
 /**
  * Phát âm thanh giọng đọc tiếng Việt Azure Neural Voice (Hoài My / Nam Minh) từ Azure Speech API.
  * Có bộ nhớ đệm (cache) để các câu thông báo bến lặp lại phát tức thì.
+ * Đảm bảo chỉ 1 âm thanh duy nhất được phát tại một thời điểm (chống race condition & 2 loa phát cùng lúc).
  */
 export async function playAzureAnnouncement(
   text: string,
@@ -48,17 +62,35 @@ export async function playAzureAnnouncement(
   volume = 1,
   onEnded?: () => void,
 ): Promise<void> {
-  try {
-    stopCurrentAudio()
+  const now = Date.now()
+  // Khử trùng: nếu cùng một nội dung được yêu cầu phát lại trong vòng 3.5 giây -> bỏ qua
+  if (text === lastSpokenText && now - lastSpokenTime < 3500) {
+    console.log(`[TTS] Bỏ qua câu phát trùng lặp: "${text}"`)
+    return
+  }
+  lastSpokenText = text
+  lastSpokenTime = now
 
+  // Đánh dấu phiên phát mới, dừng ngay âm thanh cũ
+  stopCurrentAudio()
+  const thisEpoch = currentAudioEpoch
+
+  try {
     let audioUrl = ttsCache.get(text)
     if (!audioUrl) {
       const generated = await generateNarration(text, voice)
+      if (thisEpoch !== currentAudioEpoch) return
+
       const blob = await fetchNarrationAudio(generated.assetKey)
+      if (thisEpoch !== currentAudioEpoch) return
+
       audioUrl = URL.createObjectURL(blob)
       ttsCache.set(text, audioUrl)
     }
 
+    if (thisEpoch !== currentAudioEpoch) return
+
+    pauseCurrentMedia()
     const audio = new Audio(audioUrl)
     audio.volume = Math.max(0, Math.min(1, volume))
     currentAudio = audio
@@ -74,6 +106,7 @@ export async function playAzureAnnouncement(
 
     await audio.play()
   } catch (error) {
+    if (thisEpoch !== currentAudioEpoch) return
     console.warn('[TTS] Lỗi phát Azure TTS, fallback sang Web Speech nếu khả dụng', error)
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel()
@@ -83,8 +116,12 @@ export async function playAzureAnnouncement(
       const viVoice = voices.find((v) => v.lang.startsWith('vi') || v.name.includes('Vietnamese'))
       if (viVoice) u.voice = viVoice
       u.lang = 'vi-VN'
-      u.onend = () => onEnded?.()
-      u.onerror = () => onEnded?.()
+      u.onend = () => {
+        if (thisEpoch === currentAudioEpoch) onEnded?.()
+      }
+      u.onerror = () => {
+        if (thisEpoch === currentAudioEpoch) onEnded?.()
+      }
       window.speechSynthesis.speak(u)
     } else {
       onEnded?.()
