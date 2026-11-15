@@ -124,6 +124,8 @@ export const API_ENDPOINTS = {
     operationEvents: '/api/v1/trips/operations/events',
     status: (tripId: string) => `/api/v1/trips/${tripId}/status`,
     sos: (tripId: string) => `/api/v1/trips/${tripId}/sos`,
+    /** Captain: xem điểm danh của chuyến thuộc tàu mình; chỉ Admin được ghi nhận. */
+    captainAttendance: (tripId: string) => `/api/v1/trips/${tripId}/captain-attendance`,
   },
   tracking: {
     /** Latest position of every active boat (Admin). */
