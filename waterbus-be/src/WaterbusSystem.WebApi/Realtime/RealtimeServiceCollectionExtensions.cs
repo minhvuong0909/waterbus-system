@@ -18,6 +18,9 @@ public static class RealtimeServiceCollectionExtensions
         services.AddSingleton<ISeatEventPublisher, SignalRSeatEventPublisher>();
         services.AddSingleton<IOperationsAlertPublisher, SignalROperationsAlertPublisher>();
 
+        // Stop Announcement: báo gần bến / đã tới bến cho MỌI loại chuyến (Commuter + Sightseeing)
+        services.AddSingleton<IStopAnnouncementPublisher, SignalRStopAnnouncementPublisher>();
+
         // Onboard Player (audio Sightseeing): registry in-process + dispatcher thật thay cho LogOnly mặc định của Infrastructure.
         services.AddSingleton<OnboardPlayerRegistry>();
         services.AddSingleton<IOnboardPlayerRegistry>(sp => sp.GetRequiredService<OnboardPlayerRegistry>());
@@ -34,3 +37,4 @@ public static class RealtimeServiceCollectionExtensions
         return endpoints;
     }
 }
+

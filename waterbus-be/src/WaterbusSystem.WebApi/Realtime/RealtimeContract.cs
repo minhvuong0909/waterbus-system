@@ -33,5 +33,8 @@ public static class RealtimeContract
         public const string AudioTrigger = "audioTrigger";
         public const string AudioControl = "audioControl";
         public const string AudioState = "audioState";
+
+        /// <summary>Báo hiệu bến: "near" (gần tới) hoặc "arrived" (đã tới). Phát tới group trip và boat.</summary>
+        public const string StopAnnouncement = "stopAnnouncement";
     }
 }
