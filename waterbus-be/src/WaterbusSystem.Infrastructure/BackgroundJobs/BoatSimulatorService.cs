@@ -153,7 +153,8 @@ public class BoatSimulatorService : BackgroundService
 
                     lat = Math.Round((decimal)point.Latitude, 7);
                     lng = Math.Round((decimal)point.Longitude, 7);
-                    speed = Math.Round((decimal)RoutePathInterpolator.AverageSpeedKnots(path, TimeSpan.FromSeconds(totalCycleTime)), 2);
+                    // Khi tua nhanh mô phỏng đoạn demo, hiển thị tốc độ vận hành thực tế của Saigon Waterbus (~12.5 hải lý/giờ ~ 23.2 km/h)
+                    speed = 12.5m;
                 }
                 else
                 {
@@ -177,7 +178,7 @@ public class BoatSimulatorService : BackgroundService
 
                 lat = Math.Round((decimal)point.Latitude, 7);
                 lng = Math.Round((decimal)point.Longitude, 7);
-                speed = Math.Round((decimal)RoutePathInterpolator.AverageSpeedKnots(path, duration), 2);
+                speed = Math.Round((decimal)Math.Min(50.0, RoutePathInterpolator.AverageSpeedKnots(path, duration)), 2);
 
                 int segmentCount = trip.Stops.Count - 1;
                 double scaled = fraction * segmentCount;
