@@ -18,7 +18,7 @@ export default function ExplorePage() {
 
   return (
     <Reveal>
-      <ExploreHero />
+      <ExploreHero landmarks={data.landmarks} />
       <SightseeingDeparturesSection
         departures={departures.data}
         error={Boolean(departures.error)}
