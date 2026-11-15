@@ -27,15 +27,20 @@ export default function SightseeingDeparturesSection({
   if (departures?.length === 0 && !error) return null
 
   return (
-    <section className="bg-surface pt-space-3xl">
+    <section className="border-b border-outline-variant/30 bg-white py-16 sm:py-20">
       <div className={SECTION}>
-        <div className="mb-space-lg flex flex-col justify-between gap-space-sm md:flex-row md:items-end">
-          <h2 className="font-display text-headline-lg tracking-tight text-deep-river">
-            {t('Upcoming sightseeing trips')}
-          </h2>
+        <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-teal-flow">
+              {t('Make the river your next destination')}
+            </p>
+            <h2 className="font-display text-3xl font-bold tracking-tight text-deep-river sm:text-4xl">
+              {t('Upcoming sightseeing trips')}
+            </h2>
+          </div>
           <Link
             to={SIGHTSEEING_RESULTS}
-            className="tap-area inline-flex items-center gap-0.5 text-sm font-bold text-teal-flow hover:underline"
+            className="tap-area inline-flex min-h-11 items-center gap-1 self-start text-sm font-bold text-teal-flow hover:underline md:self-auto"
           >
             {t('View the full timetable')}
             <Icon name="chevron_right" className="text-base" />
@@ -45,7 +50,7 @@ export default function SightseeingDeparturesSection({
         {error ? (
           <ErrorState compact onRetry={onRetry} />
         ) : !departures ? (
-          <div aria-hidden className="grid grid-cols-1 gap-space-sm md:grid-cols-2">
+          <div aria-hidden className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {[0, 1].map((i) => (
               <div
                 key={i}
@@ -54,7 +59,7 @@ export default function SightseeingDeparturesSection({
             ))}
           </div>
         ) : (
-          <div data-reveal className="grid grid-cols-1 gap-space-sm md:grid-cols-2">
+          <div data-reveal className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {departures.map(({ departure, search }) => (
               <DepartureCard
                 key={departure.id}

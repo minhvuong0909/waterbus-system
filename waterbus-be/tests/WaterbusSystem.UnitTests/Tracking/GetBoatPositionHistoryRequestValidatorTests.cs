@@ -22,4 +22,19 @@ public class GetBoatPositionHistoryRequestValidatorTests
     [Fact]
     public void RangeLongerThanSevenDays_ShouldFail() =>
         _validator.Validate(new GetBoatPositionHistoryRequest(Guid.NewGuid(), Now.AddDays(-8), Now)).IsValid.Should().BeFalse();
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(604800, true)]
+    [InlineData(604801, false)]
+    public void RangeBoundary_ShouldRetainSevenDayLimit(int seconds, bool valid) =>
+        _validator.Validate(new GetBoatPositionHistoryRequest(Guid.NewGuid(), Now, Now.AddSeconds(seconds)))
+            .IsValid.Should().Be(valid);
+
+    [Theory]
+    [InlineData(0, 100)]
+    [InlineData(1, 501)]
+    public void InvalidPaging_ShouldStillFail(int page, int size) =>
+        _validator.Validate(new GetBoatPositionHistoryRequest(Guid.NewGuid(), Now.AddHours(-1), Now, page, size))
+            .IsValid.Should().BeFalse();
 }

@@ -291,4 +291,23 @@ public sealed class CheckoutSubmitFlowTests
             .Should().OnlyContain(
                 r => r.Status == ReservationStatus.Cancelled);
     }
+
+    [Fact]
+    public async Task SubmitAsync_WithoutPassengerList_ShouldUseThePurchaserAsEveryPassenger()
+    {
+        // Giữ đúng hành vi hiện tại: danh sách hành khách là tuỳ chọn, thiếu thì lấy tên người mua cho từng ghế.
+        using var context = TestDbContextFactory.CreateDbContext();
+        var seed = TestDbContextFactory.SeedTrip(context);
+        var service = CreateService(context);
+        var checkout = await service.HoldAsync(new CreateCheckoutHoldRequest([
+            new CheckoutHoldLegRequest(seed.Trip.Id, [seed.Seat1.Id, seed.Seat2.Id], seed.StationA.Id, seed.StationC.Id)]));
+
+        var submitted = await service.SubmitAsync(
+            checkout.OrderId, new SubmitCheckoutRequest("Nguyen An", "an@example.com", "0912345678"), checkout.AccessToken);
+
+        submitted.Should().BeTrue();
+        var reservations = context.SeatReservations.Where(r => r.Booking!.OrderId == checkout.OrderId).ToList();
+        reservations.Should().HaveCount(2);
+        reservations.Should().OnlyContain(r => r.PassengerName == "Nguyen An" && r.PassengerEmail == null);
+    }
 }

@@ -143,20 +143,29 @@ jobs:
           gated = ("RedisCommercialTests", "CommercialSqlTests", "DomainPersistenceTests", "EmailOutboxSqlTests",
                    "CheckInConcurrencySqlTests", "ScannerAssignmentMigrationSqlTests", "ScannerDeviceLockSqlTests",
                    "AccountAccessSqlHttpTests", "ApiReliabilitySqlHttpTests", "OnboardAudioPlaybackSqlTests",
-                   "RefundDemoModeSqlHttpTests", "SightseeingSqlTests")
+                   "RefundDemoModeSqlHttpTests", "StationCoordinatesSqlTests", "SightseeingSqlTests")
           bad = [(n, o) for n, o in results if any(g in n for g in gated) and o == "NotExecuted"]
           ran = sum(1 for n, o in results if any(g in n for g in gated) and o == "Passed")
           print(f"infrastructure tests passed: {ran}, not executed: {len(bad)}")
           for n, o in bad: print("  SKIPPED:", n)
+          # Mỗi test SQL của toạ độ trạm phải được phát hiện VÀ Passed (thiếu lớp test hoặc bị Skip đều làm đỏ CI).
+          station = ("TheSamePoint_IsRejected_AfterARoundTripThroughTheDatabase",
+                     "NearbyButDifferentPoints_AreAllowed_AndTheEpsilonRuleHolds",
+                     "ConcurrentCreatesAtTheSameCoordinates_OnlyOneSucceeds",
+                     "InactiveStation_DoesNotBlockANewOne_ButReactivatingItIsRejected")
+          missing_station = [t for t in station
+                     if not any("StationCoordinatesSqlTests" in n and t in n and o == "Passed" for n, o in results)]
+          for t in missing_station: print("  STATION TEST NOT PASSED/DISCOVERED:", t)
           # Sightseeing: mỗi test SQL phải được phát hiện VÀ Passed (thiếu lớp test hoặc bị Skip đều làm đỏ CI).
           expected = ("PersistedTour_IsSearchable_AndSeatMapAndPartialJourneysFollowTheSameRule",
                       "DirectRequests_ForAPartialTour_AreRejected_AndCreateNothing",
                       "TwoCustomersRacingForTheSameSeat_OnTheTour_OnlyOneWins",
                       "PaidTour_IssuesTicketWithSightseeingFare_AndCheckInIsOnlyAtThatTripsBoardingCall",
                       "DemoSeed_OnSqlServer_IsIdempotent_AndItsCircularTourIsGenuinelyBookable")
-          missing = [t for t in expected
+          missing_sight = [t for t in expected
                      if not any("SightseeingSqlTests" in n and t in n and o == "Passed" for n, o in results)]
-          for t in missing: print("  SIGHTSEEING TEST NOT PASSED/DISCOVERED:", t)
+          for t in missing_sight: print("  SIGHTSEEING TEST NOT PASSED/DISCOVERED:", t)
+          missing = missing_station + missing_sight
           sys.exit(1 if bad or ran == 0 or missing else 0)
           PY
 

@@ -350,8 +350,8 @@ public sealed class BookingCreationService
 
         // BR-ROUTE-06: chỉ Sightseeing dạng vòng được lên và xuống cùng một Station vật lý (khác VisitOrder).
         // Chuyến thường (Commuter) không cho chọn cùng một bến cho cả hai đầu.
-        if (trip.TripType == TripType.Commuter
-            && boardingCall.RouteStop!.StationId == disembarkingCall.RouteStop!.StationId)
+        if (JourneyRules.IsForbiddenSameStation(
+                trip.TripType, boardingCall.RouteStop!.StationId, disembarkingCall.RouteStop!.StationId))
         {
             throw Validation("Chuyến thường không cho chọn cùng một bến để lên và xuống tàu.");
         }

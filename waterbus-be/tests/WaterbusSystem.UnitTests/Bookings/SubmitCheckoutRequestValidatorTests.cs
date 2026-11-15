@@ -40,5 +40,13 @@ public class SubmitCheckoutRequestValidatorTests
         var result = _validator.Validate(Request([Passenger(), null!]));
 
         result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "Passengers[1]");
+    }
+
+    [Fact]
+    public void PassengerFields_ShouldKeepTheirExistingValidation()
+    {
+        _validator.Validate(Request([Passenger() with { Name = "" }])).IsValid.Should().BeFalse();
+        _validator.Validate(Request([Passenger() with { Email = "not-an-email" }])).IsValid.Should().BeFalse();
     }
 }

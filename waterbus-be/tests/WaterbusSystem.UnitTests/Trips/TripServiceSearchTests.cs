@@ -321,6 +321,50 @@ public class TripServiceSearchTests
         else await act.Should().ThrowAsync<WaterbusSystem.Application.Common.Exceptions.ValidationException>();
     }
 
+    [Theory]
+    [InlineData(TripType.Commuter, true)]
+    [InlineData(TripType.Commuter, false)]
+    [InlineData(TripType.Sightseeing, true)]
+    [InlineData(TripType.Sightseeing, false)]
+    public async Task CircularTrip_WithoutArrival_ShouldChooseLastPermittedStation(TripType type, bool specifyDeparture)
+    {
+        AddLoopStopToSeedTrip(type);
+
+        var found = await Service().SearchAsync(new SearchTripsRequest(
+            specifyDeparture ? _seed.StationA.Id : null, null, null, null), CancellationToken.None);
+
+        found.Single().ArrivalStationName.Should().Be(
+            type == TripType.Sightseeing ? _seed.StationA.Name : _seed.StationC.Name);
+        found.Single().Stops.Select(x => x.OrderIndex).Should().Equal(1, 2, 3, 4);
+    }
+
+    [Fact]
+    public async Task CircularCommuterTrip_WithoutArrival_ShouldSkipStopsThatDoNotAllowAlighting()
+    {
+        AddLoopStopToSeedTrip(TripType.Commuter);
+        _seed.Trip.TripStopCalls.Single(c => c.VisitOrder == 3).RouteStop!.CanAlight = false;
+        _context.SaveChanges();
+
+        var found = await Service().SearchAsync(
+            new SearchTripsRequest(_seed.StationA.Id, null, null, null), CancellationToken.None);
+
+        found.Single().ArrivalStationName.Should().Be(_seed.StationB.Name);
+    }
+
+    [Fact]
+    public async Task CircularCommuterTrip_WithoutArrival_ShouldRejectWhenNoDifferentStationRemainsAfterBoarding()
+    {
+        AddLoopStopToSeedTrip(TripType.Commuter);
+        foreach (var call in _seed.Trip.TripStopCalls.Where(c => c.VisitOrder < 4))
+            call.RouteStop!.CanBoard = false;
+        _context.SaveChanges();
+
+        var found = await Service().SearchAsync(
+            new SearchTripsRequest(_seed.StationA.Id, null, null, null), CancellationToken.None);
+
+        found.Should().BeEmpty();
+    }
+
     private void AddLoopStopToSeedTrip(TripType type)
     {
         _seed.Trip.TripType = type;
