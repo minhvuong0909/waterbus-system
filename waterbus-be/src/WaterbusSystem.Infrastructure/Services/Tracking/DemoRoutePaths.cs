@@ -112,8 +112,6 @@ public static class DemoRoutePaths
         ["RT02"] = Rt01.Reverse().ToArray(),
         // Tuyến tham quan riêng (BR-ROUTE-03) đi cùng đoạn sông: SS01 Bạch Đằng -> Linh Đông, SS02 chiều ngược lại (tàu luôn đi theo sông, khớp đường vẽ trên radar).
         ["SS01"] = Rt01,
-        ["SS02"] = Rt01.Reverse().ToArray(),
-        // Tour vòng TOUR01 (A -> B -> C -> A): đi dọc sông tới bến Linh Đông rồi quay về bến đầu.
-        ["TOUR01"] = Rt01.Concat(Rt01.Reverse().Skip(1)).ToArray()
+        ["SS02"] = Rt01.Reverse().ToArray()
     };
 }

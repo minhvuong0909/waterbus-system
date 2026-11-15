@@ -100,11 +100,10 @@ export const RIVER_PATHS: Record<string, LatLng[]> = {
   ],
 }
 
-// Các tuyến khác đi cùng đoạn sông với RT01 (BE có bản sao ở DemoRoutePaths.cs): chiều về đảo ngược, tour vòng đi rồi quay lại.
+// Các tuyến khác đi cùng đoạn sông với RT01 (BE có bản sao ở DemoRoutePaths.cs): chiều về đảo ngược.
 RIVER_PATHS.RT02 = [...RIVER_PATHS.RT01].reverse()
 RIVER_PATHS.SS01 = RIVER_PATHS.RT01
 RIVER_PATHS.SS02 = RIVER_PATHS.RT02
-RIVER_PATHS.TOUR01 = [...RIVER_PATHS.RT01, ...[...RIVER_PATHS.RT01].reverse().slice(1)]
 
 /** River path of a route by its code, or undefined when only the stations are known. */
 export const riverPathOf = (routeCode: string | undefined): LatLng[] | undefined =>

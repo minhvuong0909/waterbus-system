@@ -79,10 +79,9 @@ public class SightseeingDemoSeedTests
             .Where(t => t.TripType == TripType.Sightseeing && t.Status == TripStatus.Scheduled && t.DepartureTime > DateTimeOffset.UtcNow)
             .ToListAsync());
         tours.Should().NotBeEmpty();
-        // Tour vòng TOUR01 và hai tuyến tham quan một chiều có audio trên loa tàu (SS01 Bạch Đằng → Linh Đông, SS02 ngược lại).
-        var tourCodes = new[] { ApplicationDbContextInitializer.SightseeingTourRouteCode, "SS01", "SS02" };
-        tours.Should().OnlyContain(t => tourCodes.Contains(t.Route!.Code));
-        tours.Should().Contain(t => t.Route!.Code == ApplicationDbContextInitializer.SightseeingTourRouteCode);
+        // Chỉ có hai tuyến tham quan một chiều: SS01 Bạch Đằng → Linh Đông và SS02 ngược lại.
+        tours.Should().OnlyContain(t => t.Route!.Code == "SS01" || t.Route.Code == "SS02");
+        tours.Select(t => t.Route!.Code).Distinct().Should().BeEquivalentTo(new[] { "SS01", "SS02" });
         foreach (var tour in tours)
         {
             tour.BoatId.Should().NotBeNull();
@@ -90,16 +89,8 @@ public class SightseeingDemoSeedTests
             var journey = SightseeingJourney.Resolve(tour);
             journey.IsValid.Should().BeTrue(journey.Error);
             journey.Boarding!.Id.Should().NotBe(journey.Disembarking!.Id);
-            if (tour.Route!.Code == ApplicationDbContextInitializer.SightseeingTourRouteCode)
-            {
-                journey.Boarding.RouteStop!.StationId.Should().Be(journey.Disembarking.RouteStop!.StationId, "circular A → … → A");
-                tour.TripStopCalls.Should().HaveCount(4);
-            }
-            else
-            {
-                journey.Boarding.RouteStop!.StationId.Should().NotBe(journey.Disembarking.RouteStop!.StationId, "tuyến một chiều A → B");
-                tour.TripStopCalls.Should().HaveCount(2);
-            }
+            journey.Boarding.RouteStop!.StationId.Should().NotBe(journey.Disembarking.RouteStop!.StationId, "tuyến một chiều A → B");
+            tour.TripStopCalls.Should().HaveCount(2);
         }
 
         // Giá theo TripType x SeatClass đã seed cho Sightseeing (BR-FARE-01).
