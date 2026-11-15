@@ -6,6 +6,7 @@ using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Domain.Common;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
+using WaterbusSystem.Domain.Rules;
 using WaterbusSystem.Domain.Exceptions;
 using ValidationException = WaterbusSystem.Application.Common.Exceptions.ValidationException;
 
@@ -337,6 +338,12 @@ public sealed class BookingCreationService
 
         var boardingCall = Resolve(boardingStationId, requestedBoardingCallId, isBoarding: true);
         var disembarkingCall = Resolve(disembarkingStationId, requestedDisembarkingCallId, isBoarding: false);
+
+        // BR-ROUTE-06: chỉ chuyến Sightseeing (dạng vòng) mới được lên và xuống cùng một Station vật lý.
+        if (JourneyRules.IsForbiddenSameStation(trip.TripType, boardingCall.RouteStop!.StationId, disembarkingCall.RouteStop!.StationId))
+        {
+            throw Validation("Với chuyến thường, bến lên và bến xuống phải là hai bến khác nhau.");
+        }
 
         try
         {

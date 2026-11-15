@@ -518,6 +518,15 @@ public sealed class TripService(
             var disembarkingCall = request.ArrivalStationId.HasValue
                 ? calls.LastOrDefault(c => c.RouteStop!.StationId == request.ArrivalStationId.Value && c.RouteStop.CanAlight)
                 : calls.LastOrDefault(c => c.RouteStop!.CanAlight);
+            // BR-ROUTE-06: chuyến thường không cho lên và xuống cùng một Station. Khách đã chọn bến đến trùng bến đi thì loại;
+            // khách chưa chọn bến đến mà điểm xuống cuối trùng bến đi (tuyến lặp bến) thì lấy điểm xuống cuối ở Station khác.
+            if (disembarkingCall != null && JourneyRules.IsForbiddenSameStation(
+                    trip.TripType, boardingCall.RouteStop!.StationId, disembarkingCall.RouteStop!.StationId))
+            {
+                if (request.ArrivalStationId.HasValue) continue;
+                disembarkingCall = calls.LastOrDefault(c => c.RouteStop!.CanAlight
+                    && c.RouteStop.StationId != boardingCall.RouteStop!.StationId);
+            }
             if (disembarkingCall == null || boardingCall.VisitOrder >= disembarkingCall.VisitOrder) continue;
 
             matched.Add((trip, calls, boardingCall, disembarkingCall));
