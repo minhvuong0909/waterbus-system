@@ -360,6 +360,14 @@ public sealed class BookingCreationService
             throw Validation("Chuyến thường không cho chọn cùng một bến để lên và xuống tàu.");
         }
 
+        // BR-ROUTE-05: Sightseeing bán trọn hành trình tham quan đã cấu hình, không cho chọn đoạn lên/xuống tùy ý.
+        // Cùng một quy tắc Domain với Search, Seat Map và Checkout (SightseeingJourney).
+        if (trip.TripType == TripType.Sightseeing
+            && SightseeingJourney.Authorize(trip, boardingCall, disembarkingCall) is { } reason)
+        {
+            throw Validation(reason);
+        }
+
         return (boardingCall, disembarkingCall);
     }
 
