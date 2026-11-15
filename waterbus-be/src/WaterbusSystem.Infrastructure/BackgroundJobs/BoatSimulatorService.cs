@@ -109,7 +109,7 @@ public class BoatSimulatorService : BackgroundService
 
         var stopOpts = _stopOptions.CurrentValue;
 
-        foreach (var trip in trips.GroupBy(t => t.BoatId).Select(g => g.OrderBy(t => t.Start).First()))
+        foreach (var trip in trips.GroupBy(t => t.BoatId).Select(g => g.OrderByDescending(t => t.Start).First()))
         {
             IReadOnlyList<RoutePathInterpolator.GeoPoint> path = DemoRoutePaths.For(trip.RouteCode)
                 ?? trip.Stops.Select(s => new RoutePathInterpolator.GeoPoint(s.Latitude, s.Longitude)).ToList();

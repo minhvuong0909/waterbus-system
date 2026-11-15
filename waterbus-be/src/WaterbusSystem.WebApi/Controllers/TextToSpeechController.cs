@@ -9,9 +9,9 @@ namespace WaterbusSystem.WebApi.Controllers;
 
 /// <summary>
 /// API sinh giọng nói tiếng Việt từ văn bản bằng Azure AI Speech (Neural Voice).
-/// Chỉ Admin được phép gọi để tạo tài nguyên âm thanh (BR-CFG-01).
+/// Hỗ trợ Admin và Captain phát thanh hành trình (BR-CFG-01).
 /// </summary>
-[Authorize(Policy = "AdminOnly")]
+[Authorize(Roles = "Admin,Captain")]
 [ServiceFilter(typeof(ValidateRequestFilter))]
 public class TextToSpeechController(IAudioSynthesisService synthesis, IAudioAssetService assets) : BaseApiController
 {

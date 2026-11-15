@@ -60,6 +60,7 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
 
   const currentAudioRef = useRef<HTMLAudioElement | null>(null)
   const onboardHubConnectionRef = useRef<HubConnection | null>(null)
+  const boatTrackingConnectionRef = useRef<HubConnection | null>(null)
 
   const tripRef = useRef(trip)
   useEffect(() => {
@@ -129,7 +130,7 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
         }
 
         const audio = new Audio(blobUrl)
-        audio.volume = 0.9
+        audio.volume = 0.95
         currentAudioRef.current = audio
 
         audio.onended = () => {
@@ -173,8 +174,15 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
   )
 
   // Phát thông báo trạm bến bằng giọng đọc Azure TTS tiếng Việt
-  const playStationAnnouncement = useCallback(
+  const handleStopAnnouncement = useCallback(
     (event: StopAnnouncementEvent) => {
+      const currentTrip = tripRef.current
+      // Chỉ phát khi chuyến đang trong hành trình (EnRoute)
+      if (!currentTrip || currentTrip.status !== 'EnRoute') return
+      // Lọc đúng chuyến tàu đang chọn
+      if (event.tripId && event.tripId !== currentTrip.id) return
+      if (event.boatId && currentTrip.boatId && event.boatId !== currentTrip.boatId) return
+
       const sentence = getAnnouncementSentence(event)
       const label =
         event.type === 'departing'
@@ -194,7 +202,7 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
       setIsPlaying(true)
 
       // Azure TTS Hoài My (Nữ miền Nam tự nhiên, chuẩn tiếng Việt Saigon Waterbus)
-      void playAzureAnnouncement(sentence, 'vi-VN-HoaiMyNeural', 0.9, () => {
+      void playAzureAnnouncement(sentence, 'vi-VN-HoaiMyNeural', 0.95, () => {
         setIsPlaying(false)
         setNowPlaying(null)
       })
@@ -232,30 +240,37 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
     }
   }, [playPoiAudio, stopAll])
 
-  // Lắng nghe StopAnnouncement trên BoatTrackingHub
+  // Lắng nghe StopAnnouncement trên BoatTrackingHub & tự động JoinBoat khi boatId có/thay đổi
   useEffect(() => {
     const unsub = connectHub(HUBS.boatTracking, {
       handlers: {
-        [HUB_EVENTS.stopAnnouncement]: (event: StopAnnouncementEvent) => {
-          const currentTrip = tripRef.current
-          // Chỉ phát khi chuyến đang trong hành trình (EnRoute)
-          if (!currentTrip || currentTrip.status !== 'EnRoute') return
-          // Lọc đúng chuyến tàu đang chọn
-          if (event.tripId && event.tripId !== currentTrip.id) return
-          if (event.boatId && currentTrip.boatId && event.boatId !== currentTrip.boatId) return
-          playStationAnnouncement(event)
-        },
+        [HUB_EVENTS.stopAnnouncement]: handleStopAnnouncement,
       },
       onConnected: async (connection) => {
+        boatTrackingConnectionRef.current = connection
         const boatId = tripRef.current?.boatId
         if (boatId) {
-          await connection.invoke('JoinBoat', boatId)
+          try {
+            await connection.invoke('JoinBoat', boatId)
+          } catch {}
         }
       },
     })
 
-    return () => unsub()
-  }, [playStationAnnouncement])
+    return () => {
+      unsub()
+      boatTrackingConnectionRef.current = null
+    }
+  }, [handleStopAnnouncement])
 
-  return { isPlaying, nowPlaying, stopAll }
+  // Đảm bảo luôn gia nhập group Boat khi trip.boatId xuất hiện hoặc thay đổi
+  useEffect(() => {
+    const boatId = trip?.boatId
+    const conn = boatTrackingConnectionRef.current
+    if (conn && boatId && conn.state === 'Connected') {
+      void conn.invoke('JoinBoat', boatId).catch(() => {})
+    }
+  }, [trip?.boatId])
+
+  return { isPlaying, nowPlaying, stopAll, handleStopAnnouncement }
 }

@@ -56,9 +56,6 @@ export default function CaptainPortalPage() {
   // `null` = follow the trip type: sightseeing trips narrate by default, regular trips do not.
   const [audioOverride, setAudioOverride] = useState<boolean | null>(null)
   const action = useSubmit()
-  // The captain follows their own boat: a status change by the admin shows up at once.
-  const boatIds = [...new Set((trips.data ?? []).map((x) => x.boatId).filter(Boolean))]
-  useFleetHub({ onTripStatus: reload, onReconnected: reload }, boatIds.length > 0, boatIds)
 
   const open = (trips.data ?? []).filter((x) => isUpcomingOrRunning(x.status))
   // Default to the trip on the river, otherwise the next one.
@@ -68,7 +65,19 @@ export default function CaptainPortalPage() {
   const narrating = audioOverride ?? trip?.tripType === 'Sightseeing'
 
   // Quản lý phát âm thanh buồng lái tự động theo hành trình tàu (gọi trên đầu theo chuẩn Rules of Hooks)
-  const { isPlaying, nowPlaying } = useCockpitAudio({ trip, narrating })
+  const { isPlaying, nowPlaying, handleStopAnnouncement } = useCockpitAudio({ trip, narrating })
+
+  // The captain follows their own boat: a status change by the admin shows up at once.
+  const boatIds = [...new Set((trips.data ?? []).map((x) => x.boatId).filter(Boolean))]
+  useFleetHub(
+    {
+      onTripStatus: reload,
+      onReconnected: reload,
+      onStopAnnouncement: handleStopAnnouncement,
+    },
+    boatIds.length > 0,
+    boatIds,
+  )
 
   if (trips.error) return <ErrorState onRetry={trips.retry} />
   if (!trips.data) return <PageLoader />
