@@ -12,6 +12,7 @@ using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.Domain.Rules;
+using Microsoft.Extensions.Logging;
 
 namespace WaterbusSystem.Application.Features.Trips.Services;
 
@@ -29,7 +30,9 @@ public sealed class TripService(
     IOperationsAlertPublisher publisher,
     IUserDirectory users,
     INotificationOutbox notifications,
-    ICommercialTransactionRunner transactions) : ITripService
+    ICommercialTransactionRunner transactions,
+    IStopAnnouncementService stopAnnouncements,
+    ILogger<TripService> logger) : ITripService
 {
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
 
@@ -248,7 +251,38 @@ public sealed class TripService(
             new TripStatusChangedMessage(trip.Id, trip.BoatId, next.ToString(), previous.ToString(), request.Operation.ToString(), now),
             cancellationToken);
 
+        await AnnounceStopAsync(trip, request.Operation, cancellationToken);
+
         return ToResult(trip, previous, request.Operation);
+    }
+
+    /// <summary>
+    /// Thuyền trưởng bấm "Bắt đầu chuyến" thì phát ngay thông báo rời bến (kèm thuyết minh địa danh với
+    /// chuyến Sightseeing); bấm "Cập bến" thì phát thông báo đã tới bến. Lớp chống phát lặp đảm bảo
+    /// bộ mô phỏng hành trình không phát trùng sự kiện đã phát.
+    /// </summary>
+    private async Task AnnounceStopAsync(Trip trip, TripOperation operation, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (operation == TripOperation.Start)
+            {
+                var first = FirstServedStop(trip);
+                if (first is not null)
+                    await stopAnnouncements.AnnounceDepartingAsync(trip.Id, first.VisitOrder, cancellationToken);
+            }
+            else if (operation == TripOperation.Arrive)
+            {
+                var last = LastServedStop(trip);
+                if (last is not null)
+                    await stopAnnouncements.AnnounceArrivedAsync(trip.Id, last.VisitOrder, 1.0, cancellationToken);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Âm thanh không được làm hỏng thao tác vận hành.
+            logger.LogWarning(ex, "Không phát được thông báo bến cho chuyến {TripId}.", trip.Id);
+        }
     }
 
     /// <summary>

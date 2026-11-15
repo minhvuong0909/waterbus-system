@@ -16,27 +16,24 @@ using WaterbusSystem.Infrastructure.Services.Tracking;
 namespace WaterbusSystem.Infrastructure.BackgroundJobs;
 
 /// <summary>
-/// Dịch vụ nền giả lập vị trí GPS tàu và thông báo trạm bến theo hành trình.
+/// Dịch vụ nền giả lập vị trí GPS tàu và phát thông báo trạm bến theo hành trình.
 /// </summary>
 public class BoatSimulatorService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IOptionsMonitor<TrackingOptions> _options;
-    private readonly IOptionsMonitor<StopAnnouncementOptions> _stopOptions;
+    private readonly IStopAnnouncementConfigStore _stopConfig;
     private readonly ILogger<BoatSimulatorService> _logger;
-
-    private readonly ConcurrentDictionary<(Guid TripId, int SegmentIndex, long CycleNumber), (bool DepartingFired, bool NearFired, bool ArrivedFired)>
-        _announcementState = new();
 
     public BoatSimulatorService(
         IServiceScopeFactory scopeFactory,
         IOptionsMonitor<TrackingOptions> options,
-        IOptionsMonitor<StopAnnouncementOptions> stopOptions,
+        IStopAnnouncementConfigStore stopConfig,
         ILogger<BoatSimulatorService> logger)
     {
         _scopeFactory = scopeFactory;
         _options = options;
-        _stopOptions = stopOptions;
+        _stopConfig = stopConfig;
         _logger = logger;
     }
 
@@ -75,7 +72,7 @@ public class BoatSimulatorService : BackgroundService
         var cache = scope.ServiceProvider.GetRequiredService<IBoatPositionCache>();
         var tracking = scope.ServiceProvider.GetRequiredService<IBoatTrackingService>();
         var dateTime = scope.ServiceProvider.GetRequiredService<IDateTimeService>();
-        var stopPublisher = scope.ServiceProvider.GetService<IStopAnnouncementPublisher>();
+        var announcements = scope.ServiceProvider.GetService<IStopAnnouncementService>();
         var now = dateTime.Now;
 
         var statuses = simulator.IncludeScheduledTrips
@@ -99,6 +96,7 @@ public class BoatSimulatorService : BackgroundService
                     .OrderBy(c => c.VisitOrder)
                     .Select(c => new
                     {
+                        c.VisitOrder,
                         StationId = c.RouteStop!.Station!.Id,
                         StationName = c.RouteStop.Station.Name,
                         c.RouteStop.Station.Latitude,
@@ -108,7 +106,7 @@ public class BoatSimulatorService : BackgroundService
             })
             .ToListAsync(cancellationToken);
 
-        var stopOpts = _stopOptions.CurrentValue;
+        var stopOpts = _stopConfig.Current;
 
         foreach (var trip in trips.GroupBy(t => t.BoatId).Select(g => g
             .OrderBy(t => t.Status == TripStatus.EnRoute ? 0 : t.Status == TripStatus.Suspended ? 1 : 2)
@@ -124,9 +122,7 @@ public class BoatSimulatorService : BackgroundService
             decimal? speed;
             int segmentIndex = 0;
             double segmentProgress = 0;
-            long cycleNumber = 0;
             bool isDwelling = false;
-            // Dùng để kiểm tra điều kiện phát thông báo trong cả 2 nhánh tính toán
             double totalElapsed = 0;
             double totalCycleTime = double.MaxValue;
 
@@ -136,22 +132,20 @@ public class BoatSimulatorService : BackgroundService
                 var hold = last is null ? path[0] : new RoutePathInterpolator.GeoPoint((double)last.Lat, (double)last.Lng);
                 (lat, lng, speed) = ((decimal)hold.Latitude, (decimal)hold.Longitude, 0m);
             }
-            else if (stopOpts.UseSimulatedSegmentDuration && stopOpts.SegmentDurationSeconds > 0)
+            else if (stopOpts.UseSimulatedSegmentDuration && stopOpts.TripDurationSeconds > 0)
             {
                 int segmentCount = Math.Max(1, trip.Stops.Count - 1);
-                // Đảm bảo mỗi chặng (segment) giữa 2 bến có thời lượng tối thiểu 28 giây để đọc hết trọn vẹn thông báo rời/đến/cập bến
-                double rawDuration = stopOpts.SegmentDurationSeconds;
-                double segDuration = rawDuration >= 60.0 
-                    ? Math.Max(28.0, rawDuration / segmentCount) 
-                    : Math.Max(28.0, rawDuration);
-                double dwellDuration = Math.Max(5.0, stopOpts.DwellTimeSeconds);
+                double dwellDuration = Math.Max(0, stopOpts.DwellTimeSeconds);
+                // TripDurationSeconds là TỔNG thời gian cả chuyến (bến đầu → bến cuối), gồm cả thời gian đậu.
+                // Chia đều phần thời gian di chuyển cho các chặng; phần đậu cộng thêm vào mỗi chặng.
+                double movingBudget = Math.Max(1, stopOpts.TripDurationSeconds - (segmentCount * dwellDuration));
+                double segDuration = movingBudget / segmentCount;
                 double segTotalTime = segDuration + dwellDuration;
                 totalCycleTime = segmentCount * segTotalTime;
 
                 totalElapsed = (now - trip.Start).TotalSeconds;
                 if (totalElapsed < 0) totalElapsed = 0;
 
-                // Nếu đã đi hết hành trình toàn chuyến: tàu đã cập bến cuối và neo đậu, không lặp lại chu kỳ ma
                 if (totalElapsed >= totalCycleTime)
                 {
                     isDwelling = true;
@@ -175,7 +169,6 @@ public class BoatSimulatorService : BackgroundService
 
                         lat = Math.Round((decimal)point.Latitude, 7);
                         lng = Math.Round((decimal)point.Longitude, 7);
-                        // Khi tua nhanh mô phỏng đoạn demo, hiển thị tốc độ vận hành thực tế của Saigon Waterbus (~12.5 hải lý/giờ ~ 23.2 km/h)
                         speed = 12.5m;
                     }
                     else
@@ -215,63 +208,26 @@ public class BoatSimulatorService : BackgroundService
                 trip.BoatId, lat, lng, speed, now, BoatPositionSources.Simulated, ReportedByCaptainId: null),
                 cancellationToken);
 
-            if (stopPublisher is not null && trip.Status == TripStatus.EnRoute && (totalElapsed < totalCycleTime + 2.0))
+            if (announcements is null || trip.Status != TripStatus.EnRoute) continue;
+            if (totalElapsed > totalCycleTime + 2.0) continue;
+
+            var fromStop = trip.Stops[segmentIndex];
+            var destinationStop = trip.Stops[segmentIndex + 1];
+
+            if (!isDwelling)
             {
-                var fromStop = trip.Stops[segmentIndex];
-                var destinationStop = trip.Stops[segmentIndex + 1];
-                var tripTypeStr = trip.TripType.ToString();
-                var stateKey = (trip.Id, segmentIndex, 0L);
-                var state = _announcementState.GetOrAdd(stateKey, _ => (false, false, false));
+                await announcements.AnnounceDepartingAsync(trip.Id, fromStop.VisitOrder, cancellationToken);
 
-                // 1. Rời bến
-                if (!state.DepartingFired && !isDwelling)
+                if (segmentProgress >= stopOpts.NearThreshold)
                 {
-                    _announcementState[stateKey] = (true, state.NearFired, state.ArrivedFired);
-                    _logger.LogInformation(
-                        "[STOP-ANNOUNCE] Chuyến {TripId} ({TripType}) đoạn {Seg}: rời bến {StationName} đi {DestName}",
-                        trip.Id, tripTypeStr, segmentIndex, fromStop.StationName, destinationStop.StationName);
-
-                    await stopPublisher.PublishDepartingAsync(
-                        trip.Id, trip.BoatId, fromStop.StationId, fromStop.StationName,
-                        now, tripTypeStr, destinationStop.StationName, cancellationToken);
+                    await announcements.AnnounceNearStopAsync(
+                        trip.Id, destinationStop.VisitOrder, segmentProgress, cancellationToken);
                 }
-
-                // 2. Gần tới bến
-                if (!state.NearFired && segmentProgress >= stopOpts.NearThreshold && !isDwelling)
-                {
-                    _announcementState[stateKey] = (state.DepartingFired, true, state.ArrivedFired);
-                    _logger.LogInformation(
-                        "[STOP-ANNOUNCE] Chuyến {TripId} ({TripType}) đoạn {Seg}: gần tới bến {StationName} (progress={Pct:P0})",
-                        trip.Id, tripTypeStr, segmentIndex, destinationStop.StationName, segmentProgress);
-
-                    await stopPublisher.PublishNearStopAsync(
-                        trip.Id, trip.BoatId, destinationStop.StationId, destinationStop.StationName,
-                        segmentProgress, now, tripTypeStr, cancellationToken);
-                }
-
-                // 3. Đã tới bến
-                if (!state.ArrivedFired && (segmentProgress >= 0.999 || isDwelling))
-                {
-                    _announcementState[stateKey] = (state.DepartingFired, state.NearFired, true);
-                    _logger.LogInformation(
-                        "[STOP-ANNOUNCE] Chuyến {TripId} ({TripType}) đoạn {Seg}: đã tới bến {StationName}",
-                        trip.Id, tripTypeStr, segmentIndex, destinationStop.StationName);
-
-                    await stopPublisher.PublishArrivedAsync(
-                        trip.Id, trip.BoatId, destinationStop.StationId, destinationStop.StationName,
-                        segmentProgress, now, tripTypeStr, cancellationToken);
-                }
-
-                if (_announcementState.Count > 100)
-                {
-                    var oldKeys = _announcementState.Keys
-                        .Where(k => k.TripId == trip.Id && (k.CycleNumber < cycleNumber || k.SegmentIndex < segmentIndex - 2))
-                        .ToList();
-                    foreach (var k in oldKeys)
-                    {
-                        _announcementState.TryRemove(k, out _);
-                    }
-                }
+            }
+            else
+            {
+                await announcements.AnnounceArrivedAsync(
+                    trip.Id, destinationStop.VisitOrder, segmentProgress, cancellationToken);
             }
         }
     }
