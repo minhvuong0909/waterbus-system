@@ -13,6 +13,7 @@ export default function FormTextField({
   type = 'text',
   autoComplete,
   required,
+  maxLength,
 }: {
   label: string
   hint?: string
@@ -23,10 +24,11 @@ export default function FormTextField({
   type?: string
   autoComplete?: string
   required?: boolean
+  maxLength?: number
 }) {
   const [touched, setTouched] = useState(false)
   return (
-    <FormField label={label} hint={hint} icon={icon} error={touched ? error : undefined}>
+    <FormField label={label} hint={hint} icon={icon} required={required} error={touched ? error : undefined}>
       <input
         className={`${FORM_INPUT} ${icon ? 'pl-10' : 'px-3'}`}
         type={type}
@@ -35,6 +37,7 @@ export default function FormTextField({
         onBlur={() => setTouched(true)}
         autoComplete={autoComplete}
         required={required}
+        maxLength={maxLength}
         aria-invalid={touched && error ? true : undefined}
       />
     </FormField>

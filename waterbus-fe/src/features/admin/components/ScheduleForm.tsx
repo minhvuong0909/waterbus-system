@@ -4,6 +4,7 @@ import { ErrorState, SelectField, TextField, Notice } from '../../../components/
 import { t } from '../../../i18n'
 import { toVietnamDate } from '../../../utils/time'
 import { useFetch, useSubmit } from '../../../hooks'
+import { hasSaneYear } from '../../../utils/inputRules'
 import { formatDays, parseDays } from '../utils/scheduleDays'
 import { buildStopRows, stopRowsError, toStopInputs } from '../utils/scheduleStops'
 import type { StopEdit } from '../utils/scheduleStops'
@@ -61,11 +62,14 @@ export default function ScheduleForm({
     routeId: form.routeId ? undefined : t('Choose a route.'),
     departureTime: form.departureTime ? undefined : t('Choose the departure time.'),
     days: days.length > 0 ? undefined : t('Choose at least one day.'),
-    effectiveFrom: form.effectiveFrom ? undefined : t('Choose the first day.'),
-    effectiveTo:
-      !form.effectiveTo || form.effectiveTo >= form.effectiveFrom
-        ? undefined
-        : t('The last day cannot be before the first day.'),
+    effectiveFrom: hasSaneYear(form.effectiveFrom) ? undefined : t('Choose the first day.'),
+    effectiveTo: !form.effectiveTo
+      ? undefined
+      : !hasSaneYear(form.effectiveTo)
+        ? t('Choose a valid date.')
+        : form.effectiveTo >= form.effectiveFrom
+          ? undefined
+          : t('The last day cannot be before the first day.'),
     stops: stopRowsError(rows),
   }
   const shown: Partial<typeof errors> = showErrors ? errors : {}
@@ -99,6 +103,7 @@ export default function ScheduleForm({
       <div className="grid grid-cols-2 gap-3">
         <SelectField
           label="Route"
+          required
           value={form.routeId}
           onChange={(e) => {
             set('routeId')(e)
@@ -115,7 +120,7 @@ export default function ScheduleForm({
             ))
           )}
         </SelectField>
-        <SelectField label="Direction" value={form.direction} onChange={set('direction')} disabled={Boolean(schedule)}>
+        <SelectField label="Direction" required value={form.direction} onChange={set('direction')} disabled={Boolean(schedule)}>
           <option value="Outbound">{t('Outbound')}</option>
           <option value="Inbound">{t('Inbound')}</option>
         </SelectField>
@@ -123,13 +128,14 @@ export default function ScheduleForm({
       <div className="grid grid-cols-3 gap-3">
         <TextField
           label="Departs"
+          required
           hint="Vietnam time."
           type="time"
           value={form.departureTime}
           onChange={set('departureTime')}
           error={shown.departureTime}
         />
-        <TextField label="First day" type="date" value={form.effectiveFrom} onChange={set('effectiveFrom')} error={shown.effectiveFrom} />
+        <TextField label="First day" required type="date" value={form.effectiveFrom} onChange={set('effectiveFrom')} error={shown.effectiveFrom} />
         <TextField label="Last day" hint="Leave empty for no end." type="date" value={form.effectiveTo} onChange={set('effectiveTo')} error={shown.effectiveTo} />
       </div>
       <DayPicker days={days} error={shown.days} onChange={setDays} />

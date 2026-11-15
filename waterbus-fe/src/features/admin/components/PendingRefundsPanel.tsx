@@ -160,6 +160,7 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
           </label>
           <TextField
             label="Evidence"
+            required
             placeholder={t('e.g. VNPay refund batch of 12 Nov')}
             hint={t('Applied to every selected refund.')}
             value={evidence}

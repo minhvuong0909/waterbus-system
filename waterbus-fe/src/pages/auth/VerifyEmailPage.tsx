@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Button, Icon } from '../../components/ui'
+import AuthLayout from '../../features/authentication/components/AuthLayout'
 import AuthField from '../../features/authentication/components/AuthField'
 import ResendVerificationForm from '../../features/authentication/components/ResendVerificationForm'
 import { confirmEmail } from '../../features/authentication/services/registrationService'
@@ -9,6 +10,7 @@ import { useDocumentTitle } from '../../hooks'
 import { t } from '../../i18n'
 import { ROUTES } from '../../routes/routes'
 import { ApiError } from '../../services/apiClient'
+import { isNewPassword } from '../../utils/inputRules'
 
 /** Keeps the email link in memory only. Query links sent before activation was updated still work. */
 export default function VerifyEmailPage() {
@@ -34,6 +36,10 @@ export default function VerifyEmailPage() {
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!link || busy) return
+    if (!isNewPassword(password)) {
+      setError(t('Password must be at least 8 characters, with upper case, lower case and a digit.'))
+      return
+    }
     if (password !== confirm) {
       setError(t('The two passwords do not match.'))
       return
@@ -66,8 +72,8 @@ export default function VerifyEmailPage() {
   }
 
   return (
-    <div className="flex justify-center bg-mist px-4 py-space-2xl sm:px-8">
-      <div className="w-full max-w-md space-y-space-md rounded-3xl border border-outline-variant/50 bg-white p-6 text-center shadow-sm sm:p-10">
+    <AuthLayout>
+      <div className="space-y-space-md text-center">
         {link && (
           <>
             <h1 className="font-display text-headline-md text-deep-river">{t('Set your password')}</h1>
@@ -120,6 +126,6 @@ export default function VerifyEmailPage() {
           </>
         )}
       </div>
-    </div>
+    </AuthLayout>
   )
 }

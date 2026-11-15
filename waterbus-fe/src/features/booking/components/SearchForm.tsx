@@ -18,9 +18,11 @@ interface SearchFormProps {
    * trips" button there would do nothing.
    */
   submit?: boolean
+  /** Sightseeing tour: runs its whole route (BR-ROUTE-05), so only the day is chosen. */
+  tour?: boolean
 }
 
-export default function SearchForm({ piers, dates, variant = 'card', submit = true }: SearchFormProps) {
+export default function SearchForm({ piers, dates, variant = 'card', submit = true, tour = false }: SearchFormProps) {
   const bar = variant === 'bar'
   const navigate = useNavigate()
   const { query, updateQuery } = useSearchQuery()
@@ -49,6 +51,27 @@ export default function SearchForm({ piers, dates, variant = 'card', submit = tr
     e.preventDefault()
     navigate(ROUTES.searchResults)
   }
+
+  const dateFields = (
+    <div className={`min-w-0 md:col-span-2 xl:col-span-1 ${roundTrip ? 'grid grid-cols-2 gap-2' : ''}`}>
+      <DateField
+        dates={dates}
+        value={dateId}
+        onChange={(id) => updateQuery({ dateId: id })}
+        compact={bar}
+        label={roundTrip ? t('Outbound date') : undefined}
+      />
+      {roundTrip && (
+        <DateField
+          dates={returnDates}
+          value={returnDateId}
+          onChange={(id) => updateQuery({ returnDateId: id })}
+          compact={bar}
+          label={t('Return date')}
+        />
+      )}
+    </div>
+  )
 
   return (
     <div
@@ -94,6 +117,16 @@ export default function SearchForm({ piers, dates, variant = 'card', submit = tr
         ))}
       </div>
 
+      {tour ? (
+        // Chỉ có một ô ngày: giữ gọn, và đặt lời giải thích bên phải để hàng không bị trống một nửa.
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-space-lg">
+          <div className={`w-full md:shrink-0 ${roundTrip ? 'md:w-[34rem]' : 'md:w-80'}`}>{dateFields}</div>
+          <p className="flex items-start gap-2 text-sm text-on-surface-variant">
+            <Icon name="info" className="mt-0.5 text-base text-teal-flow" />
+            {t('A sightseeing tour runs its whole route, so there are no piers to choose. Pick a day.')}
+          </p>
+        </div>
+      ) : (
       <form
         onSubmit={handleSubmit}
         className={`grid grid-cols-1 items-stretch md:grid-cols-2 ${
@@ -145,24 +178,7 @@ export default function SearchForm({ piers, dates, variant = 'card', submit = tr
           compact={bar}
         />
         </div>
-        <div className={`min-w-0 md:col-span-2 xl:col-span-1 ${roundTrip ? 'grid grid-cols-2 gap-2' : ''}`}>
-          <DateField
-            dates={dates}
-            value={dateId}
-            onChange={(id) => updateQuery({ dateId: id })}
-            compact={bar}
-            label={roundTrip ? t('Outbound date') : undefined}
-          />
-          {roundTrip && (
-            <DateField
-              dates={returnDates}
-              value={returnDateId}
-              onChange={(id) => updateQuery({ returnDateId: id })}
-              compact={bar}
-              label={t('Return date')}
-            />
-          )}
-        </div>
+        {dateFields}
         {submit && (
         <div className="flex items-stretch md:col-span-2 xl:col-span-1">
           <button
@@ -178,6 +194,7 @@ export default function SearchForm({ piers, dates, variant = 'card', submit = tr
         </div>
         )}
       </form>
+      )}
     </div>
   )
 }

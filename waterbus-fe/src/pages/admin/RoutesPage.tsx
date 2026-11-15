@@ -149,6 +149,7 @@ export default function RoutesPage() {
         <Modal title={dialog.route ? 'Edit route' : 'Add route'} onClose={() => setDialog(null)}>
           <RouteForm
             route={dialog.route}
+            others={routes.data.filter((r) => r.id !== dialog.route?.id)}
             stations={stations.data}
             onDone={closeAndReload}
             onCancel={() => setDialog(null)}

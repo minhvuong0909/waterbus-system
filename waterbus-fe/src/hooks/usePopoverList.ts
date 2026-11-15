@@ -3,6 +3,15 @@ import { useEffect, useRef, useState } from 'react'
 /** Chiều cao thanh header cố định phía trên trang (h-20 trên màn hình rộng). */
 const HEADER_HEIGHT = 80
 
+/**
+ * Phần đầu màn hình không dùng được: thanh header cố định, cộng khối dính dưới nó (`data-sticky-top`, vd thanh chọn
+ * ngày) khi khối đó đang đè lên nội dung.
+ */
+function topReserve(): number {
+  const sticky = document.querySelector('[data-sticky-top]')?.getBoundingClientRect()
+  return sticky && sticky.top <= HEADER_HEIGHT + 1 ? Math.max(HEADER_HEIGHT, sticky.bottom) : HEADER_HEIGHT
+}
+
 export interface PopoverPlacement {
   up: boolean
   maxHeight: number
@@ -24,8 +33,9 @@ export function usePopoverList(listHeight: number) {
       const rect = root.current.getBoundingClientRect()
       const margin = 16
       const below = window.innerHeight - rect.bottom - margin
-      const above = rect.top - HEADER_HEIGHT - margin
-      const maxHeight = Math.min(listHeight, window.innerHeight - HEADER_HEIGHT - 2 * margin)
+      const reserve = topReserve()
+      const above = rect.top - reserve - margin
+      const maxHeight = Math.min(listHeight, window.innerHeight - reserve - 2 * margin)
       if (below >= maxHeight) setPlacement({ up: false, maxHeight })
       else if (above >= maxHeight) setPlacement({ up: true, maxHeight })
       else {
@@ -44,11 +54,17 @@ export function usePopoverList(listHeight: number) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false)
     }
+    // Cuộn khiến ô bị trượt xuống dưới header hoặc thanh dính thì đóng danh sách, không để nó đè lên các thanh đó.
+    const onScroll = () => {
+      if (root.current && root.current.getBoundingClientRect().bottom < topReserve()) setOpen(false)
+    }
     document.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('keydown', onKeyDown)
+    window.addEventListener('scroll', onScroll, { passive: true })
     return () => {
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('scroll', onScroll)
     }
   }, [open])
 

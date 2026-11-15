@@ -1,3 +1,4 @@
+import { Icon } from '../../../components/ui'
 import { formatVndSuffix } from '../../../utils/format'
 import type { DateOption } from '../types'
 import { t } from '../../../i18n'
@@ -9,11 +10,31 @@ interface DateStripProps {
   /** Số chuyến còn bán của từng ngày (theo id ngày); ngày chưa có số thì không hiện. */
   counts?: Record<string, number>
   onSelect: (id: string) => void
+  /** Trượt sang tuần trước / tuần sau của khoảng ngày đang bán. */
+  onShift: (weeks: 1 | -1) => void
+  canPrev: boolean
+  canNext: boolean
 }
 
-export default function DateStrip({ dates, selectedId, tripCount, counts, onSelect }: DateStripProps) {
+function ShiftButton({ label, icon, disabled, onClick }: { label: string; icon: string; disabled: boolean; onClick: () => void }) {
   return (
-    <div className="scroll-strip flex items-stretch gap-2 overflow-x-auto p-1">
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex w-9 shrink-0 items-center justify-center rounded-xl border border-deep-river/10 bg-white text-deep-river shadow-xs transition-colors hover:bg-sand-light/60 disabled:cursor-not-allowed disabled:opacity-30"
+    >
+      <Icon name={icon} className="text-xl" />
+    </button>
+  )
+}
+
+export default function DateStrip({ dates, selectedId, tripCount, counts, onSelect, onShift, canPrev, canNext }: DateStripProps) {
+  return (
+    <div className="flex items-stretch gap-1">
+      <ShiftButton label={t('Previous week')} icon="chevron_left" disabled={!canPrev} onClick={() => onShift(-1)} />
+      <div className="scroll-strip flex min-w-0 flex-1 items-stretch gap-2 overflow-x-auto p-1">
       {dates.map((date) => {
         const selected = date.id === selectedId
         const count = counts?.[date.id] ?? (selected ? tripCount : undefined)
@@ -23,7 +44,7 @@ export default function DateStrip({ dates, selectedId, tripCount, counts, onSele
             type="button"
             aria-pressed={selected}
             onClick={() => onSelect(date.id)}
-            className={`flex min-h-[88px] min-w-[108px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border px-3 py-3 transition-colors ${
+            className={`flex min-h-[88px] min-w-[108px] flex-1 shrink-0 basis-0 flex-col items-center justify-center gap-1 rounded-xl border px-3 py-3 transition-colors ${
               selected
                 ? 'border-deep-river bg-deep-river text-on-primary shadow-sm ring-2 ring-teal-flow/30'
                 : 'border-deep-river/10 bg-white text-on-surface-variant shadow-xs hover:bg-sand-light/60'
@@ -63,6 +84,8 @@ export default function DateStrip({ dates, selectedId, tripCount, counts, onSele
           </button>
         )
       })}
+      </div>
+      <ShiftButton label={t('Next week')} icon="chevron_right" disabled={!canNext} onClick={() => onShift(1)} />
     </div>
   )
 }

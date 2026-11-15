@@ -1,4 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom'
+import AuthLayout from '../../features/authentication/components/AuthLayout'
 import AuthCard from '../../features/authentication/components/AuthCard'
 import { useAuth } from '../../features/authentication/hooks/useAuth'
 import { useDocumentTitle } from '../../hooks'
@@ -14,8 +15,8 @@ export default function SignInPage() {
   if (user) return <Navigate to={from ?? landingRouteFor(user.roles)} replace />
 
   return (
-    <div className="flex justify-center bg-mist px-4 py-space-2xl sm:px-8">
+    <AuthLayout>
       <AuthCard />
-    </div>
+    </AuthLayout>
   )
 }

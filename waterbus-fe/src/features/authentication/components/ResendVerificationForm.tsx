@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Button, TextField } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { ApiError } from '../../../services/apiClient'
+import { isEmail } from '../../../utils/inputRules'
 import { resendVerification } from '../services/registrationService'
 
 const COOLDOWN_SECONDS = 60
@@ -23,10 +24,14 @@ export default function ResendVerificationForm({ initialEmail = '' }: { initialE
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    if (!isEmail(email)) {
+      setError(t('Please enter a valid email address.'))
+      return
+    }
     setBusy(true)
     setError(null)
     try {
-      await resendVerification(email)
+      await resendVerification(email.trim())
       setSent(true)
       setWait(COOLDOWN_SECONDS)
     } catch (err) {
@@ -46,8 +51,10 @@ export default function ResendVerificationForm({ initialEmail = '' }: { initialE
     <form onSubmit={submit} className="flex flex-col gap-space-sm" noValidate>
       <TextField
         label="Email address"
+        required
         type="email"
         autoComplete="email"
+        maxLength={150}
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />

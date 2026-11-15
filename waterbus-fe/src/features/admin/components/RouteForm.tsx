@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button, SelectField, TextField, Notice } from '../../../components/ui'
 import { t } from '../../../i18n'
+import { codeTaken, isCode, parseDecimal, parseWhole } from '../../../utils/inputRules'
 import { useSubmit } from '../../../hooks'
 import { createRoute, updateRoute } from '../services/routeService'
 import { stopsError } from '../utils/routeStops'
@@ -17,11 +18,14 @@ const EMPTY_STOP: RouteStopInput = { stationId: '', canBoard: true, canAlight: t
  */
 export default function RouteForm({
   route,
+  others,
   stations,
   onDone,
   onCancel,
 }: {
   route?: RouteDetail
+  /** Các tuyến khác, để chặn mã trùng. */
+  others: { code: string }[]
   stations: AdminStation[]
   onDone: () => void
   onCancel: () => void
@@ -55,19 +59,19 @@ export default function RouteForm({
       .filter((stop) => !stations.some((station) => station.id === stop.stationId && station.isActive))
       .map((stop) => ({ id: stop.stationId, name: stop.stationName })),
   ]
-  const duration = Number(form.duration)
-  const distance = Number(form.distance)
+  const duration = parseWhole(form.duration, 1, 1440)
+  const distance = parseDecimal(form.distance, 0, 1000, 2)
   const errors = {
-    code: form.code.trim() ? undefined : t('Code is required.'),
+    code: !form.code.trim()
+      ? t('Code is required.')
+      : !isCode(form.code)
+        ? t('Use letters, numbers, dots, underscores or hyphens.')
+        : !route && codeTaken(form.code, others)
+          ? t('This code is already used.')
+          : undefined,
     name: form.name.trim() ? undefined : t('Name is required.'),
-    duration:
-      Number.isInteger(duration) && duration >= 1 && duration <= 1440
-        ? undefined
-        : t('Enter the minutes from first to last stop.'),
-    distance:
-      form.distance.trim() !== '' && distance >= 0 && distance <= 1000
-        ? undefined
-        : t('Enter the distance in kilometres.'),
+    duration: duration !== null ? undefined : t('Enter the minutes from first to last stop.'),
+    distance: distance !== null ? undefined : t('Enter the distance in kilometres.'),
     stops: stopsError(stops, form.serviceType),
   }
   // Tên gợi ý theo bến đầu và bến cuối, để tên không lệch với bến dừng.
@@ -87,8 +91,8 @@ export default function RouteForm({
       code: form.code.trim().toUpperCase(),
       name: form.name.trim(),
       serviceType: form.serviceType,
-      estimatedDurationMinutes: duration,
-      distanceKm: distance,
+      estimatedDurationMinutes: duration as number,
+      distanceKm: distance as number,
       stops,
     }
     const saved = await run(async () => {
@@ -104,6 +108,7 @@ export default function RouteForm({
       <div className="grid grid-cols-2 gap-3">
         <TextField
           label="Code"
+          required
           value={form.code}
           onChange={set('code')}
           error={shown.code}
@@ -111,20 +116,20 @@ export default function RouteForm({
           maxLength={20}
           placeholder="RT02"
         />
-        <SelectField label="Service" value={form.serviceType} onChange={set('serviceType')} disabled={locked}>
+        <SelectField label="Service" required value={form.serviceType} onChange={set('serviceType')} disabled={locked}>
           <option value="Regular">{t('Regular')}</option>
           <option value="Sightseeing">{t('Sightseeing')}</option>
         </SelectField>
       </div>
-      <TextField label="Name" value={form.name} onChange={set('name')} error={shown.name} maxLength={150} />
+      <TextField label="Name" required value={form.name} onChange={set('name')} error={shown.name} maxLength={150} />
       {suggestedName && form.name.trim() === '' && (
         <Button size="sm" variant="text" className="-mt-1" onClick={() => setForm((f) => ({ ...f, name: suggestedName }))}>
           {t('Use suggested name: {name}', { name: suggestedName })}
         </Button>
       )}
       <div className="grid grid-cols-2 gap-3">
-        <TextField label="Duration (minutes)" inputMode="numeric" value={form.duration} onChange={set('duration')} error={shown.duration} />
-        <TextField label="Distance (km)" inputMode="decimal" value={form.distance} onChange={set('distance')} error={shown.distance} />
+        <TextField label="Duration (minutes)" required inputMode="numeric" value={form.duration} onChange={set('duration')} error={shown.duration} />
+        <TextField label="Distance (km)" required inputMode="decimal" value={form.distance} onChange={set('distance')} error={shown.distance} />
       </div>
 
       <RouteStopsEditor stops={stops} stations={stationOptions} serviceType={form.serviceType} locked={locked} onChange={setStops} />

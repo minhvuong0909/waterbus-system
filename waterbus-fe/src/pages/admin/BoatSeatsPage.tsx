@@ -108,6 +108,7 @@ function BoatSeats({ boatId }: { boatId: string }) {
         <Modal title="Edit seat" onClose={() => setDialog(null)}>
           <SeatForm
             seat={dialog.seat}
+            others={seats.filter((s) => s.id !== dialog.seat.id)}
             seatClasses={seatClasses.data}
             onDone={closeAndReload}
             onCancel={() => setDialog(null)}

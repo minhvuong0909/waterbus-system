@@ -1,4 +1,5 @@
 import { t } from '../../../i18n'
+import { parseWhole } from '../../../utils/inputRules'
 import type { RouteStop, ScheduleDirection, ScheduleStopInput } from '../types'
 
 /** Một bến của tuyến như form đang sửa; độ lệch là số phút Admin nhập. */
@@ -15,10 +16,7 @@ export type StopEdit = Pick<ScheduleStopRow, 'included' | 'arrival' | 'departure
 
 const minutes = (value: number | null) => (value === null ? '' : String(value))
 
-const isOffset = (value: string) => {
-  const n = Number(value)
-  return value.trim() !== '' && Number.isInteger(n) && n >= 0 && n <= 1440
-}
+const isOffset = (value: string) => parseWhole(value, 0, 1440) !== null
 
 /**
  * Các bến của tuyến theo thứ tự đi, sẵn sàng để sửa. Tuyến liệt kê bến theo chiều đi, nên chiều về đi ngược lại.
@@ -67,5 +65,17 @@ export function stopRowsError(rows: ScheduleStopRow[]): string | undefined {
     (row, i) =>
       (i === 0 || isOffset(row.arrival)) && (i === 0 || i === served.length - 1 || isOffset(row.departure)),
   )
-  return filled ? undefined : t('Enter the minutes for every stop served.')
+  if (!filled) return t('Enter the minutes for every stop served.')
+  // Giờ không lùi (backend từ chối): đến ≥ rời bến trước, rời ≥ đến, bến cuối đến sau giờ khởi hành.
+  let previousLeave = 0
+  for (const [i, row] of served.entries()) {
+    const last = i === served.length - 1
+    const arrival = i === 0 ? 0 : Number(row.arrival)
+    const leave = last ? arrival : i === 0 ? 0 : Number(row.departure)
+    if (arrival < previousLeave || leave < arrival || (last && arrival <= 0)) {
+      return t('Times must not go backwards: each stop is reached after the previous one is left.')
+    }
+    previousLeave = leave
+  }
+  return undefined
 }

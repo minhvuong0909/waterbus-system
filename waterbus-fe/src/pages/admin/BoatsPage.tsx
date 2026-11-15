@@ -11,6 +11,7 @@ import type { AdminBoat } from '../../features/admin/types'
 import { useDocumentTitle, useFetch, useReload, useSubmit } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
+import { codeTaken, isCode, parseWhole } from '../../utils/inputRules'
 import type { Column } from '../../components/ui'
 
 type Dialog = { kind: 'form'; boat?: AdminBoat } | { kind: 'deactivate'; boat: AdminBoat } | null
@@ -26,24 +27,26 @@ const EMPTY = {
 type FormState = typeof EMPTY
 
 /** `configuredSeats`: số ghế đang hoạt động; sức chứa khai báo không được thấp hơn (backend từ chối). */
-function validate(form: FormState, configuredSeats = 0): Partial<Record<keyof FormState, string>> {
+function validate(form: FormState, others: readonly AdminBoat[], configuredSeats = 0): Partial<Record<keyof FormState, string>> {
   const errors: Partial<Record<keyof FormState, string>> = {}
   if (!form.code.trim()) errors.code = t('Code is required.')
+  else if (!isCode(form.code)) errors.code = t('Use letters, numbers, dots, underscores or hyphens.')
+  else if (codeTaken(form.code, others)) errors.code = t('This code is already used.')
   if (!form.name.trim()) errors.name = t('Name is required.')
   if (!form.registrationNumber.trim()) errors.registrationNumber = t('Registration number is required.')
-  const year = Number(form.yearBuilt)
-  if (!Number.isInteger(year) || year < 1950 || year > new Date().getFullYear() + 1) {
+  if (parseWhole(form.yearBuilt, 1901, new Date().getFullYear() + 1) === null) {
     errors.yearBuilt = t('Enter a valid year.')
   }
-  const seats = Number(form.totalSeats)
-  if (!Number.isInteger(seats) || seats < 1) errors.totalSeats = t('A boat needs at least one seat.')
+  // Mỗi ghế nằm ở hàng/cột 1–100 nên một tàu không quá 100 × 100 ghế.
+  const seats = parseWhole(form.totalSeats, 1, 10_000)
+  if (seats === null) errors.totalSeats = t('Enter a whole number of seats from 1 to {max}.', { max: 10_000 })
   else if (seats < configuredSeats) {
     errors.totalSeats = t('The boat already has {count} active seats. Deactivate some seats first.', { count: configuredSeats })
   }
   return errors
 }
 
-function BoatForm({ boat, onDone, onCancel }: { boat?: AdminBoat; onDone: () => void; onCancel: () => void }) {
+function BoatForm({ boat, others, onDone, onCancel }: { boat?: AdminBoat; others: AdminBoat[]; onDone: () => void; onCancel: () => void }) {
   const [form, setForm] = useState<FormState>(() =>
     boat
       ? {
@@ -58,13 +61,13 @@ function BoatForm({ boat, onDone, onCancel }: { boat?: AdminBoat; onDone: () => 
   )
   const [showErrors, setShowErrors] = useState(false)
   const { run, busy, error } = useSubmit()
-  const errors = showErrors ? validate(form, boat?.configuredSeats) : {}
+  const errors = showErrors ? validate(form, others, boat?.configuredSeats) : {}
   const set = (key: keyof FormState) => (e: { target: { value: string } }) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (Object.keys(validate(form, boat?.configuredSeats)).length > 0) {
+    if (Object.keys(validate(form, others, boat?.configuredSeats)).length > 0) {
       setShowErrors(true)
       return
     }
@@ -86,12 +89,12 @@ function BoatForm({ boat, onDone, onCancel }: { boat?: AdminBoat; onDone: () => 
   return (
     <form onSubmit={submit} noValidate className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <TextField label="Code" value={form.code} onChange={set('code')} error={errors.code} placeholder="SWB-02" maxLength={20} disabled={Boolean(boat)} hint={boat ? 'The code cannot be changed after the boat is created.' : undefined} />
-        <TextField label="Name" value={form.name} onChange={set('name')} error={errors.name} maxLength={100} />
-        <TextField label="Registration number" value={form.registrationNumber} onChange={set('registrationNumber')} error={errors.registrationNumber} maxLength={50} />
+        <TextField label="Code" required value={form.code} onChange={set('code')} error={errors.code} placeholder="SWB-02" maxLength={20} disabled={Boolean(boat)} hint={boat ? 'The code cannot be changed after the boat is created.' : undefined} />
+        <TextField label="Name" required value={form.name} onChange={set('name')} error={errors.name} maxLength={100} />
+        <TextField label="Registration number" required value={form.registrationNumber} onChange={set('registrationNumber')} error={errors.registrationNumber} maxLength={50} />
         <TextField label="Manufacturer" value={form.manufacturer} onChange={set('manufacturer')} />
-        <TextField label="Year built" inputMode="numeric" value={form.yearBuilt} onChange={set('yearBuilt')} error={errors.yearBuilt} />
-        <TextField label="Total seats" inputMode="numeric" value={form.totalSeats} onChange={set('totalSeats')} error={errors.totalSeats} />
+        <TextField label="Year built" required inputMode="numeric" value={form.yearBuilt} onChange={set('yearBuilt')} error={errors.yearBuilt} />
+        <TextField label="Total seats" required inputMode="numeric" value={form.totalSeats} onChange={set('totalSeats')} error={errors.totalSeats} />
       </div>
       <FormActions error={error} busy={busy} submitLabel="Save boat" onCancel={onCancel} />
     </form>
@@ -194,7 +197,7 @@ export default function BoatsPage() {
 
       {dialog?.kind === 'form' && (
         <Modal title={dialog.boat ? 'Edit boat' : 'Add boat'} onClose={() => setDialog(null)}>
-          <BoatForm boat={dialog.boat} onDone={closeAndReload} onCancel={() => setDialog(null)} />
+          <BoatForm boat={dialog.boat} others={boats.data.filter((b) => b.id !== dialog.boat?.id)} onDone={closeAndReload} onCancel={() => setDialog(null)} />
         </Modal>
       )}
 

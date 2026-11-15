@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { usePrefersReducedMotion } from '../../hooks'
+import { usePrefersReducedMotion, useScrolledPast } from '../../hooks'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { Logo } from '../../components/brand'
 import { Button, Icon } from '../../components/ui'
-import { STAFF_ROLES } from '../../constant/roles'
-import { landingRouteFor } from '../../routes/landingRoute'
-import { hasAnyRole, isPassenger } from '../../features/authentication/utils'
 import { useAuth } from '../../features/authentication/hooks/useAuth'
+import AccountMenu from './AccountMenu'
 import LanguageSwitcher from './LanguageSwitcher'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -28,6 +26,7 @@ export default function Header() {
   const menuButton = useRef<HTMLButtonElement>(null)
   const { pathname } = useLocation()
   const reducedMotion = usePrefersReducedMotion()
+  const scrolled = useScrolledPast(8)
   const open = openPath === pathname
   useEffect(() => {
     if (!open) return
@@ -40,11 +39,15 @@ export default function Header() {
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [open])
-  const { user, signOut } = useAuth()
-  const staffArea = hasAnyRole(user, STAFF_ROLES) && user ? landingRouteFor(user.roles) : null
+  const { user } = useAuth()
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 print:hidden border-b border-surface-container/60 bg-mist/90 shadow-card backdrop-blur-xl">
+    // Ở đầu trang chỉ có đường viền mảnh; cuộn xuống thì nền đặc hơn và có bóng để tách khỏi nội dung.
+    <header
+      className={`fixed inset-x-0 top-0 z-50 border-b backdrop-blur-xl transition-[background-color,box-shadow,border-color] duration-300 print:hidden ${
+        scrolled ? 'border-surface-container/60 bg-mist/95 shadow-card' : 'border-transparent bg-mist/80 shadow-none'
+      }`}
+    >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-20 sm:px-6">
         <div className="flex min-w-0 items-center gap-6">
           <Link
@@ -73,40 +76,7 @@ export default function Header() {
         <div className="flex items-center gap-2 sm:gap-3">
           <LanguageSwitcher />
           {user ? (
-            <>
-              {isPassenger(user) ? (
-                <Link
-                  to={ROUTES.profile}
-                  className="hidden max-w-[80px] truncate text-body-md font-medium text-deep-river hover:underline 2xl:inline"
-                  title={user.email}
-                >
-                  {user.fullName}
-                </Link>
-              ) : (
-                <span
-                  className="hidden max-w-[80px] truncate text-body-md font-medium text-deep-river 2xl:inline"
-                  title={user.email}
-                >
-                  {user.fullName}
-                </span>
-              )}
-              {staffArea && (
-                <Button
-                  to={staffArea}
-                  variant="secondary"
-                  className="hidden whitespace-nowrap sm:inline-flex"
-                >
-                  {t('Operations')}
-                </Button>
-              )}
-              <Button
-                variant="secondary"
-                onClick={signOut}
-                className="hidden whitespace-nowrap sm:inline-flex"
-              >
-                {t('Sign out')}
-              </Button>
-            </>
+            <AccountMenu />
           ) : (
             // Trên chính trang đăng nhập thì nút này thừa.
             pathname !== ROUTES.signIn && (
@@ -154,28 +124,14 @@ export default function Header() {
             <li className="pt-space-sm">
               <LanguageSwitcher variant="inline" />
             </li>
-            <li className="grid grid-cols-2 gap-space-sm pt-space-sm">
-              {staffArea && (
-                <Button to={staffArea} variant="secondary" onClick={() => setOpenPath(null)}>
-                  {t('Operations')}
-                </Button>
-              )}
-              {user ? (
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    signOut()
-                    setOpenPath(null)
-                  }}
-                >
-                  {t('Sign out')}
-                </Button>
-              ) : (
-                <Button to={ROUTES.signIn} variant="secondary" onClick={() => setOpenPath(null)}>
+            {/* Đã đăng nhập thì Điều hành / Đăng xuất nằm trong menu tài khoản ở thanh trên. */}
+            {!user && (
+              <li className="pt-space-sm">
+                <Button to={ROUTES.signIn} variant="secondary" className="w-full" onClick={() => setOpenPath(null)}>
                   {t('Sign in')}
                 </Button>
-              )}
-            </li>
+              </li>
+            )}
           </ul>
         </nav>
       )}

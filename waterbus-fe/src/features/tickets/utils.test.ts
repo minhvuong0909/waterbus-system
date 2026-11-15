@@ -20,15 +20,17 @@ describe('ticketStatusLabel', () => {
   })
 })
 
+const ORDER = '3f2c1a9e-5b7d-4c11-9a2e-0d6f8b7c4a10'
+
 describe('manage link', () => {
   it('round-trips a full link and a bare path', () => {
-    expect(manageLinkPath('o-1', 'a+b/c')).toBe('/manage/a%2Bb%2Fc?orderId=o-1')
-    expect(parseManageLink(manageLinkUrl('o-1', 'a+b/c'))).toEqual({
-      orderId: 'o-1',
+    expect(manageLinkPath(ORDER, 'a+b/c')).toBe(`/manage/a%2Bb%2Fc?orderId=${ORDER}`)
+    expect(parseManageLink(manageLinkUrl(ORDER, 'a+b/c'))).toEqual({
+      orderId: ORDER,
       accessToken: 'a+b/c',
     })
-    expect(parseManageLink('  /manage/tok?orderId=o-2 ')).toEqual({
-      orderId: 'o-2',
+    expect(parseManageLink(`  /manage/tok?orderId=${ORDER} `)).toEqual({
+      orderId: ORDER,
       accessToken: 'tok',
     })
   })
@@ -38,5 +40,6 @@ describe('manage link', () => {
     expect(parseManageLink('WB123456')).toBeNull()
     expect(parseManageLink('/manage/tok')).toBeNull()
     expect(parseManageLink('/tickets?orderId=o1')).toBeNull()
+    expect(parseManageLink('/manage/tok?orderId=not-a-guid')).toBeNull()
   })
 })

@@ -164,6 +164,7 @@ export default function CaptainPortalPage() {
               <textarea
                 id="sos-note"
                 rows={3}
+                maxLength={500}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 className="w-full rounded-lg border border-outline-variant px-3 py-2 text-sm text-deep-river"

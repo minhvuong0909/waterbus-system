@@ -6,7 +6,10 @@ import { formatDateTime } from '../../../utils/time'
 import { errorText } from '../../../hooks/useSubmit'
 import { operateTrip } from '../../operations/services/operationsService'
 import { Button, Notice } from '../../../components/ui'
-import { INPUT_CLASS } from '../../../components/ui/styles'
+import { INPUT_CLASS, REQUIRED_LABEL_CLASS } from '../../../components/ui/styles'
+
+/** Thao tác backend bắt buộc có lý do (`TripLifecycle.RequiresReason`); các thao tác khác để trống được. */
+const REASON_REQUIRED: OperationType[] = ['Suspend', 'Cancel', 'Terminate', 'NoAction']
 
 const OPERATION_HELP: Partial<Record<OperationType, string>> = {
   Suspend: 'The trip is put on hold until you resume it. Tickets stay valid and nothing is refunded.',
@@ -46,9 +49,10 @@ export default function OperationForm({
   const [failures, setFailures] = useState<Failure[] | null>(null)
   const destructive = type === 'Cancel' || type === 'Terminate'
   const single = trips.length === 1
+  const reasonRequired = REASON_REQUIRED.includes(type)
 
   const submit = async () => {
-    if (!reason.trim()) {
+    if (reasonRequired && !reason.trim()) {
       setShowError(true)
       return
     }
@@ -118,18 +122,20 @@ export default function OperationForm({
         </ul>
       )}
       <div>
-        <label htmlFor="operation-reason" className="mb-1 block text-xs font-semibold text-on-surface-variant">
+        <label htmlFor="operation-reason" className={`mb-1 block text-xs font-semibold text-on-surface-variant ${reasonRequired ? REQUIRED_LABEL_CLASS : ''}`}>
           {t('Reason')}
         </label>
         <textarea
           id="operation-reason"
           rows={3}
+          maxLength={500}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           className={INPUT_CLASS}
-          aria-invalid={showError && !reason.trim()}
+          aria-required={reasonRequired || undefined}
+          aria-invalid={showError && reasonRequired && !reason.trim()}
         />
-        {showError && !reason.trim() && (
+        {showError && reasonRequired && !reason.trim() && (
           <p role="alert" className="mt-1 text-2xs text-coral-glow">
             {t('Give a reason, it is kept in the log.')}
           </p>

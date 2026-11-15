@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { ErrorState, SelectField, TextField } from '../../../components/ui'
 import { t } from '../../../i18n'
+import { hasSaneYear } from '../../../utils/inputRules'
 import { fromVietnamDateTimeInput } from '../../../utils/time'
 import { useFetch, useSubmit } from '../../../hooks'
 import { buildStopRows, stopRowsError, toStopInputs } from '../utils/scheduleStops'
@@ -46,7 +47,7 @@ export default function AdHocTripForm({
   const rows = buildStopRows(route.data?.id === form.routeId ? route.data.stops : [], form.direction, edits)
   const errors = {
     routeId: form.routeId ? undefined : t('Choose a route.'),
-    departure: form.departure ? undefined : t('Choose the departure time.'),
+    departure: hasSaneYear(form.departure) ? undefined : t('Choose the departure time.'),
     stops: stopRowsError(rows),
     ...timingErrors(timing),
   }
@@ -75,6 +76,7 @@ export default function AdHocTripForm({
       <div className="grid grid-cols-2 gap-3">
         <SelectField
           label="Route"
+          required
           value={form.routeId}
           onChange={(e) => {
             set('routeId')(e)
@@ -86,13 +88,14 @@ export default function AdHocTripForm({
             <option key={r.id} value={r.id}>{`${r.code} · ${r.name}`}</option>
           ))}
         </SelectField>
-        <SelectField label="Direction" value={form.direction} onChange={set('direction')}>
+        <SelectField label="Direction" required value={form.direction} onChange={set('direction')}>
           <option value="Outbound">{t('Outbound')}</option>
           <option value="Inbound">{t('Inbound')}</option>
         </SelectField>
       </div>
       <TextField
         label="Departs"
+        required
         hint="Vietnam time."
         type="datetime-local"
         value={form.departure}

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearPierCache, clearTripReads, getPierOptions, getTripDetail } from './tripService'
+import { clearPierCache, clearTripReads, getNextTripDate, getPierOptions, getTripDetail } from './tripService'
 
 const station = {
   id: 'st-1',
@@ -98,5 +98,34 @@ describe('getTripDetail', () => {
     const detail = await getTripDetail(null, 't1', query)
     expect(detail.salesOpen).toBe(true)
     expect(detail.timeline.map((step) => step.time)).toEqual(['07:32', '08:00', '08:02', '08:45'])
+  })
+})
+
+describe('getNextTripDate', () => {
+  const query = { tripType: 'one-way' as const, originId: 'st-1', destinationId: 'st-2', dateId: '2026-10-21' }
+  const serve = (trips: object[]) =>
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify(trips))))
+  const trip = (departureTime: string, availableSeatsCount = 10) => ({
+    id: departureTime,
+    departureTime,
+    arrivalTime: departureTime,
+    availableSeatsCount,
+    status: 'Scheduled',
+    tripType: 'Commuter',
+  })
+
+  it('returns the first later day that still has seats, skipping full and earlier days', async () => {
+    serve([
+      trip('2026-10-21T01:00:00Z'),
+      trip('2026-10-23T01:00:00Z', 0),
+      trip('2026-10-25T01:00:00Z'),
+      trip('2026-10-24T01:00:00Z'),
+    ])
+    expect(await getNextTripDate(query, false, '2026-10-21')).toBe('2026-10-24')
+  })
+
+  it('returns null when nothing is left to book', async () => {
+    serve([trip('2026-10-21T01:00:00Z')])
+    expect(await getNextTripDate(query, false, '2026-10-21')).toBeNull()
   })
 })

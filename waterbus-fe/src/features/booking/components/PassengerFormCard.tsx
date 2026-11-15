@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Icon } from '../../../components/ui'
 import type { PurchaserForm, Seat, SeatPassengerForm } from '../types'
-import { seatPassengerErrors, seatTags } from '../utils'
+import { MAX_NAME, MAX_PASSENGER_PHONE, seatPassengerErrors, seatTags } from '../utils'
 import BookingCard from './BookingCard'
 import { t } from '../../../i18n'
 import FormTextField from './FormTextField'
@@ -61,6 +61,7 @@ export default function PassengerFormCard({
                   error={errors.fullName}
                   onChange={(fullName) => onPassenger(seat.id, { fullName })}
                   autoComplete="off"
+                  maxLength={MAX_NAME}
                   required
                 />
                 <FormTextField
@@ -71,13 +72,16 @@ export default function PassengerFormCard({
                   value={passenger?.email ?? ''}
                   error={errors.email}
                   onChange={(email) => onPassenger(seat.id, { email })}
+                  maxLength={MAX_NAME}
                 />
                 <FormTextField
                   label={t('Phone Number')}
                   hint={t('Optional')}
                   value={passenger?.phone ?? ''}
+                  error={errors.phone}
                   onChange={(phone) => onPassenger(seat.id, { phone })}
                   autoComplete="off"
+                  maxLength={MAX_PASSENGER_PHONE}
                 />
               </div>
             )}

@@ -1,8 +1,9 @@
 import { lazy } from 'react'
-import type { ComponentType } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { ADMIN_NAV } from '../features/admin/navigation'
 import { CAPTAIN_ROLES, ROLES } from '../constant/roles'
+import BareLayout from '../layouts/BareLayout'
 import AdminLayout from '../layouts/admin/AdminLayout'
 import CaptainLayout from '../layouts/captain/CaptainLayout'
 import PrivateRoute from './PrivateRoute'
@@ -52,11 +53,12 @@ const ADMIN_PAGES: Record<string, ComponentType> = {
 const BoatSeatsPage = lazy(() => import('../pages/admin/BoatSeatsPage'))
 const CaptainPortalPage = lazy(() => import('../pages/captain/CaptainPortalPage'))
 
-const PAGES = [
+const PAGES: { path: string; Page: ComponentType; layout?: ComponentType<{ children: ReactNode }> }[] = [
   { path: ROUTES.home, Page: HomePage },
-  { path: ROUTES.signIn, Page: SignInPage },
-  { path: ROUTES.signUp, Page: SignUpPage },
-  { path: ROUTES.verifyEmail, Page: VerifyEmailPage },
+  // Trang tài khoản toàn màn hình, không có thanh đầu trang và chân trang.
+  { path: ROUTES.signIn, Page: SignInPage, layout: BareLayout },
+  { path: ROUTES.signUp, Page: SignUpPage, layout: BareLayout },
+  { path: ROUTES.verifyEmail, Page: VerifyEmailPage, layout: BareLayout },
   { path: ROUTES.searchResults, Page: SearchResultsPage },
   { path: ROUTES.seatSelection, Page: SeatSelectionPage },
   { path: ROUTES.passengerDetails, Page: PassengerDetailsPage },
@@ -78,12 +80,12 @@ const PAGES = [
 export default function AppRoutes() {
   return (
     <Routes>
-      {PAGES.map(({ path, Page }) => (
+      {PAGES.map(({ path, Page, layout }) => (
         <Route
           key={path}
           path={path}
           element={
-            <RouteWithLayout>
+            <RouteWithLayout layout={layout}>
               <Page />
             </RouteWithLayout>
           }

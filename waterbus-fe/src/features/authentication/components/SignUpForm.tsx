@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
 import { t } from '../../../i18n'
+import { isAccountPhone, isEmail, isPersonName } from '../../../utils/inputRules'
 import { ApiError } from '../../../services/apiClient'
 import { ROUTES } from '../../../routes/routes'
 import { register } from '../services/registrationService'
@@ -35,12 +36,24 @@ export default function SignUpForm() {
   const set = (key: keyof RegisterPayload) => (e: { target: { value: string } }) =>
     setForm((previous) => ({ ...previous, [key]: e.target.value }))
 
+  const [showErrors, setShowErrors] = useState(false)
+  const errors = {
+    fullName: isPersonName(form.fullName) ? undefined : t('Please enter your full name.'),
+    email: isEmail(form.email) ? undefined : t('Please enter a valid email address.'),
+    phoneNumber:
+      !form.phoneNumber?.trim() || isAccountPhone(form.phoneNumber) ? undefined : t('Enter a valid phone number.'),
+  }
+
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    if (errors.fullName || errors.email || errors.phoneNumber) {
+      setShowErrors(true)
+      return
+    }
     setBusy(true)
     setError(null)
     try {
-      await register(form)
+      await register({ ...form, fullName: form.fullName.trim(), email: form.email.trim(), phoneNumber: form.phoneNumber?.trim() })
       setDone(true)
     } catch (err) {
       setError(messageFor(err))
@@ -76,9 +89,9 @@ export default function SignUpForm() {
           {error}
         </p>
       )}
-      <AuthField id="signup-name" label={t('Full name')} icon="person" autoComplete="name" value={form.fullName} onChange={set('fullName')} />
-      <AuthField id="signup-email" label={t('Email address')} icon="mail" type="email" autoComplete="email" placeholder={t('name@example.com')} value={form.email} onChange={set('email')} />
-      <AuthField id="signup-phone" label={t('Phone number (optional)')} icon="call" type="tel" autoComplete="tel" value={form.phoneNumber} onChange={set('phoneNumber')} />
+      <AuthField id="signup-name" required label={t('Full name')} icon="person" autoComplete="name" maxLength={150} error={showErrors ? errors.fullName : undefined} value={form.fullName} onChange={set('fullName')} />
+      <AuthField id="signup-email" required label={t('Email address')} icon="mail" type="email" autoComplete="email" placeholder={t('name@example.com')} maxLength={150} error={showErrors ? errors.email : undefined} value={form.email} onChange={set('email')} />
+      <AuthField id="signup-phone" label={t('Phone number (optional)')} icon="call" type="tel" autoComplete="tel" maxLength={20} error={showErrors ? errors.phoneNumber : undefined} value={form.phoneNumber} onChange={set('phoneNumber')} />
       <p className="text-xs text-on-surface-variant">
         {t('Use the email you booked tickets with, and your past tickets will appear in your account after you confirm it.')}
       </p>

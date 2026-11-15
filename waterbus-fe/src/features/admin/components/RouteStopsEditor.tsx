@@ -1,5 +1,6 @@
 import { Button, Icon } from '../../../components/ui'
 import { INPUT_CLASS } from '../../../components/ui/styles'
+import { REQUIRED_LABEL_CLASS } from '../../../components/ui/styles'
 import { t } from '../../../i18n'
 import type { AdminStation, RouteStopInput, ServiceType } from '../types'
 
@@ -37,7 +38,8 @@ export default function RouteStopsEditor({
 
   return (
     <fieldset disabled={locked}>
-      <legend className="mb-1 text-xs font-semibold text-on-surface-variant">{t('Stops')}</legend>
+      <legend className={`mb-1 text-xs font-semibold text-on-surface-variant ${REQUIRED_LABEL_CLASS}`}>{t('Stops')}
+      </legend>
       <ol className="space-y-2">
         {stops.map((stop, index) => (
           <li key={index} className="rounded-xl border border-outline-variant/30 p-2">

@@ -25,6 +25,17 @@ describe('purchaser (BR-COM-07)', () => {
     expect(toCustomerPhone({ phone: '908 123 456' })).toBe('0908123456')
     expect(toCustomerPhone({ phone: '0908123456' })).toBe('0908123456')
     expect(toCustomerPhone({ phone: '  ' })).toBeUndefined()
+    expect(toCustomerPhone({ phone: '+84 908 123 456' })).toBe('0908123456')
+  })
+
+  it('refuses nonsense typed into the name and phone', () => {
+    expect(purchaserErrors({ ...PURCHASER, fullName: '12345' }).fullName).toBeTruthy()
+    expect(purchaserErrors({ ...PURCHASER, fullName: '@@ !!' }).fullName).toBeTruthy()
+    expect(purchaserErrors({ ...PURCHASER, fullName: 'A'.repeat(151) }).fullName).toBeTruthy()
+    expect(purchaserErrors({ ...PURCHASER, phone: 'abc0908123456' }).phone).toBeTruthy()
+    expect(purchaserErrors({ ...PURCHASER, phone: '090812345678999' }).phone).toBeTruthy()
+    expect(purchaserErrors({ ...PURCHASER, email: `${'a'.repeat(150)}@x.vn` }).email).toBeTruthy()
+    expect(purchaserErrors({ ...PURCHASER, phone: '0908 123 456' })).toEqual({})
   })
 })
 
@@ -37,6 +48,13 @@ describe('seat passenger (BR-COM-06)', () => {
 
   it('rejects an email that is filled in but invalid', () => {
     expect(seatPassengerErrors({ ...PASSENGER, email: 'x' }).email).toBeTruthy()
+  })
+
+  it('rejects a numeric name and a phone with letters or more than 20 characters', () => {
+    expect(seatPassengerErrors({ ...PASSENGER, fullName: '999' }).fullName).toBeTruthy()
+    expect(seatPassengerErrors({ ...PASSENGER, phone: 'call me' }).phone).toBeTruthy()
+    expect(seatPassengerErrors({ ...PASSENGER, phone: '1'.repeat(21) }).phone).toBeTruthy()
+    expect(seatPassengerErrors({ ...PASSENGER, phone: '0908 123 456' })).toEqual({})
   })
 })
 
