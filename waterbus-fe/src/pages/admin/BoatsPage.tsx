@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Button, DataTable, ErrorState, FilterBar, FilterChips, Modal, Notice, PageHeader, PageLoader, TextField } from '../../components/ui'
+import { Button, DataTable, ErrorState, FilterBar, FilterChips, Modal, PageHeader, PageLoader, TextField } from '../../components/ui'
 import ActiveToggle from '../../features/admin/components/ActiveToggle'
+import ConfirmModal from '../../features/admin/components/ConfirmModal'
+import FormActions from '../../features/admin/components/FormActions'
 import { ActiveBadge } from '../../features/admin/components/StatusBadge'
-import { createBoat, setBoatActive } from '../../features/admin/services/boatService'
+import { createBoat, setBoatActive, updateBoat } from '../../features/admin/services/boatService'
 import { getBoats } from '../../features/operations/services/fleetService'
 import type { AdminBoat } from '../../features/admin/types'
 import { useDocumentTitle, useFetch, useReload, useSubmit } from '../../hooks'
@@ -11,7 +13,7 @@ import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
 import type { Column } from '../../components/ui'
 
-type Dialog = { kind: 'form' } | { kind: 'delete'; boat: AdminBoat } | null
+type Dialog = { kind: 'form'; boat?: AdminBoat } | { kind: 'deactivate'; boat: AdminBoat } | null
 
 const EMPTY = {
   code: '',
@@ -23,7 +25,8 @@ const EMPTY = {
 }
 type FormState = typeof EMPTY
 
-function validate(form: FormState): Partial<Record<keyof FormState, string>> {
+/** `configuredSeats`: số ghế đang hoạt động; sức chứa khai báo không được thấp hơn (backend từ chối). */
+function validate(form: FormState, configuredSeats = 0): Partial<Record<keyof FormState, string>> {
   const errors: Partial<Record<keyof FormState, string>> = {}
   if (!form.code.trim()) errors.code = t('Code is required.')
   if (!form.name.trim()) errors.name = t('Name is required.')
@@ -34,32 +37,48 @@ function validate(form: FormState): Partial<Record<keyof FormState, string>> {
   }
   const seats = Number(form.totalSeats)
   if (!Number.isInteger(seats) || seats < 1) errors.totalSeats = t('A boat needs at least one seat.')
+  else if (seats < configuredSeats) {
+    errors.totalSeats = t('The boat already has {count} active seats. Deactivate some seats first.', { count: configuredSeats })
+  }
   return errors
 }
 
-function BoatForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
-  const [form, setForm] = useState<FormState>(EMPTY)
+function BoatForm({ boat, onDone, onCancel }: { boat?: AdminBoat; onDone: () => void; onCancel: () => void }) {
+  const [form, setForm] = useState<FormState>(() =>
+    boat
+      ? {
+          code: boat.code,
+          name: boat.name,
+          registrationNumber: boat.registrationNumber,
+          manufacturer: boat.manufacturer,
+          yearBuilt: String(boat.yearBuilt),
+          totalSeats: String(boat.totalSeats),
+        }
+      : EMPTY,
+  )
   const [showErrors, setShowErrors] = useState(false)
   const { run, busy, error } = useSubmit()
-  const errors = showErrors ? validate(form) : {}
+  const errors = showErrors ? validate(form, boat?.configuredSeats) : {}
   const set = (key: keyof FormState) => (e: { target: { value: string } }) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (Object.keys(validate(form)).length > 0) {
+    if (Object.keys(validate(form, boat?.configuredSeats)).length > 0) {
       setShowErrors(true)
       return
     }
+    const details = {
+      name: form.name.trim(),
+      registrationNumber: form.registrationNumber.trim(),
+      manufacturer: form.manufacturer.trim(),
+      yearBuilt: Number(form.yearBuilt),
+      totalSeats: Number(form.totalSeats),
+    }
     const saved = await run(() =>
-      createBoat({
-        code: form.code.trim().toUpperCase(),
-        name: form.name.trim(),
-        registrationNumber: form.registrationNumber.trim(),
-        manufacturer: form.manufacturer.trim(),
-        yearBuilt: Number(form.yearBuilt),
-        totalSeats: Number(form.totalSeats),
-      }),
+      boat
+        ? updateBoat(boat.id, details).then(() => true)
+        : createBoat({ code: form.code.trim().toUpperCase(), ...details }).then(() => true),
     )
     if (saved) onDone()
   }
@@ -67,22 +86,14 @@ function BoatForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => vo
   return (
     <form onSubmit={submit} noValidate className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <TextField label="Code" value={form.code} onChange={set('code')} error={errors.code} placeholder="SWB-02" />
-        <TextField label="Name" value={form.name} onChange={set('name')} error={errors.name} />
-        <TextField label="Registration number" value={form.registrationNumber} onChange={set('registrationNumber')} error={errors.registrationNumber} />
+        <TextField label="Code" value={form.code} onChange={set('code')} error={errors.code} placeholder="SWB-02" maxLength={20} disabled={Boolean(boat)} hint={boat ? 'The code cannot be changed after the boat is created.' : undefined} />
+        <TextField label="Name" value={form.name} onChange={set('name')} error={errors.name} maxLength={100} />
+        <TextField label="Registration number" value={form.registrationNumber} onChange={set('registrationNumber')} error={errors.registrationNumber} maxLength={50} />
         <TextField label="Manufacturer" value={form.manufacturer} onChange={set('manufacturer')} />
         <TextField label="Year built" inputMode="numeric" value={form.yearBuilt} onChange={set('yearBuilt')} error={errors.yearBuilt} />
         <TextField label="Total seats" inputMode="numeric" value={form.totalSeats} onChange={set('totalSeats')} error={errors.totalSeats} />
       </div>
-      {error && <Notice tone="error">{error}</Notice>}
-      <div className="flex justify-end gap-2 pt-1">
-        <Button size="sm" variant="neutral" onClick={onCancel}>
-          {t('Cancel')}
-        </Button>
-        <Button size="sm" type="submit" disabled={busy}>
-          {busy ? t('Saving…') : t('Save boat')}
-        </Button>
-      </div>
+      <FormActions error={error} busy={busy} submitLabel="Save boat" onCancel={onCancel} />
     </form>
   )
 }
@@ -96,17 +107,11 @@ export default function BoatsPage() {
   const [dialog, setDialog] = useState<Dialog>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
-  const remove = useSubmit()
   const activate = useSubmit()
 
   if (boats.error) return <ErrorState onRetry={boats.retry} />
   if (boats.loading || !boats.data) return <PageLoader />
 
-  const hasFilters = search.trim() !== '' || status !== ''
-  const resetFilters = () => {
-    setSearch('')
-    setStatus('')
-  }
   const needle = search.trim().toLowerCase()
   const filteredBoats = boats.data.filter(
     (b) =>
@@ -121,9 +126,17 @@ export default function BoatsPage() {
     { header: 'Built', render: (b) => `${b.manufacturer} ${b.yearBuilt}`.trim() },
     {
       header: 'Seats',
-      // Seats set up on the boat out of its capacity; a boat without seats cannot be sold (BR-SCH-04).
+      // Số ghế đã thiết lập trên tổng sức chứa; tàu chưa có ghế thì không bán được (BR-SCH-04).
       render: (b) =>
-        b.configuredSeats === undefined ? b.totalSeats : `${b.configuredSeats} / ${b.totalSeats}`,
+        b.configuredSeats === undefined ? (
+          b.totalSeats
+        ) : b.configuredSeats === 0 ? (
+          <span className="font-semibold text-coral-glow" title={t('No seats set up yet, so trips on this boat cannot be sold.')}>
+            {t('No seats yet')} · {b.totalSeats}
+          </span>
+        ) : (
+          <span title={t('Seats set up / declared capacity')}>{`${b.configuredSeats} / ${b.totalSeats}`}</span>
+        ),
     },
     { header: 'Status', render: (b) => <ActiveBadge active={b.isActive} /> },
     {
@@ -131,13 +144,16 @@ export default function BoatsPage() {
       className: 'text-right',
       render: (b) => (
         <span className="inline-flex gap-1">
+          <Button size="sm" variant="neutral" icon="edit" onClick={() => setDialog({ kind: 'form', boat: b })}>
+            {t('Edit')}
+          </Button>
           <Button size="sm" variant="neutral" icon="event_seat" to={`${ROUTES.adminBoatSeats}?boatId=${b.id}`}>
             {t('Seats')}
           </Button>
           <ActiveToggle
             active={b.isActive}
             busy={activate.busy}
-            onDeactivate={() => { remove.clearError(); setDialog({ kind: 'delete', boat: b }) }}
+            onDeactivate={() => setDialog({ kind: 'deactivate', boat: b })}
             onActivate={async () => {
               if (await activate.run(() => setBoatActive(b.id, true).then(() => true))) reload()
             }}
@@ -163,7 +179,7 @@ export default function BoatsPage() {
           </Button>
         }
       />
-      <FilterBar onReset={hasFilters ? resetFilters : undefined}>
+      <FilterBar>
         <TextField
           label="Search"
           placeholder={t('Search by name or code')}
@@ -177,40 +193,20 @@ export default function BoatsPage() {
       <DataTable paginate columns={columns} rows={filteredBoats} rowKey={(b) => b.id} empty="No boats match this filter." />
 
       {dialog?.kind === 'form' && (
-        <Modal title="Add boat" onClose={() => setDialog(null)}>
-          <BoatForm onDone={closeAndReload} onCancel={() => setDialog(null)} />
+        <Modal title={dialog.boat ? 'Edit boat' : 'Add boat'} onClose={() => setDialog(null)}>
+          <BoatForm boat={dialog.boat} onDone={closeAndReload} onCancel={() => setDialog(null)} />
         </Modal>
       )}
 
-      {dialog?.kind === 'delete' && (
-        <Modal title="Deactivate boat" onClose={() => setDialog(null)}>
-          <p className="text-sm text-on-surface-variant">
-            {t('Deactivate {name}? The boat will no longer be listed as active.', { name: dialog.boat.name })}
-          </p>
-          {remove.error && (
-            <div className="mt-3">
-              <Notice tone="error">{remove.error}</Notice>
-            </div>
-          )}
-          <div className="mt-4 flex justify-end gap-2">
-            <Button size="sm" variant="neutral" onClick={() => setDialog(null)}>
-              {t('Cancel')}
-            </Button>
-            <Button size="sm"
-              variant="danger"
-              disabled={remove.busy}
-              onClick={async () => {
-                const done = await remove.run(async () => {
-                  await setBoatActive(dialog.boat.id, false)
-                  return true
-                })
-                if (done) closeAndReload()
-              }}
-            >
-              {t('Deactivate')}
-            </Button>
-          </div>
-        </Modal>
+      {dialog?.kind === 'deactivate' && (
+        <ConfirmModal
+          title="Deactivate boat"
+          message={t('Deactivate {name}? Trips already assigned to this boat are not changed; assign another boat on the Trips page if it can no longer sail.', { name: dialog.boat.name })}
+          confirmLabel="Deactivate"
+          action={() => setBoatActive(dialog.boat.id, false)}
+          onClose={() => setDialog(null)}
+          onDone={closeAndReload}
+        />
       )}
     </>
   )

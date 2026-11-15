@@ -10,9 +10,8 @@ import type { AdminTrip } from '../../operations/types'
 import FormActions from './FormActions'
 
 /**
- * Gives a `Scheduled` trip its boat or replaces it (BR-SCH-04). The backend refuses a boat that
- * runs an overlapping trip (BR-SCH-08) or cannot seat what was already sold (BR-SCH-07); its
- * reason is shown as it is.
+ * Gán tàu cho chuyến `Scheduled` hoặc thay tàu (BR-SCH-04). Backend từ chối tàu đang chạy một chuyến trùng giờ (BR-
+ * SCH-08) hoặc không đủ ghế cho số đã bán (BR-SCH-07); lý do được hiện nguyên văn.
  */
 export default function AssignBoatForm({
   trip,

@@ -15,6 +15,8 @@ export interface MapBoat {
   code: string
   latitude: number
   longitude: number
+  /** Mất tín hiệu: vẽ mờ để không lẫn với tàu đang báo vị trí. */
+  stale?: boolean
 }
 
 interface FleetMapProps {
@@ -32,6 +34,14 @@ interface FleetMapProps {
 /** Boat icon: a teal disc with a boat glyph, so no image files are needed. */
 const boatIcon = L.divIcon({
   className: 'fleet-boat',
+  html: '<span class="material-symbols-outlined">directions_boat</span>',
+  iconSize: [34, 34],
+  iconAnchor: [17, 17],
+})
+
+/** Tàu mất tín hiệu: cùng hình nhưng màu xám. */
+const staleBoatIcon = L.divIcon({
+  className: 'fleet-boat fleet-boat--stale',
   html: '<span class="material-symbols-outlined">directions_boat</span>',
   iconSize: [34, 34],
   iconAnchor: [17, 17],
@@ -69,7 +79,7 @@ export default function FleetMap({ stations, boats, path, className = '' }: Flee
         </CircleMarker>
       ))}
       {boats.map((b) => (
-        <Marker key={b.tripId} position={[b.latitude, b.longitude]} icon={boatIcon}>
+        <Marker key={b.tripId} position={[b.latitude, b.longitude]} icon={b.stale ? staleBoatIcon : boatIcon}>
           <Tooltip direction="top" offset={[0, -14]}>
             {b.code}
           </Tooltip>

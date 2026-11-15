@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createStation, deleteStation } from './stationService'
+import { createStation } from './stationService'
 
 const fetchMock = vi.fn()
 const json = (body: unknown) => new Response(JSON.stringify(body))
@@ -12,13 +12,5 @@ describe('stationService', () => {
     expect((await createStation(station)).id).toBe('station-id')
     expect(fetchMock.mock.calls[0][1].method).toBe('POST')
     expect(fetchMock.mock.calls[1][0]).toMatch(/\/stations\/station-id$/)
-  })
-  it('deactivates a station with PUT without a nonexistent DELETE endpoint', async () => {
-    vi.stubGlobal('fetch', fetchMock)
-    fetchMock.mockResolvedValueOnce(json({ id: 'id', name: 'Test', isActive: true }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
-    await deleteStation('id')
-    expect(fetchMock.mock.calls[1][1].method).toBe('PUT')
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body).isActive).toBe(false)
   })
 })

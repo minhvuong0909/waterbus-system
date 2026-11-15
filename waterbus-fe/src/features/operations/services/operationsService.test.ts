@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getOperationLogs,
   getOperationTrips,
+  getIncidentTrips,
   getOpenIncidents,
   operateTrip,
   resolveIncident,
@@ -139,34 +140,48 @@ describe('getOpenIncidents', () => {
     ...over,
   })
 
-  it('maps severity and kind, and does not load trips unless asked', async () => {
-    fetchMock.mockResolvedValue(json({ items: [summary({}), summary({ id: 'i2', severity: 'Medium', incidentType: 'Weather' })], totalCount: 2 }))
+  it('maps severity and kind from one list call, without loading any detail', async () => {
+    fetchMock.mockResolvedValue(json({ items: [summary({ pendingDecisionCount: 1 }), summary({ id: 'i2', severity: 'Medium', incidentType: 'Weather' })], totalCount: 2 }))
     const alerts = await getOpenIncidents()
     expect(alerts.map((a) => [a.level, a.kind])).toEqual([[2, 'Safety'], [1, 'Weather']])
+    expect(alerts[0].pendingDecisionCount).toBe(1)
     expect(alerts[0].trips).toBeUndefined()
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('loads the affected trips and decisions when asked', async () => {
+  it('reads every page when more incidents are open than one page holds', async () => {
     fetchMock
-      .mockResolvedValueOnce(json({ items: [summary({})], totalCount: 1 }))
-      .mockResolvedValueOnce(json({
-        affectedTrips: [
-          { tripId: 't1', operationDecision: null, departureTime: '2026-10-21T08:00:00+00:00', tripStatus: 1, decisionAt: null },
-          { tripId: 't2', operationDecision: 'Cancel', tripStatus: 7, decisionAt: '2026-10-20T15:20:00+00:00' },
-        ],
-      }))
-    const [alert] = await getOpenIncidents(true)
-    // The backend sends the trip status as its enum number.
-    expect(alert.trips).toEqual([
-      { tripId: 't1', decision: null, departureTime: '2026-10-21T08:00:00+00:00', tripStatus: 'Scheduled', decisionAt: null },
-      { tripId: 't2', decision: 'Cancel', tripStatus: 'Cancelled', decisionAt: '2026-10-20T15:20:00+00:00' },
-    ])
+      .mockResolvedValueOnce(json({ items: [summary({})], totalCount: 2 }))
+      .mockResolvedValueOnce(json({ items: [summary({ id: 'i2' })], totalCount: 2 }))
+    expect((await getOpenIncidents()).map((a) => a.id)).toEqual(['i1', 'i2'])
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('treats an unknown incident type as other', async () => {
     fetchMock.mockResolvedValue(json({ items: [summary({ incidentType: 'Strike' })], totalCount: 1 }))
     expect((await getOpenIncidents())[0].kind).toBe('Other')
+  })
+})
+
+describe('getIncidentTrips', () => {
+  it('loads the affected trips and decisions of one incident', async () => {
+    fetchMock.mockResolvedValueOnce(json({
+      affectedTrips: [
+        { tripId: 't1', operationDecision: null, departureTime: '2026-10-21T08:00:00+00:00', tripStatus: 1, decisionAt: null },
+        { tripId: 't2', operationDecision: 'Cancel', tripStatus: 7, decisionAt: '2026-10-20T15:20:00+00:00' },
+      ],
+    }))
+    // The backend sends the trip status as its enum number.
+    expect(await getIncidentTrips('i1')).toEqual([
+      { tripId: 't1', decision: null, departureTime: '2026-10-21T08:00:00+00:00', tripStatus: 'Scheduled', decisionAt: null },
+      { tripId: 't2', decision: 'Cancel', tripStatus: 'Cancelled', decisionAt: '2026-10-20T15:20:00+00:00' },
+    ])
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/v1/incidents/i1')
+  })
+
+  it('returns an empty list when no trip is affected', async () => {
+    fetchMock.mockResolvedValueOnce(json({ affectedTrips: [] }))
+    expect(await getIncidentTrips('i1')).toEqual([])
   })
 })
 

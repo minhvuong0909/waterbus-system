@@ -22,6 +22,8 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
   const [evidence, setEvidence] = useState('')
   const [downloaded, setDownloaded] = useState<string | null>(null)
   const [result, setResult] = useState<BatchConfirmResult | null>(null)
+  // Xác nhận gửi email cho người mua và không hoàn tác được, nên hỏi lại; đổi lựa chọn hay bằng chứng thì hỏi lại từ đầu.
+  const [armedFor, setArmedFor] = useState<string | null>(null)
   const exporting = useSubmit()
   const confirming = useSubmit()
 
@@ -46,6 +48,8 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
   const allSelected = rows.length > 0 && chosen.length === rows.length
 
   const canConfirm = !busy && chosen.length > 0 && chosen.length <= 100 && evidence.trim().length > 0
+  const selectionKey = `${chosen.map((row) => row.refundId).join(',')}|${evidence.trim()}`
+  const armed = armedFor === selectionKey
 
   const toggle = (id: string) =>
     setSelected((current) => {
@@ -66,6 +70,7 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
 
   const confirm = async () => {
     if (!canConfirm) return
+    setArmedFor(null)
     const done = await confirming.run(() =>
       confirmRefundsBatch(
         chosen.map((row) => ({
@@ -115,7 +120,7 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
   ]
 
   return (
-    <Panel title="Refunds waiting for staff" className="mt-4">
+    <Panel title="Refunds waiting for staff">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Button icon="arrow_downward" variant="dark" onClick={download} disabled={!canExport}>
           {exporting.busy ? t('Preparing…') : t('Download CSV')}
@@ -162,15 +167,26 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
             maxLength={500}
           />
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Button
-              variant="dark"
-              icon="check_circle"
-              onClick={confirm}
-              disabled={!canConfirm}
-            >
-              {confirming.busy ? t('Sending…') : t('Confirm {count} as refunded', { count: chosen.length })}
-            </Button>
+            {armed ? (
+              <>
+                <Button variant="danger" icon="check_circle" onClick={confirm} disabled={!canConfirm}>
+                  {confirming.busy ? t('Sending…') : t('Yes, staff have refunded them')}
+                </Button>
+                <Button variant="neutral" onClick={() => setArmedFor(null)} disabled={busy}>
+                  {t('Cancel')}
+                </Button>
+              </>
+            ) : (
+              <Button variant="dark" icon="check_circle" onClick={() => setArmedFor(selectionKey)} disabled={!canConfirm}>
+                {confirming.busy ? t('Sending…') : t('Confirm {count} as refunded', { count: chosen.length })}
+              </Button>
+            )}
             {chosen.length > 0 && <span className="text-sm font-semibold text-deep-river">{formatVnd(chosenTotal)}</span>}
+            {armed && (
+              <p className="basis-full text-sm text-on-surface-variant">
+                {t('This emails {count} buyers that their refund is on the way and cannot be undone.', { count: chosen.length })}
+              </p>
+            )}
             {chosen.length > 100 && <Notice tone="error">{t('Confirm at most 100 refunds at a time.')}</Notice>}
             {confirming.error && <Notice tone="error">{confirming.error}</Notice>}
           </div>

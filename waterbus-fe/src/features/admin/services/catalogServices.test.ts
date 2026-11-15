@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RouteDetail, RouteInput, ScheduleDetail, ScheduleInput } from '../types'
-import { fetchAllPages } from './catalogRequests'
+import { fetchAllPages } from '../../../services/paging'
+import { updateBoat } from './boatService'
 import { createFareRule } from './fareRuleService'
 import { setRouteActive, updateRoute } from './routeService'
 import { updateSchedule } from './scheduleService'
@@ -38,6 +39,16 @@ const routeInput: RouteInput = {
 }
 
 describe('catalogue services', () => {
+  it('edits a boat without losing its captain or active state', async () => {
+    fetchMock.mockImplementationOnce(async () => answer({ id: 'b1', isActive: false, captainUserId: 'cap-1' }))
+    await updateBoat('b1', { name: 'New', registrationNumber: 'R1', manufacturer: 'M', yearBuilt: 2020, totalSeats: 40 })
+    expect(calls()[1]).toMatchObject({
+      method: 'PUT',
+      body: { name: 'New', totalSeats: 40, isActive: false, captainUserId: 'cap-1' },
+    })
+    expect(calls()[1].body).not.toHaveProperty('code')
+  })
+
   it('reads every page of a paged list', async () => {
     fetchMock
       .mockResolvedValueOnce(answer({ items: [1, 2], totalCount: 3 }))
@@ -62,6 +73,17 @@ describe('catalogue services', () => {
     fetchMock.mockClear()
     await updateRoute({ ...route, structureLocked: true }, reordered)
     expect(calls()).toHaveLength(1)
+  })
+
+  it('says the details were saved when the stops that follow are refused', async () => {
+    fetchMock.mockImplementationOnce(async () => answer({}))
+    fetchMock.mockImplementationOnce(async () => answer({ title: 'Conflict', detail: 'Route is in use.' }, 409))
+    const reordered = { ...routeInput, stops: [...routeInput.stops].reverse() }
+    await expect(updateRoute(route, reordered)).rejects.toMatchObject({
+      status: 409,
+      message: expect.stringContaining('details were saved'),
+    })
+    expect(calls()).toHaveLength(2)
   })
 
   it('keeps the stops of a schedule that already produced trips', async () => {

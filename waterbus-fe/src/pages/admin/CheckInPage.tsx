@@ -6,20 +6,22 @@ import type { CheckInWindow } from '../../features/admin/services/checkInService
 import { getTripStops } from '../../features/admin/services/checkInService'
 import { getOperationTrips } from '../../features/operations/services/operationsService'
 import { isBoardingStop, isFinished } from '../../features/operations/utils'
-import { useDocumentTitle, useFetch } from '../../hooks'
+import { useDocumentTitle, useFetch, useNow } from '../../hooks'
 import { t } from '../../i18n'
 import { formatDateTime } from '../../utils/time'
 
-/** Admin sets, per stop of a trip, when staff may check passengers in (BR-BOARD-05). */
+/** Admin đặt, cho từng bến của chuyến, khi nào nhân viên được check-in khách (BR-BOARD-05). */
 export default function CheckInPage() {
   useDocumentTitle('Check-in')
   const trips = useFetch(getOperationTrips)
   const [tripId, setTripId] = useState('')
+  // Mốc "bây giờ" để ẩn chuyến đã cập bến cuối: khung giờ check-in của chúng không còn ý nghĩa.
+  const now = useNow(60_000)
 
   if (trips.error) return <ErrorState onRetry={trips.retry} />
   if (!trips.data) return <PageLoader />
 
-  const upcoming = trips.data.filter((x) => !isFinished(x.status))
+  const upcoming = trips.data.filter((x) => !isFinished(x.status) && Date.parse(x.arrivalTime) >= now)
   const selectedTrip = upcoming.find((trip) => trip.id === tripId)
   return (
     <>
@@ -42,6 +44,8 @@ export default function CheckInPage() {
 
 function TripCheckIn({ tripId, routeName }: { tripId: string; routeName: string }) {
   const [windows, setWindows] = useState<Record<string, CheckInWindow>>({})
+  // Bến đang được phân công soát vé; chọn từ dòng bến phía trên hoặc ô chọn trong khung phân công.
+  const [stopId, setStopId] = useState('')
   const stops = useFetch(() => getTripStops(tripId))
   if (stops.error) {
     return (
@@ -64,8 +68,12 @@ function TripCheckIn({ tripId, routeName }: { tripId: string; routeName: string 
       <Panel title="Stops" className="mt-4">
         <div className="divide-y divide-outline-variant/30">
           {boardingStops.map((stop) => (
-            <CheckInWindowRow key={stop.callId} stop={stop} onSaved={(window) =>
-              setWindows((current) => ({ ...current, [window.tripStopCallId]: window }))} />
+            <CheckInWindowRow key={stop.callId} stop={stop}
+              onSaved={(window) => setWindows((current) => ({ ...current, [window.tripStopCallId]: window }))}
+              onAssign={() => {
+                setStopId(stop.callId)
+                document.getElementById('scanner-assignments')?.scrollIntoView?.({ behavior: 'smooth' })
+              }} />
           ))}
         </div>
         {boardingStops.length !== stops.data.length && (
@@ -74,7 +82,7 @@ function TripCheckIn({ tripId, routeName }: { tripId: string; routeName: string 
           </p>
         )}
       </Panel>
-      <ScannerAssignmentsPanel routeName={routeName} stops={assignmentStops} />
+      <ScannerAssignmentsPanel routeName={routeName} stops={assignmentStops} stopId={stopId} onStopChange={setStopId} />
     </>
   )
 }

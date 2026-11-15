@@ -2,7 +2,7 @@ import type { SeatInput } from '../types'
 
 export interface SeatBatch {
   seatClassId: string
-  /** Letters in front of the seat number, e.g. "S" for S01, S02… */
+  /** Chữ đứng trước số ghế, vd "S" cho S01, S02… */
   prefix: string
   firstNumber: number
   count: number
@@ -10,13 +10,12 @@ export interface SeatBatch {
   seatsPerRow: number
 }
 
-/** "S" + 7 → "S07": seat codes keep two digits, like the seats already in the fleet. */
+/** "S" + 7 → "S07": mã ghế giữ hai chữ số, giống các ghế đã có trong đội tàu. */
 export const seatCode = (prefix: string, number: number) =>
   `${prefix}${String(number).padStart(2, '0')}`
 
 /**
- * The seats of a batch, numbered in sequence and laid out row by row from `firstRow`, each row
- * holding `seatsPerRow` seats in columns 1…n.
+ * Các ghế của một loạt, đánh số liên tiếp và xếp theo hàng từ `firstRow`, mỗi hàng `seatsPerRow` ghế ở cột 1…n.
  */
 export function buildSeatBatch(batch: SeatBatch): SeatInput[] {
   return Array.from({ length: batch.count }, (_, i) => ({

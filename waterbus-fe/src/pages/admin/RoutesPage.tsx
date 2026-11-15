@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button, DataTable, ErrorState, FilterBar, FilterChips, Modal, Notice, PageHeader, PageLoader, TextField } from '../../components/ui'
+import { INSET_CLASS } from '../../components/ui/styles'
 import type { Column } from '../../components/ui'
 import ActiveToggle from '../../features/admin/components/ActiveToggle'
 import ConfirmModal from '../../features/admin/components/ConfirmModal'
@@ -14,10 +15,11 @@ import { formatNumber } from '../../utils/format'
 
 type Dialog =
   | { kind: 'form'; route?: RouteDetail }
+  | { kind: 'stops'; route: RouteDetail }
   | { kind: 'deactivate'; route: RouteListItem }
   | null
 
-/** Routes: the ordered stations a boat calls at. Schedules and trips are built on a route. */
+/** Tuyến: các bến theo thứ tự tàu ghé. Lịch chạy và chuyến đều dựa trên một tuyến. */
 export default function RoutesPage() {
   useDocumentTitle('Routes')
   const [version, reload] = useReload()
@@ -38,12 +40,6 @@ export default function RoutesPage() {
     reload()
   }
 
-  const hasFilters = search.trim() !== '' || serviceType !== '' || status !== ''
-  const resetFilters = () => {
-    setSearch('')
-    setServiceType('')
-    setStatus('')
-  }
   const needle = search.trim().toLowerCase()
   const filteredRoutes = routes.data.filter(
     (r) =>
@@ -52,10 +48,10 @@ export default function RoutesPage() {
       (status === '' || (status === 'active') === r.isActive),
   )
 
-  // The list has no stops, so the editor opens on the full route.
-  const edit = async (id: string) => {
+  // Danh sách không kèm bến dừng nên trình sửa mở trên tuyến đầy đủ.
+  const open = async (id: string, kind: 'form' | 'stops') => {
     const route = await action.run(() => getRoute(id))
-    if (route) setDialog({ kind: 'form', route })
+    if (route) setDialog({ kind, route })
   }
 
   const columns: Column<RouteListItem>[] = [
@@ -73,7 +69,22 @@ export default function RoutesPage() {
       ),
     },
     { header: 'Service', render: (r) => t(r.serviceType) },
-    { header: 'Stops', render: (r) => r.stopCount, className: 'text-right' },
+    {
+      header: 'Stops',
+      className: 'text-right',
+      render: (r) => (
+        <button
+          type="button"
+          disabled={action.busy}
+          aria-label={t('View stops of {name}', { name: r.name })}
+          title={t('View stops')}
+          onClick={() => open(r.id, 'stops')}
+          className="font-semibold text-teal-flow underline-offset-2 hover:underline"
+        >
+          {r.stopCount}
+        </button>
+      ),
+    },
     {
       header: 'Duration',
       render: (r) => t('{minutes} min', { minutes: r.estimatedDurationMinutes }),
@@ -86,7 +97,7 @@ export default function RoutesPage() {
       className: 'text-right',
       render: (r) => (
         <span className="inline-flex gap-1">
-          <Button size="sm" variant="neutral" icon="edit" disabled={action.busy} onClick={() => edit(r.id)}>
+          <Button size="sm" variant="neutral" icon="edit" disabled={action.busy} onClick={() => open(r.id, 'form')}>
             {t('Edit')}
           </Button>
           <ActiveToggle
@@ -118,7 +129,7 @@ export default function RoutesPage() {
           <Notice tone="error">{action.error}</Notice>
         </div>
       )}
-      <FilterBar onReset={hasFilters ? resetFilters : undefined}>
+      <FilterBar>
         <TextField
           label="Search"
           placeholder={t('Search by name or code')}
@@ -144,10 +155,25 @@ export default function RoutesPage() {
           />
         </Modal>
       )}
+      {dialog?.kind === 'stops' && (
+        <Modal title="Route stops" onClose={() => setDialog(null)}>
+          <p className="mb-3 text-sm text-on-surface-variant">{dialog.route.name}</p>
+          <ol className={`${INSET_CLASS} divide-y divide-outline-variant/30`}>
+            {dialog.route.stops.map((stop) => (
+              <li key={stop.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-mist text-xs font-bold text-deep-river">
+                  {stop.sequenceNo}
+                </span>
+                <span className="min-w-0 flex-1 font-semibold text-deep-river">{stop.stationName}</span>
+              </li>
+            ))}
+          </ol>
+        </Modal>
+      )}
       {dialog?.kind === 'deactivate' && (
         <ConfirmModal
           title="Deactivate route"
-          message={t('Deactivate {name}? No new schedule or trip can use this route.', {
+          message={t('Deactivate {name}? No new schedule or trip can use this route. This is refused while an active schedule or an unfinished trip still uses it.', {
             name: dialog.route.name,
           })}
           confirmLabel="Deactivate"

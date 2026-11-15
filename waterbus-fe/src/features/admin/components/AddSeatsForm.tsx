@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Button, SelectField, TextField } from '../../../components/ui'
+import { Button, Notice, SelectField, TextField } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { useSubmit } from '../../../hooks'
 import { MAX_SEAT_ROW, findLayoutOverflow, planSeatLayout } from '../utils/seatBatch'
@@ -9,7 +9,7 @@ import { addBoatSeats } from '../services/boatSeatService'
 import type { SeatClass } from '../types'
 import FormActions from './FormActions'
 
-/** The backend takes at most this many seats in one request. */
+/** Số ghế tối đa backend nhận trong một lần gửi. */
 const MAX_BATCH = 200
 
 const wholeNumber = (value: string, min: number, max: number) => {
@@ -153,11 +153,11 @@ export default function AddSeatsForm({
           />
         </div>
       </div>
-      <p className="rounded-lg bg-mist px-3 py-2 text-sm text-on-surface-variant">
+      <Notice tone="info">
         {plan
           ? t('Adds {count} seats ({summary}).', { count: total, summary: summary ?? '' })
           : layoutError || (showErrors && totalError) || t('This boat has room for {count} more active seats.', { count: room })}
-      </p>
+      </Notice>
       <FormActions error={error} busy={busy} submitLabel="Add seats" onCancel={onCancel} />
     </form>
   )

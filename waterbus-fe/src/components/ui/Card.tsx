@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from 'react'
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  /** `functional` = trips/tickets/forms, `panel` = large feature/hero panel. */
+  /** `functional` = chuyến/vé/form, `panel` = khối nội dung lớn/hero. */
   tone?: 'functional' | 'panel'
 }
 

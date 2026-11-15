@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { SelectField, TextField } from '../../../components/ui'
+import { SelectField, TextField, Notice } from '../../../components/ui'
 import { t } from '../../../i18n'
 import type { TripType } from '../../trips/types'
 import { fromVietnamDateTimeInput, toVietnamDateTimeInput } from '../../../utils/time'
@@ -9,13 +9,12 @@ import { createFareRule, updateFareRule } from '../services/fareRuleService'
 import type { FareRule, SeatClass } from '../types'
 import FormActions from './FormActions'
 
-/** Highest fare the backend accepts (`decimal(12,2)`). */
+/** Giá cao nhất backend nhận (`decimal(12,2)`). */
 const MAX_PRICE = 9_999_999_999.99
 
 /**
- * Adds a fare or edits one (BR-FARE-01: one price per trip type and seat class). A fare that has
- * already taken effect keeps its price and start: only its end can be brought forward, and a new
- * price is a new fare.
+ * Thêm hoặc sửa một giá (BR-FARE-01: một giá cho mỗi loại chuyến và hạng ghế). Giá đã có hiệu lực giữ nguyên số
+ * tiền và ngày bắt đầu: chỉ được đưa ngày kết thúc sớm hơn, giá mới là một quy tắc giá mới.
  */
 export default function FareRuleForm({
   rule,
@@ -42,14 +41,22 @@ export default function FareRuleForm({
 
   const inEffect = rule !== undefined && rule.status !== 'Upcoming'
   const price = Number(form.price)
+  // Giá đã có hiệu lực: backend chỉ cho đưa ngày kết thúc SỚM hơn (không kéo dài, không bỏ).
+  const originalEnd = rule?.effectiveTo ? toVietnamDateTimeInput(rule.effectiveTo) : ''
+  const endError =
+    inEffect && originalEnd && (!form.to || form.to > originalEnd)
+      ? t('This fare is in effect: its end can only be brought earlier.')
+      : !form.to || !form.from || form.to > form.from
+        ? undefined
+        : t('The end must be after the start.')
   const errors = {
     seatClassId: form.seatClassId ? undefined : t('Choose a seat class.'),
     price:
-      form.price.trim() !== '' && price >= 0 && price <= MAX_PRICE
+      form.price.trim() !== '' && price >= 0 && price <= MAX_PRICE && Math.abs(price * 100 - Math.round(price * 100)) < 1e-6
         ? undefined
-        : t('Enter a price in VND.'),
+        : t('Enter a price in VND, with at most 2 decimals.'),
     from: form.from ? undefined : t('Choose when the fare starts.'),
-    to: !form.to || !form.from || form.to > form.from ? undefined : t('The end must be after the start.'),
+    to: endError,
   }
   const shown: Partial<typeof errors> = showErrors ? errors : {}
 
@@ -59,10 +66,14 @@ export default function FareRuleForm({
       setShowErrors(true)
       return
     }
+    // Ô nhập chỉ tới phút còn mốc gốc có thể có giây; trường không đổi thì gửi lại đúng giá trị gốc, kẻo backend
+    // coi giá đã có hiệu lực là bị sửa ngày bắt đầu.
+    const startUnchanged = rule !== undefined && form.from === toVietnamDateTimeInput(rule.effectiveFrom)
+    const endUnchanged = rule !== undefined && form.to === originalEnd
     const times = {
       price,
-      effectiveFrom: fromVietnamDateTimeInput(form.from),
-      effectiveTo: form.to ? fromVietnamDateTimeInput(form.to) : null,
+      effectiveFrom: startUnchanged ? rule.effectiveFrom : fromVietnamDateTimeInput(form.from),
+      effectiveTo: endUnchanged ? (rule.effectiveTo ?? null) : form.to ? fromVietnamDateTimeInput(form.to) : null,
     }
     const saved = await run(async () => {
       if (rule) await updateFareRule(rule.id, times)
@@ -116,7 +127,7 @@ export default function FareRuleForm({
         />
         <TextField
           label="Ends"
-          hint="Leave empty for no end."
+          hint={inEffect && originalEnd ? 'Can only be brought earlier.' : 'Leave empty for no end.'}
           type="datetime-local"
           value={form.to}
           onChange={set('to')}
@@ -124,9 +135,9 @@ export default function FareRuleForm({
         />
       </div>
       {inEffect && (
-        <p className="rounded-lg bg-mist px-3 py-2 text-sm text-on-surface-variant">
+        <Notice tone="info">
           {t('This fare is already in effect: only its end can be brought forward. To change the price, add a new fare.')}
-        </p>
+        </Notice>
       )}
       <FormActions error={error} busy={busy} onCancel={onCancel} />
     </form>

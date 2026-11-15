@@ -13,8 +13,8 @@ const inRange = (value: string) => {
 }
 
 /**
- * Edits one seat or switches it off and on. A seat held or sold on a trip that has not ended
- * cannot be changed; the backend says so and the reason is shown here.
+ * Sửa một ghế hoặc tắt/bật ghế. Ghế đang giữ hoặc đã bán trên chuyến chưa kết thúc thì không đổi được; backend báo
+ * lý do và lý do được hiện ở đây.
  */
 export default function SeatForm({
   seat,
@@ -66,7 +66,7 @@ export default function SeatForm({
     if (await run(() => setBoatSeatActive(seat.boatId, seat.id, !seat.isActive))) onDone()
   }
 
-  // The class of the seat stays selectable even after it was switched off.
+  // Hạng của ghế vẫn chọn được dù hạng đó đã bị tắt.
   const options = seatClasses.some((c) => c.id === seat.seatClassId)
     ? seatClasses
     : [...seatClasses, { id: seat.seatClassId, name: seat.seatClassName }]
@@ -85,7 +85,7 @@ export default function SeatForm({
         <TextField label="Row" inputMode="numeric" value={form.rowNumber} onChange={set('rowNumber')} error={shown.rowNumber} />
         <TextField label="Column" inputMode="numeric" value={form.columnNumber} onChange={set('columnNumber')} error={shown.columnNumber} />
       </div>
-      <div className="flex items-center justify-between gap-3 rounded-lg bg-mist px-3 py-2">
+      <div className="flex items-center justify-between gap-3 rounded-xl bg-mist px-3 py-2">
         <span className="text-sm text-on-surface-variant">
           {seat.isActive
             ? t('This seat is on sale for new trips.')

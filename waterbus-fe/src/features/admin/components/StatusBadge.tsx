@@ -8,7 +8,7 @@ const TONE_CLASS: Record<BadgeTone, string> = {
   muted: 'bg-surface-container text-on-surface-variant',
 }
 
-/** State of a catalogue item as a pill; `label` is an English source string. */
+/** Trạng thái một mục danh mục dạng nhãn tròn; `label` là chuỗi nguồn tiếng Anh. */
 export default function StatusBadge({ tone, label }: { tone: BadgeTone; label: string }) {
   return (
     <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${TONE_CLASS[tone]}`}>
@@ -17,7 +17,7 @@ export default function StatusBadge({ tone, label }: { tone: BadgeTone; label: s
   )
 }
 
-/** "In use" or "Switched off" for items that are switched on and off. */
+/** "Đang dùng" hoặc "Đã ngừng" cho các mục bật/tắt được. */
 export function ActiveBadge({ active }: { active: boolean }) {
   return <StatusBadge tone={active ? 'active' : 'muted'} label={active ? 'In use' : 'Switched off'} />
 }

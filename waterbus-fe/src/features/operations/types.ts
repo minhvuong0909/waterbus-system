@@ -1,12 +1,12 @@
 import type { TripStatus, TripType } from '../trips/types'
 
-/** A trip as the operations list returns it (BE `TripOperationItemDto`). */
+/** Một chuyến như danh sách vận hành trả về (BE `TripOperationItemDto`). */
 export interface AdminTrip {
   id: string
   routeId: string
   routeCode: string
   routeName: string
-  /** '' while no boat is assigned. */
+  /** '' khi chưa gán tàu. */
   boatId: string
   boatCode: string | null
   /** ISO 8601 */
@@ -14,33 +14,33 @@ export interface AdminTrip {
   arrivalTime: string
   tripType: TripType
   status: TripStatus
-  /** What the backend allows right now for this trip (BE `TripLifecycle`). */
+  /** Những gì backend cho phép với chuyến này lúc này (BE `TripLifecycle`). */
   allowedOperations: OperationType[]
 }
 
-/** An open incident shown as a warning: weather alerts from the weather guard, or a captain's SOS. */
+/** Một sự cố đang mở hiện dạng cảnh báo: cảnh báo thời tiết của Weather Guard hoặc SOS của thuyền trưởng. */
 export interface WeatherAlert {
   id: string
-  /** 1 = warning, 2 = stop operations (BE severity Medium = 1, High = 2). */
+  /** 1 = cảnh báo, 2 = dừng vận hành (mức BE Medium = 1, High = 2). */
   level: 1 | 2
   message: string
   /** ISO 8601 */
   issuedAt: string
   /** BE `IncidentType`. */
   kind?: 'Weather' | 'Safety' | 'Technical' | 'Other'
-  /** Trips linked to the alert (BE `IncidentTrip`), when known. */
+  /** Số chuyến liên kết với cảnh báo (BE `IncidentTrip`), nếu biết. */
   affectedTripCount?: number
-  /** Linked trips the admin has not decided about yet (BE `PendingDecisionCount`). */
+  /** Số chuyến liên kết mà Admin chưa quyết định (BE `PendingDecisionCount`). */
   pendingDecisionCount?: number
-  /** Route the alert is about, e.g. "RT01" (weather alerts are per route). */
+  /** Tuyến của cảnh báo, vd "RT01" (cảnh báo thời tiết theo từng tuyến). */
   routeCode?: string | null
-  /** Who raised it: `WeatherService` for the weather guard, otherwise a person (captain SOS). */
+  /** Ai tạo: `WeatherService` là Weather Guard, còn lại là người (SOS của thuyền trưởng). */
   source?: string
-  /** The linked trips and what the admin decided for each (null = not decided yet). Only on request. */
+  /** Các chuyến liên kết và quyết định của Admin cho từng chuyến (null = chưa quyết định). Chỉ có khi yêu cầu. */
   trips?: AlertTrip[]
 }
 
-/** A trip an alert affects (BE `AffectedTripDto`). */
+/** Một chuyến bị cảnh báo ảnh hưởng (BE `AffectedTripDto`). */
 export interface AlertTrip {
   tripId: string
   decision: string | null
@@ -49,7 +49,7 @@ export interface AlertTrip {
   decisionAt?: string | null
 }
 
-/** What an admin or a captain did to a trip, kept as an audit trail (BE `TripOperationEvent`). */
+/** Việc Admin hoặc thuyền trưởng đã làm với một chuyến, lưu làm nhật ký (BE `TripOperationEvent`). */
 export type OperationType =
   | 'OpenBoarding'
   | 'Start'
@@ -72,10 +72,10 @@ export interface OperationLog {
   at: string
 }
 
-/** Last known position of a boat, from `GET /tracking/boats` or the `boatPosition` hub event. */
+/** Vị trí gần nhất của một tàu, từ `GET /tracking/boats` hoặc sự kiện hub `boatPosition`. */
 export interface LiveBoatPosition {
   boatId: string
-  /** Set while the boat runs a trip (Boarding, EnRoute or Suspended). */
+  /** Có giá trị khi tàu đang chạy một chuyến (Boarding, EnRoute hoặc Suspended). */
   tripId: string | null
   latitude: number
   longitude: number
@@ -84,12 +84,12 @@ export interface LiveBoatPosition {
   observedAt: string
 }
 
-/** Result of `POST /incidents/weather-check`. */
+/** Kết quả của `POST /incidents/weather-check`. */
 export interface WeatherCheckResult {
   routesChecked: number
   incidentsCreated: number
   incidentsUpdated: number
-  /** Alerts the guard closed because the weather is calm again. */
+  /** Các cảnh báo Weather Guard đã đóng vì thời tiết đã êm trở lại. */
   incidentsResolved?: number
   observationFailures: number
 }
@@ -105,6 +105,6 @@ export interface AdminBoat {
   yearBuilt: number
   isActive: boolean
   captainUserId: string | null
-  /** Active seats set up on the boat; at most `totalSeats`. */
+  /** Số ghế đang hoạt động đã thiết lập trên tàu; tối đa `totalSeats`. */
   configuredSeats?: number
 }

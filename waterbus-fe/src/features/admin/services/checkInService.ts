@@ -2,13 +2,13 @@ import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
 import type { TripDetailDto, TripStopDto } from '../../trips/types'
 
-/** The stops of a trip in visit order, with their check-in windows (`GET /trips/{id}`). */
+/** Các bến của chuyến theo thứ tự ghé, kèm cửa sổ check-in (`GET /trips/{id}`). */
 export async function getTripStops(tripId: string): Promise<TripStopDto[]> {
   const trip = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
   return [...trip.stops].sort((a, b) => a.visitOrder - b.visitOrder)
 }
 
-/** Response of `PUT /checkins/windows/{id}` (BE `SetCheckInWindowResultDto`). */
+/** Phản hồi của `PUT /checkins/windows/{id}` (BE `SetCheckInWindowResultDto`). */
 export interface CheckInWindow {
   tripStopCallId: string
   checkInOpenAt: string
@@ -16,8 +16,8 @@ export interface CheckInWindow {
 }
 
 /**
- * Sets when staff may check passengers in at one stop (BR-BOARD-05: the window belongs to the stop
- * where they board). The backend refuses a stop that has departed or was skipped.
+ * Đặt khi nào nhân viên được check-in khách tại một bến (BR-BOARD-05: cửa sổ thuộc về bến khách lên). Backend từ
+ * chối bến đã rời hoặc bị bỏ qua.
  */
 export function setCheckInWindow(tripStopCallId: string, openAt: string, closeAt: string): Promise<CheckInWindow> {
   return apiRequest<CheckInWindow>(API_ENDPOINTS.checkIns.window(tripStopCallId), {

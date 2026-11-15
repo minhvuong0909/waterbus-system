@@ -1,9 +1,11 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
-import { apiRequest } from '../../../services/apiClient'
+import { ApiError, apiRequest } from '../../../services/apiClient'
+import { t } from '../../../i18n'
 import type { RouteDetail, RouteInput, RouteListItem, RouteStopInput } from '../types'
-import { fetchAllPages, setActive } from './catalogRequests'
+import { fetchAllPages } from '../../../services/paging'
+import { setActive } from './catalogRequests'
 
-/** `GET /admin/routes`: every route; `activeOnly` for the routes a new schedule may use. */
+/** `GET /admin/routes`: mọi tuyến; `activeOnly` để lấy các tuyến lịch chạy mới được dùng. */
 export const getRoutes = (activeOnly = false) =>
   fetchAllPages<RouteListItem>(API_ENDPOINTS.admin.routes, { isActive: activeOnly ? true : undefined })
 
@@ -22,9 +24,8 @@ const sameStops = (a: RouteStopInput[], b: RouteStopInput[]) =>
   )
 
 /**
- * Saves a route: `PUT /admin/routes/{id}` for its details, then `PUT …/stops` when the stops
- * changed. A route already used by a schedule or trip keeps its stops (the backend answers 409),
- * so they are only sent while the structure is not locked.
+ * Lưu một tuyến: `PUT /admin/routes/{id}` cho thông tin, rồi `PUT …/stops` khi bến dừng thay đổi. Tuyến đã được
+ * lịch chạy hoặc chuyến dùng giữ nguyên bến dừng (backend trả 409), nên chỉ gửi bến khi cấu trúc chưa bị khoá.
  */
 export async function updateRoute(current: RouteDetail, input: RouteInput): Promise<void> {
   const { name, serviceType, estimatedDurationMinutes, distanceKm, stops } = input
@@ -33,10 +34,23 @@ export async function updateRoute(current: RouteDetail, input: RouteInput): Prom
     body: { name, serviceType, estimatedDurationMinutes, distanceKm },
   })
   if (!current.structureLocked && !sameStops(stops, current.stops)) {
-    await apiRequest(API_ENDPOINTS.admin.routeStops(current.id), { method: 'PUT', body: { stops } })
+    try {
+      await apiRequest(API_ENDPOINTS.admin.routeStops(current.id), { method: 'PUT', body: { stops } })
+    } catch (error) {
+      // Thông tin tuyến đã lưu ở lệnh trước; nói rõ để Admin không tưởng cả hai phần đều chưa lưu.
+      if (error instanceof ApiError) {
+        throw new ApiError(
+          error.status,
+          t('The route details were saved, but the stops were not changed: {reason}', { reason: error.message }),
+          error.fieldErrors,
+          error.traceId,
+        )
+      }
+      throw error
+    }
   }
 }
 
-/** A route with an active schedule or an unfinished trip cannot be switched off (409). */
+/** Tuyến còn lịch chạy hoạt động hoặc chuyến chưa xong thì không tắt được (409). */
 export const setRouteActive = (id: string, active: boolean) =>
   setActive(API_ENDPOINTS.admin.route(id), active)
