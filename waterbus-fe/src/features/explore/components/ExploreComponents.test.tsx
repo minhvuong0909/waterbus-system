@@ -84,8 +84,7 @@ describe('Explore page', () => {
     inRouter(<LandmarksSection landmarks={landmarks} />)
 
     expect(screen.queryByRole('group', { name: 'Filter by category' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Details: Ba Son Waterfront' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Details: Thu Thiem Promenade' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Ba Son Waterfront|Thu Thiem Promenade/ })).toBeNull()
     expect(screen.queryByText('Explore', { exact: true })).toBeNull()
   })
 
@@ -99,31 +98,22 @@ describe('Explore page', () => {
     inRouter(<LandmarksSection landmarks={landmarks} />)
 
     landmarks.forEach((landmark) => {
-      const entry = screen.getByRole('button', { name: `Details: ${landmark.title}` })
-      expect(entry.getAttribute('data-reveal')).toBe('landmark')
-      expect(entry.querySelector('h3')?.textContent).toBe(landmark.title)
-      expect(entry.querySelector('[data-reveal-part="media"]')).toBeTruthy()
-      expect(entry.querySelector('[data-reveal-part="copy"]')).toBeTruthy()
+      const heading = screen.getByRole('heading', { level: 3, name: landmark.title })
+      const entry = heading.closest('[data-reveal="landmark"]')
+
+      expect(entry?.tagName).toBe('ARTICLE')
+      expect(entry?.getAttribute('data-reveal')).toBe('landmark')
+      expect(entry?.querySelector('[data-reveal-part="media"]')).toBeTruthy()
+      expect(entry?.querySelector('[data-reveal-part="copy"]')).toBeTruthy()
     })
   })
 
-  it('opens the story in a side panel and gives focus back when it closes', () => {
+  it('does not open a detail panel when a landmark is clicked', () => {
     inRouter(<LandmarksSection landmarks={landmarks} />)
-    const card = screen.getByRole('button', { name: /Ba Son Waterfront/ })
-    card.focus()
-    fireEvent.click(card)
-
-    const dialog = screen.getByRole('dialog', { name: 'Ba Son Waterfront' })
-    expect(dialog.textContent).toContain('Heritage meets public space.')
-    expect(screen.queryByRole('link', { name: /Ba Son/ })).toBeNull()
-
-    // Tab stays on the panel's close button instead of reaching the page behind it.
-    fireEvent.keyDown(window, { key: 'Tab' })
-    expect(document.activeElement?.getAttribute('aria-label')).toBe('Close')
-
-    fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(document.activeElement).toBe(card)
+    fireEvent.click(screen.getByRole('heading', { level: 3, name: 'Ba Son Waterfront' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull()
   })
 
   it('shows a neutral tile instead of a photo of the wrong place', () => {
