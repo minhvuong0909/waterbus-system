@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
@@ -20,7 +20,7 @@ const formatTime = (value: string) => new Date(value).toLocaleString('vi-VN', { 
 export default function ScannerSettingsScreen() {
   const { user, logout } = useAuthStore();
   const { deviceInfo, pairingStatus, shift, loadPairing, clearCache, isCheckingIn, isPreloading,
-    stats, needsReviewCount, syncPendingBatch, isSyncing, syncMessage } = useScannerStore();
+    stats, needsReviewCount, syncPendingBatch, isSyncing, syncMessage, setSimulatedOffline } = useScannerStore();
   const focused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
   const [showCamera, setShowCamera] = useState(false);
@@ -98,10 +98,28 @@ export default function ScannerSettingsScreen() {
           <Action title="Đăng xuất" onPress={confirmLogout} disabled={busy || isCheckingIn || isPreloading} />
         </View>
 
+        {__DEV__ && (
+          <View style={styles.card}>
+            <Text style={styles.heading}>Simulate Offline (Development Only)</Text>
+            <Text style={styles.body}>
+              Giả lập mất mạng cho thao tác soát vé ngay trong Expo Go, không cần tắt Wi-Fi (Metro vẫn kết nối).
+              Chỉ soát được các chuyến đã tải và có quyền ngoại tuyến hợp lệ; sự kiện được xếp hàng trong SQLite.
+              Tắt công tắc để đồng bộ lô lên máy chủ. Tự tắt khi đăng xuất hoặc khởi động lại.
+            </Text>
+            <View style={styles.switchRow}>
+              <Text style={styles.body}>{deviceInfo.forceOfflineMode ? 'ĐANG GIẢ LẬP OFFLINE' : 'Đang dùng mạng thật'}</Text>
+              <Switch accessibilityLabel="Simulate Offline (Development Only)"
+                value={!!deviceInfo.forceOfflineMode} disabled={busy || isCheckingIn || isPreloading || isSyncing}
+                onValueChange={(on) => void setSimulatedOffline(on)} />
+            </View>
+          </View>
+        )}
+
         <View style={styles.card}>
           <Text style={styles.heading}>Đồng bộ</Text>
           <Text style={styles.body}>{stats.pendingSyncCount} sự kiện chờ · {needsReviewCount} cần đối soát</Text>
-          <Action title={isSyncing ? 'Đang đồng bộ' : 'Đồng bộ ngay'} onPress={syncPendingBatch} disabled={isSyncing || (!stats.pendingSyncCount && !needsReviewCount)} />
+          <Action title={isSyncing ? 'Đang đồng bộ' : 'Đồng bộ ngay'} onPress={syncPendingBatch}
+            disabled={isSyncing || deviceInfo.forceOfflineMode || (!stats.pendingSyncCount && !needsReviewCount)} />
           {syncMessage && <Text style={styles.body}>{syncMessage}</Text>}
         </View>
       </ScrollView>
@@ -134,6 +152,7 @@ const styles = StyleSheet.create({
   heading: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
   body: { color: '#334155', lineHeight: 20 },
   error: { color: '#991B1B' },
+  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   action: { backgroundColor: '#0369A1', minHeight: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 8, padding: 10 },
   actionText: { color: '#FFFFFF', fontWeight: '600' },
   disabled: { opacity: 0.5 },

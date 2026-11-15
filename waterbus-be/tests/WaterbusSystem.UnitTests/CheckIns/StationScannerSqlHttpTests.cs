@@ -201,7 +201,10 @@ public sealed class StationScannerSqlHttpTests : IAsyncLifetime
         var secondaryIdentity = primaryHttp == first ? other.Scanner : primary.Scanner;
         var grant = Assert.IsType<ScannerOfflineGrantResponse>(firstManifest.OfflineGrant ?? secondManifest!.OfflineGrant);
         Assert.Null(primaryHttp == first ? secondManifest!.OfflineGrant : firstManifest.OfflineGrant);
-        Assert.NotEmpty(await first.GetFromJsonAsync<List<MyScannerAssignmentResponse>>($"{CheckIns}/assignments/mine") ?? []);
+        var mine = await first.GetFromJsonAsync<List<MyScannerAssignmentResponse>>($"{CheckIns}/assignments/mine") ?? [];
+        Assert.NotEmpty(mine);
+        // Staff phân biệt được các chuyến cùng tuyến/cùng bến qua giờ khởi hành thật của chuyến.
+        Assert.All(mine, a => Assert.NotEqual(default, a.TripDepartureTime));
         Assert.Equal(HttpStatusCode.Forbidden, (await cross.GetAsync($"{CheckIns}/manifest/{_callA}")).StatusCode);
 
         Assert.Equal("NotAssigned", (await Online(cross, _ticket, _callA)).Outcome);

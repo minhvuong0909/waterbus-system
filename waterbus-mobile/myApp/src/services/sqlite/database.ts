@@ -253,6 +253,12 @@ export async function getDatabase(): Promise<DatabaseAdapter> {
   }
 }
 
+/** Chỉ dùng cho bộ test: gắn adapter SQLite thật (vd node:sqlite) thay cho adapter bộ nhớ. */
+export async function useDatabaseForTests(adapter: DatabaseAdapter): Promise<void> {
+  await initSchema(adapter);
+  dbInstance = adapter;
+}
+
 async function initializeDatabase(): Promise<DatabaseAdapter> {
   if (isNodeTestEnvironment()) {
     return createInMemoryDatabase();

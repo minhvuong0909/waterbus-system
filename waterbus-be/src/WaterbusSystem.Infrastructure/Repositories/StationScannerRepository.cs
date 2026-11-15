@@ -69,7 +69,9 @@ public sealed class StationScannerRepository(ApplicationDbContext db) : IStation
                 scanner.DeviceId, scanner.DeviceCode,
                 Primaries.Any(a => a.TripStopCallId == c.Id && a.DeviceId == scanner.DeviceId
                     && a.RevokedAt == null && a.ActiveFrom < shiftEnd && a.ActiveUntil > now),
-                shift.ActiveFrom, shiftEnd, c.CheckInOpenAt, c.CheckInCloseAt))
+                shift.ActiveFrom, shiftEnd, c.CheckInOpenAt, c.CheckInCloseAt,
+                c.Trip.DepartureTime, c.Trip.Boat != null ? c.Trip.Boat.Code : null,
+                c.Trip.Boat != null ? c.Trip.Boat.Name : null, c.EstimatedDepartureTime))
             .ToListAsync(ct);
     }
 

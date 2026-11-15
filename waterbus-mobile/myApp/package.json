@@ -10,6 +10,7 @@
     "ios": "expo start --ios",
     "lint": "expo lint",
     "generate:qr": "node scripts/generate-qr.js",
+    "test:scanner:multitrip": "ts-node -O \"{\\\"module\\\":\\\"commonjs\\\"}\" scripts/verify-multi-trip.ts",
     "test:scanner": "ts-node -O \"{\\\"module\\\":\\\"commonjs\\\"}\" scripts/verify-staff-scanner.ts"
   },
   "dependencies": {

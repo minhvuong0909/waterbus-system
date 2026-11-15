@@ -21,6 +21,9 @@ import { useScannerStore } from '../../store/useScannerStore';
 import { getMyScannerAssignments } from '../../services/checkin/scannerAssignmentService';
 import { MyScannerAssignment } from '../../types/checkin';
 import { ApiError } from '../../services/api/apiClient';
+import { formatVnDate, formatVnTime, formatVnWindow } from '../../utils/formatTime';
+
+const startKey = (a: MyScannerAssignment) => Date.parse(a.tripDepartureTime ?? a.checkInOpenAt ?? '') || 0;
 
 export default function PreloadManifestScreen() {
   const {
@@ -30,6 +33,8 @@ export default function PreloadManifestScreen() {
     isSyncing,
     syncMessage,
     preloadCache,
+    preloadAll,
+    cachedAssignments,
     syncPendingBatch,
     refreshStats,
     clearCache,
@@ -49,7 +54,9 @@ export default function PreloadManifestScreen() {
         setAssignmentsError('Hãy ghép nối máy quét trong cài đặt.');
         return;
       }
-      const result = await getMyScannerAssignments(deviceInfo.staffId);
+      // Giả lập ngoại tuyến: không gọi API, chỉ hiện các chuyến đã tải trong máy.
+      const result = (deviceInfo.forceOfflineMode ? cachedAssignments : await getMyScannerAssignments(deviceInfo.staffId))
+        .slice().sort((a, b) => startKey(a) - startKey(b));
       setAssignments(result);
       setAssignmentsError(null);
       if (result.length > 0) {
@@ -61,7 +68,7 @@ export default function PreloadManifestScreen() {
     } finally {
       setIsLoadingAssignments(false);
     }
-  }, [deviceInfo.staffId, deviceInfo.deviceId]);
+  }, [deviceInfo.staffId, deviceInfo.deviceId, deviceInfo.forceOfflineMode, cachedAssignments]);
 
   const refreshAssignments = () => {
     setIsLoadingAssignments(true);
@@ -91,6 +98,13 @@ export default function PreloadManifestScreen() {
     } else {
       Alert.alert('Lỗi tải trước', syncMessage || 'Không tải được dữ liệu từ máy chủ.');
     }
+  };
+
+  const handlePreloadAll = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const { loaded, total } = await preloadAll();
+    Alert.alert(loaded === total && total > 0 ? 'Đã tải mọi chuyến' : 'Kết quả tải trước',
+      syncMessage || `Đã tải ${loaded}/${total} chuyến.`);
   };
 
   const handleSyncBatch = async () => {
@@ -163,24 +177,43 @@ export default function PreloadManifestScreen() {
                       size={16}
                       color={isSelected ? '#0284C7' : '#64748B'}
                     />
+                    <View style={styles.timeBox}>
+                      <Text style={styles.departTime}>{formatVnTime(a.tripDepartureTime)}</Text>
+                      <Text style={styles.departDate}>{formatVnDate(a.tripDepartureTime)}</Text>
+                    </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.stationChipText, isSelected && styles.stationChipTextSelected]}>
                         {a.stationName}
                       </Text>
+                      <Text style={styles.stationChipSub}>{a.routeName}</Text>
                       <Text style={styles.stationChipSub}>
-                        {a.routeName} • Bến thứ {a.visitOrder} • {a.tripStatus}
+                        {a.boatName ? `${a.boatCode ? a.boatCode + ' · ' : ''}${a.boatName} • ` : ''}Bến thứ {a.visitOrder}
+                        {a.estimatedArrivalTime ? ` • dự kiến ${formatVnTime(a.estimatedArrivalTime)}` : ''}
+                      </Text>
+                      <Text style={styles.stationChipSub}>
+                        Soát vé {formatVnWindow(a.checkInOpenAt, a.checkInCloseAt)} • {a.tripStatus}
+                        {cachedAssignments.some((c) => c.tripStopCallId === a.tripStopCallId) ? ' • Đã tải' : ''}
                       </Text>
                     </View>
-                    {a.isPrimaryOffline && (
-                      <View style={styles.badgePrimary}>
-                        <Text style={styles.badgePrimaryText}>Primary</Text>
-                      </View>
-                    )}
+                    <View style={a.isPrimaryOffline ? styles.badgePrimary : styles.badgeOnlineOnly}>
+                      <Text style={a.isPrimaryOffline ? styles.badgePrimaryText : styles.badgeOnlineOnlyText}>
+                        {a.isPrimaryOffline ? 'Offline' : 'Online'}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
             </View>
           )}
+
+          <TouchableOpacity
+            style={[styles.preloadAllButton, (isPreloading || assignments.length === 0 || deviceInfo.forceOfflineMode) && styles.buttonDisabled]}
+            onPress={handlePreloadAll}
+            disabled={isPreloading || assignments.length === 0 || deviceInfo.forceOfflineMode}
+          >
+            <Ionicons name="layers" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.preloadButtonText}>TẢI TẤT CẢ CHUYẾN TẠI BẾN ({assignments.length})</Text>
+          </TouchableOpacity>
 
           {/* Action Button: Preload Cache */}
           <TouchableOpacity
@@ -383,6 +416,39 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
     marginTop: 2,
+  },
+  timeBox: {
+    alignItems: 'center',
+    minWidth: 58,
+  },
+  departTime: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  departDate: {
+    fontSize: 10,
+    color: '#64748B',
+  },
+  preloadAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0F766E',
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  badgeOnlineOnly: {
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  badgeOnlineOnlyText: {
+    color: '#475569',
+    fontSize: 10,
+    fontWeight: '700',
   },
   badgePrimary: {
     backgroundColor: '#DCFCE7',

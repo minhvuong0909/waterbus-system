@@ -34,8 +34,8 @@ class AuthService {
       roles: response.roles,
     };
 
-    const cache = await scannerCredentials.cache();
-    if (cache?.staffId !== user.userId) {
+    const cached = await scannerCredentials.cacheList();
+    if (cached.length === 0 || cached.some((context) => context.staffId !== user.userId)) {
       await scannerCredentials.invalidateCache();
       await SqliteRepository.clearManifest();
     }

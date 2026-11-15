@@ -112,7 +112,11 @@ public sealed class CheckInRepository(ApplicationDbContext context) : ICheckInRe
                 a.ActiveFrom,
                 a.ActiveUntil,
                 a.TripStopCall.CheckInOpenAt,
-                a.TripStopCall.CheckInCloseAt))
+                a.TripStopCall.CheckInCloseAt,
+                a.TripStopCall.Trip.DepartureTime,
+                a.TripStopCall.Trip.Boat != null ? a.TripStopCall.Trip.Boat.Code : null,
+                a.TripStopCall.Trip.Boat != null ? a.TripStopCall.Trip.Boat.Name : null,
+                a.TripStopCall.EstimatedDepartureTime))
             .ToListAsync(cancellationToken);
 
     // ---------------- Check-in events (idempotency) ----------------

@@ -18,6 +18,11 @@ export interface MyScannerAssignment {
   activeUntil: string | null;
   checkInOpenAt: string | null;
   checkInCloseAt: string | null;
+  /** Định danh chuyến (backend thêm sau; tuỳ chọn để tương thích server cũ). */
+  tripDepartureTime?: string;
+  boatCode?: string | null;
+  boatName?: string | null;
+  estimatedDepartureTime?: string | null;
 }
 
 /** Khớp ManifestTicketDto (GetScannerManifestQuery). */

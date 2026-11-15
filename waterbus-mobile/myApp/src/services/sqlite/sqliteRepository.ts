@@ -33,6 +33,10 @@ export class SqliteRepository {
     const db = await getDatabase();
 
     await db.withTransactionAsync(async () => {
+      // Gộp nhiều manifest: vé có sự kiện check-in offline CHƯA đồng bộ giữ nguyên trạng thái cục bộ,
+      // không để dữ liệu máy chủ cũ (NotCheckedIn) ghi đè.
+      const unsynced = new Set((await db.getAllAsync<{ ticket_id: string }>(
+        `SELECT ticket_id FROM offline_checkin_events WHERE sync_status = 'Pending'`)).map((row) => row.ticket_id));
       // 1. Save or update Public Key
       if (replace) await this.clearManifestOnDb(db);
       if (manifest.publicKey) {
@@ -69,11 +73,17 @@ export class SqliteRepository {
       // 3. Save bookings & tickets
       for (const booking of manifest.bookings) {
         await db.runAsync(
-          `INSERT OR REPLACE INTO manifest_bookings (
+          // Upsert (không REPLACE): REPLACE xoá dòng cũ và FK ON DELETE CASCADE sẽ xoá luôn vé đã check-in cục bộ.
+          `INSERT INTO manifest_bookings (
             id, public_booking_id, booking_code, trip_id,
             customer_name, customer_phone, total_amount,
             qr_credential_version, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET public_booking_id = excluded.public_booking_id,
+            booking_code = excluded.booking_code, trip_id = excluded.trip_id,
+            customer_name = excluded.customer_name, customer_phone = excluded.customer_phone,
+            total_amount = excluded.total_amount, qr_credential_version = excluded.qr_credential_version,
+            status = excluded.status`,
           [
             booking.id,
             booking.publicBookingId,
@@ -88,6 +98,11 @@ export class SqliteRepository {
         );
 
         for (const ticket of booking.tickets) {
+          if (unsynced.has(ticket.id) && ticket.boardingStatus === 'NotCheckedIn') {
+            const local = await db.getFirstAsync<{ boarding_status: string }>(
+              `SELECT boarding_status FROM manifest_tickets WHERE id = ?`, [ticket.id]);
+            if (local?.boarding_status === 'CheckedIn') continue;
+          }
           await db.runAsync(
             `INSERT OR REPLACE INTO manifest_tickets (
               id, booking_id, ticket_number, seat_code, seat_class,

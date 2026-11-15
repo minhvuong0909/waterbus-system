@@ -48,9 +48,17 @@ The additive migration preserves Staff accounts, scanner codes, existing Scanner
 | /api/v1/scanner/pair | Active Staff JWT. Redeem one activation string from the request body. |
 | /api/v1/scanner/status | Active Staff JWT and scanner credential. Return Station, enrollment and current shift. |
 | /api/v1/checkins/assignments | Admin JWT. Set or revoke a finite Primary Offline interval. |
-| /api/v1/checkins/assignments/mine | Active Staff JWT and scanner credential. List available boarding calls. |
+| /api/v1/checkins/assignments/mine | Active Staff JWT and scanner credential. List available boarding calls. Each item also carries `tripDepartureTime`, `boatCode`, `boatName`, `estimatedDepartureTime` (additive) so Staff can tell trips on the same route apart. |
 | /api/v1/checkins/manifest/{tripStopCallId} | Active Staff JWT and scanner credential. Preload authorized manifest and optional offlineGrant. |
 | /api/v1/checkins | Active Staff JWT and scanner credential. Submit an online check-in. |
 | /api/v1/checkins/sync | Active Staff JWT and original enrollment credential. Submit Staff-owned events with offlineGrantId. |
 
 Send device credentials in the X-Scanner-Credential header. The ASP.NET Core controller types describe the request and response payloads in Development Swagger.
+
+## Multiple trips at one station
+
+A scanner stays bound to one Station. During a valid shift it may serve every authorized TripStopCall at that Station. The mobile app preloads all of them with one action; manifests are merged into SQLite (local state of tickets with unsynced offline events is never overwritten) and the server-issued context (check-in window, Primary Offline grant) is kept per TripStopCall. A scanned QR is verified offline, then routed by its signed `TripId` to the matching cached context. `TripId` only routes; it never grants authorization. A trip that is not cached can be loaded on demand while online (the server re-checks the assignment). Offline scanning only uses cached trips whose own context has a valid Primary Offline grant.
+
+## Simulated offline (development only)
+
+Scanner settings show "Simulate Offline (Development Only)" in development builds. It makes scanner operations behave as offline without disabling Wi-Fi. It is off by default, kept in memory only, and reset on login, logout and restart. While on, the app makes no scanner API calls (no pairing check, preload or check-in). Turning it off syncs queued events in a batch.
