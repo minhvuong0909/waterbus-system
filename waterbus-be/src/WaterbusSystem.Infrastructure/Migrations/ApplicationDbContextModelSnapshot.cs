@@ -1301,6 +1301,15 @@ namespace WaterbusSystem.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("PurchaserEmail")
+                        .HasDatabaseName("IX_PurchaseOrders_PurchaserEmail_Unlinked")
+                        .HasFilter("[PassengerAccountId] IS NULL");
+
+                    b.HasIndex("PassengerAccountId", "CreatedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("IX_PurchaseOrders_PassengerAccountId_CreatedAt")
+                        .HasFilter("[PassengerAccountId] IS NOT NULL");
+
                     b.ToTable("PurchaseOrders");
                 });
 

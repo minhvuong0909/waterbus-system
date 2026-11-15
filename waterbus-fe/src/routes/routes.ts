@@ -2,6 +2,10 @@
 export const ROUTES = {
   home: '/',
   signIn: '/sign-in',
+  /** A guest creates a customer account. */
+  signUp: '/sign-up',
+  /** Landing page of the link in the verification email (`?uid=&token=`); also resends the email. */
+  verifyEmail: '/verify-email',
   searchResults: '/search/results',
   seatSelection: '/booking/seats',
   passengerDetails: '/booking/passenger',
@@ -16,6 +20,8 @@ export const ROUTES = {
   manageByLink: '/manage/:token',
   /** Passenger: every order of the signed-in account. */
   orderHistory: '/account/orders',
+  /** Passenger: own name and phone. */
+  profile: '/account/profile',
   /** Passenger TripAccess Link shared by the buyer; shows the journey only (BR-ID-05). */
   sharedTrip: '/shared-trip/:token',
   liveTracking: '/tracking',
