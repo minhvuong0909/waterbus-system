@@ -1,13 +1,15 @@
+import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { API_BASE_URL } from '../../../constant/env'
 import { getToken } from '../../../services/authStorage'
 
 /**
- * Downloads one clip with the captain's token (the server gives no public URL) and returns an object URL to play.
- * The caller revokes it when the clip ends.
+ * Downloads one clip of an announcement with the captain's token (the server gives no public URL) and returns an
+ * object URL to play. The caller revokes it when the clip ends. It is the one place that needs a raw `fetch`: the
+ * answer is a binary MP3, not JSON like the other API calls.
  */
-export async function fetchClipObjectUrl(playbackPath: string): Promise<string> {
+export async function fetchClipObjectUrl(requestId: string, language: string): Promise<string> {
   const token = getToken()
-  const response = await fetch(`${API_BASE_URL}${playbackPath}`, {
+  const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.onboardAudio.clip(requestId, language)}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
   if (!response.ok) throw new Error(`Audio request failed (${response.status})`)

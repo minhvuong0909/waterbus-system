@@ -29,7 +29,8 @@ public class TripSalesCutoffTests
 
     private static TripService Trips(ApplicationDbContext c, IDateTimeService clock) =>
         new(new TripRepository(c), new IncidentRepository(c), new EfUnitOfWork(c), Mock.Of<ICurrentUserService>(), clock,
-            Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(), TestNotifications.Outbox(c), new DirectCommercialTransactionRunner());
+            Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(), TestNotifications.Outbox(c), new DirectCommercialTransactionRunner(),
+            WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Positions, WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Distance, WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Relaxed);
 
     private static GetTripSeatMapRequest SeatMapRequest(TestDbContextFactory.TripSeedData seed) =>
         new(seed.Trip.TripStopCalls.Single(c => c.VisitOrder == 1).Id, seed.Trip.TripStopCalls.Single(c => c.VisitOrder == 3).Id);

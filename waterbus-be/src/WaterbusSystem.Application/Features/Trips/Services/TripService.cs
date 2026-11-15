@@ -32,19 +32,18 @@ public sealed class TripService(
     IUserDirectory users,
     INotificationOutbox notifications,
     ICommercialTransactionRunner transactions,
-    IBoatPositionCache? positions = null,
-    IGeoDistanceCalculator? distance = null,
-    IOptions<CaptainOperationOptions>? captainOptions = null) : ITripService
+    IBoatPositionCache positions,
+    IGeoDistanceCalculator distance,
+    IOptions<CaptainOperationOptions> captainOptions) : ITripService
 {
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
 
-    // Không có cấu hình (vd. dựng thủ công trong test): chỉ theo vòng đời trạng thái, như trước khi có quy tắc thuyền trưởng.
-    private CaptainOperationOptions CaptainRules => captainOptions?.Value ?? new CaptainOperationOptions { Enforce = false };
+    private CaptainOperationOptions CaptainRules => captainOptions.Value;
 
     /// <summary>Khoảng cách từ tàu tới bến cuối; null nếu chưa có vị trí đủ mới hoặc chuyến chưa có điểm dừng.</summary>
     private async Task<double?> DistanceToLastStopAsync(Guid? boatId, (double Latitude, double Longitude)? lastStop, DateTimeOffset now, CancellationToken ct)
     {
-        if (boatId is null || lastStop is null || positions is null || distance is null) return null;
+        if (boatId is null || lastStop is null) return null;
         var position = await positions.GetAsync(boatId.Value, ct);
         if (position is null || now - position.ObservedAt > TimeSpan.FromSeconds(CaptainRules.PositionMaxAgeSeconds)) return null;
         return distance.CalculateDistanceMeters(position.Lat, position.Lng, (decimal)lastStop.Value.Latitude, (decimal)lastStop.Value.Longitude);

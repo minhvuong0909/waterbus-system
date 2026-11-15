@@ -67,7 +67,7 @@ export function useOnboardPlayer(enabled: boolean) {
       await report(item.requestId, 'Started')
       try {
         for (const clip of item.clips) {
-          const url = await fetchClipObjectUrl(clip.playbackPath)
+          const url = await fetchClipObjectUrl(item.requestId, clip.language)
           setNowPlaying({ subjectName: item.subjectName, language: clip.language, text: clip.text })
           addLog(`${item.subjectName} (${clip.language})`)
           try {
