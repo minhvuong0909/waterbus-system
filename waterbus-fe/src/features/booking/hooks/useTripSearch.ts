@@ -8,6 +8,7 @@ import {
   getDateOptions,
   getDayTripCounts,
   getPierOptions,
+  getSightseeingTours,
   getTrips,
 } from '../../trips/services/tripService'
 import type { DateOption, PierOption, SearchQuery, Trip } from '../../trips/types'
@@ -77,7 +78,7 @@ export function useSearchForm() {
   }
 }
 
-export function useSearchResults(leg: Leg = 'outbound') {
+export function useSearchResults(leg: Leg = 'outbound', sightseeingOnly = false) {
   const { query, updateQuery } = useSearchQuery(leg)
   const dispatch = useAppDispatch()
   const piers = useFetch(getPierOptions)
@@ -88,17 +89,19 @@ export function useSearchResults(leg: Leg = 'outbound') {
   // Search again whenever the piers or the day change. Until a pier pair is chosen the request
   // simply stays pending, so the page keeps showing its loader instead of an empty list.
   const ready = query.originId !== '' && query.destinationId !== '' && query.dateId !== ''
+  // Chuyến ngắm cảnh đi trọn hành trình nên không phụ thuộc cặp bến đang chọn.
+  const findTrips = (q: SearchQuery) => (sightseeingOnly ? getSightseeingTours(q.dateId) : getTrips(q))
   const trips = useFetch(
-    () => (ready ? getTrips(query) : new Promise<Trip[]>(() => undefined)),
-    [ready, query.originId, query.destinationId, query.dateId],
+    () => (ready ? findTrips(query) : new Promise<Trip[]>(() => undefined)),
+    [ready, sightseeingOnly, query.originId, query.destinationId, query.dateId],
   )
   // Số chuyến còn bán của từng ngày; chỉ để hiện trên thanh chọn ngày nên lỗi không chặn trang.
   const counts = useFetch(
     () =>
       ready && dates.data
-        ? getDayTripCounts(query, dates.data)
+        ? getDayTripCounts(query, dates.data, findTrips)
         : new Promise<Record<string, number>>(() => undefined),
-    [ready, query.originId, query.destinationId, dates.data?.length],
+    [ready, sightseeingOnly, query.originId, query.destinationId, dates.data?.length],
   )
   return {
     query,

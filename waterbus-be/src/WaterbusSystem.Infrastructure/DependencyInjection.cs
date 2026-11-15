@@ -121,7 +121,7 @@ public static class DependencyInjection
             options.Password.RequireLowercase = true;
             options.Password.RequireUppercase = true;
             options.Password.RequireNonAlphanumeric = false;
-            options.Password.RequiredLength = 6;
+            options.Password.RequiredLength = 8;
             options.User.RequireUniqueEmail = true;
 
             // M11: khóa tài khoản sau 5 lần sai mật khẩu liên tiếp, mở lại sau 5 phút.
@@ -131,6 +131,10 @@ public static class DependencyInjection
         })
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddDefaultTokenProviders();
+
+        // Liên kết xác minh email sống đúng AccountEmailTemplates.VerificationValidHours giờ (mặc định của Identity là 1 ngày).
+        services.Configure<DataProtectionTokenProviderOptions>(o =>
+            o.TokenLifespan = TimeSpan.FromHours(WaterbusSystem.Application.Features.Accounts.AccountEmailTemplates.VerificationValidHours));
 
         // 3. Đăng ký Xác thực JWT Bearer
         // LƯU Ý: Secret BẮT BUỘC phải lấy từ cấu hình (User Secrets / biến môi trường).
@@ -192,6 +196,16 @@ public static class DependencyInjection
         });
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuthService, AuthService>();
+
+        // Khách hàng: đăng ký, xác minh email, hồ sơ, gắn đơn Guest theo email đã xác minh.
+        services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<IOrderLinkingRepository, OrderLinkingRepository>();
+        services.AddScoped<IOrderLinkingService, WaterbusSystem.Application.Features.Accounts.Services.OrderLinkingService>();
+        services.AddSingleton<IEmailCooldownStore, WaterbusSystem.Infrastructure.Services.Accounts.RedisEmailCooldownStore>();
+        services.AddSingleton<WaterbusSystem.Infrastructure.Services.Accounts.VerificationMailer>();
+        services.AddSingleton<IVerificationEmailQueue>(sp => sp.GetRequiredService<WaterbusSystem.Infrastructure.Services.Accounts.VerificationMailer>());
+        services.AddHostedService<WaterbusSystem.Infrastructure.Services.Accounts.VerificationMailerWorker>();
         services.AddTransient<IDateTimeService, DateTimeService>();
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();

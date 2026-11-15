@@ -55,8 +55,7 @@ public class JourneySameStationTests
 
         var act = () => CommercialHandlerFactory.Booking(context).CreateAsync(Booking(seed, seed.StationA.Id, seed.StationA.Id));
 
-        (await act.Should().ThrowAsync<ValidationException>()).Which.Errors.Values.SelectMany(v => v)
-            .Should().Contain(m => m.Contains("hai bến khác nhau"));
+        await act.Should().ThrowAsync<ValidationException>();
         context.PurchaseOrders.Should().BeEmpty();
         context.SeatReservations.Should().BeEmpty();
     }

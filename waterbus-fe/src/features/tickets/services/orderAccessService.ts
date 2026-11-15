@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
+import { getToken } from '../../../services/authStorage'
 import { guestHeaders } from '../../booking/services/bookingService'
 import type { AccessLink, AccountOrder, Page, SharedTrip } from '../types'
 
@@ -68,4 +69,44 @@ export function getSharedTrip(token: string): Promise<SharedTrip> {
   return apiRequest<SharedTrip>(API_ENDPOINTS.tripAccess, {
     headers: { 'X-Trip-Access-Token': token },
   })
+}
+
+/** `GET /me/orders/linkable`: guest orders bought with the account's VERIFIED email and not linked yet. */
+export function getLinkableOrderCount(): Promise<{ count: number }> {
+  return apiRequest<{ count: number }>(API_ENDPOINTS.me.linkableOrders)
+}
+
+/**
+ * `POST /me/orders/link-by-email`: links those orders to the signed-in account (up to 200 per call,
+ * `remaining` > 0 means call again). Never links by an unverified email and never takes over an order of another account.
+ */
+export function linkOrdersByEmail(): Promise<{ linked: number; remaining: number }> {
+  return apiRequest<{ linked: number; remaining: number }>(API_ENDPOINTS.me.linkOrders, { method: 'POST' })
+}
+
+const MAX_LINK_BATCHES = 10
+const guestOrderSync = new Map<string, Promise<void>>()
+
+/** Shares the current run across mounts for this session and checks eligibility again on a later visit. */
+export function syncGuestOrders(token: string): Promise<void> {
+  const running = guestOrderSync.get(token)
+  if (running) return running
+
+  const sync = async () => {
+    if (getToken() !== token) throw new Error('The active session changed.')
+    if ((await getLinkableOrderCount()).count === 0) return
+
+    for (let batch = 0; batch < MAX_LINK_BATCHES; batch++) {
+      // apiRequest reads the active token from storage at the start of each request.
+      if (getToken() !== token) throw new Error('The active session changed.')
+      const { linked, remaining } = await linkOrdersByEmail()
+      if (remaining === 0) return
+      if (linked === 0) break
+    }
+    throw new Error('Guest order synchronization is incomplete.')
+  }
+
+  const request = sync().finally(() => guestOrderSync.delete(token))
+  guestOrderSync.set(token, request)
+  return request
 }

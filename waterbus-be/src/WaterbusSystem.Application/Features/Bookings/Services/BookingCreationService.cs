@@ -339,12 +339,6 @@ public sealed class BookingCreationService
         var boardingCall = Resolve(boardingStationId, requestedBoardingCallId, isBoarding: true);
         var disembarkingCall = Resolve(disembarkingStationId, requestedDisembarkingCallId, isBoarding: false);
 
-        // BR-ROUTE-06: chỉ chuyến Sightseeing (dạng vòng) mới được lên và xuống cùng một Station vật lý.
-        if (JourneyRules.IsForbiddenSameStation(trip.TripType, boardingCall.RouteStop!.StationId, disembarkingCall.RouteStop!.StationId))
-        {
-            throw Validation("Với chuyến thường, bến lên và bến xuống phải là hai bến khác nhau.");
-        }
-
         try
         {
             ValidateVisitOrder(boardingCall, disembarkingCall);
@@ -352,6 +346,14 @@ public sealed class BookingCreationService
         catch (ArgumentException ex)
         {
             throw Validation(ex.Message);
+        }
+
+        // BR-ROUTE-06: chỉ Sightseeing dạng vòng được lên và xuống cùng một Station vật lý (khác VisitOrder).
+        // Chuyến thường (Commuter) không cho chọn cùng một bến cho cả hai đầu.
+        if (JourneyRules.IsForbiddenSameStation(
+                trip.TripType, boardingCall.RouteStop!.StationId, disembarkingCall.RouteStop!.StationId))
+        {
+            throw Validation("Chuyến thường không cho chọn cùng một bến để lên và xuống tàu.");
         }
 
         return (boardingCall, disembarkingCall);

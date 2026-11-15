@@ -185,11 +185,25 @@ public sealed class EmailConfigurationTests
     }
 
     [Theory]
-    [InlineData("http://waterbus.example", true)] [InlineData("not a url", false)] [InlineData("", true)]
-    public void PublicBaseUrlMustBeAbsoluteAndHttpsInProduction(string url, bool production)
+    [InlineData("http://waterbus.example", true)]
+    [InlineData("http://waterbus.example", false)]
+    [InlineData("http://localhost:8080", true)]
+    [InlineData("https://user@waterbus.example", false)]
+    [InlineData("https://waterbus.example?key=value", false)]
+    [InlineData("https://waterbus.example#fragment", false)]
+    [InlineData("not a url", false)]
+    [InlineData("", true)]
+    public void PublicBaseUrlRejectsUnsafeValues(string url, bool production)
     {
         var options = Good(); options.PublicBaseUrl = url;
         EmailConfigurationRules.Validate(options, GoodSmtp(), production).Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void LoopbackPublicBaseUrlIsAllowedForLocalDevelopment()
+    {
+        var options = Good(); options.PublicBaseUrl = "http://localhost:8080";
+        EmailConfigurationRules.Validate(options, GoodSmtp(), false).Should().BeEmpty();
     }
 
     [Fact]

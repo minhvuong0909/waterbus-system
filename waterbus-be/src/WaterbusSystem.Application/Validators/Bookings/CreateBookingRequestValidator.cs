@@ -26,8 +26,9 @@ public class CreateBookingRequestValidator : AbstractValidator<CreateBookingRequ
             .Must((cmd, p) => p == null || p.Count == 0 || p.Count == (cmd.SeatIds?.Count ?? 0))
                 .WithMessage("Danh sách hành khách phải khớp với số ghế đã chọn.");
 
+        // Passengers có thể null/rỗng (fallback người mua); nếu có thì phần tử không được null vì Service đọc p.Name.
         RuleForEach(x => x.Passengers)
-            .NotNull().WithMessage("Thông tin hành khách không được để trống.")
+            .NotNull().WithMessage("Hành khách không được để trống.")
             .ChildRules(passenger =>
         {
             passenger.RuleFor(p => p.Name).NotEmpty().MaximumLength(150);

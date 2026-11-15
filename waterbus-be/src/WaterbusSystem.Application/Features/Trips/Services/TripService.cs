@@ -524,7 +524,7 @@ public sealed class TripService(
                     trip.TripType, boardingCall.RouteStop!.StationId, disembarkingCall.RouteStop!.StationId))
             {
                 if (request.ArrivalStationId.HasValue) continue;
-                disembarkingCall = calls.LastOrDefault(c => c.RouteStop!.CanAlight
+                disembarkingCall = calls.LastOrDefault(c => c.VisitOrder > boardingCall.VisitOrder && c.RouteStop!.CanAlight
                     && c.RouteStop.StationId != boardingCall.RouteStop!.StationId);
             }
             if (disembarkingCall == null || boardingCall.VisitOrder >= disembarkingCall.VisitOrder) continue;

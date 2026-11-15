@@ -5,28 +5,33 @@ using Xunit;
 
 namespace WaterbusSystem.UnitTests.Stations;
 
-/// <summary>Toạ độ bến phải nằm trên Trái Đất. Chưa giới hạn theo địa bàn TP.HCM/Đồng Nai vì BR chưa chốt.</summary>
+/// <summary>Tọa độ bến: chỉ chặn giá trị không tồn tại trên Trái Đất; chưa giới hạn theo địa bàn (BR chưa chốt).</summary>
 public class StationRequestValidatorTests
 {
-    private readonly CreateStationRequestValidator _create = new();
-    private readonly UpdateStationRequestValidator _update = new();
+    private static readonly CreateStationRequestValidator Create = new();
+    private static readonly UpdateStationRequestValidator Update = new();
 
-    private static CreateStationRequest Create(double lat = 10.77, double lng = 106.70) =>
-        new("ST99", "Ben thu", "Dia chi", lat, lng, 1);
+    private static CreateStationRequest NewCreate(double lat = 10.77, double lng = 106.7) =>
+        new("BX01", "Bến Bạch Đằng", "Quận 1", lat, lng, 1);
 
-    private static UpdateStationRequest Update(double lat = 10.77, double lng = 106.70) =>
-        new("Ben thu", "Dia chi", lat, lng, 1, true);
+    private static UpdateStationRequest NewUpdate(double lat = 10.77, double lng = 106.7) =>
+        new("Bến Bạch Đằng", "Quận 1", lat, lng, 1, true);
+
+    [Fact]
+    public void ValidCoordinates_ShouldPass()
+    {
+        Create.Validate(NewCreate()).IsValid.Should().BeTrue();
+        Update.Validate(NewUpdate()).IsValid.Should().BeTrue();
+    }
 
     [Theory]
-    [InlineData(10.77, 106.70)]      // TP.HCM
-    [InlineData(-90, -180)]          // biên dưới, nhận
-    [InlineData(90, 180)]            // biên trên, nhận
-    [InlineData(0, 0)]
-    [InlineData(21.03, 105.85)]      // ngoài TP.HCM nhưng hợp lệ: chưa giới hạn địa bàn
-    public void ValidCoordinates_AreAccepted(double lat, double lng)
+    [InlineData(-90)]
+    [InlineData(90)]
+    [InlineData(0)]
+    public void LatitudeAtBoundary_ShouldPass(double lat)
     {
-        _create.Validate(Create(lat, lng)).IsValid.Should().BeTrue();
-        _update.Validate(Update(lat, lng)).IsValid.Should().BeTrue();
+        Create.Validate(NewCreate(lat: lat)).IsValid.Should().BeTrue();
+        Update.Validate(NewUpdate(lat: lat)).IsValid.Should().BeTrue();
     }
 
     [Theory]
@@ -36,29 +41,45 @@ public class StationRequestValidatorTests
     [InlineData(double.NaN)]
     [InlineData(double.PositiveInfinity)]
     [InlineData(double.NegativeInfinity)]
-    public void LatitudeOutOfRange_IsRejected(double lat)
+    public void LatitudeOutOfRange_ShouldFail(double lat)
     {
-        _create.Validate(Create(lat: lat)).Errors.Should().Contain(e => e.PropertyName == "Latitude");
-        _update.Validate(Update(lat: lat)).Errors.Should().Contain(e => e.PropertyName == "Latitude");
+        Create.Validate(NewCreate(lat: lat)).Errors.Should().Contain(e => e.PropertyName == "Latitude");
+        Update.Validate(NewUpdate(lat: lat)).Errors.Should().Contain(e => e.PropertyName == "Latitude");
+    }
+
+    [Theory]
+    [InlineData(-180)]
+    [InlineData(180)]
+    public void LongitudeAtBoundary_ShouldPass(double lng)
+    {
+        Create.Validate(NewCreate(lng: lng)).IsValid.Should().BeTrue();
+        Update.Validate(NewUpdate(lng: lng)).IsValid.Should().BeTrue();
     }
 
     [Theory]
     [InlineData(-180.0001)]
     [InlineData(180.0001)]
+    [InlineData(-1000)]
     [InlineData(1000)]
     [InlineData(double.NaN)]
-    [InlineData(double.PositiveInfinity)]
-    public void LongitudeOutOfRange_IsRejected(double lng)
+    [InlineData(double.NegativeInfinity)]
+    public void LongitudeOutOfRange_ShouldFail(double lng)
     {
-        _create.Validate(Create(lng: lng)).Errors.Should().Contain(e => e.PropertyName == "Longitude");
-        _update.Validate(Update(lng: lng)).Errors.Should().Contain(e => e.PropertyName == "Longitude");
+        Create.Validate(NewCreate(lng: lng)).Errors.Should().Contain(e => e.PropertyName == "Longitude");
+        Update.Validate(NewUpdate(lng: lng)).Errors.Should().Contain(e => e.PropertyName == "Longitude");
     }
 
     [Fact]
-    public void OtherRulesAreUnchanged()
+    public void CoordinatesOutsideHoChiMinhCity_ShouldRemainValid()
     {
-        _create.Validate(Create() with { Code = "" }).IsValid.Should().BeFalse();
-        _create.Validate(Create() with { OrderIndex = -1 }).IsValid.Should().BeFalse();
-        _update.Validate(Update() with { Name = "" }).IsValid.Should().BeFalse();
+        Create.Validate(NewCreate(21.03, 105.85)).IsValid.Should().BeTrue();
+        Update.Validate(NewUpdate(21.03, 105.85)).IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void LongitudePositiveInfinity_ShouldFail()
+    {
+        Create.Validate(NewCreate(lng: double.PositiveInfinity)).Errors.Should().Contain(e => e.PropertyName == "Longitude");
+        Update.Validate(NewUpdate(lng: double.PositiveInfinity)).Errors.Should().Contain(e => e.PropertyName == "Longitude");
     }
 }

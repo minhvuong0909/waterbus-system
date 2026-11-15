@@ -3,6 +3,16 @@
 Baseline: `main` sau PR #84 (`ae26d7b`). Bản này thay cho bản audit đầu, đã đối chiếu từng finding với code và BR v2.0.
 Mỗi finding ghi rõ **tầng** (Validator, Service, Domain, BR) để không sửa trùng hoặc đổi nghiệp vụ.
 
+### Đồng bộ PR #86 với main sau PR #87/#88
+
+- Đã merge `origin/main` tại `3158c7f`; giữ nguyên validator, thông báo lỗi và các regression test hiện có của main cho tọa độ, GUID, phần tử hành khách null, VNPay và tracking history.
+- Phần implementation riêng còn lại: `JourneyRules` thuần Domain dùng chung cho Booking/Checkout/seat map/search; Search chọn bến xuống khác bến lên, ở phía sau theo VisitOrder và cho phép xuống, khi Commuter có bến lặp và khách chưa chọn bến đến. Giữ thứ tự validation và thông báo lỗi Booking hiện có trên main.
+- Giữ các test main, bổ sung ca còn thiếu: fallback Search khi không chỉ định bến đến/bến đi, điểm dừng không cho xuống, không có bến hợp lệ sau điểm lên; checkout thiếu danh sách hành khách; giới hạn thời gian check-in online/offline; biên validator chưa được test.
+- Thêm hai test `ApiReliabilitySqlHttpTests.CircularCommuterJourney_*` và `CircularSightseeingJourney_*` trên SQL Server + HTTP thật cho A → B → C → A: search, seat map, booking, checkout hold, không phát Ticket trước payment và không để lại Order/AccessGrant/reservation khi bị từ chối. Các test thuộc nhóm CI bắt buộc chạy, không được coi skip là pass.
+- Không sửa authentication, đăng ký/xác minh email, Guest Order linking, payment processing, API contract hoặc migration từ main. Những phần này được đưa vào nhánh bằng merge và được kiểm tra lại cùng toàn bộ suite.
+- Local chưa có Docker engine/SQL/Redis. Kết quả local có skip được báo riêng; bằng chứng SQL thật phải lấy từ CI của đúng head commit cập nhật, không dùng lượt CI cũ của #86.
+- Kiểm tra local sau merge: BE build pass (hai warning có sẵn ở email transport/test outbox), 1.340 test pass và 152 skip; web install frozen-lockfile/lint/build pass. Web 365/365 test pass khi chạy Vitest bằng Node 20.19.0 giống major version CI. Node 24.15.0 của máy có lỗi tương thích Blob/jsdom ở test download; không sửa production code hoặc bỏ assertion để né lỗi môi trường này.
+
 ## 1. Kết quả theo finding
 
 | # | Finding | Tầng | Kết luận | Xử lý |

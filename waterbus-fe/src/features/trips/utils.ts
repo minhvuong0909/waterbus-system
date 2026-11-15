@@ -121,6 +121,16 @@ export function toTrip(dto: TripDto): Trip {
   const depart = new Date(dto.departureTime)
   const arrive = new Date(dto.arrivalTime)
   const kind = dto.tripType === 'Sightseeing' ? 'sightseeing' : 'transit'
+  const ends = [...(dto.stops ?? [])].sort((a, b) => a.orderIndex - b.orderIndex)
+  const tour =
+    kind === 'sightseeing' && ends.length >= 2
+      ? {
+          originId: ends[0].stationId,
+          destinationId: ends[ends.length - 1].stationId,
+          originName: ends[0].stationName,
+          destinationName: ends[ends.length - 1].stationName,
+        }
+      : undefined
   return {
     id: dto.id,
     kind,
@@ -144,6 +154,7 @@ export function toTrip(dto: TripDto): Trip {
     fareVnd: dto.basePrice,
     // basePrice is the lowest fare of the trip type; seats of other classes cost more.
     fareLabel: t('Fares from'),
+    tour,
   }
 }
 
@@ -184,6 +195,23 @@ export function pickJourney(
     if (disembarking) return { boarding, disembarking }
   }
   return null
+}
+
+/**
+ * Hành trình của một chuyến: chuyến ngắm cảnh luôn đi trọn tuyến (lên ở điểm dừng đầu cho phép lên, xuống ở điểm
+ * dừng cuối cho phép xuống), không theo cặp bến khách tìm (BR-ROUTE-05); chuyến thường theo cặp bến đã chọn.
+ */
+export function journeyFor(
+  tripType: string,
+  stops: TripStopDto[],
+  originId: string,
+  destinationId: string,
+): { boarding: TripStopDto; disembarking: TripStopDto } | null {
+  if (tripType !== 'Sightseeing') return pickJourney(stops, originId, destinationId)
+  const usable = stops.filter((stop) => stop.status !== 'Skipped').sort((a, b) => a.visitOrder - b.visitOrder)
+  const boarding = usable.find((stop) => stop.canBoard)
+  const disembarking = [...usable].reverse().find((stop) => stop.canAlight)
+  return boarding && disembarking && boarding.visitOrder < disembarking.visitOrder ? { boarding, disembarking } : null
 }
 
 /** The corridor shown on the maps: the piers at their coordinates. */

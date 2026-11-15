@@ -14,6 +14,9 @@ check-in gồm DI, DbContext/interface, Hangfire và cấu hình mẫu; không s
 
 | Nhóm API | Client / cách test |
 | --- | --- |
+| Đăng ký khách hàng | Web `/sign-up` gọi `POST /auth/register` với `email`, `fullName`, `phoneNumber` (tùy chọn). Email dẫn tới `/verify-email#uid=…&token=…`; web xóa fragment khỏi URL và gửi `userId`, `token`, `password` qua body của `POST /auth/confirm-email` khi người nhận đặt mật khẩu. Thành công trả 204. `POST /auth/resend-verification` nhận `email`. Phản hồi đăng ký và gửi lại giống nhau dù email đã có tài khoản hay chưa. |
+| Gắn đơn Guest vào tài khoản | Trang `/account/orders` của Passenger tự gọi `GET /me/orders/linkable`, gọi `POST /me/orders/link-by-email` khi có đơn Guest đủ điều kiện rồi tải lại `GET /me/orders`. Mỗi POST gắn tối đa 200 đơn. Client gọi tiếp khi `remaining > 0` và có tiến triển, tối đa 10 lượt mỗi lần chạy, rồi báo nếu cần thử lại. Server dùng email đã xác minh lưu trên tài khoản. Xem đề xuất sửa BR-ID-04 trong `ACCOUNT_ACCESS_MODEL.md` mục 5a. |
+| Hồ sơ khách hàng | Web `/account/profile` gọi `GET/PUT /me/profile`. |
 | Auth login | Web `/sign-in`; mobile `/login`. Staff chỉ dùng Scanner; không có Dispatcher/Accountant. |
 | Stations list/paged/detail/create/update | Trang Admin Stations dùng dữ liệu thật, tạo/cập nhật bằng API. Ngừng hoạt động dùng `PUT isActive=false`, không xóa vật lý. Paged/detail có trong Test API. |
 | Boats list/detail/create/update | Admin Boats lấy toàn bộ trang, tạo tàu và ngừng hoạt động bằng API. Backend chỉ nhận tổng số ghế, chưa hỗ trợ cấu hình sơ đồ ghế qua API. Các trường cập nhật khác và CaptainUserId có trong Test API. |

@@ -39,10 +39,8 @@ public static class EmailConfigurationRules
             errors.Add("Email:Smtp:Username và Password phải cùng được cấu hình hoặc cùng bỏ trống.");
         if (!string.IsNullOrWhiteSpace(o.PublicBaseUrl))
         {
-            if (!Uri.TryCreate(o.PublicBaseUrl.Trim(), UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
-                errors.Add("Email:PublicBaseUrl phải là URL http(s) tuyệt đối.");
-            else if (isProduction && uri.Scheme != "https")
-                errors.Add("Email:PublicBaseUrl phải dùng https ở Production.");
+            if (!IsSafePublicBaseUrl(o.PublicBaseUrl.Trim(), allowLoopbackHttp: !isProduction))
+                errors.Add("Email:PublicBaseUrl phải là URL HTTPS tuyệt đối, không có thông tin đăng nhập, query hoặc fragment. HTTP chỉ dùng với loopback ngoài Production.");
         }
         else if (isProduction) errors.Add("Email:PublicBaseUrl là bắt buộc ở Production khi bật email.");
         if (o.MaxAttempts is < 1 or > 20) errors.Add("Email:MaxAttempts phải trong 1..20.");
@@ -56,6 +54,11 @@ public static class EmailConfigurationRules
         if (string.IsNullOrWhiteSpace(o.Cron)) errors.Add("Email:Cron là bắt buộc.");
         return errors;
     }
+
+    internal static bool IsSafePublicBaseUrl(string? baseUrl, bool allowLoopbackHttp) =>
+        Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttps || (allowLoopbackHttp && uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback))
+        && uri.UserInfo.Length == 0 && uri.Query.Length == 0 && uri.Fragment.Length == 0;
 }
 
 public sealed class EmailOptionsValidator(IOptions<SmtpOptions> smtp, IHostEnvironment environment) : IValidateOptions<EmailOptions>
