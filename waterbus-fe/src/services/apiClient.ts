@@ -129,7 +129,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   if (!response.ok) {
-    if (response.status === 401 && token) onUnauthorized?.()
+    if (response.status === 401 && token && getToken() === token) onUnauthorized?.()
     throw await toApiError(response)
   }
 

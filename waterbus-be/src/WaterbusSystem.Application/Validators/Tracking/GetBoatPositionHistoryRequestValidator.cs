@@ -7,6 +7,7 @@ public class GetBoatPositionHistoryRequestValidator : AbstractValidator<GetBoatP
 {
     public GetBoatPositionHistoryRequestValidator()
     {
+        RuleFor(x => x.BoatId).NotEmpty().WithMessage("Mã tàu không được để trống.");
         RuleFor(x => x.To).GreaterThan(x => x.From).WithMessage("Thời điểm kết thúc phải sau thời điểm bắt đầu.");
         RuleFor(x => x)
             .Must(x => x.To - x.From <= TimeSpan.FromDays(7))

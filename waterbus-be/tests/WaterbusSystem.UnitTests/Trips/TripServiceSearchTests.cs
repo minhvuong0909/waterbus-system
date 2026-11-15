@@ -275,15 +275,61 @@ public class TripServiceSearchTests
     [Fact]
     public async Task CircularTrip_ShouldMatchRepeatedStationAndKeepVisitOrderInStops()
     {
-        var stop = new RouteStop { RouteId = _seed.Route.Id, StationId = _seed.StationA.Id, SequenceNo = 4 };
-        _context.RouteStops.Add(stop);
-        _context.TripStopCalls.Add(new TripStopCall { TripId = _seed.Trip.Id, RouteStop = stop, VisitOrder = 4 });
-        _context.SaveChanges();
+        // BR-ROUTE-06: chỉ Sightseeing dạng vòng mới được lên/xuống cùng một Station.
+        AddLoopStopToSeedTrip(TripType.Sightseeing);
 
         var found = await Service().SearchAsync(
             new SearchTripsRequest(_seed.StationA.Id, _seed.StationA.Id, null, null), CancellationToken.None);
 
         found.Single().Stops.Select(x => x.OrderIndex).Should().Equal(1, 2, 3, 4);
+    }
+
+    [Fact]
+    public async Task CommuterTrip_ShouldNotMatchSameStationForBoardingAndDisembarking()
+    {
+        AddLoopStopToSeedTrip(TripType.Commuter);
+
+        var found = await Service().SearchAsync(
+            new SearchTripsRequest(_seed.StationA.Id, _seed.StationA.Id, null, null), CancellationToken.None);
+
+        found.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CommuterTrip_ShouldStillMatchDifferentStations()
+    {
+        AddLoopStopToSeedTrip(TripType.Commuter);
+
+        var found = await Service().SearchAsync(
+            new SearchTripsRequest(_seed.StationA.Id, _seed.StationC.Id, null, null), CancellationToken.None);
+
+        found.Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData(TripType.Commuter, false)]
+    [InlineData(TripType.Sightseeing, true)]
+    public async Task SeatMap_SameStationBoardingAndDisembarking_ShouldDependOnTripType(TripType type, bool allowed)
+    {
+        AddLoopStopToSeedTrip(type);
+        var calls = _seed.Trip.TripStopCalls.OrderBy(c => c.VisitOrder).ToList();
+        var request = new GetTripSeatMapRequest(calls[0].Id, calls[^1].Id); // cùng Station A, VisitOrder 1 -> 4
+
+        var act = () => Service().GetSeatMapAsync(_seed.Trip.Id, request, CancellationToken.None);
+
+        if (allowed) await act.Should().NotThrowAsync();
+        else await act.Should().ThrowAsync<WaterbusSystem.Application.Common.Exceptions.ValidationException>();
+    }
+
+    private void AddLoopStopToSeedTrip(TripType type)
+    {
+        _seed.Trip.TripType = type;
+        // SalesState yêu cầu ServiceType của Route khớp loại chuyến (Regular/Sightseeing).
+        _seed.Route.ServiceType = type == TripType.Sightseeing ? "Sightseeing" : "Regular";
+        var stop = new RouteStop { RouteId = _seed.Route.Id, StationId = _seed.StationA.Id, SequenceNo = 4 };
+        _context.RouteStops.Add(stop);
+        _context.TripStopCalls.Add(new TripStopCall { TripId = _seed.Trip.Id, RouteStop = stop, VisitOrder = 4 });
+        _context.SaveChanges();
     }
 
     [Fact]

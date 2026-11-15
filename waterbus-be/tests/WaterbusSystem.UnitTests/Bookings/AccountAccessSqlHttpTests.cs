@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Json;
@@ -8,6 +9,8 @@ using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -16,18 +19,25 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using WaterbusSystem.Application;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Bookings.Services;
 using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Application.DTOs.Requests.Bookings;
+using WaterbusSystem.Application.DTOs.Requests.Accounts;
+using WaterbusSystem.Application.DTOs.Requests.Auth;
 using WaterbusSystem.Application.DTOs.Responses.Accounts;
 using WaterbusSystem.Application.DTOs.Responses.Bookings;
+using WaterbusSystem.Application.DTOs.Responses.Auth;
+using WaterbusSystem.Application.Features.Accounts.Services;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
 using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.Infrastructure;
+using WaterbusSystem.Infrastructure.Identity;
 using WaterbusSystem.Infrastructure.Persistence;
 using WaterbusSystem.Infrastructure.Repositories;
 using WaterbusSystem.Infrastructure.Services.Checkout;
@@ -50,6 +60,7 @@ public sealed class AccountAccessSqlHttpTests : IAsyncLifetime
 {
     private string? _connection;
     private WebApplication _app = null!;
+    private readonly CapturedVerificationMail _mail = new();
     private readonly string _jwtSecret = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     private ApplicationDbContext Context() => new(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(_connection!).Options);
 
@@ -70,7 +81,8 @@ public sealed class AccountAccessSqlHttpTests : IAsyncLifetime
             ["JwtSettings:Secret"] = _jwtSecret,
             ["VnPay:TmnCode"] = "ACCTEST01",
             ["VnPay:HashSecret"] = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)),
-            ["Qr:PrivateKeyPem"] = signingKey.ExportPkcs8PrivateKeyPem()
+            ["Qr:PrivateKeyPem"] = signingKey.ExportPkcs8PrivateKeyPem(),
+            ["Email:PublicBaseUrl"] = "https://waterbus.example"
         });
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -79,11 +91,15 @@ public sealed class AccountAccessSqlHttpTests : IAsyncLifetime
         builder.Services.RemoveAll<IHostedService>();
         builder.Services.AddSingleton<IDistributedLockService, FakeDistributedLockService>();
         builder.Services.AddSingleton<ICheckoutSessionStore, CommercialHandlerFactory.MemoryStore>();
+        builder.Services.AddSingleton<IVerificationEmailQueue>(_mail);
+        builder.Services.AddSingleton<IEmailCooldownStore, NoCooldown>();
+        builder.Services.AddSingleton<IPasswordValidator<ApplicationUser>, ConcurrentActivationValidator>();
         builder.Services.AddScoped<ValidateRequestFilter>();
         builder.Services.AddControllers().AddApplicationPart(typeof(BookingsController).Assembly);
         builder.Services.AddRateLimiter(o =>
         {
             o.AddPolicy("BookingPolicy", _ => RateLimitPartition.GetNoLimiter("t"));
+            o.AddPolicy("AuthPolicy", _ => RateLimitPartition.GetNoLimiter("t"));
         });
         _app = builder.Build();
         _app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
@@ -207,6 +223,279 @@ public sealed class AccountAccessSqlHttpTests : IAsyncLifetime
     }
 
     private static Task<HttpResponseMessage> Post(HttpClient c, string url) => c.PostAsync(url, null);
+
+    private const string ConfirmEmailUrl = "/api/v1/auth/confirm-email";
+    private const string LinkOrdersUrl = "/api/v1/me/orders/link-by-email";
+    private const string LinkableUrl = "/api/v1/me/orders/linkable";
+    private const string RegisterUrl = "/api/v1/auth/register";
+    private const string LoginUrl = "/api/v1/auth/login";
+    private const string RecipientPassword = "Owner1Password";
+    private const string LegacyPassword = "Legacy1Password";
+
+    private sealed class CapturedVerificationMail : IVerificationEmailQueue
+    {
+        private readonly ConcurrentQueue<(string Email, string Link)> _messages = new();
+
+        public bool TryEnqueue(string toEmail, string toName, string verificationLink)
+        {
+            _messages.Enqueue((toEmail, verificationLink));
+            return true;
+        }
+
+        public ConfirmEmailRequest Latest(string email)
+        {
+            var link = new Uri(_messages.Last(m => m.Email == email).Link);
+            var parameters = QueryHelpers.ParseQuery(link.Fragment[1..]);
+            return new ConfirmEmailRequest(Guid.Parse(parameters["uid"].ToString()), parameters["token"].ToString(), RecipientPassword);
+        }
+
+        public int Count => _messages.Count;
+    }
+
+    private sealed class NoCooldown : IEmailCooldownStore
+    {
+        public Task<bool> TryAcquireAsync(string key, TimeSpan ttl, CancellationToken ct) => Task.FromResult(true);
+    }
+
+    private sealed class ConcurrentActivationValidator : IPasswordValidator<ApplicationUser>
+    {
+        private readonly TaskCompletionSource _bothArrived = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _arrivals;
+        public bool Enabled { get; set; }
+
+        public async Task<IdentityResult> ValidateAsync(UserManager<ApplicationUser> manager, ApplicationUser user, string? password)
+        {
+            if (Enabled)
+            {
+                if (Interlocked.Increment(ref _arrivals) == 2) _bothArrived.SetResult();
+                await _bothArrived.Task.WaitAsync(TimeSpan.FromSeconds(15));
+            }
+            return IdentityResult.Success;
+        }
+    }
+
+    private async Task EnsureRoleAsync(string role)
+    {
+        using var scope = _app.Services.CreateScope();
+        var roles = scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
+        if (!await roles.RoleExistsAsync(role))
+            Assert.True((await roles.CreateAsync(new ApplicationRole { Name = role })).Succeeded);
+    }
+
+    private async Task<ApplicationUser> SeedAccountAsync(string email, bool verified, string role = "Passenger")
+    {
+        await EnsureRoleAsync(role);
+        using var scope = _app.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = new ApplicationUser { UserName = email, Email = email, FullName = "Buyer", IsActive = true, EmailConfirmed = verified };
+        Assert.True((await users.CreateAsync(user, LegacyPassword)).Succeeded);
+        Assert.True((await users.AddToRoleAsync(user, role)).Succeeded);
+        return user;
+    }
+
+    [SqlServerDomainFact]
+    public async Task RegistrationIgnoresPreVerificationPassword_AndOnlyEmailRecipientCanActivate()
+    {
+        await EnsureRoleAsync("Passenger");
+        const string email = "recipient@example.com";
+        using var client = Client();
+        var request = new { email, fullName = "Buyer", password = LegacyPassword };
+        var registered = await client.PostAsJsonAsync(RegisterUrl, request);
+        var duplicate = await client.PostAsJsonAsync(RegisterUrl, request);
+        Assert.Equal(HttpStatusCode.OK, registered.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, duplicate.StatusCode);
+        Assert.Equal(await registered.Content.ReadAsStringAsync(), await duplicate.Content.ReadAsStringAsync());
+        Assert.Equal(1, _mail.Count);
+
+        var activation = _mail.Latest(email);
+        await using var db = Context();
+        Assert.Null((await db.Users.AsNoTracking().SingleAsync(u => u.Id == activation.UserId)).PasswordHash);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync(LoginUrl, new LoginRequest(email, LegacyPassword))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(ConfirmEmailUrl,
+            new { activation.UserId, activation.Token })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync(ConfirmEmailUrl, activation)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(ConfirmEmailUrl,
+            activation with { Password = LegacyPassword })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync(LoginUrl, new LoginRequest(email, LegacyPassword))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(LoginUrl, new LoginRequest(email, RecipientPassword))).StatusCode);
+    }
+
+    [SqlServerDomainFact]
+    public async Task LegacyPendingAccountRejectsBadLinksAndWeakPassword_ThenAtomicallyReplacesPassword()
+    {
+        var legacy = await SeedAccountAsync("legacy@example.com", verified: false);
+        var other = await SeedAccountAsync("other@example.com", verified: false);
+        using var client = Client();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync(LoginUrl, new LoginRequest(legacy.Email!, LegacyPassword))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/auth/resend-verification", new ResendVerificationRequest(legacy.Email!))).StatusCode);
+        var activation = _mail.Latest(legacy.Email!);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(ConfirmEmailUrl, activation with { UserId = other.Id })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(ConfirmEmailUrl, activation with { Token = "invalid" })).StatusCode);
+        var options = _app.Services.GetRequiredService<IOptions<DataProtectionTokenProviderOptions>>().Value;
+        var lifespan = options.TokenLifespan;
+        options.TokenLifespan = TimeSpan.FromSeconds(-1);
+        try
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(ConfirmEmailUrl, activation)).StatusCode);
+        }
+        finally { options.TokenLifespan = lifespan; }
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(ConfirmEmailUrl, activation with { Password = "weak" })).StatusCode);
+        await using var db = Context();
+        var stillPending = await db.Users.AsNoTracking().SingleAsync(u => u.Id == legacy.Id);
+        Assert.False(stillPending.EmailConfirmed);
+        Assert.Equal(legacy.PasswordHash, stillPending.PasswordHash);
+        Assert.Equal(legacy.SecurityStamp, stillPending.SecurityStamp);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync(ConfirmEmailUrl, activation)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync(LoginUrl, new LoginRequest(legacy.Email!, LegacyPassword))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(LoginUrl, new LoginRequest(legacy.Email!, RecipientPassword))).StatusCode);
+        Assert.NotEqual(legacy.SecurityStamp, (await db.Users.AsNoTracking().SingleAsync(u => u.Id == legacy.Id)).SecurityStamp);
+    }
+
+    [SqlServerDomainFact]
+    public async Task ConcurrentActivation_OnlyTheWinningPasswordIsSaved()
+    {
+        const string email = "concurrent@example.com";
+        await EnsureRoleAsync("Passenger");
+        using var client = Client();
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(RegisterUrl, new RegisterRequest(email, "Buyer", null))).StatusCode);
+        var activation = _mail.Latest(email);
+        var passwords = new[] { RecipientPassword, "Alternate1Password" };
+        using var scope = _app.Services.CreateScope();
+        var gate = scope.ServiceProvider.GetServices<IPasswordValidator<ApplicationUser>>().OfType<ConcurrentActivationValidator>().Single();
+        gate.Enabled = true;
+        var responses = await Task.WhenAll(passwords.Select(password => client.PostAsJsonAsync(ConfirmEmailUrl, activation with { Password = password })));
+        Assert.Single(responses, r => r.StatusCode == HttpStatusCode.NoContent);
+        Assert.Single(responses, r => r.StatusCode == HttpStatusCode.BadRequest);
+        var winner = Array.FindIndex(responses, r => r.StatusCode == HttpStatusCode.NoContent);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(LoginUrl, new LoginRequest(email, passwords[winner]))).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync(LoginUrl, new LoginRequest(email, passwords[1 - winner]))).StatusCode);
+    }
+
+    [SqlServerDomainFact]
+    public async Task UnconfirmedStaffCaptainAndAdminCanStillUseTheirAssignedLogin()
+    {
+        using var client = Client();
+        foreach (var role in new[] { "Staff", "Captain", "Admin" })
+        {
+            var account = await SeedAccountAsync($"{role}@example.com", verified: false, role: role);
+            var response = await client.PostAsJsonAsync(LoginUrl, new LoginRequest(account.Email!, LegacyPassword));
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Contains(role, (await response.Content.ReadFromJsonAsync<LoginResponse>())!.Roles);
+        }
+    }
+
+    [SqlServerDomainFact]
+    public async Task VerifiedEmailLinkingKeepsRoundTripTicketsFinancialRecordsAndGuestAccess()
+    {
+        const string email = "buyer@example.com";
+        var roundTrip = await SeedPaidOrderAsync(email: "Buyer@EXAMPLE.com");
+        var other = await SeedAccountAsync("other@example.com", verified: true);
+        var nonMatch = new PurchaseOrder { PurchaserEmail = "ｂuyer@example.com", PurchaserName = "Different buyer", Status = OrderStatus.Confirmed };
+        var owned = new PurchaseOrder { PurchaserEmail = email, PurchaserName = "Buyer", Status = OrderStatus.Confirmed, PassengerAccountId = other.Id };
+        var statuses = new[] { OrderStatus.Draft, OrderStatus.PendingPayment, OrderStatus.Cancelled, OrderStatus.Expired };
+        var historical = statuses.Select(status => new PurchaseOrder { PurchaserEmail = email, PurchaserName = "Buyer", Status = status }).ToArray();
+        Guid returnBooking;
+        await using var db = Context();
+        {
+            var order = await db.PurchaseOrders.SingleAsync(o => o.Id == roundTrip.OrderId);
+            order.PurchaseMode = PurchaseMode.RoundTrip;
+            var boarding = await db.TripStopCalls.SingleAsync(x => x.TripId == roundTrip.Seed.Trip.Id && x.VisitOrder == 1);
+            var disembark = await db.TripStopCalls.SingleAsync(x => x.TripId == roundTrip.Seed.Trip.Id && x.VisitOrder == 3);
+            returnBooking = BuildPaid(db, roundTrip.Seed, boarding, disembark, roundTrip.Seed.Seat2, null, order).Item2.Id;
+            var payment = await db.FinancialTransactions.FirstAsync(t => t.OrderId == order.Id);
+            db.FinancialTransactions.Add(new FinancialTransaction
+            {
+                OrderId = order.Id, RefundBookingId = roundTrip.BookingId, OriginalPaymentId = payment.Id,
+                TransactionType = FinancialTransactionType.Refund, Status = FinancialTransactionStatus.Requested,
+                Amount = payment.Amount, IdempotencyKey = $"test-refund-{order.Id:N}"
+            });
+            db.PurchaseOrders.AddRange(historical);
+            db.PurchaseOrders.AddRange(nonMatch, owned);
+            await db.SaveChangesAsync();
+        }
+        var financialRows = db.FinancialTransactions.AsNoTracking().Where(t => t.OrderId == roundTrip.OrderId)
+            .OrderBy(t => t.Id).Select(t => new { t.Id, t.TransactionType, t.Status, t.Amount, t.RowVersion });
+        var financialBefore = await financialRows.ToListAsync();
+
+        await EnsureRoleAsync("Passenger");
+        using var buyer = Client();
+        Assert.Equal(HttpStatusCode.OK, (await buyer.PostAsJsonAsync(RegisterUrl, new RegisterRequest(email, "Buyer", null))).StatusCode);
+        var activation = _mail.Latest(email);
+        using var pending = Client(activation.UserId);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Post(pending, LinkOrdersUrl)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await buyer.PostAsJsonAsync(ConfirmEmailUrl, activation)).StatusCode);
+        var login = await buyer.PostAsJsonAsync(LoginUrl, new LoginRequest(email, RecipientPassword));
+        login.EnsureSuccessStatusCode();
+        buyer.DefaultRequestHeaders.Authorization = new("Bearer", (await login.Content.ReadFromJsonAsync<LoginResponse>())!.Token);
+
+        using var spoofedEmail = Client(other.Id, email: email);
+        Assert.Equal(0, (await spoofedEmail.GetFromJsonAsync<LinkableOrdersResponse>(LinkableUrl))!.Count);
+        Assert.Equal(HttpStatusCode.NotFound, (await spoofedEmail.GetAsync($"/api/v1/me/tickets/{roundTrip.TicketId}")).StatusCode);
+        Assert.Equal(3, (await buyer.GetFromJsonAsync<LinkableOrdersResponse>(LinkableUrl))!.Count);
+        Assert.Null(await OwnerOf(roundTrip.OrderId)); // GET is read-only
+        Assert.Equal(new LinkOrdersResponse(3, 0), await (await Post(buyer, LinkOrdersUrl)).Content.ReadFromJsonAsync<LinkOrdersResponse>());
+        Assert.Equal(new LinkOrdersResponse(0, 0), await (await Post(buyer, LinkOrdersUrl)).Content.ReadFromJsonAsync<LinkOrdersResponse>());
+
+        using var history = JsonDocument.Parse(await buyer.GetStringAsync("/api/v1/me/orders"));
+        var orders = history.RootElement.GetProperty("items");
+        Assert.Equal(3, orders.GetArrayLength());
+        var linkedRoundTrip = orders.EnumerateArray().Single(o => o.GetProperty("orderId").GetGuid() == roundTrip.OrderId);
+        Assert.Equal("RoundTrip", linkedRoundTrip.GetProperty("purchaseMode").GetString());
+        Assert.Equal(2, linkedRoundTrip.GetProperty("bookings").GetArrayLength());
+        foreach (var bookingId in new[] { roundTrip.BookingId, returnBooking })
+            Assert.Equal(HttpStatusCode.OK, (await buyer.GetAsync($"/api/v1/checkouts/{roundTrip.OrderId}/bookings/{bookingId}/qr")).StatusCode);
+        using var guest = Client(guestToken: roundTrip.Token);
+        Assert.Equal(HttpStatusCode.OK, (await guest.GetAsync($"/api/v1/checkouts/{roundTrip.OrderId}")).StatusCode);
+
+        Assert.Null(await OwnerOf(nonMatch.Id));
+        Assert.Equal(other.Id, await OwnerOf(owned.Id));
+        Assert.Null(await OwnerOf(historical[0].Id));
+        Assert.Null(await OwnerOf(historical[1].Id));
+        Assert.Equal(activation.UserId, await OwnerOf(historical[2].Id));
+        Assert.Equal(activation.UserId, await OwnerOf(historical[3].Id));
+        Assert.Equal(financialBefore.Count, await financialRows.CountAsync());
+        var financialAfter = await financialRows.ToListAsync();
+        for (var index = 0; index < financialBefore.Count; index++)
+        {
+            var before = financialBefore[index];
+            var after = financialAfter[index];
+            Assert.Equal((before.Id, before.TransactionType, before.Status, before.Amount), (after.Id, after.TransactionType, after.Status, after.Amount));
+            Assert.Equal(before.RowVersion, after.RowVersion);
+        }
+    }
+
+    [SqlServerDomainFact]
+    public async Task VerifiedEmailLinkingRollsBackAndSerializesWithTokenClaim()
+    {
+        const string email = "race@example.com";
+        var guestOrder = await SeedPaidOrderAsync(email: email);
+        var buyer = await SeedAccountAsync(email, verified: true);
+        await using var scope = _app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var linking = new OrderLinkingService(scope.ServiceProvider.GetRequiredService<IUserDirectory>(),
+            new OrderLinkingRepository(db), new SqlCommercialTransactionRunner(db),
+            new FailAfterSaveUnitOfWork(new EfUnitOfWork(db)), NullLogger<OrderLinkingService>.Instance);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => linking.LinkByVerifiedEmailAsync(buyer.Id));
+        Assert.Null(await OwnerOf(guestOrder.OrderId));
+
+        var claimantId = Guid.NewGuid();
+        using var authorized = Client(buyer.Id);
+        using var claimant = Client(claimantId, guestToken: guestOrder.Token);
+        var results = await Task.WhenAll(Post(authorized, LinkOrdersUrl), Post(authorized, LinkOrdersUrl),
+            Post(claimant, $"/api/v1/checkouts/{guestOrder.OrderId}/claim"));
+        Assert.Equal(HttpStatusCode.OK, results[0].StatusCode);
+        Assert.Equal(HttpStatusCode.OK, results[1].StatusCode);
+        var first = await results[0].Content.ReadFromJsonAsync<LinkOrdersResponse>();
+        var second = await results[1].Content.ReadFromJsonAsync<LinkOrdersResponse>();
+        var owner = await OwnerOf(guestOrder.OrderId);
+        var claimedByToken = results[2].StatusCode == HttpStatusCode.OK;
+        Assert.Equal(claimedByToken ? claimantId : buyer.Id, owner);
+        Assert.Equal(claimedByToken ? 0 : 1, first!.Linked + second!.Linked);
+        if (!claimedByToken) Assert.Equal(HttpStatusCode.Conflict, results[2].StatusCode);
+        Assert.Equal(new LinkOrdersResponse(0, 0), await (await Post(authorized, LinkOrdersUrl)).Content.ReadFromJsonAsync<LinkOrdersResponse>());
+    }
 
     // ───────────────────────── Claim (BR-ID-04) ─────────────────────────
 

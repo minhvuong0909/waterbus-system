@@ -520,6 +520,10 @@ public sealed class TripService(
                 : calls.LastOrDefault(c => c.RouteStop!.CanAlight);
             if (disembarkingCall == null || boardingCall.VisitOrder >= disembarkingCall.VisitOrder) continue;
 
+            // Cùng quy tắc checkout (BR-ROUTE-06): chỉ Sightseeing vòng được lên/xuống cùng một Station.
+            if (trip.TripType == TripType.Commuter
+                && boardingCall.RouteStop!.StationId == disembarkingCall.RouteStop!.StationId) continue;
+
             matched.Add((trip, calls, boardingCall, disembarkingCall));
         }
 

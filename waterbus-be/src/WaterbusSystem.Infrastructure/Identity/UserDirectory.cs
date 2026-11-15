@@ -14,6 +14,12 @@ public class UserDirectory : IUserDirectory
         _userManager = userManager;
     }
 
+    public async Task<string?> GetVerifiedEmailAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        await _userManager.Users
+            .Where(u => u.Id == userId && u.IsActive && u.EmailConfirmed)
+            .Select(u => u.Email)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public async Task<IReadOnlyDictionary<Guid, string>> GetFullNamesAsync(IEnumerable<Guid> userIds, CancellationToken cancellationToken = default)
     {
         var ids = userIds.Distinct().ToList();

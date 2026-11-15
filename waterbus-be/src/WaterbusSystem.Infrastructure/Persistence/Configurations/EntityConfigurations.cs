@@ -47,6 +47,12 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
         builder.Property(x => x.QuotedTotal).HasPrecision(12, 2);
         builder.Property(x => x.Currency).HasMaxLength(10).IsRequired();
         builder.Property(x => x.RowVersion).IsRowVersion();
+
+        // Gắn đơn Guest vào tài khoản theo email đã xác minh: chỉ lập chỉ mục đơn CHƯA gắn tài khoản (nhỏ gọn).
+        builder.HasIndex(x => x.PurchaserEmail).HasFilter("[PassengerAccountId] IS NULL").HasDatabaseName("IX_PurchaseOrders_PurchaserEmail_Unlinked");
+        // Lịch sử đơn của tài khoản (GET /me/orders, mới nhất trước).
+        builder.HasIndex(x => new { x.PassengerAccountId, x.CreatedAt }).IsDescending(false, true)
+            .HasFilter("[PassengerAccountId] IS NOT NULL").HasDatabaseName("IX_PurchaseOrders_PassengerAccountId_CreatedAt");
     }
 }
 

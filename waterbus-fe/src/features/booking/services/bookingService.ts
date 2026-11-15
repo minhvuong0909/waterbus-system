@@ -5,7 +5,7 @@ import type { CheckoutDetail, CheckoutResponse, CreateHoldRequest, SeatMap, Subm
 import { toSeatMap } from '../utils'
 import { isGuid } from '../../../utils/guid'
 import { readTrip, readTripSeats } from '../../trips/services/tripService'
-import { pickJourney } from '../../trips/utils'
+import { journeyFor } from '../../trips/utils'
 
 /** Header that proves the caller owns a guest order (BE `CheckoutAccessService`). */
 export const guestHeaders = (accessToken: string | null): Record<string, string> =>
@@ -30,7 +30,7 @@ export async function getSeatMap(
     throw new ApiError(400, 'Vui lòng chọn chuyến và hai bến từ kết quả tìm kiếm.')
   }
   const detail = await readTrip(tripId)
-  const journey = pickJourney(detail.stops, originId, destinationId)
+  const journey = journeyFor(detail.tripType, detail.stops, originId, destinationId)
   if (!journey) {
     throw new ApiError(409, t('This trip does not stop at both of the chosen piers.'))
   }

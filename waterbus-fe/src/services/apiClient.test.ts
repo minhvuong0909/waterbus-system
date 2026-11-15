@@ -68,6 +68,19 @@ describe('apiRequest', () => {
     await apiRequest('/x').catch(() => undefined)
     expect(handler).toHaveBeenCalledTimes(1)
   })
+
+  it('keeps the current session when an older request returns 401', async () => {
+    const handler = vi.fn()
+    setUnauthorizedHandler(handler)
+    window.sessionStorage.setItem('waterbus.session', JSON.stringify({ token: 'old-session' }))
+    fetchMock.mockImplementation(async () => {
+      window.sessionStorage.setItem('waterbus.session', JSON.stringify({ token: 'new-session' }))
+      return json({ title: 'Unauthorized' }, 401)
+    })
+
+    await expect(apiRequest('/api/v1/me/orders/linkable')).rejects.toMatchObject({ status: 401 })
+    expect(handler).not.toHaveBeenCalled()
+  })
 })
 
 describe('apiRequest download', () => {

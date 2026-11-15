@@ -24,7 +24,7 @@ import {
   isDeparted,
 } from '../utils'
 import type { TripDetailDto, TripSeatMapDto } from '../types'
-import { pickJourney } from '../utils'
+import { journeyFor } from '../utils'
 
 /** The piers change rarely and one page asks for them several times. */
 const pierCache = createRequestCache<PierOption[]>(60_000)
@@ -97,17 +97,32 @@ export function getTrips(query: SearchQuery): Promise<Trip[]> {
 }
 
 /**
+ * `GET /trips/search` các chuyến ngắm cảnh của một ngày, không theo cặp bến: mỗi chuyến đi trọn hành trình
+ * (BR-ROUTE-05) nên bến lên/xuống là hai đầu tuyến, kể cả chuyến vòng về cùng bến (BR-ROUTE-06).
+ */
+export function getSightseeingTours(dateId: string): Promise<Trip[]> {
+  return tripSearchCache.get(`tours|${dateId}`, async () => {
+    const dtos = await apiRequest<TripDto[]>(API_ENDPOINTS.trips.search, {
+      query: { tripType: 'Sightseeing', departureDate: dateId },
+    })
+    return dtos.map(toTrip)
+  })
+}
+
+/**
  * Số chuyến còn bán (còn ghế, chưa khởi hành) của từng ngày cho cặp bến đang chọn, để thanh chọn
  * ngày cho thấy ngày nào có chuyến. Một ngày lỗi thì bỏ qua (không có số), không làm hỏng trang.
  */
 export async function getDayTripCounts(
   query: SearchQuery,
   dates: DateOption[],
+  /** Mặc định tìm theo cặp bến; trang chuyến ngắm cảnh truyền `getSightseeingTours`. */
+  find: (query: SearchQuery) => Promise<Trip[]> = getTrips,
 ): Promise<Record<string, number>> {
   const entries = await Promise.all(
     dates.map(async (date) => {
       try {
-        const trips = await getTrips({ ...query, dateId: date.id })
+        const trips = await find({ ...query, dateId: date.id })
         const bookable = trips.filter((trip) => trip.seatsCount > 0 && !isDeparted(trip, date.id))
         return [date.id, bookable.length] as const
       } catch {
@@ -178,7 +193,7 @@ export async function getTripDetail(
   let arriveAt = Number.NaN
   if (tripId) {
     const raw = await readTrip(tripId)
-    const journey = pickJourney(raw.stops, query.originId, query.destinationId)
+    const journey = journeyFor(raw.tripType, raw.stops, query.originId, query.destinationId)
     if (!journey) throw new ApiError(409, 'Chuyến không phục vụ đoạn bến đã chọn. Hãy tìm chuyến lại.')
     const seats = await readTripSeats(tripId, journey.boarding.callId, journey.disembarking.callId)
     const prices = seats.seats.flatMap((seat) => seat.price === null ? [] : [seat.price])
@@ -195,6 +210,10 @@ export async function getTripDetail(
       availableSeatsCount: seats.availableSeatsCount, basePrice: prices.length ? Math.min(...prices) : 0 })
     trip.vesselCode = raw.boat?.code ?? trip.vesselCode
     trip.vesselName = raw.boat?.name ?? raw.routeName
+    // Chuyến ngắm cảnh đi trọn tuyến: bến hiển thị là hai đầu hành trình, không phải cặp bến đã tìm.
+    if (raw.tripType === 'Sightseeing') {
+      query = { ...query, originId: journey.boarding.stationId, destinationId: journey.disembarking.stationId }
+    }
     query = { ...query, dateId: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(departureTime)) }
   }
   if (!trip) throw new ApiError(404, t('This trip is no longer available. Please search again.'))
@@ -281,7 +300,7 @@ export async function getJourneyStops(
   destinationId: string,
 ): Promise<JourneyStop[]> {
   const trip = await apiRequest<TripDetailDto>(API_ENDPOINTS.trips.detail(tripId))
-  const journey = pickJourney(trip.stops, originId, destinationId)
+  const journey = journeyFor(trip.tripType, trip.stops, originId, destinationId)
   if (!journey) return []
   return trip.stops
     .filter(

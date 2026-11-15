@@ -25,6 +25,9 @@ export interface Seat {
 
 /** The stops a booking boards and leaves at: real `TripStopCall`s of the trip (BR-ROUTE). */
 export interface Journey {
+  /** Bến của hai điểm dừng; chuyến ngắm cảnh luôn đi trọn tuyến nên có thể khác cặp bến đã tìm. */
+  boardingStationId?: string
+  disembarkingStationId?: string
   boardingCallId: string
   disembarkingCallId: string
   boardingVisitOrder: number
