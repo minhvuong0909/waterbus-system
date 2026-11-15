@@ -23,7 +23,7 @@ public class TripServiceReadQueriesTests
     private static TripService Service(ApplicationDbContext context, IDateTimeService clock) =>
         new(new TripRepository(context), new IncidentRepository(context), new EfUnitOfWork(context),
             Mock.Of<ICurrentUserService>(), clock, Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(),
-            TestNotifications.Outbox(context), new DirectCommercialTransactionRunner(),
+            TestNotifications.Outbox(context), new DirectCommercialTransactionRunner(), Moq.Mock.Of<WaterbusSystem.Application.Interfaces.Services.ICaptainOperationsService>(),
             WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Positions, WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Distance, WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Relaxed);
 
     private static GetTripSeatMapRequest Req(TestDbContextFactory.TripSeedData seed, int from = 1, int to = 3) =>

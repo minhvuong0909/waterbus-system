@@ -161,4 +161,22 @@ public class CheckInServiceSubmitCheckInTests
 
         await act.Should().ThrowAsync<ForbiddenAccessException>();
     }
+
+    // Quét trực tuyến luôn dùng giờ server: giờ thiết bị sai không làm hỏng check-in và không được dùng làm mốc nghiệp vụ.
+    [Theory]
+    [InlineData(-24 * 30)]  // lệch quá khứ rất xa
+    [InlineData(48)]        // lệch tương lai
+    public async Task SubmitCheckInAsync_Online_ShouldUseServerTimeWhateverTheDeviceClockSays(int deviceOffsetHours)
+    {
+        using var context = TestDbContextFactory.CreateDbContext();
+        var (_, _, ticket, boardingCall, now) = SeedCheckInScenario(context, _staffId);
+
+        var service = CreateService(context, now);
+        var result = await service.SubmitCheckInAsync(
+            new SubmitCheckInRequest(ticket.Id, boardingCall.Id, "evt-clock-" + deviceOffsetHours, now.AddHours(deviceOffsetHours), null),
+            CancellationToken.None);
+
+        result.Outcome.Should().Be("Success");
+        result.CheckedInAt.Should().Be(now);
+    }
 }

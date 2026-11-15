@@ -8,4 +8,5 @@ public record UpdateBoatRequest(
     string Manufacturer,
     int YearBuilt,
     bool IsActive,
-    Guid? CaptainUserId);
+    Guid? CaptainUserId,
+    string? CaptainChangeReason = null);

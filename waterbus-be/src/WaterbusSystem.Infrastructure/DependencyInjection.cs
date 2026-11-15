@@ -81,9 +81,22 @@ public static class DependencyInjection
         services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IWeatherGuardRunLock, SqlWeatherGuardRunLock>();
         services.AddScoped<IScannerAssignmentLock, SqlScannerAssignmentLock>();
+        services.AddScoped<IStationCoordinateLock, SqlStationCoordinateLock>();
         services.AddScoped<IRouteRepository, RouteRepository>();
         services.AddScoped<ITripRepository, TripRepository>();
         services.AddScoped<IBoatRepository, BoatRepository>();
+        services.AddScoped<ICaptainRepository, CaptainRepository>();
+        services.AddScoped<ICaptainService, CaptainService>();
+        services.AddScoped<IPersonnelInvitationService, PersonnelInvitationService>();
+        services.AddOptions<PersonnelInvitationOptions>().Bind(configuration.GetSection("PersonnelInvitation"))
+            .Validate(o => o.TokenLifetimeHours > 0 && o.TokenLifetimeHours <= 168, "Invitation lifetime must be positive and <= 168 hours.").ValidateOnStart();
+        services.AddScoped<ICaptainOperationsService, WaterbusSystem.Application.Features.Captains.Services.CaptainOperationsService>();
+        services.AddSingleton<ICaptainConnections, CaptainConnections>();
+        services.AddOptions<WaterbusSystem.Application.Features.Captains.CaptainOptions>()
+            .Bind(configuration.GetSection("Captain"))
+            .Validate(o => o.AlertBatchSize > 0 && o.AlertBatchSize <= 1000, "Captain alert batch must be 1..1000.")
+            .Validate(o => o.PreparationMinutes > 0 && o.PreparationMinutes <= 1440, "Captain preparation must be 1..1440 minutes.")
+            .ValidateOnStart();
         services.AddScoped<IRouteAdminRepository, RouteAdminRepository>();
         services.AddScoped<IScannerDeviceAdminRepository, ScannerDeviceAdminRepository>();
         services.AddScoped<IFareAdminRepository, FareAdminRepository>();
@@ -130,7 +143,8 @@ public static class DependencyInjection
             options.Lockout.AllowedForNewUsers = true;
         })
         .AddEntityFrameworkStores<ApplicationDbContext>()
-        .AddDefaultTokenProviders();
+        .AddDefaultTokenProviders()
+        .AddTokenProvider<PersonnelInvitationTokenProvider>(PersonnelInvitationTokenProvider.ProviderName);
 
         // Liên kết xác minh email sống đúng AccountEmailTemplates.VerificationValidHours giờ (mặc định của Identity là 1 ngày).
         services.Configure<DataProtectionTokenProviderOptions>(o =>
@@ -171,6 +185,7 @@ public static class DependencyInjection
             options.Events = new JwtBearerEvents
             {
                 OnMessageReceived = SignalRTokenReader.OnMessageReceived,
+                OnTokenValidated = CaptainSessionValidation.OnTokenValidated,
                 OnChallenge = JwtProblemDetailsEvents.OnChallenge,
                 OnForbidden = JwtProblemDetailsEvents.OnForbidden
             };

@@ -17,6 +17,30 @@ namespace WaterbusSystem.UnitTests.Accounts;
 public class VerificationMailerTests
 {
     [Fact]
+    public async Task PersonnelInvitationUsesSharedWorker_WithConfiguredLifetimeAndPersonnelContent()
+    {
+        var delivered = new TaskCompletionSource<OutboundEmail>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var transport = new Mock<IEmailTransport>();
+        transport.Setup(t => t.SendAsync(It.IsAny<OutboundEmail>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((OutboundEmail message, CancellationToken _) => { delivered.TrySetResult(message); return new EmailSendResult("invitation"); });
+        await using var services = new ServiceCollection().AddSingleton(transport.Object).BuildServiceProvider();
+        var mailer = new VerificationMailer(NullLogger<VerificationMailer>.Instance);
+        using var worker = new VerificationMailerWorker(mailer, services.GetRequiredService<IServiceScopeFactory>(),
+            Options.Create(new EmailOptions { Enabled = true, PublicBaseUrl = "https://waterbus.example" }), NullLogger<VerificationMailerWorker>.Instance);
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            Assert.True(mailer.TryEnqueueInvitation("captain@example.test", "<script>name</script>", "https://waterbus.example/verify-email#token=one-use", 48));
+            var email = await delivered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Contains("48 giờ", email.TextBody);
+            Assert.Contains("nhân sự", email.TextBody);
+            Assert.Contains("#token=one-use", email.TextBody);
+            Assert.DoesNotContain("<script>", email.HtmlBody);
+        }
+        finally { await worker.StopAsync(CancellationToken.None); }
+    }
+
+    [Fact]
     public async Task FullQueueReportsRejectionAndAcceptsAgainAfterDraining()
     {
         var log = new CaptureWarning<VerificationMailer>();

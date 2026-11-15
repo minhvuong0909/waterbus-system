@@ -1,52 +1,43 @@
-import { Icon, Panel } from '../../../components/ui'
+import { Icon } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { useOnboardPlayer } from '../hooks/useOnboardPlayer'
 
 /**
- * Speaker of the boat (BR-EXP-04): plays the station announcements and sightseeing commentary the server triggers by the
- * boat's position, Vietnamese first and then English.
+ * Loa trên tàu (BR-EXP-04): phát thông báo bến và thuyết minh địa danh do backend kích hoạt theo vị trí tàu,
+ * tiếng Việt trước rồi tiếng Anh. Dùng khung `captain-card` của Cổng thuyền trưởng.
  */
 export default function OnboardPlayerPanel() {
   const { status, armed, arm, nowPlaying, log } = useOnboardPlayer(true)
 
   return (
-    <Panel title="Boat speaker">
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs text-on-surface-variant">
-            {status === 'live' ? t('Connected to the boat speaker.') : t('Connecting…')}
-          </p>
-          <button
-            type="button"
-            onClick={arm}
-            disabled={armed}
-            className="inline-flex items-center gap-2 rounded-xl bg-teal-flow px-4 py-2 text-sm font-bold text-on-primary disabled:opacity-60"
-          >
-            <Icon name={armed ? 'volume_up' : 'volume_off'} className="text-xl" />
-            {armed ? t('Speaker is on') : t('Turn on the speaker')}
-          </button>
-        </div>
-        {!armed && (
-          <p className="text-xs text-on-surface-variant">
-            {t('Turn the speaker on once so the browser allows sound. Announcements play automatically after that.')}
-          </p>
-        )}
+    <section className="captain-card" aria-label={t('Boat speaker')}>
+      <div className="captain-card-heading">
+        <h2>
+          <Icon name={armed ? 'volume_up' : 'volume_off'} className="text-xl" />
+          {t('Boat speaker')}
+        </h2>
+        <button type="button" className="captain-outline" onClick={arm} disabled={armed}>
+          {armed ? t('Speaker is on') : t('Turn on the speaker')}
+        </button>
+      </div>
+      <div className="space-y-2 px-[18px] pb-4 text-sm">
+        <p className="captain-muted">
+          {status === 'live' ? t('Connected to the boat speaker.') : t('Connecting…')}
+          {!armed && ` ${t('Turn the speaker on once so the browser allows sound. Announcements play automatically after that.')}`}
+        </p>
         {nowPlaying && (
-          <div className="rounded-xl bg-surface-container p-3 text-sm text-deep-river" role="status">
-            <div className="font-semibold">
-              {t('Now playing')}: {nowPlaying.subjectName} ({nowPlaying.language})
-            </div>
-            <div className="text-on-surface-variant">{nowPlaying.text}</div>
-          </div>
+          <p className="captain-pill is-success" role="status">
+            {t('Now playing')}: {nowPlaying.subjectName} ({nowPlaying.language}) — {nowPlaying.text}
+          </p>
         )}
         {log.length > 0 && (
-          <ul className="space-y-0.5 text-xs text-on-surface-variant">
+          <ul className="captain-muted space-y-0.5 text-xs">
             {log.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
         )}
       </div>
-    </Panel>
+    </section>
   )
 }

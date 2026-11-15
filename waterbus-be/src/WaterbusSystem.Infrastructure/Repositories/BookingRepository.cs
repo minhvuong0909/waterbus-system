@@ -33,14 +33,18 @@ public sealed class BookingRepository(ApplicationDbContext context) : IBookingRe
         context.Bookings.Include(b => b.Trip).Include(b => b.SeatReservations.Where(r => r.Status == ReservationStatus.Pending))
             .Where(b => b.OrderId == orderId).ToListAsync(ct);
 
-    public Task<bool> HasUnavailableInventoryAsync(Guid orderId, CancellationToken ct) =>
-        context.Bookings.IgnoreQueryFilters().AsNoTracking().AnyAsync(b => b.OrderId == orderId &&
+    public Task<bool> HasUnavailableInventoryAsync(Guid orderId, CancellationToken ct)
+    {
+        var eligible = CaptainRepository.EligibleIds(context, DateTimeOffset.UtcNow);
+        return context.Bookings.IgnoreQueryFilters().AsNoTracking().AnyAsync(b => b.OrderId == orderId &&
             (b.IsDeleted || b.Trip == null || b.Trip.IsDeleted || b.Trip.Boat == null ||
              b.Trip.Boat.IsDeleted || !b.Trip.Boat.IsActive ||
+             b.Trip.Boat.CaptainUserId == null || !eligible.Contains(b.Trip.Boat.CaptainUserId.Value) ||
              b.SeatReservations.Any(r => r.Status == ReservationStatus.Pending &&
                  (r.IsDeleted || r.Seat == null || r.Seat.IsDeleted || !r.Seat.IsActive ||
                   r.Seat.BoatId != b.Trip.BoatId || r.Seat.SeatClass == null ||
                   r.Seat.SeatClass.IsDeleted || !r.Seat.SeatClass.IsActive))), ct);
+    }
 
     public Task<List<SeatReservation>> GetReservationsByStatusAsync(Guid orderId, ReservationStatus status, CancellationToken ct) =>
         context.SeatReservations.AsNoTracking().Where(r => r.Booking!.OrderId == orderId && r.Status == status).ToListAsync(ct);

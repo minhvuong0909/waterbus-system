@@ -1,6 +1,7 @@
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.SightseeingAudio.Interfaces;
 using WaterbusSystem.WebApi.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace WaterbusSystem.WebApi.Realtime;
 
@@ -11,7 +12,8 @@ public static class RealtimeServiceCollectionExtensions
 {
     public static IServiceCollection AddRealtime(this IServiceCollection services)
     {
-        services.AddSignalR();
+        services.AddSignalR(options => options.AddFilter<CaptainSessionHubFilter>());
+        services.AddScoped<CaptainSessionHubFilter>();
 
         // IHubContext là singleton nên publisher cũng singleton được
         services.AddSingleton<IBoatTrackingPublisher, SignalRBoatTrackingPublisher>();

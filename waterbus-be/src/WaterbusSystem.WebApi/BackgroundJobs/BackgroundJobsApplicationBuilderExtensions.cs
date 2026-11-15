@@ -73,6 +73,12 @@ public static class BackgroundJobsApplicationBuilderExtensions
             recurringJobs.RemoveIfExists(EmailOutboxJob.RecurringJobId);
         }
 
+        var captain = app.Services.GetRequiredService<IOptions<WaterbusSystem.Application.Features.Captains.CaptainOptions>>().Value;
+        if (captain.AlertsEnabled)
+            recurringJobs.AddOrUpdate<WaterbusSystem.Application.Interfaces.Services.ICaptainOperationsService>(
+                "captain-attendance", job => job.CheckAttendanceAsync(CancellationToken.None), captain.AlertCron,
+                new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
+        else recurringJobs.RemoveIfExists("captain-attendance");
         return app;
     }
 }

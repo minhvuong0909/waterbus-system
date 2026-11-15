@@ -6,6 +6,7 @@ using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Domain.Common;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
+using WaterbusSystem.Domain.Rules;
 using WaterbusSystem.Domain.Exceptions;
 using ValidationException = WaterbusSystem.Application.Common.Exceptions.ValidationException;
 
@@ -13,6 +14,7 @@ namespace WaterbusSystem.Application.Features.Bookings.Services;
 
 public sealed class BookingCreationService
 {
+    private readonly ICaptainOperationsService _captains;
     private readonly IOrderRepository _orders;
     private readonly IBookingRepository _bookings;
     private readonly IUnitOfWork _unitOfWork;
@@ -38,8 +40,10 @@ public sealed class BookingCreationService
         ISeatAvailabilityService seatAvailabilityService,
         CheckoutOptions options,
         ICheckoutAccessService access,
+        ICaptainOperationsService captains,
         ICurrentUserService? currentUser = null)
     {
+        _captains = captains;
         _currentUser = currentUser;
         _orders = orders;
         _bookings = bookings;
@@ -91,6 +95,7 @@ public sealed class BookingCreationService
                             ?? throw new NotFoundException(nameof(Trip), request.TripId);
 
             EnsureTripIsSellable(trip, now);
+            await _captains.EnsureSellableAsync(trip.BoatId!.Value, cancellationToken);
 
             if (trip.Route == null)
             {
@@ -349,10 +354,18 @@ public sealed class BookingCreationService
 
         // BR-ROUTE-06: chỉ Sightseeing dạng vòng được lên và xuống cùng một Station vật lý (khác VisitOrder).
         // Chuyến thường (Commuter) không cho chọn cùng một bến cho cả hai đầu.
-        if (trip.TripType == TripType.Commuter
-            && boardingCall.RouteStop!.StationId == disembarkingCall.RouteStop!.StationId)
+        if (JourneyRules.IsForbiddenSameStation(
+                trip.TripType, boardingCall.RouteStop!.StationId, disembarkingCall.RouteStop!.StationId))
         {
             throw Validation("Chuyến thường không cho chọn cùng một bến để lên và xuống tàu.");
+        }
+
+        // BR-ROUTE-05: Sightseeing bán trọn hành trình tham quan đã cấu hình, không cho chọn đoạn lên/xuống tùy ý.
+        // Cùng một quy tắc Domain với Search, Seat Map và Checkout (SightseeingJourney).
+        if (trip.TripType == TripType.Sightseeing
+            && SightseeingJourney.Authorize(trip, boardingCall, disembarkingCall) is { } reason)
+        {
+            throw Validation(reason);
         }
 
         return (boardingCall, disembarkingCall);

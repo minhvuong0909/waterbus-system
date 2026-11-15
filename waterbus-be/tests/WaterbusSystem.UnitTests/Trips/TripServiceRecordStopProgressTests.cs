@@ -50,7 +50,7 @@ public class TripServiceRecordStopProgressTests
 
     private TripService Service() => new(new TripRepository(_context), new IncidentRepository(_context), new EfUnitOfWork(_context),
         _user.Object, _clock.Object, _publisher.Object, Mock.Of<IUserDirectory>(),
-        TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner(),
+        TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner(), Moq.Mock.Of<WaterbusSystem.Application.Interfaces.Services.ICaptainOperationsService>(),
             WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Positions, WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Distance, WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Relaxed);
 
     private void AsAdmin() { _user.Setup(u => u.UserId).Returns(_adminId.ToString()); _user.Setup(u => u.UserRole).Returns("Admin"); }

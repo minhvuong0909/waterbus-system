@@ -7,4 +7,4 @@ export const SECTION = 'mx-auto max-w-7xl px-margin'
 export const SIGHTSEEING_RESULTS = `${ROUTES.searchResults}?type=sightseeing`
 
 export const PRIMARY_CTA =
-  'group inline-flex items-center gap-2 rounded-xl bg-teal-flow px-6 py-3 font-display text-sm font-semibold text-on-primary shadow-lg transition-colors hover:bg-secondary'
+  'group inline-flex min-h-12 items-center gap-2 rounded-full bg-teal-flow px-6 py-3 font-display text-sm font-semibold text-on-primary shadow-glow transition-[transform,background-color,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-secondary hover:shadow-lg motion-reduce:transform-none'

@@ -54,7 +54,7 @@ internal static class NotificationScenario
         var clock = new Mock<IDateTimeService>();
         clock.Setup(x => x.Now).Returns(() => DateTimeOffset.UtcNow);
         return new TripService(new TripRepository(c), new IncidentRepository(c), new EfUnitOfWork(c), user.Object, clock.Object,
-            Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(), TestNotifications.Outbox(c), new DirectCommercialTransactionRunner(),
+            Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(), TestNotifications.Outbox(c), new DirectCommercialTransactionRunner(), Moq.Mock.Of<WaterbusSystem.Application.Interfaces.Services.ICaptainOperationsService>(),
             WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Positions, WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Distance, WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Relaxed);
     }
 

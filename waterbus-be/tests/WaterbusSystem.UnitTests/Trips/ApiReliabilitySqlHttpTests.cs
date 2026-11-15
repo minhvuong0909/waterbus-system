@@ -19,6 +19,8 @@ using Microsoft.IdentityModel.Tokens;
 using WaterbusSystem.Application;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.DTOs.Requests.Boats;
+using WaterbusSystem.Application.DTOs.Requests.Bookings;
+using WaterbusSystem.Application.DTOs.Responses.Trips;
 using WaterbusSystem.Application.Features.Boats.Services;
 using WaterbusSystem.Application.Features.SeatInventory.Services;
 using WaterbusSystem.Domain.Entities;
@@ -102,6 +104,66 @@ public sealed class ApiReliabilitySqlHttpTests : IAsyncLifetime
             throw new InvalidOperationException("Unsafe test database.");
         await using var c = Context();
         await c.Database.EnsureDeletedAsync();
+    }
+
+    [SqlServerDomainFact]
+    public Task CircularCommuterJourney_ShouldRejectSameStationAndFindAlternativeArrival_OnRealSqlAndHttp() =>
+        AssertCircularJourneyAsync(TripType.Commuter);
+
+    [SqlServerDomainFact]
+    public Task CircularSightseeingJourney_ShouldKeepWholeLoop_OnRealSqlAndHttp() =>
+        AssertCircularJourneyAsync(TripType.Sightseeing);
+
+    /// <summary>BR-ROUTE-06: cùng hành trình A → B → C → A qua search, sơ đồ ghế, booking và checkout thật.</summary>
+    private async Task AssertCircularJourneyAsync(TripType type)
+    {
+        Guid firstCallId, lastCallId;
+        await using (var db = Context())
+        {
+            var trip = await db.Trips.Include(t => t.TripStopCalls).SingleAsync(t => t.Id == _seed.Trip.Id);
+            trip.TripType = type;
+            var route = await db.Routes.SingleAsync(r => r.Id == trip.RouteId);
+            route.ServiceType = type == TripType.Sightseeing ? "Sightseeing" : "Regular";
+            var stop = new RouteStop { RouteId = route.Id, StationId = _seed.StationA.Id, SequenceNo = 4 };
+            var lastCall = new TripStopCall { TripId = trip.Id, RouteStop = stop, VisitOrder = 4 };
+            db.TripStopCalls.Add(lastCall);
+            firstCallId = trip.TripStopCalls.Single(c => c.VisitOrder == 1).Id;
+            lastCallId = lastCall.Id;
+            await db.SaveChangesAsync();
+        }
+
+        using var http = Http();
+        var sameStation = type == TripType.Sightseeing;
+        var searchPath = $"/api/v1/trips/search?departureStationId={_seed.StationA.Id}";
+        var explicitArrival = await http.GetFromJsonAsync<List<TripSearchResponse>>(
+            searchPath + $"&arrivalStationId={_seed.StationA.Id}");
+        Assert.Equal(sameStation ? 1 : 0, explicitArrival!.Count);
+        var inferredArrival = Assert.Single((await http.GetFromJsonAsync<List<TripSearchResponse>>(searchPath))!);
+        Assert.Equal(sameStation ? _seed.StationA.Name : _seed.StationC.Name, inferredArrival.ArrivalStationName);
+        Assert.Equal(new[] { 1, 2, 3, 4 }, inferredArrival.Stops.Select(s => s.OrderIndex));
+
+        var seatMap = await http.GetAsync(
+            $"/api/v1/trips/{_seed.Trip.Id}/seats?boardingCallId={firstCallId}&disembarkingCallId={lastCallId}");
+        Assert.Equal(sameStation ? HttpStatusCode.OK : HttpStatusCode.BadRequest, seatMap.StatusCode);
+        var booking = await http.PostAsJsonAsync("/api/v1/bookings", new CreateBookingRequest(
+            _seed.Trip.Id, [_seed.Seat1.Id], _seed.StationA.Id, _seed.StationA.Id,
+            "Buyer", "buyer@example.com", null));
+        Assert.Equal(sameStation ? HttpStatusCode.Created : HttpStatusCode.BadRequest, booking.StatusCode);
+        var hold = await http.PostAsJsonAsync("/api/v1/checkouts/holds", new CreateCheckoutHoldRequest([
+            new(_seed.Trip.Id, [_seed.Seat2.Id], _seed.StationA.Id, _seed.StationA.Id)]));
+        Assert.Equal(sameStation ? HttpStatusCode.Created : HttpStatusCode.BadRequest, hold.StatusCode);
+
+        await using var verify = Context();
+        Assert.Equal(sameStation ? 2 : 0, await verify.PurchaseOrders.CountAsync());
+        Assert.Equal(sameStation ? 2 : 0, await verify.AccessGrants.CountAsync());
+        var reservations = await verify.SeatReservations.ToListAsync();
+        Assert.Equal(sameStation ? 2 : 0, reservations.Count);
+        Assert.All(reservations, r =>
+        {
+            Assert.Equal(1, r.BoardingStopOrder);
+            Assert.Equal(4, r.DisembarkingStopOrder);
+        });
+        Assert.Equal(0, await verify.Tickets.CountAsync()); // Không phát vé trước payment.
     }
 
     private HttpClient Http(string? role = null)
@@ -376,7 +438,7 @@ public sealed class ApiReliabilitySqlHttpTests : IAsyncLifetime
                 try { await action(c); return null; } catch (Exception ex) { return ex; }
             }
             var results = await Task.WhenAll(
-                Task.Run(() => Run(c => new BoatService(new BoatRepository(c), new EfUnitOfWork(c), new SqlCommercialTransactionRunner(c))
+                Task.Run(() => Run(c => new BoatService(new BoatRepository(c), new EfUnitOfWork(c), new SqlCommercialTransactionRunner(c), CommercialHandlerFactory.Captains(c))
                     .UpdateAsync(boatId, new UpdateBoatRequest("Race", "RACE-REG" + round, 2, "T", 2024, true, null)))),
                 Task.Run(() => Run(c => new BoatSeatService(new BoatSeatRepository(c), new EfUnitOfWork(c), new SqlCommercialTransactionRunner(c))
                     .ActivateSeatAsync(boatId, seatId))));

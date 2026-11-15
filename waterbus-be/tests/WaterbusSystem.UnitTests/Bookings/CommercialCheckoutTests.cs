@@ -277,7 +277,7 @@ public sealed class CommercialCheckoutTests
         var sessions = new CheckoutSessionService(new Cache(), new DateTimeService(), TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(15));
         await new CheckoutSeatChangeService(new OrderRepository(c), new BookingReferenceRepository(c), new BookingRepository(c),
                 new SeatAvailabilityService(c), access, new DirectCommercialTransactionRunner(), new EfUnitOfWork(c),
-                CommercialHandlerFactory.Effects(c, sessions), new UpdateCheckoutSeatsRequestValidator())
+                CommercialHandlerFactory.Effects(c, sessions), new UpdateCheckoutSeatsRequestValidator(), CommercialHandlerFactory.Captains(c))
             .UpdateAsync(result.OrderId, result.BookingId, new([seed.Seat2.Id], [new("New passenger", null, null)]), result.AccessToken, default);
         order.ExpiresAt.Should().Be(deadline);
         (await sessions.GetAsync("order:" + order.Id))!.ExpiresAt.Should().Be(deadline!.Value);

@@ -148,10 +148,15 @@ public sealed class OnboardAudioPlaybackSqlTests : IAsyncLifetime
 
     // ───────────────────────── helpers ─────────────────────────
 
-    private string Jwt(Guid id, string role) => new JwtSecurityTokenHandler().WriteToken(new JwtSecurityToken(
-        "WaterbusSystemApi", "WaterbusClients", [new Claim(ClaimTypes.NameIdentifier, id.ToString()), new Claim(ClaimTypes.Role, role)],
+    private string Jwt(Guid id, string role)
+    {
+        using var context = Context();
+        var version = role == "Captain" ? TestDbContextFactory.CaptainVersion(context, id) : Guid.Empty;
+        return new JwtSecurityTokenHandler().WriteToken(new JwtSecurityToken(
+        "WaterbusSystemApi", "WaterbusClients", [new Claim(ClaimTypes.NameIdentifier, id.ToString()), new Claim(ClaimTypes.Role, role), new Claim("captainVersion", version.ToString())],
         expires: DateTime.UtcNow.AddMinutes(10),
         signingCredentials: new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSecret)), SecurityAlgorithms.HmacSha256)));
+    }
 
     private HttpClient Http(Guid? id = null, string role = "Captain")
     {

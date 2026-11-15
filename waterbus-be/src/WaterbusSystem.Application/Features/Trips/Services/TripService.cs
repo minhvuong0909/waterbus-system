@@ -32,11 +32,20 @@ public sealed class TripService(
     IUserDirectory users,
     INotificationOutbox notifications,
     ICommercialTransactionRunner transactions,
+    ICaptainOperationsService captains,
     IBoatPositionCache positions,
     IGeoDistanceCalculator distance,
     IOptions<CaptainOperationOptions> captainOptions) : ITripService
 {
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
+    private async Task<string> SalesStateAsync(Trip trip, DateTimeOffset now, CancellationToken ct)
+    {
+        var state = TripReadRules.SalesState(trip, now);
+        if (state != "open" || trip.BoatId is not { } boatId) return state;
+        try { await captains.EnsureSellableAsync(boatId, ct); return state; }
+        catch (ConflictException) { return "captain_unavailable"; }
+    }
+
 
     private CaptainOperationOptions CaptainRules => captainOptions.Value;
 
@@ -54,7 +63,7 @@ public sealed class TripService(
     public async Task<TripDetailResponse> GetDetailAsync(Guid tripId, CancellationToken cancellationToken = default)
     {
         var trip = await tripRepository.GetDetailGraphAsync(tripId, cancellationToken);
-        var salesState = TripReadRules.SalesState(trip, dateTime.Now);
+        var salesState = await SalesStateAsync(trip, dateTime.Now, cancellationToken);
         return new(trip.Id, trip.RouteId, trip.Route?.Name ?? "", trip.TripType.ToString(),
             trip.Status.ToString(), trip.DepartureTime, trip.ArrivalTime, trip.SalesCloseAt,
             trip.IsDelayed, salesState == "open", salesState,
@@ -80,7 +89,7 @@ public sealed class TripService(
         if (trip.Boat is null) throw new ConcurrencyException("Chuyến chưa có tàu và sơ đồ ghế hợp lệ.");
 
         var now = dateTime.Now;
-        var salesState = TripReadRules.SalesState(trip, now);
+        var salesState = await SalesStateAsync(trip, now, cancellationToken);
         var seats = await tripRepository.ListSeatsForBoatAsync(trip.Boat.Id, cancellationToken);
         var type = trip.TripType.ToString();
         var fares = await tripRepository.ListActiveFaresForTypeAsync(type, now, cancellationToken);
@@ -177,6 +186,15 @@ public sealed class TripService(
 
     public async Task<TripOperationResultResponse> ChangeStatusAsync(Guid tripId, ChangeTripStatusRequest request, CancellationToken cancellationToken = default)
     {
+        var result = await transactions.RunAsync(() => ChangeStatusCoreAsync(tripId, request, cancellationToken), cancellationToken);
+        if (request.Operation != TripOperation.NoAction)
+            await publisher.PublishTripStatusChangedAsync(new TripStatusChangedMessage(result.TripId, result.BoatId,
+                result.Status, result.PreviousStatus, result.Operation, dateTime.Now), cancellationToken);
+        return result;
+    }
+
+    private async Task<TripOperationResultResponse> ChangeStatusCoreAsync(Guid tripId, ChangeTripStatusRequest request, CancellationToken cancellationToken)
+    {
         var isAdmin = string.Equals(currentUser.UserRole, "Admin", StringComparison.OrdinalIgnoreCase);
         var isCaptain = string.Equals(currentUser.UserRole, "Captain", StringComparison.OrdinalIgnoreCase);
         var userId = Guid.TryParse(currentUser.UserId, out var parsed) ? parsed : (Guid?)null;
@@ -225,6 +243,12 @@ public sealed class TripService(
             throw new ConflictException("Chuyến chưa được gán tàu nên không thể xuất bến.");
         }
 
+        if (request.Operation is TripOperation.OpenBoarding or TripOperation.Start)
+        {
+            if (trip.BoatId is not { } boatId) throw new ConflictException("Trip has no boat.");
+            await captains.EnsureSellableAsync(boatId, cancellationToken);
+            if (request.Operation == TripOperation.Start) await captains.EnsureStartAsync(trip, cancellationToken);
+        }
         trip.Status = next;
         trip.UpdatedAt = now;
         if (request.Operation == TripOperation.Start)
@@ -264,12 +288,8 @@ public sealed class TripService(
             // Cùng khoá thương mại với xác nhận thanh toán: IPN không thể xác nhận vé giữa lúc huỷ chuyến và tạo
             // thông báo. Outbox được ghi trong cùng transaction với việc đổi trạng thái (commit xong mới có email).
             var type = next == TripStatus.Cancelled ? EmailNotificationType.TripCancelled : EmailNotificationType.TripTerminated;
-            await transactions.RunAsync(async () =>
-            {
-                await notifications.EnqueueTripDisruptionAsync(trip.Id, type, cancellationToken);
-                await unitOfWork.SaveChangesAsync(cancellationToken);
-                return true;
-            }, cancellationToken);
+            await notifications.EnqueueTripDisruptionAsync(trip.Id, type, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
         else
         {
@@ -277,9 +297,6 @@ public sealed class TripService(
         }
 
         // Chỉ phát sau khi đã lưu thành công
-        await publisher.PublishTripStatusChangedAsync(
-            new TripStatusChangedMessage(trip.Id, trip.BoatId, next.ToString(), previous.ToString(), request.Operation.ToString(), now),
-            cancellationToken);
 
         return ToResult(trip, previous, request.Operation);
     }
@@ -566,6 +583,17 @@ public sealed class TripService(
                 .ToList();
             if (calls.Count < 2) continue;
 
+            // BR-ROUTE-05: Sightseeing chỉ có đúng một hành trình bán được (điểm đầu → điểm cuối); lọc bến chỉ để khớp, không tạo đoạn lẻ.
+            if (trip.TripType == TripType.Sightseeing)
+            {
+                var tour = SightseeingJourney.Resolve(trip);
+                if (!tour.IsValid) continue;
+                if (request.DepartureStationId.HasValue && tour.Boarding!.RouteStop!.StationId != request.DepartureStationId.Value) continue;
+                if (request.ArrivalStationId.HasValue && tour.Disembarking!.RouteStop!.StationId != request.ArrivalStationId.Value) continue;
+                matched.Add((trip, calls, tour.Boarding!, tour.Disembarking!));
+                continue;
+            }
+
             var boardingCall = request.DepartureStationId.HasValue
                 ? calls.FirstOrDefault(c => c.RouteStop!.StationId == request.DepartureStationId.Value && c.RouteStop.CanBoard)
                 : calls.FirstOrDefault(c => c.RouteStop!.CanBoard);
@@ -574,11 +602,16 @@ public sealed class TripService(
             var disembarkingCall = request.ArrivalStationId.HasValue
                 ? calls.LastOrDefault(c => c.RouteStop!.StationId == request.ArrivalStationId.Value && c.RouteStop.CanAlight)
                 : calls.LastOrDefault(c => c.RouteStop!.CanAlight);
+            // BR-ROUTE-06: chuyến thường không cho lên và xuống cùng một Station. Khách đã chọn bến đến trùng bến đi thì loại;
+            // khách chưa chọn bến đến mà điểm xuống cuối trùng bến đi (tuyến lặp bến) thì lấy điểm xuống cuối ở Station khác.
+            if (disembarkingCall != null && JourneyRules.IsForbiddenSameStation(
+                    trip.TripType, boardingCall.RouteStop!.StationId, disembarkingCall.RouteStop!.StationId))
+            {
+                if (request.ArrivalStationId.HasValue) continue;
+                disembarkingCall = calls.LastOrDefault(c => c.VisitOrder > boardingCall.VisitOrder && c.RouteStop!.CanAlight
+                    && c.RouteStop.StationId != boardingCall.RouteStop!.StationId);
+            }
             if (disembarkingCall == null || boardingCall.VisitOrder >= disembarkingCall.VisitOrder) continue;
-
-            // Cùng quy tắc checkout (BR-ROUTE-06): chỉ Sightseeing vòng được lên/xuống cùng một Station.
-            if (trip.TripType == TripType.Commuter
-                && boardingCall.RouteStop!.StationId == disembarkingCall.RouteStop!.StationId) continue;
 
             matched.Add((trip, calls, boardingCall, disembarkingCall));
         }
