@@ -86,6 +86,7 @@ public class ApplicationDbContextInitializer
         // 2. Seed Tài khoản mặc định
         await SeedUserAsync("admin@waterbus.vn", "Admin Hệ Thống", "Admin@123456!", "Admin");
         await SeedUserAsync("captain@waterbus.vn", "Thuyền Trưởng Mặc Định", "Captain@123456!", "Captain");
+        await SeedUserAsync("captain2@waterbus.vn", "Thuyền Trưởng Tàu Thường", "Captain@123456!", "Captain");
         await SeedUserAsync("staff@waterbus.vn", "Nhân Viên Soát Vé Bến", "Staff@123456!", "Staff");
 
         // 3. Seed 5 Bến Tàu Chính Dọc Sông Sài Gòn
@@ -203,6 +204,7 @@ public class ApplicationDbContextInitializer
         }
 
         await AssignDemoCaptainAsync();
+        await AssignSecondDemoCaptainAsync();
 
         // 7. Seed FareRule
         if (!await _context.FareRules.AnyAsync())
@@ -345,6 +347,94 @@ public class ApplicationDbContextInitializer
                         ? trip.DepartureTime.AddMinutes(stop.DepartureOffsetMin.Value)
                         : trip.DepartureTime,
                     Status = (trip.Status == TripStatus.EnRoute && stop.VisitOrder == 1) ? "Departed" : "Planned"
+                });
+            }
+        }
+        await _context.SaveChangesAsync();
+
+        await ReserveSightseeingBoatAsync();
+        await SeedDemoCaptainAttendanceAsync();
+    }
+
+    /// <summary>Tàu tham quan của demo: chỉ chạy SS01/SS02 để thuyền trưởng của tàu này luôn thấy chuyến tham quan.</summary>
+    internal const string SightseeingDemoBoatCode = "SWB-01";
+
+    /// <summary>Tàu chuyến thường của demo, có thuyền trưởng riêng (captain2@waterbus.vn).</summary>
+    internal const string CommuterDemoBoatCode = "SWB-02";
+
+    /// <summary>
+    /// Gán thuyền trưởng thứ hai cho tàu chuyến thường SWB-02 để demo cả hai loại tàu. Chỉ gán khi tàu chưa có thuyền trưởng.
+    /// </summary>
+    private async Task AssignSecondDemoCaptainAsync()
+    {
+        var boat = await _context.Boats.FirstOrDefaultAsync(b => b.Code == CommuterDemoBoatCode && b.CaptainUserId == null);
+        var captain = await _userManager.FindByEmailAsync("captain2@waterbus.vn");
+        if (boat is null || captain is null) return;
+        boat.CaptainUserId = captain.Id;
+        await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Chuyển các chuyến thường chưa chạy và chưa có khách của tàu tham quan SWB-01 sang tàu khác không trùng giờ (Admin phân tàu theo chuyến).
+    /// Idempotent; không đụng chuyến đã có khách, đang chạy hay đã xong.
+    /// </summary>
+    private async Task ReserveSightseeingBoatAsync()
+    {
+        var reserved = await _context.Boats.FirstOrDefaultAsync(b => b.Code == SightseeingDemoBoatCode);
+        if (reserved is null) return;
+        var others = await _context.Boats.Where(b => b.IsActive && !b.IsDeleted && b.Id != reserved.Id).OrderBy(b => b.Code).ToListAsync();
+        if (others.Count == 0) return;
+        others = others.OrderBy(b => b.Code == CommuterDemoBoatCode ? 0 : 1).ToList();
+
+        var commuter = await _context.Trips
+            .Where(t => t.BoatId == reserved.Id && t.TripType == TripType.Commuter && !t.IsDeleted
+                        && t.Status == TripStatus.Scheduled && t.ActualDepartureTime == null)
+            .ToListAsync();
+        foreach (var trip in commuter)
+        {
+            if (await _context.Bookings.AnyAsync(b => b.TripId == trip.Id)) continue;
+            foreach (var boat in others)
+            {
+                var overlap = await _context.Trips.AnyAsync(t => t.BoatId == boat.Id && t.Id != trip.Id && !t.IsDeleted
+                    && t.Status != TripStatus.Cancelled && t.DepartureTime < trip.ArrivalTime && t.ArrivalTime > trip.DepartureTime);
+                if (overlap) continue;
+                trip.BoatId = boat.Id;
+                break;
+            }
+        }
+        await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Demo (Development): điểm danh sẵn thuyền trưởng của hai tàu demo cho các chuyến sắp chạy, như thể Admin đã xác nhận có mặt, để demo
+    /// chỉ cần thao tác trên web. Quy tắc "Admin xác nhận có mặt trước khi khởi hành" của hệ thống giữ nguyên; ở môi trường thật Admin tự điểm danh.
+    /// </summary>
+    private async Task SeedDemoCaptainAttendanceAsync()
+    {
+        var admin = await _userManager.FindByEmailAsync("admin@waterbus.vn");
+        if (admin is null) return;
+        var now = DateTimeOffset.UtcNow;
+        var boats = await _context.Boats
+            .Where(b => (b.Code == SightseeingDemoBoatCode || b.Code == CommuterDemoBoatCode) && b.CaptainUserId != null)
+            .ToListAsync();
+        foreach (var boat in boats)
+        {
+            var trips = await _context.Trips
+                .Where(t => t.BoatId == boat.Id && !t.IsDeleted && (t.Status == TripStatus.Scheduled || t.Status == TripStatus.Boarding)
+                            && t.DepartureTime > now.AddHours(-1) && t.DepartureTime < now.AddDays(4))
+                .Select(t => new { t.Id, t.DepartureTime })
+                .ToListAsync();
+            var recorded = (await _context.Set<CaptainAttendance>()
+                .Where(a => a.BoatId == boat.Id && a.AssignmentVersion == boat.CaptainAssignmentVersion)
+                .Select(a => a.TripId).ToListAsync()).ToHashSet();
+            foreach (var trip in trips.Where(t => !recorded.Contains(t.Id)))
+            {
+                _context.Set<CaptainAttendance>().Add(new CaptainAttendance
+                {
+                    TripId = trip.Id, BoatId = boat.Id, CaptainId = boat.CaptainUserId!.Value,
+                    AssignmentVersion = boat.CaptainAssignmentVersion, RecordedByAdminId = admin.Id,
+                    RecordedAt = now, RequiredAt = trip.DepartureTime.AddMinutes(-20), IsLate = false,
+                    Reason = "Demo: điểm danh sẵn"
                 });
             }
         }
@@ -709,6 +799,8 @@ public class ApplicationDbContextInitializer
         if (routes.Count == 0) return;
 
         var boats = await _context.Boats.Where(b => b.IsActive).ToListAsync();
+        // SWB-01 là tàu tham quan của demo: chuyến thường chạy trên các tàu còn lại.
+        if (boats.Count > 1) boats = boats.Where(b => b.Code != SightseeingDemoBoatCode).ToList();
         if (boats.Count == 0) return;
 
         var schedules = await _context.Schedules.Where(s => s.IsActive).ToListAsync();
@@ -1017,7 +1109,8 @@ public class ApplicationDbContextInitializer
             if (role == "Captain")
             {
                 user.CaptainStatus = CaptainStatus.Active;
-                user.CaptainLicenseNumber = "DEMO-NOT-A-REAL-LICENSE";
+                // Số giấy phép là duy nhất: mỗi tài khoản Captain demo một số riêng.
+                user.CaptainLicenseNumber = email == "captain@waterbus.vn" ? "DEMO-NOT-A-REAL-LICENSE" : $"DEMO-NOT-A-REAL-LICENSE-{email.Split('@')[0].ToUpperInvariant()}";
                 user.CaptainLicenseExpiresOn = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1));
             }
             var result = await _userManager.CreateAsync(user, password);
