@@ -15,7 +15,7 @@ Chạy API không bằng Docker: đặt cùng các biến môi trường trong f
 
 ## Các bước demo
 1. Mở http://localhost:8080/sign-in, đăng nhập Captain `captain@waterbus.vn` / `Captain@123456!` (tài khoản seed, chỉ có ở Development).
-2. Vào Cổng thuyền trưởng (`/captain`). Bấm **Bật loa** một lần (trình duyệt chỉ cho phát âm thanh sau một cú chạm).
+2. Vào Cổng thuyền trưởng (`/captain`). Không có nút bật loa: loa tự mở khi bạn bấm hoặc gõ phím bất kỳ trên trang lần đầu (trình duyệt chỉ cho phát âm thanh sau một cú chạm). Khi loa đang nói, góc dưới bên phải hiện một dải "tên bến/địa danh".
 3. Chọn một chuyến tham quan ("… (Tham quan)" hoặc "Tour vòng sông Sài Gòn") và bấm **Mở đón khách**.
    Trước khi **Khởi hành**, Admin phải xác nhận Captain có mặt cho chuyến đó (API `POST /api/v1/trips/{tripId}/captain-attendance`, chưa có màn hình Admin cho việc này).
    Chạy một lần để xác nhận cho mọi chuyến sắp chạy: `node tools/demo/confirm-attendance.mjs` (cần Node 18+). Chưa xác nhận thì Khởi hành bị từ chối.
@@ -33,7 +33,7 @@ Chỉ một trình phát nhận audio cho mỗi tàu: **kết nối mới nhất
 | Nút "Mở đón khách" xám, ghi "Đến hh:mm mới mở" | Chưa dùng file demo (mặc định chỉ mở từ 30 phút trước giờ khởi hành). |
 | "Đã cập bến" xám, ghi "Chờ GPS" hoặc "chưa tới bến cuối" | Tàu chưa tới bến cuối; cần có GPS (giả lập hoặc Chia sẻ GPS). Admin vẫn cho cập bến được. |
 | Bấm Khởi hành báo "Admin chưa ghi nhận Captain có mặt" | Admin cần xác nhận Captain có mặt cho chuyến (xem bước 3). |
-| Có chuyến chạy nhưng im lặng | Chưa bấm **Bật loa**; hoặc API chưa seed xong clip (đợi thêm); hoặc tab Captain khác đang nhận audio. |
+| Có chuyến chạy nhưng im lặng | Chưa bấm hoặc gõ phím nào trên trang Captain; chuyến này đã phát hết (mỗi thông báo chỉ phát một lần cho mỗi chuyến, hãy chạy chuyến mới); hoặc API chưa seed xong clip (đợi thêm); hoặc tab Captain khác đang nhận audio. |
 | Địa danh không phát hết | Hệ thống xét địa danh lần lượt theo thứ tự tuyến; xem bán kính ở `ApplicationDbContextInitializer.SightseeingPois`. |
 
 ## Đổi nội dung audio

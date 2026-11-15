@@ -6,7 +6,7 @@ import type { CaptainAction } from '../../features/captain/components/CaptainAct
 import CaptainHeader from '../../features/captain/components/CaptainHeader'
 import CaptainMap from '../../features/captain/components/CaptainMap'
 import CaptainStopList from '../../features/captain/components/CaptainStopList'
-import OnboardPlayerPanel from '../../features/captain/components/OnboardPlayerPanel'
+import BoatSpeaker from '../../features/captain/components/BoatSpeaker'
 import { useCaptainGps } from '../../features/captain/hooks/useCaptainGps'
 import { getCaptainAttendance } from '../../features/captain/services/captainService'
 import { formatGpsTime } from '../../features/captain/utils'
@@ -227,7 +227,6 @@ function TripDashboard({
 
       <aside className="cap-side">
         <CaptainStopList stops={stops} nextId={nextStop?.callId} clock={clock} />
-        <OnboardPlayerPanel />
       </aside>
 
       {confirmation && (
@@ -319,6 +318,7 @@ export default function CaptainPortalPage() {
   return (
     <>
       <CaptainHeader connected={gps.connected} fresh={gps.fresh} />
+      <BoatSpeaker />
       <main className="captain-content">
         {trips.error && trips.data && (
           <div className="captain-banner" role="status">

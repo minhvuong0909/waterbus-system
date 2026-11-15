@@ -35,7 +35,7 @@ vi.mock('../../features/captain/hooks/useCaptainGps', () => ({
     },
   }),
 }))
-vi.mock('../../features/captain/components/OnboardPlayerPanel', () => ({ default: () => <div>Loa trên tàu</div> }))
+vi.mock('../../features/captain/components/BoatSpeaker', () => ({ default: () => null }))
 vi.mock('../../features/captain/components/CaptainMap', () => ({
   default: ({ fresh }: { fresh: boolean }) => (
     <div>{fresh ? 'Bản đồ trực tiếp' : 'Bản đồ vị trí cuối'}</div>

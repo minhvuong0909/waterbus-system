@@ -20,11 +20,15 @@ export interface NowPlaying {
 
 const MAX_LOG = 6
 
+/** An announcement waiting longer than this is no longer true (the boat has passed), so it is skipped. */
+const STALE_MS = 90_000
+
 /**
  * Onboard Player on the captain's screen: it plays what the server decides (the server owns when, the player only plays).
  * Each announcement is acknowledged at once, then its clips play one after another (Vietnamese, then English) and the
- * result is reported so the backend can audit it. Nothing is played or acknowledged until the captain taps "armed"
- * (browsers only allow sound after a tap).
+ * result is reported so the backend can audit it. Browsers only allow sound after a tap, so the player arms itself on the
+ * first tap or key press anywhere on the page (the captain always presses something before a trip). Announcements that
+ * arrive before that are acknowledged and queued, then played on arming unless they have gone stale.
  */
 export function useOnboardPlayer(enabled: boolean) {
   const [status, setStatus] = useState<RealtimeStatus>('connecting')
@@ -36,6 +40,7 @@ export function useOnboardPlayer(enabled: boolean) {
   const queue = useRef(createAudioQueue())
   const playing = useRef(false)
   const stopCurrent = useRef<(() => void) | null>(null)
+  const receivedAt = useRef(new Map<string, number>())
 
   const addLog = useCallback((line: string) => {
     setLog((previous) => [`${new Date().toLocaleTimeString('vi-VN')} ${line}`, ...previous].slice(0, MAX_LOG))
@@ -55,7 +60,13 @@ export function useOnboardPlayer(enabled: boolean) {
     try {
       let trigger = queue.current.next()
       while (trigger) {
-        await playTrigger(trigger)
+        const waited = Date.now() - (receivedAt.current.get(trigger.requestId) ?? Date.now())
+        if (waited > STALE_MS) {
+          addLog(`${trigger.subjectName}: bỏ qua (quá hạn)`)
+          await report(trigger.requestId, 'Failed', 'Stale')
+        } else {
+          await playTrigger(trigger)
+        }
         trigger = queue.current.next()
       }
     } finally {
@@ -93,12 +104,15 @@ export function useOnboardPlayer(enabled: boolean) {
     return connectHub(HUBS.onboardAudio, {
       handlers: {
         [HUB_EVENTS.audioTrigger]: async (trigger: AudioTrigger) => {
-          // Not armed: do not acknowledge, the server keeps the announcement for a later GPS tick (limited retries).
-          if (!armedRef.current || q.seen(trigger.requestId)) return
-          // Acknowledge within the server's timeout, then play in order.
+          if (q.seen(trigger.requestId)) return
+          // Acknowledge at once (within the server's timeout) even before the first tap, so the server does not use up its
+          // retries; the announcement waits in the queue until the speaker is armed.
           const accepted = await connection.current?.invoke<boolean>('AcceptPlayback', trigger.requestId)
           if (!accepted) return
-          if (q.enqueue(trigger)) void drain()
+          if (q.enqueue(trigger)) {
+            receivedAt.current.set(trigger.requestId, Date.now())
+            if (armedRef.current) void drain()
+          }
         },
         [HUB_EVENTS.audioControl]: (control: AudioControl) => {
           if (control.action !== 'pause') return
@@ -117,7 +131,20 @@ export function useOnboardPlayer(enabled: boolean) {
   const arm = useCallback(() => {
     armedRef.current = true
     setArmed(true)
-  }, [])
+    void drain()
+  }, [drain])
+
+  // First tap or key press anywhere: browsers now allow sound.
+  useEffect(() => {
+    if (!enabled || armed) return
+    const unlock = () => arm()
+    window.addEventListener('pointerdown', unlock, { once: true })
+    window.addEventListener('keydown', unlock, { once: true })
+    return () => {
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
+    }
+  }, [enabled, armed, arm])
 
   return { status, armed, arm, nowPlaying, log }
 }
