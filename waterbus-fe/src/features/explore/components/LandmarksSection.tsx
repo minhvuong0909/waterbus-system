@@ -1,7 +1,5 @@
-import { useState } from 'react'
-import type { ExploreData, Landmark } from '../types'
+import type { ExploreData } from '../types'
 import { t } from '../../../i18n'
-import LandmarkDrawer from './LandmarkDrawer'
 import LandmarkImage from './LandmarkImage'
 import { SECTION } from '../constants'
 
@@ -10,8 +8,6 @@ export default function LandmarksSection({
 }: {
   landmarks: ExploreData['landmarks']
 }) {
-  const [open, setOpen] = useState<Landmark | null>(null)
-
   return (
     <section id="river-landmarks" className="scroll-mt-24 bg-surface py-16 sm:py-20 lg:py-24">
       <div className={SECTION}>
@@ -35,15 +31,11 @@ export default function LandmarksSection({
             const copyBackground = isReversed ? 'bg-sand-light' : 'bg-white'
 
             return (
-              <button
+              <article
                 key={landmark.id}
-                type="button"
-                onClick={() => setOpen(landmark)}
-                aria-label={`${t('Details')}: ${landmark.title}`}
-                aria-haspopup="dialog"
                 data-reveal="landmark"
                 data-reveal-direction={isReversed ? 'right' : 'left'}
-                className="group grid w-full cursor-pointer grid-cols-1 items-stretch text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-flow lg:grid-cols-12"
+                className="grid w-full grid-cols-1 items-stretch text-left lg:grid-cols-12"
               >
                 <div
                   data-reveal-part="media"
@@ -53,7 +45,7 @@ export default function LandmarksSection({
                 >
                   <LandmarkImage
                     landmark={landmark}
-                    className="absolute inset-0 h-full w-full transition-transform duration-700 ease-out group-hover:scale-[1.035] motion-reduce:transform-none"
+                    className="absolute inset-0 h-full w-full"
                   />
                   <span
                     aria-hidden="true"
@@ -77,23 +69,19 @@ export default function LandmarksSection({
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-flow">
                     {t(landmark.category)}
                   </p>
-                  <h3 className="max-w-xl font-display text-4xl font-semibold leading-[1.05] tracking-tight text-deep-river transition-colors duration-300 group-hover:text-teal-flow sm:text-5xl lg:text-6xl">
+                  <h3 className="max-w-xl font-display text-4xl font-semibold leading-[1.05] tracking-tight text-deep-river sm:text-5xl lg:text-6xl">
                     {landmark.title}
                   </h3>
                   <p className="max-w-lg text-base leading-relaxed text-on-surface-variant sm:text-lg">
                     {landmark.description}
                   </p>
-                  <span
-                    aria-hidden="true"
-                    className="mt-1 h-px w-14 bg-teal-flow transition-[width] duration-300 group-hover:w-20"
-                  />
+                  <span aria-hidden="true" className="mt-1 h-px w-14 bg-teal-flow" />
                 </div>
-              </button>
+              </article>
             )
           })}
         </div>
       </div>
-      {open && <LandmarkDrawer landmark={open} onClose={() => setOpen(null)} />}
     </section>
   )
 }
