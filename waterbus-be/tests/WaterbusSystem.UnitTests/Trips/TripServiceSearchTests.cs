@@ -34,7 +34,7 @@ public class TripServiceSearchTests
 
     private TripService Service() => new(new TripRepository(_context), new IncidentRepository(_context), new EfUnitOfWork(_context),
         Mock.Of<ICurrentUserService>(), _clock.Object, Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(),
-        TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner());
+        TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner(), Moq.Mock.Of<WaterbusSystem.Application.Interfaces.Services.ICaptainOperationsService>());
 
     private Trip SetDeparture(DateTimeOffset departure)
     {

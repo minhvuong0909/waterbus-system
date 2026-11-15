@@ -11,9 +11,12 @@ using WaterbusSystem.Domain.Exceptions;
 
 namespace WaterbusSystem.Application.Features.Boats.Services;
 
-public sealed class BoatService(IBoatRepository boats, IUnitOfWork unitOfWork, ICommercialTransactionRunner transactions) : IBoatService
+public sealed class BoatService(IBoatRepository boats, IUnitOfWork unitOfWork, ICommercialTransactionRunner transactions, ICaptainOperationsService captains) : IBoatService
 {
-    public async Task<Guid> CreateAsync(CreateBoatRequest request, CancellationToken cancellationToken = default)
+    public Task<Guid> CreateAsync(CreateBoatRequest request, CancellationToken cancellationToken = default) =>
+        transactions.RunAsync(() => CreateCoreAsync(request, cancellationToken), cancellationToken);
+
+    private async Task<Guid> CreateCoreAsync(CreateBoatRequest request, CancellationToken cancellationToken)
     {
         if (await boats.ExistsByCodeAsync(request.Code, cancellationToken))
         {
@@ -31,10 +34,10 @@ public sealed class BoatService(IBoatRepository boats, IUnitOfWork unitOfWork, I
             TotalSeats = request.TotalSeats,
             Manufacturer = request.Manufacturer,
             YearBuilt = request.YearBuilt,
-            CaptainUserId = request.CaptainUserId,
             IsActive = true
         };
 
+        await captains.ChangeAssignmentAsync(boat, request.CaptainUserId, "Boat created by Admin", cancellationToken);
         boats.Add(boat);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -70,7 +73,7 @@ public sealed class BoatService(IBoatRepository boats, IUnitOfWork unitOfWork, I
         boat.Manufacturer = request.Manufacturer;
         boat.YearBuilt = request.YearBuilt;
         boat.IsActive = request.IsActive;
-        boat.CaptainUserId = request.CaptainUserId;
+        await captains.ChangeAssignmentAsync(boat, request.CaptainUserId, "Boat updated by Admin", cancellationToken);
         boat.UpdatedAt = DateTimeOffset.UtcNow;
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

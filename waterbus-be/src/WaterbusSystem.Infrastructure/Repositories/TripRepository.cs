@@ -115,11 +115,14 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
         int maxCandidates, Guid? departureStationId = null, Guid? arrivalStationId = null,
         CancellationToken cancellationToken = default)
     {
+        var eligible = CaptainRepository.EligibleIds(context, now);
         var query = context.Trips.AsNoTracking()
             .Include(t => t.Route).Include(t => t.Boat)
             .Include(t => t.TripStopCalls).ThenInclude(c => c.RouteStop).ThenInclude(rs => rs!.Station)
             .Where(t => !t.IsDeleted && (t.Status == TripStatus.Scheduled || t.Status == TripStatus.Boarding)
                         && t.ActualDepartureTime == null && t.BoatId != null
+                        && t.Boat != null && t.Boat.CaptainUserId != null
+                        && eligible.Contains(t.Boat.CaptainUserId.Value)
                         && (t.SalesCloseAt == null || t.SalesCloseAt > now));
 
         if (departureDayStartUtc.HasValue && departureDayEndUtc.HasValue)

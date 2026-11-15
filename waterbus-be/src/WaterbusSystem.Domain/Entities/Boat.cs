@@ -19,6 +19,8 @@ public class Boat : BaseEntity
     /// ID thuyền trưởng phụ trách điều khiển tàu (1:1 relationship với User thuyền trưởng)
     /// </summary>
     public Guid? CaptainUserId { get; set; }
+    /// <summary>Đổi mỗi lần đổi/gỡ Captain; điểm danh cũ không cấp quyền cho phân công mới.</summary>
+    public Guid CaptainAssignmentVersion { get; set; } = Guid.NewGuid();
 
     /// <summary>
     /// Danh sách các ghế cố định trên tàu

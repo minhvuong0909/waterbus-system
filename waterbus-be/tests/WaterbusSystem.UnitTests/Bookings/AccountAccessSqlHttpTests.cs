@@ -288,6 +288,7 @@ public sealed class AccountAccessSqlHttpTests : IAsyncLifetime
         using var scope = _app.Services.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var user = new ApplicationUser { UserName = email, Email = email, FullName = "Buyer", IsActive = true, EmailConfirmed = verified };
+        if (role == "Captain") { user.CaptainStatus = CaptainStatus.Active; user.CaptainLicenseNumber = Guid.NewGuid().ToString(); user.CaptainLicenseExpiresOn = DateOnly.MaxValue; }
         Assert.True((await users.CreateAsync(user, LegacyPassword)).Succeeded);
         Assert.True((await users.AddToRoleAsync(user, role)).Succeeded);
         return user;

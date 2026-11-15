@@ -29,16 +29,25 @@ public sealed class TripService(
     IOperationsAlertPublisher publisher,
     IUserDirectory users,
     INotificationOutbox notifications,
-    ICommercialTransactionRunner transactions) : ITripService
+    ICommercialTransactionRunner transactions,
+    ICaptainOperationsService captains) : ITripService
 {
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
+    private async Task<string> SalesStateAsync(Trip trip, DateTimeOffset now, CancellationToken ct)
+    {
+        var state = TripReadRules.SalesState(trip, now);
+        if (state != "open" || trip.BoatId is not { } boatId) return state;
+        try { await captains.EnsureSellableAsync(boatId, ct); return state; }
+        catch (ConflictException) { return "captain_unavailable"; }
+    }
+
 
     // ---------------- GetDetail ----------------
 
     public async Task<TripDetailResponse> GetDetailAsync(Guid tripId, CancellationToken cancellationToken = default)
     {
         var trip = await tripRepository.GetDetailGraphAsync(tripId, cancellationToken);
-        var salesState = TripReadRules.SalesState(trip, dateTime.Now);
+        var salesState = await SalesStateAsync(trip, dateTime.Now, cancellationToken);
         return new(trip.Id, trip.RouteId, trip.Route?.Name ?? "", trip.TripType.ToString(),
             trip.Status.ToString(), trip.DepartureTime, trip.ArrivalTime, trip.SalesCloseAt,
             trip.IsDelayed, salesState == "open", salesState,
@@ -64,7 +73,7 @@ public sealed class TripService(
         if (trip.Boat is null) throw new ConcurrencyException("Chuyến chưa có tàu và sơ đồ ghế hợp lệ.");
 
         var now = dateTime.Now;
-        var salesState = TripReadRules.SalesState(trip, now);
+        var salesState = await SalesStateAsync(trip, now, cancellationToken);
         var seats = await tripRepository.ListSeatsForBoatAsync(trip.Boat.Id, cancellationToken);
         var type = trip.TripType.ToString();
         var fares = await tripRepository.ListActiveFaresForTypeAsync(type, now, cancellationToken);
@@ -145,6 +154,15 @@ public sealed class TripService(
 
     public async Task<TripOperationResultResponse> ChangeStatusAsync(Guid tripId, ChangeTripStatusRequest request, CancellationToken cancellationToken = default)
     {
+        var result = await transactions.RunAsync(() => ChangeStatusCoreAsync(tripId, request, cancellationToken), cancellationToken);
+        if (request.Operation != TripOperation.NoAction)
+            await publisher.PublishTripStatusChangedAsync(new TripStatusChangedMessage(result.TripId, result.BoatId,
+                result.Status, result.PreviousStatus, result.Operation, dateTime.Now), cancellationToken);
+        return result;
+    }
+
+    private async Task<TripOperationResultResponse> ChangeStatusCoreAsync(Guid tripId, ChangeTripStatusRequest request, CancellationToken cancellationToken)
+    {
         var isAdmin = string.Equals(currentUser.UserRole, "Admin", StringComparison.OrdinalIgnoreCase);
         var isCaptain = string.Equals(currentUser.UserRole, "Captain", StringComparison.OrdinalIgnoreCase);
         var userId = Guid.TryParse(currentUser.UserId, out var parsed) ? parsed : (Guid?)null;
@@ -192,6 +210,12 @@ public sealed class TripService(
             throw new ConflictException("Chuyến chưa được gán tàu nên không thể xuất bến.");
         }
 
+        if (request.Operation is TripOperation.OpenBoarding or TripOperation.Start)
+        {
+            if (trip.BoatId is not { } boatId) throw new ConflictException("Trip has no boat.");
+            await captains.EnsureSellableAsync(boatId, cancellationToken);
+            if (request.Operation == TripOperation.Start) await captains.EnsureStartAsync(trip, cancellationToken);
+        }
         trip.Status = next;
         trip.UpdatedAt = now;
         if (request.Operation == TripOperation.Start)
@@ -231,12 +255,8 @@ public sealed class TripService(
             // Cùng khoá thương mại với xác nhận thanh toán: IPN không thể xác nhận vé giữa lúc huỷ chuyến và tạo
             // thông báo. Outbox được ghi trong cùng transaction với việc đổi trạng thái (commit xong mới có email).
             var type = next == TripStatus.Cancelled ? EmailNotificationType.TripCancelled : EmailNotificationType.TripTerminated;
-            await transactions.RunAsync(async () =>
-            {
-                await notifications.EnqueueTripDisruptionAsync(trip.Id, type, cancellationToken);
-                await unitOfWork.SaveChangesAsync(cancellationToken);
-                return true;
-            }, cancellationToken);
+            await notifications.EnqueueTripDisruptionAsync(trip.Id, type, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
         else
         {
@@ -244,9 +264,6 @@ public sealed class TripService(
         }
 
         // Chỉ phát sau khi đã lưu thành công
-        await publisher.PublishTripStatusChangedAsync(
-            new TripStatusChangedMessage(trip.Id, trip.BoatId, next.ToString(), previous.ToString(), request.Operation.ToString(), now),
-            cancellationToken);
 
         return ToResult(trip, previous, request.Operation);
     }

@@ -19,7 +19,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         _configuration = configuration;
     }
 
-    public string GenerateToken(Guid userId, string email, string fullName, IList<string> roles)
+    public string GenerateToken(Guid userId, string email, string fullName, IList<string> roles, string? captainSessionVersion = null)
     {
         // Đọc đúng key cấu hình JwtSettings:Secret như Infrastructure/DependencyInjection.cs dùng để validate token.
         // Không hard-code fallback khác ở đây để tránh 2 nơi lệch secret khiến token sinh ra luôn bị 401.
@@ -40,6 +40,8 @@ public class JwtTokenGenerator : IJwtTokenGenerator
             new(JwtRegisteredClaimNames.Name, fullName),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
+
+        if (captainSessionVersion is not null) claims.Add(new Claim(CaptainSessionValidation.VersionClaim, captainSessionVersion));
 
         foreach (var role in roles)
         {

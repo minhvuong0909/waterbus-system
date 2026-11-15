@@ -438,7 +438,7 @@ public sealed class ApiReliabilitySqlHttpTests : IAsyncLifetime
                 try { await action(c); return null; } catch (Exception ex) { return ex; }
             }
             var results = await Task.WhenAll(
-                Task.Run(() => Run(c => new BoatService(new BoatRepository(c), new EfUnitOfWork(c), new SqlCommercialTransactionRunner(c))
+                Task.Run(() => Run(c => new BoatService(new BoatRepository(c), new EfUnitOfWork(c), new SqlCommercialTransactionRunner(c), CommercialHandlerFactory.Captains(c))
                     .UpdateAsync(boatId, new UpdateBoatRequest("Race", "RACE-REG" + round, 2, "T", 2024, true, null)))),
                 Task.Run(() => Run(c => new BoatSeatService(new BoatSeatRepository(c), new EfUnitOfWork(c), new SqlCommercialTransactionRunner(c))
                     .ActivateSeatAsync(boatId, seatId))));

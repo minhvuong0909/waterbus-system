@@ -84,6 +84,14 @@ public static class DependencyInjection
         services.AddScoped<IRouteRepository, RouteRepository>();
         services.AddScoped<ITripRepository, TripRepository>();
         services.AddScoped<IBoatRepository, BoatRepository>();
+        services.AddScoped<ICaptainRepository, CaptainRepository>();
+        services.AddScoped<ICaptainService, CaptainService>();
+        services.AddScoped<ICaptainOperationsService, WaterbusSystem.Application.Features.Captains.Services.CaptainOperationsService>();
+        services.AddSingleton<ICaptainConnections, CaptainConnections>();
+        services.AddOptions<WaterbusSystem.Application.Features.Captains.CaptainOptions>()
+            .Bind(configuration.GetSection("Captain"))
+            .Validate(o => o.PreparationMinutes > 0 && o.PreparationMinutes <= 1440, "Captain preparation must be 1..1440 minutes.")
+            .ValidateOnStart();
         services.AddScoped<IRouteAdminRepository, RouteAdminRepository>();
         services.AddScoped<IScannerDeviceAdminRepository, ScannerDeviceAdminRepository>();
         services.AddScoped<IFareAdminRepository, FareAdminRepository>();
@@ -171,6 +179,7 @@ public static class DependencyInjection
             options.Events = new JwtBearerEvents
             {
                 OnMessageReceived = SignalRTokenReader.OnMessageReceived,
+                OnTokenValidated = CaptainSessionValidation.OnTokenValidated,
                 OnChallenge = JwtProblemDetailsEvents.OnChallenge,
                 OnForbidden = JwtProblemDetailsEvents.OnForbidden
             };

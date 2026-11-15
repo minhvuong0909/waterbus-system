@@ -56,7 +56,7 @@ public class AuthServiceTests
 
         var jwtGeneratorMock = new Mock<IJwtTokenGenerator>();
         jwtGeneratorMock
-            .Setup(j => j.GenerateToken(user.Id, user.Email!, user.FullName, It.IsAny<IList<string>>()))
+            .Setup(j => j.GenerateToken(user.Id, user.Email!, user.FullName, It.IsAny<IList<string>>(), It.IsAny<string?>()))
             .Returns("fake-jwt-token");
 
         var sut = new AuthService(userManagerMock.Object, signInManagerMock.Object, jwtGeneratorMock.Object);
@@ -135,7 +135,7 @@ public class AuthServiceTests
         var signInManagerMock = CreateSignInManagerMock(userManagerMock.Object);
         signInManagerMock.Setup(m => m.CheckPasswordSignInAsync(user, "Secret123", true)).ReturnsAsync(SignInResult.Success);
         var jwt = new Mock<IJwtTokenGenerator>();
-        jwt.Setup(j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IList<string>>())).Returns("jwt");
+        jwt.Setup(j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IList<string>>(), It.IsAny<string?>())).Returns("jwt");
         return new AuthService(userManagerMock.Object, signInManagerMock.Object, jwt.Object);
     }
 
@@ -169,6 +169,7 @@ public class AuthServiceTests
     {
         // Tài khoản nhân sự do vận hành cấp: quy tắc xác minh email chỉ áp dụng cho khách hàng.
         var user = ActiveUser("ops@waterbus.vn");
+        if (role == "Captain") user.CaptainStatus = WaterbusSystem.Domain.Enums.CaptainStatus.Active;
         user.EmailConfirmed = false;
 
         var act = () => LoginSutFor(user, role).LoginAsync(new LoginRequest(user.Email!, "Secret123"));

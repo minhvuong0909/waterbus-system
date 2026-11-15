@@ -829,6 +829,12 @@ public class ApplicationDbContextInitializer
                 IsActive = true
             };
 
+            if (role == "Captain")
+            {
+                user.CaptainStatus = CaptainStatus.Active;
+                user.CaptainLicenseNumber = "DEMO-NOT-A-REAL-LICENSE";
+                user.CaptainLicenseExpiresOn = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1));
+            }
             var result = await _userManager.CreateAsync(user, password);
             if (result.Succeeded)
             {

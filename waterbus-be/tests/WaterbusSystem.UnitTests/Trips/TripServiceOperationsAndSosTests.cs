@@ -54,7 +54,7 @@ public class TripServiceOperationsAndSosTests
 
     private TripService Service() => new(new TripRepository(_context), new IncidentRepository(_context), new EfUnitOfWork(_context),
         _user.Object, _clock.Object, _publisher.Object, _users.Object,
-        TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner());
+        TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner(), Moq.Mock.Of<WaterbusSystem.Application.Interfaces.Services.ICaptainOperationsService>());
 
     // ---- GetTripOperations ----
 

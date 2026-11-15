@@ -34,7 +34,7 @@ internal static class CommercialHandlerFactory
             transactions ?? new DirectCommercialTransactionRunner(),
             new EfUnitOfWork(context),
             Effects(context, sessions),
-            new UpdateCheckoutSeatsRequestValidator());
+            new UpdateCheckoutSeatsRequestValidator(), Captains(context));
     }
 
 
@@ -52,8 +52,13 @@ internal static class CommercialHandlerFactory
             availability ?? new SeatAvailabilityService(context),
             new CheckoutOptions(),
             new CheckoutAccessService(new AccessGrantRepository(context),
-                new CheckoutOptions()));
+                new CheckoutOptions()), Captains(context));
     }
+    internal static ICaptainOperationsService Captains(ApplicationDbContext context) => new WaterbusSystem.Application.Features.Captains.Services.CaptainOperationsService(
+        new CaptainRepository(context), new EfUnitOfWork(context), new DirectCommercialTransactionRunner(),
+        Moq.Mock.Of<ICurrentUserService>(u => u.UserRole == "Admin" && u.UserId == "00000000-0000-0000-0000-000000000001"),
+        new Clock(), Microsoft.Extensions.Options.Options.Create(new WaterbusSystem.Application.Features.Captains.CaptainOptions()), Moq.Mock.Of<ICaptainConnections>());
+
     internal static CheckoutCommitEffects Effects(
         ApplicationDbContext context,
         ICheckoutSessionService? sessions = null,

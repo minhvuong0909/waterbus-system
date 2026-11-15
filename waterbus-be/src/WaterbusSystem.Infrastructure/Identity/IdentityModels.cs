@@ -11,6 +11,10 @@ public class ApplicationUser : IdentityUser<Guid>
     public string? StaffCode { get; set; }
     public Guid? StationId { get; set; }
     public bool IsActive { get; set; } = true;
+    public WaterbusSystem.Domain.Enums.CaptainStatus? CaptainStatus { get; set; }
+    public string? CaptainLicenseNumber { get; set; }
+    public DateOnly? CaptainLicenseExpiresOn { get; set; }
+    public Guid CaptainSessionVersion { get; set; } = Guid.NewGuid();
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 

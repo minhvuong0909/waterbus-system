@@ -16,13 +16,13 @@ public sealed class BookingSellabilityTests
 {
     public static TheoryData<string> InvalidInventory => new()
     {
-        "inactiveBoat", "deletedBoat", "inactiveClass", "deletedClass", "inactiveSeat", "deletedSeat",
+        "inactiveBoat", "deletedBoat", "inactiveClass", "deletedClass", "inactiveSeat", "deletedSeat", "missingCaptain", "suspendedCaptain", "expiredCaptain", "wrongRoleCaptain",
         "unsupportedCurrency", "negativeFare", "inactiveFare", "expiredFare", "futureFare", "duplicateFare"
     };
 
     public static TheoryData<string> WithdrawnInventory => new()
     {
-        "inactiveBoat", "deletedBoat", "inactiveClass", "deletedClass", "inactiveSeat", "deletedSeat"
+        "inactiveBoat", "deletedBoat", "inactiveClass", "deletedClass", "inactiveSeat", "deletedSeat", "missingCaptain", "suspendedCaptain", "expiredCaptain", "wrongRoleCaptain"
     };
 
     internal static void Invalidate(ApplicationDbContext context, TestDbContextFactory.TripSeedData seed, string issue)
@@ -30,6 +30,10 @@ public sealed class BookingSellabilityTests
         var fare = context.FareRules.Single(f => f.TripType == nameof(TripType.Commuter) && f.SeatClassId == seed.StandardClass.Id);
         switch (issue)
         {
+            case "missingCaptain": seed.Boat.CaptainUserId = null; break;
+            case "suspendedCaptain": context.Users.Single(u => u.Id == seed.Boat.CaptainUserId).CaptainStatus = CaptainStatus.Suspended; break;
+            case "expiredCaptain": context.Users.Single(u => u.Id == seed.Boat.CaptainUserId).CaptainLicenseExpiresOn = DateOnly.MinValue; break;
+            case "wrongRoleCaptain": context.UserRoles.Remove(context.UserRoles.Single(ur => ur.UserId == seed.Boat.CaptainUserId)); break;
             case "inactiveBoat": seed.Boat.IsActive = false; break;
             case "deletedBoat": seed.Boat.IsDeleted = true; break;
             case "inactiveClass": seed.StandardClass.IsActive = false; break;
@@ -60,7 +64,7 @@ public sealed class BookingSellabilityTests
         var error = await Record.ExceptionAsync(() => CommercialHandlerFactory.Booking(context)
             .CreateAsync(CommercialCheckoutTests.Command(seed)));
         Assert.NotNull(error);
-        Assert.True(error is ValidationException or NotFoundException, error.ToString());
+        Assert.True(error is ValidationException or NotFoundException or ConflictException, error.ToString());
         Assert.Empty(context.PurchaseOrders);
         Assert.Empty(context.Bookings);
         Assert.Empty(context.SeatReservations);
@@ -83,7 +87,7 @@ public sealed class BookingSellabilityTests
         var error = await Record.ExceptionAsync(() => checkout.UpdateSeatsAsync(hold.OrderId, hold.Bookings.Single().BookingId,
             new([seed.Seat2.Id], [new("Replacement", null, null)]), hold.AccessToken));
         Assert.NotNull(error);
-        Assert.True(error is ConcurrencyException or NotFoundException, error.ToString());
+        Assert.True(error is ConcurrencyException or NotFoundException or ConflictException, error.ToString());
         var reservation = Assert.Single(context.SeatReservations);
         Assert.Equal(seed.Seat1.Id, reservation.SeatId);
         Assert.Equal(ReservationStatus.Pending, reservation.Status);
