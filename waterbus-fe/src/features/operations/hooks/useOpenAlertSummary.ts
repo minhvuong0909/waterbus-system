@@ -21,7 +21,7 @@ const POLL_MS = 60_000
  */
 export function useOpenAlertSummary(enabled: boolean): OpenAlertSummary | null {
   const [version, reload] = useReload()
-  const alerts = useFetch(() => (enabled ? getOpenIncidents(false) : Promise.resolve([])), [enabled, version])
+  const alerts = useFetch(() => (enabled ? getOpenIncidents() : Promise.resolve([])), [enabled, version])
   useFleetHub({ onAlert: reload, onIncident: reload, onTripStatus: reload, onReconnected: reload }, enabled)
 
   useEffect(() => {
