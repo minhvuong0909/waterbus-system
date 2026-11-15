@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.DTOs.Requests.Payments;
+using WaterbusSystem.WebApi.Filters;
 
 namespace WaterbusSystem.WebApi.Controllers;
 
@@ -16,6 +17,7 @@ public class PaymentsController(IPaymentService service) : BaseApiController
     /// BR-PAY-04: đơn vị thanh toán là PurchaseOrder, nên nhận OrderId chứ không phải BookingId.
     /// </summary>
     [HttpPost("create-vnpay-url")]
+    [ServiceFilter(typeof(ValidateRequestFilter))]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
