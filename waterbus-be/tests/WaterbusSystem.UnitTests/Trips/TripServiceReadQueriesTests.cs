@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.DTOs.Requests.Trips;
 using WaterbusSystem.Application.Features.Trips.Services;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.Validators.Trips;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
@@ -23,7 +25,8 @@ public class TripServiceReadQueriesTests
     private static TripService Service(ApplicationDbContext context, IDateTimeService clock) =>
         new(new TripRepository(context), new IncidentRepository(context), new EfUnitOfWork(context),
             Mock.Of<ICurrentUserService>(), clock, Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(),
-            TestNotifications.Outbox(context), new DirectCommercialTransactionRunner());
+            TestNotifications.Outbox(context), new DirectCommercialTransactionRunner(),
+            Mock.Of<IStopAnnouncementService>(), NullLogger<TripService>.Instance);
 
     private static GetTripSeatMapRequest Req(TestDbContextFactory.TripSeedData seed, int from = 1, int to = 3) =>
         new(seed.Trip.TripStopCalls.Single(c => c.VisitOrder == from).Id,

@@ -25,7 +25,9 @@ public class AudioGuideServiceTests
             Microsoft.Extensions.Logging.Abstractions.NullLogger<WaterbusSystem.Infrastructure.Services.AudioStorage.AzureBlobAudioStorageService>.Instance);
         var service = new AudioGuideService(new WaterbusSystem.Infrastructure.Repositories.SightseeingAudioRepository(context),
             new WaterbusSystem.Infrastructure.Persistence.EfUnitOfWork(context), storage,
-            new PublishAudioGuideRequestValidator(), new GetAudioGuidePoisRequestValidator());
+            new PublishAudioGuideRequestValidator(), new GetAudioGuidePoisRequestValidator(),
+            new WaterbusSystem.Infrastructure.Services.SightseeingAudio.StopAnnouncementConfigStore(
+                new WaterbusSystem.Application.Features.SightseeingAudio.StopAnnouncementOptions()));
 
         var page = await service.GetPoisAsync(new GetAudioGuidePoisRequest());
 
@@ -36,7 +38,9 @@ public class AudioGuideServiceTests
     private static AudioGuideService CreateService(WaterbusSystem.Infrastructure.Persistence.ApplicationDbContext context, FakeAudioStorageService storage) =>
         new(new WaterbusSystem.Infrastructure.Repositories.SightseeingAudioRepository(context),
             new WaterbusSystem.Infrastructure.Persistence.EfUnitOfWork(context), storage,
-            new PublishAudioGuideRequestValidator(), new GetAudioGuidePoisRequestValidator());
+            new PublishAudioGuideRequestValidator(), new GetAudioGuidePoisRequestValidator(),
+            new WaterbusSystem.Infrastructure.Services.SightseeingAudio.StopAnnouncementConfigStore(
+                new WaterbusSystem.Application.Features.SightseeingAudio.StopAnnouncementOptions()));
 
     private const string Key = "audio-assets/tts/20261027/guide.mp3";
     private const string BlobPrefix = "https://waterbusaudio.blob.core.windows.net/private";

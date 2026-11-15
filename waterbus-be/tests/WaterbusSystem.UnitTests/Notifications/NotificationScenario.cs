@@ -2,7 +2,9 @@ using WaterbusSystem.Application.DTOs.Requests.Bookings;
 using WaterbusSystem.Application.DTOs.Requests.Trips;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.Features.Trips.Services;
+using WaterbusSystem.Application.Interfaces.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
@@ -54,7 +56,8 @@ internal static class NotificationScenario
         var clock = new Mock<IDateTimeService>();
         clock.Setup(x => x.Now).Returns(() => DateTimeOffset.UtcNow);
         return new TripService(new TripRepository(c), new IncidentRepository(c), new EfUnitOfWork(c), user.Object, clock.Object,
-            Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(), TestNotifications.Outbox(c), new DirectCommercialTransactionRunner());
+            Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(), TestNotifications.Outbox(c), new DirectCommercialTransactionRunner(),
+            Mock.Of<IStopAnnouncementService>(), NullLogger<TripService>.Instance);
     }
 
     public static ChangeTripStatusRequest Op(TripOperation op) => new(op, null, null);

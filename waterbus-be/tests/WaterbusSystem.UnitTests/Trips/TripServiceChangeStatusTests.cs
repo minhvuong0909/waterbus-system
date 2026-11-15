@@ -1,9 +1,11 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.DTOs.Requests.Trips;
 using WaterbusSystem.Application.Features.Trips.Services;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.Validators.Trips;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
@@ -36,7 +38,8 @@ public class TripServiceChangeStatusTests
     }
 
     private TripService Service() => new(new TripRepository(_context), new IncidentRepository(_context), new EfUnitOfWork(_context),
-        _user.Object, _clock.Object, _publisher.Object, Mock.Of<IUserDirectory>(), TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner());
+        _user.Object, _clock.Object, _publisher.Object, Mock.Of<IUserDirectory>(), TestNotifications.Outbox(_context),
+        new DirectCommercialTransactionRunner(), Mock.Of<IStopAnnouncementService>(), NullLogger<TripService>.Instance);
 
     private void AsAdmin() { _user.Setup(u => u.UserId).Returns(_adminId.ToString()); _user.Setup(u => u.UserRole).Returns("Admin"); }
     private void AsCaptain(Guid? id = null) { _user.Setup(u => u.UserId).Returns((id ?? _captainId).ToString()); _user.Setup(u => u.UserRole).Returns("Captain"); }

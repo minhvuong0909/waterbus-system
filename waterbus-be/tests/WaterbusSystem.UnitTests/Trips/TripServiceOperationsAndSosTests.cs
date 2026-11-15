@@ -1,10 +1,12 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.DTOs.Requests.Trips;
 using WaterbusSystem.Application.DTOs.Responses.Trips;
 using WaterbusSystem.Application.Features.Trips.Services;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.Validators.Trips;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
@@ -54,7 +56,8 @@ public class TripServiceOperationsAndSosTests
 
     private TripService Service() => new(new TripRepository(_context), new IncidentRepository(_context), new EfUnitOfWork(_context),
         _user.Object, _clock.Object, _publisher.Object, _users.Object,
-        TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner());
+        TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner(),
+        Mock.Of<IStopAnnouncementService>(), NullLogger<TripService>.Instance);
 
     // ---- GetTripOperations ----
 

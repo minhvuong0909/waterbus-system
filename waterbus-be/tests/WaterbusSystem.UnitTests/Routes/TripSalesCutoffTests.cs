@@ -1,11 +1,13 @@
 using FluentAssertions;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.DTOs.Requests.Trips;
 using WaterbusSystem.Application.DTOs.Requests.TripPlanning;
 using WaterbusSystem.Application.Features.Trips.Services;
+using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.Validators.TripPlanning;
 using WaterbusSystem.Domain.Exceptions;
 using WaterbusSystem.Infrastructure.Persistence;
@@ -29,7 +31,8 @@ public class TripSalesCutoffTests
 
     private static TripService Trips(ApplicationDbContext c, IDateTimeService clock) =>
         new(new TripRepository(c), new IncidentRepository(c), new EfUnitOfWork(c), Mock.Of<ICurrentUserService>(), clock,
-            Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(), TestNotifications.Outbox(c), new DirectCommercialTransactionRunner());
+            Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(), TestNotifications.Outbox(c), new DirectCommercialTransactionRunner(),
+            Mock.Of<IStopAnnouncementService>(), NullLogger<TripService>.Instance);
 
     private static GetTripSeatMapRequest SeatMapRequest(TestDbContextFactory.TripSeedData seed) =>
         new(seed.Trip.TripStopCalls.Single(c => c.VisitOrder == 1).Id, seed.Trip.TripStopCalls.Single(c => c.VisitOrder == 3).Id);
