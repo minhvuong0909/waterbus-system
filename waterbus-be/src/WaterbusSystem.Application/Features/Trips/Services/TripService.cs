@@ -510,6 +510,17 @@ public sealed class TripService(
                 .ToList();
             if (calls.Count < 2) continue;
 
+            // BR-ROUTE-05: Sightseeing chỉ có đúng một hành trình bán được (điểm đầu → điểm cuối); lọc bến chỉ để khớp, không tạo đoạn lẻ.
+            if (trip.TripType == TripType.Sightseeing)
+            {
+                var tour = SightseeingJourney.Resolve(trip);
+                if (!tour.IsValid) continue;
+                if (request.DepartureStationId.HasValue && tour.Boarding!.RouteStop!.StationId != request.DepartureStationId.Value) continue;
+                if (request.ArrivalStationId.HasValue && tour.Disembarking!.RouteStop!.StationId != request.ArrivalStationId.Value) continue;
+                matched.Add((trip, calls, tour.Boarding!, tour.Disembarking!));
+                continue;
+            }
+
             var boardingCall = request.DepartureStationId.HasValue
                 ? calls.FirstOrDefault(c => c.RouteStop!.StationId == request.DepartureStationId.Value && c.RouteStop.CanBoard)
                 : calls.FirstOrDefault(c => c.RouteStop!.CanBoard);

@@ -208,10 +208,14 @@ export function journeyFor(
   destinationId: string,
 ): { boarding: TripStopDto; disembarking: TripStopDto } | null {
   if (tripType !== 'Sightseeing') return pickJourney(stops, originId, destinationId)
-  const usable = stops.filter((stop) => stop.status !== 'Skipped').sort((a, b) => a.visitOrder - b.visitOrder)
-  const boarding = usable.find((stop) => stop.canBoard)
-  const disembarking = [...usable].reverse().find((stop) => stop.canAlight)
-  return boarding && disembarking && boarding.visitOrder < disembarking.visitOrder ? { boarding, disembarking } : null
+  // Cùng quy tắc backend (SightseeingJourney): hai đầu là điểm dừng ĐẦU và CUỐI của chuyến, không phải điểm dừng "đầu tiên cho
+  // phép lên" — cờ lên/xuống của điểm giữa không biến nó thành điểm đón/trả. Đầu/cuối không dùng được thì không có hành trình.
+  const ordered = [...stops].sort((a, b) => a.visitOrder - b.visitOrder)
+  const boarding = ordered[0]
+  const disembarking = ordered[ordered.length - 1]
+  return ordered.length >= 2 && boarding.canBoard && disembarking.canAlight && boarding.status !== 'Skipped' && disembarking.status !== 'Skipped'
+    ? { boarding, disembarking }
+    : null
 }
 
 /** The corridor shown on the maps: the piers at their coordinates. */

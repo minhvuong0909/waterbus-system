@@ -6,6 +6,7 @@ using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Domain.Common;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
+using WaterbusSystem.Domain.Rules;
 using WaterbusSystem.Domain.Exceptions;
 using ValidationException = WaterbusSystem.Application.Common.Exceptions.ValidationException;
 
@@ -353,6 +354,14 @@ public sealed class BookingCreationService
             && boardingCall.RouteStop!.StationId == disembarkingCall.RouteStop!.StationId)
         {
             throw Validation("Chuyến thường không cho chọn cùng một bến để lên và xuống tàu.");
+        }
+
+        // BR-ROUTE-05: Sightseeing bán trọn hành trình tham quan đã cấu hình, không cho chọn đoạn lên/xuống tùy ý.
+        // Cùng một quy tắc Domain với Search, Seat Map và Checkout (SightseeingJourney).
+        if (trip.TripType == TripType.Sightseeing
+            && SightseeingJourney.Authorize(trip, boardingCall, disembarkingCall) is { } reason)
+        {
+            throw Validation(reason);
         }
 
         return (boardingCall, disembarkingCall);

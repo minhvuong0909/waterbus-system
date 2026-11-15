@@ -308,6 +308,8 @@ public class ApplicationDbContextInitializer
         await SeedAdditionalBoatsAsync(frontCabinId, standardId, outdoorId);
         await SeedAdditionalSchedulesAsync();
         await SeedPointsOfInterestAsync();
+        await SeedSightseeingTourAsync();
+        await RelabelUnsafeDemoTripsAsync();
         await SeedDemoTripsForUpcomingDaysAsync();
 
         // Seed TripStopCalls cho mọi Trip chưa có điểm dừng (dựa trên ScheduleStop)
@@ -356,9 +358,9 @@ public class ApplicationDbContextInitializer
     /// Giờ đến / rời của bến thứ <paramref name="index"/> (từ 0) tính từ giờ khởi hành. Bến đầu rời đúng giờ
     /// khởi hành và bến cuối đến đúng giờ đến của chuyến, để giờ ở từng bến không lệch giờ của cả chuyến.
     /// </summary>
-    internal static (int? Arrival, int? Departure) DemoStopOffsets(int index, int count)
+    internal static (int? Arrival, int? Departure) DemoStopOffsets(int index, int count, int durationMin = DemoRouteDurationMin)
     {
-        var arrival = (int)Math.Round((double)DemoRouteDurationMin * index / (count - 1), MidpointRounding.AwayFromZero);
+        var arrival = (int)Math.Round((double)durationMin * index / (count - 1), MidpointRounding.AwayFromZero);
         return (
             index == 0 ? null : arrival,
             index == count - 1 ? null : index == 0 ? 0 : arrival + DemoDwellMin);
@@ -733,9 +735,108 @@ public class ApplicationDbContextInitializer
         await _context.SaveChangesAsync();
     }
 
+    /// <summary>Mã Route Sightseeing demo: Route riêng, tách khỏi RT01/RT02 là Regular (BR-ROUTE-03).</summary>
+    internal const string SightseeingTourRouteCode = "TOUR01";
+
+    /// <summary>
+    /// Route Sightseeing vòng demo A → B → C → A: bến xuất phát cũng là bến trả khách, hai lần xuất hiện là hai RouteStop
+    /// (rồi hai TripStopCall) khác thứ tự (BR-ROUTE-06). Điểm đón là điểm dừng đầu, điểm trả là điểm dừng cuối; các bến giữa chỉ
+    /// là điểm tham quan. Chỉ tạo khi chưa có; không đụng dữ liệu đã có của Admin.
+    /// </summary>
+    private async Task SeedSightseeingTourAsync()
+    {
+        var a = await _context.Stations.FirstOrDefaultAsync(x => x.Code == "ST01");
+        var b = await _context.Stations.FirstOrDefaultAsync(x => x.Code == "ST03");
+        var c = await _context.Stations.FirstOrDefaultAsync(x => x.Code == "ST05");
+        if (a is null || b is null || c is null) return;
+
+        var route = await _context.Routes.FirstOrDefaultAsync(r => r.Code == SightseeingTourRouteCode);
+        if (route is null)
+        {
+            route = new Route
+            {
+                Code = SightseeingTourRouteCode,
+                Name = "Tour vòng sông Sài Gòn",
+                DepartureStationId = a.Id,
+                ArrivalStationId = a.Id,
+                EstimatedDurationMinutes = 90,
+                DistanceKm = 21.6m,
+                ServiceType = "Sightseeing",
+                IsActive = true
+            };
+            await _context.Routes.AddAsync(route);
+            await _context.SaveChangesAsync();
+        }
+
+        if (!await _context.RouteStops.AnyAsync(rs => rs.RouteId == route.Id))
+        {
+            await _context.RouteStops.AddRangeAsync(
+                new RouteStop { RouteId = route.Id, StationId = a.Id, SequenceNo = 1, CanBoard = true, CanAlight = false },
+                new RouteStop { RouteId = route.Id, StationId = b.Id, SequenceNo = 2, CanBoard = false, CanAlight = false },
+                new RouteStop { RouteId = route.Id, StationId = c.Id, SequenceNo = 3, CanBoard = false, CanAlight = false },
+                new RouteStop { RouteId = route.Id, StationId = a.Id, SequenceNo = 4, CanBoard = false, CanAlight = true });
+            await _context.SaveChangesAsync();
+        }
+
+        var tourStops = await _context.RouteStops.Where(rs => rs.RouteId == route.Id).OrderBy(rs => rs.SequenceNo).ToListAsync();
+        foreach (var time in new[] { new TimeSpan(9, 0, 0), new TimeSpan(17, 30, 0), new TimeSpan(19, 0, 0) })
+        {
+            if (await _context.Schedules.AnyAsync(x => x.RouteId == route.Id && x.DepartureTime == time)) continue;
+            var schedule = new Schedule { RouteId = route.Id, DepartureTime = time, TripType = TripType.Sightseeing, IsActive = true };
+            await _context.Schedules.AddAsync(schedule);
+            await _context.SaveChangesAsync();
+            for (var i = 0; i < tourStops.Count; i++)
+            {
+                var offsets = DemoStopOffsets(i, tourStops.Count, route.EstimatedDurationMinutes);
+                await _context.ScheduleStops.AddAsync(new ScheduleStop
+                {
+                    ScheduleId = schedule.Id, RouteStopId = tourStops[i].Id, VisitOrder = tourStops[i].SequenceNo,
+                    ArrivalOffsetMin = offsets.Arrival, DepartureOffsetMin = offsets.Departure
+                });
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        // Audio guide chỉ dành cho Sightseeing: gắn các địa danh sẵn có vào Route tour (nếu chưa gắn).
+        if (!await _context.RoutePois.AnyAsync(rp => rp.RouteId == route.Id))
+        {
+            var order = 1;
+            foreach (var poi in await _context.PointsOfInterest.OrderBy(p => p.Name).ToListAsync())
+                _context.RoutePois.Add(new RoutePoi { RouteId = route.Id, PoiId = poi.Id, DisplayOrder = order++, TriggerRadiusM = 350, IsActive = true });
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    /// <summary>
+    /// Bản seed cũ gán Trip là Sightseeing theo giờ khởi hành (từ 17:00) ngay cả trên Route Regular, nên Trip không thể bán
+    /// (loại chuyến lệch loại dịch vụ của Route). Chỉ sửa nhãn các Trip chứng minh được an toàn: chưa xuất bến, Schedule
+    /// là Commuter, KHÔNG có Booking nào. Không xoá, không đụng Trip đã có khách; Trip có khách để Admin xử lý thủ công.
+    /// Chạy lại không đổi gì thêm.
+    /// </summary>
+    private async Task RelabelUnsafeDemoTripsAsync()
+    {
+        var mismatched = await _context.Trips
+            .Where(t => t.TripType == TripType.Sightseeing && t.Route!.ServiceType == "Regular"
+                        && t.Status == TripStatus.Scheduled && t.ActualDepartureTime == null
+                        && t.ScheduleId != null && t.Schedule!.TripType == TripType.Commuter)
+            .ToListAsync();
+        var relabelled = 0;
+        foreach (var trip in mismatched)
+        {
+            if (await _context.Bookings.AnyAsync(b => b.TripId == trip.Id)) continue;
+            trip.TripType = TripType.Commuter;
+            relabelled++;
+        }
+
+        if (relabelled > 0) await _context.SaveChangesAsync();
+        var needReview = mismatched.Count - relabelled;
+        if (needReview > 0)
+            _logger.LogWarning("{Count} chuyến demo có loại Sightseeing nhưng Route là Regular và đã có Booking; cần Admin xử lý thủ công.", needReview);
+    }
+
     private async Task SeedDemoTripsForUpcomingDaysAsync()
     {
-        var routes = await _context.Routes.Where(r => r.Code == "RT01" || r.Code == "RT02").ToListAsync();
+        var routes = await _context.Routes.Where(r => r.Code == "RT01" || r.Code == "RT02" || r.Code == SightseeingTourRouteCode).ToListAsync();
         if (routes.Count == 0) return;
 
         var boats = await _context.Boats.Where(b => b.IsActive).ToListAsync();
@@ -772,9 +873,9 @@ public class ApplicationDbContextInitializer
                     var boat = boats[boatIndex % boats.Count];
                     boatIndex++;
 
-                    var tripType = sch.DepartureTime >= new TimeSpan(17, 0, 0)
-                        ? TripType.Sightseeing
-                        : TripType.Commuter;
+                    // Loại chuyến do cấu hình Schedule quyết định (BR-ROUTE-03), không suy từ giờ khởi hành.
+                    var tripType = sch.TripType;
+                    var durationMin = route.EstimatedDurationMinutes > 0 ? route.EstimatedDurationMinutes : DemoRouteDurationMin;
 
                     var isTodayPast = dayOffset == 0 && depVn < vnNow;
                     TripStatus status = TripStatus.Scheduled;
@@ -800,7 +901,7 @@ public class ApplicationDbContextInitializer
                         RouteId = route.Id,
                         BoatId = boat.Id,
                         DepartureTime = depUtc,
-                        ArrivalTime = depUtc.AddMinutes(45),
+                        ArrivalTime = depUtc.AddMinutes(durationMin),
                         SalesCloseAt = depUtc.AddMinutes(-15),
                         Status = status,
                         TripType = tripType,
