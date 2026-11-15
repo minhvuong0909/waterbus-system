@@ -1,5 +1,5 @@
 import type { PurchaserForm } from '../types'
-import { purchaserErrors } from '../utils'
+import { MAX_NAME, purchaserErrors } from '../utils'
 import BookingCard from './BookingCard'
 import { t } from '../../../i18n'
 import FormField from './FormField'
@@ -41,16 +41,19 @@ export default function BuyerCard({
           error={buyerErrors.fullName}
           onChange={(fullName) => onPurchaser({ fullName })}
           autoComplete="name"
+          maxLength={MAX_NAME}
           required
         />
         <FormTextField
           label={t('Email Address')}
+          hint={t('To receive your booking link')}
           icon="mail"
           type="email"
           value={purchaser.email}
           error={buyerErrors.email}
           onChange={(email) => onPurchaser({ email })}
           autoComplete="email"
+          maxLength={MAX_NAME}
           required
         />
         <FormField label={t('Phone Number')} hint={t('Optional')} error={undefined}>
@@ -64,6 +67,8 @@ export default function BuyerCard({
               value={purchaser.phone}
               onChange={(e) => onPurchaser({ phone: e.target.value })}
               autoComplete="tel-national"
+              inputMode="tel"
+              maxLength={20}
               aria-invalid={buyerErrors.phone ? true : undefined}
             />
           </span>

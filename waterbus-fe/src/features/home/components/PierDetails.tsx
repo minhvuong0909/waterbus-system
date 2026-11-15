@@ -4,6 +4,7 @@ import { PIER_INFO } from '../../../content/piers'
 import { getLocale, t } from '../../../i18n'
 import { ROUTES } from '../../../routes/routes'
 import type { Pier } from '../../trips/types'
+import PierIllustration from './PierIllustration'
 
 function distanceLabel(distance: string): string {
   if (distance === 'inside') return t('Inside the pier')
@@ -21,7 +22,11 @@ export default function PierDetails({ pier, onBook }: { pier: Pier; onBook: () =
 
   return (
     <div className="space-y-space-md">
-      {photo && <img src={photo} alt={pier.name} className="h-44 w-full rounded-2xl object-cover" />}
+      {photo ? (
+        <img src={photo} alt={pier.name} className="h-44 w-full rounded-2xl object-cover" />
+      ) : (
+        <PierIllustration code={pier.code} name={pier.name} />
+      )}
       <div className="space-y-1">
         <h3 className="font-display text-2xl font-bold text-deep-river">{pier.name}</h3>
         <p className="flex items-start gap-1.5 text-sm text-on-surface-variant">

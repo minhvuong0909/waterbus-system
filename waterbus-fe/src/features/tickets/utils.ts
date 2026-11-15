@@ -1,5 +1,6 @@
 import { t } from '../../i18n'
 import { ROUTES } from '../../routes/routes'
+import { isGuid } from '../../utils/guid'
 import { toVietnamDate } from '../../utils/time'
 import type { Ticket } from './types'
 
@@ -67,7 +68,7 @@ export function parseManageLink(input: string): { orderId: string; accessToken: 
   if (!url.pathname.startsWith(prefix)) return null
   const segment = url.pathname.slice(prefix.length).replace(/\/+$/, '')
   const orderId = url.searchParams.get('orderId')
-  if (!segment || segment.includes('/') || !orderId) return null
+  if (!segment || segment.includes('/') || !orderId || !isGuid(orderId)) return null
   try {
     return { orderId, accessToken: decodeURIComponent(segment) }
   } catch {

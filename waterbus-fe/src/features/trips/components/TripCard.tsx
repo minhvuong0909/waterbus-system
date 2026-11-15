@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { Button, ErrorState, Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { formatNumber } from '../../../utils/format'
+import BoatThumb from './BoatThumb'
 import { useJourneyStops } from '../hooks/useJourneyStops'
 import type { PierOption, Trip } from '../types'
 import { hasFare, seatsLabel } from '../utils'
@@ -18,6 +19,31 @@ interface TripCardProps {
   to?: string
   /** Not selectable for another reason, with the text shown instead of the button. */
   blockedReason?: string
+}
+
+const sameId = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+
+/**
+ * Câu giải thích chặng của thẻ: chuyến ngắm cảnh đi trọn hành trình (BR-ROUTE-05); chuyến thường mà khách chỉ đi
+ * một đoạn thì nói rõ đó là một phần của chuyến nào (giờ trên thẻ là giờ của cả chuyến). Đi trọn tuyến thì không cần.
+ */
+function tripNote(trip: Trip, origin: PierOption, destination: PierOption): string | undefined {
+  const { tour, route } = trip
+  if (tour) {
+    return tour.originId === tour.destinationId || tour.originName === tour.destinationName
+      ? t('Loop tour from {name}, whole route.', { name: tour.originName })
+      : t('Whole route: {origin} → {destination}. You cannot pick stops in between.', {
+          origin: tour.originName,
+          destination: tour.destinationName,
+        })
+  }
+  if (!route || (sameId(route.originId, origin.id) && sameId(route.destinationId, destination.id))) return undefined
+  return t('Your ticket covers part of the {depart}–{arrive} trip {origin} → {destination}.', {
+    depart: trip.departTime,
+    arrive: trip.arriveTime,
+    origin: route.originName,
+    destination: route.destinationName,
+  })
 }
 
 /** The piers the boat calls at between the traveler's two piers, read when the card is opened. */
@@ -70,11 +96,15 @@ export default function TripCard({
   const stopsId = useId()
   const soldOut = trip.seatsCount <= 0
   const closed = soldOut || departed || Boolean(blockedReason)
+  const note = tripNote(trip, origin, destination)
 
   return (
-    <article className={`rounded-2xl bg-white shadow-card ${departed || blockedReason ? 'opacity-60' : ''}`}>
+    <article data-reveal className={`rounded-2xl bg-white shadow-card ${departed || blockedReason ? 'opacity-60' : ''}`}>
       <div className="grid grid-cols-1 items-center gap-space-md p-space-lg md:grid-cols-[minmax(0,1fr)_auto] md:gap-space-xl">
         <div className="flex items-center gap-space-md">
+          <div className="hidden sm:block">
+            <BoatThumb />
+          </div>
           <div>
             <div className="font-display text-2xl font-bold text-deep-river">{trip.departTime}</div>
             <div className="text-sm text-on-surface-variant">{trip.tour?.originName ?? origin.name}</div>
@@ -124,6 +154,13 @@ export default function TripCard({
           )}
         </div>
       </div>
+
+      {note && (
+        <p className="border-t border-surface-container px-space-lg py-2 text-xs text-on-surface-variant">
+          <Icon name="info" className="mr-1 align-middle text-sm text-teal-flow" />
+          {note}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-surface-container px-space-lg py-2 text-xs">
         <button

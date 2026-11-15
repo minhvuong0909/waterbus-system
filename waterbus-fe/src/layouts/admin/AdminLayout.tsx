@@ -11,6 +11,7 @@ import { hasAnyRole } from '../../features/authentication/utils'
 import { useAuth } from '../../features/authentication/hooks/useAuth'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
+import AccountMenu from '../header/AccountMenu'
 import LanguageSwitcher from '../header/LanguageSwitcher'
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -22,7 +23,7 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 
 /** Khung của khu điều hành: sidebar điều hướng (lọc theo vai trò) và cột nội dung. */
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const items = ADMIN_NAV.filter((item) => hasAnyRole(user, item.roles))
   // Alerts are for the admin only (the incident endpoints are AdminOnly); a captain in this shell sees none.
   const alertSummary = useOpenAlertSummary(hasAnyRole(user, [ROLES.admin]))
@@ -116,27 +117,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="hidden items-center gap-3 border-t border-white/10 px-4 py-3 lg:flex">
-          <span
-            aria-hidden="true"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-aqua/15 text-sm font-bold text-sky-aqua"
-          >
-            {user?.fullName?.trim().charAt(0).toUpperCase()}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-white" title={user?.fullName}>{user?.fullName}</div>
-            <div className="truncate text-2xs text-white/60">{user?.roles.join(', ')}</div>
-          </div>
-          <button
-            type="button"
-            onClick={signOut}
-            aria-label={t('Sign out')}
-            title={t('Sign out')}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            <Icon name="logout" className="text-lg" />
-          </button>
-        </div>
       </aside>
       <div className="min-w-0 flex-1 lg:ml-60">
         <header className="flex min-h-[68px] items-center justify-between gap-3 border-b border-outline-variant/30 bg-white px-4 py-3 sm:px-6 lg:px-8">
@@ -150,23 +130,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <LanguageSwitcher alwaysVisible />
-            <Link
-              to={ROUTES.home}
-              aria-label={t('Passenger site')}
-              title={t('Passenger site')}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-outline-variant/30 text-on-surface-variant transition-colors hover:bg-mist"
-            >
-              <Icon name="open_in_new" className="text-lg" />
-            </Link>
-            <button
-              type="button"
-              aria-label={t('Sign out')}
-              title={t('Sign out')}
-              onClick={signOut}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-outline-variant/30 text-on-surface-variant hover:bg-mist lg:hidden"
-            >
-              <Icon name="logout" className="text-lg" />
-            </button>
+            <AccountMenu />
           </div>
         </header>
         <main id="admin-content" className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">

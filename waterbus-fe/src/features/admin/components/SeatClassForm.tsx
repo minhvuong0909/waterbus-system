@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { TextField } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { useSubmit } from '../../../hooks'
+import { codeTaken, isCode } from '../../../utils/inputRules'
 import { createSeatClass, updateSeatClass } from '../services/seatClassService'
 import type { SeatClass } from '../types'
 import FormActions from './FormActions'
@@ -10,10 +11,13 @@ import FormActions from './FormActions'
 /** Thêm hoặc đổi tên một hạng ghế. Mã cố định sau khi tạo: giá vé tham chiếu tới hạng ghế. */
 export default function SeatClassForm({
   seatClass,
+  others,
   onDone,
   onCancel,
 }: {
   seatClass?: SeatClass
+  /** Các hạng ghế khác, để chặn mã trùng. */
+  others: SeatClass[]
   onDone: () => void
   onCancel: () => void
 }) {
@@ -23,7 +27,13 @@ export default function SeatClassForm({
   const [showErrors, setShowErrors] = useState(false)
   const { run, busy, error } = useSubmit()
 
-  const codeError = code.trim() ? undefined : t('Code is required.')
+  const codeError = !code.trim()
+    ? t('Code is required.')
+    : !isCode(code)
+      ? t('Use letters, numbers, dots, underscores or hyphens.')
+      : !seatClass && codeTaken(code, others)
+        ? t('This code is already used.')
+        : undefined
   const nameError = name.trim() ? undefined : t('Name is required.')
 
   const submit = async (e: FormEvent) => {
@@ -46,6 +56,7 @@ export default function SeatClassForm({
       <div className="grid grid-cols-2 gap-3">
         <TextField
           label="Code"
+          required
           value={code}
           onChange={(e) => setCode(e.target.value)}
           error={showErrors ? codeError : undefined}
@@ -55,6 +66,7 @@ export default function SeatClassForm({
         />
         <TextField
           label="Name"
+          required
           value={name}
           onChange={(e) => setName(e.target.value)}
           error={showErrors ? nameError : undefined}

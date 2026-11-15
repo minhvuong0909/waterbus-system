@@ -89,6 +89,7 @@ export function getTrips(query: SearchQuery): Promise<Trip[]> {
       query: {
         departureStationId: query.originId,
         arrivalStationId: query.destinationId,
+        tripType: 'Commuter',
         departureDate: query.dateId,
       },
     })
@@ -131,6 +132,24 @@ export async function getDayTripCounts(
     }),
   )
   return Object.fromEntries(entries.filter(([, count]) => count >= 0))
+}
+
+/**
+ * Ngày gần nhất sau `fromDateId` còn chuyến bán cho cặp bến đang chọn (hoặc chuyến ngắm cảnh khi không có bến),
+ * để khách nhảy thẳng tới đó khi ngày đang xem trống. Lấy từ một lần tìm không theo ngày (BE trả lịch sắp tới).
+ */
+export async function getNextTripDate(query: SearchQuery, tour: boolean, fromDateId: string): Promise<string | null> {
+  const dtos = await apiRequest<TripDto[]>(API_ENDPOINTS.trips.search, {
+    query: tour
+      ? { tripType: 'Sightseeing' }
+      : { departureStationId: query.originId, arrivalStationId: query.destinationId, tripType: 'Commuter' },
+  })
+  const days = dtos
+    .filter((dto) => toTrip(dto).seatsCount > 0)
+    .map((dto) => toVietnamDate(new Date(dto.departureTime)))
+    .filter((day) => day > fromDateId)
+    .sort()
+  return days[0] ?? null
 }
 
 /**

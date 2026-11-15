@@ -15,24 +15,21 @@ interface Leg {
   seats: Seat[]
 }
 
-/** One leg: departure and arrival with their times, then the day and the length of the run. */
+/**
+ * Một chuyến gói gọn trong ba dòng (giờ đi – giờ đến, hai bến, ngày và thời lượng): các thẻ bên trái đã có đủ chi tiết,
+ * nên tóm tắt chỉ nhắc lại để thẻ không dài hơn màn hình.
+ */
 function LegRoute({ trip, label }: { trip: TripDetail; label?: string }) {
   return (
-    <div className="rounded-xl bg-mist/70 p-space-md">
-      {label && (
-        <div className="mb-2 text-2xs font-bold uppercase tracking-wider text-teal-flow">{label}</div>
-      )}
-      <ol className="space-y-2 text-sm">
-        <li className="flex items-baseline gap-3">
-          <span className="w-11 shrink-0 font-display font-bold text-deep-river">{trip.departTime}</span>
-          <span className="text-deep-river">{trip.originPierLabel}</span>
-        </li>
-        <li className="flex items-baseline gap-3">
-          <span className="w-11 shrink-0 font-display font-bold text-deep-river">{trip.arriveTime}</span>
-          <span className="text-deep-river">{trip.destinationPierLabel}</span>
-        </li>
-      </ol>
-      <p className="mt-2 border-t border-outline-variant/50 pt-2 text-xs text-on-surface-variant">
+    <div className="rounded-xl bg-mist/70 px-space-md py-2.5 text-sm">
+      {label && <div className="mb-1 text-2xs font-bold uppercase tracking-wider text-teal-flow">{label}</div>}
+      <div className="font-display font-bold text-deep-river">
+        {trip.departTime} – {trip.arriveTime}
+      </div>
+      <div className="text-deep-river">
+        {trip.originPierLabel} → {trip.destinationPierLabel}
+      </div>
+      <p className="mt-0.5 text-xs text-on-surface-variant">
         {trip.dateFull} • {t('{durationMins} min', { durationMins: trip.durationMins })}
       </p>
     </div>
@@ -63,8 +60,9 @@ export default function OrderSummary({
   countdownFallback?: ReactNode
   children: ReactNode
 }) {
+  // Dính khi màn hình đủ cao để thấy trọn thẻ; thẻ không có thanh cuộn riêng.
   return (
-    <BookingCard className="lg:sticky lg:top-[5.5rem] lg:max-h-[calc(100svh-6.5rem)] lg:overflow-y-auto lg:overscroll-contain">
+    <BookingCard className="lg:[@media(min-height:720px)]:sticky lg:[@media(min-height:720px)]:top-[5.5rem]">
       <h2 className="mb-space-md font-display text-headline-sm text-deep-river">{t('Order Summary')}</h2>
 
       <SummaryTimer fallback={countdownFallback} />

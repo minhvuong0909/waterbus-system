@@ -1,4 +1,5 @@
 import { t } from '../../../i18n'
+import { parseWhole } from '../../../utils/inputRules'
 
 /** Hai mốc tuỳ chọn của chuyến mới, như Admin nhập: số phút trước giờ khởi hành. */
 export interface TripTiming {
@@ -8,10 +9,7 @@ export interface TripTiming {
 
 export const EMPTY_TIMING: TripTiming = { salesClose: '', checkInOpen: '' }
 
-const optionalMinutes = (value: string, min: number) => {
-  const n = Number(value)
-  return value.trim() === '' || (Number.isInteger(n) && n >= min && n <= 1440)
-}
+const optionalMinutes = (value: string, min: number) => value.trim() === '' || parseWhole(value, min, 1440) !== null
 
 export function timingErrors(timing: TripTiming) {
   return {

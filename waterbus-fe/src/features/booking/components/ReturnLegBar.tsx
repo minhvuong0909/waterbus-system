@@ -12,7 +12,7 @@ import { t } from '../../../i18n'
  * the return leg. They default to the way back, but the return may start at another pier
  * (BR-COM-03). The return day is picked in the date strip below.
  */
-export default function ReturnLegBar({ piers }: { piers: PierOption[] }) {
+export default function ReturnLegBar({ piers, tour = false }: { piers: PierOption[]; tour?: boolean }) {
   const { query, updateQuery } = useSearchQuery('return')
   const outbound = useAppSelector((s) => s.booking.selectedTrip)
   const outboundQuery = useAppSelector((s) => s.booking.query)
@@ -30,7 +30,8 @@ export default function ReturnLegBar({ piers }: { piers: PierOption[] }) {
           <Icon name="check_circle" className="mt-px shrink-0 text-lg text-teal-flow" />
           <span className="shrink-0 whitespace-nowrap font-semibold">{t('Outbound')}:</span>
           <span className="min-w-0">
-            {pier(outboundQuery.originId)?.shortName} → {pier(outboundQuery.destinationId)?.shortName}
+            {outbound?.tour?.originName ?? pier(outboundQuery.originId)?.shortName} →{' '}
+            {outbound?.tour?.destinationName ?? pier(outboundQuery.destinationId)?.shortName}
             {outbound && ` · ${outbound.departTime}–${outbound.arriveTime}`}
           </span>
         </span>
@@ -38,6 +39,7 @@ export default function ReturnLegBar({ piers }: { piers: PierOption[] }) {
           {t('Change outbound trip')}
         </Link>
       </div>
+      {!tour && (
       <div className="relative mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
         <PierField
           className="min-w-0"
@@ -66,6 +68,7 @@ export default function ReturnLegBar({ piers }: { piers: PierOption[] }) {
           compact
         />
       </div>
+      )}
     </div>
   )
 }

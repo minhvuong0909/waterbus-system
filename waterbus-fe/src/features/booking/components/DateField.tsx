@@ -1,5 +1,7 @@
+import { REQUIRED_LABEL_CLASS } from '../../../components/ui/styles'
 import { Icon } from '../../../components/ui'
 import { usePopoverList } from '../../../hooks/usePopoverList'
+import DateCalendar from './DateCalendar'
 import type { DateOption } from '../../trips/types'
 import { formatDateLabel } from '../../trips/utils'
 import { t } from '../../../i18n'
@@ -14,17 +16,10 @@ interface DateFieldProps {
   label?: string
 }
 
-/** Ngày trong tháng (1-31) lấy từ id `YYYY-MM-DD`. */
-const dayOfMonth = (id: string) => Number(id.slice(8, 10))
-
-/** Ô chọn ngày: bấm mở danh sách các ngày đang bán, mỗi ngày là một dòng có ô thứ/ngày và nhãn Hôm nay/Ngày mai. */
+/** Ô chọn ngày: bấm mở lịch tháng của các ngày đang bán. */
 export default function DateField({ dates, value, onChange, compact = false, label }: DateFieldProps) {
-  const { root, open, setOpen, toggle, placement } = usePopoverList(dates.length * 60 + 8)
+  const { root, open, setOpen, toggle, placement } = usePopoverList(340)
   const selected = dates.find((d) => d.id === value) ?? dates[0]
-  const firstIsToday = Boolean(dates[0]?.isToday)
-
-  // Nhãn "Hôm nay" đã nằm trong tên ngày nên chỉ thêm nhãn cho ngày mai.
-  const tagOf = (index: number): string | null => (index === 1 && firstIsToday ? t('Tomorrow') : null)
 
   return (
     <div ref={root} className="relative h-full min-w-0">
@@ -40,7 +35,7 @@ export default function DateField({ dates, value, onChange, compact = false, lab
         <span className="flex w-full items-center justify-between">
           <span className="flex items-center gap-1.5 text-2xs font-bold uppercase tracking-wider text-on-surface-variant">
             <Icon name="calendar_today" className="text-sm text-teal-flow" />
-            {label ?? t('Date')}
+            <span className={REQUIRED_LABEL_CLASS}>{label ?? t('Date')}</span>
           </span>
           <Icon
             name="expand_more"
@@ -55,53 +50,22 @@ export default function DateField({ dates, value, onChange, compact = false, lab
       </button>
 
       {open && (
-        <ul
-          role="listbox"
+        <div
+          role="dialog"
           aria-label={label ?? t('Departure Date')}
-          style={{ maxHeight: placement.maxHeight }}
-          className={`absolute left-0 right-0 z-30 min-w-[16rem] overflow-y-auto rounded-xl border border-outline-variant/50 bg-white py-1 shadow-lg ${
+          className={`absolute left-0 z-30 w-full min-w-[18rem] max-w-[21rem] rounded-xl border border-outline-variant/50 bg-white shadow-lg ${
             placement.up ? 'bottom-full mb-2' : 'top-full mt-2'
           }`}
         >
-          {dates.map((date, i) => {
-            const isSelected = date.id === selected.id
-            const tag = tagOf(i)
-            return (
-              <li key={date.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={isSelected}
-                  onClick={() => {
-                    onChange(date.id)
-                    setOpen(false)
-                  }}
-                  className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-mist ${
-                    isSelected ? 'bg-sand-light/70' : ''
-                  }`}
-                >
-                  <span
-                    className={`flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg leading-none ${
-                      isSelected ? 'bg-teal-flow text-on-primary' : 'bg-mist text-deep-river'
-                    }`}
-                  >
-                    <span className="text-3xs font-semibold uppercase tracking-wide opacity-80">
-                      {date.weekday}
-                    </span>
-                    <span className="mt-0.5 font-display text-sm font-bold">{dayOfMonth(date.id)}</span>
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-deep-river">
-                      {formatDateLabel(date)}
-                    </span>
-                    {tag && <span className="text-2xs font-medium text-teal-flow">{tag}</span>}
-                  </span>
-                  {isSelected && <Icon name="check" className="text-lg text-teal-flow" />}
-                </button>
-              </li>
-            )
-          })}
-        </ul>
+          <DateCalendar
+            dates={dates}
+            value={selected.id}
+            onSelect={(id) => {
+              onChange(id)
+              setOpen(false)
+            }}
+          />
+        </div>
       )}
     </div>
   )

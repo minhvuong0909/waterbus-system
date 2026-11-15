@@ -40,6 +40,7 @@ export default function AssignBoatForm({
       </p>
       <SelectField
         label="Boat"
+        required
         hint={trip.boatId ? 'Seats already sold move to the same seats of the new boat.' : undefined}
         value={boatId}
         onChange={(e) => setBoatId(e.target.value)}

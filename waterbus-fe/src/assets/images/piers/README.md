@@ -15,4 +15,8 @@ Commons user Pk.over. Credit is not required, but the sources are kept here:
 - `st02.jpg`: https://commons.wikimedia.org/wiki/File:Bus_in_the_Binh_An_station.jpg
 
 Commons has no photos yet of the other piers (ST03 Thanh Đa, ST04 Hiệp Bình Chánh, ST05 Linh Đông),
-so they show the placeholder until photos are added.
+so they show an illustration until photos are added.
+
+- `st04.jpg`: photo of the Hiệp Bình Chánh pier supplied by the team (screenshot, recompressed to JPEG).
+
+ST03 Thanh Đa and ST05 Linh Đông still show the illustration until their photos are added.

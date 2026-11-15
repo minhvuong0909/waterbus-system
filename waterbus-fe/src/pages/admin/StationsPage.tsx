@@ -11,6 +11,7 @@ import {
 import type { AdminStation, NewStation } from '../../features/admin/types'
 import { useDocumentTitle, useFetch, useReload, useSubmit } from '../../hooks'
 import { t } from '../../i18n'
+import { codeTaken, isCode, parseSignedDecimal, parseWhole } from '../../utils/inputRules'
 import type { Column } from '../../components/ui'
 
 type Dialog = { kind: 'form'; station?: AdminStation } | null
@@ -34,17 +35,15 @@ const toForm = (s?: AdminStation): FormState => ({
 })
 
 /** Lỗi của từng ô trong form, hoặc rỗng khi đã gửi được. */
-function validate(form: FormState): Partial<Record<keyof FormState, string>> {
+function validate(form: FormState, others: readonly AdminStation[]): Partial<Record<keyof FormState, string>> {
   const errors: Partial<Record<keyof FormState, string>> = {}
   if (!form.code.trim()) errors.code = t('Code is required.')
+  else if (!isCode(form.code)) errors.code = t('Use letters, numbers, dots, underscores or hyphens.')
+  else if (codeTaken(form.code, others)) errors.code = t('This code is already used.')
   if (!form.name.trim()) errors.name = t('Name is required.')
-  if (!form.address.trim()) errors.address = t('Address is required.')
-  const lat = Number(form.latitude)
-  const lng = Number(form.longitude)
-  if (form.latitude === '' || !(lat >= -90 && lat <= 90)) errors.latitude = t('Enter a latitude between -90 and 90.')
-  if (form.longitude === '' || !(lng >= -180 && lng <= 180)) errors.longitude = t('Enter a longitude between -180 and 180.')
-  const order = Number(form.orderIndex)
-  if (!Number.isInteger(order) || order < 1) errors.orderIndex = t('Enter a whole number from 1.')
+  if (parseSignedDecimal(form.latitude, -90, 90, 7) === null) errors.latitude = t('Enter a latitude between -90 and 90.')
+  if (parseSignedDecimal(form.longitude, -180, 180, 7) === null) errors.longitude = t('Enter a longitude between -180 and 180.')
+  if (parseWhole(form.orderIndex, 0, 1000) === null) errors.orderIndex = t('Enter a whole number from 0.')
   return errors
 }
 
@@ -63,14 +62,14 @@ function StationForm({
   const [form, setForm] = useState(() => toForm(station))
   const [showErrors, setShowErrors] = useState(false)
   const { run, busy, error } = useSubmit()
-  const errors = showErrors ? validate(form) : {}
+  const errors = showErrors ? validate(form, others) : {}
   const sameOrderAs = form.orderIndex.trim() === '' ? undefined : others.find((s) => s.orderIndex === Number(form.orderIndex))
   const set = (key: keyof FormState) => (e: { target: { value: string } }) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (Object.keys(validate(form)).length > 0) {
+    if (Object.keys(validate(form, others)).length > 0) {
       setShowErrors(true)
       return
     }
@@ -91,6 +90,7 @@ function StationForm({
       <div className="grid grid-cols-2 gap-3">
         <TextField
           label="Code"
+          required
           value={form.code}
           onChange={set('code')}
           error={errors.code}
@@ -101,6 +101,7 @@ function StationForm({
         />
         <TextField
           label="River order"
+          required
           hint="Position along the river, 1 is the first station."
           inputMode="numeric"
           value={form.orderIndex}
@@ -108,11 +109,11 @@ function StationForm({
           error={errors.orderIndex}
         />
       </div>
-      <TextField label="Name" value={form.name} onChange={set('name')} error={errors.name} maxLength={150} />
+      <TextField label="Name" required value={form.name} onChange={set('name')} error={errors.name} maxLength={150} />
       <TextField label="Address" value={form.address} onChange={set('address')} error={errors.address} maxLength={300} />
       <div className="grid grid-cols-2 gap-3">
-        <TextField label="Latitude" inputMode="decimal" value={form.latitude} onChange={set('latitude')} error={errors.latitude} />
-        <TextField label="Longitude" inputMode="decimal" value={form.longitude} onChange={set('longitude')} error={errors.longitude} />
+        <TextField label="Latitude" required inputMode="decimal" value={form.latitude} onChange={set('latitude')} error={errors.latitude} />
+        <TextField label="Longitude" required inputMode="decimal" value={form.longitude} onChange={set('longitude')} error={errors.longitude} />
       </div>
       {sameOrderAs && (
         <Notice tone="warning">

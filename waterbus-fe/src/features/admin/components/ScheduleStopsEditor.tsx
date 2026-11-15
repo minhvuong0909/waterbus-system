@@ -1,4 +1,5 @@
 import { CHECKBOX_CLASS, INPUT_CLASS } from '../../../components/ui/styles'
+import { REQUIRED_LABEL_CLASS } from '../../../components/ui/styles'
 import { t } from '../../../i18n'
 import type { ScheduleStopRow } from '../utils/scheduleStops'
 
@@ -23,7 +24,7 @@ export default function ScheduleStopsEditor({
 
   return (
     <fieldset disabled={locked}>
-      <legend className="mb-1 text-xs font-semibold text-on-surface-variant">
+      <legend className={`mb-1 text-xs font-semibold text-on-surface-variant ${REQUIRED_LABEL_CLASS}`}>
         {t('Stops and minutes after departure')}
       </legend>
       <div className="overflow-hidden rounded-xl border border-outline-variant/30">

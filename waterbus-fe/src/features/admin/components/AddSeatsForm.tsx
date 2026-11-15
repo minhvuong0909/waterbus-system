@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Button, Notice, SelectField, TextField } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { useSubmit } from '../../../hooks'
+import { parseWhole } from '../../../utils/inputRules'
 import { MAX_SEAT_ROW, findLayoutOverflow, planSeatLayout } from '../utils/seatBatch'
 import type { ExistingSeat } from '../utils/seatBatch'
 import { addBoatSeats } from '../services/boatSeatService'
@@ -12,10 +13,7 @@ import FormActions from './FormActions'
 /** Số ghế tối đa backend nhận trong một lần gửi. */
 const MAX_BATCH = 200
 
-const wholeNumber = (value: string, min: number, max: number) => {
-  const n = Number(value)
-  return value.trim() !== '' && Number.isInteger(n) && n >= min && n <= max
-}
+const wholeNumber = (value: string, min: number, max: number) => parseWhole(value, min, max) !== null
 
 interface BlockForm {
   key: number
@@ -111,7 +109,7 @@ export default function AddSeatsForm({
     <form onSubmit={submit} noValidate className="space-y-3">
       {blocks.map((b, i) => (
         <div key={b.key} className="grid grid-cols-[1fr_5rem_5rem_auto] items-start gap-2">
-          <SelectField label="Seat class" value={b.seatClassId} onChange={(e) => update(b.key, { seatClassId: e.target.value })}>
+          <SelectField label="Seat class" required value={b.seatClassId} onChange={(e) => update(b.key, { seatClassId: e.target.value })}>
             {seatClasses.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -120,6 +118,7 @@ export default function AddSeatsForm({
           </SelectField>
           <TextField
             label="Code prefix"
+            required
             placeholder="S"
             value={b.prefix}
             onChange={(e) => update(b.key, { prefix: e.target.value })}
@@ -127,6 +126,7 @@ export default function AddSeatsForm({
           />
           <TextField
             label="Number of seats"
+            required
             inputMode="numeric"
             value={b.count}
             onChange={(e) => update(b.key, { count: e.target.value })}
@@ -146,6 +146,7 @@ export default function AddSeatsForm({
         <div className="w-40">
           <TextField
             label="Seats per row"
+            required
             inputMode="numeric"
             value={seatsPerRow}
             onChange={(e) => setSeatsPerRow(e.target.value)}

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
+import { RouteProgress } from './components/motion'
 import { AppRoutes } from './routes'
 
 export default function App() {
@@ -9,5 +10,10 @@ export default function App() {
     window.scrollTo(0, 0)
   }, [pathname])
 
-  return <AppRoutes />
+  return (
+    <>
+      <RouteProgress />
+      <AppRoutes />
+    </>
+  )
 }

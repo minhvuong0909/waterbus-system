@@ -4,6 +4,7 @@ import { Button, TextField } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { toVietnamDate } from '../../../utils/time'
 import { useSubmit } from '../../../hooks'
+import { hasSaneYear } from '../../../utils/inputRules'
 import { generateTrips } from '../services/tripPlanningService'
 import { EMPTY_TIMING, timingErrors, toTimingInput } from '../utils/tripTiming'
 import type { GenerateTripsResult, ScheduleListItem } from '../types'
@@ -79,9 +80,11 @@ export default function GenerateTripsForm({
 
   const span = dates.fromDate && dates.toDate ? daysBetween(dates.fromDate, dates.toDate) : -1
   const errors = {
-    fromDate: dates.fromDate ? undefined : t('Choose the first day.'),
+    fromDate: hasSaneYear(dates.fromDate) ? undefined : t('Choose the first day.'),
     toDate:
-      span < 0
+      !hasSaneYear(dates.toDate)
+        ? t('Choose a valid date.')
+        : span < 0
         ? t('The last day cannot be before the first day.')
         : span >= MAX_DAYS
           ? t('Choose at most {max} days at a time.', { max: MAX_DAYS })
@@ -111,8 +114,8 @@ export default function GenerateTripsForm({
         })}
       </p>
       <div className="grid grid-cols-2 gap-3">
-        <TextField label="First day" type="date" min={today} value={dates.fromDate} onChange={set('fromDate')} error={shown.fromDate} />
-        <TextField label="Last day" type="date" min={dates.fromDate} value={dates.toDate} onChange={set('toDate')} error={shown.toDate} />
+        <TextField label="First day" required type="date" min={today} value={dates.fromDate} onChange={set('fromDate')} error={shown.fromDate} />
+        <TextField label="Last day" required type="date" min={dates.fromDate} value={dates.toDate} onChange={set('toDate')} error={shown.toDate} />
       </div>
       <TripTimingFields timing={timing} errors={shown} onChange={setTiming} />
       <FormActions error={error} busy={busy} submitLabel="Create trips" onCancel={onClose} />

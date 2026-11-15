@@ -42,7 +42,7 @@ function LatePaymentRefundForm({
       <p className="text-sm text-on-surface-variant">
         {t('Refund {amount} paid at {time}.', { amount: formatVnd(item.amount), time: formatDateTime(item.occurredAt) })}
       </p>
-      <TextField label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} required />
+      <TextField label="Reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} required />
       {error && <Notice tone="error">{error}</Notice>}
       <div className="flex justify-end gap-2 pt-1">
         <Button size="sm" variant="neutral" onClick={onCancel}>
