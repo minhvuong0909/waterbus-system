@@ -3,7 +3,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Moq;
 using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
+using WaterbusSystem.Application.DTOs.Responses.SightseeingAudio;
 using WaterbusSystem.Application.Features.SightseeingAudio;
+using WaterbusSystem.Application.Features.SightseeingAudio.Services;
+using WaterbusSystem.Application.Interfaces.Services;
+using WaterbusSystem.Application.Validators.SightseeingAudio;
 using WaterbusSystem.WebApi.Controllers;
 using Xunit;
 
@@ -84,7 +89,7 @@ public class StopAnnouncementTests
     }
 
     [Fact]
-    public void AdminSimulatorController_GetConfig_ReturnsCurrentValues()
+    public void StopAnnouncementAdminService_GetConfiguration_ReturnsCurrentOptions()
     {
         // Arrange
         var optionsMock = new Mock<IOptionsMonitor<StopAnnouncementOptions>>();
@@ -97,7 +102,75 @@ public class StopAnnouncementTests
         };
         optionsMock.Setup(m => m.CurrentValue).Returns(currentOptions);
 
-        var controller = new AdminSimulatorController(optionsMock.Object);
+        var service = new StopAnnouncementAdminService(optionsMock.Object);
+
+        // Act
+        var config = service.GetConfiguration();
+
+        // Assert
+        config.SegmentDurationSeconds.Should().Be(45);
+        config.DwellTimeSeconds.Should().Be(5);
+        config.NearThreshold.Should().Be(0.75);
+        config.UseSimulatedSegmentDuration.Should().BeTrue();
+    }
+
+    [Fact]
+    public void StopAnnouncementAdminService_UpdateConfiguration_UpdatesFieldsAndClampsNearThreshold()
+    {
+        // Arrange
+        var currentOptions = new StopAnnouncementOptions();
+        var optionsMock = new Mock<IOptionsMonitor<StopAnnouncementOptions>>();
+        optionsMock.Setup(m => m.CurrentValue).Returns(currentOptions);
+
+        var service = new StopAnnouncementAdminService(optionsMock.Object);
+
+        // Act
+        var request = new UpdateStopAnnouncementRequest(
+            SegmentDurationSeconds: 15,
+            DwellTimeSeconds: 2,
+            NearThreshold: 1.5, // vượt quá 1.0 -> clamp về 0.99
+            UseSimulatedSegmentDuration: false);
+
+        var config = service.UpdateConfiguration(request);
+
+        // Assert
+        config.SegmentDurationSeconds.Should().Be(15);
+        config.DwellTimeSeconds.Should().Be(2);
+        config.NearThreshold.Should().Be(0.99);
+        config.UseSimulatedSegmentDuration.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(0, true, "Thời gian mỗi chặng")]
+    [InlineData(-5, true, "Thời gian mỗi chặng")]
+    public void UpdateStopAnnouncementRequestValidator_InvalidSegmentDuration_FailsValidation(
+        double segmentDuration, bool shouldFail, string errorSubstr)
+    {
+        // Arrange
+        var validator = new UpdateStopAnnouncementRequestValidator();
+        var request = new UpdateStopAnnouncementRequest(
+            SegmentDurationSeconds: segmentDuration,
+            DwellTimeSeconds: 3,
+            NearThreshold: 0.8,
+            UseSimulatedSegmentDuration: true);
+
+        // Act
+        var result = validator.Validate(request);
+
+        // Assert
+        result.IsValid.Should().NotBe(shouldFail);
+        result.Errors.Should().Contain(e => e.ErrorMessage.Contains(errorSubstr));
+    }
+
+    [Fact]
+    public void AdminSimulatorController_DelegatesToService()
+    {
+        // Arrange
+        var mockService = new Mock<IStopAnnouncementAdminService>();
+        var expectedResponse = new StopAnnouncementConfigResponse(30, 3, 0.8, true);
+        mockService.Setup(s => s.GetConfiguration()).Returns(expectedResponse);
+
+        var controller = new AdminSimulatorController(mockService.Object);
 
         // Act
         var result = controller.GetStopAnnouncement();
@@ -105,75 +178,7 @@ public class StopAnnouncementTests
         // Assert
         var okResult = result.Result as OkObjectResult;
         okResult.Should().NotBeNull();
-        var body = okResult!.Value as StopAnnouncementConfigResponse;
-        body.Should().NotBeNull();
-        body!.SegmentDurationSeconds.Should().Be(45);
-        body.DwellTimeSeconds.Should().Be(5);
-        body.NearThreshold.Should().Be(0.75);
-        body.UseSimulatedSegmentDuration.Should().BeTrue();
-    }
-
-    [Fact]
-    public void AdminSimulatorController_UpdateConfig_ModifiesConfigAndClampsThreshold()
-    {
-        // Arrange
-        var currentOptions = new StopAnnouncementOptions();
-        var optionsMock = new Mock<IOptionsMonitor<StopAnnouncementOptions>>();
-        optionsMock.Setup(m => m.CurrentValue).Returns(currentOptions);
-
-        var controller = new AdminSimulatorController(optionsMock.Object);
-
-        // Act: cập nhật với threshold vượt biên (1.5 -> clamp về 0.99)
-        var request = new UpdateStopAnnouncementRequest(
-            SegmentDurationSeconds: 15,
-            DwellTimeSeconds: 2,
-            NearThreshold: 1.5,
-            UseSimulatedSegmentDuration: true);
-
-        var actionResult = controller.UpdateStopAnnouncement(request);
-
-        // Assert
-        var okResult = actionResult as OkObjectResult;
-        okResult.Should().NotBeNull();
-        var body = okResult!.Value as StopAnnouncementConfigResponse;
-        body.Should().NotBeNull();
-        body!.SegmentDurationSeconds.Should().Be(15);
-        body.DwellTimeSeconds.Should().Be(2);
-        body.NearThreshold.Should().Be(0.99); // Đã được clamp
-        currentOptions.SegmentDurationSeconds.Should().Be(15);
-    }
-
-    [Fact]
-    public void AdminSimulatorController_UpdateConfig_PreservesExistingWhenNull()
-    {
-        // Arrange
-        var currentOptions = new StopAnnouncementOptions
-        {
-            SegmentDurationSeconds = 30,
-            DwellTimeSeconds = 3,
-            NearThreshold = 0.8
-        };
-        var optionsMock = new Mock<IOptionsMonitor<StopAnnouncementOptions>>();
-        optionsMock.Setup(m => m.CurrentValue).Returns(currentOptions);
-
-        var controller = new AdminSimulatorController(optionsMock.Object);
-
-        // Act: chỉ cập nhật SegmentDurationSeconds, các field khác null
-        var request = new UpdateStopAnnouncementRequest(
-            SegmentDurationSeconds: 20,
-            DwellTimeSeconds: null,
-            NearThreshold: null,
-            UseSimulatedSegmentDuration: null);
-
-        var actionResult = controller.UpdateStopAnnouncement(request);
-
-        // Assert
-        var okResult = actionResult as OkObjectResult;
-        okResult.Should().NotBeNull();
-        var body = okResult!.Value as StopAnnouncementConfigResponse;
-        body.Should().NotBeNull();
-        body!.SegmentDurationSeconds.Should().Be(20);
-        body.DwellTimeSeconds.Should().Be(3); // Giữ nguyên
-        body.NearThreshold.Should().Be(0.8); // Giữ nguyên
+        okResult!.Value.Should().Be(expectedResponse);
+        mockService.Verify(s => s.GetConfiguration(), Times.Once);
     }
 }
