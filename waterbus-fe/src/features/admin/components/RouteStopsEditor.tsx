@@ -1,26 +1,31 @@
 import { Button, Icon } from '../../../components/ui'
 import { INPUT_CLASS } from '../../../components/ui/styles'
 import { t } from '../../../i18n'
-import type { AdminStation, RouteStopInput } from '../types'
+import type { AdminStation, RouteStopInput, ServiceType } from '../types'
 
 const iconButton =
-  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-on-surface-variant transition-colors hover:bg-surface-container hover:text-deep-river disabled:opacity-30 disabled:hover:bg-transparent'
+  'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-on-surface-variant transition-colors hover:bg-surface-container hover:text-deep-river disabled:opacity-30 disabled:hover:bg-transparent'
 
 /**
- * The stops of a route in calling order. Each stop says whether passengers may board and get off
- * there. `locked` shows them read only: a route used by a schedule or trip keeps its stops.
+ * Các bến của tuyến theo thứ tự ghé. Khách lên hoặc xuống ở bất kỳ bến nào (vé một giá theo loại chuyến). `locked` hiện chỉ đọc:
+ * tuyến đã được lịch chạy hoặc chuyến dùng giữ nguyên bến dừng.
  */
 export default function RouteStopsEditor({
   stops,
   stations,
+  serviceType,
   locked,
   onChange,
 }: {
   stops: RouteStopInput[]
   stations: Pick<AdminStation, 'id' | 'name'>[]
+  /** Tuyến Thường mỗi bến chỉ ghé một lần; tuyến ngắm cảnh được đi vòng nên được chọn lại bến. */
+  serviceType: ServiceType
   locked: boolean
   onChange: (stops: RouteStopInput[]) => void
 }) {
+  const eachStationOnce = serviceType === 'Regular'
+  const allStationsUsed = eachStationOnce && stops.length >= stations.length
   const update = (index: number, patch: Partial<RouteStopInput>) =>
     onChange(stops.map((stop, i) => (i === index ? { ...stop, ...patch } : stop)))
 
@@ -35,7 +40,7 @@ export default function RouteStopsEditor({
       <legend className="mb-1 text-xs font-semibold text-on-surface-variant">{t('Stops')}</legend>
       <ol className="space-y-2">
         {stops.map((stop, index) => (
-          <li key={index} className="rounded-xl border border-outline-variant/40 p-2">
+          <li key={index} className="rounded-xl border border-outline-variant/30 p-2">
             <div className="flex items-center gap-2">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-mist text-xs font-bold text-deep-river">
                 {index + 1}
@@ -48,7 +53,11 @@ export default function RouteStopsEditor({
               >
                 <option value="">{t('Choose a station')}</option>
                 {stations.map((station) => (
-                  <option key={station.id} value={station.id}>
+                  <option
+                    key={station.id}
+                    value={station.id}
+                    disabled={eachStationOnce && stops.some((other, i) => i !== index && other.stationId === station.id)}
+                  >
                     {station.name}
                   </option>
                 ))}
@@ -67,36 +76,21 @@ export default function RouteStopsEditor({
                 </>
               )}
             </div>
-            <div className="mt-2 flex gap-4 pl-9 text-xs text-deep-river">
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  className="rounded border-outline-variant text-teal-flow focus:ring-teal-flow/30"
-                  checked={stop.canBoard}
-                  onChange={(e) => update(index, { canBoard: e.target.checked })}
-                />
-                {t('Passengers board')}
-              </label>
-              <label className="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  className="rounded border-outline-variant text-teal-flow focus:ring-teal-flow/30"
-                  checked={stop.canAlight}
-                  onChange={(e) => update(index, { canAlight: e.target.checked })}
-                />
-                {t('Passengers get off')}
-              </label>
-            </div>
           </li>
         ))}
       </ol>
+      {!locked && allStationsUsed && (
+        <p className="mt-1 text-2xs text-on-surface-variant">
+          {t('Every station is already on this route. A regular route calls at each station once.')}
+        </p>
+      )}
       {!locked && (
         <Button
           size="sm"
           variant="text"
           icon="add"
           className="mt-1"
-          disabled={stops.length >= 50}
+          disabled={stops.length >= 50 || allStationsUsed}
           onClick={() => onChange([...stops, { stationId: '', canBoard: true, canAlight: true }])}
         >
           {t('Add stop')}

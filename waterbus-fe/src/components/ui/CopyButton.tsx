@@ -7,7 +7,7 @@ interface CopyButtonProps {
   className?: string
 }
 
-/** "Copy" button that puts `value` on the clipboard and briefly shows "Copied". */
+/** Nút "Sao chép" đưa `value` vào clipboard và hiện "Đã sao chép" trong chốc lát. */
 export default function CopyButton({ value, className = '' }: CopyButtonProps) {
   const [copied, setCopied] = useState(false)
 
@@ -21,7 +21,7 @@ export default function CopyButton({ value, className = '' }: CopyButtonProps) {
     try {
       await navigator.clipboard.writeText(value)
     } catch {
-      // Clipboard can be unavailable (insecure context); the visual feedback still runs.
+      // Clipboard có thể không dùng được (ngữ cảnh không an toàn); phản hồi trên giao diện vẫn chạy.
     }
     setCopied(true)
   }

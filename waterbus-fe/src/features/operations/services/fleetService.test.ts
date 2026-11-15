@@ -18,6 +18,7 @@ describe('fleetService', () => {
     vi.stubGlobal('fetch', fetchMock)
     fetchMock.mockResolvedValueOnce(json({ items: [{ id: 'inactive', isActive: false }], totalCount: 1 }))
     expect((await getBoats(false)).map((boat) => boat.id)).toEqual(['inactive'])
-    expect(fetchMock.mock.calls[0][0]).toContain('isActiveOnly=false')
+    // `isActiveOnly=false` chỉ trả tàu đã ngừng, nên không được gửi khi muốn lấy tất cả.
+    expect(fetchMock.mock.calls[0][0]).not.toContain('isActiveOnly')
   })
 })

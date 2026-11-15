@@ -1,21 +1,26 @@
 import type { ReactNode } from 'react'
-import { t } from '../../i18n'
+import SectionHeader from './SectionHeader'
+import { SURFACE_CLASS } from './styles'
 
-/** Titled white box that groups one part of a page. */
+/** Khung trắng gom một phần của trang, có tiêu đề, mô tả và nút tuỳ chọn. */
 export default function Panel({
   title,
+  description,
+  actions,
   children,
   className = '',
+  id,
 }: {
   title?: string
+  description?: ReactNode
+  actions?: ReactNode
   children: ReactNode
   className?: string
+  id?: string
 }) {
   return (
-    <section
-      className={`rounded-2xl border border-outline-variant/30 bg-white p-4 shadow-card sm:p-5 ${className}`.trim()}
-    >
-      {title && <h2 className="mb-4 text-base font-semibold text-deep-river">{t(title)}</h2>}
+    <section id={id} className={`${SURFACE_CLASS} p-4 sm:p-5 ${className}`.trim()}>
+      {title && <SectionHeader title={title} description={description} actions={actions} />}
       {children}
     </section>
   )

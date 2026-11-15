@@ -3,9 +3,11 @@ import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
 import {
   confirmManualRefund,
+  countReconciliationToDo,
   confirmRefundsBatch,
   exportPendingRefundsCsv,
   listPendingRefunds,
+  listReconciliationRequired,
   listRefundCandidates,
   reconcileRefund,
   requestRefund,
@@ -26,6 +28,27 @@ describe('refundService', () => {
       method: 'POST',
       body: { bookingId: 'b1', reason: 'Trip cancelled' },
     })
+  })
+
+  it('lists what needs reconciling, one page at a time', async () => {
+    const page = { items: [], totalCount: 0, pageNumber: 2, totalPages: 1 }
+    vi.mocked(apiRequest).mockResolvedValue(page)
+
+    await expect(listReconciliationRequired(2, 20)).resolves.toBe(page)
+    expect(apiRequest).toHaveBeenCalledWith(API_ENDPOINTS.refunds.reconciliationRequired, { query: { page: 2, pageSize: 20 } })
+  })
+
+  it('counts only the reconciliation items that still need the Admin', async () => {
+    vi.mocked(apiRequest).mockResolvedValue({
+      items: [
+        { kind: 'LatePayment', refundId: 'r1' }, // đã có lệnh hoàn: nằm ở bước 2
+        { kind: 'LatePayment', refundId: null },
+        { kind: 'RefundProcessing', refundId: 'r2' },
+      ],
+      totalCount: 3, pageNumber: 1, totalPages: 1,
+    })
+
+    await expect(countReconciliationToDo()).resolves.toBe(2)
   })
 
   it('sends a manual confirmation with its evidence', async () => {

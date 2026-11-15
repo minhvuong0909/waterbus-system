@@ -13,7 +13,7 @@ export default function RefundResultPanel({ refund }: { refund: RefundRequestRes
         <Fact label="Status" value={t(refund.status)} />
         <Fact label="Gateway" value={refund.gateway} />
         <div>
-          <dt className="text-2xs font-semibold uppercase tracking-wide text-on-surface-variant">{t('Refund ID')}</dt>
+          <dt className="text-2xs font-semibold text-on-surface-variant">{t('Refund ID')}</dt>
           <dd className="mt-1 flex items-center gap-1 font-mono text-xs">
             <span className="truncate">{refund.refundTransactionId}</span>
             <CopyButton value={refund.refundTransactionId} />
@@ -42,7 +42,7 @@ export default function RefundResultPanel({ refund }: { refund: RefundRequestRes
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-2xs font-semibold uppercase tracking-wide text-on-surface-variant">{t(label)}</dt>
+      <dt className="text-2xs font-semibold text-on-surface-variant">{t(label)}</dt>
       <dd className="mt-1 font-semibold text-deep-river">{value}</dd>
     </div>
   )

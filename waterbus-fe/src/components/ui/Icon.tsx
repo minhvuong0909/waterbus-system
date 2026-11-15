@@ -4,7 +4,7 @@ interface IconProps {
   className?: string
 }
 
-/** Material Symbols Outlined glyph. Size it with a text-size class, e.g. `text-xl`. */
+/** Ký tự Material Symbols Outlined. Đặt cỡ bằng lớp cỡ chữ, vd `text-xl`. */
 export default function Icon({ name, filled = false, className = '' }: IconProps) {
   return (
     <span

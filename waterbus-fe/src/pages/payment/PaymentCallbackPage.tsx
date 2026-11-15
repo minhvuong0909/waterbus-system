@@ -93,7 +93,7 @@ export default function PaymentCallbackPage() {
   if (phase === 'paidLate') {
     return (
       <Notice
-        icon="support_agent"
+        icon="call"
         title={t('We received your payment, but the order had already expired')}
         body={t('No ticket was issued and your seat was released. The amount will be refunded to your original payment method; keep the payment reference below if you contact us.')}
         details={[[t('Payment reference'), merchantReference]]}

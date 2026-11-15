@@ -2,10 +2,10 @@ import { t } from '../../i18n'
 import type { OperationType, WeatherAlert } from './types'
 import type { TripStatus, TripStopDto } from '../trips/types'
 
-/** Operations the admin applies from the trip menu (the captain's Start / Arrive / SOS have their own buttons). */
+/** Các thao tác Admin dùng từ menu chuyến (Start / Arrive / SOS của thuyền trưởng có nút riêng). */
 export const DISPATCH_OPERATIONS: OperationType[] = ['Suspend', 'Resume', 'Cancel', 'Terminate', 'Complete']
 
-/** The trip is over for good: nothing more can be done with it. */
+/** Chuyến đã kết thúc hẳn: không làm gì thêm được. */
 export const isFinished = (status: TripStatus): boolean =>
   status === 'Completed' || status === 'Cancelled' || status === 'Terminated'
 
@@ -13,17 +13,17 @@ export const isFinished = (status: TripStatus): boolean =>
 export const isBoardingStop = (stop: TripStopDto): boolean =>
   stop.canBoard && Boolean(stop.estimatedDepartureTime)
 
-/** The trip still has to run or is running: the captain has something to do with it. */
+/** Chuyến còn phải chạy hoặc đang chạy: thuyền trưởng còn việc với chuyến này. */
 export const isUpcomingOrRunning = (status: TripStatus): boolean =>
   status === 'Scheduled' || status === 'Boarding' || status === 'EnRoute' || status === 'Suspended'
 
-/** Heading of an alert; a weather alert carries the wind speed in its message. */
+/** Tiêu đề của cảnh báo; cảnh báo thời tiết mang tốc độ gió trong thông điệp. */
 export function weatherAlertTitle(alert: WeatherAlert): string {
   if (alert.kind && alert.kind !== 'Weather') return t('Captain emergency report')
   return t('Level {level} weather warning', { level: alert.level })
 }
 
-/** Button and log label of each operation. */
+/** Nhãn nút và nhãn nhật ký của từng thao tác. */
 export const OPERATION_LABEL: Record<OperationType, string> = {
   OpenBoarding: 'Open boarding',
   Complete: 'Close trip',

@@ -23,7 +23,7 @@ const SIZES: Record<Size, string> = {
 interface CommonProps {
   variant?: Variant
   size?: Size
-  /** Material Symbols name shown before the label. */
+  /** Tên icon Material Symbols hiện trước nhãn. */
   icon?: string
   className?: string
   children: ReactNode
@@ -37,7 +37,7 @@ function classes({ variant = 'primary', size = 'md', className = '' }: Omit<Comm
   return `inline-flex min-h-[44px] items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-[color,background-color,border-color,box-shadow,transform] duration-200 ease-out enabled:active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${VARIANTS[variant]} ${SIZES[size]} ${className}`.trim()
 }
 
-/** The one button of the app. Renders a react-router `<Link>` when `to` is given, otherwise a `<button>`. */
+/** Nút dùng chung của cả app. Render `<Link>` của react-router khi có `to`, nếu không thì `<button>`. */
 export default function Button(props: ButtonProps | LinkButtonProps) {
   if (props.to !== undefined) {
     const { to, variant, size, icon, className, children, ...rest } = props

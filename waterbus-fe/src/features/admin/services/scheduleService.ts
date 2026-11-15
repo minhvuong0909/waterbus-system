@@ -1,9 +1,10 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
 import type { ScheduleDetail, ScheduleInput, ScheduleListItem, ScheduleStopInput } from '../types'
-import { fetchAllPages, setActive } from './catalogRequests'
+import { fetchAllPages } from '../../../services/paging'
+import { setActive } from './catalogRequests'
 
-/** `GET /admin/schedules`: every schedule, switched-off ones included. */
+/** `GET /admin/schedules`: mọi lịch chạy, kể cả lịch đã tắt. */
 export const getSchedules = () => fetchAllPages<ScheduleListItem>(API_ENDPOINTS.admin.schedules)
 
 export const getSchedule = (id: string) =>
@@ -22,9 +23,8 @@ const sameStops = (a: ScheduleStopInput[], b: ScheduleStopInput[]) =>
   )
 
 /**
- * Saves a schedule: `PUT /admin/schedules/{id}` for its times, then `PUT …/stops` when the stops
- * changed. The route never changes, and a schedule that already produced trips keeps its stops
- * (BR-SCH-06), so they are only sent while the structure is not locked.
+ * Lưu một lịch chạy: `PUT /admin/schedules/{id}` cho giờ chạy, rồi `PUT …/stops` khi bến dừng thay đổi. Tuyến không
+ * bao giờ đổi, và lịch đã sinh chuyến giữ nguyên bến dừng (BR-SCH-06), nên chỉ gửi bến khi cấu trúc chưa bị khoá.
  */
 export async function updateSchedule(current: ScheduleDetail, input: ScheduleInput): Promise<void> {
   const { tripType, direction, departureTime, daysOfWeek, effectiveFrom, effectiveTo, stops } = input

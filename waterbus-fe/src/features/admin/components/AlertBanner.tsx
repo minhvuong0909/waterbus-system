@@ -5,7 +5,7 @@ import { ROUTES } from '../../../routes/routes'
 import { alertMetrics, alertTone, formatKmh, pendingCountOf, timeAgo, titleOf } from '../utils/alertUtils'
 import type { WeatherAlert } from '../../operations/types'
 
-/** Compact strip for the live radar: how serious, where, and how many trips still need a decision. */
+/** Dải gọn cho radar: mức độ, ở đâu và còn bao nhiêu chuyến chờ quyết định. */
 export default function AlertBanner({ alert }: { alert: WeatherAlert }) {
   const tone = alertTone(alert)
   const { windKmh, gustKmh } = alertMetrics(alert)
@@ -13,14 +13,14 @@ export default function AlertBanner({ alert }: { alert: WeatherAlert }) {
   return (
     <div
       role="alert"
-      className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-l-4 border-outline-variant/40 bg-white px-4 py-3 text-sm shadow-sm ${tone.accent}`}
+      className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-l-4 border-outline-variant/30 bg-white px-4 py-3 text-sm shadow-sm ${tone.accent}`}
     >
-      <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${tone.badge}`}>
+      <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${tone.badge}`}>
         <Icon name={tone.icon} className="text-lg" />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`rounded-full px-2 py-0.5 text-2xs font-bold uppercase tracking-wide ${tone.badge}`}>
+          <span className={`rounded-full px-2 py-0.5 text-2xs font-bold ${tone.badge}`}>
             {tone.label}
           </span>
           <span className="font-semibold text-deep-river">{titleOf(alert)}</span>

@@ -15,8 +15,8 @@ import ScheduleStopsEditor from './ScheduleStopsEditor'
 import TripTimingFields from './TripTimingFields'
 
 /**
- * One trip outside any schedule (BR-SCH-10): a route, the stops it really serves and a departure.
- * Its trip type follows the service of the route (BR-ROUTE-03). The boat is assigned afterwards.
+ * Một chuyến ngoài lịch chạy (BR-SCH-10): tuyến, các bến thực sự phục vụ và giờ khởi hành. Loại chuyến theo loại
+ * dịch vụ của tuyến (BR-ROUTE-03). Tàu được gán sau.
  */
 export default function AdHocTripForm({
   routes,
@@ -24,7 +24,7 @@ export default function AdHocTripForm({
   onCancel,
 }: {
   routes: RouteListItem[]
-  /** Called with the departure (ISO instant) of the trip just created. */
+  /** Gọi kèm giờ khởi hành (thời điểm ISO) của chuyến vừa tạo. */
   onDone: (departureTime: string) => void
   onCancel: () => void
 }) {

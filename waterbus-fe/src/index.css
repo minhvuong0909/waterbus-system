@@ -139,6 +139,11 @@
   box-shadow: 0 2px 8px rgba(13, 37, 56, 0.35);
   transition: transform 3s linear;
 }
+.fleet-boat--stale {
+  background: #8a97a3;
+  opacity: 0.85;
+}
+
 .fleet-boat .material-symbols-outlined {
   font-size: 18px;
 }

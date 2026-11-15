@@ -8,11 +8,16 @@ import { useSubmit } from '../../../hooks'
 import type { CheckInWindow } from '../services/checkInService'
 import { setCheckInWindow } from '../services/checkInService'
 
-/** A stop that has left or was skipped keeps its window: the backend refuses to change it. */
+/** Bến đã rời hoặc bị bỏ qua giữ nguyên cửa sổ: backend không cho đổi. */
 const LOCKED_STATUSES = ['Departed', 'Skipped']
 
-/** One stop of the trip: its planned departure and the check-in window staff work in. */
-export default function CheckInWindowRow({ stop, onSaved }: { stop: TripStopDto; onSaved?: (window: CheckInWindow) => void }) {
+/** Một bến của chuyến: giờ rời dự kiến và cửa sổ check-in nhân viên làm việc. */
+export default function CheckInWindowRow({ stop, onSaved, onAssign }: {
+  stop: TripStopDto
+  onSaved?: (window: CheckInWindow) => void
+  /** Chuyển xuống khung phân công soát vé với bến này đã được chọn. */
+  onAssign?: () => void
+}) {
   const [openAt, setOpenAt] = useState(stop.checkInOpenAt ? toVietnamDateTimeInput(stop.checkInOpenAt) : '')
   const [closeAt, setCloseAt] = useState(stop.checkInCloseAt ? toVietnamDateTimeInput(stop.checkInCloseAt) : '')
   const [invalid, setInvalid] = useState<string | null>(null)
@@ -49,16 +54,26 @@ export default function CheckInWindowRow({ stop, onSaved }: { stop: TripStopDto;
           {locked && ` • ${t(stop.status)}`}
         </p>
       </div>
-      <div className="md:col-span-3">
+      <div className="md:col-span-2">
         <TextField label="Opens" type="datetime-local" value={openAt} disabled={locked} onChange={(e) => setOpenAt(e.target.value)} />
       </div>
-      <div className="md:col-span-3">
+      <div className="md:col-span-2">
         <TextField label="Closes" type="datetime-local" value={closeAt} disabled={locked} onChange={(e) => setCloseAt(e.target.value)} />
       </div>
-      <div className="md:col-span-3">
-        <Button type="submit" size="sm" icon="save" disabled={locked || busy} className="w-full">
+      <div className="flex flex-wrap items-center gap-2 md:col-span-5">
+        <Button type="submit" size="sm" icon="save" disabled={locked || busy}>
           {busy ? t('Saving…') : t('Save')}
         </Button>
+        {departure && !locked && (
+          <Button size="sm" variant="text" onClick={() => setCloseAt(toVietnamDateTimeInput(departure))}>
+            {t('Close at departure')}
+          </Button>
+        )}
+        {onAssign && !locked && (
+          <Button size="sm" variant="text" onClick={onAssign}>
+            {t('Assign scanners')}
+          </Button>
+        )}
       </div>
       {(invalid || error || saved) && (
         <div className="md:col-span-12">

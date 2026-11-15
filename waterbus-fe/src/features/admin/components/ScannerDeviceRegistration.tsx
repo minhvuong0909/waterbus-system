@@ -35,7 +35,7 @@ export default function ScannerDeviceRegistration({ disabled, onRegistered }: {
   if (!open) return <Button variant="neutral" disabled={disabled} onClick={() => setOpen(true)}>{t('Register a scanner')}</Button>
 
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-xl border border-outline-variant/40 p-4">
+    <form onSubmit={submit} className="space-y-3 rounded-xl border border-outline-variant/30 p-4">
       <TextField label="Scanner code" maxLength={50} value={code} onChange={(event) => setCode(event.target.value)}
         hint={t('Use letters, numbers, dots, underscores or hyphens.')} disabled={busy || disabled} />
       <TextField label="Device label" maxLength={100} value={label} onChange={(event) => setLabel(event.target.value)}
