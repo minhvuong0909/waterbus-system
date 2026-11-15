@@ -43,6 +43,8 @@ interface FleetMapProps {
   selectedBoatId?: string | null
   /** Hộp bật/tắt lớp ở góc bản đồ; ẩn khi chỉ có vài lớp cố định (vd. màn hình thuyền trưởng). */
   showLayerControl?: boolean
+  /** Khi chưa có đường sông của tuyến: nối thẳng các bến (mặc định) hay không vẽ đường (nối thẳng cắt qua đất). */
+  connectStations?: boolean
   className?: string
 }
 
@@ -158,13 +160,16 @@ export default function FleetMap({
   landmarks = [],
   selectedBoatId = null,
   showLayerControl = true,
+  connectStations = true,
   className = '',
 }: FleetMapProps) {
   const [showStations, setShowStations] = useState(true)
   const [showLandmarks, setShowLandmarks] = useState(true)
   const [showBoats, setShowBoats] = useState(true)
   const stationPoints = stations.map((s): [number, number] => [s.latitude, s.longitude])
-  const line = path && path.length > 1 ? path : stationPoints
+  const hasPath = Boolean(path && path.length > 1)
+  const line = hasPath ? path! : stationPoints
+  const drawLine = hasPath || connectStations
   const bounds = line.length > 1 ? L.latLngBounds(line).pad(0.2) : undefined
   const selected = boats.find((b) => b.tripId === selectedBoatId)
 
@@ -179,8 +184,8 @@ export default function FleetMap({
       >
         <TileLayer attribution={MAP_TILE_ATTRIBUTION} url={MAP_TILE_URL} maxNativeZoom={16} maxZoom={18} />
         {/* Viền trắng dưới đường tuyến để tách khỏi nền bản đồ. */}
-        <Polyline positions={line} pathOptions={{ color: '#fff', weight: 7, opacity: 0.9 }} />
-        <Polyline positions={line} pathOptions={{ color: '#147A7E', weight: 3.5, opacity: 1 }} />
+        {drawLine && <Polyline positions={line} pathOptions={{ color: '#fff', weight: 7, opacity: 0.9 }} />}
+        {drawLine && <Polyline positions={line} pathOptions={{ color: '#147A7E', weight: 3.5, opacity: 1 }} />}
         {showStations &&
           stations.map((s) => (
             <CircleMarker

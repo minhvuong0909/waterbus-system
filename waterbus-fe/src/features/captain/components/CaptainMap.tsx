@@ -66,6 +66,8 @@ export default function CaptainMap({
           landmarks={tripType === 'Sightseeing' ? SIGHTSEEING_POIS : []}
           selectedBoatId={follow ? OWN_BOAT_ID : null}
           showLayerControl={false}
+          // Chưa có đường sông của tuyến thì không nối thẳng các bến: đường thẳng cắt qua đất, tàu lại đi theo sông.
+          connectStations={false}
           className="captain-leaflet"
         />
         {!position && (
