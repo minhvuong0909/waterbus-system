@@ -27,6 +27,12 @@ Lỗi trả về dạng `HubException` có thông điệp tiếng Việt (vd kh�
 | `incidentRaised` | `fleet` | `{ incidentId, incidentType, severity?, tripId?, boatId?, message, occurredAt, version }` — thuyền trưởng báo SOS |
 | `tripStatusChanged` | `fleet`, `boat:{boatId}`; và `trip:{tripId}` trên hub ghế | `{ tripId, boatId?, status, previousStatus, operation, changedAt, version }` — `status`/`previousStatus` là tên TripStatus, `operation` là tên thao tác |
 
+| `stopAnnouncement` | `trip:{tripId}`, `boat:{boatId}` | `{ tripId, boatId, stationId, stationName, type, segmentProgress, at, tripType?, nextStationName?, narration?, version }` — `type` là `departing` \| `near` \| `arrived`; `version` hiện là `2` |
+
+`narration` chỉ có ở `type = "departing"` và **chỉ với chuyến `tripType = "Sightseeing"`**: `{ poiId, poiName, text, assetKey?, durationSeconds? }`. Chuyến `Commuter` không có `narration` (chỉ thông báo bến). `assetKey` là khoá asset trong Blob storage dùng để phát file thu âm có sẵn; khi thiếu, client đọc bằng TTS từ `text`.
+
+Server chỉ gửi `narration` khi bài thuyết minh nằm trong **ngân sách thời gian** của chặng (`StopAnnouncement:MaxNarrationSeconds` và giới hạn ký tự suy ra từ `TripDurationSeconds`/`DwellTimeSeconds`/`NearThreshold`). Bài vượt ngân sách sẽ không được gửi để tránh chồng tiếng với thông báo "sắp đến bến"; `text` cũng được cắt theo giới hạn ký tự. Cấu hình admin bị từ chối (HTTP 400) nếu vi phạm ngân sách.
+
 `tripId` chỉ có khi tàu đang có Trip ở trạng thái `Boarding`, `EnRoute` hoặc `Suspended` (BR-INC-05: chuyến tạm dừng vẫn phát vị trí).
 
 ### REST đi kèm

@@ -697,7 +697,7 @@ public class ApplicationDbContextInitializer
                     RouteId = r.Id,
                     PoiId = poi.Id,
                     DisplayOrder = order++,
-                    TriggerRadiusM = 350,
+                    TriggerRadiusM = 800,
                     IsActive = true
                 });
             }
@@ -712,7 +712,7 @@ public class ApplicationDbContextInitializer
                 LanguageCode = "vi",
                 AudioAssetUri = $"/audio/poi-{index:D2}.mp3",
                 DurationSeconds = 120,
-                IsPublished = true
+                IsPublished = false
             });
             index++;
         }

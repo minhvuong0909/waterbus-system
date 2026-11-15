@@ -98,7 +98,7 @@ services:
       Tracking__Simulator__Enabled: ${TRACKING_SIMULATOR_ENABLED:-false}
       Tracking__Simulator__IntervalSeconds: ${TRACKING_SIMULATOR_INTERVAL_SECONDS:-3}
       Tracking__Simulator__IncludeScheduledTrips: ${TRACKING_SIMULATOR_INCLUDE_SCHEDULED:-false}
-      StopAnnouncement__SegmentDurationSeconds: ${STOP_ANNOUNCEMENT_SEGMENT_DURATION_SECONDS:-140}
+      StopAnnouncement__TripDurationSeconds: ${STOP_ANNOUNCEMENT_TRIP_DURATION_SECONDS:-180}
       StopAnnouncement__DwellTimeSeconds: ${STOP_ANNOUNCEMENT_DWELL_TIME_SECONDS:-5}
       StopAnnouncement__NearThreshold: ${STOP_ANNOUNCEMENT_NEAR_THRESHOLD:-0.8}
       StopAnnouncement__UseSimulatedSegmentDuration: ${STOP_ANNOUNCEMENT_USE_SIMULATED_DURATION:-true}

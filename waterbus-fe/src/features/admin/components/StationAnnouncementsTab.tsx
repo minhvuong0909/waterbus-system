@@ -46,7 +46,7 @@ const TEMPLATES: TemplateItem[] = [
     badge: 'Dừng đón trả khách',
     badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     timing: 'Tự động phát khi cập cầu tàu giữa tuyến (dừng đón khách rồi đi tiếp)',
-    defaultText: 'Tàu đã đến bến {Bến hiện tại}. Tàu sẽ dừng 3 giây để quý khách lên xuống.',
+    defaultText: 'Tàu đã đến bến {Bến hiện tại}. Tàu dừng tại bến để quý khách lên xuống.',
   },
   {
     id: 'arrived_final',

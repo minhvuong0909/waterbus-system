@@ -269,40 +269,26 @@ export default function AudioGuidesPage() {
   const [previews, setPreviews] = useState<Record<string, Preview>>({})
 
   // Cấu hình thời gian toàn chuyến từ bộ mô phỏng (từ bến đầu đến bến cuối)
-  const [simConfig, setSimConfig] = useState<StopAnnouncementConfig>({
-    segmentDurationSeconds: 180,
-    dwellTimeSeconds: 5,
-    nearThreshold: 0.8,
-    useSimulatedSegmentDuration: true,
-  })
+  const [simConfig, setSimConfig] = useState<StopAnnouncementConfig | null>(null)
 
   useEffect(() => {
     getSimulatorConfig().then(setSimConfig).catch(() => {})
   }, [])
 
-  // Tính toán giới hạn thời lượng và số ký tự động theo thời lượng toàn chuyến
-  // Tuyến tiêu chuẩn 5 bến có 4 chặng di chuyển -> thời gian mỗi chặng = tổng thời lượng chuyến / 4
-  const tripDuration = simConfig.segmentDurationSeconds || 180
-  const estimatedSegments = 4
-  const segmentDuration = Math.max(5, Math.round(tripDuration / estimatedSegments))
-  const nearThreshold = simConfig.nearThreshold || 0.8
-  const maxAudioSeconds = Math.max(5, Math.floor(segmentDuration * nearThreshold - 5))
-  const maxCharacters = maxAudioSeconds * 14
+  // Ngân sách thời gian do BE dựng là nguồn giới hạn duy nhất cho độ dài thuyết minh.
+  const budget = simConfig?.budget
+  const maxAudioSeconds = budget ? Math.max(1, Math.floor(budget.maxNarrationSeconds)) : 1
+  const maxCharacters = budget ? Math.max(1, budget.maxNarrationCharacters) : 1
+  const segmentDuration = budget ? Math.round(budget.segmentMovingSeconds) : 0
 
   // Object URLs keep the MP3 in memory: release them when the page closes.
   const urls = useRef<string[]>([])
   useEffect(() => () => urls.current.forEach((url) => URL.revokeObjectURL(url)), [])
 
-  useEffect(() => {
-    if (!selectedId && pois.data && pois.data.length > 0) {
-      setSelectedId(pois.data[0].poiId)
-    }
-  }, [pois.data, selectedId])
-
   if (pois.error) return <ErrorState onRetry={pois.retry} />
   if (!pois.data) return <PageLoader />
 
-  const selected = pois.data.find((p) => p.poiId === selectedId)
+  const selected = pois.data.find((p) => p.poiId === selectedId) ?? pois.data[0]
 
   const savePreview = (poiId: string, preview: Preview) => {
     setPreviews((current) => {
