@@ -1,10 +1,11 @@
 namespace WaterbusSystem.Application.DTOs.Requests.SightseeingAudio;
 
 /// <summary>
-/// Yêu cầu cập nhật cấu hình bộ mô phỏng thông báo bến (các trường null sẽ giữ nguyên cấu hình cũ).
+/// Yêu cầu cập nhật cấu hình thời gian chuyến và ngưỡng báo hiệu bến.
+/// Các trường null giữ nguyên cấu hình hiện tại.
 /// </summary>
 public sealed record UpdateStopAnnouncementRequest(
-    double? SegmentDurationSeconds,
+    double? TripDurationSeconds,
     double? DwellTimeSeconds,
     double? NearThreshold,
     bool? UseSimulatedSegmentDuration);

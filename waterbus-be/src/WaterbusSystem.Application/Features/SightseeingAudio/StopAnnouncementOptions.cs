@@ -1,33 +1,62 @@
 namespace WaterbusSystem.Application.Features.SightseeingAudio;
 
 /// <summary>
-/// Cấu hình thuật toán báo hiệu bến (gần bến / đã tới bến) cho cả hai loại chuyến.
-/// Có thể thay đổi khi demo mà không cần restart (IOptionsMonitor).
+/// Cấu hình thời gian chạy chuyến và ngưỡng báo hiệu bến, dùng cho cả Commuter lẫn Sightseeing.
+/// Đọc lại được khi đang chạy (IOptionsMonitor) nên Admin đổi cấu hình không cần restart.
+/// Các trường "Seconds" là thời lượng dành sẵn để dựng ngân sách thời gian của một chặng.
 /// </summary>
 public sealed class StopAnnouncementOptions
 {
     public const string SectionName = "StopAnnouncement";
 
     /// <summary>
-    /// Thời gian giả lập toàn bộ chuyến đi từ bến đầu đến bến cuối (giây). Mặc định 180s (3 phút) cho demo, đổi được từ UI.
-    /// Hệ thống sẽ tự động chia đều thời gian cho các chặng giữa các bến trong chuyến.
-    /// Chỉ có tác dụng khi <see cref="UseSimulatedSegmentDuration"/> = true.
+    /// Tổng thời gian một chuyến đi từ bến đầu đến bến cuối (giây), bao gồm cả thời gian đậu tại các bến.
+    /// Hệ thống chia đều cho các chặng. Chỉ dùng khi <see cref="UseSimulatedSegmentDuration"/> = true.
     /// </summary>
-    public double SegmentDurationSeconds { get; set; } = 180;
+    public double TripDurationSeconds { get; set; } = 180;
 
     /// <summary>
-    /// Dừng lại tại bến (giây) trước khi bắt đầu đoạn tiếp theo. Mặc định 3s.
+    /// Thời gian đậu tại mỗi bến (giây), tính trong <see cref="TripDurationSeconds"/>.
+    /// Phải đủ dài để phát trọn thông báo cập bến.
     /// </summary>
-    public double DwellTimeSeconds { get; set; } = 3;
+    public double DwellTimeSeconds { get; set; } = 6;
 
     /// <summary>
-    /// Ngưỡng (0.0–1.0) để phát thông báo "gần tới bến". Mặc định 0.8 (80%).
+    /// Ngưỡng tiến độ trong chặng (0.0–1.0) để phát thông báo "gần tới bến".
     /// </summary>
-    public double NearThreshold { get; set; } = 0.8;
+    public double NearThreshold { get; set; } = 0.75;
 
     /// <summary>
-    /// Dùng SegmentDurationSeconds thay vì thời gian chuyến thực từ DB (chế độ demo).
-    /// Nếu false: tính progress từ tổng thời gian thực của chuyến (production).
+    /// Dùng <see cref="TripDurationSeconds"/> thay vì thời gian chuyến thực tế trong CSDL.
     /// </summary>
     public bool UseSimulatedSegmentDuration { get; set; } = true;
+
+    /// <summary>
+    /// Số chặng dùng để dựng ngân sách khi CSDL chưa có tuyến nào. Khi đã có tuyến,
+    /// hệ thống lấy số chặng lớn nhất trong các tuyến đang hoạt động.
+    /// </summary>
+    public int EstimatedSegmentCount { get; set; } = 4;
+
+    /// <summary>Thời lượng dành sẵn cho câu thông báo rời bến.</summary>
+    public double DepartingAnnouncementSeconds { get; set; } = 5;
+
+    /// <summary>Thời lượng dành sẵn cho câu thông báo gần tới bến.</summary>
+    public double NearAnnouncementSeconds { get; set; } = 4;
+
+    /// <summary>Thời lượng dành sẵn cho câu thông báo cập bến.</summary>
+    public double ArrivedAnnouncementSeconds { get; set; } = 4;
+
+    /// <summary>Khoảng đệm bắt buộc giữa hai câu liên tiếp để không bị cắt tiếng.</summary>
+    public double SafetyGapSeconds { get; set; } = 1;
+
+    /// <summary>
+    /// Thời lượng tối đa của một bài thuyết minh địa danh theo chính sách (giây).
+    /// Một bài thuyết minh dài hơn ngân sách thời gian của chặng sẽ không được publish.
+    /// </summary>
+    public double MaxNarrationSeconds { get; set; } = 10;
+
+    /// <summary>Số ký tự trung bình một giây khi đọc tiếng Việt, dùng quy đổi ra giới hạn ký tự.</summary>
+    public double NarrationCharactersPerSecond { get; set; } = 14;
+
+    public StopAnnouncementOptions Clone() => (StopAnnouncementOptions)MemberwiseClone();
 }
