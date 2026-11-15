@@ -257,7 +257,15 @@ public static class DependencyInjection
         services.Configure<SightseeingAudioOptions>(configuration.GetSection(SightseeingAudioOptions.SectionName));
         // Stop Announcement: báo gần bến / đã tới bến (cả Commuter lẫn Sightseeing)
         services.Configure<StopAnnouncementOptions>(configuration.GetSection(StopAnnouncementOptions.SectionName));
-        services.AddSingleton<IStopAnnouncementAdminService, WaterbusSystem.Application.Features.SightseeingAudio.Services.StopAnnouncementAdminService>();
+        services.AddSingleton<IStopAnnouncementConfigStore>(provider =>
+        {
+            var options = new StopAnnouncementOptions();
+            configuration.GetSection(StopAnnouncementOptions.SectionName).Bind(options);
+            return new WaterbusSystem.Infrastructure.Services.SightseeingAudio.StopAnnouncementConfigStore(options);
+        });
+        services.AddScoped<IStopAnnouncementAdminService, WaterbusSystem.Application.Features.SightseeingAudio.Services.StopAnnouncementAdminService>();
+        services.AddSingleton<IStopAnnouncementEmissionGuard, WaterbusSystem.Infrastructure.Services.SightseeingAudio.InMemoryStopAnnouncementEmissionGuard>();
+        services.AddScoped<IStopAnnouncementService, WaterbusSystem.Application.Features.SightseeingAudio.Services.StopAnnouncementService>();
         services.AddScoped<IPoiTriggerDeduplicationService, SqlPoiTriggerDeduplicationService>();
         services.AddScoped<IAudioPlaybackRepository, AudioPlaybackRepository>();
         services.AddScoped<IOnboardAudioService, OnboardAudioService>();
