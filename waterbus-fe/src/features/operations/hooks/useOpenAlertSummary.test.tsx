@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { WeatherAlert } from '../types'
+import type { IncidentAlert } from '../types'
 import { getOpenIncidents } from '../services/operationsService'
 import { useFleetHub } from './useFleetHub'
 import { useOpenAlertSummary } from './useOpenAlertSummary'
@@ -8,8 +8,8 @@ import { useOpenAlertSummary } from './useOpenAlertSummary'
 vi.mock('../services/operationsService')
 vi.mock('./useFleetHub', () => ({ useFleetHub: vi.fn(() => 'live') }))
 
-const alert = (id: string, level: 1 | 2, pendingDecisionCount?: number): WeatherAlert => ({
-  id, level, message: 'Gió mạnh', issuedAt: '2026-11-13T10:00:00Z', pendingDecisionCount,
+const alert = (id: string, level: 1 | 2, pendingDecisionCount?: number): IncidentAlert => ({
+  id, level, message: 'Cháy động cơ', issuedAt: '2026-11-13T10:00:00Z', pendingDecisionCount,
 })
 
 beforeEach(() => {
@@ -45,17 +45,18 @@ describe('useOpenAlertSummary', () => {
     expect(vi.mocked(useFleetHub).mock.calls[0][1]).toBe(false)             // và không mở kết nối realtime
   })
 
-  it('reloads when the hub pushes a weather alert, an emergency, a status change or a reconnect', async () => {
+  it('reloads when the hub pushes an emergency report, a status change or a reconnect', async () => {
     vi.mocked(getOpenIncidents).mockResolvedValue([])
     renderHook(() => useOpenAlertSummary(true))
     await waitFor(() => expect(getOpenIncidents).toHaveBeenCalledTimes(1))
     const handlers = vi.mocked(useFleetHub).mock.calls.at(-1)![0]
 
     vi.mocked(getOpenIncidents).mockResolvedValue([alert('new', 1, 1)])
-    act(() => handlers.onAlert?.({} as never))
+    act(() => handlers.onIncident?.({} as never)) // sự kiện incidentRaised (SOS)
 
     await waitFor(() => expect(getOpenIncidents).toHaveBeenCalledTimes(2))
     for (const key of ['onIncident', 'onTripStatus', 'onReconnected'] as const) expect(handlers[key]).toBeTypeOf('function')
+    expect(handlers).not.toHaveProperty('onAlert') // không còn listener weatherAlert
   })
 
   it('polls every minute as a safety net', async () => {

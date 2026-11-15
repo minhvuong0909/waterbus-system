@@ -141,9 +141,9 @@ describe('getOpenIncidents', () => {
   })
 
   it('maps severity and kind from one list call, without loading any detail', async () => {
-    fetchMock.mockResolvedValue(json({ items: [summary({ pendingDecisionCount: 1 }), summary({ id: 'i2', severity: 'Medium', incidentType: 'Weather' })], totalCount: 2 }))
+    fetchMock.mockResolvedValue(json({ items: [summary({ pendingDecisionCount: 1 }), summary({ id: 'i2', severity: 'Medium', incidentType: 'Technical' })], totalCount: 2 }))
     const alerts = await getOpenIncidents()
-    expect(alerts.map((a) => [a.level, a.kind])).toEqual([[2, 'Safety'], [1, 'Weather']])
+    expect(alerts.map((a) => [a.level, a.kind])).toEqual([[2, 'Safety'], [1, 'Technical']])
     expect(alerts[0].pendingDecisionCount).toBe(1)
     expect(alerts[0].trips).toBeUndefined()
     expect(fetchMock).toHaveBeenCalledTimes(1)

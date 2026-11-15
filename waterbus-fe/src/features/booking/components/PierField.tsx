@@ -1,3 +1,4 @@
+import { REQUIRED_LABEL_CLASS } from '../../../components/ui/styles'
 import { Icon } from '../../../components/ui'
 import { usePopoverList } from '../../../hooks/usePopoverList'
 import type { PierOption } from '../../trips/types'
@@ -39,7 +40,7 @@ export default function PierField({
         <span className="mb-1 flex w-full items-center justify-between">
           <span className="flex items-center gap-1.5 text-2xs font-bold uppercase tracking-wider text-on-surface-variant">
             <span className={`h-2 w-2 rounded-full ${dotClass}`} />
-            {label}
+            <span className={REQUIRED_LABEL_CLASS}>{label}</span>
           </span>
           <Icon
             name="expand_more"

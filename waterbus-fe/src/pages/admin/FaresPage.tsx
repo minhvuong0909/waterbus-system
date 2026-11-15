@@ -137,6 +137,7 @@ export default function FaresPage() {
         <Modal title={dialog.rule ? 'Edit fare' : 'Add fare'} onClose={() => setDialog(null)}>
           <FareRuleForm
             rule={dialog.rule}
+            rules={rules.data ?? []}
             seatClasses={seatClasses.data}
             onDone={closeAndReload}
             onCancel={() => setDialog(null)}

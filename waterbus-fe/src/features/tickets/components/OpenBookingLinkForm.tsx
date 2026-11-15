@@ -29,6 +29,7 @@ export default function OpenBookingLinkForm() {
       <div className="flex-1">
         <TextField
           label="Booking link"
+          required
           hint="The link shown on the confirmation page after payment."
           placeholder={t('Paste your booking link')}
           value={value}

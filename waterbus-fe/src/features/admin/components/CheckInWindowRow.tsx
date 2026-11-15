@@ -5,6 +5,7 @@ import { t } from '../../../i18n'
 import { formatClock, fromVietnamDateTimeInput, toVietnamDateTimeInput } from '../../../utils/time'
 import type { TripStopDto } from '../../trips/types'
 import { useSubmit } from '../../../hooks'
+import { hasSaneYear } from '../../../utils/inputRules'
 import type { CheckInWindow } from '../services/checkInService'
 import { setCheckInWindow } from '../services/checkInService'
 
@@ -29,7 +30,7 @@ export default function CheckInWindowRow({ stop, onSaved, onAssign }: {
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setSaved(false)
-    if (!openAt || !closeAt) return setInvalid(t('Enter both times.'))
+    if (!hasSaneYear(openAt) || !hasSaneYear(closeAt)) return setInvalid(t('Enter both times.'))
     if (closeAt <= openAt) return setInvalid(t('Check-in must close after it opens.'))
     // Check-in diễn ra ở khu chờ trước khi tàu rời bến này (BR-BOARD-01/05), nên không được đóng muộn hơn.
     if (departure && Date.parse(fromVietnamDateTimeInput(closeAt)) > Date.parse(departure)) {
@@ -55,10 +56,10 @@ export default function CheckInWindowRow({ stop, onSaved, onAssign }: {
         </p>
       </div>
       <div className="md:col-span-2">
-        <TextField label="Opens" type="datetime-local" value={openAt} disabled={locked} onChange={(e) => setOpenAt(e.target.value)} />
+        <TextField label="Opens" required type="datetime-local" value={openAt} disabled={locked} onChange={(e) => setOpenAt(e.target.value)} />
       </div>
       <div className="md:col-span-2">
-        <TextField label="Closes" type="datetime-local" value={closeAt} disabled={locked} onChange={(e) => setCloseAt(e.target.value)} />
+        <TextField label="Closes" required type="datetime-local" value={closeAt} disabled={locked} onChange={(e) => setCloseAt(e.target.value)} />
       </div>
       <div className="flex flex-wrap items-center gap-2 md:col-span-5">
         <Button type="submit" size="sm" icon="save" disabled={locked || busy}>

@@ -17,3 +17,6 @@ export const INPUT_CLASS =
 
 /** Ô đánh dấu (checkbox) của khu điều hành. */
 export const CHECKBOX_CLASS = 'h-4 w-4 rounded border-outline-variant/70 text-teal-flow focus:ring-teal-flow'
+
+/** Thêm vào nhãn của ô bắt buộc: hiện dấu (*) bằng CSS nên không lẫn vào chữ của nhãn. */
+export const REQUIRED_LABEL_CLASS = "after:ml-0.5 after:text-coral-glow after:content-['*']"

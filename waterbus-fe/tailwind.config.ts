@@ -54,6 +54,15 @@ const config: Config = {
         /** Primary call to action. */
         glow: '0 2px 12px rgba(20, 122, 126, 0.25)',
       },
+      keyframes: {
+        'hero-copy-enter': {
+          from: { opacity: '0', transform: 'translateY(12px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'hero-copy-enter': 'hero-copy-enter 600ms cubic-bezier(0.22, 1, 0.36, 1) both',
+      },
       spacing: {
         'space-3xl': '64px',
         'space-sm': '8px',

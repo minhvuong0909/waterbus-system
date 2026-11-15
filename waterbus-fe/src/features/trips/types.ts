@@ -134,6 +134,11 @@ export interface Trip {
    * bến là một (chuyến vòng, BR-ROUTE-06). Chuyến thường không có trường này.
    */
   tour?: { originId: string; destinationId: string; originName: string; destinationName: string }
+  /**
+   * Hai đầu của cả chuyến (điểm dừng đầu và cuối), để khách thấy chặng mình mua nằm trong chuyến nào: giờ
+   * khởi hành/đến trên thẻ là giờ của cả chuyến, không phải giờ riêng của chặng.
+   */
+  route?: { originId: string; destinationId: string; originName: string; destinationName: string }
 }
 
 export interface TimelineStep {

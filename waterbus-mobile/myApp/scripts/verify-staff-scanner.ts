@@ -7,6 +7,9 @@
  * 4. Idempotent Batch Sync with UUID Deduplication (BR-OFF-03)
  */
 
+import { scannerCredentials } from '../src/services/checkin/scannerCredentials';
+import { AUTH_TOKEN_KEY } from '../src/services/api/apiClient';
+import { setSecureItem } from '../src/services/auth/secureStorage';
 import crypto from 'crypto';
 import { QrVerifier, DEFAULT_KEY_INFO } from '../src/services/crypto/qrVerifier';
 import { SqliteRepository } from '../src/services/sqlite/sqliteRepository';
@@ -324,9 +327,11 @@ async function runVerification() {
       bookingId: loadedBooking.id,
       tripId: loadedBooking.tripId,
       tripStopCallId: 'TSC-TEST-001',
-      staffAccountId: 'STAFF-TUAN-004',
+      staffAccountId: 'staff-test',
       staffName: 'Nguyễn Văn Tuấn',
-      scannerDeviceId: 'DEV-STAFF-TUAN-01',
+      scannerDeviceId: 'device-test',
+      scannerEnrollmentId: 'enrollment-test',
+      offlineGrantId: 'grant-test',
       notes: 'Check-in tại cửa bến Bạch Đằng',
     });
 
@@ -365,7 +370,19 @@ async function runVerification() {
   // bao giờ tới được backend mà Staff không biết).
   console.log('\n📦 TEST GROUP 4: Batch Sync Fails Safe When Backend Unreachable (BR-OFF-03)');
 
+  const identity = { deviceId: 'device-test', enrollmentId: 'enrollment-test', deviceCode: 'TEST',
+    stationId: 'station-test', stationName: 'Test Station' };
+  const payload = Buffer.from(JSON.stringify({ sub: 'staff-test', exp: Math.floor(Date.now() / 1000) + 3600 })).toString('base64url');
+  await setSecureItem(AUTH_TOKEN_KEY, 'test.' + payload + '.test');
+  await scannerCredentials.save(identity, 'synthetic-test-credential');
+  syncService.setDeviceInfo({ ...identity, staffId: 'staff-test' });
   const pendingEventsBefore = await SqliteRepository.getPendingEvents();
+  const originalFetch = globalThis.fetch;
+  let syncAttempted = false;
+  globalThis.fetch = async (_url, options) => {
+    syncAttempted = new Headers(options?.headers).get('X-Scanner-Credential') === 'synthetic-test-credential';
+    throw new Error('Synthetic network failure');
+  };
   assert(
     pendingEventsBefore.length >= 2,
     '4.1 Pending offline check-in events queued in SQLite for batch sync',
@@ -374,6 +391,8 @@ async function runVerification() {
 
   // Trigger batch sync - không có backend thật nên phải thất bại, không được fake thành công.
   const syncResult = await syncService.triggerBatchSync();
+  globalThis.fetch = originalFetch;
+  assert(syncAttempted, '4.0 Sync sends the paired scanner credential');
   assert(
     syncResult.syncedCount === 0,
     '4.2 Batch sync worker does NOT fake success when the server is unreachable',
@@ -399,20 +418,28 @@ async function runVerification() {
   const remaining = localBooking.tickets.find((ticket) => ticket.boardingStatus === 'NotCheckedIn');
   if (!remaining) throw new Error('Thiếu vé test chưa check-in.');
   syncService.setDeviceInfo({ stationId: 'stop-test', staffId: 'staff-test', forceOfflineMode: true });
-  useScannerStore.setState({ currentBooking: localBooking, activeAssignment: null });
+  useScannerStore.setState({ currentBooking: localBooking, activeAssignment: null, verificationResult: {
+    isValid: true, publicBookingId: localBooking.publicBookingId,
+    version: localBooking.qrCredentialVersion, tripId: localBooking.tripId, verifiedOffline: true,
+  } });
   assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
     '5.1 Reject check-in without a preloaded assignment');
   const assignment: MyScannerAssignment = {
     assignmentId: 'assignment-test', tripStopCallId: 'stop-test', tripId: localBooking.tripId,
     routeName: 'Test', stationName: 'Test', visitOrder: 1, tripStatus: 'Boarding', estimatedArrivalTime: null,
     deviceId: 'device-test', deviceCode: 'TEST', isPrimaryOffline: true,
-    activeFrom: new Date(Date.now() - 60000).toISOString(), activeUntil: null,
+    activeFrom: new Date(Date.now() - 60000).toISOString(), activeUntil: new Date(Date.now() + 60000).toISOString(),
     checkInOpenAt: new Date(Date.now() - 60000).toISOString(), checkInCloseAt: new Date(Date.now() - 1).toISOString(),
   };
+  const grant = { id: 'grant-test', activeFrom: assignment.activeFrom, activeUntil: assignment.activeUntil! };
+  const saveContext = () => scannerCredentials.saveCache({ staffId: 'staff-test', enrollmentId: identity.enrollmentId,
+    assignment, grant, serverTime: Date.now(), deviceTime: Date.now() });
+  await saveContext();
   useScannerStore.setState({ activeAssignment: assignment });
   assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
     '5.2 Reject check-in after the stop window closes');
   assignment.checkInCloseAt = new Date(Date.now() + 60000).toISOString();
+  await saveContext();
   useScannerStore.setState({ activeAssignment: { ...assignment, isPrimaryOffline: false } });
   assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
     '5.3 Reject offline writes on a secondary scanner');
@@ -421,13 +448,18 @@ async function runVerification() {
     '5.4 Accept a valid ticket at its assigned stop inside the window');
   assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
     '5.5 Reject a second local check-in for the same ticket');
+  assert((await SqliteRepository.getPendingEvents(50, 'staff-other')).length === 0,
+    '5.6 Other staff cannot read this staff member’s pending queue');
+  await SqliteRepository.clearManifest();
+  const queued = await SqliteRepository.getPendingEvents(50, 'staff-test');
+  assert(queued.some((event) => event.ticketId === remaining.id && event.offlineGrantId === grant.id
+    && event.scannerEnrollmentId === identity.enrollmentId), '5.7 Cache clearing preserves pending enrollment evidence');
 
   // -------------------------------------------------------------
   // FINAL SUMMARY
   // -------------------------------------------------------------
   console.log('\n================================================================');
-  console.log(`🎯 VERIFICATION SUMMARY: ${passedTests}/${totalTests} TESTS PASSED (100%)`);
-  console.log('   All Member 4 (Tuấn - Staff Scanner) requirements verified successfully!');
+  console.log(`🎯 VERIFICATION SUMMARY: ${passedTests}/${totalTests} tests passed`);
   console.log('================================================================\n');
 
   if (passedTests === totalTests) {

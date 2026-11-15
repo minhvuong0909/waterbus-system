@@ -1,3 +1,4 @@
+import { REQUIRED_LABEL_CLASS } from '../../../components/ui/styles'
 import { t } from '../../../i18n'
 import { WEEK_DAYS, dayName } from '../utils/scheduleDays'
 
@@ -13,7 +14,9 @@ export default function DayPicker({
 }) {
   return (
     <fieldset>
-      <legend className="mb-1 text-xs font-semibold text-on-surface-variant">{t('Operating days')}</legend>
+      <legend className={`mb-1 text-xs font-semibold text-on-surface-variant ${REQUIRED_LABEL_CLASS}`}>
+        {t('Operating days')}
+      </legend>
       <div className="flex flex-wrap gap-1.5">
         {WEEK_DAYS.map((day) => {
           const on = days.includes(day)

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { BackToTop } from '../components/motion'
 import AssistantWidget from '../features/assistant/components/AssistantWidget'
 import { t } from '../i18n'
 import Footer from './footer/Footer'
@@ -24,6 +25,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
       </main>
       <Footer />
       <div aria-hidden className="h-20 bg-white sm:hidden print:hidden" />
+      <BackToTop />
       <AssistantWidget />
     </div>
   )

@@ -26,7 +26,7 @@ afterEach(() => {
 
 describe('FareRuleForm', () => {
   it('sends the original start of a fare in effect so only its end changes', async () => {
-    render(<FareRuleForm rule={rule} seatClasses={[]} onDone={() => {}} onCancel={() => {}} />)
+    render(<FareRuleForm rule={rule} rules={[]} seatClasses={[]} onDone={() => {}} onCancel={() => {}} />)
     fireEvent.change(screen.getByLabelText(/^Ends/), { target: { value: '2030-01-01T10:00' } })
     fireEvent.click(screen.getByRole('button', { name: /^Save/ }))
     await waitFor(() => expect(fetchMock).toHaveBeenCalled())
@@ -35,19 +35,45 @@ describe('FareRuleForm', () => {
 
   it('refuses to extend or clear the end of a fare in effect', () => {
     const ending = { ...rule, effectiveTo: '2027-01-01T03:00:00+00:00' }
-    render(<FareRuleForm rule={ending} seatClasses={[]} onDone={() => {}} onCancel={() => {}} />)
+    render(<FareRuleForm rule={ending} rules={[]} seatClasses={[]} onDone={() => {}} onCancel={() => {}} />)
     fireEvent.change(screen.getByLabelText(/^Ends/), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: /^Save/ }))
     expect(screen.getByText(/can only be brought earlier/i)).toBeTruthy()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('rejects a price with more than two decimals', () => {
-    render(<FareRuleForm seatClasses={[{ id: 'c1', name: 'Standard' } as never]} onDone={() => {}} onCancel={() => {}} />)
+  it('rejects a price with decimals, zero, or written with thousands dots', () => {
+    render(<FareRuleForm rules={[]} seatClasses={[{ id: 'c1', name: 'Standard' } as never]} onDone={() => {}} onCancel={() => {}} />)
     fireEvent.change(screen.getByLabelText(/^Price/), { target: { value: '10.005' } })
     fireEvent.change(screen.getByLabelText(/^Starts/), { target: { value: '2030-01-01T10:00' } })
     fireEvent.click(screen.getByRole('button', { name: /^Save/ }))
-    expect(screen.getByText(/at most 2 decimals/i)).toBeTruthy()
+    expect(screen.getByText(/whole number greater than 0/i)).toBeTruthy()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it.each(['0', '100.000', '1e5', '-5', ' '])('refuses the price %j', (price) => {
+    render(<FareRuleForm rules={[]} seatClasses={[{ id: 'c1', name: 'Standard' } as never]} onDone={() => {}} onCancel={() => {}} />)
+    fireEvent.change(screen.getByLabelText(/^Price/), { target: { value: price } })
+    fireEvent.change(screen.getByLabelText(/^Starts/), { target: { value: '2030-01-01T10:00' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Save/ }))
+    expect(screen.getByText(/whole number greater than 0/i)).toBeTruthy()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('refuses a second fare for the same trip type and seat class in an overlapping period (BR-FARE-01)', () => {
+    const existing = { ...rule, id: 'other', seatClassId: 'c1', effectiveFrom: '2030-01-01T00:00:00+07:00', effectiveTo: null }
+    render(
+      <FareRuleForm
+        rules={[existing]}
+        seatClasses={[{ id: 'c1', name: 'Standard' } as never]}
+        onDone={() => {}}
+        onCancel={() => {}}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText(/^Price/), { target: { value: '20000' } })
+    fireEvent.change(screen.getByLabelText(/^Starts/), { target: { value: '2031-01-01T10:00' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Save/ }))
+    expect(screen.getByText(/already in effect during this period/i)).toBeTruthy()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

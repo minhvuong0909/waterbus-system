@@ -42,6 +42,8 @@ export const ROUTES = {
   adminIncidents: '/admin/incidents',
   adminRefunds: '/admin/refunds',
   adminCheckIn: '/admin/check-in',
+  adminScanners: '/admin/scanners',
+  adminStaffShifts: '/admin/staff-shifts',
   adminAudioGuides: '/admin/audio-guides',
   captain: '/captain',
 } as const

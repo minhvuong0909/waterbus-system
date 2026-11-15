@@ -5,6 +5,6 @@ import { API_ENDPOINTS } from '../../constants/api';
 import { apiClient } from '../api/apiClient';
 import { CheckInEventSyncInput, SyncCheckInEventsResponse } from '../../types/checkin';
 
-export async function syncCheckInEvents(events: CheckInEventSyncInput[]): Promise<SyncCheckInEventsResponse> {
-  return apiClient.post<SyncCheckInEventsResponse>(API_ENDPOINTS.sync, { events });
+export async function syncCheckInEvents(events: CheckInEventSyncInput[], credential: string, staffId: string): Promise<SyncCheckInEventsResponse> {
+  return apiClient.post<SyncCheckInEventsResponse>(API_ENDPOINTS.sync, { events }, { scanner: credential, staffId });
 }

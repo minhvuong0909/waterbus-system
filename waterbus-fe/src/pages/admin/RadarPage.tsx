@@ -13,8 +13,9 @@ import {
   getOperationTrips,
   knotsToKmh,
 } from '../../features/operations/services/operationsService'
+import { useAutoRefresh } from '../../features/admin/hooks/useAutoRefresh'
 import { getStations } from '../../features/admin/services/stationService'
-import type { WeatherAlert } from '../../features/operations/types'
+import type { IncidentAlert } from '../../features/operations/types'
 import { riverPathOf } from '../../constant/riverPaths'
 import { SIGHTSEEING_POIS } from '../../constant/sightseeingPois'
 import { combineFetches, useDocumentTitle, useFetch, useNow, useReload } from '../../hooks'
@@ -30,7 +31,7 @@ import { formatClockWithSeconds, formatDateTime } from '../../utils/time'
 const ROUTE_CODE = 'RT01'
 
 /** Một cảnh báo: dải chi tiết. Nhiều cảnh báo: gộp thành một dải để không đẩy bản đồ ra khỏi màn hình. */
-function WeatherBanners({ alerts }: { alerts: WeatherAlert[] }) {
+function IncidentBanners({ alerts }: { alerts: IncidentAlert[] }) {
   if (alerts.length === 0) return null
   const sorted = sortAlerts(alerts)
   if (sorted.length === 1) {
@@ -129,9 +130,12 @@ export default function RadarPage() {
   const boats = useFetch(getBoats)
   const trips = useFetch(getOperationTrips, [tripVersion])
   const alerts = useFetch(() => getOpenIncidents(), [alertVersion])
-  const fleet = useLiveFleet(reloadAlerts)
+  // Báo khẩn cấp (incidentRaised), đổi trạng thái chuyến và kết nối lại đều tải lại danh sách sự cố qua REST;
+  // useAutoRefresh bên dưới là đường dự phòng có chặn nếu lỡ một lần đẩy.
+  const fleet = useLiveFleet({ onIncident: reloadAlerts, onTripStatus: reloadAlerts, onReconnected: reloadAlerts })
   // Chuyến đổi trạng thái (đón khách, xuất bến, tạm ngưng…) thì danh sách tàu đang phục vụ đổi theo.
   useFleetHub({ onTripStatus: reloadTrips, onReconnected: reloadTrips })
+  useAutoRefresh(() => { reloadAlerts(); reloadTrips() }, alerts.fetching || trips.fetching)
   const now = useNow(15_000) // tính lại nhãn "mất tín hiệu"
   const state = combineFetches(stations, boats, trips, alerts)
 
@@ -171,7 +175,7 @@ export default function RadarPage() {
   return (
     <>
       <PageHeader title="Live Operations" description="Boats on the Saigon River, updated as their GPS reports arrive." />
-      <WeatherBanners alerts={alerts.data} />
+      <IncidentBanners alerts={alerts.data} />
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="h-[78vh] min-h-[24rem] lg:col-span-2">
           <FleetMap stations={corridor} path={riverPathOf(ROUTE_CODE)} landmarks={SIGHTSEEING_POIS} boats={mapBoats} />

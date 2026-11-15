@@ -141,7 +141,7 @@ jobs:
           text = open(glob.glob("TestResults/**/test-results.trx", recursive=True)[0], encoding="utf-8").read()
           results = re.findall(r'<UnitTestResult[^>]*testName="([^"]+)"[^>]*outcome="([^"]+)"', text)
           gated = ("RedisCommercialTests", "CommercialSqlTests", "DomainPersistenceTests", "EmailOutboxSqlTests",
-                   "CheckInConcurrencySqlTests", "ScannerAssignmentMigrationSqlTests", "ScannerDeviceLockSqlTests",
+                   "CheckInConcurrencySqlTests", "ScannerAssignmentMigrationSqlTests", "ScannerDeviceLockSqlTests", "StationScannerSqlHttpTests", "StationScannerMigrationSqlTests",
                    "AccountAccessSqlHttpTests", "ApiReliabilitySqlHttpTests", "OnboardAudioPlaybackSqlTests",
                    "RefundDemoModeSqlHttpTests", "StationCoordinatesSqlTests", "CaptainSqlHttpTests",
                    "CaptainMigrationSqlTests", "SightseeingSqlTests")

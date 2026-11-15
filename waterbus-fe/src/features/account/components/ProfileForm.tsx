@@ -4,6 +4,7 @@ import { Button, ErrorState, PageLoader, TextField } from '../../../components/u
 import { useFetch } from '../../../hooks'
 import { t } from '../../../i18n'
 import { ApiError } from '../../../services/apiClient'
+import { isAccountPhone, isPersonName } from '../../../utils/inputRules'
 import { getProfile, updateProfile } from '../services/profileService'
 import type { Profile } from '../types'
 
@@ -14,13 +15,23 @@ function Editor({ profile }: { profile: Profile }) {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [showErrors, setShowErrors] = useState(false)
+  const errors = {
+    fullName: isPersonName(fullName) ? undefined : t('Please enter your full name.'),
+    phone: !phone.trim() || isAccountPhone(phone) ? undefined : t('Enter a valid phone number.'),
+  }
+
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    if (errors.fullName || errors.phone) {
+      setShowErrors(true)
+      return
+    }
     setBusy(true)
     setSaved(false)
     setError(null)
     try {
-      await updateProfile(fullName, phone)
+      await updateProfile(fullName.trim(), phone.trim())
       setSaved(true)
     } catch (err) {
       setError(
@@ -36,11 +47,11 @@ function Editor({ profile }: { profile: Profile }) {
   return (
     <form onSubmit={submit} className="flex flex-col gap-space-md rounded-2xl border border-outline-variant/40 bg-white p-space-xl shadow-sm" noValidate>
       <TextField label="Email address" value={profile.email} readOnly disabled hint={profile.emailConfirmed ? 'Verified' : 'Not verified'} />
-      <TextField label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" />
-      <TextField label="Phone number (optional)" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
+      <TextField label="Full name" required value={fullName} onChange={(e) => setFullName(e.target.value)} error={showErrors ? errors.fullName : undefined} maxLength={150} autoComplete="name" />
+      <TextField label="Phone number (optional)" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} error={showErrors ? errors.phone : undefined} maxLength={20} autoComplete="tel" />
       {error && <p role="alert" className="text-sm text-coral-glow">{error}</p>}
       {saved && <p role="status" className="text-sm text-on-surface-variant">{t('Saved.')}</p>}
-      <Button type="submit" variant="dark" disabled={busy || !fullName.trim()}>
+      <Button type="submit" variant="dark" disabled={busy}>
         {busy ? t('Saving…') : t('Save changes')}
       </Button>
     </form>

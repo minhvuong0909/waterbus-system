@@ -121,6 +121,16 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 
+    options.AddPolicy("ScannerPairingPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 12,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -133,6 +143,20 @@ builder.Services.AddRateLimiter(options =>
                 {
                     Status = StatusCodes.Status429TooManyRequests,
                     Title = "Quá nhiều yêu cầu tới trợ lý AI.",
+                    Detail = "Vui lòng thử lại sau một phút.",
+                    Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
+                },
+                options: null, contentType: "application/problem+json", cancellationToken: token);
+            return;
+        }
+        if (context.HttpContext.Request.Path.StartsWithSegments("/api/v1/scanner") ||
+            context.HttpContext.Request.Path.StartsWithSegments("/api/v1/admin/scanner-devices"))
+        {
+            await context.HttpContext.Response.WriteAsJsonAsync(
+                new ProblemDetails
+                {
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Title = "Quá nhiều yêu cầu ghép nối.",
                     Detail = "Vui lòng thử lại sau một phút.",
                     Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
                 },

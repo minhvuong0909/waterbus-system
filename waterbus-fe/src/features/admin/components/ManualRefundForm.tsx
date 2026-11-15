@@ -5,6 +5,7 @@ import { t } from '../../../i18n'
 import { formatVnd } from '../../../utils/format'
 import { formatDateTime } from '../../../utils/time'
 import { useSubmit } from '../../../hooks'
+import { parseDecimal } from '../../../utils/inputRules'
 import { confirmManualRefund } from '../services/refundService'
 import type { ManualRefundResult, RefundRequestResult } from '../types'
 
@@ -19,8 +20,15 @@ export default function ManualRefundForm({ refund }: { refund: RefundRequestResu
   const [done, setDone] = useState<ManualRefundResult | null>(null)
   const { run, busy, error } = useSubmit()
 
-  const confirmedAmount = Number(amount)
-  const valid = evidence.trim().length > 0 && Number.isFinite(confirmedAmount) && confirmedAmount > 0
+  const confirmedAmount = parseDecimal(amount, 0.01, 9_999_999_999.99, 2)
+  // Backend chỉ nhận đúng số tiền của khoản hoàn.
+  const amountError =
+    confirmedAmount === null
+      ? t('Enter the amount in VND.')
+      : confirmedAmount !== refund.amount
+        ? t('The amount must equal the refund: {amount}.', { amount: formatVnd(refund.amount) })
+        : undefined
+  const valid = evidence.trim().length > 0 && !amountError
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!valid) return
@@ -29,7 +37,7 @@ export default function ManualRefundForm({ refund }: { refund: RefundRequestResu
         refundTransactionId: refund.refundTransactionId,
         evidence: evidence.trim(),
         gatewayReference: reference.trim() || null,
-        confirmedAmount,
+        confirmedAmount: confirmedAmount as number,
       }),
     )
     if (confirmed) setDone(confirmed)
@@ -63,14 +71,14 @@ export default function ManualRefundForm({ refund }: { refund: RefundRequestResu
           placeholder={t('e.g. bank transfer slip number')}
           value={evidence}
           onChange={(e) => setEvidence(e.target.value)}
+          maxLength={500}
           required
         />
         <TextField label="Gateway reference" value={reference} onChange={(e) => setReference(e.target.value)} />
         <TextField
           label="Amount refunded (VND)"
-          type="number"
-          min={0}
-          inputMode="numeric"
+          inputMode="decimal"
+          error={amount !== String(refund.amount) ? amountError : undefined}
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           required

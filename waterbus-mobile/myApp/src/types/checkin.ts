@@ -68,6 +68,13 @@ export interface ScannerManifestResponse {
   trip: ManifestTripResponse;
   bookings: ManifestBookingResponse[];
   generatedAt: string;
+  offlineGrant?: ScannerOfflineGrant | null;
+}
+
+export interface ScannerOfflineGrant {
+  id: string;
+  activeFrom: string;
+  activeUntil: string;
 }
 
 /** Khớp CheckInEventInput (POST /api/v1/checkins/sync). */
@@ -77,6 +84,7 @@ export interface CheckInEventSyncInput {
   clientEventId: string;
   occurredAtDevice: string;
   note?: string | null;
+  offlineGrantId?: string;
 }
 
 /** Khớp CheckInEventSyncResult. */

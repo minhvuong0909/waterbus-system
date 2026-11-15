@@ -3,24 +3,12 @@ import { Button, ErrorState, Icon } from '../../../components/ui'
 import { CHECKBOX_CLASS, INSET_CLASS } from '../../../components/ui/styles'
 import { t } from '../../../i18n'
 import { useFetch } from '../../../hooks'
-import { alertMetrics, alertNote, alertTone, commonDecisions, decisionOperation, formatKmh, isCaptainReport, isStandardNote, timeAgo, titleOf } from '../utils/alertUtils'
+import { alertTone, commonDecisions, decisionOperation, isCaptainReport, timeAgo, titleOf } from '../utils/alertUtils'
 import { getIncidentTrips } from '../../operations/services/operationsService'
-import type { AdminTrip, AlertTrip, OperationType, WeatherAlert } from '../../operations/types'
+import type { AdminTrip, AlertTrip, IncidentAlert, OperationType } from '../../operations/types'
 import { formatDateTime } from '../../../utils/time'
 import { OPERATION_LABEL } from '../../operations/utils'
 import TripStatusBadge from '../../trips/components/TripStatusBadge'
-
-/** Gió, gió giật và trời của một cảnh báo thời tiết. Không hiện gì khi không đọc được. */
-function AlertMetricsRow({ alert }: { alert: WeatherAlert }) {
-  const { condition, windKmh, gustKmh } = alertMetrics(alert)
-  if (condition === undefined && windKmh === undefined && gustKmh === undefined) return null
-  const parts = [
-    windKmh !== undefined ? `${t('Wind')} ${formatKmh(windKmh)}` : null,
-    gustKmh !== undefined ? `${t('Gusts')} ${formatKmh(gustKmh)}` : null,
-    condition ?? null,
-  ].filter(Boolean)
-  return <p className="mt-3 text-sm font-semibold text-deep-river">{parts.join(' · ')}</p>
-}
 
 /** "Đã quyết định 1/20 chuyến" kèm thanh tiến độ, theo số đếm của danh sách sự cố. */
 function DecisionProgress({ total, pending }: { total: number; pending: number }) {
@@ -75,7 +63,7 @@ function AlertTrips({
   version,
   onDecide,
 }: {
-  alert: WeatherAlert
+  alert: IncidentAlert
   trips: AdminTrip[]
   version: number
   onDecide: (trips: AdminTrip[], type: OperationType, incidentId: string) => void
@@ -189,17 +177,16 @@ export default function AlertCard({
   onDecide,
   onClose,
 }: {
-  alert: WeatherAlert
+  alert: IncidentAlert
   /** Chuyến trong danh sách vận hành, để biết còn làm được gì với từng chuyến. */
   trips: AdminTrip[]
   /** Đổi khi cần tải lại danh sách chuyến của sự cố (sau một quyết định, hoặc khi hub báo thay đổi). */
   version: number
   onDecide: (trips: AdminTrip[], type: OperationType, incidentId: string) => void
-  onClose: (alert: WeatherAlert) => void
+  onClose: (alert: IncidentAlert) => void
 }) {
   const [open, setOpen] = useState(isCaptainReport(alert))
   const tone = alertTone(alert)
-  const note = alertNote(t(alert.message))
   const total = alert.affectedTripCount ?? 0
   const pending = alert.pendingDecisionCount ?? 0
   const listId = `alert-trips-${alert.id}`
@@ -226,7 +213,7 @@ export default function AlertCard({
           </div>
           <h3 className="mt-1 font-display text-base font-bold text-deep-river">{titleOf(alert)}</h3>
           <p className="text-xs text-on-surface-variant">
-            {isCaptainReport(alert) ? t('Reported by the captain') : t('Raised by the weather check')}
+            {isCaptainReport(alert) ? t('Reported by the captain') : t('Reported by operations')}
           </p>
         </div>
         <Button size="sm" variant="neutral" icon="close" onClick={() => onClose(alert)}>
@@ -234,8 +221,7 @@ export default function AlertCard({
         </Button>
       </div>
 
-      <AlertMetricsRow alert={alert} />
-      {note && !isStandardNote(note) && <p className="mt-3 text-sm text-on-surface-variant">{note}</p>}
+      {alert.message && <p className="mt-3 text-sm text-on-surface-variant">{alert.message}</p>}
       <DecisionProgress total={total} pending={pending} />
 
       {total > 0 && (

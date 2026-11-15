@@ -1,4 +1,6 @@
+import { CountUp } from '../../../components/motion'
 import { t } from '../../../i18n'
+import SightseeingCta from '../../explore/components/SightseeingCta'
 import HeroSearch from './HeroSearch'
 import HeroVideo from './HeroVideo'
 
@@ -40,12 +42,17 @@ export default function HeroSection({ facts }: { facts: HeroFact[] }) {
           <dl className="mt-8 flex flex-wrap gap-x-8 gap-y-4">
             {facts.map((fact) => (
               <div key={fact.label} className="border-l-2 border-sky-aqua/70 pl-4">
-                <dd className="font-display text-2xl font-bold leading-tight">{fact.value}</dd>
+                <dd className="font-display text-2xl font-bold leading-tight">
+                  <CountUp value={fact.value} />
+                </dd>
                 <dt className="mt-0.5 text-xs text-white/80">{fact.label}</dt>
               </div>
             ))}
           </dl>
         )}
+        <div className="mt-8">
+          <SightseeingCta />
+        </div>
       </div>
 
       <div className="mx-auto w-full max-w-7xl px-5 pb-8 sm:px-8">

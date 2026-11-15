@@ -5,7 +5,7 @@ import { ROUTES } from '../../../routes/routes'
 import type { OpenAlertSummary } from '../hooks/useOpenAlertSummary'
 
 /**
- * Strip shown at the top of every admin page while alerts are open, so the admin sees a weather or emergency alert
+ * Strip shown at the top of every admin page while alerts are open, so the admin sees a emergency report or other incident
  * without opening the Incidents page. Hidden on that page itself, which lists the same alerts in full.
  */
 export default function AdminAlertBar({ summary, pathname }: { summary: OpenAlertSummary | null; pathname: string }) {

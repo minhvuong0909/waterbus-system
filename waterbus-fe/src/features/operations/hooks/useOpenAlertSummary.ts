@@ -11,18 +11,18 @@ export interface OpenAlertSummary {
   level: 1 | 2
 }
 
-/** The backend checks the weather on a schedule; this is only the safety net should a push be missed. */
+/** Safety net only: the hub pushes incidents as they happen, this REST refresh covers a missed push. */
 const POLL_MS = 60_000
 
 /**
  * Open alerts of the whole fleet, kept current for an admin on ANY page: a REST snapshot, a refresh on every push
- * (weather alert, emergency, trip status change, reconnect) and a slow poll. Null until the first load, when the
+ * (emergency report, trip status change, reconnect) and a slow poll. Null until the first load, when the
  * list cannot be read, and when nothing is open.
  */
 export function useOpenAlertSummary(enabled: boolean): OpenAlertSummary | null {
   const [version, reload] = useReload()
   const alerts = useFetch(() => (enabled ? getOpenIncidents() : Promise.resolve([])), [enabled, version])
-  useFleetHub({ onAlert: reload, onIncident: reload, onTripStatus: reload, onReconnected: reload }, enabled)
+  useFleetHub({ onIncident: reload, onTripStatus: reload, onReconnected: reload }, enabled)
 
   useEffect(() => {
     if (!enabled) return

@@ -926,6 +926,16 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("ReceivedAtServer")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset?>("ReviewedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ReviewedByAccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
@@ -933,6 +943,12 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .HasColumnType("rowversion");
 
                     b.Property<Guid?>("ScannerDeviceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ScannerEnrollmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ScannerOfflineGrantId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("StaffAccountId")
@@ -958,6 +974,10 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .IsUnique();
 
                     b.HasIndex("ScannerDeviceId");
+
+                    b.HasIndex("ScannerEnrollmentId");
+
+                    b.HasIndex("ScannerOfflineGrantId");
 
                     b.HasIndex("TicketId");
 
@@ -1855,13 +1875,16 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
-                    b.Property<Guid>("StaffAccountId")
+                    b.Property<Guid?>("StaffAccountId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("TripStopCallId")
@@ -1900,6 +1923,13 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<DateTimeOffset?>("InvitationExpiresAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("InvitationHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -1916,11 +1946,20 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("LastPreloadedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<Guid?>("StationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("SuspendedAt")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
@@ -1930,7 +1969,120 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.HasIndex("DeviceCode")
                         .IsUnique();
 
+                    b.HasIndex("StationId");
+
                     b.ToTable("ScannerDevices");
+                });
+
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.ScannerEnrollment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CredentialHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTimeOffset?>("EndedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("PairedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("ScannerDeviceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("StationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StationId");
+
+                    b.HasIndex(new[] { "ScannerDeviceId" }, "IX_ScannerEnrollments_Active")
+                        .IsUnique()
+                        .HasFilter("[EndedAt] IS NULL AND [IsDeleted] = 0");
+
+                    b.ToTable("ScannerEnrollments");
+                });
+
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.ScannerOfflineGrant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ActiveFrom")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("ActiveUntil")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("EnrollmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("ScannerAssignmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("StaffStationShiftId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnrollmentId");
+
+                    b.HasIndex("ScannerAssignmentId");
+
+                    b.HasIndex("StaffStationShiftId");
+
+                    b.ToTable("ScannerOfflineGrants", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScannerOfflineGrants_Window", "[ActiveUntil] > [ActiveFrom]");
+                        });
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Schedule", b =>
@@ -2248,6 +2400,60 @@ namespace WaterbusSystem.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_SeatReservations_Amounts", "[QuotedFare] >= 0 AND ([PaidAllocation] IS NULL OR [PaidAllocation] >= 0)");
 
                             t.HasCheckConstraint("CK_SeatReservations_Segment", "[BoardingStopOrder] > 0 AND [DisembarkingStopOrder] > [BoardingStopOrder]");
+                        });
+                });
+
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.StaffStationShift", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ActiveFrom")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("ActiveUntil")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid>("StaffAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("StationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StationId");
+
+                    b.HasIndex("StaffAccountId", "ActiveFrom");
+
+                    b.ToTable("StaffStationShifts", t =>
+                        {
+                            t.HasCheckConstraint("CK_StaffStationShifts_Window", "[ActiveUntil] > [ActiveFrom]");
                         });
                 });
 
@@ -2968,6 +3174,16 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .HasForeignKey("ScannerDeviceId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("WaterbusSystem.Domain.Entities.ScannerEnrollment", null)
+                        .WithMany()
+                        .HasForeignKey("ScannerEnrollmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("WaterbusSystem.Domain.Entities.ScannerOfflineGrant", null)
+                        .WithMany()
+                        .HasForeignKey("ScannerOfflineGrantId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("WaterbusSystem.Domain.Entities.Ticket", "Ticket")
                         .WithMany()
                         .HasForeignKey("TicketId")
@@ -3167,6 +3383,60 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Navigation("TripStopCall");
                 });
 
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.ScannerDevice", b =>
+                {
+                    b.HasOne("WaterbusSystem.Domain.Entities.Station", "Station")
+                        .WithMany()
+                        .HasForeignKey("StationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Station");
+                });
+
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.ScannerEnrollment", b =>
+                {
+                    b.HasOne("WaterbusSystem.Domain.Entities.ScannerDevice", "ScannerDevice")
+                        .WithMany()
+                        .HasForeignKey("ScannerDeviceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WaterbusSystem.Domain.Entities.Station", null)
+                        .WithMany()
+                        .HasForeignKey("StationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ScannerDevice");
+                });
+
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.ScannerOfflineGrant", b =>
+                {
+                    b.HasOne("WaterbusSystem.Domain.Entities.ScannerEnrollment", "Enrollment")
+                        .WithMany()
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WaterbusSystem.Domain.Entities.ScannerAssignment", "ScannerAssignment")
+                        .WithMany()
+                        .HasForeignKey("ScannerAssignmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WaterbusSystem.Domain.Entities.StaffStationShift", "StaffStationShift")
+                        .WithMany()
+                        .HasForeignKey("StaffStationShiftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Enrollment");
+
+                    b.Navigation("ScannerAssignment");
+
+                    b.Navigation("StaffStationShift");
+                });
+
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Schedule", b =>
                 {
                     b.HasOne("WaterbusSystem.Domain.Entities.Route", "Route")
@@ -3242,6 +3512,23 @@ namespace WaterbusSystem.Infrastructure.Migrations
                     b.Navigation("Seat");
 
                     b.Navigation("Trip");
+                });
+
+            modelBuilder.Entity("WaterbusSystem.Domain.Entities.StaffStationShift", b =>
+                {
+                    b.HasOne("WaterbusSystem.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("StaffAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WaterbusSystem.Domain.Entities.Station", "Station")
+                        .WithMany()
+                        .HasForeignKey("StationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Station");
                 });
 
             modelBuilder.Entity("WaterbusSystem.Domain.Entities.Ticket", b =>

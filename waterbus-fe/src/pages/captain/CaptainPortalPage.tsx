@@ -253,7 +253,7 @@ function TripDashboard({
           <textarea
             id="sos-note"
             rows={3}
-            maxLength={2000}
+            maxLength={500}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             className="mt-2 w-full rounded-lg border border-outline-variant p-3"

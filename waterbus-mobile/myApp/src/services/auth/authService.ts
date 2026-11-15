@@ -7,6 +7,7 @@ import { API_ENDPOINTS } from '../../constants/api';
 import { apiClient, AUTH_TOKEN_KEY } from '../api/apiClient';
 import { getSecureItem, setSecureItem, deleteSecureItem } from './secureStorage';
 import { AuthUser, LoginRequest, LoginResponseDto } from '../../types/auth';
+import { scannerCredentials } from '../checkin/scannerCredentials';
 import { SqliteRepository } from '../sqlite/sqliteRepository';
 
 const USER_KEY = 'waterbus_staff_user';
@@ -33,9 +34,10 @@ class AuthService {
       roles: response.roles,
     };
 
-    const pending = await SqliteRepository.getPendingEvents(200);
-    if (pending.some((event) => event.staffAccountId !== response.userId)) {
-      throw new Error('Máy còn sự kiện của nhân viên khác chưa đồng bộ. Hãy đăng nhập lại tài khoản đó để đồng bộ trước.');
+    const cache = await scannerCredentials.cache();
+    if (cache?.staffId !== user.userId) {
+      await scannerCredentials.invalidateCache();
+      await SqliteRepository.clearManifest();
     }
     await setSecureItem(AUTH_TOKEN_KEY, response.token);
     await setSecureItem(USER_KEY, JSON.stringify(user));
@@ -46,6 +48,8 @@ class AuthService {
   async logout(): Promise<void> {
     await deleteSecureItem(AUTH_TOKEN_KEY);
     await deleteSecureItem(USER_KEY);
+    await scannerCredentials.invalidateCache();
+    await SqliteRepository.clearManifest();
   }
 
   /** Khôi phục phiên đăng nhập đã lưu khi mở lại app (không gọi lại backend). */

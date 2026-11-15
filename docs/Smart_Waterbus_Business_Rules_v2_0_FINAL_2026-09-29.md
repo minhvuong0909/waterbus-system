@@ -9,6 +9,8 @@
 
 > **Nguyên tắc đọc:** Tài liệu này thay thế định hướng nghiệp vụ trong bản *Smart Waterbus — Business Rules Proposed v1.0* ngày 22/09/2026 ở những nội dung có mâu thuẫn. Đây là mô tả nghiệp vụ của nhóm, không phải khẳng định về cách vận hành nội bộ của đơn vị Waterbus ngoài thực tế. Ví dụ thời gian, mã ghế và số tiền chỉ nhằm minh họa, không phải tham số kinh doanh đã chốt.
 
+> **Ghi chú thay đổi phạm vi — 16/11/2026.** Nhóm đã quyết định **gỡ giám sát thời tiết tự động** (Weather Guard, cảnh báo/API thời tiết) khỏi sản phẩm để thu hẹp phạm vi trước buổi demo PRN232. **Quản lý sự cố (Incident) và SOS của thuyền trưởng được giữ nguyên.** Các nhắc đến thời tiết trong BR-INC-01…04 và ví dụ Incident thời tiết bên dưới là nội dung lịch sử đã duyệt, không còn được triển khai; Incident cũ do WeatherService tạo vẫn được lưu để tra cứu nhưng không còn là sự cố đang hoạt động. Các quy tắc còn lại (BR-INC-02/03: không tự đổi trạng thái chuyến, Admin quyết định theo từng chuyến) vẫn áp dụng.
+
 ### Quy ước trạng thái
 
 | Ký hiệu | Ý nghĩa |

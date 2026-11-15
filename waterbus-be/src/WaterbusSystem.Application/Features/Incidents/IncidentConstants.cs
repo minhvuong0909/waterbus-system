@@ -10,6 +10,7 @@ public static class IncidentConstants
         public const string Staff = "Staff";
         public const string Captain = "Captain";
         public const string System = "System";
+        /// <summary>Legacy: chỉ còn trong dữ liệu lịch sử (giám sát thời tiết đã bị gỡ); không dùng cho mã mới.</summary>
         public const string WeatherService = "WeatherService";
     }
 
@@ -17,6 +18,7 @@ public static class IncidentConstants
     {
         public const string Technical = "Technical";
         public const string Safety = "Safety";
+        /// <summary>Legacy: chỉ còn trong dữ liệu lịch sử (giám sát thời tiết đã bị gỡ); không dùng cho mã mới.</summary>
         public const string Weather = "Weather";
         public const string Other = "Other";
     }

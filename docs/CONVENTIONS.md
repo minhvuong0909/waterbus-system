@@ -55,7 +55,7 @@ Quyết định của nhóm: bỏ CQRS/MediatR, chuyển về Service layer thu�
 | Auth | ✅ Đã migrate — mẫu chuẩn tham khảo |
 | Bookings / Checkout / Guest Access, Payments / VNPay, Refunds, QR | ✅ Đã migrate — Controller → IService → Service → IRepository → Repository → EF Core; xem `waterbus-be/docs/COMMERCIAL_REFACTORING_REPORT.md` |
 | SightseeingAudio, AiBooking | ✅ Đã migrate — Controller → IService; SQL audio qua repository; provider Azure/Semantic Kernel và adapter gọi Trips/Stations nằm ở Infrastructure. Xem `docs/thinh-ai/AI_SERVICE_MIGRATION.md` |
-| Incidents (Weather Guard), Tracking (GPS) | ✅ Đã migrate — Controller → IService → Service → IRepository → Repository; hub `BoatTrackingHub` và `BoatSimulatorService` gọi `IBoatTrackingService`; Hangfire job gọi `IWeatherGuardService` |
+| Incidents (SOS của thuyền trưởng), Tracking (GPS) | ✅ Đã migrate — Controller → IService → Service → IRepository → Repository; hub `BoatTrackingHub` và `BoatSimulatorService` gọi `IBoatTrackingService` |
 | Fares | ✅ Đã migrate — `IFareService`/`FareService` → `IFareRuleRepository`/`FareRuleRepository`, không có Request (GET không tham số) |
 | Boats | ✅ Đã migrate — `IBoatService`/`BoatService` → `IBoatRepository`/`BoatRepository` + `IUnitOfWork`; `UpdateBoatRequest` bỏ field `Id` (lấy từ route), xoá luôn code so khớp Id route/body cũ (M10) |
 | Stations | ✅ Đã migrate — `IStationService`/`StationService` → `IStationRepository`/`StationRepository` + `IUnitOfWork`; `UpdateStationRequest` bỏ field `Id` tương tự Boats. Adapter AI (`MediatRTripSearchTool`) đổi sang gọi `IStationService` thay vì `Mediator.Send(GetStationsQuery)` |
@@ -149,15 +149,16 @@ Cần mã mới (vd 403, 422) thì thêm `case` vào middleware, không xử lý
 - Tên event camelCase, payload là DTO có `version`:
   - `seatHeld` / `seatReleased` / `seatSold`: `{ tripId, seatId, boardingVisitOrder, disembarkingVisitOrder, status, expiresAt? }`
   - `boatPosition`: `{ boatId, tripId?, lat, lng, speedKnots?, observedAt }`
-  - `weatherAlert`: `{ incidentId, severity, routeId?, message, occurredAt }`
+  - `incidentRaised`: `{ incidentId, incidentType, severity?, tripId?, boatId?, message, occurredAt }` (SOS của thuyền trưởng)
+  - `tripStatusChanged`: `{ tripId, boatId?, status, previousStatus, operation, changedAt }`
 - Hub client gọi lên chỉ để join/leave group. Việc giữ/nhả ghế vẫn đi qua REST API; hub **không** là nơi quyết định nghiệp vụ.
 - Xác thực qua JWT trong query `access_token`. Gửi GPS: chỉ role Captain. Nhận bản đồ radar: Admin. Hub ghế cho khách: cho phép Guest chỉ đọc.
 - Hub phát tin; mất kết nối không được làm sai dữ liệu. Client phải gọi lại REST để đồng bộ khi kết nối lại.
 
 ### 3.10 Background job
 - Job định kỳ dùng Hangfire (lưu trong SQL Server). Dashboard `/hangfire` chỉ cho role Admin.
-- Job phải **idempotent** (chạy lặp không tạo bản ghi trùng; ví dụ không tạo Incident thời tiết trùng cho cùng tuyến và cùng khoảng thời gian).
-- Weather Guard chỉ **tạo Incident** (`Source = "WeatherService"`, `IncidentType = "Weather"`). Nó **không được đổi `Trip.Status`**; quyết định Suspend/Cancel là của Admin qua `IncidentTrip` (BR).
+- Job phải **idempotent** (chạy lặp không tạo bản ghi trùng; ví dụ không tạo hai lần cùng một thông báo).
+- Weather Guard đã được **gỡ** (16/11/2026); Incident hiện đến từ báo cáo của người (SOS của thuyền trưởng...). Incident **không được đổi `Trip.Status`**; quyết định Suspend/Cancel là của Admin qua `IncidentTrip` (BR). Giá trị lịch sử `Source = "WeatherService"` / `IncidentType = "Weather"` vẫn nằm trong CSDL và bị loại khỏi danh sách đang hoạt động ở truy vấn.
 - Mỗi lần `Trip.Status` đổi phải ghi một `TripOperationEvent`.
 - Ngưỡng cảnh báo (tốc độ gió, chu kỳ quét, API key) đặt trong cấu hình, không hard-code.
 - Gọi dịch vụ ngoài phải có timeout và retry có giới hạn, lỗi chỉ ghi log, không làm sập host.

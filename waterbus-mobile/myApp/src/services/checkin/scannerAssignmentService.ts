@@ -5,6 +5,6 @@ import { API_ENDPOINTS } from '../../constants/api';
 import { apiClient } from '../api/apiClient';
 import { MyScannerAssignment } from '../../types/checkin';
 
-export async function getMyScannerAssignments(): Promise<MyScannerAssignment[]> {
-  return apiClient.get<MyScannerAssignment[]>(API_ENDPOINTS.assignments);
+export async function getMyScannerAssignments(staffId?: string): Promise<MyScannerAssignment[]> {
+  return apiClient.get<MyScannerAssignment[]>(API_ENDPOINTS.assignments, { scanner: true, staffId });
 }

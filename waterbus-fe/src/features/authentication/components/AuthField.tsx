@@ -1,3 +1,4 @@
+import { REQUIRED_LABEL_CLASS } from '../../../components/ui/styles'
 import { useState } from 'react'
 import type { InputHTMLAttributes, ReactNode } from 'react'
 import { Icon } from '../../../components/ui'
@@ -11,16 +12,19 @@ interface AuthFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   revealable?: boolean
   /** Content on the right of the label row, e.g. "Forgot password?". */
   labelAside?: ReactNode
+  /** Lỗi hiện dưới ô nhập. */
+  error?: string
 }
 
 const INPUT_CLASS =
-  'w-full rounded-xl border border-outline-variant bg-white py-2.5 text-sm text-ink placeholder:text-outline transition-all focus:border-teal-flow focus:outline-none focus:ring-2 focus:ring-teal-flow/20'
+  'w-full rounded-xl border border-outline-variant bg-white py-3 text-sm text-ink placeholder:text-outline transition-all focus:border-teal-flow focus:outline-none focus:ring-2 focus:ring-teal-flow/20'
 
 export default function AuthField({
   label,
   icon,
   revealable,
   labelAside,
+  error,
   id,
   type = 'text',
   ...rest
@@ -31,7 +35,7 @@ export default function AuthField({
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
-        <label htmlFor={id} className="block text-xs font-semibold text-on-surface">
+        <label htmlFor={id} className={`block text-xs font-semibold text-on-surface ${rest.required ? REQUIRED_LABEL_CLASS : ''}`}>
           {label}
         </label>
         {labelAside}
@@ -46,6 +50,8 @@ export default function AuthField({
           id={id}
           type={inputType}
           className={`${INPUT_CLASS} ${icon ? 'pl-10' : 'pl-3.5'} ${revealable ? 'pr-10' : 'pr-4'}`}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-error` : undefined}
           {...rest}
         />
         {revealable && (
@@ -59,6 +65,11 @@ export default function AuthField({
           </button>
         )}
       </div>
+      {error && (
+        <p id={`${id}-error`} role="alert" className="mt-1 text-xs text-coral-glow">
+          {error}
+        </p>
+      )}
     </div>
   )
 }

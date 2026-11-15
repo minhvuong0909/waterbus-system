@@ -1,7 +1,7 @@
 import { Icon } from '../../../components/ui'
 import { t } from '../../../i18n'
 
-/** Hiện khi không có cảnh báo nào đang mở. */
+/** Hiện khi không có sự cố nào đang mở. */
 export default function AlertsEmpty() {
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-dashed border-outline-variant bg-white p-4">
@@ -9,9 +9,9 @@ export default function AlertsEmpty() {
         <Icon name="check_circle" className="text-2xl" />
       </span>
       <div>
-        <p className="font-semibold text-deep-river">{t('No weather warning right now.')}</p>
+        <p className="font-semibold text-deep-river">{t('No open incidents right now.')}</p>
         <p className="text-sm text-on-surface-variant">
-          {t('New alerts from the weather check or a captain appear here by themselves.')}
+          {t('A captain emergency report appears here by itself.')}
         </p>
       </div>
     </div>

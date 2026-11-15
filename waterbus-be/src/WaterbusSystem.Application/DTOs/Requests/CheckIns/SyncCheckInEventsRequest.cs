@@ -5,7 +5,8 @@ public record CheckInEventInput(
     Guid TripStopCallId,
     string ClientEventId,
     DateTimeOffset OccurredAtDevice,
-    string? Note);
+    string? Note,
+    Guid? OfflineGrantId = null);
 
 /// <summary>
 /// Đồng bộ theo lô các sự kiện check-in đã ghi offline (BR-OFF-01..05). Mỗi event được xử lý và LƯU

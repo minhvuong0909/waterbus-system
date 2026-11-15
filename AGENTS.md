@@ -52,11 +52,12 @@ Luôn chạy build + test liên quan trước khi báo hoàn thành; báo trung 
 - Group: `trip:{tripId}`, `boat:{boatId}`, `fleet`. Event camelCase, payload là DTO:
   `seatHeld|seatReleased|seatSold {tripId, seatId, boardingVisitOrder, disembarkingVisitOrder, status, expiresAt?}`,
   `boatPosition {boatId, tripId?, lat, lng, speedKnots?, observedAt}`,
-  `weatherAlert {incidentId, severity, routeId?, message, occurredAt}`.
+  `incidentRaised {incidentId, incidentType, severity?, tripId?, boatId?, message, occurredAt}` (SOS của thuyền trưởng),
+  `tripStatusChanged {tripId, boatId?, status, previousStatus, operation, changedAt}`.
 - Hub không quyết định nghiệp vụ; giữ/nhả ghế vẫn đi qua REST. JWT qua query `access_token`. GPS chỉ role Captain gửi; radar chỉ Admin; hub ghế cho Guest chỉ đọc. Client phải gọi lại REST để đồng bộ sau khi reconnect.
 
 ## Background job
-- Hangfire (SQL Server); dashboard `/hangfire` chỉ role Admin. Job phải **idempotent** (không tạo Incident trùng cho cùng tuyến + khoảng thời gian). Weather Guard chỉ tạo `Incident` (`Source="WeatherService"`, `IncidentType="Weather"`). Ngưỡng, chu kỳ, API key đặt trong cấu hình. Gọi dịch vụ ngoài có timeout + retry giới hạn; lỗi chỉ log, không làm sập host.
+- Hangfire (SQL Server); dashboard `/hangfire` chỉ role Admin. Job phải **idempotent**. Job hiện có: `noshow-finalization`, `email-outbox`. Weather Guard đã **gỡ khỏi phạm vi** (16/11/2026); khi khởi động API chỉ gỡ lịch lặp `weather-guard` còn sót ở CSDL cũ. Ngưỡng, chu kỳ, khoá đặt trong cấu hình. Gọi dịch vụ ngoài có timeout + retry giới hạn; lỗi chỉ log, không làm sập host.
 
 ## Frontend
 - Giữ cấu trúc `pages/ features/ components/ layouts/ routes/ store/ hooks/ constant/`. Mọi API đi qua `constant/apiEndpoints.ts` + service trong `features/<x>/services`; không `fetch` rải rác. Biến môi trường có tiền tố `VITE_` và có `.env.example`.

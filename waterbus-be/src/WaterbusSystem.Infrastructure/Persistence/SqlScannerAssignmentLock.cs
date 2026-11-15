@@ -7,7 +7,7 @@ namespace WaterbusSystem.Infrastructure.Persistence;
 
 /// <summary>
 /// SQL Server application lock (sp_getapplock, phạm vi Session) giữ trên đúng connection của
-/// DbContext đang dùng - cùng pattern với SqlWeatherGuardRunLock, nhưng khoá theo 1 KEY
+/// DbContext đang dùng - cùng pattern với SqlStationCoordinateLock, nhưng khoá theo 1 KEY
 /// (TripStopCallId) thay vì 1 resource cố định duy nhất, để các điểm dừng khác không bị chặn chéo.
 /// </summary>
 public sealed class SqlScannerAssignmentLock(ApplicationDbContext context) : IScannerAssignmentLock
@@ -22,6 +22,10 @@ public sealed class SqlScannerAssignmentLock(ApplicationDbContext context) : ISc
     public Task<IAsyncDisposable?> TryAcquireDeviceAsync(
         Guid deviceId, TimeSpan wait, CancellationToken cancellationToken = default) =>
         AcquireAsync(DeviceResourcePrefix + deviceId.ToString("N"), wait, cancellationToken);
+
+    public Task<IAsyncDisposable?> TryAcquireStaffAsync(
+        Guid staffId, TimeSpan wait, CancellationToken cancellationToken = default) =>
+        AcquireAsync("waterbus:scanner-staff:" + staffId.ToString("N"), wait, cancellationToken);
 
     private async Task<IAsyncDisposable?> AcquireAsync(string resource, TimeSpan wait, CancellationToken cancellationToken)
     {

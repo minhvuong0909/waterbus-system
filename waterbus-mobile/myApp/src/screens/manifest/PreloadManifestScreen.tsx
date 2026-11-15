@@ -18,8 +18,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useScannerStore } from '../../store/useScannerStore';
-import { QrVerifier, DEFAULT_KEY_INFO } from '../../services/crypto/qrVerifier';
-import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
 import { getMyScannerAssignments } from '../../services/checkin/scannerAssignmentService';
 import { MyScannerAssignment } from '../../types/checkin';
 import { ApiError } from '../../services/api/apiClient';
@@ -35,29 +33,35 @@ export default function PreloadManifestScreen() {
     syncPendingBatch,
     refreshStats,
     clearCache,
+    activeAssignment,
+    needsReviewCount,
   } = useScannerStore();
 
   const [assignments, setAssignments] = useState<MyScannerAssignment[]>([]);
   const [isLoadingAssignments, setIsLoadingAssignments] = useState(true);
   const [assignmentsError, setAssignmentsError] = useState<string | null>(null);
-  // deviceInfo.stationId giữ TripStopCallId thật của lần preload gần nhất (xem useScannerStore).
-  const [selectedTripStopCallId, setSelectedTripStopCallId] = useState<string>(deviceInfo.stationId);
-  const [testQrInfo, setTestQrInfo] = useState<{ compact: string; signature: string } | null>(null);
+  const [selectedTripStopCallId, setSelectedTripStopCallId] = useState<string>(activeAssignment?.tripStopCallId ?? '');
 
   const loadAssignments = useCallback(async () => {
     try {
-      const result = await getMyScannerAssignments();
+      if (!deviceInfo.deviceId) {
+        setAssignments([]);
+        setAssignmentsError('Hãy ghép nối máy quét trong cài đặt.');
+        return;
+      }
+      const result = await getMyScannerAssignments(deviceInfo.staffId);
       setAssignments(result);
       setAssignmentsError(null);
       if (result.length > 0) {
-        setSelectedTripStopCallId((current) => current || result[0].tripStopCallId);
+        setSelectedTripStopCallId((current) => result.some((item) => item.tripStopCallId === current) ? current : result[0].tripStopCallId);
       }
     } catch (err) {
+      setAssignments([]);
       setAssignmentsError(err instanceof ApiError ? err.message : 'Không tải được phân công. Kiểm tra kết nối mạng.');
     } finally {
       setIsLoadingAssignments(false);
     }
-  }, []);
+  }, [deviceInfo.staffId, deviceInfo.deviceId]);
 
   const refreshAssignments = () => {
     setIsLoadingAssignments(true);
@@ -81,7 +85,7 @@ export default function PreloadManifestScreen() {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
         'Đã Tải Trước Thành Công',
-        `Toàn bộ danh sách chuyến, vé hợp lệ và Public Key đã được lưu an toàn vào cơ sở dữ liệu SQLite.\nThiết bị đã sẵn sàng tác nghiệp soát vé ngoại tuyến 100%!`,
+        `Toàn bộ danh sách chuyến, vé hợp lệ và Public Key đã được lưu an toàn vào cơ sở dữ liệu SQLite.\nQuyền ngoại tuyến của thiết bị hiển thị tại điểm dừng đang tải.`,
         [{ text: 'OK' }]
       );
     } else {
@@ -100,19 +104,10 @@ export default function PreloadManifestScreen() {
     }
   };
 
-  const handleGenerateTestQr = async () => {
-    // Preload tường minh khoá demo trước khi ký - QrVerifier không còn tự fallback sang
-    // DEFAULT_KEY_INFO khi SQLite trống (xem qrVerifier.ts), nên chuỗi demo sinh ra ở đây sẽ bị
-    // từ chối (fail-closed) khi quét lại nếu không chủ động preload khoá này trước.
-    await SqliteRepository.savePublicKey(DEFAULT_KEY_INFO);
-    const test = QrVerifier.generateTestSignedQr('pub_wb_98a76b5c', 'TRIP-BD-BA-01');
-    setTestQrInfo({ compact: test.compactQr, signature: test.signature });
-  };
-
   const handleClearCacheConfirm = () => {
     Alert.alert(
       'Xác nhận xoá cache',
-      'Bạn có chắc chắn muốn xoá toàn bộ dữ liệu SQLite trên máy? Dữ liệu chưa sync có thể bị mất.',
+      'Xoá dữ liệu chuyến đã tải? Các lượt soát vé vẫn được giữ lại.',
       [
         { text: 'Huỷ', style: 'cancel' },
         {
@@ -159,7 +154,7 @@ export default function PreloadManifestScreen() {
                 const isSelected = selectedTripStopCallId === a.tripStopCallId;
                 return (
                   <TouchableOpacity
-                    key={a.assignmentId}
+                    key={a.tripStopCallId}
                     style={[styles.stationChip, isSelected && styles.stationChipSelected]}
                     onPress={() => setSelectedTripStopCallId(a.tripStopCallId)}
                   >
@@ -276,37 +271,15 @@ export default function PreloadManifestScreen() {
           </View>
         )}
 
-        {/* Test QR Generator Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Tạo Mã QR Mẫu Kèm Chữ Ký Số (Demo)</Text>
-          <Text style={styles.cardDesc}>
-            Sinh chuỗi QR mẫu ký RSA-SHA256 thật bằng khoá demo cục bộ để kiểm thử quét (không phải
-            dữ liệu/khoá production):
-          </Text>
-
-          <TouchableOpacity style={styles.testGenButton} onPress={handleGenerateTestQr}>
-            <Ionicons name="qr-code-outline" size={18} color="#0284C7" style={{ marginRight: 6 }} />
-            <Text style={styles.testGenButtonText}>Sinh Chuỗi QR Hợp Lệ</Text>
-          </TouchableOpacity>
-
-          {testQrInfo && (
-            <View style={styles.qrCodeBox}>
-              <Text style={styles.qrCodeLabel}>Chuỗi QR đã ký (Dán vào camera hoặc nhập tay):</Text>
-              <Text style={styles.qrCodeText} selectable>
-                {testQrInfo.compact}
-              </Text>
-              <Text style={styles.signatureText} numberOfLines={1}>
-                Chữ ký: {testQrInfo.signature}
-              </Text>
-            </View>
-          )}
-        </View>
+        {needsReviewCount > 0 && <Text style={styles.subtitle}>
+          {needsReviewCount} sự kiện cần đối soát. Liên hệ quản trị viên.
+        </Text>}
 
         {/* Clear Cache Card */}
         <View style={styles.dangerCard}>
           <TouchableOpacity style={styles.clearCacheBtn} onPress={handleClearCacheConfirm}>
             <Ionicons name="trash-outline" size={18} color="#DC2626" style={{ marginRight: 6 }} />
-            <Text style={styles.clearCacheBtnText}>Xoá Toàn Bộ Dữ Liệu SQLite Cục Bộ</Text>
+            <Text style={styles.clearCacheBtnText}>Xoá dữ liệu chuyến đã tải</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

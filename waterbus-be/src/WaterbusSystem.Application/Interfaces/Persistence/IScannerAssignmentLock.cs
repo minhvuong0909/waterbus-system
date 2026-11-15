@@ -11,6 +11,7 @@ namespace WaterbusSystem.Application.Interfaces.Persistence;
 /// </summary>
 public interface IScannerAssignmentLock
 {
+    Task<IAsyncDisposable?> TryAcquireStaffAsync(Guid staffId, TimeSpan wait, CancellationToken cancellationToken = default);
     /// <returns>Lease để giải phóng khoá, hoặc null nếu hết thời gian chờ mà request khác vẫn đang giữ khoá.</returns>
     Task<IAsyncDisposable?> TryAcquireAsync(Guid tripStopCallId, TimeSpan wait, CancellationToken cancellationToken = default);
 

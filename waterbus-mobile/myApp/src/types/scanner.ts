@@ -94,6 +94,8 @@ export interface CheckInEvent {
   staffAccountId: string;
   staffName: string;
   scannerDeviceId: string;
+  scannerEnrollmentId?: string;
+  offlineGrantId?: string;
   occurredAtDevice: string; // ISO 8601
   receivedAtServer?: string;
   outcome: CheckInOutcome;

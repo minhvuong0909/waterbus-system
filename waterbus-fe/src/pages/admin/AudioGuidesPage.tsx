@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { REQUIRED_LABEL_CLASS } from '../../components/ui/styles'
 import { Button, ErrorState, Icon, Notice, PageHeader, PageLoader, Panel, SelectField } from '../../components/ui'
 import { MAX_NARRATION_LENGTH, NARRATION_VOICES } from '../../features/admin/utils/audioGuide'
 import type { NarrationPoi, NarrationVoice } from '../../features/admin/utils/audioGuide'
@@ -94,7 +95,7 @@ function NarrationEditor({
       </div>
 
       <div>
-        <label htmlFor={textId} className="mb-1 block text-xs font-semibold text-on-surface-variant">
+        <label htmlFor={textId} className={`mb-1 block text-xs font-semibold text-on-surface-variant ${REQUIRED_LABEL_CLASS}`}>
           {t('Narration script')}
         </label>
         <textarea

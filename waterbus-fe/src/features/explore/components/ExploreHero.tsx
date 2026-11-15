@@ -102,12 +102,36 @@ export default function ExploreHero({ landmarks }: { landmarks: Landmark[] }) {
             <span className="h-px w-9 bg-sky-aqua" />
             {t('Discover Saigon from the river')}
           </div>
-          <h1 className="mt-6 max-w-3xl font-display text-4xl font-bold leading-[1.08] tracking-[-0.04em] text-white sm:text-5xl md:text-6xl lg:text-7xl">
-            {t('See the City Differently from the River')}
-          </h1>
-          <p className="mt-6 max-w-xl text-base leading-7 text-white/85 sm:text-lg sm:leading-8">
-            {t('Sightseeing trips on the Saigon River, with stories played over the boat’s speakers.')}
-          </p>
+          {activeSlide ? (
+            <div
+              key={activeSlide.id}
+              className="mt-6 animate-hero-copy-enter motion-reduce:animate-none"
+            >
+              <div className="mb-4 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.16em]">
+                <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sand-light backdrop-blur-sm">
+                  {t(activeSlide.category)}
+                </span>
+                <span className="font-mono text-white/60">
+                  {String(activeIndex + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
+                </span>
+              </div>
+              <h1 className="max-w-3xl font-display text-4xl font-bold leading-[1.08] tracking-[-0.04em] text-white sm:text-5xl md:text-6xl lg:text-7xl">
+                {activeSlide.title}
+              </h1>
+              <p className="mt-5 line-clamp-3 max-w-xl text-base leading-7 text-white/85 sm:text-lg sm:leading-8">
+                {activeSlide.description}
+              </p>
+            </div>
+          ) : (
+            <>
+              <h1 className="mt-6 max-w-3xl font-display text-4xl font-bold leading-[1.08] tracking-[-0.04em] text-white sm:text-5xl md:text-6xl lg:text-7xl">
+                {t('See the City Differently from the River')}
+              </h1>
+              <p className="mt-6 max-w-xl text-base leading-7 text-white/85 sm:text-lg sm:leading-8">
+                {t('Sightseeing trips on the Saigon River, with stories played over the boat’s speakers.')}
+              </p>
+            </>
+          )}
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <SightseeingCta />
             <a
@@ -119,24 +143,6 @@ export default function ExploreHero({ landmarks }: { landmarks: Landmark[] }) {
             </a>
           </div>
         </div>
-
-        {activeSlide && (
-          <div
-            aria-hidden="true"
-            className="absolute bottom-8 left-8 right-20 z-10 flex min-w-0 items-center gap-2.5 text-xs sm:bottom-10"
-          >
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-aqua" />
-            <span className="hidden shrink-0 font-semibold uppercase tracking-[0.16em] text-white/55 sm:inline">
-              {t('Featured landmark')}
-            </span>
-            <span className="hidden h-3 w-px shrink-0 bg-white/25 sm:block" />
-            <span className="min-w-0 truncate font-medium text-white/90">{activeSlide.title}</span>
-            <span className="ml-1 shrink-0 font-mono text-[11px] tracking-wider text-white/55">
-              {String(activeIndex + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
-            </span>
-          </div>
-        )}
-
       </div>
       {activeSlide && (
         <div

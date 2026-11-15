@@ -39,7 +39,7 @@ public class IncidentServiceResolveTests
 
     private Incident AddIncident(string status = "Open")
     {
-        var incident = new Incident { ScopeType = "Route", Source = "WeatherService", IncidentType = "Weather", Status = status, OccurredAt = Now.AddHours(-1) };
+        var incident = new Incident { ScopeType = "Trip", Source = "Captain", IncidentType = "Safety", Status = status, OccurredAt = Now.AddHours(-1) };
         _context.Incidents.Add(incident);
         _context.SaveChanges();
         return incident;

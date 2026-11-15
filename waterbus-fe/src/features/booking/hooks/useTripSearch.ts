@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
 import { combineFetches, useFetch } from '../../../hooks'
 import { selectReturnTrip, selectTrip, setQuery, setReturnQuery } from '../bookingSlice'
@@ -12,7 +12,7 @@ import {
   getTrips,
 } from '../../trips/services/tripService'
 import type { DateOption, PierOption, SearchQuery, Trip } from '../../trips/types'
-import { pickPiers } from '../../trips/utils'
+import { STRIP_DAYS, pickPiers } from '../../trips/utils'
 
 /**
  * The search of one leg and how to change it. The outbound leg is the main search; the return
@@ -78,13 +78,46 @@ export function useSearchForm() {
   }
 }
 
+/**
+ * The week shown in the date strip, which follows the chosen day: a day picked outside it (e.g. on the
+ * calendar) moves the strip there. `shift` slides it by a week.
+ */
+function useDayStrip(dates: DateOption[] | undefined, selectedId: string) {
+  const [start, setStart] = useState(0)
+  const count = dates?.length ?? 0
+  const last = Math.max(0, count - STRIP_DAYS)
+  const selected = dates?.findIndex((d) => d.id === selectedId) ?? -1
+  // Khi ngày chọn đổi và nằm ngoài tuần đang hiện (vd chọn từ lịch tháng) thì dời thanh đến đó.
+  const [seen, setSeen] = useState(selected)
+  if (seen !== selected) {
+    setSeen(selected)
+    if (selected >= 0 && (selected < start || selected >= start + STRIP_DAYS)) {
+      setStart(Math.min(Math.max(selected - Math.floor(STRIP_DAYS / 2), 0), last))
+    }
+  }
+  const from = Math.min(start, last)
+  return {
+    strip: dates?.slice(from, from + STRIP_DAYS),
+    canPrev: from > 0,
+    canNext: from < last,
+    shift: (weeks: 1 | -1) => setStart(Math.min(Math.max(from + weeks * STRIP_DAYS, 0), last)),
+  }
+}
+
 export function useSearchResults(leg: Leg = 'outbound', sightseeingOnly = false) {
   const { query, updateQuery } = useSearchQuery(leg)
   const dispatch = useAppDispatch()
+  const outboundDateId = useAppSelector((s) => s.booking.query.dateId)
   const piers = useFetch(getPierOptions)
-  const dates = useFetch(getDateOptions)
+  const allDates = useFetch(getDateOptions)
+  // The way back can only be on the outbound day or later.
+  const dates = useMemo(
+    () => (leg === 'return' ? allDates.data?.filter((d) => d.id >= outboundDateId) : allDates.data),
+    [leg, allDates.data, outboundDateId],
+  )
   useDefaultPiers(piers.data, leg)
-  useValidDate(dates.data, leg)
+  useValidDate(dates, leg)
+  const dayStrip = useDayStrip(dates, query.dateId)
 
   // Search again whenever the piers or the day change. Until a pier pair is chosen the request
   // simply stays pending, so the page keeps showing its loader instead of an empty list.
@@ -95,23 +128,25 @@ export function useSearchResults(leg: Leg = 'outbound', sightseeingOnly = false)
     () => (ready ? findTrips(query) : new Promise<Trip[]>(() => undefined)),
     [ready, sightseeingOnly, query.originId, query.destinationId, query.dateId],
   )
-  // Số chuyến còn bán của từng ngày; chỉ để hiện trên thanh chọn ngày nên lỗi không chặn trang.
+  // Số chuyến còn bán của các ngày đang hiện trên thanh chọn ngày; lỗi không chặn trang.
+  const stripFrom = dayStrip.strip?.[0]?.id
   const counts = useFetch(
     () =>
-      ready && dates.data
-        ? getDayTripCounts(query, dates.data, findTrips)
+      ready && dayStrip.strip
+        ? getDayTripCounts(query, dayStrip.strip, findTrips)
         : new Promise<Record<string, number>>(() => undefined),
-    [ready, sightseeingOnly, query.originId, query.destinationId, dates.data?.length],
+    [ready, sightseeingOnly, query.originId, query.destinationId, stripFrom],
   )
   return {
     query,
     updateQuery,
     piers: piers.data,
-    dates: dates.data,
+    dates,
+    ...dayStrip,
     counts: counts.data,
     trips: trips.data,
     searching: trips.fetching,
-    ...combineFetches(piers, dates, trips),
+    ...combineFetches(piers, allDates, trips),
     chooseTrip: (trip: Trip) => dispatch(leg === 'outbound' ? selectTrip(trip) : selectReturnTrip(trip)),
   }
 }

@@ -3,14 +3,12 @@ import type { FormEvent } from 'react'
 import { Button, SelectField, TextField } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { useSubmit } from '../../../hooks'
+import { codeTaken, isCode, parseWhole } from '../../../utils/inputRules'
 import { setBoatSeatActive, updateBoatSeat } from '../services/boatSeatService'
 import type { BoatSeat, SeatClass } from '../types'
 import FormActions from './FormActions'
 
-const inRange = (value: string) => {
-  const n = Number(value)
-  return Number.isInteger(n) && n >= 1 && n <= 100
-}
+const inRange = (value: string) => parseWhole(value, 1, 100) !== null
 
 /**
  * Sửa một ghế hoặc tắt/bật ghế. Ghế đang giữ hoặc đã bán trên chuyến chưa kết thúc thì không đổi được; backend báo
@@ -18,11 +16,14 @@ const inRange = (value: string) => {
  */
 export default function SeatForm({
   seat,
+  others,
   seatClasses,
   onDone,
   onCancel,
 }: {
   seat: BoatSeat
+  /** Các ghế khác của tàu: mã và vị trí hàng/cột không được trùng. */
+  others: BoatSeat[]
   seatClasses: SeatClass[]
   onDone: () => void
   onCancel: () => void
@@ -39,9 +40,21 @@ export default function SeatForm({
     setForm((f) => ({ ...f, [key]: e.target.value }))
 
   const errors = {
-    seatCode: form.seatCode.trim() ? undefined : t('Code is required.'),
+    seatCode: !form.seatCode.trim()
+      ? t('Code is required.')
+      : !isCode(form.seatCode)
+        ? t('Use letters, numbers, dots, underscores or hyphens.')
+        : codeTaken(form.seatCode, others.map((o) => ({ code: o.seatCode })))
+          ? t('Another seat of this boat already has this code.')
+          : undefined,
     rowNumber: inRange(form.rowNumber) ? undefined : t('Enter a number from 1 to {max}.', { max: 100 }),
     columnNumber: inRange(form.columnNumber) ? undefined : t('Enter a number from 1 to {max}.', { max: 100 }),
+    position:
+      inRange(form.rowNumber) &&
+      inRange(form.columnNumber) &&
+      others.some((o) => o.rowNumber === Number(form.rowNumber) && o.columnNumber === Number(form.columnNumber))
+        ? t('Another seat is already at this row and column.')
+        : undefined,
   }
   const shown: Partial<typeof errors> = showErrors ? errors : {}
 
@@ -74,16 +87,16 @@ export default function SeatForm({
   return (
     <form onSubmit={submit} noValidate className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <TextField label="Code" value={form.seatCode} onChange={set('seatCode')} error={shown.seatCode} maxLength={10} />
-        <SelectField label="Seat class" value={form.seatClassId} onChange={set('seatClassId')}>
+        <TextField label="Code" required value={form.seatCode} onChange={set('seatCode')} error={shown.seatCode} maxLength={10} />
+        <SelectField label="Seat class" required value={form.seatClassId} onChange={set('seatClassId')}>
           {options.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
         </SelectField>
-        <TextField label="Row" inputMode="numeric" value={form.rowNumber} onChange={set('rowNumber')} error={shown.rowNumber} />
-        <TextField label="Column" inputMode="numeric" value={form.columnNumber} onChange={set('columnNumber')} error={shown.columnNumber} />
+        <TextField label="Row" required inputMode="numeric" value={form.rowNumber} onChange={set('rowNumber')} error={shown.rowNumber} />
+        <TextField label="Column" required inputMode="numeric" value={form.columnNumber} onChange={set('columnNumber')} error={shown.columnNumber ?? shown.position} />
       </div>
       <div className="flex items-center justify-between gap-3 rounded-xl bg-mist px-3 py-2">
         <span className="text-sm text-on-surface-variant">

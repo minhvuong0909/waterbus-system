@@ -31,13 +31,9 @@ export default function AuthCard() {
   }
 
   return (
-    <div className="w-full max-w-md rounded-3xl border border-outline-variant/50 bg-white p-6 shadow-sm sm:p-10">
-      <h1 className="text-2xl font-bold tracking-tight text-deep-river">
-        {t('Sign in to your account')}
-      </h1>
-      <p className="mb-8 mt-2 text-sm text-on-surface-variant">
-        {t('Use the account issued to you by Smart Waterbus.')}
-      </p>
+    <div>
+      <h1 className="font-display text-3xl font-bold tracking-tight text-deep-river">{t('Welcome back')}</h1>
+      <p className="mb-8 mt-2 text-sm text-on-surface-variant">{t('Sign in to continue to Smart Waterbus.')}</p>
 
       {failure !== null && (
         <p
@@ -62,10 +58,15 @@ export default function AuthCard() {
         </Link>
       </p>
 
-      <p className="mt-8 flex items-center gap-2 border-t border-surface-container pt-5 text-xs text-on-surface-variant">
-        <Icon name="info" className="text-base text-teal-flow" />
-        {t('Travellers do not need an account to book tickets.')}
-      </p>
+      <div className="mt-8 flex items-center justify-between gap-3 rounded-2xl bg-mist px-4 py-3">
+        <p className="flex items-center gap-2 text-xs text-on-surface-variant">
+          <Icon name="info" className="text-base text-teal-flow" />
+          {t('Travellers do not need an account to book tickets.')}
+        </p>
+        <Link to={ROUTES.home} className="shrink-0 text-xs font-bold text-teal-flow hover:underline">
+          {t('Book a ticket')}
+        </Link>
+      </div>
     </div>
   )
 }

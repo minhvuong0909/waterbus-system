@@ -82,10 +82,18 @@ describe('verify email page', () => {
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
     renderAt('/verify-email#uid=u1&token=tok')
 
-    activate('Weak')
+    activate('Common1Pass')
     expect((await screen.findByRole('alert')).textContent).toContain('Choose a stronger password.')
     activate()
     expect(await screen.findByText(/Email confirmed|Đã xác minh email/i)).toBeTruthy()
+  })
+
+  it.each(['Weak', 'alllowercase1', 'ALLUPPERCASE1', 'NoDigitsHere'])('refuses the weak password %j without sending', async (weak) => {
+    renderAt('/verify-email#uid=u1&token=tok')
+    activate(weak)
+
+    expect((await screen.findByRole('alert')).textContent).toMatch(/at least 8 characters|tối thiểu 8 ký tự/)
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('rejects a password mismatch before sending anything', async () => {

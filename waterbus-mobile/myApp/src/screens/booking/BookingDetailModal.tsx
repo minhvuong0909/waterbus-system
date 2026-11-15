@@ -86,8 +86,8 @@ export default function BookingDetailModal() {
       if (result.success) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert(
-          'Check-in Thành Công',
-          `Đã ghi nhận check-in cho ${result.count} hành khách vào bộ nhớ SQLite cục bộ.\nSự kiện được lưu vào hàng đợi đồng bộ an toàn (Idempotent Sync).`,
+          result.queued ? 'Đã lưu, chờ đồng bộ' : 'Máy chủ đã xác nhận',
+          `${result.count} hành khách đã được soát vé.${result.error ? '\n' + result.error : ''}`,
           [{ text: 'Đóng / Quét tiếp', onPress: closeBookingModal }]
         );
       } else {

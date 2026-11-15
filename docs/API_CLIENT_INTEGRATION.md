@@ -23,7 +23,7 @@ check-in gồm DI, DbContext/interface, Hangfire và cấu hình mẫu; không s
 | Trips search/detail/seats | Web tìm chuyến, chi tiết và chọn ghế gọi REST thật. Giá và availability theo đoạn TripStopCall. |
 | Trips operations/events/status/SOS | Admin Overview/Trips/Incidents và Captain Portal dùng endpoint thật; các endpoint cũng có trong Test API. |
 | Tracking snapshot/history/positions | Admin radar dùng snapshot + hub; Captain gửi GPS qua hub. Lịch sử và gửi vị trí REST dự phòng có form Test API, backend vẫn kiểm đúng role. |
-| Incidents list/detail/weather-check | Admin Incidents / radar + Test API. Quyết định trạng thái qua Trips status, không tự đổi trạng thái từ Incident. |
+| Incidents list/detail/resolve | Admin Incidents / radar + Test API. Quyết định trạng thái qua Trips status, không tự đổi trạng thái từ Incident. |
 | Checkouts create/hold/get/submit/cancel/update-seats/QR/public-key | Luồng đặt vé web dùng hold → submit → payment → GET order → QR. Create trực tiếp và đổi ghế có trong Test API. Token Guest gửi bằng `X-Guest-Token`; JWT có thể dùng không cần guest token, không bị coi là mock. |
 | Bookings POST | Endpoint tương thích có trong Test API; luồng web chính dùng Checkouts. |
 | Payments URL/return/reconcile | Web chuyển hướng VNPay, kiểm callback và đọc lại trạng thái server; reconcile có trong luồng thanh toán và Test API. |

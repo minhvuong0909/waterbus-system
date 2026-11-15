@@ -1,3 +1,4 @@
+import { MAX_NAME_LENGTH, isEmail, isPersonName as isName } from '../../utils/inputRules'
 import { t } from '../../i18n'
 import type { TripDetail } from '../trips/types'
 import type { CreateHoldRequest, Journey, SeatMap, SubmitCheckoutRequest, PurchaserForm, Seat, SeatCategory, SeatPassengerForm } from './types'
@@ -69,23 +70,33 @@ export function seatTags(seat: Seat | undefined): string {
     .join(' • ')
 }
 
-/** Purchaser phone as the backend expects it: digits only with a leading 0, or undefined when none. */
+/** Chỉ cho số, khoảng trắng và + ( ) . - trong số điện thoại; chữ cái hay ký hiệu lạ là nhập sai. */
+const PHONE_CHARS = /^[0-9+().\-\s]*$/
+
+/**
+ * Purchaser phone as the backend expects it: digits only with a leading 0, or undefined when none. `+84…` / `84…`
+ * (mã quốc gia) được đổi về dạng bắt đầu bằng 0.
+ */
 export function toCustomerPhone(purchaser: Pick<PurchaserForm, 'phone'>): string | undefined {
   const digits = purchaser.phone.replace(/\D/g, '')
   if (!digits) return undefined
+  if (digits.startsWith('84') && digits.length >= 11) return `0${digits.slice(2)}`
   return digits.startsWith('0') ? digits : `0${digits}`
 }
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const isEmail = (value: string) => EMAIL.test(value.trim())
+/** Giới hạn độ dài của backend: tên và email 150 ký tự, số điện thoại hành khách 20. */
+export const MAX_NAME = MAX_NAME_LENGTH
+export const MAX_PASSENGER_PHONE = 20
 
 /** BR-COM-07: the purchaser needs a name and an email; the phone is optional but must be valid. */
 export function purchaserErrors(purchaser: PurchaserForm): Partial<Record<keyof PurchaserForm, string>> {
   const errors: Partial<Record<keyof PurchaserForm, string>> = {}
-  if (!purchaser.fullName.trim()) errors.fullName = t('Please enter the buyer’s full name.')
+  if (!isName(purchaser.fullName)) errors.fullName = t('Please enter the buyer’s full name.')
   if (!isEmail(purchaser.email)) errors.email = t('Please enter a valid email address.')
   const phone = toCustomerPhone(purchaser)
-  if (phone && !/^[0-9]{10,11}$/.test(phone)) errors.phone = t('Phone number must have 10 to 11 digits.')
+  if (purchaser.phone.trim() && (!PHONE_CHARS.test(purchaser.phone) || !/^[0-9]{10,11}$/.test(phone ?? ''))) {
+    errors.phone = t('Phone number must have 10 to 11 digits.')
+  }
   return errors
 }
 
@@ -94,9 +105,13 @@ export function seatPassengerErrors(
   passenger: SeatPassengerForm | undefined,
 ): Partial<Record<keyof SeatPassengerForm, string>> {
   const errors: Partial<Record<keyof SeatPassengerForm, string>> = {}
-  if (!passenger?.fullName.trim()) errors.fullName = t('Please enter the passenger’s full name.')
+  if (!passenger || !isName(passenger.fullName)) errors.fullName = t('Please enter the passenger’s full name.')
   if (passenger?.email.trim() && !isEmail(passenger.email)) {
     errors.email = t('Please enter a valid email address.')
+  }
+  const phone = passenger?.phone.trim() ?? ''
+  if (phone && (!PHONE_CHARS.test(phone) || phone.length > MAX_PASSENGER_PHONE || phone.replace(/\D/g, '').length < 6)) {
+    errors.phone = t('Enter a valid phone number.')
   }
   return errors
 }

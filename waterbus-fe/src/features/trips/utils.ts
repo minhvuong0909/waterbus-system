@@ -17,8 +17,11 @@ import type {
 /** At or below this many free seats a trip is shown as "Limited". */
 export const LOW_SEATS_THRESHOLD = 10
 
-/** How many days the date strip offers, starting today. */
-export const SEARCH_WINDOW_DAYS = 7
+/** How many days ahead a trip can be searched, starting today. */
+export const SEARCH_WINDOW_DAYS = 30
+
+/** How many days the date strip shows at once; the calendar reaches the rest of the window. */
+export const STRIP_DAYS = 7
 
 /** "Today, Dec 16" for today's date, otherwise "Tue, Dec 17". `date` must already be translated. */
 export function formatDateLabel(date: DateOption): string {
@@ -122,8 +125,8 @@ export function toTrip(dto: TripDto): Trip {
   const arrive = new Date(dto.arrivalTime)
   const kind = dto.tripType === 'Sightseeing' ? 'sightseeing' : 'transit'
   const ends = [...(dto.stops ?? [])].sort((a, b) => a.orderIndex - b.orderIndex)
-  const tour =
-    kind === 'sightseeing' && ends.length >= 2
+  const route =
+    ends.length >= 2
       ? {
           originId: ends[0].stationId,
           destinationId: ends[ends.length - 1].stationId,
@@ -131,6 +134,7 @@ export function toTrip(dto: TripDto): Trip {
           destinationName: ends[ends.length - 1].stationName,
         }
       : undefined
+  const tour = kind === 'sightseeing' ? route : undefined
   return {
     id: dto.id,
     kind,
@@ -155,6 +159,7 @@ export function toTrip(dto: TripDto): Trip {
     // basePrice is the lowest fare of the trip type; seats of other classes cost more.
     fareLabel: t('Fares from'),
     tour,
+    route,
   }
 }
 

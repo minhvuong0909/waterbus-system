@@ -73,11 +73,6 @@ public class SignalROperationsAlertPublisher : IOperationsAlertPublisher
             : _onboardHub.Clients.Group(RealtimeContract.Groups.OnboardAudio(boatId.Value))
                 .SendAsync(RealtimeContract.Events.AudioControl, new AudioControlMessage(action, tripId, reason, at), ct);
 
-    public Task PublishWeatherAlertAsync(WeatherAlertMessage message, CancellationToken cancellationToken = default) =>
-        _trackingHub.Clients
-            .Group(RealtimeContract.Groups.Fleet)
-            .SendAsync(RealtimeContract.Events.WeatherAlert, message, cancellationToken);
-
     public async Task PublishIncidentRaisedAsync(IncidentRaisedMessage message, CancellationToken cancellationToken = default)
     {
         await _trackingHub.Clients

@@ -112,7 +112,7 @@ export default function SeatClassesPage() {
 
       {dialog?.kind === 'form' && (
         <Modal title={dialog.seatClass ? 'Edit seat class' : 'Add seat class'} onClose={() => setDialog(null)}>
-          <SeatClassForm seatClass={dialog.seatClass} onDone={closeAndReload} onCancel={() => setDialog(null)} />
+          <SeatClassForm seatClass={dialog.seatClass} others={classes.data.filter((c) => c.id !== dialog.seatClass?.id)} onDone={closeAndReload} onCancel={() => setDialog(null)} />
         </Modal>
       )}
       {dialog?.kind === 'deactivate' && (

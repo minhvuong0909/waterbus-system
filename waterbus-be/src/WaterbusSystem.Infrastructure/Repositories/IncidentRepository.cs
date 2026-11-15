@@ -42,6 +42,12 @@ public sealed class IncidentRepository(ApplicationDbContext context) : IIncident
         if(!string.IsNullOrWhiteSpace(request.Status)) query = query.Where(i => i.Status == request.Status);
         if(!string.IsNullOrWhiteSpace(request.IncidentType)) query = query.Where(i => i.IncidentType == request.IncidentType);
 
+        // Giám sát thời tiết đã bị gỡ khỏi phạm vi. Incident cũ do WeatherService tạo vẫn được GIỮ nguyên trong CSDL (lịch sử,
+        // khoá ngoại IncidentTrip) nhưng không còn là sự cố đang hoạt động: danh sách mặc định (bảng điều khiển, biểu ngữ khẩn,
+        // bộ đếm) loại chúng ở truy vấn; chỉ hiện khi người gọi chủ động lọc đúng loại lịch sử này.
+        if (request.IncidentType != IncidentConstants.Types.Weather)
+            query = query.Where(i => !(i.Source == IncidentConstants.Sources.WeatherService && i.IncidentType == IncidentConstants.Types.Weather));
+
         var projected = query
             .OrderByDescending(i => i.OccurredAt ?? i.CreatedAt)
             .Select(i => new IncidentSummaryResponse(
@@ -51,19 +57,6 @@ public sealed class IncidentRepository(ApplicationDbContext context) : IIncident
             ));
 
         return projected.ToPaginatedListAsync(request.PageNumber, request.PageSize, cancellationToken);
-    }
-
-    public Task<List<Incident>> ListOpenWeatherAsync(Guid? routeId = null, CancellationToken cancellationToken = default)
-    {
-        var query = context.Incidents
-            .Include(i => i.AffectedTrips)
-            .Where(i => !i.IsDeleted && i.Source == IncidentConstants.Sources.WeatherService
-                                    && i.IncidentType == IncidentConstants.Types.Weather
-                                    && i.Status == IncidentConstants.Statuses.Open);
-
-        if(routeId.HasValue) query = query.Where(i => i.RouteId == routeId.Value);
-        
-        return query.OrderByDescending(i => i.OccurredAt).ToListAsync(cancellationToken);
     }
 
     public void Add(Incident incident) => context.Incidents.Add(incident);
