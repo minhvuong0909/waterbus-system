@@ -191,6 +191,8 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
             ? 'Sắp đến bến'
             : 'Cập bến'
 
+      console.log(`[Cockpit Audio] Nhận sự kiện (${label}): ${event.stationName} -> Đang phát câu: "${sentence}"`)
+
       const item: CockpitNowPlaying = {
         type: 'station',
         title: `Thông báo (${label}): ${event.stationName}`,
@@ -227,6 +229,7 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
             stopAll()
           }
         },
+        [HUB_EVENTS.audioState]: () => {},
       },
       onConnected: async (connection) => {
         onboardHubConnectionRef.current = connection
@@ -245,6 +248,8 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
     const unsub = connectHub(HUBS.boatTracking, {
       handlers: {
         [HUB_EVENTS.stopAnnouncement]: handleStopAnnouncement,
+        [HUB_EVENTS.boatPosition]: () => {},
+        [HUB_EVENTS.tripStatusChanged]: () => {},
       },
       onConnected: async (connection) => {
         boatTrackingConnectionRef.current = connection
