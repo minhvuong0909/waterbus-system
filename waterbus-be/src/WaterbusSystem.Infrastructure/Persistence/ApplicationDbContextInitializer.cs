@@ -888,6 +888,41 @@ public class ApplicationDbContextInitializer
         return ordered;
     }
 
+    /// <summary>
+    /// Gắn đúng các địa danh tham quan vào một Route theo thứ tự dọc tuyến, kèm bán kính kích hoạt; địa danh khác (seed cũ) ngừng hoạt động.
+    /// Idempotent. Địa danh được xét lần lượt theo DisplayOrder nên thứ tự phải khớp chiều đi của tuyến.
+    /// </summary>
+    private async Task EnsureRoutePoisAsync(Route route, IReadOnlyList<PointOfInterest> ordered)
+    {
+        var routePois = await _context.RoutePois.Where(rp => rp.RouteId == route.Id).ToListAsync();
+
+        // Địa danh không còn trên đường đi ngừng hoạt động và dời thứ tự ra xa để nhường (RouteId, DisplayOrder) là UNIQUE.
+        var staleOrder = 1000;
+        foreach (var stale in routePois.Where(rp => !ordered.Any(p => p.Id == rp.PoiId)).OrderBy(rp => rp.DisplayOrder))
+        {
+            stale.IsActive = false;
+            if (stale.DisplayOrder < 1000) stale.DisplayOrder = staleOrder++;
+        }
+        await _context.SaveChangesAsync();
+
+        var order = 1;
+        foreach (var poi in ordered)
+        {
+            var routePoi = routePois.FirstOrDefault(rp => rp.PoiId == poi.Id);
+            if (routePoi is null)
+            {
+                routePoi = new RoutePoi { RouteId = route.Id, PoiId = poi.Id };
+                _context.RoutePois.Add(routePoi);
+                routePois.Add(routePoi);
+            }
+            routePoi.DisplayOrder = order++;
+            routePoi.IsActive = true;
+            routePoi.IsDeleted = false;
+            routePoi.TriggerRadiusM = SightseeingPois.First(d => d.Name == poi.Name).RadiusM;
+        }
+        await _context.SaveChangesAsync();
+    }
+
     private async Task SeedSightseeingRoutesAsync()
     {
         var bachDang = await _context.Stations.FirstOrDefaultAsync(s => s.Code == "ST01");
@@ -906,6 +941,10 @@ public class ApplicationDbContextInitializer
         // Giờ khởi hành lệch phút so với chuyến thường để không trùng giờ trên cùng tàu.
         var times = new[] { new TimeSpan(9, 15, 0), new TimeSpan(12, 15, 0), new TimeSpan(15, 15, 0), new TimeSpan(18, 15, 0) };
         var vnNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7));
+
+        // Tour vòng TOUR01 (seed ở SeedSightseeingTourAsync) cũng thuyết minh địa danh: đi ra theo chiều SS01 nên dùng cùng thứ tự.
+        var tour = await _context.Routes.FirstOrDefaultAsync(r => r.Code == SightseeingTourRouteCode);
+        if (tour is not null) await EnsureRoutePoisAsync(tour, pois);
 
         foreach (var def in defs)
         {
@@ -934,34 +973,7 @@ public class ApplicationDbContextInitializer
                 await _context.SaveChangesAsync();
             }
 
-            var routePois = await _context.RoutePois.Where(rp => rp.RouteId == route.Id).ToListAsync();
-            var ordered = def.Reverse ? pois.AsEnumerable().Reverse().ToList() : pois;
-
-            // Địa danh seed cũ (không còn trên đường đi) ngừng hoạt động và dời thứ tự ra xa để nhường (RouteId, DisplayOrder) là UNIQUE.
-            var staleOrder = 1000;
-            foreach (var stale in routePois.Where(rp => !ordered.Any(p => p.Id == rp.PoiId)).OrderBy(rp => rp.DisplayOrder))
-            {
-                stale.IsActive = false;
-                if (stale.DisplayOrder < 1000) stale.DisplayOrder = staleOrder++;
-            }
-            await _context.SaveChangesAsync();
-
-            var order = 1;
-            foreach (var poi in ordered)
-            {
-                var routePoi = routePois.FirstOrDefault(rp => rp.PoiId == poi.Id);
-                if (routePoi is null)
-                {
-                    routePoi = new RoutePoi { RouteId = route.Id, PoiId = poi.Id };
-                    _context.RoutePois.Add(routePoi);
-                    routePois.Add(routePoi);
-                }
-                routePoi.DisplayOrder = order++;
-                routePoi.IsActive = true;
-                routePoi.IsDeleted = false;
-                routePoi.TriggerRadiusM = SightseeingPois.First(d => d.Name == poi.Name).RadiusM;
-            }
-            await _context.SaveChangesAsync();
+            await EnsureRoutePoisAsync(route, def.Reverse ? pois.AsEnumerable().Reverse().ToList() : pois);
 
             foreach (var time in times)
             {
