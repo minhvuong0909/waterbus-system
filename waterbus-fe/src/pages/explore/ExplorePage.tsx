@@ -24,7 +24,7 @@ export default function ExplorePage() {
         error={Boolean(departures.error)}
         onRetry={departures.retry}
       />
-      <LandmarksSection categories={data.categories} landmarks={data.landmarks} />
+      <LandmarksSection landmarks={data.landmarks} />
     </Reveal>
   )
 }
