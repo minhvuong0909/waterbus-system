@@ -145,6 +145,7 @@ export const API_ENDPOINTS = {
 export const HUBS = {
   boatTracking: '/hubs/boat-tracking',
   seatSync: '/hubs/seat-sync',
+  onboardAudio: '/hubs/onboard-audio',
 } as const
 
 /** Event names the hubs push to the browser. */
@@ -156,4 +157,6 @@ export const HUB_EVENTS = {
   seatHeld: 'seatHeld',
   seatReleased: 'seatReleased',
   seatSold: 'seatSold',
+  audioTrigger: 'audioTrigger',
+  audioControl: 'audioControl',
 } as const

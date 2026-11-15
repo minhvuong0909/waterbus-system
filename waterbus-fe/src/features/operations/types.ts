@@ -16,6 +16,18 @@ export interface AdminTrip {
   status: TripStatus
   /** Những gì backend cho phép với chuyến này lúc này (BE `TripLifecycle`). */
   allowedOperations: OperationType[]
+  /** Trạng thái từng nút của thuyền trưởng kèm lý do khi chưa bấm được (BE `CaptainOperationRules`); chỉ có cho thuyền trưởng. */
+  captainActions?: CaptainActionHint[]
+}
+
+/** Một nút của thuyền trưởng: bấm được hay chưa, và vì sao chưa. */
+export interface CaptainActionHint {
+  operation: OperationType
+  allowed: boolean
+  /** NotYet | OpenBoardingFirst | NoPosition | NotAtLastStop | WrongStatus */
+  reason: string | null
+  /** Với `NotYet`: giờ được mở đón khách (ISO 8601). */
+  availableAt: string | null
 }
 
 /** Một sự cố đang mở hiện dạng cảnh báo: cảnh báo thời tiết của Weather Guard hoặc SOS của thuyền trưởng. */

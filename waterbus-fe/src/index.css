@@ -128,8 +128,19 @@
   }
 }
 
+/* Tàu trên bản đồ: lớp ngoài chỉ giữ vị trí (Leaflet dịch chuyển bằng transform, làm mượt 1 giây), đĩa bên trong căn giữa icon. */
 .fleet-boat {
+  /* 1 giây: khớp chu kỳ cập nhật vị trí. Transition dài hơn chu kỳ làm tàu luôn chạy chậm hơn vị trí thật và lệch khỏi tuyến ở khúc cua. */
+  transition: transform 1s linear;
+}
+.fleet-map--zooming .fleet-boat {
+  transition: none !important;
+}
+.fleet-boat__disc {
   display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
   align-items: center;
   justify-content: center;
   border-radius: 9999px;
@@ -137,15 +148,65 @@
   color: #fff;
   border: 3px solid #fff;
   box-shadow: 0 2px 8px rgba(13, 37, 56, 0.35);
-  transition: transform 3s linear;
 }
-.fleet-boat--stale {
+.fleet-boat__disc--selected {
+  background: #0d2538;
+  box-shadow: 0 0 0 4px rgba(20, 122, 126, 0.35), 0 2px 8px rgba(13, 37, 56, 0.45);
+}
+.fleet-boat__disc--stale {
   background: #8a97a3;
   opacity: 0.85;
 }
-
-.fleet-boat .material-symbols-outlined {
+.fleet-boat__disc .material-symbols-outlined {
+  display: block;
+  width: 18px;
+  height: 18px;
   font-size: 18px;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* Khung bản đồ: bỏ viền focus dày mặc định của Leaflet (bản đồ vẫn dùng được bằng bàn phím). */
+.leaflet-container:focus {
+  outline: none;
+}
+
+/* Thu nhỏ bản đồ: địa danh chỉ là một chấm cam. */
+.fleet-landmark__dot {
+  display: block;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: #f59e0b;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(13, 37, 56, 0.4);
+}
+
+/* Mốc địa danh tham quan: ghim giọt nước màu cam có chấm trắng, mũi nhọn ở đáy. */
+.fleet-landmark__pin {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  margin: 3px 3px 0;
+  background: #f59e0b;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(13, 37, 56, 0.4);
+}
+.fleet-landmark__pin::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 9999px;
+  background: #fff;
 }
 
 /* Pier pin on the street map: a disc with an anchor, dark when selected. */

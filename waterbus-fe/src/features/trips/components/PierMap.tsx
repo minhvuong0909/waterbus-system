@@ -55,7 +55,7 @@ export default function PierMap({ map, selectedId, onSelect, className = '' }: P
     <div className={`relative w-full overflow-hidden rounded-2xl border border-teal-flow/15 ${className}`.trim()}>
       <MapContainer center={DEFAULT_CENTER} zoom={12} scrollWheelZoom={false} className="z-0 h-full w-full">
         <FitToPiers points={line} />
-        <TileLayer attribution={MAP_TILE_ATTRIBUTION} url={MAP_TILE_URL} />
+        <TileLayer attribution={MAP_TILE_ATTRIBUTION} url={MAP_TILE_URL} maxNativeZoom={16} maxZoom={18} />
         <Polyline
           positions={line}
           pathOptions={{ color: '#147A7E', weight: 5, opacity: 0.75, dashArray: '2 10', lineCap: 'round' }}
