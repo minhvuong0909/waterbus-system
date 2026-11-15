@@ -14,6 +14,16 @@ import type {
 } from '../services/operationsService'
 import type { LiveBoatPosition } from '../types'
 
+export interface StopAnnouncementEvent {
+  tripId: string
+  tripType: string
+  eventType: 'departing' | 'near' | 'arrived'
+  stationName: string
+  nextStationName?: string | null
+  message: string
+  timestamp: string
+}
+
 interface FleetHubHandlers {
   onPosition?: (position: LiveBoatPosition) => void
   onAlert?: (alert: WeatherAlertEvent) => void
@@ -21,6 +31,8 @@ interface FleetHubHandlers {
   onTripStatus?: (event: TripStatusEvent) => void
   /** A captain reported an emergency. */
   onIncident?: (event: IncidentRaisedEvent) => void
+  /** Stop announcement triggered by the simulator or vessel. */
+  onStopAnnouncement?: (event: StopAnnouncementEvent) => void
   /** After a reconnect: reload what may have been missed while offline. */
   onReconnected?: () => void
 }
@@ -48,6 +60,7 @@ export function useFleetHub(handlers: FleetHubHandlers, enabled = true, boatIds?
         [HUB_EVENTS.weatherAlert]: (event: WeatherAlertEvent) => ref.current.onAlert?.(event),
         [HUB_EVENTS.tripStatusChanged]: (event: TripStatusEvent) => ref.current.onTripStatus?.(event),
         [HUB_EVENTS.incidentRaised]: (event: IncidentRaisedEvent) => ref.current.onIncident?.(event),
+        [HUB_EVENTS.stopAnnouncement]: (event: StopAnnouncementEvent) => ref.current.onStopAnnouncement?.(event),
       },
       onConnected: async (connection) => {
         if (boats) {

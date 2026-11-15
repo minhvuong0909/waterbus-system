@@ -33,6 +33,8 @@ export const API_ENDPOINTS = {
     trips: '/api/v1/admin/trips',
     /** Assigns or replaces the boat of a trip that is still `Scheduled`. */
     tripBoat: (tripId: string) => `/api/v1/admin/trips/${tripId}/boat`,
+    /** Admin: simulator stop announcement config. */
+    simulatorStopAnnouncement: '/api/v1/admin/simulator/stop-announcement',
   },
   assistant: '/api/v1/aiassistant/chat',
   textToSpeech: {
@@ -139,6 +141,7 @@ export const HUBS = {
 /** Event names the hubs push to the browser. */
 export const HUB_EVENTS = {
   boatPosition: 'boatPosition',
+  stopAnnouncement: 'stopAnnouncement',
   weatherAlert: 'weatherAlert',
   tripStatusChanged: 'tripStatusChanged',
   incidentRaised: 'incidentRaised',
