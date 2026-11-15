@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button, ErrorState, Icon, Modal, Notice, PageLoader } from '../../components/ui'
 import GpsSharePanel from '../../features/captain/components/GpsSharePanel'
+import CaptainSpeakerWidget from '../../features/captain/components/CaptainSpeakerWidget'
 import { useFleetHub } from '../../features/operations/hooks/useFleetHub'
 import { getOperationTrips, operateTrip } from '../../features/operations/services/operationsService'
 import type { AdminTrip, OperationType } from '../../features/operations/types'
@@ -67,7 +68,6 @@ export default function CaptainPortalPage() {
   const trip: AdminTrip | undefined =
     open.find((x) => x.id === selectedId) ?? open.find((x) => x.status === 'EnRoute') ?? open[0]
 
-
   if (!trip) {
     return (
       <p className="rounded-2xl bg-white p-8 text-center text-on-surface-variant">
@@ -118,6 +118,13 @@ export default function CaptainPortalPage() {
           <TripStatusBadge status={trip.status} />
         </div>
       </div>
+
+      {/* Widget Hệ thống loa phát thanh buồng lái */}
+      <CaptainSpeakerWidget
+        trip={trip}
+        narrating={narrating}
+        onToggleNarrating={() => setAudioOverride(!narrating)}
+      />
 
       {user && <GpsSharePanel userId={user.id} />}
 
