@@ -1,0 +1,19 @@
+# Cấu hình DEMO audio trên tàu (chỉ dùng khi demo, không dùng cho môi trường thật).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
+#
+# Bật: môi trường Development (để seed tài khoản + dữ liệu mẫu), bộ giả lập GPS chạy chuyến 210 giây,
+# kích hoạt audio theo vị trí, và cho thuyền trưởng mở đón khách sớm (chuyến seed có giờ cố định).
+# Chi tiết các bước demo: docs/DEMO_AUDIO.md
+services:
+  api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      Tracking__Simulator__Enabled: "true"
+      Tracking__Simulator__IntervalSeconds: "1"
+      Tracking__Simulator__IncludeScheduledTrips: "true"
+      Tracking__Simulator__DemoTripSeconds: "210"
+      Tracking__Simulator__DemoDwellSeconds: "8"
+      SightseeingAudio__EnableGpsTriggerEvaluation: "true"
+      # Mở đón khách được từ 7 ngày trước giờ khởi hành (mặc định 30 phút) để demo không phải chờ đúng giờ.
+      CaptainOperations__OpenBoardingLeadMinutes: "10080"
