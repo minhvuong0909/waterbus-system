@@ -31,12 +31,21 @@ public sealed class CaptainRepository(ApplicationDbContext db) : ICaptainReposit
         if (request.Status.HasValue) q = q.Where(u => (u.CaptainStatus ?? CaptainStatus.Inactive) == request.Status);
         return Responses(q.OrderBy(u => u.FullName).ThenBy(u => u.Id)).ToPaginatedListAsync(request.Page, request.PageSize, ct);
     }
-    public Task<bool> IsEligibleAsync(Guid id, DateTimeOffset at, CancellationToken ct) => EligibleIds(db, at).ContainsAsync(id, ct);
+    public async Task<bool> IsEligibleAsync(Guid id, DateTimeOffset at, CancellationToken ct)
+    {
+        var state = await db.Users.AsNoTracking().Where(u => u.Id == id).Select(u => new {
+            u.IsActive, u.CaptainStatus, u.CaptainLicenseNumber, u.CaptainLicenseExpiresOn,
+            IsCaptain = db.UserRoles.Any(ur => ur.UserId == u.Id && db.Roles.Any(r => r.Id == ur.RoleId && r.Name == "Captain"))
+        }).FirstOrDefaultAsync(ct);
+        return state is not null && CaptainRules.IsEligible(state.IsActive, state.IsCaptain, state.CaptainStatus,
+            state.CaptainLicenseNumber, state.CaptainLicenseExpiresOn, at);
+    }
+    // Biểu diễn SQL tương đương CaptainRules.IsEligible để lọc trước phân trang và xác nhận thanh toán.
     public static IQueryable<Guid> EligibleIds(ApplicationDbContext db, DateTimeOffset at)
     {
         var date = CaptainRules.VietnamDate(at);
         return db.Users.Where(u => u.IsActive && u.CaptainStatus == CaptainStatus.Active &&
-            u.CaptainLicenseNumber != null && u.CaptainLicenseNumber != "" && u.CaptainLicenseExpiresOn >= date &&
+            u.CaptainLicenseNumber != null && u.CaptainLicenseNumber.Trim() != "" && u.CaptainLicenseExpiresOn >= date &&
             db.UserRoles.Any(ur => ur.UserId == u.Id && db.Roles.Any(r => r.Id == ur.RoleId && r.Name == "Captain")))
             .Select(u => u.Id);
     }
@@ -47,9 +56,9 @@ public sealed class CaptainRepository(ApplicationDbContext db) : ICaptainReposit
     public Task<bool> LicenseExistsAsync(string license, Guid? exceptId, CancellationToken ct) =>
         db.Users.AnyAsync(u => u.CaptainLicenseNumber == license && u.Id != exceptId, ct);
     public async Task<Boat> BoatAsync(Guid id, CancellationToken ct) => await db.Boats.FirstOrDefaultAsync(b => b.Id == id, ct) ?? throw new NotFoundException(nameof(Boat), id);
-    public Task<Boat?> AssignedBoatAsync(Guid captainId, CancellationToken ct) => db.Boats.FirstOrDefaultAsync(b => b.CaptainUserId == captainId, ct);
-    public Task<List<Trip>> BoatTripsAsync(Guid boatId, CancellationToken ct) => db.Trips.Where(t => t.BoatId == boatId).ToListAsync(ct);
-    public async Task<Trip> TripAsync(Guid id, CancellationToken ct) => await db.Trips.Include(t => t.Boat).Include(t => t.TripStopCalls)
+    public Task<Boat?> AssignedBoatAsync(Guid captainId, CancellationToken ct) => db.Boats.AsNoTracking().FirstOrDefaultAsync(b => b.CaptainUserId == captainId, ct);
+    public Task<List<Trip>> BoatTripsAsync(Guid boatId, CancellationToken ct) => db.Trips.AsNoTracking().Where(t => t.BoatId == boatId).ToListAsync(ct);
+    public async Task<Trip> TripAsync(Guid id, CancellationToken ct) => await db.Trips.AsNoTracking().Include(t => t.Boat).Include(t => t.TripStopCalls)
         .FirstOrDefaultAsync(t => t.Id == id, ct) ?? throw new NotFoundException(nameof(Trip), id);
     public Task<List<Trip>> PendingTripsAsync(CancellationToken ct) => db.Trips.AsNoTracking().Include(t => t.Boat).Include(t => t.TripStopCalls)
         .Where(t => t.Status == TripStatus.Scheduled || t.Status == TripStatus.Boarding).ToListAsync(ct);
