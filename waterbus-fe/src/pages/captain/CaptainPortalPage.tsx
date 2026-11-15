@@ -14,7 +14,7 @@ import { getOperationTrips, operateTrip } from '../../features/operations/servic
 import type { AdminTrip, OperationType } from '../../features/operations/types'
 import { getTrackedTrip } from '../../features/tracking/services/trackingService'
 import { useDocumentTitle, useFetch, useReload, useSubmit } from '../../hooks'
-import { formatClock, formatDateTime } from '../../utils/time'
+import { formatClock } from '../../utils/time'
 
 const STATUS_LABEL: Record<AdminTrip['status'], string> = {
   Scheduled: 'Chờ đón khách',
@@ -31,22 +31,21 @@ const STATUS_LABEL: Record<AdminTrip['status'], string> = {
 const isActiveForCaptain = (status: AdminTrip['status']) =>
   status === 'Scheduled' || status === 'Boarding' || status === 'EnRoute' || status === 'Suspended' || status === 'Arrived'
 
-/** Chuyến được chọn sẵn: đang chạy trước, rồi tạm ngưng, đang đón khách, đã đến bến cuối, cuối cùng là chuyến sắp tới. */
+/** Chuyến hiện tại của tàu: đang chạy trước, rồi tạm ngưng, đang đón khách, đã đến bến cuối, cuối cùng là chuyến sắp tới. */
 const DEFAULT_ORDER: AdminTrip['status'][] = ['EnRoute', 'Suspended', 'Boarding', 'Arrived', 'Scheduled']
 
 const clock = (iso?: string | null) => (iso ? formatClock(new Date(iso)) : '—')
 
 function TripDashboard({
   trip,
-  options,
-  onSelect,
+  upcoming,
   version,
   gps,
   reload,
 }: {
   trip: AdminTrip
-  options: AdminTrip[]
-  onSelect: (id: string) => void
+  /** Số chuyến sắp tới của tàu sau chuyến này (chỉ để báo, thuyền trưởng không chọn chuyến). */
+  upcoming: number
   version: number
   gps: ReturnType<typeof useCaptainGps>
   reload: () => void
@@ -117,15 +116,7 @@ function TripDashboard({
         <section className="cap-hero">
           <div className="cap-hero-top">
             <p className="cap-greeting">Xin chào, Captain {user?.fullName ?? ''}</p>
-            {options.length > 1 && (
-              <select aria-label="Chuyến được phân công" value={trip.id} onChange={(e) => onSelect(e.target.value)}>
-                {options.map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {formatDateTime(x.departureTime)} · {x.routeName}
-                  </option>
-                ))}
-              </select>
-            )}
+            {upcoming > 0 && <span className="cap-greeting">Còn {upcoming} chuyến tiếp theo của tàu</span>}
           </div>
           <h1>{trip.routeName}</h1>
           <p className="cap-hero-meta">
@@ -296,10 +287,10 @@ export default function CaptainPortalPage() {
   useDocumentTitle('Trung tâm vận hành tàu')
   const [version, reload] = useReload()
   const trips = useFetch(getOperationTrips, [version])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
   const open = (trips.data ?? []).filter((x) => isActiveForCaptain(x.status))
-  const trip =
-    open.find((x) => x.id === selectedId) ?? DEFAULT_ORDER.flatMap((status) => open.filter((x) => x.status === status))[0] ?? open[0]
+  // Thuyền trưởng gắn cố định với tàu, Admin phân tàu cho từng chuyến: thuyền trưởng không chọn chuyến mà chỉ thấy chuyến hiện tại
+  // của tàu (đang chạy, đang đón khách, chờ kết thúc) hoặc, nếu chưa có, chuyến sắp khởi hành sớm nhất.
+  const trip = DEFAULT_ORDER.flatMap((status) => open.filter((x) => x.status === status))[0] ?? open[0]
   const gps = useCaptainGps(trip?.boatId ?? '', reload)
   // Điểm danh do Admin ghi nhận; tải lại định kỳ để đồng bộ với backend.
   useEffect(() => {
@@ -335,7 +326,7 @@ export default function CaptainPortalPage() {
             </Button>
           </div>
         ) : (
-          <TripDashboard key={trip.id} trip={trip} options={open} onSelect={setSelectedId} version={version} gps={gps} reload={reload} />
+          <TripDashboard key={trip.id} trip={trip} upcoming={open.filter((x) => x.id !== trip.id && x.status === 'Scheduled').length} version={version} gps={gps} reload={reload} />
         )}
       </main>
     </>
