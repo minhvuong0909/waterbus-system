@@ -11,7 +11,15 @@ const CATEGORY_ICON: Record<PoiCategory, string> = {
 /** The landmark's photo, or a tile with its category icon while no photo of the place is available. */
 export default function LandmarkImage({ landmark, className = '' }: { landmark: Landmark; className?: string }) {
   if (landmark.image) {
-    return <img alt={landmark.title} src={landmark.image} loading="lazy" decoding="async" className={`object-cover ${className}`} />
+    return (
+      <img
+        alt={landmark.title}
+        src={landmark.image}
+        loading="lazy"
+        decoding="async"
+        className={`block object-cover ${className}`}
+      />
+    )
   }
   return (
     <div

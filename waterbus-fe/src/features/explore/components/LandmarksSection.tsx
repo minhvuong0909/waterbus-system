@@ -74,11 +74,11 @@ export default function LandmarksSection({
               onClick={() => setOpen(l)}
               aria-haspopup="dialog"
               data-reveal
-              className={`group overflow-hidden rounded-3xl border border-outline-variant/30 bg-white text-left shadow-card transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-teal-flow/30 hover:shadow-raised motion-reduce:transform-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-flow ${
-                index === 0 ? 'sm:col-span-2 sm:grid sm:grid-cols-2' : ''
+              className={`group flex cursor-pointer flex-col overflow-hidden rounded-3xl border border-outline-variant/30 bg-white text-left shadow-card transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-teal-flow/30 hover:shadow-raised motion-reduce:transform-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-flow ${
+                index === 0 ? 'sm:col-span-2' : ''
               }`}
             >
-              <div className={`relative h-56 overflow-hidden ${index === 0 ? 'sm:h-full sm:min-h-72' : ''}`}>
+              <div className="relative h-56 w-full shrink-0 overflow-hidden">
                 <LandmarkImage
                   landmark={l}
                   className="h-full w-full transition-transform duration-700 ease-out group-hover:scale-[1.04] motion-reduce:transform-none"
@@ -88,19 +88,23 @@ export default function LandmarksSection({
                 </span>
                 <span className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-deep-river/35 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 motion-reduce:transition-none" />
               </div>
-              <div className={`flex flex-col justify-center p-5 sm:p-6 ${index === 0 ? 'sm:p-8' : ''}`}>
-                <h3 className={`font-display font-bold leading-snug text-deep-river ${index === 0 ? 'text-2xl sm:text-3xl' : 'text-lg'}`}>
+              <div className="flex flex-1 flex-col p-5 sm:p-6">
+                <h3 className={`min-h-10 font-display font-bold leading-snug text-deep-river ${index === 0 ? 'sm:text-xl' : 'text-lg'}`}>
                   {l.title}
                 </h3>
-                <p className={`mt-3 line-clamp-2 text-sm leading-6 text-on-surface-variant ${index === 0 ? 'sm:text-base' : ''}`}>
+                <p className={`mt-1 min-h-12 line-clamp-2 text-sm leading-6 text-on-surface-variant ${index === 0 ? 'sm:text-base' : ''}`}>
                   {l.description}
                 </p>
-                <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-teal-flow">
-                  {t('Read the story')}
-                  <Icon
-                    name="arrow_forward"
-                    className="text-base transition-transform duration-300 group-hover:translate-x-1 motion-reduce:transform-none"
-                  />
+                <div className="mt-auto pt-1">
+                  <span className="inline-flex min-h-11 w-fit items-center gap-3 text-sm font-semibold text-deep-river transition-colors duration-200 group-hover:text-teal-flow group-focus-visible:text-teal-flow">
+                    {t('Read the story')}
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-teal-flow/10 text-teal-flow transition-[background-color,transform,box-shadow] duration-200 group-hover:translate-x-1 group-hover:bg-teal-flow group-hover:text-white group-hover:shadow-md group-focus-visible:bg-teal-flow group-focus-visible:text-white motion-reduce:transform-none">
+                      <Icon
+                        name="arrow_forward"
+                        className="text-base transition-transform duration-300 group-hover:translate-x-0.5 motion-reduce:transform-none"
+                      />
+                    </span>
+                  </span>
                 </div>
               </div>
             </button>
