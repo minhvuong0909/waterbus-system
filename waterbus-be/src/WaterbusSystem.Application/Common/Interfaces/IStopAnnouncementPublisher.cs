@@ -18,6 +18,7 @@ public interface IStopAnnouncementPublisher
         string stationName,
         DateTimeOffset at,
         string? tripType = null,
+        string? nextStationName = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -59,7 +60,8 @@ public sealed record StopAnnouncementMessage(
     string Type,
     double SegmentProgress,
     DateTimeOffset At,
-    string? TripType = null)
+    string? TripType = null,
+    string? NextStationName = null)
 {
     /// <summary>Phiên bản hợp đồng payload, tăng khi đổi cấu trúc.</summary>
     public int Version => 1;

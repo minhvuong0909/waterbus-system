@@ -121,6 +121,9 @@ public class BoatSimulatorService : BackgroundService
             double segmentProgress = 0;
             long cycleNumber = 0;
             bool isDwelling = false;
+            // Dùng để kiểm tra điều kiện phát thông báo trong cả 2 nhánh tính toán
+            double totalElapsed = 0;
+            double totalCycleTime = double.MaxValue;
 
             if (trip.Status == TripStatus.Suspended)
             {
@@ -137,36 +140,47 @@ public class BoatSimulatorService : BackgroundService
                 // Phân bổ đều thời gian di chuyển cho từng chặng giữa 2 bến liên tiếp trong chuyến
                 double segDuration = Math.Max(1.0, totalTripDuration / segmentCount);
                 double segTotalTime = segDuration + dwellDuration;
-                double totalCycleTime = segmentCount * segTotalTime;
+                totalCycleTime = segmentCount * segTotalTime;
 
-                var totalElapsed = (now - trip.Start).TotalSeconds;
+                totalElapsed = (now - trip.Start).TotalSeconds;
                 if (totalElapsed < 0) totalElapsed = 0;
 
-                cycleNumber = (long)(totalElapsed / totalCycleTime);
-                double elapsedInCycle = totalElapsed % totalCycleTime;
-
-                segmentIndex = Math.Min((int)(elapsedInCycle / segTotalTime), segmentCount - 1);
-                double timeInSeg = elapsedInCycle - (segmentIndex * segTotalTime);
-
-                if (timeInSeg < segDuration)
+                // Nếu đã đi hết hành trình toàn chuyến: tàu đã cập bến cuối và neo đậu, không lặp lại chu kỳ ma
+                if (totalElapsed >= totalCycleTime)
                 {
-                    segmentProgress = Math.Clamp(timeInSeg / segDuration, 0.0, 1.0);
-                    double totalFraction = (segmentIndex + segmentProgress) / segmentCount;
-                    var point = RoutePathInterpolator.PointAt(path, totalFraction);
-
-                    lat = Math.Round((decimal)point.Latitude, 7);
-                    lng = Math.Round((decimal)point.Longitude, 7);
-                    // Khi tua nhanh mô phỏng đoạn demo, hiển thị tốc độ vận hành thực tế của Saigon Waterbus (~12.5 hải lý/giờ ~ 23.2 km/h)
-                    speed = 12.5m;
+                    isDwelling = true;
+                    segmentIndex = segmentCount - 1;
+                    segmentProgress = 1.0;
+                    var lastStop = trip.Stops[segmentCount];
+                    lat = Math.Round((decimal)lastStop.Latitude, 7);
+                    lng = Math.Round((decimal)lastStop.Longitude, 7);
+                    speed = 0m;
                 }
                 else
                 {
-                    isDwelling = true;
-                    segmentProgress = 1.0;
-                    var destStop = trip.Stops[segmentIndex + 1];
-                    lat = Math.Round((decimal)destStop.Latitude, 7);
-                    lng = Math.Round((decimal)destStop.Longitude, 7);
-                    speed = 0m;
+                    segmentIndex = Math.Min((int)(totalElapsed / segTotalTime), segmentCount - 1);
+                    double timeInSeg = totalElapsed - (segmentIndex * segTotalTime);
+
+                    if (timeInSeg < segDuration)
+                    {
+                        segmentProgress = Math.Clamp(timeInSeg / segDuration, 0.0, 1.0);
+                        double totalFraction = (segmentIndex + segmentProgress) / segmentCount;
+                        var point = RoutePathInterpolator.PointAt(path, totalFraction);
+
+                        lat = Math.Round((decimal)point.Latitude, 7);
+                        lng = Math.Round((decimal)point.Longitude, 7);
+                        // Khi tua nhanh mô phỏng đoạn demo, hiển thị tốc độ vận hành thực tế của Saigon Waterbus (~12.5 hải lý/giờ ~ 23.2 km/h)
+                        speed = 12.5m;
+                    }
+                    else
+                    {
+                        isDwelling = true;
+                        segmentProgress = 1.0;
+                        var destStop = trip.Stops[segmentIndex + 1];
+                        lat = Math.Round((decimal)destStop.Latitude, 7);
+                        lng = Math.Round((decimal)destStop.Longitude, 7);
+                        speed = 0m;
+                    }
                 }
             }
             else
@@ -174,7 +188,9 @@ public class BoatSimulatorService : BackgroundService
                 var duration = trip.ArrivalTime - trip.Start;
                 if (duration <= TimeSpan.Zero) continue;
 
-                var elapsed = (now - trip.Start).TotalSeconds % duration.TotalSeconds;
+                totalElapsed = (now - trip.Start).TotalSeconds;
+                totalCycleTime = duration.TotalSeconds;
+                var elapsed = totalElapsed % duration.TotalSeconds;
                 if (elapsed < 0) elapsed += duration.TotalSeconds;
                 double fraction = elapsed / duration.TotalSeconds;
                 var point = RoutePathInterpolator.PointAt(path, fraction);
@@ -193,12 +209,12 @@ public class BoatSimulatorService : BackgroundService
                 trip.BoatId, lat, lng, speed, now, BoatPositionSources.Simulated, ReportedByCaptainId: null),
                 cancellationToken);
 
-            if (stopPublisher is not null && trip.Status != TripStatus.Suspended)
+            if (stopPublisher is not null && trip.Status == TripStatus.EnRoute && (totalElapsed < totalCycleTime + 2.0))
             {
                 var fromStop = trip.Stops[segmentIndex];
                 var destinationStop = trip.Stops[segmentIndex + 1];
                 var tripTypeStr = trip.TripType.ToString();
-                var stateKey = (trip.Id, segmentIndex, cycleNumber);
+                var stateKey = (trip.Id, segmentIndex, 0L);
                 var state = _announcementState.GetOrAdd(stateKey, _ => (false, false, false));
 
                 // 1. Rời bến
@@ -211,7 +227,7 @@ public class BoatSimulatorService : BackgroundService
 
                     await stopPublisher.PublishDepartingAsync(
                         trip.Id, trip.BoatId, fromStop.StationId, fromStop.StationName,
-                        now, tripTypeStr, cancellationToken);
+                        now, tripTypeStr, destinationStop.StationName, cancellationToken);
                 }
 
                 // 2. Gần tới bến

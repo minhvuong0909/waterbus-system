@@ -7,7 +7,6 @@ import {
   playAzureAnnouncement,
   stopCurrentAudio,
 } from '../../admin/services/simulatorService'
-import { POI_SUGGESTIONS } from '../../admin/utils/audioGuide'
 import type { StopAnnouncementEvent } from '../../operations/hooks/useFleetHub'
 import type { AdminTrip } from '../../operations/types'
 import { formatClock } from '../../../utils/time'
@@ -45,7 +44,7 @@ export interface AudioStateMessage {
 
 export interface AnnouncementItem {
   id: string
-  type: 'station' | 'poi' | 'test'
+  type: 'station' | 'poi'
   title: string
   text: string
   time: string
@@ -57,6 +56,12 @@ interface CaptainSpeakerWidgetProps {
   onToggleNarrating?: () => void
 }
 
+/** Loại bỏ tiền tố "Bến " lặp để tránh đọc "bến Bến Thủ Thiêm" */
+function cleanStationName(name?: string | null): string {
+  if (!name) return ''
+  return name.replace(/^Bến\s+/i, '').trim()
+}
+
 export function getAnnouncementSentence(event: StopAnnouncementEvent): string {
   const eventType = event.type || event.eventType || 'departing'
   let customTexts: Record<string, string> = {}
@@ -65,10 +70,16 @@ export function getAnnouncementSentence(event: StopAnnouncementEvent): string {
     if (saved) customTexts = JSON.parse(saved)
   } catch {}
 
-  const station = event.stationName || 'Bến tàu'
-  const nextStation = event.nextStationName || ''
+  const stationRaw = event.stationName || 'Bến tàu'
+  const station = cleanStationName(stationRaw) || stationRaw
+  const nextRaw = event.nextStationName ?? ''
+  const nextStation = cleanStationName(nextRaw)
 
   if (eventType === 'departing') {
+    if (!nextStation) {
+      // Rời bến cuối cùng (không có bến tiếp theo)
+      return `Tàu đang rời bến ${station}. Đây là chặng cuối của hành trình. Xin cảm ơn quý khách đã đồng hành cùng tàu buýt sông.`
+    }
     const raw =
       customTexts['departing'] ||
       'Tàu đang rời bến {Bến hiện tại}, điểm đến tiếp theo: Bến {Bến kế tiếp}.'
@@ -78,12 +89,13 @@ export function getAnnouncementSentence(event: StopAnnouncementEvent): string {
   }
 
   if (eventType === 'near') {
+    const nearStation = nextStation || station
     const raw =
       customTexts['near'] ||
       'Tàu sắp đến bến {Bến kế tiếp}. Quý khách vui lòng chuẩn bị tư trang hành lý.'
     return raw
-      .replace(/{Bến kế tiếp}/g, station)
-      .replace(/{Bến hiện tại}/g, station)
+      .replace(/{Bến kế tiếp}/g, nearStation)
+      .replace(/{Bến hiện tại}/g, nearStation)
   }
 
   // arrived
@@ -111,7 +123,6 @@ export default function CaptainSpeakerWidget({
   const [nowPlaying, setNowPlaying] = useState<AnnouncementItem | null>(null)
   const [history, setHistory] = useState<AnnouncementItem[]>([])
   const [hubConnected, setHubConnected] = useState(false)
-  const [selectedDemoPoi, setSelectedDemoPoi] = useState<string>('cầu ba son')
 
   const currentAudioRef = useRef<HTMLAudioElement | null>(null)
   const onboardHubConnectionRef = useRef<HubConnection | null>(null)
@@ -158,7 +169,7 @@ export default function CaptainSpeakerWidget({
     setNowPlaying(null)
   }, [])
 
-  // Phát audio file MP3 từ URL với Bearer Token
+  // Phát audio file MP3 từ URL với Bearer Token (thuyết minh POI)
   const playPoiAudio = useCallback(
     async (message: AudioTriggerMessage) => {
       handleStopAll()
@@ -243,7 +254,7 @@ export default function CaptainSpeakerWidget({
     [handleStopAll, addHistory],
   )
 
-  // Phát thông báo trạm bến
+  // Phát thông báo trạm bến (chỉ khi chuyến EnRoute)
   const handlePlayStationAnnouncement = useCallback(
     (event: StopAnnouncementEvent) => {
       const sentence = getAnnouncementSentence(event)
@@ -280,7 +291,12 @@ export default function CaptainSpeakerWidget({
     const unsub = connectHub(HUBS.onboardAudio, {
       handlers: {
         [HUB_EVENTS.audioTrigger]: (message: AudioTriggerMessage) => {
+          // Chỉ nhận khi chuyến đang EnRoute và đúng chuyến/tàu
+          const currentTrip = tripRef.current
+          if (!currentTrip || currentTrip.status !== 'EnRoute') return
           if (!narratingRef.current) return
+          if (message.tripId && message.tripId !== currentTrip.id) return
+          if (message.boatId && currentTrip.boatId && message.boatId !== currentTrip.boatId) return
           void playPoiAudio(message)
         },
         [HUB_EVENTS.audioControl]: (control: AudioControlMessage) => {
@@ -314,9 +330,11 @@ export default function CaptainSpeakerWidget({
       handlers: {
         [HUB_EVENTS.stopAnnouncement]: (event: StopAnnouncementEvent) => {
           const currentTrip = tripRef.current
-          if (event.boatId && currentTrip?.boatId && event.boatId !== currentTrip.boatId) {
-            return
-          }
+          // Chỉ phát khi chuyến đang EnRoute
+          if (!currentTrip || currentTrip.status !== 'EnRoute') return
+          // Lọc đúng chuyến/tàu
+          if (event.tripId && event.tripId !== currentTrip.id) return
+          if (event.boatId && currentTrip.boatId && event.boatId !== currentTrip.boatId) return
           handlePlayStationAnnouncement(event)
         },
       },
@@ -331,61 +349,7 @@ export default function CaptainSpeakerWidget({
     return () => unsub()
   }, [handlePlayStationAnnouncement])
 
-  // Thử loa phát thanh buồng lái (Test Speaker)
-  const handleTestSpeaker = useCallback(() => {
-    handleStopAll()
-    const sentence =
-      'Hệ thống loa phát thanh trên tàu đang hoạt động tốt. Âm thanh thông báo trạm bến và thuyết minh du lịch tự động đã sẵn sàng.'
-    const item: AnnouncementItem = {
-      id: `test-${Date.now()}`,
-      type: 'test',
-      title: 'Kiểm tra loa buồng lái',
-      text: sentence,
-      time: formatClock(new Date()),
-    }
-    setNowPlaying(item)
-    setIsPlaying(true)
-    addHistory(item)
-
-    const effectiveVol = isMuted ? 0 : volume
-    void playAzureAnnouncement(sentence, 'vi-VN-HoaiMyNeural', effectiveVol, () => {
-      setIsPlaying(false)
-      setNowPlaying(null)
-    })
-  }, [handleStopAll, isMuted, volume, addHistory])
-
-  // Thử thuyết minh POI mẫu
-  const handleTestPoiDemo = useCallback(() => {
-    handleStopAll()
-    const text = POI_SUGGESTIONS[selectedDemoPoi] || POI_SUGGESTIONS['cầu ba son']
-    const poiLabel =
-      selectedDemoPoi === 'cầu ba son'
-        ? 'Cầu Ba Son'
-        : selectedDemoPoi === 'landmark 81'
-          ? 'Landmark 81'
-          : selectedDemoPoi === 'cột cờ thủ ngữ'
-            ? 'Cột cờ Thủ Ngữ & Bến Nhà Rồng'
-            : selectedDemoPoi === 'thanh đa'
-              ? 'Bán đảo Thanh Đa'
-              : 'Cầu Bình Lợi'
-
-    const item: AnnouncementItem = {
-      id: `demo-${Date.now()}`,
-      type: 'poi',
-      title: `Thử thuyết minh mẫu: ${poiLabel}`,
-      text,
-      time: formatClock(new Date()),
-    }
-    setNowPlaying(item)
-    setIsPlaying(true)
-    addHistory(item)
-
-    const effectiveVol = isMuted ? 0 : volume
-    void playAzureAnnouncement(text, 'vi-VN-HoaiMyNeural', effectiveVol, () => {
-      setIsPlaying(false)
-      setNowPlaying(null)
-    })
-  }, [handleStopAll, selectedDemoPoi, isMuted, volume, addHistory])
+  const isEnRoute = trip?.status === 'EnRoute'
 
   return (
     <div className="overflow-hidden rounded-2xl border border-outline-variant bg-surface shadow-xs">
@@ -427,7 +391,7 @@ export default function CaptainSpeakerWidget({
           </div>
         </div>
 
-        {/* Trạng thái loa buồng lái & nút bật tắt */}
+        {/* Trạng thái thuyết minh & nút mute */}
         <div className="flex items-center gap-2">
           {onToggleNarrating && (
             <button
@@ -473,8 +437,23 @@ export default function CaptainSpeakerWidget({
       </div>
 
       <div className="p-4 sm:p-5">
-        {/* Banner đang phát thanh */}
-        {isPlaying && nowPlaying ? (
+        {/* Banner trạng thái hành trình */}
+        {!isEnRoute ? (
+          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 text-xl">🟡</span>
+              <div>
+                <p className="text-sm font-bold text-amber-800">Chuyến tàu chưa xuất bến</p>
+                <p className="mt-1 text-xs text-amber-700">
+                  Hệ thống loa phát thanh buồng lái đang ở chế độ chờ. Hãy bấm nút{' '}
+                  <strong className="font-bold">Bắt đầu chuyến</strong> màu xanh bên dưới để khởi hành
+                  chuyến đi và bắt đầu phát thanh hành trình.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : isPlaying && nowPlaying ? (
+          /* Banner đang phát thanh */
           <div className="mb-4 rounded-xl border border-primary/30 bg-primary-container/20 p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
@@ -485,9 +464,7 @@ export default function CaptainSpeakerWidget({
                 <span className="text-xs font-bold uppercase tracking-wider text-primary">
                   {nowPlaying.type === 'station'
                     ? 'Đang phát thông báo trạm bến'
-                    : nowPlaying.type === 'poi'
-                      ? 'Đang phát thuyết minh du lịch'
-                      : 'Đang kiểm tra loa buồng lái'}
+                    : 'Đang phát thuyết minh du lịch'}
                 </span>
               </div>
               <button
@@ -522,95 +499,45 @@ export default function CaptainSpeakerWidget({
             </div>
           </div>
         ) : (
-          <div className="mb-4 rounded-xl border border-outline-variant/60 bg-surface-container-low/50 p-3.5 flex items-center justify-between text-xs text-on-surface-variant">
+          /* Trạng thái chờ trong hành trình */
+          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5 flex items-center justify-between text-xs text-on-surface-variant">
             <div className="flex items-center gap-2">
-              <span className="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-              <span>Loa buồng lái đang ở chế độ chờ phát tự động theo hành trình tàu.</span>
+              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+              <span className="font-medium text-emerald-800">🟢 Đang trong hành trình — Loa sẵn sàng phát tự động</span>
             </div>
             <span className="font-mono text-[11px] text-on-surface-variant/70">Azure TTS Hoài My • Realtime</span>
           </div>
         )}
 
-        {/* Bảng điều khiển: Âm lượng & Thử loa nhanh */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-xl bg-surface-container-lowest p-4 border border-outline-variant/40">
-          {/* Thanh chỉnh âm lượng */}
-          <div className="flex flex-col justify-center">
-            <div className="flex items-center justify-between text-xs font-semibold text-on-surface mb-1.5">
-              <span className="flex items-center gap-1.5">
-                <svg className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5L6 9H2v6h4l5 4V5z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.08" />
-                </svg>
-                Âm lượng loa: {Math.round(volume * 100)}%
-              </span>
-              {isMuted && <span className="text-red-500 font-bold">(Đang tắt)</span>}
+        {/* Bảng điều khiển âm lượng — chỉ hiển thị khi EnRoute */}
+        {isEnRoute && (
+          <div className="rounded-xl bg-surface-container-lowest p-4 border border-outline-variant/40">
+            <div className="flex flex-col justify-center">
+              <div className="flex items-center justify-between text-xs font-semibold text-on-surface mb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <svg className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5L6 9H2v6h4l5 4V5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.08" />
+                  </svg>
+                  Âm lượng loa: {Math.round(volume * 100)}%
+                </span>
+                {isMuted && <span className="text-red-500 font-bold">(Đang tắt)</span>}
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={volume}
+                onChange={(e) => {
+                  setVolume(parseFloat(e.target.value))
+                  if (isMuted) setIsMuted(false)
+                }}
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-surface-container-high accent-primary"
+              />
             </div>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={volume}
-              onChange={(e) => {
-                setVolume(parseFloat(e.target.value))
-                if (isMuted) setIsMuted(false)
-              }}
-              className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-surface-container-high accent-primary"
-            />
           </div>
-
-          {/* Nút bấm kiểm tra & thử loa */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleTestSpeaker}
-              disabled={isPlaying}
-              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2.5 text-xs font-bold text-on-primary shadow-xs hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              </svg>
-              🔊 Thử loa buồng lái
-            </button>
-
-            <button
-              type="button"
-              onClick={handleTestPoiDemo}
-              disabled={isPlaying}
-              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-primary-container/30 px-3 py-2.5 text-xs font-bold text-primary hover:bg-primary-container/50 transition-colors disabled:opacity-50"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
-              </svg>
-              🎙️ Thử thuyết minh mẫu
-            </button>
-          </div>
-        </div>
-
-        {/* Lựa chọn điểm du lịch demo */}
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-on-surface-variant">
-          <span className="font-semibold">Điểm thuyết minh thử:</span>
-          {[
-            { id: 'cầu ba son', label: 'Cầu Ba Son' },
-            { id: 'landmark 81', label: 'Landmark 81' },
-            { id: 'cột cờ thủ ngữ', label: 'Bến Nhà Rồng' },
-            { id: 'thanh đa', label: 'Bán đảo Thanh Đa' },
-            { id: 'bình lợi', label: 'Cầu Bình Lợi' },
-          ].map((poi) => (
-            <button
-              key={poi.id}
-              type="button"
-              onClick={() => setSelectedDemoPoi(poi.id)}
-              className={`rounded-lg px-2.5 py-1 text-xs transition-colors ${
-                selectedDemoPoi === poi.id
-                  ? 'bg-secondary text-on-secondary font-bold'
-                  : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
-              }`}
-            >
-              {poi.label}
-            </button>
-          ))}
-        </div>
+        )}
 
         {/* Lịch sử phát thanh gần nhất */}
         {history.length > 0 && (
@@ -630,9 +557,7 @@ export default function CaptainSpeakerWidget({
                         className={`inline-block h-1.5 w-1.5 rounded-full ${
                           item.type === 'station'
                             ? 'bg-blue-500'
-                            : item.type === 'poi'
-                              ? 'bg-emerald-500'
-                              : 'bg-amber-500'
+                            : 'bg-emerald-500'
                         }`}
                       />
                       <span className="font-bold text-on-surface">{item.title}</span>

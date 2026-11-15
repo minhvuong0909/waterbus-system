@@ -183,9 +183,9 @@ public sealed class CompleteAudioLifecycleIntegrationTests(ITestOutputHelper out
     /// <summary>Publisher giả lập để ghi nhận luồng sự kiện Stop Announcement.</summary>
     private sealed class MockStopAnnouncementPublisher(List<string> eventLog, ITestOutputHelper testOutput) : IStopAnnouncementPublisher
     {
-        public Task PublishDepartingAsync(Guid tripId, Guid boatId, Guid stationId, string stationName, DateTimeOffset at, string? tripType = null, CancellationToken cancellationToken = default)
+        public Task PublishDepartingAsync(Guid tripId, Guid boatId, Guid stationId, string stationName, DateTimeOffset at, string? tripType = null, string? nextStationName = null, CancellationToken cancellationToken = default)
         {
-            var log = $"[EVENT] DEPARTING bến {stationName} (Loại: {tripType}) lúc {at:HH:mm:ss}";
+            var log = $"[EVENT] DEPARTING bến {stationName} → {nextStationName ?? "bến cuối"} (Loại: {tripType}) lúc {at:HH:mm:ss}";
             eventLog.Add(log);
             testOutput.WriteLine($"   SignalR >>> {log}");
             return Task.CompletedTask;
