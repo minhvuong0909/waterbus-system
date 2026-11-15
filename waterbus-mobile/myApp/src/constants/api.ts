@@ -20,4 +20,7 @@ export const API_ENDPOINTS = {
   manifest: (id: string) => `/api/v1/checkins/manifest/${id}`,
   publicKey: '/api/v1/checkouts/qr-public-key',
   sync: '/api/v1/checkins/sync',
+  checkIn: '/api/v1/checkins',
+  pair: '/api/v1/scanner/pair',
+  scannerStatus: '/api/v1/scanner/status',
 } as const;

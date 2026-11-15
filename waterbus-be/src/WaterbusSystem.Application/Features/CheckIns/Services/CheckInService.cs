@@ -5,6 +5,7 @@ using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.DTOs.Requests.CheckIns;
 using WaterbusSystem.Application.DTOs.Responses.CheckIns;
+using WaterbusSystem.Application.Features.ScannerDevices.Services;
 using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Application.Interfaces.Services;
@@ -26,7 +27,8 @@ public sealed class CheckInService(
     CheckInProcessor processor,
     IScannerAssignmentLock assignmentLock,
     IOptions<NoShowFinalizationOptions> noShowOptions,
-    ILogger<CheckInService> logger) : ICheckInService
+    ILogger<CheckInService> logger,
+    StationScannerPolicy? stationPolicy = null) : ICheckInService
 {
     /// <summary>Thời gian chờ 1 request khác đang giữ khoá cùng TripStopCallId xong.</summary>
     private static readonly TimeSpan AssignmentLockWait = TimeSpan.FromSeconds(10);
@@ -111,7 +113,7 @@ public sealed class CheckInService(
             await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return new AssignScannerResponse(
-                assignment.Id, assignment.DeviceId, assignment.StaffAccountId, assignment.TripStopCallId,
+                assignment.Id, assignment.DeviceId, request.StaffAccountId, assignment.TripStopCallId,
                 assignment.IsPrimaryOffline, assignment.ActiveFrom, assignment.ActiveUntil);
         }
         finally
@@ -169,8 +171,9 @@ public sealed class CheckInService(
 
     // ---------------- SubmitCheckIn ----------------
 
-    public async Task<CheckInResultResponse> SubmitCheckInAsync(SubmitCheckInRequest request, CancellationToken cancellationToken = default)
+    public async Task<CheckInResultResponse> SubmitCheckInAsync(SubmitCheckInRequest request, CancellationToken cancellationToken = default, ScannerAccess? scanner = null)
     {
+        RequireAuthenticatedScanner(scanner);
         if (!Guid.TryParse(currentUser.UserId, out var staffId) ||
             !string.Equals(currentUser.UserRole, "Staff", StringComparison.OrdinalIgnoreCase))
         {
@@ -182,7 +185,7 @@ public sealed class CheckInService(
 
         var (outcome, _) = await processor.ProcessAsync(
             staffId, request.TicketId, request.TripStopCallId, request.ClientEventId,
-            request.OccurredAtDevice, request.Note, now, isOfflineSync: false, cancellationToken);
+            request.OccurredAtDevice, request.Note, now, isOfflineSync: false, cancellationToken, scanner);
 
         try
         {
@@ -204,7 +207,7 @@ public sealed class CheckInService(
             }
 
             var (recoveredOutcome, _) = await processor.ResolveExistingEventOutcomeAsync(
-                existing, staffId, request.TicketId, request.TripStopCallId, cancellationToken);
+                existing, staffId, request.TicketId, request.TripStopCallId, cancellationToken, scanner);
             return new CheckInResultResponse(
                 recoveredOutcome.Outcome, recoveredOutcome.CheckedInAt, recoveredOutcome.TicketCode, recoveredOutcome.PassengerName);
         }
@@ -214,8 +217,9 @@ public sealed class CheckInService(
 
     // ---------------- SyncCheckInEvents ----------------
 
-    public async Task<SyncCheckInEventsResponse> SyncCheckInEventsAsync(SyncCheckInEventsRequest request, CancellationToken cancellationToken = default)
+    public async Task<SyncCheckInEventsResponse> SyncCheckInEventsAsync(SyncCheckInEventsRequest request, CancellationToken cancellationToken = default, ScannerAccess? scanner = null)
     {
+        RequireAuthenticatedScanner(scanner);
         if (!Guid.TryParse(currentUser.UserId, out var staffId) ||
             !string.Equals(currentUser.UserRole, "Staff", StringComparison.OrdinalIgnoreCase))
         {
@@ -231,7 +235,7 @@ public sealed class CheckInService(
             {
                 var (outcome, wasAlreadySynced) = await processor.ProcessAsync(
                     staffId, evt.TicketId, evt.TripStopCallId, evt.ClientEventId,
-                    evt.OccurredAtDevice, evt.Note, now, isOfflineSync: true, cancellationToken);
+                    evt.OccurredAtDevice, evt.Note, now, isOfflineSync: true, cancellationToken, scanner, evt.OfflineGrantId);
 
                 await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -273,7 +277,7 @@ public sealed class CheckInService(
                 else
                 {
                     var (outcome, wasAlreadySynced) = await processor.ResolveExistingEventOutcomeAsync(
-                        existing, staffId, evt.TicketId, evt.TripStopCallId, cancellationToken);
+                        existing, staffId, evt.TicketId, evt.TripStopCallId, cancellationToken, scanner);
                     results.Add(new CheckInEventSyncResultResponse(evt.ClientEventId, outcome.Outcome, wasAlreadySynced, null));
                 }
             }
@@ -284,8 +288,9 @@ public sealed class CheckInService(
 
     // ---------------- GetMyScannerAssignments ----------------
 
-    public async Task<IReadOnlyList<MyScannerAssignmentResponse>> GetMyScannerAssignmentsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<MyScannerAssignmentResponse>> GetMyScannerAssignmentsAsync(CancellationToken cancellationToken = default, ScannerAccess? scanner = null)
     {
+        RequireAuthenticatedScanner(scanner);
         if (!Guid.TryParse(currentUser.UserId, out var staffId) ||
             !string.Equals(currentUser.UserRole, "Staff", StringComparison.OrdinalIgnoreCase))
         {
@@ -294,13 +299,16 @@ public sealed class CheckInService(
 
         var now = dateTime.Now;
 
+        if (scanner is not null)
+            return await stationPolicy!.ListCallsAsync(scanner, now, cancellationToken);
         return await checkIns.ListMyAssignmentsAsync(staffId, now, cancellationToken);
     }
 
     // ---------------- GetScannerManifest ----------------
 
-    public async Task<ScannerManifestResponse> GetScannerManifestAsync(Guid tripStopCallId, CancellationToken cancellationToken = default)
+    public async Task<ScannerManifestResponse> GetScannerManifestAsync(Guid tripStopCallId, CancellationToken cancellationToken = default, ScannerAccess? scanner = null)
     {
+        RequireAuthenticatedScanner(scanner);
         if (!Guid.TryParse(currentUser.UserId, out var staffId) ||
             !string.Equals(currentUser.UserRole, "Staff", StringComparison.OrdinalIgnoreCase))
         {
@@ -312,7 +320,10 @@ public sealed class CheckInService(
         var stopCall = await checkIns.GetStopCallForManifestAsync(tripStopCallId, cancellationToken);
 
         // BR-BOARD-03: không trả manifest cho điểm dừng mà Staff không được phân công.
-        var hasAssignment = await checkIns.HasActiveAssignmentAsync(staffId, tripStopCallId, now, cancellationToken);
+        var hasAssignment = scanner is null
+            ? await checkIns.HasActiveAssignmentAsync(staffId, tripStopCallId, now, cancellationToken)
+            : await stationPolicy!.CanOperateOnlineAsync(scanner, tripStopCallId, now, cancellationToken)
+                && stopCall.CheckInOpenAt.HasValue && stopCall.CheckInCloseAt > now;
         if (!hasAssignment)
         {
             throw new ForbiddenAccessException("Bạn không được phân công cho điểm dừng này.");
@@ -366,8 +377,15 @@ public sealed class CheckInService(
             })
             .ToList();
 
+        var grant = scanner is null ? null : await stationPolicy!.IssueOfflineGrantAsync(scanner, stopCall, now, cancellationToken);
         return new ScannerManifestResponse(
-            stopCall.Id, station.Name, stopCall.CheckInOpenAt, stopCall.CheckInCloseAt, tripResponse, bookings, now);
+            stopCall.Id, station.Name, stopCall.CheckInOpenAt, stopCall.CheckInCloseAt, tripResponse, bookings, now, grant);
+    }
+
+    private void RequireAuthenticatedScanner(ScannerAccess? scanner)
+    {
+        if (stationPolicy is not null && scanner is null)
+            throw new ForbiddenAccessException("Yêu cầu máy quét đã ghép nối.");
     }
 
     // ---------------- RunNoShowFinalization ----------------

@@ -44,4 +44,5 @@ public record ScannerManifestResponse(
     DateTimeOffset? CheckInCloseAt,
     ManifestTripResponse Trip,
     IReadOnlyList<ManifestBookingResponse> Bookings,
-    DateTimeOffset GeneratedAt);
+    DateTimeOffset GeneratedAt,
+    ScannerDevices.ScannerOfflineGrantResponse? OfflineGrant = null);

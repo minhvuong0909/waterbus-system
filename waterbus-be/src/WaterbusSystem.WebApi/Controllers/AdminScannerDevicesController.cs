@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using WaterbusSystem.Application.Common.Models;
 using WaterbusSystem.Application.DTOs.Requests.ScannerDevices;
@@ -11,7 +13,7 @@ namespace WaterbusSystem.WebApi.Controllers;
 /// <summary>Đăng ký và quản lý thiết bị Staff Scanner (chỉ Admin). Gán/thu hồi phân công vẫn ở CheckInsController.</summary>
 [ServiceFilter(typeof(ValidateRequestFilter))]
 [Authorize(Policy = "AdminOnly")]
-public class AdminScannerDevicesController(IScannerDeviceAdminService service) : BaseApiController
+public class AdminScannerDevicesController(IScannerDeviceAdminService service, IStationScannerService stationScanners) : BaseApiController
 {
     [HttpGet("~/api/v1/admin/scanner-devices")]
     [ProducesResponseType(typeof(PaginatedList<ScannerDeviceResponse>), StatusCodes.Status200OK)]
@@ -27,9 +29,9 @@ public class AdminScannerDevicesController(IScannerDeviceAdminService service) :
     [HttpPost("~/api/v1/admin/scanner-devices")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<Guid>> Register([FromBody] RegisterScannerDeviceRequest request)
+    public async Task<ActionResult<Guid>> Register([FromBody] CreateStationScannerRequest request)
     {
-        var id = await service.RegisterAsync(request, HttpContext.RequestAborted);
+        var id = await stationScanners.CreateAsync(request, HttpContext.RequestAborted);
         return CreatedAtAction(nameof(Get), new { id }, id);
     }
 
@@ -48,7 +50,7 @@ public class AdminScannerDevicesController(IScannerDeviceAdminService service) :
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Deactivate(Guid id)
     {
-        await service.DeactivateAsync(id, HttpContext.RequestAborted);
+        await stationScanners.SuspendAsync(id, HttpContext.RequestAborted);
         return NoContent();
     }
 
@@ -56,7 +58,46 @@ public class AdminScannerDevicesController(IScannerDeviceAdminService service) :
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Activate(Guid id)
     {
-        await service.ActivateAsync(id, HttpContext.RequestAborted);
+        await stationScanners.ResetAsync(id, HttpContext.RequestAborted);
         return NoContent();
     }
+
+    [HttpPost("~/api/v1/admin/scanner-devices/{id:guid}/invitation")]
+    [EnableRateLimiting("ScannerPairingPolicy")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<ActionResult<ScannerInvitationResponse>> Invite(Guid id) =>
+        Ok(await stationScanners.InviteAsync(id, HttpContext.RequestAborted));
+
+    [HttpDelete("~/api/v1/admin/scanner-devices/{id:guid}/invitation")]
+    public async Task<IActionResult> CancelInvitation(Guid id)
+    {
+        await stationScanners.CancelInvitationAsync(id, HttpContext.RequestAborted);
+        return NoContent();
+    }
+
+    [HttpPost("~/api/v1/admin/scanner-devices/{id:guid}/revoke")]
+    public async Task<IActionResult> Revoke(Guid id)
+    {
+        await stationScanners.RevokeAsync(id, HttpContext.RequestAborted);
+        return NoContent();
+    }
+
+    [HttpPost("~/api/v1/admin/scanner-devices/{id:guid}/transfer")]
+    public async Task<IActionResult> Transfer(Guid id, [FromBody] TransferScannerRequest request)
+    {
+        await stationScanners.TransferAsync(id, request, HttpContext.RequestAborted);
+        return NoContent();
+    }
+
+    [HttpPost("~/api/v1/admin/scanner-devices/{id:guid}/audit/{eventId:guid}/review")]
+    public async Task<IActionResult> Review(Guid id, Guid eventId, [FromBody] ResolveScannerReviewRequest request)
+    {
+        await stationScanners.ResolveReviewAsync(id, eventId, request, HttpContext.RequestAborted);
+        return NoContent();
+    }
+
+    [HttpGet("~/api/v1/admin/scanner-devices/{id:guid}/audit")]
+    public async Task<ActionResult<PaginatedList<ScannerAuditResponse>>> Audit(Guid id,
+        [FromQuery, Range(1, 1000000)] int pageNumber = 1, [FromQuery, Range(1, 100)] int pageSize = 20) =>
+        Ok(await stationScanners.ListAuditAsync(id, pageNumber, pageSize, HttpContext.RequestAborted));
 }

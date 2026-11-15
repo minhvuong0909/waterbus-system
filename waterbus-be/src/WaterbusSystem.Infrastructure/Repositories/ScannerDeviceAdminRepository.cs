@@ -15,6 +15,16 @@ public sealed class ScannerDeviceAdminRepository(ApplicationDbContext context) :
     {
         var query = context.ScannerDevices.AsNoTracking().Where(d => !d.IsDeleted);
         if (request.IsActive.HasValue) query = query.Where(d => d.IsActive == request.IsActive.Value);
+        if (request.StationId.HasValue) query = query.Where(d => d.StationId == request.StationId);
+        query = request.Status switch
+        {
+            "Unbound" => query.Where(d => d.StationId == null),
+            "Active" => query.Where(d => d.StationId != null && d.IsActive),
+            "Suspended" => query.Where(d => d.StationId != null && d.SuspendedAt != null),
+            "Revoked" => query.Where(d => d.StationId != null && d.RevokedAt != null),
+            "PendingActivation" => query.Where(d => d.StationId != null && !d.IsActive && d.SuspendedAt == null && d.RevokedAt == null),
+            _ => query
+        };
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var term = request.Search.Trim().ToLower();
@@ -23,16 +33,20 @@ public sealed class ScannerDeviceAdminRepository(ApplicationDbContext context) :
 
         return query.OrderBy(d => d.DeviceCode)
             .Select(d => new ScannerDeviceResponse(d.Id, d.DeviceCode, d.Label, d.IsActive, d.LastPreloadedAt,
-                context.ScannerAssignments.Count(a => a.DeviceId == d.Id && (a.ActiveUntil == null || (a.ActiveUntil > a.ActiveFrom && a.ActiveUntil > now))),
-                context.CheckInEvents.Count(e => e.ScannerDeviceId == d.Id)))
+                context.ScannerAssignments.Count(a => a.DeviceId == d.Id && a.RevokedAt == null && (a.ActiveUntil == null || (a.ActiveUntil > a.ActiveFrom && a.ActiveUntil > now))),
+                context.CheckInEvents.Count(e => e.ScannerDeviceId == d.Id), d.StationId, d.Station == null ? null : d.Station.Name,
+                d.StationId == null ? "Unbound" : d.RevokedAt != null ? "Revoked" : d.SuspendedAt != null ? "Suspended" :
+                    d.IsActive ? "Active" : "PendingActivation", d.InvitationExpiresAt))
             .ToPaginatedListAsync(request.PageNumber, request.PageSize, cancellationToken);
     }
 
     public async Task<ScannerDeviceResponse> GetDetailAsync(Guid id, DateTimeOffset now, CancellationToken cancellationToken = default) =>
         await context.ScannerDevices.AsNoTracking().Where(d => d.Id == id && !d.IsDeleted)
             .Select(d => new ScannerDeviceResponse(d.Id, d.DeviceCode, d.Label, d.IsActive, d.LastPreloadedAt,
-                context.ScannerAssignments.Count(a => a.DeviceId == d.Id && (a.ActiveUntil == null || (a.ActiveUntil > a.ActiveFrom && a.ActiveUntil > now))),
-                context.CheckInEvents.Count(e => e.ScannerDeviceId == d.Id)))
+                context.ScannerAssignments.Count(a => a.DeviceId == d.Id && a.RevokedAt == null && (a.ActiveUntil == null || (a.ActiveUntil > a.ActiveFrom && a.ActiveUntil > now))),
+                context.CheckInEvents.Count(e => e.ScannerDeviceId == d.Id), d.StationId, d.Station == null ? null : d.Station.Name,
+                d.StationId == null ? "Unbound" : d.RevokedAt != null ? "Revoked" : d.SuspendedAt != null ? "Suspended" :
+                    d.IsActive ? "Active" : "PendingActivation", d.InvitationExpiresAt))
             .FirstOrDefaultAsync(cancellationToken)
         ?? throw new NotFoundException(nameof(ScannerDevice), id);
 

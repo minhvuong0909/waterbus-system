@@ -5,6 +5,6 @@ import { apiClient } from '../api/apiClient';
 import { ScannerManifestResponse } from '../../types/checkin';
 import { API_ENDPOINTS } from '../../constants/api';
 
-export async function fetchScannerManifest(tripStopCallId: string): Promise<ScannerManifestResponse> {
-  return apiClient.get<ScannerManifestResponse>(API_ENDPOINTS.manifest(tripStopCallId));
+export async function fetchScannerManifest(tripStopCallId: string, staffId: string): Promise<ScannerManifestResponse> {
+  return apiClient.get<ScannerManifestResponse>(API_ENDPOINTS.manifest(tripStopCallId), { scanner: true, staffId });
 }

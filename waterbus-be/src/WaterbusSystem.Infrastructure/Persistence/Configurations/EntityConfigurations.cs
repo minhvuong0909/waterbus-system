@@ -437,10 +437,52 @@ public class ScannerDeviceConfiguration : IEntityTypeConfiguration<ScannerDevice
     {
         builder.HasIndex(x => x.DeviceCode).IsUnique();
         builder.Property(x => x.DeviceCode).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.InvitationHash).HasMaxLength(64);
+        builder.HasOne(x => x.Station).WithMany()
+            .HasForeignKey(x => x.StationId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.Label).HasMaxLength(100);
         builder.Property(x => x.RowVersion).IsRowVersion();
     }
 }
+public sealed class ScannerEnrollmentConfiguration : IEntityTypeConfiguration<ScannerEnrollment>
+{
+    public void Configure(EntityTypeBuilder<ScannerEnrollment> builder)
+    {
+        builder.HasIndex(x => x.ScannerDeviceId, "IX_ScannerEnrollments_Active")
+            .IsUnique().HasFilter("[EndedAt] IS NULL AND [IsDeleted] = 0");
+        builder.HasOne(x => x.ScannerDevice).WithMany().HasForeignKey(x => x.ScannerDeviceId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Station>().WithMany().HasForeignKey(x => x.StationId).OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.CredentialHash).HasMaxLength(64).IsRequired();
+        builder.Property(x => x.RowVersion).IsRowVersion();
+    }
+}
+
+public sealed class StaffStationShiftConfiguration : IEntityTypeConfiguration<StaffStationShift>
+{
+    public void Configure(EntityTypeBuilder<StaffStationShift> builder)
+    {
+        builder.HasOne(x => x.Station).WithMany().HasForeignKey(x => x.StationId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<WaterbusSystem.Infrastructure.Identity.ApplicationUser>().WithMany()
+            .HasForeignKey(x => x.StaffAccountId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => new { x.StaffAccountId, x.ActiveFrom });
+        builder.Property(x => x.RowVersion).IsRowVersion();
+        builder.ToTable(t => t.HasCheckConstraint("CK_StaffStationShifts_Window", "[ActiveUntil] > [ActiveFrom]"));
+    }
+}
+
+public sealed class ScannerOfflineGrantConfiguration : IEntityTypeConfiguration<ScannerOfflineGrant>
+{
+    public void Configure(EntityTypeBuilder<ScannerOfflineGrant> builder)
+    {
+        builder.HasOne(x => x.Enrollment).WithMany().HasForeignKey(x => x.EnrollmentId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(x => x.StaffStationShift).WithMany().HasForeignKey(x => x.StaffStationShiftId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(x => x.ScannerAssignment).WithMany().HasForeignKey(x => x.ScannerAssignmentId).OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.RowVersion).IsRowVersion();
+        builder.ToTable(t => t.HasCheckConstraint("CK_ScannerOfflineGrants_Window", "[ActiveUntil] > [ActiveFrom]"));
+    }
+}
+
 public class ScannerAssignmentConfiguration : IEntityTypeConfiguration<ScannerAssignment>
 {
     public void Configure(EntityTypeBuilder<ScannerAssignment> builder)
@@ -492,6 +534,11 @@ public class CheckInEventConfiguration : IEntityTypeConfiguration<CheckInEvent>
             .HasForeignKey(x => x.TicketId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.TripStopCall).WithMany()
             .HasForeignKey(x => x.TripStopCallId).OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.ReviewNote).HasMaxLength(500);
+        builder.HasOne<ScannerOfflineGrant>().WithMany().HasForeignKey(x => x.ScannerOfflineGrantId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<ScannerEnrollment>().WithMany().HasForeignKey(x => x.ScannerEnrollmentId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.ScannerDevice).WithMany()
             .HasForeignKey(x => x.ScannerDeviceId).IsRequired(false).OnDelete(DeleteBehavior.SetNull);
         builder.Property(x => x.RowVersion).IsRowVersion();

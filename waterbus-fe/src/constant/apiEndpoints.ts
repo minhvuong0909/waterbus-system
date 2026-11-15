@@ -22,6 +22,9 @@ export const API_ENDPOINTS = {
   /** Admin catalogue. A route, schedule or fare is switched with `POST {item}/activate|deactivate`. */
   admin: {
     scannerDevices: '/api/v1/admin/scanner-devices',
+    scannerDeviceAction: (id: string, action: string) => `/api/v1/admin/scanner-devices/${id}/${action}`,
+    staffStationShifts: '/api/v1/admin/staff-station-shifts',
+    revokeStaffShift: (id: string) => `/api/v1/admin/staff-station-shifts/${id}/revoke`,
     routes: '/api/v1/admin/routes',
     route: (id: string) => `/api/v1/admin/routes/${id}`,
     routeStops: (id: string) => `/api/v1/admin/routes/${id}/stops`,

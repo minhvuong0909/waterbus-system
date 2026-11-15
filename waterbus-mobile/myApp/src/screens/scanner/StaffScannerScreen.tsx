@@ -21,13 +21,14 @@ import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-ca
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useIsFocused } from 'expo-router/react-navigation';
 import { useScannerStore } from '../../store/useScannerStore';
-import { QrVerifier, DEFAULT_KEY_INFO } from '../../services/crypto/qrVerifier';
+import { QrVerifier } from '../../services/crypto/qrVerifier';
 import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
 import { QrVerificationResult } from '../../types/scanner';
 import BookingDetailModal from '../booking/BookingDetailModal';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const SCAN_AREA_SIZE = width * 0.72;
 
 export default function StaffScannerScreen() {
@@ -37,7 +38,7 @@ export default function StaffScannerScreen() {
   const [isScannedLocked, setIsScannedLocked] = useState<boolean>(false);
   const [manualModalOpen, setManualModalOpen] = useState<boolean>(false);
   const [manualCode, setManualCode] = useState<string>('');
-  const [testModalOpen, setTestModalOpen] = useState<boolean>(false);
+  const focused = useIsFocused();
 
   const {
     isModalOpen,
@@ -45,7 +46,9 @@ export default function StaffScannerScreen() {
     stats,
     deviceInfo,
     refreshStats,
-    preloadCache,
+    activeAssignment,
+    pairingStatus,
+    loadPairing,
     syncPendingBatch,
   } = useScannerStore();
 
@@ -73,7 +76,11 @@ export default function StaffScannerScreen() {
     animation.start();
 
     return () => animation.stop();
-  }, []);
+  }, [refreshStats, scanLineAnim]);
+
+  useEffect(() => {
+    if (focused) void loadPairing();
+  }, [focused, loadPairing]);
 
   const handleBarcodeScanned = async (scanningResult: BarcodeScanningResult) => {
     const rawData = scanningResult.data;
@@ -136,7 +143,7 @@ export default function StaffScannerScreen() {
       booking = await SqliteRepository.searchBookingOrTicket(publicBookingId);
     }
 
-    if (booking) {
+    if (booking?.tripId === activeAssignment?.tripId && booking) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCurrentBooking(booking, verification);
     } else {
@@ -148,15 +155,7 @@ export default function StaffScannerScreen() {
           { text: 'Huỷ', style: 'cancel' },
           {
             text: 'Tải trước ngay',
-            onPress: () => {
-              // deviceInfo.stationId giữ TripStopCallId của lần preload gần nhất (nếu có).
-              // Không có thì chuyển sang màn Preload để Staff chọn phân công thật.
-              if (deviceInfo.stationId) {
-                preloadCache(deviceInfo.stationId);
-              } else {
-                router.push('/(tabs)/manifest');
-              }
-            },
+            onPress: () => router.push('/(tabs)/manifest'),
           },
         ]
       );
@@ -172,14 +171,18 @@ export default function StaffScannerScreen() {
     setManualCode('');
   };
 
-  const triggerTestQrScan = async (publicBookingId: string) => {
-    setTestModalOpen(false);
-    // Preload tường minh khoá demo trước khi ký/verify - QrVerifier không còn tự fallback sang
-    // DEFAULT_KEY_INFO khi SQLite trống (xem qrVerifier.ts), nên nút test phải tự làm bước này.
-    await SqliteRepository.savePublicKey(DEFAULT_KEY_INFO);
-    const test = QrVerifier.generateTestSignedQr(publicBookingId);
-    await processScannedQr(test.compactQr);
-  };
+  if (!activeAssignment || pairingStatus === 'Invalid') {
+    const needsPairing = !deviceInfo.deviceId || pairingStatus === 'Invalid';
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.permissionTitle}>{needsPairing ? 'Cần ghép nối máy quét' : 'Chọn điểm dừng'}</Text>
+        <TouchableOpacity style={styles.permissionButton} onPress={() =>
+          router.push(needsPairing ? '/(tabs)/settings' : '/(tabs)/manifest')}>
+          <Text style={styles.permissionButtonText}>{needsPairing ? 'Mở cài đặt thiết bị' : 'Xem phân công và tải vé'}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // Render Camera Permission fallback
   if (!permission && Platform.OS !== 'web') {
@@ -215,7 +218,7 @@ export default function StaffScannerScreen() {
   return (
     <View style={styles.container}>
       {/* Real Camera Viewfinder */}
-      {Platform.OS !== 'web' ? (
+      {Platform.OS !== 'web' && focused ? (
         <CameraView
           style={StyleSheet.absoluteFill}
           facing={facing}
@@ -223,7 +226,7 @@ export default function StaffScannerScreen() {
           barcodeScannerSettings={{
             barcodeTypes: ['qr', 'code128', 'code39'],
           }}
-          onBarcodeScanned={isScannedLocked || isModalOpen || manualModalOpen || testModalOpen ? undefined : handleBarcodeScanned}
+          onBarcodeScanned={isScannedLocked || isModalOpen || manualModalOpen ? undefined : handleBarcodeScanned}
         />
       ) : (
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0F172A' }]} />
@@ -235,6 +238,7 @@ export default function StaffScannerScreen() {
           <View>
             <Text style={styles.staffNameText}>NV: {deviceInfo.staffName} ({deviceInfo.deviceCode})</Text>
             <Text style={styles.stationNameText}>{deviceInfo.stationName}</Text>
+            <Text style={styles.stationNameText}>{activeAssignment.routeName} · {activeAssignment.isPrimaryOffline ? 'Có quyền ngoại tuyến' : 'Soát vé trực tuyến'}</Text>
           </View>
 
           {stats.pendingSyncCount > 0 ? (
@@ -245,7 +249,7 @@ export default function StaffScannerScreen() {
           ) : (
             <View style={styles.syncedBadge}>
               <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-              <Text style={styles.syncedBadgeText}>Đã sync đủ</Text>
+              <Text style={styles.syncedBadgeText}>Không có vé chờ</Text>
             </View>
           )}
         </View>
@@ -294,15 +298,6 @@ export default function StaffScannerScreen() {
             <Text style={styles.iconButtonText}>Nhập Mã</Text>
           </TouchableOpacity>
 
-          {/* Test Signed QR Simulator */}
-          <TouchableOpacity
-            style={[styles.iconButton, { backgroundColor: 'rgba(2, 132, 199, 0.85)' }]}
-            onPress={() => setTestModalOpen(true)}
-          >
-            <Ionicons name="qr-code" size={24} color="#FFFFFF" />
-            <Text style={styles.iconButtonText}>Test QR</Text>
-          </TouchableOpacity>
-
           {/* Switch Camera Facing */}
           <TouchableOpacity
             style={styles.iconButton}
@@ -344,49 +339,6 @@ export default function StaffScannerScreen() {
                 <Text style={styles.modalBtnText}>Tra Cứu</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Test QR Simulator Modal */}
-      <Modal visible={testModalOpen} transparent animationType="slide">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Mô Phỏng Quét QR Vé Mẫu (Test)</Text>
-            <Text style={styles.modalDesc}>
-              Chọn một vé đã được ký số bằng Public Key để thử nghiệm xác thực ngoại tuyến:
-            </Text>
-
-            <TouchableOpacity
-              style={styles.testItem}
-              onPress={() => triggerTestQrScan('pub_wb_98a76b5c')}
-            >
-              <Text style={styles.testItemTitle}>Booking 1: Trần Văn Minh (3 vé: A01, A02, A03)</Text>
-              <Text style={styles.testItemSubtitle}>ID: pub_wb_98a76b5c • Tuyến Bạch Đằng - Linh Đông</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.testItem}
-              onPress={() => triggerTestQrScan('pub_wb_11f22e33')}
-            >
-              <Text style={styles.testItemTitle}>Booking 2: Nguyễn Thu Trang (2 vé: B05, B06)</Text>
-              <Text style={styles.testItemSubtitle}>ID: pub_wb_11f22e33 • Khoang Tiêu Chuẩn</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.testItem}
-              onPress={() => triggerTestQrScan('pub_wb_44d55c66')}
-            >
-              <Text style={styles.testItemTitle}>Booking 3: Phạm Đức Huy (1 vé: C10)</Text>
-              <Text style={styles.testItemSubtitle}>ID: pub_wb_44d55c66 • Boong ngoài trời</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalBtn, { backgroundColor: '#0F172A', marginTop: 14 }]}
-              onPress={() => setTestModalOpen(false)}
-            >
-              <Text style={styles.modalBtnText}>Đóng</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
