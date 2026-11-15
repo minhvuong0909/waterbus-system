@@ -41,11 +41,6 @@ export interface CockpitNowPlaying {
   time: string
 }
 
-interface UseCockpitAudioOptions {
-  trip?: AdminTrip
-  narrating: boolean
-}
-
 interface AudioTask {
   id: string
   type: 'station' | 'poi'
@@ -54,14 +49,16 @@ interface AudioTask {
   run: () => Promise<void>
 }
 
+interface UseCockpitAudioOptions {
+  trip?: AdminTrip
+  narrating: boolean
+}
+
 /**
- * Hook quản lý loa phát thanh buồng lái tự động theo hành trình tàu.
- * Chạy ngầm trong trang Captain:
- * - Khi Captain ấn [Bắt đầu chuyến] (trip chuyển sang EnRoute), hệ thống tự động:
- *   + Phát âm thanh tiếng Việt thông báo trạm bến (rời bến, sắp đến bến, cập bến).
- *   + Tự động phát thuyết minh du lịch tiếng Việt khi qua các điểm danh lam thắng cảnh (nếu bật thuyết minh).
- * - Sử dụng Hàng đợi âm thanh tuần tự (Audio Queue): Phát trọn vẹn từng câu, không ngắt ngang nửa chừng, không lồng tiếng.
- * - Khi chuyến kết thúc hoặc tạm dừng, tự động tắt loa.
+ * Hook quản lý phát âm thanh buồng lái tự động theo hành trình tàu.
+ * - Thông báo trạm bến tiếng Việt Azure TTS (Rời bến, Sắp đến bến, Cập bến).
+ * - Thuyết minh du lịch tiếng Việt (POI MP3) nếu là chuyến Sightseeing.
+ * - Phát trọn vẹn từng câu theo hàng đợi (Audio Queue), không bị cắt nửa chừng, không bị lồng tiếng.
  */
 export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
   const [isPlaying, setIsPlaying] = useState(false)
@@ -69,45 +66,28 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
 
   const currentAudioRef = useRef<HTMLAudioElement | null>(null)
   const onboardHubConnectionRef = useRef<HubConnection | null>(null)
-  const lastAnnouncementRef = useRef<{ key: string; at: number } | null>(null)
+  const lastAnnounceKeyRef = useRef<{ key: string; at: number } | null>(null)
 
-  // Hàng đợi phát thanh tuần tự
+  // Hàng đợi phát âm thanh tuần tự
   const queueRef = useRef<AudioTask[]>([])
-  const isPlayingTaskRef = useRef<boolean>(false)
+  const isBusyRef = useRef<boolean>(false)
 
   const tripRef = useRef(trip)
-  useEffect(() => {
-    tripRef.current = trip
-    // Nếu chuyến không ở trạng thái EnRoute, dừng toàn bộ âm thanh và xóa sạch hàng đợi
-    if (trip?.status !== 'EnRoute') {
-      queueRef.current = []
-      isPlayingTaskRef.current = false
-      stopCurrentAudio()
-      if (currentAudioRef.current) {
-        try {
-          currentAudioRef.current.pause()
-          currentAudioRef.current.currentTime = 0
-        } catch {}
-        currentAudioRef.current = null
-      }
-      setIsPlaying(false)
-      setNowPlaying(null)
-    }
-  }, [trip])
+  tripRef.current = trip
 
   const narratingRef = useRef(narrating)
-  useEffect(() => {
-    narratingRef.current = narrating
-  }, [narrating])
+  narratingRef.current = narrating
 
+  // Dừng phát toàn bộ âm thanh
   const stopAll = useCallback(() => {
     queueRef.current = []
-    isPlayingTaskRef.current = false
+    isBusyRef.current = false
     stopCurrentAudio()
     if (currentAudioRef.current) {
       try {
         currentAudioRef.current.pause()
         currentAudioRef.current.currentTime = 0
+        currentAudioRef.current.src = ''
       } catch {}
       currentAudioRef.current = null
     }
@@ -115,9 +95,17 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
     setNowPlaying(null)
   }, [])
 
-  // Bộ xử lý hàng đợi tuần tự: câu trước phát xong trọn vẹn 100% -> nghỉ 400ms -> phát câu tiếp theo
+  // Khi chuyến tàu kết thúc hoặc tạm dừng thì tắt loa
+  useEffect(() => {
+    const terminalStatuses = ['Completed', 'Cancelled', 'Terminated', 'Suspended']
+    if (trip && terminalStatuses.includes(trip.status)) {
+      stopAll()
+    }
+  }, [trip, stopAll])
+
+  // Bộ điều phối hàng đợi âm thanh: câu này phát xong trọn vẹn 100% mới phát tiếp câu sau
   const processQueue = useCallback(async () => {
-    if (isPlayingTaskRef.current) return
+    if (isBusyRef.current) return
     if (queueRef.current.length === 0) {
       setIsPlaying(false)
       setNowPlaying(null)
@@ -125,7 +113,7 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
     }
 
     const task = queueRef.current.shift()!
-    isPlayingTaskRef.current = true
+    isBusyRef.current = true
     setIsPlaying(true)
     setNowPlaying({
       type: task.type,
@@ -136,14 +124,15 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
 
     try {
       await task.run()
-    } catch (e) {
-      console.warn('[Cockpit Audio] Lỗi khi phát âm thanh:', e)
+    } catch (err) {
+      console.warn('[Cockpit Audio] Lỗi phát âm thanh:', err)
     } finally {
-      isPlayingTaskRef.current = false
-      // Nghỉ 400ms giữa các câu để người nghe cảm giác tự nhiên, thư thái
-      await new Promise((resolve) => setTimeout(resolve, 400))
+      isBusyRef.current = false
+      // Khoảng nghỉ nhỏ 400ms giữa các câu để người nghe cảm giác tự nhiên
+      await new Promise((r) => setTimeout(r, 400))
       // Tự động phát câu tiếp theo nếu còn trong hàng đợi
-      if (tripRef.current?.status === 'EnRoute') {
+      const terminalStatuses = ['Completed', 'Cancelled', 'Terminated', 'Suspended']
+      if (!tripRef.current || !terminalStatuses.includes(tripRef.current.status)) {
         void processQueue()
       } else {
         setIsPlaying(false)
@@ -152,19 +141,65 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
     }
   }, [])
 
-  // Phát audio file MP3 (thuyết minh du lịch POI)
+  // Xử lý thông báo trạm bến (Azure TTS Hoài My)
+  const handleStopAnnouncement = useCallback(
+    (event: StopAnnouncementEvent) => {
+      const currentTrip = tripRef.current
+      // Lọc theo chuyến đang chọn nếu có id
+      if (event.tripId && currentTrip && event.tripId !== currentTrip.id) return
+      if (event.boatId && currentTrip?.boatId && event.boatId !== currentTrip.boatId) return
+
+      // Bỏ qua nếu chuyến đã kết thúc hẳn
+      const terminalStatuses = ['Completed', 'Cancelled', 'Terminated', 'Suspended']
+      if (currentTrip && terminalStatuses.includes(currentTrip.status)) return
+
+      // Khử trùng: không phát lại cùng 1 sự kiện của cùng bến trong vòng 4 giây
+      const eventKey = `${event.tripId}-${event.type ?? event.eventType}-${event.stationName}`
+      const now = Date.now()
+      if (lastAnnounceKeyRef.current?.key === eventKey && now - lastAnnounceKeyRef.current.at < 4000) {
+        return
+      }
+      lastAnnounceKeyRef.current = { key: eventKey, at: now }
+
+      const sentence = getAnnouncementSentence(event)
+      const label =
+        event.type === 'departing'
+          ? 'Rời bến'
+          : event.type === 'near'
+            ? 'Sắp đến bến'
+            : 'Cập bến'
+
+      console.log(`[Cockpit Audio] Nhận sự kiện (${label}): ${event.stationName} -> Đang phát: "${sentence}"`)
+
+      const task: AudioTask = {
+        id: eventKey,
+        type: 'station',
+        title: `Thông báo (${label}): ${event.stationName}`,
+        text: sentence,
+        run: async () => {
+          // Phát trọn vẹn câu thông báo bằng giọng đọc Azure TTS tiếng Việt
+          await playAzureAnnouncement(sentence, 'vi-VN-HoaiMyNeural', 0.95)
+        },
+      }
+
+      // Thông báo trạm bến ưu tiên hơn POI: dọn bớt POI trong hàng đợi
+      queueRef.current = queueRef.current.filter((t) => t.type !== 'poi')
+      queueRef.current.push(task)
+      void processQueue()
+    },
+    [processQueue],
+  )
+
+  // Xử lý phát thuyết minh du lịch POI (MP3)
   const playPoiAudio = useCallback(
     async (message: AudioTriggerMessage) => {
-      // Nếu đang có thông báo trạm bến trong hàng đợi hoặc đang phát thì bỏ qua POI (an toàn hàng hải ưu tiên hơn)
-      if (
-        isPlayingTaskRef.current &&
-        nowPlaying?.type === 'station'
-      ) {
-        console.log(`[Cockpit Audio] Đang phát thông báo trạm bến, nhường loa bỏ qua POI: ${message.poiName}`)
+      // Chỉ phát khi bật thuyết minh và không có thông báo trạm bến đang chờ
+      if (!narratingRef.current) return
+      if (queueRef.current.some((t) => t.type === 'station') || (isBusyRef.current && nowPlaying?.type === 'station')) {
         return
       }
 
-      const poiTask: AudioTask = {
+      const task: AudioTask = {
         id: message.requestId,
         type: 'poi',
         title: `Thuyết minh: ${message.poiName}`,
@@ -196,101 +231,37 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
               audio.volume = 0.95
               currentAudioRef.current = audio
 
-              const cleanUp = () => {
+              const done = (status: 'Completed' | 'Failed') => {
                 URL.revokeObjectURL(blobUrl)
                 currentAudioRef.current = null
-                resolve()
-              }
-
-              audio.onended = () => {
                 if (onboardHubConnectionRef.current) {
                   void onboardHubConnectionRef.current.invoke(
                     'ReportPlaybackState',
                     message.requestId,
-                    'Completed',
+                    status,
                     null,
                   )
                 }
-                cleanUp()
+                resolve()
               }
 
-              audio.onerror = () => {
-                if (onboardHubConnectionRef.current) {
-                  void onboardHubConnectionRef.current.invoke(
-                    'ReportPlaybackState',
-                    message.requestId,
-                    'Failed',
-                    'Lỗi phát file âm thanh',
-                  )
-                }
-                cleanUp()
-              }
+              audio.onended = () => done('Completed')
+              audio.onerror = () => done('Failed')
 
               await audio.play()
             } catch (err) {
-              console.error('[Onboard Audio] Lỗi tải/phát MP3:', err)
+              console.error('[Onboard Audio] Lỗi phát thuyết minh POI:', err)
               resolve()
             }
           })
         },
       }
 
-      // Giới hạn hàng đợi: POI không xếp quá 1 bài
       queueRef.current = queueRef.current.filter((t) => t.type !== 'poi')
-      queueRef.current.push(poiTask)
+      queueRef.current.push(task)
       void processQueue()
     },
     [nowPlaying, processQueue],
-  )
-
-  // Phát thông báo trạm bến bằng giọng đọc Azure TTS tiếng Việt
-  const handleStopAnnouncement = useCallback(
-    (event: StopAnnouncementEvent) => {
-      const currentTrip = tripRef.current
-      // Chỉ phát khi chuyến đang trong hành trình (EnRoute)
-      if (!currentTrip || currentTrip.status !== 'EnRoute') return
-      // Lọc đúng chuyến tàu đang chọn
-      if (event.tripId && event.tripId !== currentTrip.id) return
-      if (event.boatId && currentTrip.boatId && event.boatId !== currentTrip.boatId) return
-
-      // Khử trùng sự kiện: cùng loại sự kiện của cùng bến trong vòng 5 giây -> bỏ qua
-      const eventKey = `${event.tripId}-${event.type ?? event.eventType}-${event.stationName}`
-      const now = Date.now()
-      if (lastAnnouncementRef.current?.key === eventKey && now - lastAnnouncementRef.current.at < 5000) {
-        console.log(`[Cockpit Audio] Bỏ qua sự kiện trạm trùng lặp: ${eventKey}`)
-        return
-      }
-      lastAnnouncementRef.current = { key: eventKey, at: now }
-
-      const sentence = getAnnouncementSentence(event)
-      const label =
-        event.type === 'departing'
-          ? 'Rời bến'
-          : event.type === 'near'
-            ? 'Sắp đến bến'
-            : 'Cập bến'
-
-      console.log(`[Cockpit Audio] Nhận sự kiện (${label}): ${event.stationName} -> Xếp hàng phát: "${sentence}"`)
-
-      const stationTask: AudioTask = {
-        id: eventKey,
-        type: 'station',
-        title: `Thông báo (${label}): ${event.stationName}`,
-        text: sentence,
-        run: async () => {
-          // Azure TTS Hoài My (Nữ miền Nam tự nhiên, chuẩn tiếng Việt Saigon Waterbus)
-          // Đảm bảo phát trọn vẹn 100% câu thông báo trước khi chuyển câu khác
-          await playAzureAnnouncement(sentence, 'vi-VN-HoaiMyNeural', 0.95)
-        },
-      }
-
-      // Thông báo trạm bến có ưu tiên cao: loại bỏ các POI đang xếp hàng để ưu tiên đọc bến
-      queueRef.current = queueRef.current.filter((t) => t.type !== 'poi')
-      // Đưa câu thông báo bến vào hàng đợi
-      queueRef.current.push(stationTask)
-      void processQueue()
-    },
-    [processQueue],
   )
 
   // Kết nối OnboardAudioHub để nhận sự kiện POI thuyết minh du lịch
@@ -299,7 +270,7 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
       handlers: {
         [HUB_EVENTS.audioTrigger]: (message: AudioTriggerMessage) => {
           const currentTrip = tripRef.current
-          if (!currentTrip || currentTrip.status !== 'EnRoute') return
+          if (!currentTrip) return
           if (!narratingRef.current) return
           if (message.tripId && message.tripId !== currentTrip.id) return
           if (message.boatId && currentTrip.boatId && message.boatId !== currentTrip.boatId) return
