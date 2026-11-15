@@ -1,25 +1,21 @@
 import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
 import { Button, ErrorState, Modal, Notice, PageLoader } from '../../components/ui'
 import Icon from '../../features/captain/components/CaptainIcon'
+import CaptainActions, { blockedReason } from '../../features/captain/components/CaptainActions'
+import type { CaptainAction } from '../../features/captain/components/CaptainActions'
 import CaptainHeader from '../../features/captain/components/CaptainHeader'
 import CaptainMap from '../../features/captain/components/CaptainMap'
+import CaptainStopList from '../../features/captain/components/CaptainStopList'
 import OnboardPlayerPanel from '../../features/captain/components/OnboardPlayerPanel'
 import { useCaptainGps } from '../../features/captain/hooks/useCaptainGps'
-import {
-  getCaptainAttendance,
-  getCaptainBoat,
-} from '../../features/captain/services/captainService'
+import { getCaptainAttendance } from '../../features/captain/services/captainService'
+import { formatGpsTime } from '../../features/captain/utils'
 import { useAuth } from '../../features/authentication/hooks/useAuth'
-import {
-  getOperationTrips,
-  operateTrip,
-} from '../../features/operations/services/operationsService'
-import type { AdminTrip, CaptainActionHint, OperationType } from '../../features/operations/types'
+import { getOperationTrips, operateTrip } from '../../features/operations/services/operationsService'
+import type { AdminTrip, OperationType } from '../../features/operations/types'
 import { getTrackedTrip } from '../../features/tracking/services/trackingService'
 import { useDocumentTitle, useFetch, useReload, useSubmit } from '../../hooks'
 import { formatClock, formatDateTime } from '../../utils/time'
-import { formatGpsTime } from '../../features/captain/utils'
 
 const STATUS_LABEL: Record<AdminTrip['status'], string> = {
   Scheduled: 'Chờ đón khách',
@@ -31,119 +27,27 @@ const STATUS_LABEL: Record<AdminTrip['status'], string> = {
   Cancelled: 'Đã hủy',
   Terminated: 'Đã kết thúc sớm',
 }
-const ACTIONS: { type: OperationType; icon: string; label: string; reason: string }[] = [
-  {
-    type: 'OpenBoarding',
-    icon: 'groups',
-    label: 'Mở đón khách',
-    reason: 'Thuyền trưởng mở đón khách.',
-  },
-  {
-    type: 'Start',
-    icon: 'play_arrow',
-    label: 'Khởi hành',
-    reason: 'Thuyền trưởng xác nhận khởi hành.',
-  },
-  {
-    type: 'Arrive',
-    icon: 'sports_score',
-    label: 'Đến bến cuối',
-    reason: 'Thuyền trưởng xác nhận đến bến cuối.',
-  },
-  {
-    type: 'Complete',
-    icon: 'check_circle',
-    label: 'Kết thúc chuyến',
-    reason: 'Thuyền trưởng kết thúc chuyến.',
-  },
-]
 
 /** Chuyến còn việc cho thuyền trưởng: chưa chạy, đang chạy, đã đến bến cuối mà chưa kết thúc. */
 const isActiveForCaptain = (status: AdminTrip['status']) =>
-  status === 'Scheduled' ||
-  status === 'Boarding' ||
-  status === 'EnRoute' ||
-  status === 'Suspended' ||
-  status === 'Arrived'
+  status === 'Scheduled' || status === 'Boarding' || status === 'EnRoute' || status === 'Suspended' || status === 'Arrived'
 
 /** Chuyến được chọn sẵn: đang chạy trước, rồi tạm ngưng, đang đón khách, đã đến bến cuối, cuối cùng là chuyến sắp tới. */
 const DEFAULT_ORDER: AdminTrip['status'][] = ['EnRoute', 'Suspended', 'Boarding', 'Arrived', 'Scheduled']
 
-/** Vì sao nút chưa bấm được (mã từ `CaptainOperationRules` của backend); null khi không cần giải thích. */
-function blockedReason(hint: CaptainActionHint | undefined): string | null {
-  if (!hint || hint.allowed) return null
-  switch (hint.reason) {
-    case 'NotYet':
-      return `Đến ${hint.availableAt ? formatClock(new Date(hint.availableAt)) : '—'} mới mở đón khách.`
-    case 'OpenBoardingFirst':
-      return 'Cần mở đón khách trước khi khởi hành.'
-    case 'NoPosition':
-      return 'Đang chờ GPS của tàu. Hãy bật chia sẻ vị trí GPS.'
-    case 'NotAtLastStop':
-      return 'Tàu chưa tới bến cuối của tuyến.'
-    case 'JourneyNotDone':
-      return 'Tàu chưa đi hết hành trình.'
-    default:
-      return null
-  }
-}
 const clock = (iso?: string | null) => (iso ? formatClock(new Date(iso)) : '—')
-
-function Card({
-  title,
-  icon,
-  children,
-  className = '',
-}: {
-  title: string
-  icon: string
-  children: ReactNode
-  className?: string
-}) {
-  return (
-    <section className={`captain-card captain-side-card ${className}`}>
-      <h2>
-        <Icon name={icon} />
-        {title}
-      </h2>
-      {children}
-    </section>
-  )
-}
-function Metric({
-  icon,
-  label,
-  value,
-  caption,
-  warning = false,
-}: {
-  icon: string
-  label: string
-  value: string
-  caption: string
-  warning?: boolean
-}) {
-  return (
-    <div className={`captain-card captain-metric ${warning ? 'has-warning' : ''}`}>
-      <span className="captain-metric-icon">
-        <Icon name={icon} />
-      </span>
-      <div>
-        <p>{label}</p>
-        <strong>{value}</strong>
-        <small>{caption}</small>
-      </div>
-    </div>
-  )
-}
 
 function TripDashboard({
   trip,
+  options,
+  onSelect,
   version,
   gps,
   reload,
 }: {
   trip: AdminTrip
+  options: AdminTrip[]
+  onSelect: (id: string) => void
   version: number
   gps: ReturnType<typeof useCaptainGps>
   reload: () => void
@@ -151,12 +55,12 @@ function TripDashboard({
   const { user } = useAuth()
   const detail = useFetch(() => getTrackedTrip(trip.id), [trip.id, version])
   const attendance = useFetch(() => getCaptainAttendance(trip.id), [trip.id, version])
-  const boat = useFetch(() => getCaptainBoat(trip.boatId), [trip.boatId])
-  const [confirmation, setConfirmation] = useState<(typeof ACTIONS)[number] | null>(null)
+  const [confirmation, setConfirmation] = useState<CaptainAction | null>(null)
   const [sosOpen, setSosOpen] = useState(false)
   const [note, setNote] = useState('')
   const [sosSentAt, setSosSentAt] = useState<string | null>(null)
   const action = useSubmit()
+
   const stops = (detail.data?.stops ?? []).filter((s) => s.status !== 'Skipped')
   const beforeStart = trip.status === 'Scheduled' || trip.status === 'Boarding'
   const suspended = trip.status === 'Suspended'
@@ -164,12 +68,10 @@ function TripDashboard({
   const nextStop = beforeStart
     ? stops[0]
     : stops.find((s, index) => s.status !== 'Departed' && (index > 0 || departed.length > 0))
-  const lastDeparted = departed[departed.length - 1]
+
   const confirmed = attendance.data?.state === 'Present' || attendance.data?.state === 'Late'
   const attendanceMessage = confirmed
-    ? `Admin đã xác nhận có mặt lúc ${clock(attendance.data?.attendance?.recordedAt)}${
-        attendance.data?.state === 'Late' ? ' (đến muộn)' : ''
-      }`
+    ? `Admin đã xác nhận có mặt lúc ${clock(attendance.data?.attendance?.recordedAt)}${attendance.data?.state === 'Late' ? ' (đến muộn)' : ''}`
     : attendance.error
     ? 'Chưa tải được trạng thái điểm danh'
     : attendance.data?.state === 'NotConfigured'
@@ -177,30 +79,20 @@ function TripDashboard({
     : attendance.data?.state === 'Missing'
     ? 'Quá hạn có mặt · Chờ Admin xác nhận'
     : attendance.data
-    ? `Chờ Admin xác nhận có mặt${
-        attendance.data.requiredAt ? ` · Hạn ${clock(attendance.data.requiredAt)}` : ''
-      }`
+    ? `Chờ Admin xác nhận có mặt${attendance.data.requiredAt ? ` · Hạn ${clock(attendance.data.requiredAt)}` : ''}`
     : 'Đang tải trạng thái điểm danh…'
-  const gpsLabel = gps.fresh
-    ? gps.sharing
-      ? 'Đang chia sẻ'
-      : 'Đang nhận vị trí'
-    : gps.position
-    ? 'Chưa cập nhật'
-    : 'Chờ tín hiệu'
-  const lastUpdate = gps.position ? formatGpsTime(gps.position.observedAt) : '—'
-  const unavailable = !gps.connected || action.busy
+
+  const locked = !gps.connected || action.busy
   const hintOf = (type: OperationType) => trip.captainActions?.find((h) => h.operation === type)
   const allowedBy = (type: OperationType) => {
     const hint = hintOf(type)
     return hint ? hint.allowed : trip.allowedOperations.includes(type)
   }
-  // Lý do của nút kế tiếp trong luồng (Mở đón khách → Khởi hành → Đến bến cuối → Kết thúc), nếu đang bị chặn.
-  const nextBlocked = blockedReason(
-    hintOf(trip.status === 'Scheduled' ? 'OpenBoarding' : trip.status === 'EnRoute' ? 'Arrive' : 'Start'),
-  )
+  const reasonOf = (type: OperationType) => blockedReason(hintOf(type), (iso) => clock(iso))
+
+  // Một dòng hướng dẫn cho việc kế tiếp.
   const nextInstruction = !gps.connected
-    ? 'Chờ kết nối lại để thực hiện thao tác.'
+    ? 'Mất kết nối máy chủ. Các thao tác và SOS đang tạm khóa.'
     : suspended
     ? 'Chuyến tạm ngưng. Chờ quyết định tiếp tục từ Admin.'
     : attendance.error
@@ -208,12 +100,12 @@ function TripDashboard({
     : !confirmed && beforeStart
     ? 'Captain cần được Admin xác nhận có mặt trước khi khởi hành.'
     : trip.status === 'Scheduled'
-    ? nextBlocked ?? 'Mở đón khách trước khi khởi hành.'
+    ? reasonOf('OpenBoarding') ?? 'Mở đón khách khi khách bắt đầu lên tàu.'
     : trip.status === 'Boarding'
-    ? 'Xác nhận khởi hành khi tàu rời bến.'
+    ? 'Bấm Khởi hành khi tàu rời bến.'
     : trip.status === 'Arrived'
     ? 'Kết thúc chuyến khi khách đã xuống hết.'
-    : nextBlocked ?? 'Xác nhận đến bến cuối khi tàu đã tới bến cuối của tuyến.'
+    : reasonOf('Arrive') ?? 'Bấm Đến bến cuối khi tàu đã tới bến cuối của tuyến.'
 
   const perform = async (type: OperationType, reason: string) => {
     const done = await action.run(() => operateTrip(trip.id, type, reason))
@@ -222,69 +114,94 @@ function TripDashboard({
   }
 
   return (
-    <div className="captain-dashboard">
-      <div className="captain-main-column">
-        <div className="captain-welcome">
-          <h1>Xin chào, Captain {user?.fullName ?? ''}</h1>
-          <div className="captain-trip-subtitle">
-            <span>{trip.boatCode ?? 'Chưa gán tàu'}</span>
-            <span aria-hidden="true">•</span>
-            <span>{trip.routeName}</span>
-            <span
-              className={`captain-pill ${beforeStart || suspended ? 'is-warning' : 'is-success'}`}
-            >
-              {STATUS_LABEL[trip.status]}
-            </span>
+    <div className="cap-layout">
+      <div className="cap-main">
+        <section className="cap-hero">
+          <div className="cap-hero-top">
+            <p className="cap-greeting">Xin chào, Captain {user?.fullName ?? ''}</p>
+            {options.length > 1 && (
+              <select aria-label="Chuyến được phân công" value={trip.id} onChange={(e) => onSelect(e.target.value)}>
+                {options.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {formatDateTime(x.departureTime)} · {x.routeName}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
-          <p className={`captain-attendance ${confirmed ? 'is-confirmed' : ''}`}>
+          <h1>{trip.routeName}</h1>
+          <p className="cap-hero-meta">
+            <span>{trip.boatCode ?? 'Chưa gán tàu'}</span>
+            <span>{trip.tripType === 'Sightseeing' ? 'Chuyến tham quan' : 'Chuyến thường'}</span>
+            <span>
+              {clock(trip.departureTime)} – {clock(trip.arrivalTime)}
+            </span>
+            <span className={`captain-pill ${beforeStart || suspended ? 'is-warning' : 'is-success'}`}>{STATUS_LABEL[trip.status]}</span>
+          </p>
+          <p className={`cap-attendance ${confirmed ? 'is-confirmed' : ''}`}>
             <Icon name={confirmed ? 'check_circle' : 'info'} />
             {attendanceMessage}
+            {attendance.error && (
+              <button type="button" onClick={attendance.retry}>
+                Tải lại
+              </button>
+            )}
           </p>
-        </div>
-        {suspended && (
-          <div className="captain-banner" role="status">
-            <Icon name="pause_circle" />
-            Chuyến tạm ngưng theo quyết định Admin. Chờ hướng dẫn tiếp tục.
-          </div>
-        )}
-        <div className="captain-metrics">
-          <Metric
-            icon="speed"
-            label="Tốc độ tàu"
-            value={
-              gps.fresh && gps.position?.speedKnots != null
-                ? `${gps.position.speedKnots.toFixed(1)} kn`
-                : '—'
-            }
-            caption={gps.fresh ? 'Tốc độ từ GPS của tàu' : 'Chưa có dữ liệu mới'}
-          />
-          <Metric
-            icon="location_on"
-            label={beforeStart ? 'Bến khởi hành' : 'Bến tiếp theo'}
-            value={nextStop?.stationName ?? '—'}
-            caption={
-              suspended
-                ? 'Chờ cập nhật giờ đến'
-                : `Dự kiến ${clock(
-                    beforeStart
-                      ? nextStop?.estimatedDepartureTime ?? trip.departureTime
-                      : nextStop?.estimatedArrivalTime,
-                  )}`
-            }
-          />
-          <Metric
-            icon="groups"
-            label="Khách trên đoạn hiện tại"
-            value="—"
-            caption={`Chưa có dữ liệu${boat.data ? ` / ${boat.data.totalSeats} chỗ` : ''}`}
-          />
-          <Metric
-            icon={gps.fresh ? 'satellite_alt' : 'location_off'}
-            label="Tín hiệu GPS"
-            value={gpsLabel}
-            caption={`${gps.fresh ? 'Cập nhật' : 'Lần cuối'} ${lastUpdate}`}
-            warning={!gps.fresh}
-          />
+          {suspended && (
+            <div className="captain-banner" role="status">
+              <Icon name="pause_circle" />
+              Chuyến tạm ngưng theo quyết định Admin. Chờ hướng dẫn tiếp tục.
+            </div>
+          )}
+        </section>
+
+        <CaptainActions
+          trip={trip}
+          allowed={allowedBy}
+          reasonOf={reasonOf}
+          locked={locked}
+          onPick={(item) => {
+            action.clearError()
+            setConfirmation(item)
+          }}
+          onSos={() => {
+            action.clearError()
+            setSosOpen(true)
+          }}
+        />
+        <p className="cap-instruction">
+          <Icon name="info" />
+          {nextInstruction}
+        </p>
+        {gps.error && <Notice tone="error">{gps.error}</Notice>}
+        {action.error && !confirmation && !sosOpen && <Notice tone="error">{action.error}</Notice>}
+        {sosSentAt && <Notice tone="success">Đã gửi SOS lúc {clock(sosSentAt)}. Chờ Admin xử lý.</Notice>}
+
+        <div className="cap-mapbar">
+          <p>
+            <Icon name="location_on" />
+            {nextStop ? (
+              <>
+                {beforeStart ? 'Bến xuất phát' : 'Bến tiếp theo'}: <strong>{nextStop.stationName}</strong> · Dự kiến{' '}
+                {clock(beforeStart ? nextStop.estimatedDepartureTime ?? trip.departureTime : nextStop.estimatedArrivalTime)}
+              </>
+            ) : (
+              'Chưa có thông tin bến'
+            )}
+          </p>
+          <label className="captain-gps-toggle">
+            <span>Chia sẻ vị trí GPS</span>
+            <button
+              type="button"
+              role="switch"
+              aria-label="Chia sẻ vị trí GPS"
+              aria-checked={gps.sharing}
+              onClick={gps.toggleSharing}
+              className={gps.sharing ? 'is-on' : ''}
+            >
+              <span />
+            </button>
+          </label>
         </div>
         {detail.error && (
           <Notice tone="error">
@@ -293,6 +210,9 @@ function TripDashboard({
               Thử lại
             </button>
           </Notice>
+        )}
+        {gps.position && !gps.fresh && (
+          <p className="cap-stale">Đang hiển thị vị trí cuối lúc {formatGpsTime(gps.position.observedAt)}</p>
         )}
         <CaptainMap
           key={trip.id}
@@ -303,233 +223,13 @@ function TripDashboard({
           position={gps.position}
           fresh={gps.fresh}
         />
-        <section className="captain-card captain-controls">
-          <div className="captain-card-heading">
-            <h2>
-              <Icon name="settings" />
-              Thao tác vận hành
-            </h2>
-            <label className="captain-gps-toggle">
-              <span>Chia sẻ vị trí GPS</span>
-              <button
-                type="button"
-                role="switch"
-                aria-label="Chia sẻ vị trí GPS"
-                aria-checked={gps.sharing}
-                onClick={gps.toggleSharing}
-                className={gps.sharing ? 'is-on' : ''}
-              >
-                <span />
-              </button>
-            </label>
-          </div>
-          <div className="captain-control-state">
-            <span
-              className={`captain-pill ${suspended || beforeStart ? 'is-warning' : 'is-success'}`}
-            >
-              {STATUS_LABEL[trip.status]}
-            </span>
-            <span className={`captain-pill ${confirmed ? 'is-success' : 'is-warning'}`}>
-              {confirmed ? 'Đã điểm danh' : 'Chờ điểm danh'}
-            </span>
-            <span className={`captain-pill ${gps.fresh ? 'is-success' : 'is-warning'}`}>
-              {gps.fresh ? 'GPS đang cập nhật' : 'GPS chưa cập nhật'}
-            </span>
-          </div>
-          <div className="captain-action-grid">
-            {ACTIONS.map((item) => (
-              <button
-                type="button"
-                key={item.type}
-                className="captain-action"
-                disabled={unavailable || !allowedBy(item.type)}
-                title={blockedReason(hintOf(item.type)) ?? undefined}
-                onClick={() => {
-                  action.clearError()
-                  setConfirmation(item)
-                }}
-              >
-                <Icon name={item.icon} />
-                {item.label}
-              </button>
-            ))}
-            <button
-              type="button"
-              className="captain-action captain-sos"
-              disabled={unavailable}
-              onClick={() => {
-                action.clearError()
-                setSosOpen(true)
-              }}
-            >
-              <Icon name="e911_emergency" />
-              Gửi SOS
-            </button>
-          </div>
-          <p className="captain-instruction">
-            <Icon name="info" />
-            {nextInstruction}
-          </p>
-          {gps.error && <Notice tone="error">{gps.error}</Notice>}
-          {action.error && <Notice tone="error">{action.error}</Notice>}
-        </section>
       </div>
-      <aside className="captain-side-column">
-        <Card
-          title={
-            suspended
-              ? 'Chuyến tạm ngưng'
-              : beforeStart
-              ? 'Chuyến sắp khởi hành'
-              : 'Chuyến đang vận hành'
-          }
-          icon="directions_boat"
-        >
-          <h3 className="captain-route-title">{trip.routeName}</h3>
-          <p className="captain-muted">
-            {trip.boatCode} ·{' '}
-            {trip.tripType === 'Sightseeing' ? 'Chuyến tham quan' : 'Chuyến thường'}
-          </p>
-          <div className="captain-journey-summary">
-            <div>
-              <Icon name="location_on" />
-              <span>
-                <small>{beforeStart ? 'Bến khởi hành' : 'Bến tiếp theo'}</small>
-                <strong>{nextStop?.stationName ?? 'Chờ cập nhật'}</strong>
-              </span>
-            </div>
-            <div>
-              <Icon name="schedule" />
-              <span>
-                <small>{beforeStart ? 'Khởi hành dự kiến' : 'Dự kiến đến'}</small>
-                <strong>
-                  {suspended
-                    ? 'Chờ cập nhật'
-                    : clock(beforeStart ? trip.departureTime : nextStop?.estimatedArrivalTime)}
-                </strong>
-              </span>
-            </div>
-          </div>
-          <div className={`captain-journey-progress ${suspended ? 'is-paused' : ''}`}>
-            <Icon name={suspended ? 'pause_circle' : 'route'} />
-            {suspended
-              ? 'Chờ quyết định từ Admin'
-              : lastDeparted
-              ? `Đã rời bến ${lastDeparted.stationName}`
-              : beforeStart
-              ? 'Chuẩn bị đón khách tại bến đầu'
-              : 'Đang thực hiện hành trình'}
-          </div>
-          <ol className="captain-stop-list">
-            {stops.map((stop) => (
-              <li
-                key={stop.callId}
-                className={`${stop.status === 'Departed' ? 'is-departed' : ''} ${
-                  stop.callId === nextStop?.callId ? 'is-next' : ''
-                }`}
-              >
-                <span className="captain-stop-dot">
-                  {stop.status === 'Departed' && <Icon name="check" />}
-                </span>
-                <div>
-                  <strong>{stop.stationName}</strong>
-                  <small>
-                    {stop.status === 'Skipped'
-                      ? 'Bỏ qua bến'
-                      : stop.status === 'Departed'
-                      ? 'Đã rời bến'
-                      : stop.callId === nextStop?.callId
-                      ? beforeStart
-                        ? 'Bến đầu'
-                        : 'Bến tiếp theo'
-                      : 'Chưa đến'}
-                  </small>
-                </div>
-                <span className="captain-stop-time">
-                  Dự kiến <b>{clock(stop.estimatedArrivalTime ?? stop.estimatedDepartureTime)}</b>
-                  {suspended && <small>Chưa cập nhật</small>}
-                </span>
-              </li>
-            ))}
-          </ol>
-          {detail.loading && <p className="captain-muted">Đang tải các bến…</p>}
-          <p className="captain-schedule-note">
-            Lịch chuyến: {clock(trip.departureTime)} – {clock(trip.arrivalTime)} · Giờ Việt Nam
-          </p>
-        </Card>
-        <Card title="An toàn & kết nối" icon="verified_user">
-          <dl className="captain-connection-list">
-            <div>
-              <dt>
-                <span className={`captain-dot ${gps.fresh ? '' : 'is-amber'}`} />
-                GPS
-              </dt>
-              <dd className={`captain-pill ${gps.fresh ? 'is-success' : 'is-warning'}`}>
-                {gps.fresh ? 'Đang nhận vị trí' : 'Chưa có tín hiệu mới'}
-              </dd>
-            </div>
-            <div>
-              <dt>
-                <span className={`captain-dot ${gps.connected ? '' : 'is-amber'}`} />
-                Máy chủ
-              </dt>
-              <dd className={`captain-pill ${gps.connected ? 'is-success' : 'is-warning'}`}>
-                {gps.connected ? 'Trực tuyến' : 'Đang kết nối lại'}
-              </dd>
-            </div>
-            <div>
-              <dt>
-                <Icon name="schedule" />
-                GPS cập nhật cuối
-              </dt>
-              <dd className="captain-tabular">{lastUpdate}</dd>
-            </div>
-          </dl>
-        </Card>
-        <Card title="Thông báo" icon="notifications" className="captain-notifications">
-          <div className="captain-notice-list" aria-live="polite">
-            {!gps.connected && (
-              <div className="captain-notification is-warning">
-                <Icon name="wifi_off" />
-                <span>Mất kết nối máy chủ. Các thao tác và SOS đang tạm khóa.</span>
-              </div>
-            )}
-            {suspended && (
-              <div className="captain-notification is-warning">
-                <Icon name="pause_circle" />
-                <span>Chuyến tạm ngưng · Chờ Admin</span>
-              </div>
-            )}
-            {gps.position && !gps.fresh && (
-              <div className="captain-notification is-warning">
-                <Icon name="location_off" />
-                <span>Đang hiển thị vị trí cuối lúc {lastUpdate}</span>
-              </div>
-            )}
-            <div className={`captain-notification ${confirmed ? 'is-success' : 'is-warning'}`}>
-              <Icon name={confirmed ? 'check_circle' : 'info'} />
-              <span>{attendanceMessage}</span>
-            </div>
-            {attendance.error && (
-              <button type="button" className="captain-outline" onClick={attendance.retry}>
-                Tải lại điểm danh
-              </button>
-            )}
-            {sosSentAt && (
-              <div className="captain-notification is-success">
-                <Icon name="check_circle" />
-                <span>Đã gửi SOS lúc {clock(sosSentAt)}. Chờ Admin xử lý.</span>
-              </div>
-            )}
-            {beforeStart && (
-              <div className="captain-notification is-neutral">
-                <Icon name="schedule" />
-                <span>Khởi hành dự kiến lúc {clock(trip.departureTime)}</span>
-              </div>
-            )}
-          </div>
-        </Card>
+
+      <aside className="cap-side">
+        <CaptainStopList stops={stops} nextId={nextStop?.callId} clock={clock} />
+        <OnboardPlayerPanel />
       </aside>
+
       {confirmation && (
         <Modal
           title={`Xác nhận ${confirmation.label.toLowerCase()}`}
@@ -540,16 +240,14 @@ function TripDashboard({
           <p>
             Bạn xác nhận “{confirmation.label}” cho {trip.boatCode} · {trip.routeName}?
           </p>
-          <p className="mt-2 text-sm text-on-surface-variant">
-            Thao tác sẽ cập nhật trạng thái chuyến và được ghi vào nhật ký vận hành.
-          </p>
+          <p className="mt-2 text-sm text-on-surface-variant">Thao tác sẽ cập nhật trạng thái chuyến và được ghi vào nhật ký vận hành.</p>
           {action.error && <Notice tone="error">{action.error}</Notice>}
           <div className="mt-5 flex justify-end gap-3">
             <Button variant="neutral" disabled={action.busy} onClick={() => setConfirmation(null)}>
               Quay lại
             </Button>
             <Button
-              disabled={unavailable || !allowedBy(confirmation.type)}
+              disabled={locked || !allowedBy(confirmation.type)}
               onClick={async () => {
                 if (await perform(confirmation.type, confirmation.reason)) setConfirmation(null)
               }}
@@ -585,11 +283,9 @@ function TripDashboard({
             </Button>
             <Button
               variant="danger"
-              disabled={unavailable}
+              disabled={locked}
               onClick={async () => {
-                if (
-                  await perform('SOS', note.trim() || 'Thuyền trưởng báo cáo tình huống khẩn cấp.')
-                ) {
+                if (await perform('SOS', note.trim() || 'Thuyền trưởng báo cáo tình huống khẩn cấp.')) {
                   setSosOpen(false)
                   setNote('')
                   setSosSentAt(new Date().toISOString())
@@ -612,15 +308,14 @@ export default function CaptainPortalPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const open = (trips.data ?? []).filter((x) => isActiveForCaptain(x.status))
   const trip =
-    open.find((x) => x.id === selectedId) ??
-    DEFAULT_ORDER.flatMap((status) => open.filter((x) => x.status === status))[0] ??
-    open[0]
+    open.find((x) => x.id === selectedId) ?? DEFAULT_ORDER.flatMap((status) => open.filter((x) => x.status === status))[0] ?? open[0]
   const gps = useCaptainGps(trip?.boatId ?? '', reload)
-  // Điểm danh do Admin ghi nhận; tải lại định kỳ và khi reconnect để đồng bộ với backend.
+  // Điểm danh do Admin ghi nhận; tải lại định kỳ để đồng bộ với backend.
   useEffect(() => {
     const interval = window.setInterval(reload, 30000)
     return () => window.clearInterval(interval)
   }, [reload])
+
   return (
     <>
       <CaptainHeader connected={gps.connected} fresh={gps.fresh} />
@@ -648,32 +343,8 @@ export default function CaptainPortalPage() {
             </Button>
           </div>
         ) : (
-          <>
-            <div className="captain-trip-picker">
-              <label htmlFor="captain-trip">
-                <Icon name="directions_boat" />
-                Chuyến được phân công
-              </label>
-              <select
-                id="captain-trip"
-                value={trip.id}
-                onChange={(e) => setSelectedId(e.target.value)}
-              >
-                {open.map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.boatCode} · {formatDateTime(x.departureTime)} – {clock(x.arrivalTime)} ·{' '}
-                    {x.routeName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <OnboardPlayerPanel />
-            <TripDashboard key={trip.id} trip={trip} version={version} gps={gps} reload={reload} />
-          </>
+          <TripDashboard key={trip.id} trip={trip} options={open} onSelect={setSelectedId} version={version} gps={gps} reload={reload} />
         )}
-        <footer className="captain-footer">
-          SMART WATERBUS <span>•</span> Vận hành an toàn, hành trình thông suốt
-        </footer>
       </main>
     </>
   )

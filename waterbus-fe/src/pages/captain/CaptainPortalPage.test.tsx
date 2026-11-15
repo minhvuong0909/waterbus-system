@@ -124,7 +124,6 @@ describe('Captain operations dashboard', () => {
     expect(button('Mở đón khách').disabled).toBe(false)
     expect(button('Khởi hành').disabled).toBe(true)
     expect(button('Đến bến cuối').disabled).toBe(true)
-    expect(screen.getByText('Chưa có dữ liệu / 75 chỗ')).toBeTruthy()
     fireEvent.click(button('Mở đón khách'))
     expect(operateTrip).not.toHaveBeenCalled()
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Xác nhận' }))
