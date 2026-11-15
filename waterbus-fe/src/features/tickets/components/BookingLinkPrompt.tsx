@@ -5,7 +5,7 @@ import OpenBookingLinkForm from './OpenBookingLinkForm'
 
 /**
  * Trang mở đơn bằng link quản lý vé: khi chưa có link (`warning` false) hoặc link không hợp lệ /
- * hết hạn (`warning` true). Không hứa tra cứu bằng mã đặt chỗ vì backend chưa hỗ trợ.
+ * hết hạn (`warning` true). Mất link thì dẫn sang tra cứu bằng email + mã đặt chỗ + OTP.
  */
 export default function BookingLinkPrompt({
   title,
@@ -36,6 +36,9 @@ export default function BookingLinkPrompt({
         <h1 className="mt-space-md font-display text-headline-md text-deep-river">{title}</h1>
         <p className="mb-space-lg mt-space-xs text-body-md text-on-surface-variant">{message}</p>
         <OpenBookingLinkForm />
+        <Button to={ROUTES.lookupTickets} variant="text" size="sm" className="mt-space-xs">
+          {t('Lost the link? Find my tickets with email and booking code')}
+        </Button>
         <Button to={ROUTES.myTickets} variant="text" size="sm" className="mt-space-sm">
           {t('Go to My Tickets')}
         </Button>

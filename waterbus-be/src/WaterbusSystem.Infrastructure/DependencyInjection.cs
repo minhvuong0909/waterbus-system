@@ -42,6 +42,8 @@ using WaterbusSystem.Infrastructure.Services.Tracking;
 using WaterbusSystem.Infrastructure.Services.SightseeingAudio;
 using WaterbusSystem.Infrastructure.Services.Weather;
 using WaterbusSystem.Infrastructure.Services.Email;
+using WaterbusSystem.Infrastructure.Services.TicketLookup;
+using WaterbusSystem.Application.Features.Tickets;
 using WaterbusSystem.Application.Features.Notifications;
 using Microsoft.Extensions.Options;
 
@@ -100,6 +102,17 @@ public static class DependencyInjection
         services.AddScoped<IFareRuleRepository, FareRuleRepository>();
         services.AddScoped<IStationRepository, StationRepository>();
         services.AddScoped<IFareService, WaterbusSystem.Application.Features.Fares.Services.FareService>();
+
+        // Tra cứu vé bằng mã đặt chỗ + email + OTP (Redis, TTL). OTP gửi qua hàng đợi bộ nhớ, không qua outbox.
+        services.AddSingleton<IValidateOptions<TicketLookupOptions>, TicketLookupOptionsValidator>();
+        services.AddOptions<TicketLookupOptions>().Bind(configuration.GetSection(TicketLookupOptions.SectionName)).ValidateOnStart();
+        services.AddScoped<ITicketLookupRepository, TicketLookupRepository>();
+        services.AddScoped<ITicketLookupService, WaterbusSystem.Application.Features.Tickets.Services.TicketLookupService>();
+        services.AddSingleton<ITicketLookupHasher, HmacTicketLookupHasher>();
+        services.AddSingleton<ITicketLookupOtpStore, RedisTicketLookupOtpStore>();
+        services.AddSingleton<TicketLookupOtpMailer>();
+        services.AddSingleton<ITicketLookupOtpMailer>(sp => sp.GetRequiredService<TicketLookupOtpMailer>());
+        services.AddHostedService<TicketLookupOtpMailerWorker>();
         services.AddScoped<IBoatService, WaterbusSystem.Application.Features.Boats.Services.BoatService>();
         services.AddScoped<IRouteAdminService, WaterbusSystem.Application.Features.Routes.Services.RouteAdminService>();
         services.AddScoped<IScannerDeviceAdminService, WaterbusSystem.Application.Features.ScannerDevices.Services.ScannerDeviceAdminService>();

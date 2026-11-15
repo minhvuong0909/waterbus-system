@@ -121,6 +121,18 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 
+    // Tra cứu vé công khai (xin OTP và xác minh OTP): theo IP, chặt hơn đăng nhập. Giới hạn theo từng email + mã đặt chỗ nằm ở service.
+    options.AddPolicy("TicketLookupPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -133,6 +145,19 @@ builder.Services.AddRateLimiter(options =>
                 {
                     Status = StatusCodes.Status429TooManyRequests,
                     Title = "Quá nhiều yêu cầu tới trợ lý AI.",
+                    Detail = "Vui lòng thử lại sau một phút.",
+                    Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
+                },
+                options: null, contentType: "application/problem+json", cancellationToken: token);
+            return;
+        }
+        if (context.HttpContext.Request.Path.StartsWithSegments("/api/v1/tickets/lookup"))
+        {
+            await context.HttpContext.Response.WriteAsJsonAsync(
+                new ProblemDetails
+                {
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Title = "Quá nhiều yêu cầu tra cứu vé.",
                     Detail = "Vui lòng thử lại sau một phút.",
                     Extensions = { ["traceId"] = context.HttpContext.TraceIdentifier }
                 },

@@ -3,6 +3,11 @@ export const API_ENDPOINTS = {
   auth: {
     login: '/api/v1/auth/login',
   },
+  /** Guest ticket lookup: booking code + purchaser email, proven with a one-time code sent to that email. */
+  ticketLookup: {
+    otp: '/api/v1/tickets/lookup/otp',
+    verify: '/api/v1/tickets/lookup/verify',
+  },
   stations: '/api/v1/stations',
   /** Admin: every station (active and inactive), paged. */
   stationsPaged: '/api/v1/stations/paged',

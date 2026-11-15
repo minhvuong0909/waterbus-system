@@ -143,3 +143,37 @@ export interface SavedOrder {
   /** ms since epoch, đơn mới nhất đứng đầu. */
   savedAt: number
 }
+
+/** `POST /tickets/lookup/otp`: the same answer whether or not the details matched. */
+export interface TicketLookupOtpInfo {
+  expiresInSeconds: number
+  resendAfterSeconds: number
+}
+
+export interface TicketLookupTicket {
+  ticketCode: string
+  passengerName: string
+  seatCode: string
+  seatClass: string
+  ticketStatus: string
+  boardingStatus: string
+  serviceEntitled: boolean
+}
+
+/** One leg of the order. `qr` is only present for a paid booking with issued tickets. */
+export interface TicketLookupBooking {
+  bookingCode: string
+  routeName: string
+  departureTime: string
+  arrivalTime: string
+  tripStatus: string
+  boardingStation: string
+  disembarkingStation: string
+  bookingStatus: string
+  tickets: TicketLookupTicket[]
+  qr: { payload: string } | null
+}
+
+export interface TicketLookupResult {
+  bookings: TicketLookupBooking[]
+}

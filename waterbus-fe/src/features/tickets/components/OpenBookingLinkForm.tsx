@@ -6,8 +6,8 @@ import { t } from '../../../i18n'
 import { manageLinkPath, parseManageLink } from '../utils'
 
 /**
- * Mở một đơn mua trên thiết bị khác bằng link quản lý vé khách đã lưu (BR-ID-02). Chưa có API tra
- * cứu theo mã đặt chỗ nên chỉ nhận link, không hứa tra cứu bằng mã.
+ * Mở một đơn mua trên thiết bị khác bằng link quản lý vé khách đã lưu (BR-ID-02). Tra cứu bằng mã đặt chỗ
+ * có luồng riêng (TicketLookupFlow) vì cần OTP; form này chỉ nhận link.
  */
 export default function OpenBookingLinkForm() {
   const navigate = useNavigate()

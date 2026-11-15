@@ -20,6 +20,7 @@ const PaymentPage = lazy(() => import('../pages/payment/PaymentPage'))
 const PaymentCallbackPage = lazy(() => import('../pages/payment/PaymentCallbackPage'))
 const BookingSuccessPage = lazy(() => import('../pages/payment/BookingSuccessPage'))
 const MyTicketsPage = lazy(() => import('../pages/tickets/MyTicketsPage'))
+const TicketLookupPage = lazy(() => import('../pages/tickets/TicketLookupPage'))
 const TicketDetailPage = lazy(() => import('../pages/tickets/TicketDetailPage'))
 const ManageBookingPage = lazy(() => import('../pages/tickets/ManageBookingPage'))
 const OrderHistoryPage = lazy(() => import('../pages/tickets/OrderHistoryPage'))
@@ -58,6 +59,7 @@ const PAGES = [
   { path: ROUTES.paymentCallback, Page: PaymentCallbackPage },
   { path: ROUTES.bookingSuccess, Page: BookingSuccessPage },
   { path: ROUTES.myTickets, Page: MyTicketsPage },
+  { path: ROUTES.lookupTickets, Page: TicketLookupPage },
   { path: ROUTES.ticketDetail, Page: TicketDetailPage },
   { path: ROUTES.manageBooking, Page: ManageBookingPage },
   { path: ROUTES.manageByLink, Page: ManageBookingPage },

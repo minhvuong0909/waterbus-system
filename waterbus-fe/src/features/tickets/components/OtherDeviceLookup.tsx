@@ -1,7 +1,9 @@
 import { t } from '../../../i18n'
+import { Button } from '../../../components/ui'
+import { ROUTES } from '../../../routes/routes'
 import OpenBookingLinkForm from './OpenBookingLinkForm'
 
-/** "Mua vé trên thiết bị khác?": mở đơn bằng link quản lý vé đã lưu (BR-ID-02). */
+/** "Mua vé trên thiết bị khác?": mở đơn bằng link quản lý vé đã lưu (BR-ID-02), hoặc tra cứu lại bằng email + mã đặt chỗ + OTP. */
 export default function OtherDeviceLookup() {
   return (
     <>
@@ -10,6 +12,9 @@ export default function OtherDeviceLookup() {
         {t('Open your booking with the link you saved after payment.')}
       </p>
       <OpenBookingLinkForm />
+      <Button to={ROUTES.lookupTickets} variant="text" size="sm" className="mt-space-xs">
+        {t('Lost the link? Find my tickets with email and booking code')}
+      </Button>
     </>
   )
 }

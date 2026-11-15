@@ -13,6 +13,8 @@ export const ROUTES = {
   paymentCallback: '/payment/callback',
   bookingSuccess: '/payment/success',
   myTickets: '/tickets',
+  /** Guest: find tickets again with the booking code and the purchaser email (one-time code by email). */
+  lookupTickets: '/tickets/lookup',
   ticketDetail: '/tickets/detail',
   manageBooking: '/tickets/manage',
   /** Secure link to one booking, sent to the traveler. `:token` is issued by the backend. */
