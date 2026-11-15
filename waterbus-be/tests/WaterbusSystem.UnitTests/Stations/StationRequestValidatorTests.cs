@@ -40,6 +40,7 @@ public class StationRequestValidatorTests
     [InlineData(1000)]
     [InlineData(double.NaN)]
     [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
     public void LatitudeOutOfRange_ShouldFail(double lat)
     {
         Create.Validate(NewCreate(lat: lat)).Errors.Should().Contain(e => e.PropertyName == "Latitude");
@@ -59,11 +60,26 @@ public class StationRequestValidatorTests
     [InlineData(-180.0001)]
     [InlineData(180.0001)]
     [InlineData(-1000)]
+    [InlineData(1000)]
     [InlineData(double.NaN)]
     [InlineData(double.NegativeInfinity)]
     public void LongitudeOutOfRange_ShouldFail(double lng)
     {
         Create.Validate(NewCreate(lng: lng)).Errors.Should().Contain(e => e.PropertyName == "Longitude");
         Update.Validate(NewUpdate(lng: lng)).Errors.Should().Contain(e => e.PropertyName == "Longitude");
+    }
+
+    [Fact]
+    public void CoordinatesOutsideHoChiMinhCity_ShouldRemainValid()
+    {
+        Create.Validate(NewCreate(21.03, 105.85)).IsValid.Should().BeTrue();
+        Update.Validate(NewUpdate(21.03, 105.85)).IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void LongitudePositiveInfinity_ShouldFail()
+    {
+        Create.Validate(NewCreate(lng: double.PositiveInfinity)).Errors.Should().Contain(e => e.PropertyName == "Longitude");
+        Update.Validate(NewUpdate(lng: double.PositiveInfinity)).Errors.Should().Contain(e => e.PropertyName == "Longitude");
     }
 }

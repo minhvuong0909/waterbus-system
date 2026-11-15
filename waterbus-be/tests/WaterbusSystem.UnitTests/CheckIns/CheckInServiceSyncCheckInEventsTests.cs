@@ -350,4 +350,59 @@ public class CheckInServiceSyncCheckInEventsTests
             r.ClientEventId == "evt-conflict" && r.Outcome == "Error" && !r.WasAlreadySynced && r.Error != null);
         unitOfWork.Verify(u => u.DiscardTrackedChanges(), Times.Once);
     }
+
+    // ---- Giới hạn MaxOfflineSkewHours (mặc định 6 giờ): chỉ offline bị kiểm tra, mỗi event được xử lý độc lập ----
+
+    private static int SkewHours => new OfflineCheckInReconciliationOptions().MaxOfflineSkewHours;
+
+    [Fact]
+    public void SkewThreshold_DefaultsToSixHours() => SkewHours.Should().Be(6);
+
+    [Fact]
+    public async Task SyncCheckInEventsAsync_WhenDeviceTimeIsExactlyAtTheSkewLimit_ShouldNotBeRejectedAsInvalidDeviceTime()
+    {
+        using var context = TestDbContextFactory.CreateDbContext();
+        var (_, _, ticket, boardingCall, occurredAtDevice) = SeedCheckInScenario(context, _staffId);
+
+        var service = CreateService(context, occurredAtDevice.AddHours(SkewHours));
+        var result = await service.SyncCheckInEventsAsync(new SyncCheckInEventsRequest(new[]
+        {
+            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-at-limit", occurredAtDevice, null)
+        }), CancellationToken.None);
+
+        result.Results.Single().Outcome.Should().NotBe("InvalidDeviceTime");
+    }
+
+    [Fact]
+    public async Task SyncCheckInEventsAsync_WhenDeviceTimeIsJustPastTheSkewLimit_ShouldReportInvalidDeviceTime()
+    {
+        using var context = TestDbContextFactory.CreateDbContext();
+        var (_, _, ticket, boardingCall, occurredAtDevice) = SeedCheckInScenario(context, _staffId);
+
+        var service = CreateService(context, occurredAtDevice.AddHours(SkewHours).AddMinutes(1));
+        var result = await service.SyncCheckInEventsAsync(new SyncCheckInEventsRequest(new[]
+        {
+            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-past-limit", occurredAtDevice, null)
+        }), CancellationToken.None);
+
+        result.Results.Single().Outcome.Should().Be("InvalidDeviceTime");
+    }
+
+    [Fact]
+    public async Task SyncCheckInEventsAsync_AnInvalidDeviceTimeDoesNotStopTheOtherEventsOfTheBatch()
+    {
+        using var context = TestDbContextFactory.CreateDbContext();
+        var (_, _, ticket, boardingCall, serverNow) = SeedCheckInScenario(context, _staffId);
+
+        var service = CreateService(context, serverNow);
+        var result = await service.SyncCheckInEventsAsync(new SyncCheckInEventsRequest(new[]
+        {
+            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-future", serverNow.AddHours(2), null),   // sai giờ
+            new CheckInEventInput(ticket.Id, boardingCall.Id, "evt-good", serverNow, null)                  // hợp lệ
+        }), CancellationToken.None);
+
+        result.Results.Should().HaveCount(2);
+        result.Results.Single(r => r.ClientEventId == "evt-future").Outcome.Should().Be("InvalidDeviceTime");
+        result.Results.Single(r => r.ClientEventId == "evt-good").Outcome.Should().NotBe("InvalidDeviceTime");
+    }
 }
