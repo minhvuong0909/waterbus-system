@@ -1,5 +1,5 @@
 import { ROUTES } from '../../../routes/routes'
-import type { AdminTrip, WeatherAlert } from '../../operations/types'
+import type { AdminTrip, IncidentAlert } from '../../operations/types'
 import { pendingCountOf } from './alertUtils'
 
 /** Một việc Admin cần xử lý trên trang Tổng quan; `label` là chuỗi nguồn tiếng Anh có `{count}`. */
@@ -35,7 +35,7 @@ export function attentionItems({
   reconcile,
 }: {
   trips: Pick<AdminTrip, 'status' | 'boatId'>[]
-  alerts: Pick<WeatherAlert, 'pendingDecisionCount' | 'trips'>[]
+  alerts: Pick<IncidentAlert, 'pendingDecisionCount' | 'trips'>[]
   pendingRefunds?: number
   reconcile?: number
 }): AttentionItem[] {

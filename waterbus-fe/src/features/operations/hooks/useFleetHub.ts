@@ -10,13 +10,11 @@ import type {
   BoatPositionEvent,
   IncidentRaisedEvent,
   TripStatusEvent,
-  WeatherAlertEvent,
 } from '../services/operationsService'
 import type { LiveBoatPosition } from '../types'
 
 interface FleetHubHandlers {
   onPosition?: (position: LiveBoatPosition) => void
-  onAlert?: (alert: WeatherAlertEvent) => void
   /** Trạng thái một chuyến vừa đổi (Admin hoặc thuyền trưởng vừa thao tác). */
   onTripStatus?: (event: TripStatusEvent) => void
   /** Thuyền trưởng báo khẩn cấp. */
@@ -26,7 +24,7 @@ interface FleetHubHandlers {
 }
 
 /**
- * Kết nối hub theo dõi tàu: vị trí tàu, cảnh báo thời tiết, báo khẩn cấp và đổi trạng thái chuyến ngay khi xảy ra.
+ * Kết nối hub theo dõi tàu: vị trí tàu, báo khẩn cấp và đổi trạng thái chuyến ngay khi xảy ra.
  * Admin theo dõi cả đội tàu (group `fleet`); truyền `boatIds` cho thuyền trưởng, người chỉ theo dõi được tàu của
  * mình (group `boat:{id}`). Handler đổi giữa các lần render mà không phải kết nối lại.
  */
@@ -45,7 +43,6 @@ export function useFleetHub(handlers: FleetHubHandlers, enabled = true, boatIds?
     return connectHub(HUBS.boatTracking, {
       handlers: {
         [HUB_EVENTS.boatPosition]: (event: BoatPositionEvent) => ref.current.onPosition?.(fromPositionEvent(event)),
-        [HUB_EVENTS.weatherAlert]: (event: WeatherAlertEvent) => ref.current.onAlert?.(event),
         [HUB_EVENTS.tripStatusChanged]: (event: TripStatusEvent) => ref.current.onTripStatus?.(event),
         [HUB_EVENTS.incidentRaised]: (event: IncidentRaisedEvent) => ref.current.onIncident?.(event),
       },
@@ -68,7 +65,7 @@ export function useFleetHub(handlers: FleetHubHandlers, enabled = true, boatIds?
  * Vị trí mới nhất của mỗi tàu: ảnh chụp từ REST trước, rồi từng sự kiện `boatPosition`. Điểm cũ hơn điểm đang hiện
  * bị bỏ qua, để sự kiện đến muộn không kéo tàu lùi lại.
  */
-export function useLiveFleet(onAlert?: (alert: WeatherAlertEvent) => void) {
+export function useLiveFleet(handlers: Pick<FleetHubHandlers, 'onIncident' | 'onTripStatus' | 'onReconnected'> = {}) {
   const [positions, setPositions] = useState<Record<string, LiveBoatPosition>>({})
   const [error, setError] = useState<Error>()
   const [loaded, setLoaded] = useState(false)
@@ -98,8 +95,13 @@ export function useLiveFleet(onAlert?: (alert: WeatherAlertEvent) => void) {
 
   const status = useFleetHub({
     onPosition: (p) => apply([p]),
-    onAlert,
-    onReconnected: loadSnapshot,
+    onIncident: handlers.onIncident,
+    onTripStatus: handlers.onTripStatus,
+    // Sau khi kết nối lại: vị trí tàu và những gì khác có thể đã lỡ (sự cố) đều tải lại qua REST.
+    onReconnected: () => {
+      loadSnapshot()
+      handlers.onReconnected?.()
+    },
   })
 
   return { positions: Object.values(positions), status, error, loaded, retry: loadSnapshot }

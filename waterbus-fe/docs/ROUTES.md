@@ -35,7 +35,7 @@ Operations area (sign in required, roles in `src/features/admin/navigation.ts`):
 | `/admin/stations` | Stations | Admin |
 | `/admin/boats` | Boats | Admin |
 | `/admin/fares` | Fares | Admin |
-| `/admin/incidents` | Weather alerts, suspend / cancel / terminate a trip | Admin |
+| `/admin/incidents` | Incidents (captain SOS), suspend / cancel / terminate a trip | Admin |
 | `/admin/refunds` | Refund a booking, confirm a manual refund, reconcile | Admin |
 | `/admin/check-in` | Check-in window of each stop | Admin |
 | `/admin/audio-guides` | Sightseeing audio guides | Admin |

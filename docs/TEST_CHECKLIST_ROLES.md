@@ -1,6 +1,6 @@
 # Checklist test thủ công theo role: Admin, Captain, Staff
 
-Chỉ gồm những gì **test tự động không kiểm được**: giao diện thật trên trình duyệt, thiết bị thật (camera, GPS, điện thoại), kết nối realtime giữa nhiều role, dịch vụ ngoài (VNPay, email, thời tiết, Azure) và cấu hình triển khai.
+Chỉ gồm những gì **test tự động không kiểm được**: giao diện thật trên trình duyệt, thiết bị thật (camera, GPS, điện thoại), kết nối realtime giữa nhiều role, dịch vụ ngoài (VNPay, email, Azure) và cấu hình triển khai.
 Phần logic nghiệp vụ đã có test tự động **không lặp lại ở đây** (xem mục 6 để biết cái gì đã được phủ và ở đâu).
 
 Cách dùng: làm theo "Cách làm", so với "Mong đợi", đánh dấu `[x]`. Không đạt thì ghi lỗi ngay dưới mục (ảnh chụp, giờ, mã chuyến/booking, `traceId` nếu là lỗi API).
@@ -20,7 +20,6 @@ Cách dùng: làm theo "Cách làm", so với "Mong đợi", đánh dấu `[x]`.
 | 0.7 | Phân công Staff vào điểm dừng | Web: cùng khối **Phân công máy quét** trên trang Check-in: chọn bến lên tàu, Staff, máy, giờ hiệu lực (mặc định theo khung check-in của bến), tick máy chính nếu cần → xem lại → xác nhận. Thu hồi ở danh sách phân công của cùng bến |
 | 0.8 | App mobile kết nối API | API Docker chỉ mở `127.0.0.1:5000`, điện thoại không vào được. `waterbus-mobile/myApp/.env`: `EXPO_PUBLIC_API_BASE_URL=http://<IP LAN máy tính>:8080`, rồi `pnpm start`, mở bằng Expo Go |
 | 0.9 | Nhiều role cùng lúc | Phiên đăng nhập lưu trong trình duyệt nên 2 tab cùng trình duyệt đè nhau. Admin: Chrome thường · Captain: Chrome ẩn danh · Khách: Edge |
-| 0.10 | Thời tiết tự động (cho mục 2.3) | `.env`: `WEATHER_FAKE_WIND_MS=12` (≥10.6 là cảnh báo mức vừa; `WEATHER_FAKE_GUST_MS=20` là mức cao), `WEATHER_CRON=* * * * *` (mỗi phút). Phải có **chuyến khởi hành trong 3 giờ tới** (`WEATHER_LOOKAHEAD_HOURS`, mặc định 3), không có chuyến thì hệ thống không tạo cảnh báo. Chạy lại: `docker compose up -d` |
 
 ---
 
@@ -61,16 +60,14 @@ Logic xác thực QR, khung giờ, quét trùng, sai bến, máy phụ, đồng 
 - [x] Màn **Phân công của tôi** hiện đúng điểm dừng đã giao (0.7); chưa giao thì hiện "chưa được phân công".
 - [x] Giao diện không còn dữ liệu mẫu: trước demo **không** bấm "Mô phỏng quét QR vé mẫu" và "Sinh chuỗi QR hợp lệ" (nên ẩn các nút này).
 
-### 2.3 Cảnh báo thời tiết tự động (Admin không cần bấm gì)
-Hệ thống tự kiểm thời tiết theo lịch (mặc định mỗi 15 phút), tạo một cảnh báo cho mỗi tuyến và đẩy tới Admin. Nút "Check the weather now" chỉ là chạy ngay khi không muốn chờ.
+### 2.3 Thuyền trưởng báo SOS → Admin nhận và xử lý
+Thuyền trưởng báo khẩn cấp trên chuyến của tàu mình; Admin nhận ngay (không cần tải lại) và quyết định cho từng chuyến. Không còn cảnh báo thời tiết tự động.
 
-
-
-- [x] Làm 0.10, mở một trang Admin **bất kỳ** (vd Stations), không bấm gì: trong vòng 1–2 phút xuất hiện **banner cảnh báo ở đầu trang** ("Cảnh báo đang mở: N", "Chuyến chờ quyết định: M") và **số đỏ cạnh mục Incidents** ở menu.
-- [x] Bấm "Xem và xử lý" → Incidents → quyết định cho từng chuyến (Tạm hoãn/Hủy/Không xử lý) → số chuyến chờ quyết định giảm; đóng cảnh báo thì banner và số đỏ biến mất.
-- [x] Chờ thêm một chu kỳ: không tạo cảnh báo trùng cho cùng tuyến.
-- [x] Hạ gió về 3 (`WEATHER_FAKE_WIND_MS=3`), chạy lại API: cảnh báo cũ được tự đóng khi thời tiết bình thường.
-- [x] **Dữ liệu thật** (khi có khóa): `WEATHER_PROVIDER=OpenWeatherMap`, `OPENWEATHERMAP_API_KEY=<khóa>`; hiện đúng tốc độ gió thực tế ở bảng thời tiết. Khóa sai/mạng lỗi thì chỉ ghi log, API không sập.
+- [ ] Đăng nhập Captain, mở chuyến đang chạy của tàu mình, bấm SOS và xác nhận: hiện thông báo đã gửi. Captain tàu khác / tài khoản không phải Captain không gửi được.
+- [ ] Admin mở một trang bất kỳ (vd Stations), không bấm gì: xuất hiện **banner ở đầu trang** ("Cảnh báo đang mở: N", "Chuyến chờ quyết định: M") và **số đỏ cạnh mục Incidents**; Radar cũng hiện dải cảnh báo ngay.
+- [ ] Incidents: thẻ "Báo cáo khẩn cấp của thuyền trưởng" hiện đúng mô tả; chọn chuyến → quyết định (Tạm hoãn/Hủy/Kết thúc/Không xử lý) → số chuyến chờ giảm; chuyến **không tự đổi trạng thái** khi vừa có SOS.
+- [ ] Đóng sự cố: banner và số đỏ biến mất. Ngắt mạng/đóng-mở lại tab: danh sách tự đồng bộ lại (kết nối lại hoặc làm mới định kỳ 1 phút).
+- [ ] Không còn bảng "Current weather", nút kiểm tra thời tiết hay chữ gió/gió giật ở bất kỳ trang nào.
 
 ### 2.4 Thanh toán, email, CSV
 - [x] **VNPay sandbox** đầu-cuối với IPN thật: cần tunnel công khai tới cổng 8080, `PUBLIC_URL` mới trong `.env`, IPN URL trên trang merchant. Đặt vé trên web, trả bằng thẻ NCB test, vé phát ra không cần can thiệp thủ công. (Nhánh tự đối soát `querydr` hiện trả 403 từ VNPay nên không dùng được.)
@@ -101,7 +98,7 @@ Quy tắc phân quyền đã có test tự động ở cấp API; ở đây ch�
 ## 5. Triển khai
 
 - [x] `docker compose up -d --build` từ máy sạch (không có volume cũ) chạy được: 4 container khỏe, đăng nhập Admin được, có dữ liệu seed.
-- [ ] `/hangfire`: cần `HANGFIRE_DASHBOARD_USER/PASSWORD`; sai thông tin thì bị từ chối; đúng thì thấy các job `weather-guard`, `noshow-finalization`, `email-outbox` đang chạy.
+- [ ] `/hangfire`: cần `HANGFIRE_DASHBOARD_USER/PASSWORD`; sai thông tin thì bị từ chối; đúng thì thấy các job `noshow-finalization`, `email-outbox` (và **không** còn `weather-guard`).
 - [ ] Đổi `PUBLIC_URL`/cổng: ReturnUrl của VNPay và CORS đổi theo.
 
 ## 6. Đã được test tự động, không cần kiểm tay
@@ -111,7 +108,7 @@ Quy tắc phân quyền đã có test tự động ở cấp API; ở đây ch�
 | Thêm/sửa/ngừng bến, tuyến, lịch, hạng ghế, giá, tàu, ghế; validate; xóa mềm; **bến trùng tọa độ** | `StationServiceTests`, `RouteAdminServiceTests`, `ScheduleAdminServiceTests`, `FareAdminServiceTests`, `BoatServiceTests`, `SeatInventoryTests`/`SeatInventorySqlTests` |
 | Sinh chuyến từ lịch, chuyến lẻ, gán/đổi tàu, trùng lịch tàu | `TripPlanningServiceTests`, `ApiReliabilitySqlHttpTests` |
 | Vòng đời chuyến (Suspend/Resume/Cancel/Terminate/Complete), bắt buộc lý do, nhật ký vận hành, SOS, ghi nhận bến trung gian | `TripLifecycleTests`, `TripServiceChangeStatusTests`, `TripServiceOperationsAndSosTests`, `TripServiceRecordStopProgressTests` |
-| Weather Guard: ngưỡng gió, không tạo cảnh báo trùng, không tự đổi trạng thái chuyến, tự đóng, đồng thời, provider OpenWeatherMap | `WeatherAssessmentTests`, `WeatherGuardServiceTests`, `WeatherGuardConcurrencySqlTests`, `OpenWeatherMapProviderTests`, `IncidentService*Tests` |
+| SOS của thuyền trưởng và quản lý sự cố; Weather đã gỡ (không còn route/event/job, sự cố cũ bị ẩn khỏi danh sách) | `TripServiceOperationsAndSosTests`, `SignalRPublishersTests`, `WeatherRemovalTests`, `IncidentService*Tests` |
 | Quyết định của Admin cho từng chuyến bị ảnh hưởng, đóng cảnh báo | `IncidentServiceResolveTests`, `TripServiceChangeStatusTests` |
 | Check-in: khung giờ, quét trùng, sai bến, phân công/thu hồi, máy chính/phụ, đồng bộ lô, no-show | `CheckInService*Tests`, `CheckInConcurrencySqlTests`, `pnpm test:scanner` (19 kịch bản mobile: xác thực RSA offline, đồng bộ theo ACK) |
 | GPS: Captain chỉ gửi cho tàu của mình, bỏ điểm cũ, lịch sử thưa | `BoatTrackingServiceRecordTests`, `TrackingQueriesTests` |

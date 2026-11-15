@@ -2,13 +2,12 @@ import { Link } from 'react-router-dom'
 import { Icon } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { ROUTES } from '../../../routes/routes'
-import { alertMetrics, alertTone, formatKmh, pendingCountOf, timeAgo, titleOf } from '../utils/alertUtils'
-import type { WeatherAlert } from '../../operations/types'
+import { alertTone, pendingCountOf, timeAgo, titleOf } from '../utils/alertUtils'
+import type { IncidentAlert } from '../../operations/types'
 
 /** Dải gọn cho radar: mức độ, ở đâu và còn bao nhiêu chuyến chờ quyết định. */
-export default function AlertBanner({ alert }: { alert: WeatherAlert }) {
+export default function AlertBanner({ alert }: { alert: IncidentAlert }) {
   const tone = alertTone(alert)
-  const { windKmh, gustKmh } = alertMetrics(alert)
   const pending = pendingCountOf(alert)
   return (
     <div
@@ -25,14 +24,8 @@ export default function AlertBanner({ alert }: { alert: WeatherAlert }) {
           </span>
           <span className="font-semibold text-deep-river">{titleOf(alert)}</span>
         </div>
-        <div className="mt-0.5 text-xs text-on-surface-variant">
-          {[
-            windKmh !== undefined ? `${t('Wind')} ${formatKmh(windKmh)}` : null,
-            gustKmh !== undefined ? `${t('Gusts')} ${formatKmh(gustKmh)}` : null,
-            timeAgo(alert.issuedAt),
-          ]
-            .filter(Boolean)
-            .join(' · ')}
+        <div className="mt-0.5 line-clamp-2 text-xs text-on-surface-variant">
+          {[timeAgo(alert.issuedAt), alert.message].filter(Boolean).join(' · ')}
         </div>
       </div>
       {pending > 0 && (

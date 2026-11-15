@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { ErrorState, Modal, Notice, PageHeader, PageLoader, SectionHeader } from '../../components/ui'
 import ConfirmModal from '../../features/admin/components/ConfirmModal'
-import CurrentWeatherPanel from '../../features/admin/components/CurrentWeatherPanel'
 import OpenAlertsSection from '../../features/admin/components/OpenAlertsSection'
 import OperationForm from '../../features/admin/components/OperationForm'
 import OperationLogTable from '../../features/admin/components/OperationLogTable'
 import { useIncidentBoard } from '../../features/admin/hooks/useIncidentBoard'
 import { pendingCountOf } from '../../features/admin/utils/alertUtils'
 import { resolveIncident } from '../../features/operations/services/operationsService'
-import type { AdminTrip, OperationType, WeatherAlert } from '../../features/operations/types'
+import type { AdminTrip, IncidentAlert, OperationType } from '../../features/operations/types'
 import { OPERATION_LABEL } from '../../features/operations/utils'
 import { useDocumentTitle } from '../../hooks'
 import { t } from '../../i18n'
@@ -21,7 +20,7 @@ export default function IncidentsPage() {
   useDocumentTitle('Incidents')
   const board = useIncidentBoard()
   const [pending, setPending] = useState<{ trips: AdminTrip[]; type: OperationType; incidentId: string } | null>(null)
-  const [confirmClose, setConfirmClose] = useState<WeatherAlert | null>(null)
+  const [confirmClose, setConfirmClose] = useState<IncidentAlert | null>(null)
 
   if (board.state.error) return <ErrorState onRetry={board.state.retry} />
   if (board.state.loading || !board.trips || !board.logs || !board.alerts) return <PageLoader />
@@ -49,10 +48,6 @@ export default function IncidentsPage() {
           onClose={setConfirmClose}
           onDecide={(trips, type, incidentId) => setPending({ trips, type, incidentId })}
         />
-      </div>
-
-      <div className="mt-8">
-        <CurrentWeatherPanel />
       </div>
 
       <SectionHeader title="Operation log" className="mb-3 mt-8" />

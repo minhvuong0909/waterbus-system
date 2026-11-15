@@ -14,7 +14,7 @@ Bắt buộc đăng nhập.
 
 | Method (client gọi) | Quyền | Tác dụng |
 |---|---|---|
-| `JoinFleet()` / `LeaveFleet()` | Admin | Nhận vị trí **mọi** tàu, `weatherAlert`, `incidentRaised`, `tripStatusChanged` |
+| `JoinFleet()` / `LeaveFleet()` | Admin | Nhận vị trí **mọi** tàu, `incidentRaised`, `tripStatusChanged` |
 | `JoinBoat(boatId)` / `LeaveBoat(boatId)` | Đã đăng nhập | Nhận vị trí 1 tàu |
 | `SendPosition(boatId, latitude, longitude, speedKnots, observedAt)` → `bool` | Captain **được gán cho tàu đó** (`Boat.CaptainUserId`) | Gửi GPS. `true` = đã nhận, `false` = bỏ qua vì cũ hơn vị trí đã có |
 
@@ -23,7 +23,6 @@ Lỗi trả về dạng `HubException` có thông điệp tiếng Việt (vd kh�
 | Event (server đẩy) | Group | Payload |
 |---|---|---|
 | `boatPosition` | `fleet`, `boat:{boatId}` | `{ boatId, tripId?, lat, lng, speedKnots?, observedAt, version }` |
-| `weatherAlert` | `fleet` | `{ incidentId, severity, routeId?, message, occurredAt, version }` |
 | `incidentRaised` | `fleet` | `{ incidentId, incidentType, severity?, tripId?, boatId?, message, occurredAt, version }` — thuyền trưởng báo SOS |
 | `tripStatusChanged` | `fleet`, `boat:{boatId}`; và `trip:{tripId}` trên hub ghế | `{ tripId, boatId?, status, previousStatus, operation, changedAt, version }` — `status`/`previousStatus` là tên TripStatus, `operation` là tên thao tác |
 
@@ -50,7 +49,7 @@ const connection = new signalR.HubConnectionBuilder()
   .build();
 
 connection.on("boatPosition", (p) => moveMarker(p.boatId, p.lat, p.lng, p.observedAt));
-connection.on("weatherAlert", (a) => showAlert(a));
+connection.on("incidentRaised", (i) => reloadIncidents(i.incidentId));
 
 async function sync() {
   await connection.invoke("JoinFleet");
@@ -94,18 +93,17 @@ Bật bằng biến môi trường (xem `.env.example`):
 
 Vị trí giả lập đi qua đúng luồng của GPS thật, chỉ khác `Source = "Simulated"` trong lịch sử.
 
-### Cảnh báo thời tiết (Weather Guard)
+### Sự cố vận hành và SOS
 
-Job Hangfire `weather-guard` (mặc định mỗi 15 phút) lấy thời tiết tại các bến của tuyến có chuyến sắp/đang chạy. Gió trung bình ≥ ngưỡng → `Medium`; gió giật ≥ ngưỡng hoặc dông → `High`. Mỗi tuyến chỉ có **một** Incident thời tiết đang mở trong khung `AlertWindowHours`; lượt sau chỉ cập nhật và liên kết thêm chuyến mới. `weatherAlert` chỉ được phát khi **tạo mới** hoặc **tăng mức** nghiêm trọng. Weather Guard **tự đóng** (`Resolved`) cảnh báo thời tiết của mình khi: mọi bến của tuyến đều lấy được thời tiết và dưới ngưỡng; tuyến không còn chuyến cần theo dõi; hoặc cảnh báo cũ (quá `AlertWindowHours`) bị cảnh báo mới thay thế. Thiếu dữ liệu thời tiết (lỗi API) thì giữ nguyên cảnh báo. **Không chuyến nào bị tự đổi trạng thái** (BR-INC-03): `operationDecision` của từng chuyến để `null` chờ Admin.
+Thuyền trưởng báo SOS (`POST /api/v1/trips/{tripId}/sos`) tạo một Incident `Source=Captain`, `IncidentType=Safety`, `Severity=High`, `Status=Open`, liên kết với chuyến (`IncidentTrip`) và phát `incidentRaised` tới nhóm `fleet`. **Không chuyến nào bị tự đổi trạng thái** (BR-INC-03): `operationDecision` của từng chuyến để `null` chờ Admin. Sau khi nhận event hoặc kết nối lại, client tải lại danh sách qua REST.
+
+> Giám sát thời tiết (Weather Guard, `weatherAlert`, `weather-now`, `weather-check`) đã bị gỡ khỏi phạm vi từ 16/11/2026. Incident thời tiết cũ vẫn được lưu để tra cứu lịch sử nhưng **không** xuất hiện trong danh sách mặc định; chỉ hiện khi lọc `incidentType=Weather` hoặc xem theo Id.
 
 | API (Admin) | Mục đích |
 |---|---|
-| `GET /api/v1/incidents?status=Open&incidentType=Weather&pageNumber=&pageSize=` | Danh sách sự cố, có `affectedTripCount`, `pendingDecisionCount` |
+| `GET /api/v1/incidents?status=Open&pageNumber=&pageSize=` | Danh sách sự cố, có `affectedTripCount`, `pendingDecisionCount` |
 | `GET /api/v1/incidents/{id}` | Chi tiết + `affectedTrips[]` (giờ khởi hành, trạng thái chuyến, quyết định) |
-| `POST /api/v1/incidents/weather-check` | Chạy Weather Guard ngay (demo), trả `{ routesChecked, incidentsCreated, incidentsUpdated, observationFailures, incidentsResolved }`. Các lượt quét (thủ công và Hangfire) chạy lần lượt nhờ SQL application lock; nếu lượt khác chưa xong sau 30 giây thì trả **409** |
 | `POST /api/v1/incidents/{id}/resolve` | Admin đóng sự cố đang mở (`Status=Resolved`, ghi `ResolvedAt`, `HandledByAdminId`); không đổi `Trip.Status`; 409 nếu đã đóng, 404 nếu không có |
-
-Demo không cần API key: `WEATHER_PROVIDER=Fake` + `WEATHER_FAKE_WIND_MS=15` (hoặc `WEATHER_FAKE_CONDITION_CODE=211`) rồi gọi `weather-check`.
 
 ### Đổi trạng thái chuyến (vận hành)
 

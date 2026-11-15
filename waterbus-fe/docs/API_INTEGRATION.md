@@ -18,7 +18,7 @@ chuyển, giới thiệu bến, POI của trang Khám phá, các bước lên t�
 | `POST /payments/create-vnpay-url`, `GET /payments/vnpay-return`, `POST /payments/{orderId}/attempts/{paymentId}/reconcile` | `payment/services/paymentService` | Thanh toán, trang VNPay trả về |
 | `GET /trips/operations`, `GET /trips/operations/events`, `POST /trips/{id}/status`, `POST /trips/{id}/sos` | `admin/services/operationsService` | Admin (chuyến, sự cố), Captain |
 | `GET /tracking/boats` | `operationsService` | Điều hành trực tiếp |
-| `GET /incidents`, `GET /incidents/{id}`, `POST /incidents/weather-check`, `POST /incidents/{id}/resolve`, `GET /incidents/weather-now` | `operationsService`, `weatherService` | Sự cố, tổng quan |
+| `GET /incidents`, `GET /incidents/{id}`, `POST /incidents/{id}/resolve` | `operationsService` | Sự cố, tổng quan |
 | `POST /refunds/request`, `POST /refunds/confirm-manual`, `POST /refunds/{id}/reconcile` | `admin/services/refundService` | Hoàn tiền |
 | `PUT /checkins/windows/{tripStopCallId}` | `admin/services/checkInService` | Khung giờ check-in |
 | `GET/POST/PUT /stations`, `GET/POST/PUT /boats` | `stationService`, `boatService` | Bến, tàu |
