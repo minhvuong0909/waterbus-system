@@ -1,5 +1,6 @@
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
+using WaterbusSystem.Domain.Rules;
 
 namespace WaterbusSystem.Application.Features.Trips.Services;
 
@@ -15,6 +16,8 @@ internal static class TripReadRules
         if (trip.Route is null || trip.TripStopCalls.Count < 2) return "journeyUnavailable";
         var service = trip.TripType == TripType.Sightseeing ? "Sightseeing" : "Regular";
         if (!string.Equals(trip.Route.ServiceType, service, StringComparison.OrdinalIgnoreCase)) return "journeyUnavailable";
+        // BR-ROUTE-05: chuyến tham quan cấu hình mơ hồ/không an toàn thì không mở bán (Search, Seat Map và Checkout cùng thấy).
+        if (trip.TripType == TripType.Sightseeing && !SightseeingJourney.Resolve(trip).IsValid) return "journeyUnavailable";
         return "open";
     }
 

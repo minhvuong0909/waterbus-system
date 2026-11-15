@@ -54,6 +54,31 @@ describe('sightseeing runs its whole route', () => {
     expect(journeyFor('Sightseeing', stops, 'A', 'C')).toBeNull()
   })
 
+  it('never offers a permissive middle stop as a pickup or drop-off, only the first and last call', () => {
+    // Every flag is true, yet the tour is sold whole: A (call 1) -> A (call 4), the two ends being distinct calls of one pier.
+    const journey = journeyFor('Sightseeing', loop, 'B', 'C')
+    expect(journey?.boarding.stationId).toBe('A')
+    expect(journey?.disembarking.stationId).toBe('A')
+    expect(journey?.boarding.callId).not.toBe(journey?.disembarking.callId)
+  })
+
+  it('has no journey when the first or last call is skipped or cannot take passengers (the backend would refuse it)', () => {
+    expect(journeyFor('Sightseeing', [stop('c1', 'A', 1, { status: 'Skipped' }), ...loop.slice(1)], 'A', 'A')).toBeNull()
+    expect(journeyFor('Sightseeing', [...loop.slice(0, 3), stop('c4', 'A', 4, { status: 'Skipped' })], 'A', 'A')).toBeNull()
+    // The second stop may board, but it is not the tour's pickup: the first call is.
+    const stops = [stop('c1', 'A', 1, { canBoard: false }), stop('c2', 'B', 2), stop('c3', 'C', 3)]
+    expect(journeyFor('Sightseeing', stops, 'B', 'C')).toBeNull()
+  })
+
+  it('orders the calls by visit order, whatever order the API returns them in', () => {
+    const journey = journeyFor('Sightseeing', [loop[3], loop[1], loop[0], loop[2]], 'A', 'A')
+    expect([journey?.boarding.callId, journey?.disembarking.callId]).toEqual(['c1', 'c4'])
+  })
+
+  it('needs at least two calls', () => {
+    expect(journeyFor('Sightseeing', [stop('c1', 'A', 1)], 'A', 'A')).toBeNull()
+  })
+
   it('toTrip exposes the ends of a tour, even when they are the same pier', () => {
     const dto = {
       id: 't', routeName: 'Tour', departureStationName: 'A', arrivalStationName: 'A', tripType: 'Sightseeing',
