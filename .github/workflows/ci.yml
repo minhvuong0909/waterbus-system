@@ -143,12 +143,20 @@ jobs:
           gated = ("RedisCommercialTests", "CommercialSqlTests", "DomainPersistenceTests", "EmailOutboxSqlTests",
                    "CheckInConcurrencySqlTests", "ScannerAssignmentMigrationSqlTests", "ScannerDeviceLockSqlTests",
                    "AccountAccessSqlHttpTests", "ApiReliabilitySqlHttpTests", "OnboardAudioPlaybackSqlTests",
-                   "RefundDemoModeSqlHttpTests")
+                   "RefundDemoModeSqlHttpTests", "StationCoordinatesSqlTests")
           bad = [(n, o) for n, o in results if any(g in n for g in gated) and o == "NotExecuted"]
           ran = sum(1 for n, o in results if any(g in n for g in gated) and o == "Passed")
           print(f"infrastructure tests passed: {ran}, not executed: {len(bad)}")
           for n, o in bad: print("  SKIPPED:", n)
-          sys.exit(1 if bad or ran == 0 else 0)
+          # Mỗi test SQL của toạ độ trạm phải được phát hiện VÀ Passed (thiếu lớp test hoặc bị Skip đều làm đỏ CI).
+          station = ("TheSamePoint_IsRejected_AfterARoundTripThroughTheDatabase",
+                     "NearbyButDifferentPoints_AreAllowed_AndTheEpsilonRuleHolds",
+                     "ConcurrentCreatesAtTheSameCoordinates_OnlyOneSucceeds",
+                     "InactiveStation_DoesNotBlockANewOne_ButReactivatingItIsRejected")
+          missing = [t for t in station
+                     if not any("StationCoordinatesSqlTests" in n and t in n and o == "Passed" for n, o in results)]
+          for t in missing: print("  STATION TEST NOT PASSED/DISCOVERED:", t)
+          sys.exit(1 if bad or ran == 0 or missing else 0)
           PY
 
       - name: Upload test results
