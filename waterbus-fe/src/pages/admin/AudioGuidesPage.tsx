@@ -3,7 +3,9 @@ import type { FormEvent } from 'react'
 import { Button, ErrorState, Icon, Notice, PageHeader, PageLoader, Panel, SelectField } from '../../components/ui'
 import StationAnnouncementsTab from '../../features/admin/components/StationAnnouncementsTab'
 import SimulatorConfigTab from '../../features/admin/components/SimulatorConfigTab'
-import { MAX_NARRATION_LENGTH, NARRATION_VOICES } from '../../features/admin/utils/audioGuide'
+import { getSimulatorConfig } from '../../features/admin/services/simulatorService'
+import type { StopAnnouncementConfig } from '../../features/admin/services/simulatorService'
+import { NARRATION_VOICES, getSuggestionForPoi } from '../../features/admin/utils/audioGuide'
 import type { NarrationPoi, NarrationVoice } from '../../features/admin/utils/audioGuide'
 import {
   fetchNarrationAudio,
@@ -36,6 +38,9 @@ function NarrationEditor({
   poi,
   draft,
   preview,
+  maxAudioSeconds,
+  maxCharacters,
+  segmentDuration,
   onDraft,
   onPreview,
   onPublished,
@@ -43,6 +48,9 @@ function NarrationEditor({
   poi: NarrationPoi
   draft: Draft
   preview?: Preview
+  maxAudioSeconds: number
+  maxCharacters: number
+  segmentDuration: number
   onDraft: (draft: Draft) => void
   onPreview: (preview: Preview) => void
   onPublished: () => void
@@ -54,6 +62,27 @@ function NarrationEditor({
   const [showError, setShowError] = useState(false)
   const text = draft.text.trim()
   const textError = showError && !text ? t('Enter the narration to read at this landmark.') : undefined
+  const suggestedScript = getSuggestionForPoi(poi.name)
+
+  const handleApplySuggestion = () => {
+    onDraft({ ...draft, text: suggestedScript })
+    setShowError(false)
+  }
+
+  const handleQuickGenerate = async () => {
+    const textToUse = suggestedScript
+    onDraft({ ...draft, text: textToUse })
+    setShowError(false)
+    const result = await run(async () => {
+      const narration = await generateNarration(textToUse, draft.voice)
+      const audio = await fetchNarrationAudio(narration.assetKey)
+      return { narration, url: URL.createObjectURL(audio), text: textToUse }
+    })
+    if (result) {
+      setPublished(false)
+      onPreview(result)
+    }
+  }
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -86,32 +115,79 @@ function NarrationEditor({
       <div>
         <h2 className="text-lg font-bold text-deep-river">{poi.name}</h2>
         <p className="mt-1 text-sm text-on-surface-variant">
-          {poi.isPublished ? t('This landmark has a published audio guide.') : t('This landmark has no published audio guide yet.')}
+          {poi.isPublished ? t('Địa điểm này đã có bản thuyết minh chính thức.') : t('Địa điểm này chưa có bản thuyết minh.')}
         </p>
       </div>
 
+      {/* Khung Kịch bản Gợi ý Du lịch */}
+      <div className="rounded-2xl border border-teal-200/90 bg-teal-50/50 p-4 space-y-3 shadow-2xs">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 font-bold text-xs text-teal-950">
+            <span className="text-sm">✨</span>
+            <span>Gợi ý kịch bản thuyết minh du lịch:</span>
+          </div>
+          <span className="text-3xs font-semibold uppercase tracking-wider text-teal-800 bg-teal-200/70 px-2 py-0.5 rounded">
+            Đề xuất sẵn
+          </span>
+        </div>
+
+        <p className="text-xs text-deep-river leading-relaxed bg-white/90 p-3 rounded-xl border border-teal-200/50 italic shadow-2xs">
+          &ldquo;{suggestedScript}&rdquo;
+        </p>
+
+        <div className="flex flex-wrap items-center gap-2 pt-0.5">
+          <button
+            type="button"
+            onClick={handleApplySuggestion}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-semibold text-xs py-2 px-3.5 transition-colors shadow-2xs"
+          >
+            <span>✍️</span>
+            <span>Dùng gợi ý này</span>
+          </button>
+
+          <button
+            type="button"
+            disabled={busy}
+            onClick={handleQuickGenerate}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-teal-300 hover:bg-teal-50 text-teal-900 font-semibold text-xs py-2 px-3.5 transition-colors shadow-2xs"
+          >
+            <span>⚡</span>
+            <span>{busy ? 'Đang tạo audio...' : 'Tạo & Nghe thử ngay'}</span>
+          </button>
+        </div>
+      </div>
+
       <div>
-        <label htmlFor={textId} className="mb-1 block text-xs font-semibold text-on-surface-variant">
-          {t('Narration script')}
-        </label>
+        <div className="mb-1 flex items-center justify-between">
+          <label htmlFor={textId} className="block text-xs font-semibold text-on-surface-variant">
+            {t('Narration script')}
+          </label>
+          <span className="text-2xs font-semibold text-teal-800 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md">
+            Tối đa ~{maxAudioSeconds}s ({maxCharacters} ký tự)
+          </span>
+        </div>
         <textarea
           id={textId}
-          rows={8}
-          maxLength={MAX_NARRATION_LENGTH}
+          rows={6}
+          maxLength={maxCharacters}
           value={draft.text}
           onChange={(e) => onDraft({ ...draft, text: e.target.value })}
           aria-invalid={Boolean(textError)}
           placeholder={t('For example: On your right is the Ba Son waterfront, once the largest shipyard of Saigon…')}
           className="w-full rounded-xl border border-outline-variant/70 bg-white px-3 py-2 text-sm leading-relaxed text-deep-river transition-colors focus:border-teal-flow focus:ring-2 focus:ring-teal-flow/15"
         />
-        <div className="mt-1 flex justify-between gap-3 text-2xs text-on-surface-variant">
+        <div className="mt-1 flex items-center justify-between gap-3 text-2xs text-on-surface-variant">
           {textError ? (
-            <span role="alert" className="text-coral-glow">{textError}</span>
+            <span role="alert" className="text-coral-glow font-semibold">{textError}</span>
           ) : (
-            <span>{t('Played on board when the boat comes near this landmark.')}</span>
+            <span>
+              Phát khi tàu đến gần địa điểm (chặng ~{segmentDuration}s phân bổ từ chuyến đi, trừ thời gian rời bến & cập bến).
+            </span>
           )}
-          <span className="shrink-0 tabular-nums">
-            {draft.text.length.toLocaleString('vi-VN')}/{MAX_NARRATION_LENGTH.toLocaleString('vi-VN')}
+          <span className={`shrink-0 tabular-nums font-semibold ${
+            draft.text.length >= maxCharacters ? 'text-coral-glow font-bold' : 'text-deep-river'
+          }`}>
+            {draft.text.length.toLocaleString('vi-VN')} / {maxCharacters.toLocaleString('vi-VN')} ký tự
           </span>
         </div>
       </div>
@@ -135,7 +211,7 @@ function NarrationEditor({
       </Button>
 
       {preview && (
-        <div className="space-y-2 rounded-xl bg-surface-container-low p-3">
+        <div className="space-y-3 rounded-xl bg-surface-container-low p-3.5 border border-outline-variant/40">
           <div className="flex items-center gap-2 text-sm font-semibold text-deep-river">
             <Icon name="headphones" className="text-xl text-teal-flow" />
             {t('Listen before publishing')}
@@ -149,6 +225,21 @@ function NarrationEditor({
               size: Math.max(1, Math.round(preview.narration.byteLength / 1024)),
             })}
           </p>
+
+          {/* Kiểm tra validate thời lượng audio vs khoảng trống chặng */}
+          {preview.narration.durationSeconds > maxAudioSeconds ? (
+            <Notice tone="error">
+              ⚠️ <strong>Audio quá dài ({preview.narration.durationSeconds} giây)!</strong> Vượt quá khoảng trống tối đa cho phép là <strong>{maxAudioSeconds} giây</strong> (chặng di chuyển {segmentDuration}s). Nếu xuất bản, audio sẽ bị câu thông báo &ldquo;Sắp đến bến&rdquo; đè lên. Vui lòng bấm &ldquo;Dùng gợi ý này&rdquo; hoặc rút ngắn kịch bản để được duyệt.
+            </Notice>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs text-teal-900 font-semibold bg-teal-50 border border-teal-200 p-2.5 rounded-lg">
+              <span>✅</span>
+              <span>
+                Thời lượng audio {preview.narration.durationSeconds}s nằm vừa vặn trong khoảng trống an toàn ({maxAudioSeconds}s). Sẵn sàng xuất bản lên tàu.
+              </span>
+            </div>
+          )}
+
           {preview.text !== text && (
             <p className="text-xs text-coral-glow">{t('The script changed after this audio. Generate again to hear it.')}</p>
           )}
@@ -156,11 +247,11 @@ function NarrationEditor({
           {published && <Notice tone="success">{t('Audio guide published.')}</Notice>}
           <Button size="sm"
             icon="publish"
-            disabled={publishing.busy || published || preview.text !== text}
+            disabled={publishing.busy || published || preview.text !== text || preview.narration.durationSeconds > maxAudioSeconds}
             onClick={publish}
             className="w-full"
           >
-            {publishing.busy ? t('Publishing…') : t('Publish this audio')}
+            {publishing.busy ? t('Publishing…') : preview.narration.durationSeconds > maxAudioSeconds ? 'Không thể xuất bản (Audio quá dài)' : t('Publish this audio')}
           </Button>
         </div>
       )}
@@ -177,9 +268,36 @@ export default function AudioGuidesPage() {
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [previews, setPreviews] = useState<Record<string, Preview>>({})
 
+  // Cấu hình thời gian toàn chuyến từ bộ mô phỏng (từ bến đầu đến bến cuối)
+  const [simConfig, setSimConfig] = useState<StopAnnouncementConfig>({
+    segmentDurationSeconds: 180,
+    dwellTimeSeconds: 5,
+    nearThreshold: 0.8,
+    useSimulatedSegmentDuration: true,
+  })
+
+  useEffect(() => {
+    getSimulatorConfig().then(setSimConfig).catch(() => {})
+  }, [])
+
+  // Tính toán giới hạn thời lượng và số ký tự động theo thời lượng toàn chuyến
+  // Tuyến tiêu chuẩn 5 bến có 4 chặng di chuyển -> thời gian mỗi chặng = tổng thời lượng chuyến / 4
+  const tripDuration = simConfig.segmentDurationSeconds || 180
+  const estimatedSegments = 4
+  const segmentDuration = Math.max(5, Math.round(tripDuration / estimatedSegments))
+  const nearThreshold = simConfig.nearThreshold || 0.8
+  const maxAudioSeconds = Math.max(5, Math.floor(segmentDuration * nearThreshold - 5))
+  const maxCharacters = maxAudioSeconds * 14
+
   // Object URLs keep the MP3 in memory: release them when the page closes.
   const urls = useRef<string[]>([])
   useEffect(() => () => urls.current.forEach((url) => URL.revokeObjectURL(url)), [])
+
+  useEffect(() => {
+    if (!selectedId && pois.data && pois.data.length > 0) {
+      setSelectedId(pois.data[0].poiId)
+    }
+  }, [pois.data, selectedId])
 
   if (pois.error) return <ErrorState onRetry={pois.retry} />
   if (!pois.data) return <PageLoader />
@@ -251,7 +369,7 @@ export default function AudioGuidesPage() {
       </div>
 
       {activeTab === 'stations' && <StationAnnouncementsTab />}
-      {activeTab === 'config' && <SimulatorConfigTab />}
+      {activeTab === 'config' && <SimulatorConfigTab onConfigUpdated={setSimConfig} />}
 
       {activeTab === 'pois' && (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
@@ -287,6 +405,9 @@ export default function AudioGuidesPage() {
                 poi={selected}
                 draft={drafts[selected.poiId] ?? EMPTY_DRAFT}
                 preview={previews[selected.poiId]}
+                maxAudioSeconds={maxAudioSeconds}
+                maxCharacters={maxCharacters}
+                segmentDuration={segmentDuration}
                 onDraft={(draft) => setDrafts((d) => ({ ...d, [selected.poiId]: draft }))}
                 onPreview={(preview) => savePreview(selected.poiId, preview)}
                 onPublished={reload}
