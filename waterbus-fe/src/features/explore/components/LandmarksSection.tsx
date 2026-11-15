@@ -96,12 +96,14 @@ export default function LandmarksSection({
                   {l.description}
                 </p>
                 <div className="mt-auto pt-1">
-                  <span className="inline-flex min-h-11 w-fit items-center gap-2 rounded-full border border-teal-flow/20 bg-surface-container px-4 py-2 text-sm font-semibold text-deep-river transition-[transform,background-color,color,border-color,box-shadow] duration-200 group-hover:translate-x-1 group-hover:border-teal-flow group-hover:bg-teal-flow group-hover:text-white group-hover:shadow-md group-focus-visible:border-teal-flow group-focus-visible:bg-teal-flow group-focus-visible:text-white motion-reduce:transform-none">
+                  <span className="inline-flex min-h-11 w-fit items-center gap-3 text-sm font-semibold text-deep-river transition-colors duration-200 group-hover:text-teal-flow group-focus-visible:text-teal-flow">
                     {t('Read the story')}
-                    <Icon
-                      name="arrow_forward"
-                      className="text-base transition-transform duration-300 group-hover:translate-x-1 motion-reduce:transform-none"
-                    />
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-teal-flow/10 text-teal-flow transition-[background-color,transform,box-shadow] duration-200 group-hover:translate-x-1 group-hover:bg-teal-flow group-hover:text-white group-hover:shadow-md group-focus-visible:bg-teal-flow group-focus-visible:text-white motion-reduce:transform-none">
+                      <Icon
+                        name="arrow_forward"
+                        className="text-base transition-transform duration-300 group-hover:translate-x-0.5 motion-reduce:transform-none"
+                      />
+                    </span>
                   </span>
                 </div>
               </div>
