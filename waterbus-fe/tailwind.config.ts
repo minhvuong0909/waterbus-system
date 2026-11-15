@@ -54,6 +54,15 @@ const config: Config = {
         /** Primary call to action. */
         glow: '0 2px 12px rgba(20, 122, 126, 0.25)',
       },
+      keyframes: {
+        'hero-settle': {
+          from: { transform: 'scale(1.06)' },
+          to: { transform: 'scale(1.01)' },
+        },
+      },
+      animation: {
+        'hero-settle': 'hero-settle 1.8s cubic-bezier(0.2, 0.7, 0.2, 1) both',
+      },
       spacing: {
         'space-3xl': '64px',
         'space-sm': '8px',

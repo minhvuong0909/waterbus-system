@@ -22,6 +22,13 @@ describe('Explore page', () => {
     expect(SIGHTSEEING_RESULTS).toBe('/search/results?type=sightseeing')
   })
 
+  it('links the secondary hero action to the landmark section', () => {
+    inRouter(<ExploreHero />)
+    expect(screen.getByRole('link', { name: /Explore landmarks/ }).getAttribute('href')).toBe(
+      '#river-landmarks',
+    )
+  })
+
   it('filters with pressed buttons and shows a note for an empty category', () => {
     inRouter(<LandmarksSection categories={['Skyline', 'Heritage', 'Riverside']} landmarks={landmarks} />)
     const riverside = screen.getByRole('button', { name: 'Riverside' })
