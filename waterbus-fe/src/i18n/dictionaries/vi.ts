@@ -921,7 +921,7 @@ export const vi: Record<string, string> = {
     'Cây cầu đường sắt vượt sông Sài Gòn đầu tiên xây dựng từ năm 1902, chứng nhân hơn một thế kỷ thăng trầm của thành phố.',
   // Rà soát UI/UX trang khách hàng
   'Later trips': 'Các chuyến sau',
-  'Use the account issued to you by Smart Waterbus.': 'Dùng tài khoản do Smart Waterbus cấp cho bạn.',
+  'For Smart Waterbus operations accounts (Admin and Captain).': 'Dành cho tài khoản vận hành Smart Waterbus (Admin và Thuyền trưởng).',
   'Travellers do not need an account to book tickets.': 'Hành khách không cần tài khoản để đặt vé.',
   // Trạng thái không có dữ liệu (thay cho lỗi kết nối chung)
   'This booking is no longer active': 'Đơn đặt chỗ này không còn hiệu lực',

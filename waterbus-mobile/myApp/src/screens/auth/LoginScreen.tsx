@@ -1,5 +1,5 @@
 /**
- * Màn hình đăng nhập Staff Scanner - gọi thật POST /api/v1/auth/login.
+ * Màn hình đăng nhập Staff Scanner - gọi thật POST /api/v1/auth/scanner/login.
  * Chỉ tài khoản có vai trò Staff được vào app (useAuthStore.login từ chối vai trò khác).
  */
 import React, { useState } from 'react';

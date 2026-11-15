@@ -14,7 +14,7 @@ check-in gồm DI, DbContext/interface, Hangfire và cấu hình mẫu; không s
 
 | Nhóm API | Client / cách test |
 | --- | --- |
-| Auth login | Web `/sign-in`; mobile `/login`. Staff chỉ dùng Scanner; không có Dispatcher/Accountant. |
+| Auth login | Web: trang đăng nhập nhân sự ở `/staff-login` (đổi bằng `VITE_STAFF_LOGIN_PATH`, không link công khai) gọi `POST /auth/login`, chỉ Admin và Captain. Mobile `/login` gọi `POST /auth/scanner/login`, chỉ Staff. Role cho từng cổng cấu hình ở `Auth:Portals`; role không thuộc cổng bị từ chối 401 cùng thông báo với sai mật khẩu. Không có Dispatcher/Accountant. |
 | Stations list/paged/detail/create/update | Trang Admin Stations dùng dữ liệu thật, tạo/cập nhật bằng API. Ngừng hoạt động dùng `PUT isActive=false`, không xóa vật lý. Paged/detail có trong Test API. |
 | Boats list/detail/create/update | Admin Boats lấy toàn bộ trang, tạo tàu và ngừng hoạt động bằng API. Backend chỉ nhận tổng số ghế, chưa hỗ trợ cấu hình sơ đồ ghế qua API. Các trường cập nhật khác và CaptainUserId có trong Test API. |
 | Trips search/detail/seats | Web tìm chuyến, chi tiết và chọn ghế gọi REST thật. Giá và availability theo đoạn TripStopCall. |

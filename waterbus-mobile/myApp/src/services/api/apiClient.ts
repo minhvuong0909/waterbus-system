@@ -22,7 +22,7 @@ export class ApiError extends Error {
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;
-  /** Bỏ qua gắn Authorization header (vd gọi /auth/login) */
+  /** Bỏ qua gắn Authorization header (vd gọi /auth/scanner/login) */
   skipAuth?: boolean;
 }
 

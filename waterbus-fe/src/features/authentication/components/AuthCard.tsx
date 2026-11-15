@@ -34,7 +34,7 @@ export default function AuthCard() {
         {t('Sign in to your account')}
       </h1>
       <p className="mb-8 mt-2 text-sm text-on-surface-variant">
-        {t('Use the account issued to you by Smart Waterbus.')}
+        {t('For Smart Waterbus operations accounts (Admin and Captain).')}
       </p>
 
       {failure !== null && (

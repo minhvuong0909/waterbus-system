@@ -46,6 +46,7 @@ Khi Passenger đã đăng nhập tạo checkout (`POST /bookings`, `/checkouts`,
 Claim, lịch sử, rotate, revoke hoạt động ở mức **Order**, nên một thao tác bao phủ cả hai Booking của RoundTrip; mỗi Booking có QR và TripAccess riêng.
 
 ## 6. Giới hạn đã biết / quyết định
+- **Đăng nhập theo cổng:** `POST /auth/login` (web) chỉ nhận role cấu hình cho cổng `Web` (mặc định Admin, Captain); `POST /auth/scanner/login` (mobile) chỉ nhận cổng `Scanner` (mặc định Staff). Cấu hình ở `Auth:Portals`; cấu hình sai làm ứng dụng không khởi động. Hệ quả: tài khoản Passenger hiện không đăng nhập được web, nên các nhánh dành riêng cho Passenger (lịch sử đơn, claim đơn, `?orderId=`) chưa dùng được cho tới khi thêm `Passenger` vào cổng `Web`.
 - **Đăng ký tài khoản Passenger không nằm trong BR v2.0 và chưa có endpoint** (chỉ `POST /auth/login`). Task này không tự đặt quy tắc đăng ký/xác minh email; claim giả định tài khoản Passenger đã tồn tại.
 - Không có migration mới: lịch sử lọc theo `PassengerAccountId` (chưa có chỉ mục riêng; thêm khi số Order lớn).
 - `AccessGrant.LastUsedAt` chưa được ghi (tránh ghi DB ở mỗi lần đọc).

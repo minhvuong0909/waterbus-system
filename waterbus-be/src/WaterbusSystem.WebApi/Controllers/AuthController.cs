@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using WaterbusSystem.Application.DTOs.Requests.Auth;
 using WaterbusSystem.Application.DTOs.Responses.Auth;
+using WaterbusSystem.Application.Features.Auth;
 using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.WebApi.Filters;
 
@@ -20,7 +21,7 @@ public class AuthController : BaseApiController
     }
 
     /// <summary>
-    /// Đăng nhập tài khoản hệ thống (Admin, Captain, Staff, Passenger)
+    /// Đăng nhập web vận hành. Chỉ role cấu hình cho cổng Web (mặc định Admin, Captain).
     /// </summary>
     [HttpPost("login")]
     [ServiceFilter(typeof(ValidateRequestFilter))]
@@ -29,7 +30,21 @@ public class AuthController : BaseApiController
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var response = await _authService.LoginAsync(request, HttpContext.RequestAborted);
+        var response = await _authService.LoginAsync(request, AuthPortal.Web, HttpContext.RequestAborted);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Đăng nhập ứng dụng Staff Scanner. Chỉ role cấu hình cho cổng Scanner (mặc định Staff).
+    /// </summary>
+    [HttpPost("scanner/login")]
+    [ServiceFilter(typeof(ValidateRequestFilter))]
+    [EnableRateLimiting("AuthPolicy")]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ScannerLogin([FromBody] LoginRequest request)
+    {
+        var response = await _authService.LoginAsync(request, AuthPortal.Scanner, HttpContext.RequestAborted);
         return Ok(response);
     }
 }

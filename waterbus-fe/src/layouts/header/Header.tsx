@@ -3,6 +3,7 @@ import { usePrefersReducedMotion } from '../../hooks'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { Logo } from '../../components/brand'
 import { Button, Icon } from '../../components/ui'
+import { SHOW_PUBLIC_SIGNIN } from '../../constant/env'
 import { STAFF_ROLES } from '../../constant/roles'
 import { landingRouteFor } from '../../routes/landingRoute'
 import { hasAnyRole } from '../../features/authentication/utils'
@@ -99,6 +100,7 @@ export default function Header() {
             </>
           ) : (
             // Trên chính trang đăng nhập thì nút này thừa.
+            SHOW_PUBLIC_SIGNIN &&
             pathname !== ROUTES.signIn && (
               <Button
                 to={ROUTES.signIn}
@@ -161,9 +163,11 @@ export default function Header() {
                   {t('Sign out')}
                 </Button>
               ) : (
-                <Button to={ROUTES.signIn} variant="secondary" onClick={() => setOpenPath(null)}>
-                  {t('Sign in')}
-                </Button>
+                SHOW_PUBLIC_SIGNIN && (
+                  <Button to={ROUTES.signIn} variant="secondary" onClick={() => setOpenPath(null)}>
+                    {t('Sign in')}
+                  </Button>
+                )
               )}
             </li>
           </ul>

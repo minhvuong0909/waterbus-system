@@ -1,6 +1,5 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
-import { ROLES } from '../../../constant/roles'
-import { ApiError, apiRequest } from '../../../services/apiClient'
+import { apiRequest } from '../../../services/apiClient'
 import type { LoginResponse, SignInPayload } from '../types'
 import type { AuthSession } from '../../../services/authStorage'
 
@@ -10,9 +9,6 @@ export async function signIn({ email, password }: SignInPayload): Promise<AuthSe
     method: 'POST',
     body: { email, password },
   })
-  if (response.roles.includes(ROLES.staff) && !response.roles.some((role) => role === ROLES.admin || role === ROLES.captain || role === ROLES.passenger)) {
-    throw new ApiError(403, 'Tài khoản Staff dùng ứng dụng Staff Scanner để soát vé.')
-  }
   return {
     token: response.token,
     user: {

@@ -18,3 +18,18 @@ export const MAP_TILE_URL =
 export const MAP_TILE_ATTRIBUTION =
   import.meta.env.VITE_MAP_TILE_ATTRIBUTION ??
   'Tiles &copy; Esri &mdash; Source: Esri, HERE, Garmin, OpenStreetMap contributors'
+
+/**
+ * Path of the staff sign-in page (Admin and Captain). Not linked from the public pages; share it with staff.
+ * Hiding it is not a security measure: the backend decides which roles may sign in.
+ */
+export const STAFF_LOGIN_PATH = normalizePath(import.meta.env.VITE_STAFF_LOGIN_PATH, '/staff-login')
+
+/** Shows "Sign in" in the public header. Off by default: only staff sign in, through STAFF_LOGIN_PATH. */
+export const SHOW_PUBLIC_SIGNIN = import.meta.env.VITE_SHOW_PUBLIC_SIGNIN === 'true'
+
+function normalizePath(value: string | undefined, fallback: string): string {
+  const trimmed = (value ?? '').trim().replace(/\/+$/, '')
+  if (!trimmed) return fallback
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+}

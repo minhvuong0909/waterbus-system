@@ -15,7 +15,7 @@ function developmentHost(): string {
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/+$/, '') || `http://${developmentHost()}:5000`;
 
 export const API_ENDPOINTS = {
-  login: '/api/v1/auth/login',
+  login: '/api/v1/auth/scanner/login',
   assignments: '/api/v1/checkins/assignments/mine',
   manifest: (id: string) => `/api/v1/checkins/manifest/${id}`,
   publicKey: '/api/v1/checkouts/qr-public-key',

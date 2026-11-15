@@ -9,7 +9,7 @@ chuyển, giới thiệu bến, POI của trang Khám phá, các bước lên t�
 
 | Endpoint | Service | Màn hình |
 |---|---|---|
-| `POST /auth/login` | `authentication/services/authenticationService` | Đăng nhập |
+| `POST /auth/login` | `authentication/services/authenticationService` | Đăng nhập nhân sự (Admin, Captain) tại `ROUTES.signIn` (`/staff-login`) |
 | `GET /stations`, `GET /fares` | `trips/services/tripService`, `fareService` | Form tìm chuyến, trang chủ, giá vé |
 | `GET /trips/search` | `tripService.getTrips` | Kết quả tìm, chuyến sắp chạy (trang chủ, Khám phá) |
 | `GET /trips/{id}`, `GET /trips/{id}/seats` | `tripService.getTripDetail`, `booking/services/bookingService` | Chi tiết chuyến, chọn ghế |

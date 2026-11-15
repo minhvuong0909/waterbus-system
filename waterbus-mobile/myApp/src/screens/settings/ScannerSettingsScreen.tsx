@@ -86,7 +86,7 @@ export default function ScannerSettingsScreen() {
           <Text style={styles.subtitle}>Tài khoản và thiết bị soát vé</Text>
         </View>
 
-        {/* Staff Profile Card - tài khoản đăng nhập thật qua POST /api/v1/auth/login */}
+        {/* Staff Profile Card - tài khoản đăng nhập thật qua POST /api/v1/auth/scanner/login */}
         <View style={styles.card}>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>

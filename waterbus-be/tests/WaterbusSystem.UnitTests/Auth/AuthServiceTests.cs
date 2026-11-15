@@ -1,7 +1,9 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Moq;
+using WaterbusSystem.Application.Features.Auth;
 using WaterbusSystem.Application.Common.Exceptions;
 using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.DTOs.Requests.Auth;
@@ -59,9 +61,9 @@ public class AuthServiceTests
             .Setup(j => j.GenerateToken(user.Id, user.Email!, user.FullName, It.IsAny<IList<string>>()))
             .Returns("fake-jwt-token");
 
-        var sut = new AuthService(userManagerMock.Object, signInManagerMock.Object, jwtGeneratorMock.Object);
+        var sut = new AuthService(userManagerMock.Object, signInManagerMock.Object, jwtGeneratorMock.Object, Options.Create(new AuthOptions()));
 
-        var response = await sut.LoginAsync(new LoginRequest(user.Email!, "Secret123"));
+        var response = await sut.LoginAsync(new LoginRequest(user.Email!, "Secret123"), AuthPortal.Scanner);
 
         response.Token.Should().Be("fake-jwt-token");
         response.UserId.Should().Be(user.Id);
@@ -80,9 +82,9 @@ public class AuthServiceTests
             .Setup(m => m.CheckPasswordSignInAsync(user, "WrongPassword", true))
             .ReturnsAsync(SignInResult.Failed);
 
-        var sut = new AuthService(userManagerMock.Object, signInManagerMock.Object, Mock.Of<IJwtTokenGenerator>());
+        var sut = new AuthService(userManagerMock.Object, signInManagerMock.Object, Mock.Of<IJwtTokenGenerator>(), Options.Create(new AuthOptions()));
 
-        var act = () => sut.LoginAsync(new LoginRequest(user.Email!, "WrongPassword"));
+        var act = () => sut.LoginAsync(new LoginRequest(user.Email!, "WrongPassword"), AuthPortal.Web);
 
         await act.Should().ThrowAsync<AuthenticationException>();
     }
@@ -99,9 +101,9 @@ public class AuthServiceTests
             .Setup(m => m.CheckPasswordSignInAsync(user, "WrongPassword", true))
             .ReturnsAsync(SignInResult.LockedOut);
 
-        var sut = new AuthService(userManagerMock.Object, signInManagerMock.Object, Mock.Of<IJwtTokenGenerator>());
+        var sut = new AuthService(userManagerMock.Object, signInManagerMock.Object, Mock.Of<IJwtTokenGenerator>(), Options.Create(new AuthOptions()));
 
-        var act = () => sut.LoginAsync(new LoginRequest(user.Email!, "WrongPassword"));
+        var act = () => sut.LoginAsync(new LoginRequest(user.Email!, "WrongPassword"), AuthPortal.Web);
 
         (await act.Should().ThrowAsync<AuthenticationException>())
             .WithMessage("*tạm khóa*");
@@ -117,13 +119,77 @@ public class AuthServiceTests
 
         var signInManagerMock = CreateSignInManagerMock(userManagerMock.Object);
 
-        var sut = new AuthService(userManagerMock.Object, signInManagerMock.Object, Mock.Of<IJwtTokenGenerator>());
+        var sut = new AuthService(userManagerMock.Object, signInManagerMock.Object, Mock.Of<IJwtTokenGenerator>(), Options.Create(new AuthOptions()));
 
-        var act = () => sut.LoginAsync(new LoginRequest(user.Email!, "Secret123"));
+        var act = () => sut.LoginAsync(new LoginRequest(user.Email!, "Secret123"), AuthPortal.Web);
 
         await act.Should().ThrowAsync<AuthenticationException>();
         signInManagerMock.Verify(
             m => m.CheckPasswordSignInAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>(), It.IsAny<bool>()),
             Times.Never);
+    }
+
+    private static AuthService CreatePortalSut(string role, AuthOptions? options = null)
+    {
+        var user = ActiveUser("who@waterbus.vn");
+        var userManagerMock = CreateUserManagerMock();
+        userManagerMock.Setup(m => m.FindByEmailAsync(user.Email!)).ReturnsAsync(user);
+        userManagerMock.Setup(m => m.GetRolesAsync(user)).ReturnsAsync(new List<string> { role });
+        var signInManagerMock = CreateSignInManagerMock(userManagerMock.Object);
+        signInManagerMock.Setup(m => m.CheckPasswordSignInAsync(user, "Secret123", true)).ReturnsAsync(SignInResult.Success);
+        var jwt = new Mock<IJwtTokenGenerator>();
+        jwt.Setup(j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IList<string>>())).Returns("jwt");
+        return new AuthService(userManagerMock.Object, signInManagerMock.Object, jwt.Object, Options.Create(options ?? new AuthOptions()));
+    }
+
+    [Theory]
+    [InlineData("Admin", AuthPortal.Web)]
+    [InlineData("Captain", AuthPortal.Web)]
+    [InlineData("Staff", AuthPortal.Scanner)]
+    public async Task LoginAsync_WhenRoleBelongsToPortal_ShouldSucceed(string role, AuthPortal portal)
+    {
+        var response = await CreatePortalSut(role).LoginAsync(new LoginRequest("who@waterbus.vn", "Secret123"), portal);
+
+        response.Token.Should().Be("jwt");
+    }
+
+    [Theory]
+    [InlineData("Passenger", AuthPortal.Web)]
+    [InlineData("Staff", AuthPortal.Web)]
+    [InlineData("Admin", AuthPortal.Scanner)]
+    [InlineData("Captain", AuthPortal.Scanner)]
+    public async Task LoginAsync_WhenRoleIsNotInPortal_ShouldRejectWithSameMessageAsWrongPassword(string role, AuthPortal portal)
+    {
+        var act = () => CreatePortalSut(role).LoginAsync(new LoginRequest("who@waterbus.vn", "Secret123"), portal);
+
+        (await act.Should().ThrowAsync<AuthenticationException>()).WithMessage("Email hoặc mật khẩu không chính xác.");
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenUserHasAllowedRoleAmongSeveral_ShouldSucceed()
+    {
+        var user = ActiveUser("who@waterbus.vn");
+        var userManagerMock = CreateUserManagerMock();
+        userManagerMock.Setup(m => m.FindByEmailAsync(user.Email!)).ReturnsAsync(user);
+        userManagerMock.Setup(m => m.GetRolesAsync(user)).ReturnsAsync(new List<string> { "Staff", "Admin" });
+        var signInManagerMock = CreateSignInManagerMock(userManagerMock.Object);
+        signInManagerMock.Setup(m => m.CheckPasswordSignInAsync(user, "Secret123", true)).ReturnsAsync(SignInResult.Success);
+        var sut = new AuthService(userManagerMock.Object, signInManagerMock.Object, Mock.Of<IJwtTokenGenerator>(), Options.Create(new AuthOptions()));
+
+        var act = () => sut.LoginAsync(new LoginRequest(user.Email!, "Secret123"), AuthPortal.Web);
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenConfigurationOverridesPortal_ShouldFollowConfiguration()
+    {
+        var options = new AuthOptions { Portals = { ["Web"] = ["Passenger"] } };
+
+        var passenger = await CreatePortalSut("Passenger", options).LoginAsync(new LoginRequest("who@waterbus.vn", "Secret123"), AuthPortal.Web);
+        var admin = () => CreatePortalSut("Admin", options).LoginAsync(new LoginRequest("who@waterbus.vn", "Secret123"), AuthPortal.Web);
+
+        passenger.Token.Should().Be("jwt");
+        await admin.Should().ThrowAsync<AuthenticationException>();
     }
 }

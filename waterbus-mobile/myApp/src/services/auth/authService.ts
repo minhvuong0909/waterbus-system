@@ -1,6 +1,6 @@
 import { API_ENDPOINTS } from '../../constants/api';
 /**
- * Đăng nhập Staff thật qua POST /api/v1/auth/login - mobile CHỈ phục vụ Staff Scanner
+ * Đăng nhập Staff thật qua POST /api/v1/auth/scanner/login - mobile CHỈ phục vụ Staff Scanner
  * (CONVENTIONS.md mục 5), nên tài khoản không có vai trò "Staff" bị từ chối ngay ở đây dù
  * backend xác thực mật khẩu thành công.
  */

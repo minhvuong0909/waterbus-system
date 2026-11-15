@@ -1,5 +1,6 @@
 using WaterbusSystem.Application.DTOs.Requests.Auth;
 using WaterbusSystem.Application.DTOs.Responses.Auth;
+using WaterbusSystem.Application.Features.Auth;
 
 namespace WaterbusSystem.Application.Interfaces.Services;
 
@@ -9,5 +10,8 @@ namespace WaterbusSystem.Application.Interfaces.Services;
 /// </summary>
 public interface IAuthService
 {
-    Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Đăng nhập ở một cổng. Role không thuộc cổng đó bị từ chối cùng thông báo với sai mật khẩu (không lộ loại tài khoản).
+    /// </summary>
+    Task<LoginResponse> LoginAsync(LoginRequest request, AuthPortal portal, CancellationToken cancellationToken = default);
 }

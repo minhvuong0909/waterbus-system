@@ -22,4 +22,15 @@ public class AuthControllerRateLimitingTests
         attribute.Should().NotBeNull();
         attribute!.PolicyName.Should().Be("AuthPolicy");
     }
+
+    [Fact]
+    public void ScannerLogin_ShouldBeDecoratedWithAuthPolicyRateLimiting()
+    {
+        var method = typeof(AuthController).GetMethod(nameof(AuthController.ScannerLogin));
+
+        var attribute = method!.GetCustomAttribute<EnableRateLimitingAttribute>();
+
+        attribute.Should().NotBeNull();
+        attribute!.PolicyName.Should().Be("AuthPolicy");
+    }
 }

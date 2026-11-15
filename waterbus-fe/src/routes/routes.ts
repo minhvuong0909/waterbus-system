@@ -1,7 +1,10 @@
+import { STAFF_LOGIN_PATH } from '../constant/env'
+
 /** Every route path in the app. Use these constants instead of string literals. */
 export const ROUTES = {
   home: '/',
-  signIn: '/sign-in',
+  /** Staff sign-in (Admin, Captain). The path comes from `VITE_STAFF_LOGIN_PATH`; it is not linked publicly. */
+  signIn: STAFF_LOGIN_PATH,
   searchResults: '/search/results',
   seatSelection: '/booking/seats',
   passengerDetails: '/booking/passenger',

@@ -14,6 +14,10 @@ COPY . .
 # Không để rơi về mặc định http://localhost:5000 trong src/constant/env.ts (cổng API không public khi deploy).
 ARG VITE_API_BASE_URL=""
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ARG VITE_STAFF_LOGIN_PATH=""
+ENV VITE_STAFF_LOGIN_PATH=${VITE_STAFF_LOGIN_PATH}
+ARG VITE_SHOW_PUBLIC_SIGNIN=""
+ENV VITE_SHOW_PUBLIC_SIGNIN=${VITE_SHOW_PUBLIC_SIGNIN}
 RUN pnpm build
 
 FROM nginx:1.27-alpine AS final
