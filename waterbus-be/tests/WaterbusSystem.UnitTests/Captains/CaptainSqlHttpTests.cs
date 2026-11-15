@@ -415,7 +415,7 @@ public sealed class CaptainSqlHttpTests : IAsyncLifetime
             (await db.TripStopCalls.SingleAsync(c => c.VisitOrder == 2)).CheckInOpenAt = _clock.Now.AddMinutes(19);
             for (var i = 0; i < 20; i++)
             {
-                var historical = new Trip { RouteId = _seed.Route.Id, BoatId = _seed.Boat.Id, DepartureTime = _clock.Now.AddDays(-40), ArrivalTime = _clock.Now.AddDays(-39) };
+                var historical = new Trip { RouteId = _seed.Route.Id, BoatId = _seed.Boat.Id, Status = TripStatus.Completed, DepartureTime = _clock.Now.AddDays(-40), ArrivalTime = _clock.Now.AddDays(-39) };
                 var future = new Trip { RouteId = _seed.Route.Id, BoatId = _seed.Boat.Id, DepartureTime = _clock.Now.AddYears(1), ArrivalTime = _clock.Now.AddYears(1).AddHours(1) };
                 historical.TripStopCalls.Add(new TripStopCall { RouteStopId = _seed.Trip.TripStopCalls.First().RouteStopId, VisitOrder = 1, CheckInOpenAt = historical.DepartureTime.AddMinutes(-30) });
                 future.TripStopCalls.Add(new TripStopCall { RouteStopId = _seed.Trip.TripStopCalls.First().RouteStopId, VisitOrder = 1, CheckInOpenAt = future.DepartureTime.AddMinutes(-30) });
@@ -439,6 +439,8 @@ public sealed class CaptainSqlHttpTests : IAsyncLifetime
             for (var i = 0; i < 4; i++)
             {
                 var trip = new Trip { RouteId = _seed.Route.Id, BoatId = _seed.Boat.Id, DepartureTime = _clock.Now.AddHours(1), ArrivalTime = _clock.Now.AddHours(2) };
+                // A delayed, still Scheduled trip remains due even after its planned arrival.
+                if (i == 0) { trip.DepartureTime = _clock.Now.AddDays(-2); trip.ArrivalTime = _clock.Now.AddDays(-1); }
                 trip.TripStopCalls.Add(new TripStopCall { RouteStopId = _seed.Trip.TripStopCalls.First().RouteStopId, VisitOrder = 1, CheckInOpenAt = _clock.Now.AddMinutes(19) });
                 db.Trips.Add(trip);
             }

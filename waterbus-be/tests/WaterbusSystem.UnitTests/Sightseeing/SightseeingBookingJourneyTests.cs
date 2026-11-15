@@ -70,7 +70,7 @@ public sealed class SightseeingBookingJourneyTests : IDisposable
 
     private TripService Trips() => new(new TripRepository(_context), new IncidentRepository(_context), new EfUnitOfWork(_context),
         Mock.Of<ICurrentUserService>(), _clock.Object, Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(),
-        TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner());
+        TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner(), CommercialHandlerFactory.Captains(_context));
 
     private static async Task Rejected(Func<Task> act)
     {

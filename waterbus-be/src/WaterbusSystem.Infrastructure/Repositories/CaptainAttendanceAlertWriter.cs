@@ -27,7 +27,7 @@ internal static class CaptainAttendanceAlertWriter
                 ORDER BY c.[VisitOrder]) firstCall
             CROSS APPLY (SELECT CONCAT(N'missing:', LOWER(CONVERT(char(36),t.[Id])), N':',
                 LOWER(CONVERT(char(36),b.[CaptainAssignmentVersion]))) AS [Key]) k
-            WHERE t.[IsDeleted]=0 AND t.[ArrivalTime]>={at} AND t.[Status] IN ({(int)TripStatus.Scheduled},{(int)TripStatus.Boarding})
+            WHERE t.[IsDeleted]=0 AND t.[Status] IN ({(int)TripStatus.Scheduled},{(int)TripStatus.Boarding})
               AND firstCall.[CheckInOpenAt] < {at.AddMinutes(preparationMinutes)}
               AND NOT EXISTS (SELECT 1 FROM [CaptainAttendance] a WHERE a.[TripId]=t.[Id] AND a.[BoatId]=b.[Id]
                   AND a.[AssignmentVersion]=b.[CaptainAssignmentVersion] AND a.[CaptainId]=b.[CaptainUserId] AND a.[IsDeleted]=0)

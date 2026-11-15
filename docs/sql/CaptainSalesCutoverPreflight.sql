@@ -10,7 +10,7 @@ INTO #CaptainCutoverBlockers
 FROM Trips t LEFT JOIN Boats b ON b.Id=t.BoatId AND b.IsDeleted=0
 LEFT JOIN AspNetUsers u ON u.Id=b.CaptainUserId
 WHERE t.IsDeleted=0 AND
-  ((t.Status IN (1,2) AND t.ArrivalTime>=@now) OR EXISTS
+  (t.Status IN (1,2) OR EXISTS
     (SELECT 1 FROM Bookings bk JOIN PurchaseOrders o ON o.Id=bk.OrderId
      WHERE bk.TripId=t.Id AND bk.IsDeleted=0 AND o.Status IN ('Draft','PendingPayment')))
   AND (b.Id IS NULL OR b.IsActive=0 OR u.Id IS NULL OR u.IsActive=0 OR ISNULL(u.CaptainStatus,3)<>1 OR

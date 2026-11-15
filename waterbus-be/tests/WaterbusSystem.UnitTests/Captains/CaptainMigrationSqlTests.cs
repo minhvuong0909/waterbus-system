@@ -58,6 +58,8 @@ public sealed class CaptainMigrationSqlTests
             BookingResponse held;
             FinancialTransaction attempt;
             string passwordHash;
+            string accessTokenHash;
+            DateTimeOffset? originalExpiry;
             using var gateway = new VerifiedVnPayFixture();
             await using (var legacy = new LegacyContext(options))
             {
@@ -76,8 +78,9 @@ public sealed class CaptainMigrationSqlTests
                     MerchantReference = Guid.NewGuid().ToString("N"), GatewayName = "VNPay", Status = FinancialTransactionStatus.Requested,
                     IdempotencyKey = "legacy-captain-" + Guid.NewGuid().ToString("N") };
                 legacy.FinancialTransactions.Add(attempt); await legacy.SaveChangesAsync();
+                originalExpiry = (await legacy.PurchaseOrders.SingleAsync()).ExpiresAt;
+                accessTokenHash = (await legacy.AccessGrants.SingleAsync()).TokenHash;
             }
-            DateTimeOffset? originalExpiry;
             await using (var upgrade = new ApplicationDbContext(options))
             {
                 await upgrade.Database.MigrateAsync(); await upgrade.Database.MigrateAsync();
@@ -85,7 +88,8 @@ public sealed class CaptainMigrationSqlTests
                 Assert.Null(captain.CaptainLicenseNumber); Assert.Null(captain.CaptainStatus); Assert.Equal(passwordHash, captain.PasswordHash);
                 Assert.Single(await upgrade.Set<CaptainAlert>().Where(a => a.Type == "CaptainProfileRequired").ToListAsync());
                 Assert.Equal(FinancialTransactionStatus.Requested, (await upgrade.FinancialTransactions.SingleAsync()).Status);
-                originalExpiry = (await upgrade.PurchaseOrders.SingleAsync()).ExpiresAt;
+                Assert.Equal(originalExpiry, (await upgrade.PurchaseOrders.SingleAsync()).ExpiresAt);
+                Assert.Equal(accessTokenHash, (await upgrade.AccessGrants.SingleAsync()).TokenHash);
                 Assert.Single(await upgrade.AccessGrants.ToListAsync());
                 Assert.Equal(51013, (await Assert.ThrowsAsync<SqlException>(() => PreflightAsync(connection))).Number);
                 await Assert.ThrowsAsync<ConflictException>(() => CommercialHandlerFactory.Booking(upgrade, transactions: new SqlCommercialTransactionRunner(upgrade))
@@ -109,13 +113,15 @@ public sealed class CaptainMigrationSqlTests
             await PreflightAsync(connection);
             await using (var verify = new ApplicationDbContext(options))
             {
+                Assert.Equal(originalExpiry, (await verify.PurchaseOrders.SingleAsync()).ExpiresAt);
                 var response = await CommercialHandlerFactory.Confirmation(verify, gateway.Gateway, new SqlCommercialTransactionRunner(verify))
                     .ConfirmIpnAsync(gateway.Callback(attempt.MerchantReference!, attempt.Amount), default);
                 Assert.Equal("00", response.RspCode);
-                Assert.Equal(originalExpiry, (await verify.PurchaseOrders.SingleAsync()).ExpiresAt);
+                Assert.Null((await verify.PurchaseOrders.SingleAsync()).ExpiresAt); // Payment confirmation clears the hold normally.
                 Assert.Equal(OrderStatus.Confirmed, (await verify.PurchaseOrders.SingleAsync()).Status);
                 Assert.Equal(held.BookingId, (await verify.Tickets.SingleAsync()).BookingId);
                 Assert.Single(await verify.AccessGrants.ToListAsync());
+                Assert.Equal(accessTokenHash, (await verify.AccessGrants.SingleAsync()).TokenHash);
                 Assert.Equal(attempt.Id, (await verify.FinancialTransactions.SingleAsync()).Id);
                 Assert.Equal(passwordHash, (await verify.Users.SingleAsync(u => u.Id == seed.Boat.CaptainUserId)).PasswordHash);
                 Assert.Equal(TripStatus.Scheduled, (await verify.Trips.SingleAsync()).Status);

@@ -81,7 +81,9 @@ public sealed class CaptainService(UserManager<ApplicationUser> users, ICaptainR
             user.FullName = r.FullName.Trim();
             user.PhoneNumber = r.Phone.Trim(); user.CaptainLicenseNumber = license; user.CaptainLicenseExpiresOn = r.LicenseExpiresOn;
             user.CaptainSessionVersion = Guid.NewGuid();
-            Check(await users.UpdateAsync(user));
+            // Email changes invalidate the previous invitation in the profile transaction,
+            // before the replacement invitation is sent in a separate transaction.
+            Check(emailChanged ? await users.UpdateSecurityStampAsync(user) : await users.UpdateAsync(user));
             Audit(user, "ProfileUpdated", old, r.Reason.Trim());
             await unitOfWork.SaveChangesAsync(ct); return true;
         }, ct);
