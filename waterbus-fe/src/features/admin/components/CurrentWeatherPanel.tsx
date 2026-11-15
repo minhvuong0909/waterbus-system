@@ -1,7 +1,5 @@
-import { Link } from 'react-router-dom'
-import { Icon, Panel } from '../../../components/ui'
+import { Icon, Notice, Panel } from '../../../components/ui'
 import { t } from '../../../i18n'
-import { ROUTES } from '../../../routes/routes'
 import { useFetch, useReload } from '../../../hooks'
 import { getCurrentWeather, toKmh } from '../services/weatherService'
 import type { RouteWeather, RouteWeatherStatus } from '../services/weatherService'
@@ -11,8 +9,8 @@ import { useFleetHub } from '../../operations/hooks/useFleetHub'
 
 const STATUS: Record<RouteWeatherStatus, { label: string; icon: string; className: string }> = {
   Normal: { label: 'Normal', icon: 'check_circle', className: 'bg-teal-flow/10 text-teal-flow' },
-  Caution: { label: 'Caution', icon: 'warning', className: 'bg-signal-amber/25 text-deep-river' },
-  Danger: { label: 'Danger', icon: 'storm', className: 'bg-coral-glow/15 text-coral-glow' },
+  Caution: { label: 'Warning', icon: 'warning', className: 'bg-signal-amber/25 text-deep-river' },
+  Danger: { label: 'High risk', icon: 'storm', className: 'bg-coral-glow/15 text-coral-glow' },
   Unknown: { label: 'No data', icon: 'help_outline', className: 'bg-surface-container text-on-surface-variant' },
 }
 
@@ -62,8 +60,8 @@ function RouteRow({ route }: { route: RouteWeather }) {
 }
 
 /**
- * Weather now on every active route, alert or not: wind, gusts, sky and a status from the same
- * thresholds as the weather check. Reading it never raises an alert or changes a trip.
+ * Thời tiết hiện tại trên mọi tuyến đang hoạt động, có cảnh báo hay không: gió, gió giật, trời và trạng thái theo
+ * cùng ngưỡng với lượt kiểm tra thời tiết. Việc đọc không tạo cảnh báo và không đổi chuyến nào.
  */
 export default function CurrentWeatherPanel() {
   const [version, reload] = useReload()
@@ -77,35 +75,24 @@ export default function CurrentWeatherPanel() {
     .at(-1)
 
   return (
-    <Panel className="mt-6">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-base font-semibold text-deep-river">{t('Current weather')}</h2>
-          <p className="text-xs text-on-surface-variant">
-            {observedAt
-              ? t('Measured at {time} at the piers of each route.', { time: formatClock(new Date(observedAt)) })
-              : t('Measured at the piers of each route.')}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            to={ROUTES.adminIncidents}
-            className="inline-flex min-h-[36px] items-center gap-1 rounded-full border border-outline-variant px-3 text-xs font-semibold text-deep-river hover:bg-surface-container-low"
-          >
-            {t('Weather alerts')}
-          </Link>
-          <span role="status" className="inline-flex items-center gap-2 rounded-full bg-teal-flow/10 px-3 py-2 text-xs font-semibold text-teal-flow">
-            <span className={`h-2 w-2 rounded-full ${weather.error ? 'bg-coral-glow' : 'bg-teal-flow'}`} />
-            {weather.error ? t('Weather update interrupted. Retrying automatically.') : weather.fetching ? t('Updating…') : t('Auto-updates every minute')}
-          </span>
-        </div>
-      </div>
+    <Panel
+      title="Current weather"
+      description={
+        observedAt
+          ? t('Measured at {time} at the piers of each route.', { time: formatClock(new Date(observedAt)) })
+          : t('Measured at the piers of each route.')
+      }
+      actions={
+        <span role="status" className="inline-flex items-center gap-2 text-xs font-semibold text-on-surface-variant">
+          <span className={`h-2 w-2 rounded-full ${weather.error ? 'bg-coral-glow' : 'bg-teal-flow'}`} />
+          {weather.error ? t('Weather update interrupted. Retrying automatically.') : weather.fetching ? t('Updating…') : t('Auto-updates every minute')}
+        </span>
+      }
+    >
       {connection !== 'live' && <p className="mb-3 text-xs text-on-surface-variant">{t('Reconnecting to live alerts. Periodic updates remain active.')}</p>}
 
       {weather.error && !weather.data ? (
-        <p role="alert" className="rounded-lg bg-coral-glow/10 px-3 py-2 text-sm text-deep-river">
-          {t('Could not read the weather right now. Try again in a moment.')}
-        </p>
+        <Notice tone="error">{t('Could not read the weather right now. Try again in a moment.')}</Notice>
       ) : !weather.data ? (
         <p className="text-sm text-on-surface-variant">{t('Loading weather…')}</p>
       ) : weather.data.length === 0 ? (

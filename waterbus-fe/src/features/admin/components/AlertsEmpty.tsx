@@ -1,7 +1,7 @@
 import { Icon } from '../../../components/ui'
 import { t } from '../../../i18n'
 
-/** Shown when no alert is open. */
+/** Hiện khi không có cảnh báo nào đang mở. */
 export default function AlertsEmpty() {
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-dashed border-outline-variant bg-white p-4">
