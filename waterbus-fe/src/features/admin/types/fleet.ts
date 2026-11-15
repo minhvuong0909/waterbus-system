@@ -3,7 +3,7 @@ import type { StationDto } from '../../trips/types'
 
 export type { AdminBoat }
 
-/** Station as the backend returns it (`GET /api/v1/stations`). */
+/** Bến như backend trả về (`GET /api/v1/stations`). */
 export type AdminStation = StationDto
 
 export type NewStation = Pick<
