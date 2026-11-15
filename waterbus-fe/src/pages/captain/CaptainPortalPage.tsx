@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button, ErrorState, Icon, Modal, Notice, PageLoader } from '../../components/ui'
 import GpsSharePanel from '../../features/captain/components/GpsSharePanel'
-import CaptainSpeakerWidget from '../../features/captain/components/CaptainSpeakerWidget'
+import { useCockpitAudio } from '../../features/captain/hooks/useCockpitAudio'
 import { useFleetHub } from '../../features/operations/hooks/useFleetHub'
 import { getOperationTrips, operateTrip } from '../../features/operations/services/operationsService'
 import type { AdminTrip, OperationType } from '../../features/operations/types'
@@ -84,6 +84,9 @@ export default function CaptainPortalPage() {
   }
   const narrating = audioOverride ?? trip.tripType === 'Sightseeing'
 
+  // Quản lý phát âm thanh buồng lái tự động theo hành trình tàu
+  const { isPlaying, nowPlaying } = useCockpitAudio({ trip, narrating })
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl bg-white p-5 shadow-xs">
@@ -117,14 +120,18 @@ export default function CaptainPortalPage() {
           </div>
           <TripStatusBadge status={trip.status} />
         </div>
-      </div>
 
-      {/* Widget Hệ thống loa phát thanh buồng lái */}
-      <CaptainSpeakerWidget
-        trip={trip}
-        narrating={narrating}
-        onToggleNarrating={() => setAudioOverride(!narrating)}
-      />
+        {/* Thanh trạng thái nhỏ gọn khi đang phát âm thanh thông báo */}
+        {isPlaying && nowPlaying && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl bg-teal-flow/10 px-3.5 py-2 text-xs font-medium text-teal-900 border border-teal-200">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-500 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-600"></span>
+            </span>
+            <span className="truncate">🔊 <strong>{nowPlaying.title}:</strong> "{nowPlaying.text}"</span>
+          </div>
+        )}
+      </div>
 
       {user && <GpsSharePanel userId={user.id} />}
 
@@ -179,7 +186,6 @@ export default function CaptainPortalPage() {
               onClick={async () => {
                 if (await perform('SOS', note.trim() || t('Emergency reported by the captain.'))) {
                   setSosOpen(false)
-                  setNote('')
                   setSosSent(true)
                 }
               }}

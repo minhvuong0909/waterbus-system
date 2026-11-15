@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getAnnouncementSentence } from './CaptainSpeakerWidget'
+import { getAnnouncementSentence } from './announcement'
 import type { StopAnnouncementEvent } from '../../operations/hooks/useFleetHub'
 
 describe('getAnnouncementSentence', () => {
@@ -77,7 +77,6 @@ describe('getAnnouncementSentence', () => {
     } as unknown as StopAnnouncementEvent
 
     const sentence = getAnnouncementSentence(event)
-    // Khi không có tên bến → phải có câu về chặng cuối (vì nextStationName rỗng)
     expect(sentence).toContain('cuối')
   })
 })
