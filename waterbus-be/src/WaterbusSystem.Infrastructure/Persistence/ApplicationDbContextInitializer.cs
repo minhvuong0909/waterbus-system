@@ -36,12 +36,25 @@ public class ApplicationDbContextInitializer
             if (_context.Database.IsSqlServer())
             {
                 await _context.Database.MigrateAsync();
+                await EnsureRolesAsync();
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Lỗi khi chạy Migration CSDL SQL Server.");
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Role hệ thống là dữ liệu tham chiếu, luôn phải có (đăng ký khách hàng gán role Passenger). Khác với SeedAsync
+    /// (tài khoản mẫu, chỉ Development) nên chạy ở mọi môi trường. Idempotent.
+    /// </summary>
+    private async Task EnsureRolesAsync()
+    {
+        foreach (var role in new[] { "Admin", "Captain", "Staff", "Passenger" })
+        {
+            if (!await _roleManager.RoleExistsAsync(role)) await _roleManager.CreateAsync(new ApplicationRole(role));
         }
     }
 

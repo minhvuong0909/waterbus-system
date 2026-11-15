@@ -2,6 +2,9 @@
 export const API_ENDPOINTS = {
   auth: {
     login: '/api/v1/auth/login',
+    register: '/api/v1/auth/register',
+    confirmEmail: '/api/v1/auth/confirm-email',
+    resendVerification: '/api/v1/auth/resend-verification',
   },
   stations: '/api/v1/stations',
   /** Admin: every station (active and inactive), paged. */
@@ -75,6 +78,12 @@ export const API_ENDPOINTS = {
   me: {
     /** Passenger: orders of the signed-in account, newest first, paged. */
     orders: '/api/v1/me/orders',
+    /** Passenger: own name, phone and email status. */
+    profile: '/api/v1/me/profile',
+    /** Passenger: how many guest orders were bought with the verified email and are not linked yet. */
+    linkableOrders: '/api/v1/me/orders/linkable',
+    /** Passenger: links those orders to the account (up to 200 per call). */
+    linkOrders: '/api/v1/me/orders/link-by-email',
   },
   /** Journey behind a TripAccess link; the token travels in `X-Trip-Access-Token`. */
   tripAccess: '/api/v1/tripaccess',

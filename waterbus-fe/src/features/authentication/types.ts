@@ -14,3 +14,16 @@ export interface LoginResponse {
   roles: string[]
   token: string
 }
+
+/** Fields of the sign-up form. The role is never sent: the backend always creates a customer (Passenger). */
+export interface RegisterPayload {
+  fullName: string
+  email: string
+  phoneNumber: string
+  password: string
+}
+
+/** The same answer for any email on sign-up and "send again". */
+export interface AccountRequestAccepted {
+  message: string
+}

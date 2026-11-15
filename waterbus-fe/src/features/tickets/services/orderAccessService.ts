@@ -69,3 +69,16 @@ export function getSharedTrip(token: string): Promise<SharedTrip> {
     headers: { 'X-Trip-Access-Token': token },
   })
 }
+
+/** `GET /me/orders/linkable`: guest orders bought with the account's VERIFIED email and not linked yet. */
+export function getLinkableOrderCount(): Promise<{ count: number }> {
+  return apiRequest<{ count: number }>(API_ENDPOINTS.me.linkableOrders)
+}
+
+/**
+ * `POST /me/orders/link-by-email`: links those orders to the signed-in account (up to 200 per call,
+ * `remaining` > 0 means call again). Never links by an unverified email and never takes over an order of another account.
+ */
+export function linkOrdersByEmail(): Promise<{ linked: number; remaining: number }> {
+  return apiRequest<{ linked: number; remaining: number }>(API_ENDPOINTS.me.linkOrders, { method: 'POST' })
+}

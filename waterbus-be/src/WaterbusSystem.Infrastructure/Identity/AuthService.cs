@@ -50,6 +50,14 @@ public class AuthService : IAuthService
         }
 
         var roles = await _userManager.GetRolesAsync(user);
+
+        // Khách hàng phải xác minh email trước (nhân sự do vận hành cấp có EmailConfirmed = true từ đầu).
+        // Kiểm tra SAU khi mật khẩu đúng nên không lộ email nào đã có tài khoản.
+        if (!user.EmailConfirmed && roles.Contains(AccountService.PassengerRole))
+        {
+            throw new AuthenticationException("Email chưa được xác minh. Vui lòng bấm liên kết trong email xác minh (kiểm tra cả thư rác) hoặc yêu cầu gửi lại.");
+        }
+
         var token = _jwtTokenGenerator.GenerateToken(user.Id, user.Email ?? "", user.FullName, roles);
 
         return new LoginResponse(user.Id, user.Email ?? "", user.FullName, roles, token);

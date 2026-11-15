@@ -14,6 +14,9 @@ check-in gồm DI, DbContext/interface, Hangfire và cấu hình mẫu; không s
 
 | Nhóm API | Client / cách test |
 | --- | --- |
+| Đăng ký khách hàng | Web `/sign-up` gọi `POST /auth/register`; email xác minh dẫn tới `/verify-email?uid=&token=` gọi `POST /auth/confirm-email`; `POST /auth/resend-verification` gửi lại. Phản hồi luôn như nhau dù email đã có tài khoản hay chưa. Chưa xác minh email thì Passenger không đăng nhập được. |
+| Gắn đơn Guest vào tài khoản | Trang lịch sử đơn `/account/orders` có thẻ "Thêm vào tài khoản": `GET /me/orders/linkable` (đếm) và `POST /me/orders/link-by-email` (gắn, tối đa 200 mỗi lần, `remaining` > 0 thì gọi lại). Chỉ với email đã xác minh. |
+| Hồ sơ khách hàng | Web `/account/profile` gọi `GET/PUT /me/profile`. |
 | Auth login | Web `/sign-in`; mobile `/login`. Staff chỉ dùng Scanner; không có Dispatcher/Accountant. |
 | Stations list/paged/detail/create/update | Trang Admin Stations dùng dữ liệu thật, tạo/cập nhật bằng API. Ngừng hoạt động dùng `PUT isActive=false`, không xóa vật lý. Paged/detail có trong Test API. |
 | Boats list/detail/create/update | Admin Boats lấy toàn bộ trang, tạo tàu và ngừng hoạt động bằng API. Backend chỉ nhận tổng số ghế, chưa hỗ trợ cấu hình sơ đồ ghế qua API. Các trường cập nhật khác và CaptainUserId có trong Test API. |

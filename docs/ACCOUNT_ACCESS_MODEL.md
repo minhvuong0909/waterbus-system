@@ -45,8 +45,21 @@ Khi Passenger đã đăng nhập tạo checkout (`POST /bookings`, `/checkouts`,
 ## 5. OneWay / RoundTrip
 Claim, lịch sử, rotate, revoke hoạt động ở mức **Order**, nên một thao tác bao phủ cả hai Booking của RoundTrip; mỗi Booking có QR và TripAccess riêng.
 
+## 5a. Đăng ký khách hàng và gắn đơn Guest theo email đã xác minh
+**Đề xuất sửa BR-ID-04, cần nhóm xác nhận trước khi coi là CHỐT.** BR-ID-04 hiện cấm tự gán đơn vào tài khoản chỉ vì trùng email. Quy tắc mới: gắn đơn khi email của tài khoản **đã được xác minh** (người dùng đã bấm liên kết gửi tới đúng hộp thư nhận QR, cùng mức chứng minh với link quản lý đơn của BR-ID-02). Email chưa xác minh thì tuyệt đối không gắn. Gắn theo token (`POST /checkouts/{orderId}/claim`) vẫn giữ nguyên.
+
+Luồng: Guest mua vé (email người mua nằm ở `PurchaseOrder.PurchaserEmail`) → đăng ký bằng đúng email đó → bấm liên kết xác minh → đăng nhập → thẻ "Có N đơn mua bằng email của bạn" → bấm "Thêm vào tài khoản" → `POST /me/orders/link-by-email`.
+- `POST /auth/register` (role `Passenger` gán cứng trong code, không đọc từ request), `POST /auth/confirm-email` (token của ASP.NET Identity, hiệu lực 24 giờ), `POST /auth/resend-verification`. Phản hồi đăng ký và gửi lại luôn như nhau; thời gian phản hồi được đệm về tối thiểu 400 ms để không dò được email nào đã có tài khoản.
+- Khách hàng (Passenger) chưa xác minh email thì không đăng nhập được; tài khoản nhân sự (Admin, Captain, Staff) không bị áp quy tắc này.
+- Email xác minh gửi trực tiếp qua `IEmailTransport` bằng hàng đợi trong bộ nhớ, **không** qua `EmailOutbox` (outbox gắn với sự kiện đơn hàng, không chứa được token). Cần `Email:Enabled=true`, SMTP hợp lệ và `Email:PublicBaseUrl` (biến `PUBLIC_URL`) để tạo liên kết. Chặn gửi lặp 60 giây theo tài khoản (Redis, mất Redis thì vẫn gửi và dựa vào rate limit theo IP).
+- Gắn đơn chỉ với đơn chưa thuộc tài khoản nào, ở trạng thái `Confirmed`, `Cancelled`, `Expired` (không đụng đơn đang thanh toán), tối đa 200 đơn mỗi lần, chạy trong `ICommercialTransactionRunner`; đơn đã thuộc tài khoản khác bị bỏ qua. Idempotent.
+- Hồ sơ: `GET/PUT /me/profile` (họ tên, số điện thoại; email không đổi qua đây).
+- Mật khẩu tối thiểu 8 ký tự (chữ hoa, chữ thường, chữ số). Role luôn được tạo khi khởi động (mọi môi trường), không chỉ khi seed ở Development.
+- Migration `AddPurchaseOrderLinkingIndexes`: index lọc `PurchaserEmail` (chỉ đơn chưa gắn tài khoản) và `(PassengerAccountId, CreatedAt DESC)`. Bảng có index lọc nên câu lệnh SQL chạy tay phải bật `QUOTED_IDENTIFIER` (`sqlcmd -I`); ứng dụng (SqlClient) mặc định đã bật.
+- Giới hạn đã biết: so khớp email dựa vào collation không phân biệt hoa thường của SQL Server; token xác minh dùng DataProtection nên liên kết đã gửi sẽ vô hiệu nếu khoá DataProtection bị mất khi triển khai lại container (khách bấm "Gửi lại email xác minh").
+
 ## 6. Giới hạn đã biết / quyết định
-- **Đăng ký tài khoản Passenger không nằm trong BR v2.0 và chưa có endpoint** (chỉ `POST /auth/login`). Task này không tự đặt quy tắc đăng ký/xác minh email; claim giả định tài khoản Passenger đã tồn tại.
+- **Đăng ký tài khoản Passenger không nằm trong BR v2.0.** Đã thêm endpoint đăng ký và xác minh email, xem mục 5a (đề xuất sửa BR-ID-04, chờ nhóm xác nhận).
 - Không có migration mới: lịch sử lọc theo `PassengerAccountId` (chưa có chỉ mục riêng; thêm khi số Order lớn).
 - `AccessGrant.LastUsedAt` chưa được ghi (tránh ghi DB ở mỗi lần đọc).
 - Legacy `Booking.ManageOrderTokenHash` vẫn được middleware nhận diện như cũ, không dùng cho route mới.

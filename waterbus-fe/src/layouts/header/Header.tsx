@@ -5,7 +5,7 @@ import { Logo } from '../../components/brand'
 import { Button, Icon } from '../../components/ui'
 import { STAFF_ROLES } from '../../constant/roles'
 import { landingRouteFor } from '../../routes/landingRoute'
-import { hasAnyRole } from '../../features/authentication/utils'
+import { hasAnyRole, isPassenger } from '../../features/authentication/utils'
 import { useAuth } from '../../features/authentication/hooks/useAuth'
 import LanguageSwitcher from './LanguageSwitcher'
 import { ROUTES } from '../../routes/routes'
@@ -74,12 +74,22 @@ export default function Header() {
           <LanguageSwitcher />
           {user ? (
             <>
-              <span
-                className="hidden max-w-[80px] truncate text-body-md font-medium text-deep-river 2xl:inline"
-                title={user.email}
-              >
-                {user.fullName}
-              </span>
+              {isPassenger(user) ? (
+                <Link
+                  to={ROUTES.profile}
+                  className="hidden max-w-[80px] truncate text-body-md font-medium text-deep-river hover:underline 2xl:inline"
+                  title={user.email}
+                >
+                  {user.fullName}
+                </Link>
+              ) : (
+                <span
+                  className="hidden max-w-[80px] truncate text-body-md font-medium text-deep-river 2xl:inline"
+                  title={user.email}
+                >
+                  {user.fullName}
+                </span>
+              )}
               {staffArea && (
                 <Button
                   to={staffArea}

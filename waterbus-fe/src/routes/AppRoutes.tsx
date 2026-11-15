@@ -12,6 +12,9 @@ import { ROUTES } from './routes'
 // Each page is its own chunk, loaded on first visit.
 const HomePage = lazy(() => import('../pages/home/HomePage'))
 const SignInPage = lazy(() => import('../pages/auth/SignInPage'))
+const SignUpPage = lazy(() => import('../pages/auth/SignUpPage'))
+const VerifyEmailPage = lazy(() => import('../pages/auth/VerifyEmailPage'))
+const ProfilePage = lazy(() => import('../pages/account/ProfilePage'))
 const SearchResultsPage = lazy(() => import('../pages/trips/SearchResultsPage'))
 const SeatSelectionPage = lazy(() => import('../pages/booking/SeatSelectionPage'))
 const PassengerDetailsPage = lazy(() => import('../pages/booking/PassengerDetailsPage'))
@@ -50,6 +53,8 @@ const CaptainPortalPage = lazy(() => import('../pages/captain/CaptainPortalPage'
 const PAGES = [
   { path: ROUTES.home, Page: HomePage },
   { path: ROUTES.signIn, Page: SignInPage },
+  { path: ROUTES.signUp, Page: SignUpPage },
+  { path: ROUTES.verifyEmail, Page: VerifyEmailPage },
   { path: ROUTES.searchResults, Page: SearchResultsPage },
   { path: ROUTES.seatSelection, Page: SeatSelectionPage },
   { path: ROUTES.passengerDetails, Page: PassengerDetailsPage },
@@ -114,6 +119,16 @@ export default function AppRoutes() {
           <PrivateRoute roles={[ROLES.passenger]}>
             <RouteWithLayout>
               <OrderHistoryPage />
+            </RouteWithLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path={ROUTES.profile}
+        element={
+          <PrivateRoute roles={[ROLES.passenger]}>
+            <RouteWithLayout>
+              <ProfilePage />
             </RouteWithLayout>
           </PrivateRoute>
         }

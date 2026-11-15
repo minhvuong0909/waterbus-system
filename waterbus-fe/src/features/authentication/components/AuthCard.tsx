@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { ROUTES } from '../../../routes/routes'
 import { Icon } from '../../../components/ui'
 import { ApiError } from '../../../services/apiClient'
 import type { SignInPayload } from '../types'
@@ -48,6 +50,17 @@ export default function AuthCard() {
       )}
 
       <SignInForm submitting={submitting} onSubmit={submit} />
+
+      <p className="mt-6 text-center text-sm text-on-surface-variant">
+        {t('New here?')}{' '}
+        <Link to={ROUTES.signUp} className="font-bold text-teal-flow">
+          {t('Create account')}
+        </Link>
+        {' · '}
+        <Link to={ROUTES.verifyEmail} className="font-bold text-teal-flow">
+          {t('Resend verification email')}
+        </Link>
+      </p>
 
       <p className="mt-8 flex items-center gap-2 border-t border-surface-container pt-5 text-xs text-on-surface-variant">
         <Icon name="info" className="text-base text-teal-flow" />

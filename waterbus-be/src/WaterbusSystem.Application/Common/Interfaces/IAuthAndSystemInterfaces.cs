@@ -32,4 +32,7 @@ public interface IDateTimeService
 public interface IUserDirectory
 {
     Task<IReadOnlyDictionary<Guid, string>> GetFullNamesAsync(IEnumerable<Guid> userIds, CancellationToken cancellationToken = default);
+
+    /// <summary>Email của tài khoản chỉ khi tài khoản đang hoạt động và email ĐÃ xác minh; ngược lại null.</summary>
+    Task<string?> GetVerifiedEmailAsync(Guid userId, CancellationToken cancellationToken = default);
 }

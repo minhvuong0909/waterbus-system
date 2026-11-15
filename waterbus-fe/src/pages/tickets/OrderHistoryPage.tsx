@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Breadcrumb, Button, ErrorState, Icon, PageLoader } from '../../components/ui'
 import AccountOrderCard from '../../features/tickets/components/AccountOrderCard'
+import LinkOrdersCard from '../../features/tickets/components/LinkOrdersCard'
 import { useAccountOrders } from '../../features/tickets/hooks/useTickets'
 import { useDocumentTitle } from '../../hooks'
 import { t } from '../../i18n'
@@ -33,6 +34,8 @@ export default function OrderHistoryPage() {
       <h1 className="mt-space-sm font-display text-4xl font-bold tracking-tight text-deep-river">
         {t('Order history')}
       </h1>
+
+      <LinkOrdersCard onLinked={retry} />
 
       {page.items.length === 0 ? (
         <div className="mx-auto mt-space-xl flex max-w-lg flex-col items-center rounded-2xl border border-outline-variant/40 bg-white p-space-xl text-center shadow-sm">

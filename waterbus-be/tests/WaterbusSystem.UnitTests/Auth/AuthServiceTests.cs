@@ -126,4 +126,53 @@ public class AuthServiceTests
             m => m.CheckPasswordSignInAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>(), It.IsAny<bool>()),
             Times.Never);
     }
+
+    private static AuthService LoginSutFor(ApplicationUser user, string role)
+    {
+        var userManagerMock = CreateUserManagerMock();
+        userManagerMock.Setup(m => m.FindByEmailAsync(user.Email!)).ReturnsAsync(user);
+        userManagerMock.Setup(m => m.GetRolesAsync(user)).ReturnsAsync(new List<string> { role });
+        var signInManagerMock = CreateSignInManagerMock(userManagerMock.Object);
+        signInManagerMock.Setup(m => m.CheckPasswordSignInAsync(user, "Secret123", true)).ReturnsAsync(SignInResult.Success);
+        var jwt = new Mock<IJwtTokenGenerator>();
+        jwt.Setup(j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IList<string>>())).Returns("jwt");
+        return new AuthService(userManagerMock.Object, signInManagerMock.Object, jwt.Object);
+    }
+
+    [Fact]
+    public async Task LoginAsync_ForPassengerWithUnverifiedEmail_ShouldBeRejectedEvenWithTheRightPassword()
+    {
+        var user = ActiveUser("customer@gmail.com");
+        user.EmailConfirmed = false;
+
+        var act = () => LoginSutFor(user, "Passenger").LoginAsync(new LoginRequest(user.Email!, "Secret123"));
+
+        (await act.Should().ThrowAsync<AuthenticationException>()).WithMessage("*chưa được xác minh*");
+    }
+
+    [Fact]
+    public async Task LoginAsync_ForPassengerWithVerifiedEmail_ShouldSucceed()
+    {
+        var user = ActiveUser("customer@gmail.com");
+        user.EmailConfirmed = true;
+
+        var response = await LoginSutFor(user, "Passenger").LoginAsync(new LoginRequest(user.Email!, "Secret123"));
+
+        response.Token.Should().Be("jwt");
+    }
+
+    [Theory]
+    [InlineData("Admin")]
+    [InlineData("Captain")]
+    [InlineData("Staff")]
+    public async Task LoginAsync_ForStaffAccountsWithoutVerifiedEmail_ShouldStillWork(string role)
+    {
+        // Tài khoản nhân sự do vận hành cấp: quy tắc xác minh email chỉ áp dụng cho khách hàng.
+        var user = ActiveUser("ops@waterbus.vn");
+        user.EmailConfirmed = false;
+
+        var act = () => LoginSutFor(user, role).LoginAsync(new LoginRequest(user.Email!, "Secret123"));
+
+        await act.Should().NotThrowAsync();
+    }
 }
