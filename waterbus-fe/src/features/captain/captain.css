@@ -1,14 +1,13 @@
-﻿.captain-shell {
-  --cap-navy: #10233f;
-  --cap-text: #102039;
+.captain-shell {
+  --cap-navy: #0d2538;
+  --cap-text: #0d2538;
   --cap-muted: #536078;
-  --cap-teal: #009e95;
+  --cap-teal: #147a7e;
   --cap-border: #cbdced;
   min-height: 100vh;
   color: var(--cap-text);
-  background: radial-gradient(ellipse at 45% 25%, #edf8ff 0, transparent 65%),
-    linear-gradient(120deg, #eaf3fc, #d7e9fa);
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: #faf9fb;
+  font-family: Inter, sans-serif;
 }
 .captain-shell button,
 .captain-shell select,
@@ -22,7 +21,7 @@
   cursor: not-allowed;
 }
 .captain-shell :is(button, select, summary, a):focus-visible {
-  outline: 3px solid #008e96;
+  outline: 3px solid #147a7e;
   outline-offset: 4px;
 }
 .captain-header {
@@ -33,7 +32,7 @@
   padding: 10px 28px;
   background: linear-gradient(110deg, #152a46, #0b1b38);
   color: white;
-  box-shadow: 0 3px 12px #10233f18;
+  box-shadow: 0 3px 12px #0d253818;
 }
 .captain-brand {
   display: flex;
@@ -137,7 +136,7 @@
   background: white;
   border: 1px solid var(--cap-border);
   border-radius: 12px;
-  box-shadow: 0 8px 30px #10233f25;
+  box-shadow: 0 8px 30px #0d253825;
 }
 .captain-account-menu > span {
   font-size: 12px;
@@ -360,9 +359,9 @@
 }
 .captain-leaflet .captain-station-label {
   background: #fff;
-  border: 1px solid #009f98;
+  border: 1px solid #147a7e;
   border-radius: 7px;
-  color: #102039;
+  color: #0d2538;
   font-weight: 800;
   font-size: 12px;
   padding: 4px 9px;
@@ -610,14 +609,14 @@
   place-items: center;
 }
 .captain-stop-list .is-next .captain-stop-dot {
-  border-color: #00a194;
+  border-color: #147a7e;
 }
 .captain-stop-list .is-next .captain-stop-dot::after {
   content: '';
   position: absolute;
   inset: 4px;
   border-radius: 50%;
-  background: #00a194;
+  background: #147a7e;
 }
 .captain-stop-list li > div {
   flex: 1;
@@ -1072,4 +1071,16 @@
   .captain-map-surface {
     height: 34vh;
   }
+}
+
+/* Tiêu đề và số liệu nổi bật dùng font hiển thị như phần còn lại của ứng dụng. */
+.captain-shell h1,
+.captain-shell h2,
+.captain-shell h3,
+.captain-shell .captain-header-title,
+.captain-shell .captain-metric strong {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.captain-map-surface .leaflet-container {
+  border-radius: 4px 4px 10px 10px;
 }

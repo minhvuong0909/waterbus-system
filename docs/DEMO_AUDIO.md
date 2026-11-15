@@ -16,7 +16,9 @@ Chạy API không bằng Docker: đặt cùng các biến môi trường trong f
 ## Các bước demo
 1. Mở http://localhost:8080/sign-in, đăng nhập Captain `captain@waterbus.vn` / `Captain@123456!` (tài khoản seed, chỉ có ở Development).
 2. Vào Cổng thuyền trưởng (`/captain`). Bấm **Bật loa** một lần (trình duyệt chỉ cho phát âm thanh sau một cú chạm).
-3. Chọn một chuyến (chuyến tham quan là "… (Tham quan)"), bấm **Mở đón khách** rồi **Bắt đầu chuyến** (mỗi nút bấm hai lần để xác nhận).
+3. Chọn một chuyến tham quan ("… (Tham quan)" hoặc "Tour vòng sông Sài Gòn") và bấm **Mở đón khách**.
+   Trước khi **Khởi hành**, Admin phải xác nhận Captain có mặt cho chuyến đó (quản lý Captain của teammate: Admin đăng nhập, mở chuyến, ghi nhận có mặt;
+   API `POST /api/v1/trips/{tripId}/captain-attendance`). Chưa xác nhận thì Khởi hành bị từ chối. Sau đó bấm **Khởi hành** (mỗi nút xác nhận qua hộp thoại).
 4. Nghe: "rời bến", các địa danh (chỉ chuyến tham quan), "sắp tới bến", "đã tới bến". Mỗi thông báo phát tiếng Việt rồi tiếng Anh.
 5. Khi tàu tới bến cuối nút **Đã cập bến** bật lên, bấm xong thì bấm **Kết thúc chuyến**.
 6. Admin (`admin@waterbus.vn` / `Admin@123456!`) xem tàu chạy ở **Điều hành trực tiếp**.
@@ -29,6 +31,7 @@ Chỉ một trình phát nhận audio cho mỗi tàu: **kết nối mới nhất
 | Không có tàu chạy trên bản đồ | Chưa bật giả lập GPS (thiếu file `docker-compose.demo.yml`), hoặc chuyến chưa được Bắt đầu. |
 | Nút "Mở đón khách" xám, ghi "Đến hh:mm mới mở" | Chưa dùng file demo (mặc định chỉ mở từ 30 phút trước giờ khởi hành). |
 | "Đã cập bến" xám, ghi "Chờ GPS" hoặc "chưa tới bến cuối" | Tàu chưa tới bến cuối; cần có GPS (giả lập hoặc Chia sẻ GPS). Admin vẫn cho cập bến được. |
+| Bấm Khởi hành báo "Admin chưa ghi nhận Captain có mặt" | Admin cần xác nhận Captain có mặt cho chuyến (xem bước 3). |
 | Có chuyến chạy nhưng im lặng | Chưa bấm **Bật loa**; hoặc API chưa seed xong clip (đợi thêm); hoặc tab Captain khác đang nhận audio. |
 | Địa danh không phát hết | Hệ thống xét địa danh lần lượt theo thứ tự tuyến; xem bán kính ở `ApplicationDbContextInitializer.SightseeingPois`. |
 

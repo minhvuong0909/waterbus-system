@@ -1078,5 +1078,14 @@ public class ApplicationDbContextInitializer
                 await _userManager.AddToRoleAsync(user, role);
             }
         }
+        else if (role == "Captain" && existingUser.CaptainStatus is null)
+        {
+            // Tài khoản Captain demo tạo trước khi có quản lý nhân sự (CaptainStatus mới là cột sau này, rỗng): đăng nhập bị từ chối.
+            // Chỉ sửa tài khoản demo này, không đụng Captain do Admin tạo.
+            existingUser.CaptainStatus = CaptainStatus.Active;
+            existingUser.CaptainLicenseNumber ??= "DEMO-NOT-A-REAL-LICENSE";
+            existingUser.CaptainLicenseExpiresOn ??= DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1));
+            await _userManager.UpdateAsync(existingUser);
+        }
     }
 }

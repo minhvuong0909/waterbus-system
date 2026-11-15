@@ -296,6 +296,8 @@ function TripDashboard({
           key={trip.id}
           stops={stops}
           routeCode={trip.routeCode}
+          tripType={trip.tripType}
+          boatCode={trip.boatCode ?? ''}
           position={gps.position}
           fresh={gps.fresh}
         />

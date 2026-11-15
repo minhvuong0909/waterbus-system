@@ -41,6 +41,8 @@ interface FleetMapProps {
   landmarks?: MapLandmark[]
   /** Tàu đang được chọn ở danh sách bên cạnh: bản đồ bay tới tàu, các tàu khác mờ đi. */
   selectedBoatId?: string | null
+  /** Hộp bật/tắt lớp ở góc bản đồ; ẩn khi chỉ có vài lớp cố định (vd. màn hình thuyền trưởng). */
+  showLayerControl?: boolean
   className?: string
 }
 
@@ -149,7 +151,15 @@ function LayerToggle({ label, color, checked, onChange }: { label: string; color
 }
 
 /** Bản đồ hành lang sông: tuyến, bến, địa danh và tàu. Có hộp chú thích để bật/tắt từng lớp cho đỡ rối. */
-export default function FleetMap({ stations, boats, path, landmarks = [], selectedBoatId = null, className = '' }: FleetMapProps) {
+export default function FleetMap({
+  stations,
+  boats,
+  path,
+  landmarks = [],
+  selectedBoatId = null,
+  showLayerControl = true,
+  className = '',
+}: FleetMapProps) {
   const [showStations, setShowStations] = useState(true)
   const [showLandmarks, setShowLandmarks] = useState(true)
   const [showBoats, setShowBoats] = useState(true)
@@ -206,6 +216,7 @@ export default function FleetMap({ stations, boats, path, landmarks = [], select
         <FocusBoat boat={selected} />
       </MapContainer>
 
+      {showLayerControl && (
       <div className="absolute right-3 top-3 z-[1000] w-36 space-y-0.5 rounded-xl bg-white/95 p-1.5 shadow-lg ring-1 ring-black/5 backdrop-blur-sm">
         <LayerToggle label={t('Piers')} color="#fff" checked={showStations} onChange={setShowStations} />
         {landmarks.length > 0 && (
@@ -213,6 +224,7 @@ export default function FleetMap({ stations, boats, path, landmarks = [], select
         )}
         <LayerToggle label={t('Boats')} color="#147a7e" checked={showBoats} onChange={setShowBoats} />
       </div>
+      )}
     </div>
   )
 }
