@@ -37,8 +37,8 @@ public sealed class CaptainRulesTests
     public void RequestsRequireProfileAndReason()
     {
         var validator = new CreateCaptainRequestValidator();
-        Assert.True(validator.Validate(new CreateCaptainRequest("Captain", "captain@example.com", "0901234567", "LICENSE", DateOnly.MaxValue, "Captain1234")).IsValid);
-        Assert.False(validator.Validate(new CreateCaptainRequest("", "bad", "phone", "", default, "")).IsValid);
+        Assert.True(validator.Validate(new CreateCaptainRequest("Captain", "captain@example.com", "0901234567", "LICENSE", DateOnly.MaxValue)).IsValid);
+        Assert.False(validator.Validate(new CreateCaptainRequest("", "bad", "phone", "", default)).IsValid);
         Assert.False(new RecordCaptainAttendanceRequestValidator().Validate(new RecordCaptainAttendanceRequest(Guid.Empty, Guid.Empty, "")).IsValid);
         Assert.False(new ChangeCaptainStatusRequestValidator().Validate(new ChangeCaptainStatusRequest((CaptainStatus)99, "")).IsValid);
         Assert.True(new AssignCaptainRequestValidator().Validate(new AssignCaptainRequest(null, "Admin removes assignment")).IsValid);

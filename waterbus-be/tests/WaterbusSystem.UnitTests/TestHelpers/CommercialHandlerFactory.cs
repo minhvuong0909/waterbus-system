@@ -41,7 +41,8 @@ internal static class CommercialHandlerFactory
     internal static BookingCreationService Creation(
     ApplicationDbContext context,
     IDistributedLockService? locks = null,
-    ISeatAvailabilityService? availability = null)
+    ISeatAvailabilityService? availability = null,
+    ICaptainOperationsService? captains = null)
     {
         return new BookingCreationService(
             new OrderRepository(context),
@@ -52,7 +53,7 @@ internal static class CommercialHandlerFactory
             availability ?? new SeatAvailabilityService(context),
             new CheckoutOptions(),
             new CheckoutAccessService(new AccessGrantRepository(context),
-                new CheckoutOptions()), Captains(context));
+                new CheckoutOptions()), captains ?? Captains(context));
     }
     internal static ICaptainOperationsService Captains(ApplicationDbContext context) => new WaterbusSystem.Application.Features.Captains.Services.CaptainOperationsService(
         new CaptainRepository(context), new EfUnitOfWork(context), new DirectCommercialTransactionRunner(),

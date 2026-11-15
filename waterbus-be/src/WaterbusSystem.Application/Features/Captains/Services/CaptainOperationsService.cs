@@ -130,25 +130,8 @@ public sealed class CaptainOperationsService(ICaptainRepository repository, IUni
         alert.ResolvedAt ??= clock.Now; alert.ResolvedByAdminId ??= admin;
         await unitOfWork.SaveChangesAsync(ct); return true;
     }, ct);
-    public Task<int> CheckAttendanceAsync(CancellationToken ct = default) => transactions.RunAsync(async () =>
-    {
-        var count = 0;
-        foreach (var trip in await repository.PendingTripsAsync(ct))
-        {
-            var boat = trip.Boat;
-            var opens = trip.TripStopCalls.Where(c => !c.IsDeleted && c.Status != "Skipped").OrderBy(c => c.VisitOrder).FirstOrDefault()?.CheckInOpenAt;
-            if (boat is null || opens is null) continue;
-            var required = CaptainRules.RequiredAt(opens.Value, options.Value.PreparationMinutes);
-            if (clock.Now <= required || await repository.AttendanceAsync(trip.Id, boat.Id, boat.CaptainAssignmentVersion, ct) is not null) continue;
-            var key = $"missing:{trip.Id}:{boat.CaptainAssignmentVersion}:{required.UtcTicks}";
-            if (await repository.HasAlertAsync(key, ct)) continue;
-            repository.Add(new CaptainAlert { BoatId = boat.Id, TripId = trip.Id, CaptainId = boat.CaptainUserId,
-                Type = "CaptainMissing", DeduplicationKey = key, OccurredAt = clock.Now,
-                Message = $"Captain chưa được Admin ghi nhận có mặt trước giờ Staff mở check-in {options.Value.PreparationMinutes} phút. Admin quyết định xử lý chuyến." });
-            count++;
-        }
-        await unitOfWork.SaveChangesAsync(ct); return count;
-    }, ct);
+    public Task<int> CheckAttendanceAsync(CancellationToken ct = default) =>
+        repository.CreateDueAttendanceAlertsAsync(clock.Now, options.Value.PreparationMinutes, options.Value.AlertBatchSize, ct);
     private static CaptainAttendanceResponse Response(CaptainAttendance a) => new(a.Id, a.TripId, a.BoatId, a.CaptainId,
         a.AssignmentVersion, a.RecordedByAdminId, a.RecordedAt, a.RequiredAt, a.IsLate, a.Reason);
 }

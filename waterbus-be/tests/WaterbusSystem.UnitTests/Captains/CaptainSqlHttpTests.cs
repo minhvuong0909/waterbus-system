@@ -42,6 +42,10 @@ using WaterbusSystem.Application.Interfaces.Services;
 using WaterbusSystem.Application.DTOs.Requests.Captains;
 using WaterbusSystem.Infrastructure.Identity;
 using Microsoft.AspNetCore.SignalR.Client;
+using WaterbusSystem.Application.DTOs.Requests.Accounts;
+using WaterbusSystem.UnitTests.Payments;
+using Microsoft.Extensions.Options;
+using WaterbusSystem.Application.DTOs.Responses.Bookings;
 
 namespace WaterbusSystem.UnitTests.Captains;
 
@@ -53,6 +57,12 @@ public sealed class CaptainSqlHttpTests : IAsyncLifetime
 {
     private sealed class Clock : IDateTimeService { public DateTimeOffset Now { get; set; } = DateTimeOffset.UtcNow; }
     private readonly Clock _clock = new();
+    private sealed class Mail : IVerificationEmailQueue
+    {
+        public string Link { get; private set; } = "";
+        public bool TryEnqueue(string email, string name, string link) { Link = link; return true; }
+    }
+    private readonly Mail _mail = new();
     private string? _connection;
     private WebApplication _app = null!;
     private readonly string _jwtSecret = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
@@ -73,6 +83,10 @@ public sealed class CaptainSqlHttpTests : IAsyncLifetime
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:DefaultConnection"] = _connection,
+            ["Email:Enabled"] = "true",
+            ["Email:FromAddress"] = "test@waterbus.example.com",
+            ["Email:Smtp:Host"] = "smtp.example.com",
+            ["Email:PublicBaseUrl"] = "https://waterbus.example.com",
             ["JwtSettings:Secret"] = _jwtSecret,
             ["VnPay:TmnCode"] = "POLTEST01",
             ["VnPay:HashSecret"] = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)),
@@ -87,6 +101,7 @@ public sealed class CaptainSqlHttpTests : IAsyncLifetime
         builder.Services.AddSingleton<ICheckoutSessionStore, CommercialHandlerFactory.MemoryStore>();
         builder.Services.AddScoped<ValidateRequestFilter>();
         builder.Services.AddRealtime();
+        builder.Services.AddSingleton<IVerificationEmailQueue>(_mail);
         builder.Services.AddSingleton<IDateTimeService>(_clock);
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, WaterbusSystem.Infrastructure.Services.CurrentUserService>();
@@ -115,12 +130,20 @@ public sealed class CaptainSqlHttpTests : IAsyncLifetime
         await c.Database.EnsureDeletedAsync();
     }
 
-    private async Task<Guid> CreateCaptain(HttpClient admin)
+    private async Task<Guid> CreateCaptain(HttpClient admin, bool activate = true)
     {
         var response = await admin.PostAsJsonAsync("/api/v1/captains", new CreateCaptainRequest("Test Captain", "new-captain@example.com", "0901234567",
-            "LICENSE-NEW", DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)), "Captain1234"));
+            "LICENSE-NEW", DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1))));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return await response.Content.ReadFromJsonAsync<Guid>();
+        var id = await response.Content.ReadFromJsonAsync<Guid>();
+        if (activate)
+        {
+            var token = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(_mail.Link).Fragment.TrimStart('#'))["token"].ToString();
+            using var guest = Http();
+            var activated = await guest.PostAsJsonAsync("/api/v1/auth/confirm-email", new { userId = id, token, password = "Captain1234" });
+            Assert.Equal(HttpStatusCode.NoContent, activated.StatusCode);
+        }
+        return id;
     }
     private async Task<string> Login(HttpClient http)
     {
@@ -159,7 +182,7 @@ public sealed class CaptainSqlHttpTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, (await captain.GetAsync("/api/v1/trips/operations")).StatusCode);
         await using var verify = Context();
         Assert.Equal(TripStatus.Scheduled, (await verify.Trips.SingleAsync()).Status);
-        Assert.Equal(4, await verify.Set<CaptainAuditEvent>().CountAsync(a => a.CaptainId == id && a.Action != "AssignmentChanged"));
+        Assert.Equal(6, await verify.Set<CaptainAuditEvent>().CountAsync(a => a.CaptainId == id && a.Action != "AssignmentChanged"));
         Assert.True(await verify.Set<CaptainAlert>().AnyAsync(a => a.Type == "AssignmentChanged"));
     }
     [SqlServerDomainFact]
@@ -222,6 +245,212 @@ public sealed class CaptainSqlHttpTests : IAsyncLifetime
         Assert.Empty((await guest.GetFromJsonAsync<JsonElement>("/api/v1/trips/search")).EnumerateArray());
         Assert.Equal(HttpStatusCode.Conflict, (await guest.PostAsJsonAsync("/api/v1/bookings", new CreateBookingRequest(_seed.Trip.Id, [_seed.Seat1.Id], _seed.StationA.Id, _seed.StationC.Id, "Guest", "guest@example.com", null))).StatusCode);
         await using var verify = Context(); Assert.Equal(0, await verify.PurchaseOrders.CountAsync()); Assert.Equal(1, await verify.Set<CaptainAttendance>().CountAsync());
+    }
+
+    private string InvitationToken() => Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(_mail.Link).Fragment.TrimStart('#'))["token"].ToString();
+
+    [SqlServerDomainFact]
+    public async Task InvitationIsOneTime_ResendRevokesOldLink_WeakPasswordDoesNotActivate_ExpiryIsEnforced()
+    {
+        using var admin = Http("Admin"); using var guest = Http();
+        var id = await CreateCaptain(admin, activate: false);
+        var pending = await admin.GetFromJsonAsync<JsonElement>($"/api/v1/captains/{id}");
+        Assert.True(pending.GetProperty("invitationPending").GetBoolean());
+        Assert.False(pending.GetProperty("emailConfirmed").GetBoolean());
+        await using (var db = Context())
+        {
+            var user = await db.Users.SingleAsync(u => u.Id == id);
+            Assert.Null(user.PasswordHash); Assert.False(user.EmailConfirmed); Assert.False(user.IsActive);
+        }
+        Assert.Equal(HttpStatusCode.Unauthorized, (await guest.PostAsJsonAsync("/api/v1/auth/login", new { email = "new-captain@example.com", password = "Captain1234" })).StatusCode);
+        var old = InvitationToken();
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.PostAsJsonAsync($"/api/v1/captains/{id}/invitation", new { reason = "Recipient requested a fresh link" })).StatusCode);
+        var fresh = InvitationToken(); Assert.NotEqual(old, fresh);
+        Assert.Equal(HttpStatusCode.BadRequest, (await guest.PostAsJsonAsync("/api/v1/auth/confirm-email", new { userId = id, token = old, password = "Captain1234" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await guest.PostAsJsonAsync("/api/v1/auth/confirm-email", new { userId = id, token = fresh, password = "weak" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await guest.PostAsJsonAsync("/api/v1/auth/confirm-email", new { userId = id, token = fresh, password = "Captain1234" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await guest.PostAsJsonAsync("/api/v1/auth/confirm-email", new { userId = id, token = fresh, password = "Different1234" })).StatusCode);
+        await Login(guest);
+        await using var verify = Context(); var active = await verify.Users.SingleAsync(u => u.Id == id);
+        Assert.True(active.EmailConfirmed); Assert.NotEqual("Captain1234", active.PasswordHash);
+        Assert.True(await verify.Set<CaptainAuditEvent>().AnyAsync(a => a.CaptainId == id && a.ActedByCaptainId == id && a.ActedByAdminId == null));
+    }
+
+    [SqlServerDomainFact]
+    public async Task InvitationExpiredCannotActivate_AndConcurrentAcceptHasOneWinner()
+    {
+        using var admin = Http("Admin"); using var guest = Http(); var id = await CreateCaptain(admin, false);
+        var token = InvitationToken();
+        _app.Services.GetRequiredService<IOptions<PersonnelInvitationOptions>>().Value.TokenLifetimeHours = 0.00001;
+        await Task.Delay(100);
+        Assert.Equal(HttpStatusCode.BadRequest, (await guest.PostAsJsonAsync("/api/v1/auth/confirm-email", new { userId = id, token, password = "Captain1234" })).StatusCode);
+        _app.Services.GetRequiredService<IOptions<PersonnelInvitationOptions>>().Value.TokenLifetimeHours = 24;
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.PostAsJsonAsync($"/api/v1/captains/{id}/invitation", new { reason = "Expired invite" })).StatusCode);
+        token = InvitationToken();
+        var attempts = await Task.WhenAll(guest.PostAsJsonAsync("/api/v1/auth/confirm-email", new { userId = id, token, password = "Captain1234" }),
+            guest.PostAsJsonAsync("/api/v1/auth/confirm-email", new { userId = id, token, password = "Different1234" }));
+        Assert.Single(attempts, r => r.StatusCode == HttpStatusCode.NoContent);
+        Assert.Single(attempts, r => r.StatusCode == HttpStatusCode.BadRequest);
+    }
+
+    [SqlServerDomainFact]
+    public async Task SuspendedInvitationCannotActivate_AndAdminCannotBypassAcceptance()
+    {
+        using var admin = Http("Admin"); using var guest = Http();
+        var id = await CreateCaptain(admin, false); var token = InvitationToken();
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.PutAsJsonAsync($"/api/v1/captains/{id}/status", new ChangeCaptainStatusRequest(CaptainStatus.Suspended, "Review required"))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await guest.PostAsJsonAsync("/api/v1/auth/confirm-email", new { userId = id, token, password = "Captain1234" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await admin.PutAsJsonAsync($"/api/v1/captains/{id}/status", new ChangeCaptainStatusRequest(CaptainStatus.Active, "Bypass invitation"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await admin.PostAsJsonAsync($"/api/v1/captains/{id}/invitation", new { reason = "Still suspended" })).StatusCode);
+    }
+
+    [SqlServerDomainFact]
+    public async Task EmailChangeRequiresFreshActivation_RevokesExistingJwt_AndSuspendedProfileCannotBypassIt()
+    {
+        using var admin = Http("Admin"); using var captain = Http(); using var guest = Http();
+        var id = await CreateCaptain(admin); var jwt = await Login(captain);
+        captain.DefaultRequestHeaders.Authorization = new("Bearer", jwt);
+        var update = new UpdateCaptainRequest("Captain", "changed-captain@example.com", "0901234567", "LICENSE-NEW", DateOnly.MaxValue, "Verified email change request");
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.PutAsJsonAsync($"/api/v1/captains/{id}/status", new ChangeCaptainStatusRequest(CaptainStatus.Suspended, "Review"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await admin.PutAsJsonAsync($"/api/v1/captains/{id}", update)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.PutAsJsonAsync($"/api/v1/captains/{id}/status", new ChangeCaptainStatusRequest(CaptainStatus.Inactive, "Review completed"))).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.PutAsJsonAsync($"/api/v1/captains/{id}", update)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await captain.GetAsync("/api/v1/trips/operations")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await guest.PostAsJsonAsync("/api/v1/auth/login", new { email = update.Email, password = "Captain1234" })).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await guest.PostAsJsonAsync("/api/v1/auth/confirm-email", new { userId = id, token = InvitationToken(), password = "Changed1234" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await guest.PostAsJsonAsync("/api/v1/auth/login", new { email = update.Email, password = "Changed1234" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await captain.GetAsync("/api/v1/trips/operations")).StatusCode);
+    }
+
+    [SqlServerDomainFact]
+    public async Task LegacyBoatEndpointsRequireActualReason_RespectOneToOneAndOperationalGuard_AndAuditBothCaptains()
+    {
+        using var admin = Http("Admin"); var id = await CreateCaptain(admin);
+        var original = _seed.Boat.CaptainUserId;
+        var update = new UpdateBoatRequest("Edited boat", _seed.Boat.RegistrationNumber, _seed.Boat.TotalSeats, "Test", 2024, true, id);
+        Assert.Equal(HttpStatusCode.Conflict, (await admin.PutAsJsonAsync($"/api/v1/boats/{_seed.Boat.Id}", update)).StatusCode);
+        await using (var db = Context()) { Assert.Equal(original, (await db.Boats.SingleAsync(b => b.Id == _seed.Boat.Id)).CaptainUserId); }
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.PutAsJsonAsync($"/api/v1/boats/{_seed.Boat.Id}", update with { CaptainChangeReason = "Original Captain unavailable" })).StatusCode);
+        await using (var db = Context())
+        {
+            var audit = await db.Set<CaptainAuditEvent>().Where(a => a.BoatId == _seed.Boat.Id && a.Action == "AssignmentChanged").ToListAsync();
+            Assert.Equal(2, audit.Count); Assert.All(audit, a => Assert.Equal("Original Captain unavailable", a.Reason));
+            (await db.Trips.SingleAsync()).Status = TripStatus.Boarding; await db.SaveChangesAsync();
+        }
+        Assert.Equal(HttpStatusCode.Conflict, (await admin.PutAsJsonAsync($"/api/v1/boats/{_seed.Boat.Id}", update with { CaptainUserId = null, CaptainChangeReason = "Remove" })).StatusCode);
+        var create = new CreateBoatRequest("NEW-CAP", "New boat", "NEW-REG", 10, "Test", 2024, id, "Already assigned");
+        Assert.Equal(HttpStatusCode.Conflict, (await admin.PostAsJsonAsync("/api/v1/boats", create)).StatusCode);
+    }
+
+    private sealed class PausedCommercial(ICommercialTransactionRunner inner) : ICommercialTransactionRunner
+    {
+        public readonly TaskCompletionSource Locked = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public readonly TaskCompletionSource Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task<T> RunAsync<T>(Func<Task<T>> action, CancellationToken ct = default) => inner.RunAsync(async () =>
+        { Locked.TrySetResult(); await Release.Task.WaitAsync(ct); return await action(); }, ct);
+    }
+
+    [SqlServerDomainFact]
+    public async Task AttendanceJobRunsDuringRealBookingCheckoutAndPaymentTransactions_WithoutCommercialLockOrStatusChanges()
+    {
+        BookingResponse? held = null;
+        foreach (var operation in new[] { "Booking", "Checkout", "Payment" })
+        {
+            // Mỗi thao tác giữ khóa thương mại thật và được tạm dừng bên trong transaction.
+            await using var db = Context();
+            var call = await db.TripStopCalls.SingleAsync(c => c.TripId == _seed.Trip.Id && c.VisitOrder == 1);
+            call.CheckInOpenAt = _clock.Now.AddMinutes(19); await db.SaveChangesAsync();
+            await using var commercial = Context(); var paused = new PausedCommercial(new SqlCommercialTransactionRunner(commercial));
+            var seat = operation == "Booking" ? _seed.Seat1.Id : _seed.Seat2.Id;
+            Task work; Task<BookingResponse>? bookingTask = null;
+            using var gateway = new VerifiedVnPayFixture();
+            if (operation == "Booking") work = bookingTask = CommercialHandlerFactory.Booking(commercial, transactions: paused)
+                .CreateAsync(CommercialCheckoutTests.Command(_seed));
+            else if (operation == "Checkout") work = CommercialHandlerFactory.Checkout(commercial, transactions: paused)
+                .HoldAsync(new([new(_seed.Trip.Id, [seat], _seed.StationA.Id, _seed.StationC.Id)]));
+            else
+            {
+                work = CommercialHandlerFactory.Payment(commercial, gateway.Gateway, paused)
+                    .CreateVnPayUrlAsync(held!.OrderId, "127.0.0.1", held.AccessToken);
+
+            }
+            await paused.Locked.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            try
+            {
+                using var scope = _app.Services.CreateScope();
+                await scope.ServiceProvider.GetRequiredService<ICaptainOperationsService>().CheckAttendanceAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                Assert.False(work.IsCompleted);
+            }
+            finally { paused.Release.TrySetResult(); }
+            await work.WaitAsync(TimeSpan.FromSeconds(10));
+            if (bookingTask is not null) held = await bookingTask;
+            if (operation == "Payment")
+            {
+                var payment = await commercial.FinancialTransactions.SingleAsync();
+                var response = await CommercialHandlerFactory.Confirmation(commercial, gateway.Gateway, new SqlCommercialTransactionRunner(commercial))
+                    .ConfirmIpnAsync(gateway.Callback(payment.MerchantReference!, payment.Amount), default);
+                Assert.Equal("00", response.RspCode);
+            }
+        }
+        await using var verify = Context();
+        Assert.Equal(TripStatus.Scheduled, (await verify.Trips.SingleAsync()).Status);
+        Assert.Equal(1, await verify.Set<CaptainAlert>().CountAsync(a => a.Type == "CaptainMissing"));
+        Assert.Single(await verify.Tickets.ToListAsync());
+    }
+
+    [SqlServerDomainFact]
+    public async Task ConcurrentJobsAreIdempotent_Batched_ExcludeHistoryAndFuture_AndRespectFirstServedStop()
+    {
+        await using (var db = Context())
+        {
+            var calls = await db.TripStopCalls.OrderBy(c => c.VisitOrder).ToListAsync();
+            calls[0].Status = "Skipped"; calls[0].CheckInOpenAt = _clock.Now.AddDays(-10);
+            calls[1].CheckInOpenAt = _clock.Now.AddMinutes(21); // First served stop is not due yet.
+            calls[2].CheckInOpenAt = _clock.Now.AddMinutes(1);
+            await db.SaveChangesAsync();
+        }
+        using (var scope = _app.Services.CreateScope()) Assert.Equal(0, await scope.ServiceProvider.GetRequiredService<ICaptainOperationsService>().CheckAttendanceAsync());
+        await using (var db = Context())
+        {
+            (await db.TripStopCalls.SingleAsync(c => c.VisitOrder == 2)).CheckInOpenAt = _clock.Now.AddMinutes(19);
+            for (var i = 0; i < 20; i++)
+            {
+                var historical = new Trip { RouteId = _seed.Route.Id, BoatId = _seed.Boat.Id, DepartureTime = _clock.Now.AddDays(-40), ArrivalTime = _clock.Now.AddDays(-39) };
+                var future = new Trip { RouteId = _seed.Route.Id, BoatId = _seed.Boat.Id, DepartureTime = _clock.Now.AddYears(1), ArrivalTime = _clock.Now.AddYears(1).AddHours(1) };
+                historical.TripStopCalls.Add(new TripStopCall { RouteStopId = _seed.Trip.TripStopCalls.First().RouteStopId, VisitOrder = 1, CheckInOpenAt = historical.DepartureTime.AddMinutes(-30) });
+                future.TripStopCalls.Add(new TripStopCall { RouteStopId = _seed.Trip.TripStopCalls.First().RouteStopId, VisitOrder = 1, CheckInOpenAt = future.DepartureTime.AddMinutes(-30) });
+                db.Trips.AddRange(historical, future);
+            }
+            await db.SaveChangesAsync();
+        }
+        var counts = await Task.WhenAll(Enumerable.Range(0, 5).Select(async _ =>
+        { using var scope = _app.Services.CreateScope(); return await scope.ServiceProvider.GetRequiredService<ICaptainOperationsService>().CheckAttendanceAsync(); }));
+        Assert.Equal(1, counts.Sum());
+        await using var verify = Context(); Assert.Single(await verify.Set<CaptainAlert>().Where(a => a.Type == "CaptainMissing").ToListAsync());
+    }
+
+    [SqlServerDomainFact]
+    public async Task AttendanceJobLimitsEachBatch_AndDrainsWithoutDuplicateAlerts()
+    {
+        _app.Services.GetRequiredService<IOptions<WaterbusSystem.Application.Features.Captains.CaptainOptions>>().Value.AlertBatchSize = 2;
+        await using (var db = Context())
+        {
+            (await db.TripStopCalls.SingleAsync(c => c.VisitOrder == 1)).CheckInOpenAt = _clock.Now.AddMinutes(19);
+            for (var i = 0; i < 4; i++)
+            {
+                var trip = new Trip { RouteId = _seed.Route.Id, BoatId = _seed.Boat.Id, DepartureTime = _clock.Now.AddHours(1), ArrivalTime = _clock.Now.AddHours(2) };
+                trip.TripStopCalls.Add(new TripStopCall { RouteStopId = _seed.Trip.TripStopCalls.First().RouteStopId, VisitOrder = 1, CheckInOpenAt = _clock.Now.AddMinutes(19) });
+                db.Trips.Add(trip);
+            }
+            await db.SaveChangesAsync();
+        }
+        foreach (var expected in new[] { 2, 2, 1, 0 })
+        {
+            using var scope = _app.Services.CreateScope();
+            Assert.Equal(expected, await scope.ServiceProvider.GetRequiredService<ICaptainOperationsService>().CheckAttendanceAsync());
+        }
+        await using var verify = Context();
+        Assert.Equal(5, await verify.Set<CaptainAlert>().CountAsync(a => a.Type == "CaptainMissing"));
     }
 
     private HttpClient Http(string? role = null)

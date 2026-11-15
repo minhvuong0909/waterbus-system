@@ -8,6 +8,7 @@ namespace WaterbusSystem.Application.Interfaces.Services;
 public interface ICaptainService
 {
     Task<Guid> CreateAsync(CreateCaptainRequest request, CancellationToken ct = default);
+    Task ResendInvitationAsync(Guid id, string reason, CancellationToken ct = default);
     Task UpdateAsync(Guid id, UpdateCaptainRequest request, CancellationToken ct = default);
     Task ChangeStatusAsync(Guid id, ChangeCaptainStatusRequest request, CancellationToken ct = default);
     Task<CaptainResponse> GetAsync(Guid id, CancellationToken ct = default);

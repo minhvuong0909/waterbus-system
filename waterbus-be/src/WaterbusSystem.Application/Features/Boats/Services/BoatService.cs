@@ -37,7 +37,7 @@ public sealed class BoatService(IBoatRepository boats, IUnitOfWork unitOfWork, I
             IsActive = true
         };
 
-        await captains.ChangeAssignmentAsync(boat, request.CaptainUserId, "Boat created by Admin", cancellationToken);
+        await captains.ChangeAssignmentAsync(boat, request.CaptainUserId, request.CaptainChangeReason ?? "", cancellationToken);
         boats.Add(boat);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -73,7 +73,7 @@ public sealed class BoatService(IBoatRepository boats, IUnitOfWork unitOfWork, I
         boat.Manufacturer = request.Manufacturer;
         boat.YearBuilt = request.YearBuilt;
         boat.IsActive = request.IsActive;
-        await captains.ChangeAssignmentAsync(boat, request.CaptainUserId, "Boat updated by Admin", cancellationToken);
+        await captains.ChangeAssignmentAsync(boat, request.CaptainUserId, request.CaptainChangeReason ?? "", cancellationToken);
         boat.UpdatedAt = DateTimeOffset.UtcNow;
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

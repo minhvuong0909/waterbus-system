@@ -7,4 +7,5 @@ public record CreateBoatRequest(
     int TotalSeats,
     string Manufacturer,
     int YearBuilt,
-    Guid? CaptainUserId);
+    Guid? CaptainUserId,
+    string? CaptainChangeReason = null);

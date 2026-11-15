@@ -12,6 +12,5 @@ public sealed class CreateCaptainRequestValidator : AbstractValidator<CreateCapt
         RuleFor(r => r.Phone).NotEmpty().MaximumLength(30).Matches(@"^\+?[0-9 ()-]{8,30}$");
         RuleFor(r => r.LicenseNumber).NotEmpty().MaximumLength(100);
         RuleFor(r => r.LicenseExpiresOn).NotEmpty();
-        RuleFor(r => r.Password).NotEmpty().MinimumLength(8).MaximumLength(128);
     }
 }

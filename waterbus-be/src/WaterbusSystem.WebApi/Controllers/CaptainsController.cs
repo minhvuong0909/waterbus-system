@@ -31,6 +31,9 @@ public sealed class CaptainsController(ICaptainService captains, ICaptainOperati
     [HttpPut("{id:guid}/status")]
     public async Task<IActionResult> Status(Guid id, ChangeCaptainStatusRequest request, CancellationToken ct)
     { await captains.ChangeStatusAsync(id, request, ct); return NoContent(); }
+    [HttpPost("{id:guid}/invitation")]
+    public async Task<IActionResult> Invite(Guid id, ResendCaptainInvitationRequest request, CancellationToken ct)
+    { await captains.ResendInvitationAsync(id, request.Reason, ct); return NoContent(); }
     [HttpPut("/api/v1/boats/{boatId:guid}/captain")]
     public async Task<IActionResult> Assign(Guid boatId, AssignCaptainRequest request, CancellationToken ct)
     { await operations.AssignAsync(boatId, request, ct); return NoContent(); }

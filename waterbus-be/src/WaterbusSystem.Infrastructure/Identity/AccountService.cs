@@ -29,7 +29,7 @@ public sealed class AccountService(
     IEmailCooldownStore cooldown,
     IOptions<EmailOptions> emailOptions,
     ILogger<AccountService> logger,
-    TimeSpan? minResponseTime = null) : IAccountService
+    TimeSpan? minResponseTime = null, IPersonnelInvitationService? personnelInvitations = null) : IAccountService
 {
     internal const string PassengerRole = "Passenger";
     private static readonly TimeSpan ResendCooldown = TimeSpan.FromSeconds(60);
@@ -100,6 +100,8 @@ public sealed class AccountService(
 
     public async Task ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken ct = default)
     {
+        if (personnelInvitations is not null && (await users.FindByIdAsync(request.UserId.ToString()))?.PersonnelInvitationPending == true)
+        { await personnelInvitations.AcceptAsync(request, ct); return; }
         var invalid = new ValidationException([new ValidationFailure("token", "Liên kết xác nhận không hợp lệ hoặc đã hết hạn.")]);
         var user = await users.FindByIdAsync(request.UserId.ToString());
         if (user is not { IsActive: true, EmailConfirmed: false } || !await users.IsInRoleAsync(user, PassengerRole))

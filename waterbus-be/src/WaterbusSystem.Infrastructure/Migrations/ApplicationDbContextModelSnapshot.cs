@@ -748,7 +748,10 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("ActedByAdminId")
+                    b.Property<Guid?>("ActedByAdminId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ActedByCaptainId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Action")
@@ -2403,6 +2406,11 @@ namespace WaterbusSystem.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("[ScheduleId] IS NOT NULL");
 
+                    b.HasIndex("Status", "ArrivalTime")
+                        .HasFilter("[IsDeleted] = 0");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("Status", "ArrivalTime"), new[] { "BoatId" });
+
                     b.ToTable("Trips", t =>
                         {
                             t.HasCheckConstraint("CK_Trips_Arrival", "[ArrivalTime] >= [DepartureTime] AND ([ActualArrivalTime] IS NULL OR [ActualDepartureTime] IS NULL OR [ActualArrivalTime] >= [ActualDepartureTime])");
@@ -2647,6 +2655,9 @@ namespace WaterbusSystem.Infrastructure.Migrations
 
                     b.Property<string>("PasswordHash")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("PersonnelInvitationPending")
+                        .HasColumnType("bit");
 
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("nvarchar(max)");

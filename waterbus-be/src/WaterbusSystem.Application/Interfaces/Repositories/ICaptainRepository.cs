@@ -16,9 +16,8 @@ public interface ICaptainRepository
     Task<Boat?> AssignedBoatAsync(Guid captainId, CancellationToken ct);
     Task<List<Trip>> BoatTripsAsync(Guid boatId, CancellationToken ct);
     Task<Trip> TripAsync(Guid id, CancellationToken ct);
-    Task<List<Trip>> PendingTripsAsync(CancellationToken ct);
+    Task<int> CreateDueAttendanceAlertsAsync(DateTimeOffset at, int preparationMinutes, int batchSize, CancellationToken ct);
     Task<CaptainAttendance?> AttendanceAsync(Guid tripId, Guid boatId, Guid version, CancellationToken ct);
-    Task<bool> HasAlertAsync(string key, CancellationToken ct);
     Task<CaptainAlert> AlertAsync(Guid id, CancellationToken ct);
     Task<PaginatedList<CaptainAuditEvent>> AuditAsync(GetCaptainEventsRequest request, CancellationToken ct);
     Task<PaginatedList<CaptainAlert>> AlertsAsync(GetCaptainEventsRequest request, CancellationToken ct);

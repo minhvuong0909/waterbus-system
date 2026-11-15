@@ -58,7 +58,7 @@ public class AuthService : IAuthService
             throw new AuthenticationException("Email chưa được xác minh. Vui lòng bấm liên kết trong email xác minh (kiểm tra cả thư rác) hoặc yêu cầu gửi lại.");
         }
 
-        if (roles.Contains("Captain") && user.CaptainStatus != WaterbusSystem.Domain.Enums.CaptainStatus.Active)
+        if (roles.Contains("Captain") && (user.CaptainStatus != WaterbusSystem.Domain.Enums.CaptainStatus.Active || user.PersonnelInvitationPending))
             throw new AuthenticationException(InvalidCredentialsMessage);
         var token = _jwtTokenGenerator.GenerateToken(user.Id, user.Email ?? "", user.FullName, roles,
             roles.Contains("Captain") ? user.CaptainSessionVersion.ToString() : null);

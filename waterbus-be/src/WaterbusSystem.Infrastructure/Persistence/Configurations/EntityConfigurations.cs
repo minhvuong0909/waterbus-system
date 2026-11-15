@@ -141,6 +141,7 @@ public class TripConfiguration : IEntityTypeConfiguration<Trip>
     public void Configure(EntityTypeBuilder<Trip> builder)
     {
         builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.Status, x.ArrivalTime }).IncludeProperties(x => x.BoatId).HasFilter("[IsDeleted] = 0");
         builder.HasIndex(x => new { x.ScheduleId, x.DepartureTime }).IsUnique()
             .HasFilter("[ScheduleId] IS NOT NULL");
         builder.ToTable(t =>

@@ -20,7 +20,8 @@ public sealed class CaptainRepository(ApplicationDbContext db) : ICaptainReposit
     private IQueryable<CaptainResponse> Responses(IQueryable<ApplicationUser> users) => users.Select(u => new CaptainResponse(u.Id, u.FullName,
         u.Email!, u.PhoneNumber, u.CaptainLicenseNumber, u.CaptainLicenseExpiresOn,
         u.CaptainStatus ?? CaptainStatus.Inactive,
-        db.Boats.Where(b => b.CaptainUserId == u.Id).Select(b => (Guid?)b.Id).FirstOrDefault()));
+        db.Boats.Where(b => b.CaptainUserId == u.Id).Select(b => (Guid?)b.Id).FirstOrDefault(),
+        u.PersonnelInvitationPending, u.EmailConfirmed));
 
     public async Task<CaptainResponse> GetAsync(Guid id, CancellationToken ct) =>
         await Responses(Captains.Where(u => u.Id == id)).FirstOrDefaultAsync(ct) ?? throw new NotFoundException("Captain", id);
@@ -34,7 +35,7 @@ public sealed class CaptainRepository(ApplicationDbContext db) : ICaptainReposit
     public async Task<bool> IsEligibleAsync(Guid id, DateTimeOffset at, CancellationToken ct)
     {
         var state = await db.Users.AsNoTracking().Where(u => u.Id == id).Select(u => new {
-            u.IsActive, u.CaptainStatus, u.CaptainLicenseNumber, u.CaptainLicenseExpiresOn,
+            IsActive = u.IsActive && !u.PersonnelInvitationPending, u.CaptainStatus, u.CaptainLicenseNumber, u.CaptainLicenseExpiresOn,
             IsCaptain = db.UserRoles.Any(ur => ur.UserId == u.Id && db.Roles.Any(r => r.Id == ur.RoleId && r.Name == "Captain"))
         }).FirstOrDefaultAsync(ct);
         return state is not null && CaptainRules.IsEligible(state.IsActive, state.IsCaptain, state.CaptainStatus,
@@ -44,13 +45,13 @@ public sealed class CaptainRepository(ApplicationDbContext db) : ICaptainReposit
     public static IQueryable<Guid> EligibleIds(ApplicationDbContext db, DateTimeOffset at)
     {
         var date = CaptainRules.VietnamDate(at);
-        return db.Users.Where(u => u.IsActive && u.CaptainStatus == CaptainStatus.Active &&
+        return db.Users.Where(u => u.IsActive && !u.PersonnelInvitationPending && u.CaptainStatus == CaptainStatus.Active &&
             u.CaptainLicenseNumber != null && u.CaptainLicenseNumber.Trim() != "" && u.CaptainLicenseExpiresOn >= date &&
             db.UserRoles.Any(ur => ur.UserId == u.Id && db.Roles.Any(r => r.Id == ur.RoleId && r.Name == "Captain")))
             .Select(u => u.Id);
     }
     public Task<CaptainSessionState?> SessionAsync(Guid id, CancellationToken ct) => db.Users.AsNoTracking()
-        .Where(u => u.Id == id).Select(u => new CaptainSessionState(u.IsActive,
+        .Where(u => u.Id == id).Select(u => new CaptainSessionState(u.IsActive && !u.PersonnelInvitationPending,
             db.UserRoles.Any(ur => ur.UserId == u.Id && db.Roles.Any(r => r.Id == ur.RoleId && r.Name == "Captain")),
             u.CaptainStatus, u.CaptainSessionVersion)).FirstOrDefaultAsync(ct);
     public Task<bool> LicenseExistsAsync(string license, Guid? exceptId, CancellationToken ct) =>
@@ -60,11 +61,10 @@ public sealed class CaptainRepository(ApplicationDbContext db) : ICaptainReposit
     public Task<List<Trip>> BoatTripsAsync(Guid boatId, CancellationToken ct) => db.Trips.AsNoTracking().Where(t => t.BoatId == boatId).ToListAsync(ct);
     public async Task<Trip> TripAsync(Guid id, CancellationToken ct) => await db.Trips.AsNoTracking().Include(t => t.Boat).Include(t => t.TripStopCalls)
         .FirstOrDefaultAsync(t => t.Id == id, ct) ?? throw new NotFoundException(nameof(Trip), id);
-    public Task<List<Trip>> PendingTripsAsync(CancellationToken ct) => db.Trips.AsNoTracking().Include(t => t.Boat).Include(t => t.TripStopCalls)
-        .Where(t => t.Status == TripStatus.Scheduled || t.Status == TripStatus.Boarding).ToListAsync(ct);
+    public Task<int> CreateDueAttendanceAlertsAsync(DateTimeOffset at, int preparationMinutes, int batchSize, CancellationToken ct) =>
+        CaptainAttendanceAlertWriter.InsertAsync(db, at, preparationMinutes, batchSize, ct);
     public Task<CaptainAttendance?> AttendanceAsync(Guid tripId, Guid boatId, Guid version, CancellationToken ct) => db.Set<CaptainAttendance>().AsNoTracking()
         .FirstOrDefaultAsync(a => a.TripId == tripId && a.BoatId == boatId && a.AssignmentVersion == version, ct);
-    public Task<bool> HasAlertAsync(string key, CancellationToken ct) => db.Set<CaptainAlert>().AnyAsync(a => a.DeduplicationKey == key, ct);
     public async Task<CaptainAlert> AlertAsync(Guid id, CancellationToken ct) => await db.Set<CaptainAlert>().FirstOrDefaultAsync(a => a.Id == id, ct) ?? throw new NotFoundException(nameof(CaptainAlert), id);
     public Task<PaginatedList<CaptainAuditEvent>> AuditAsync(GetCaptainEventsRequest r, CancellationToken ct) => db.Set<CaptainAuditEvent>().AsNoTracking()
         .Where(a => (!r.CaptainId.HasValue || a.CaptainId == r.CaptainId) && (!r.TripId.HasValue || a.TripId == r.TripId))
