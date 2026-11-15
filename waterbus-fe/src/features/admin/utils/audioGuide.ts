@@ -1,4 +1,4 @@
-/** A landmark of the database (`GET /audioguides/pois`, BE `AudioGuidePoiResponse`). */
+/** Một địa danh trong database (`GET /audioguides/pois`, BE `AudioGuidePoiResponse`). */
 export interface NarrationPoi {
   poiId: string
   name: string
@@ -8,7 +8,7 @@ export interface NarrationPoi {
   isPublished: boolean
 }
 
-/** Azure neural voices for Vietnamese (`AzureSpeech` voice names). */
+/** Các giọng neural tiếng Việt của Azure (tên giọng `AzureSpeech`). */
 export const NARRATION_VOICES = [
   { id: 'vi-VN-HoaiMyNeural', label: 'Female voice (Hoài My)' },
   { id: 'vi-VN-NamMinhNeural', label: 'Male voice (Nam Minh)' },
@@ -16,5 +16,5 @@ export const NARRATION_VOICES = [
 
 export type NarrationVoice = (typeof NARRATION_VOICES)[number]['id']
 
-/** Azure TTS accepts up to 10,000 characters per script (`SynthesizeAudioCommandValidator`). */
+/** Azure TTS nhận tối đa 10.000 ký tự mỗi kịch bản (`SynthesizeAudioCommandValidator`). */
 export const MAX_NARRATION_LENGTH = 10_000

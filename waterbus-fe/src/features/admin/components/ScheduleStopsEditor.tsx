@@ -1,12 +1,12 @@
-import { INPUT_CLASS } from '../../../components/ui/styles'
+import { CHECKBOX_CLASS, INPUT_CLASS } from '../../../components/ui/styles'
 import { t } from '../../../i18n'
 import type { ScheduleStopRow } from '../utils/scheduleStops'
 
 const OFFSET_CLASS = `${INPUT_CLASS} !min-h-[36px] !w-20 !px-2 text-right`
 
 /**
- * The stops a schedule serves, in travel order, with their minutes after the departure time
- * (BR-STOP-01). The first stop leaves at the departure time and the last one only has an arrival.
+ * Các bến lịch chạy phục vụ, theo thứ tự đi, kèm số phút sau giờ khởi hành (BR-STOP-01). Bến đầu rời đúng giờ khởi
+ * hành, bến cuối chỉ có giờ đến.
  */
 export default function ScheduleStopsEditor({
   rows,
@@ -26,8 +26,8 @@ export default function ScheduleStopsEditor({
       <legend className="mb-1 text-xs font-semibold text-on-surface-variant">
         {t('Stops and minutes after departure')}
       </legend>
-      <div className="overflow-hidden rounded-xl border border-outline-variant/40">
-        <div className="grid grid-cols-[1fr_5rem_5rem] gap-2 bg-mist px-3 py-2 text-2xs font-semibold uppercase tracking-wider text-on-surface-variant">
+      <div className="overflow-hidden rounded-xl border border-outline-variant/30">
+        <div className="grid grid-cols-[1fr_5rem_5rem] gap-2 bg-mist px-3 py-2 text-2xs font-semibold text-on-surface-variant">
           <span>{t('Station')}</span>
           <span className="text-right">{t('Arrives')}</span>
           <span className="text-right">{t('Leaves')}</span>
@@ -43,7 +43,7 @@ export default function ScheduleStopsEditor({
               <label className="flex min-w-0 items-center gap-2 text-sm text-deep-river">
                 <input
                   type="checkbox"
-                  className="rounded border-outline-variant text-teal-flow focus:ring-teal-flow/30"
+                  className={CHECKBOX_CLASS}
                   checked={row.included}
                   onChange={(e) => onChange(row.routeStopId, { included: e.target.checked })}
                 />

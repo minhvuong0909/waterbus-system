@@ -12,7 +12,7 @@ import { t } from '../../i18n'
 
 type Dialog = { kind: 'form'; seatClass?: SeatClass } | { kind: 'deactivate'; seatClass: SeatClass } | null
 
-/** Seat classes: fares are set per trip type and seat class (BR-FARE-01). */
+/** Hạng ghế: giá vé đặt theo loại chuyến và hạng ghế (BR-FARE-01). */
 export default function SeatClassesPage() {
   useDocumentTitle('Seat classes')
   const [version, reload] = useReload()
@@ -30,11 +30,6 @@ export default function SeatClassesPage() {
     reload()
   }
 
-  const hasFilters = search.trim() !== '' || status !== ''
-  const resetFilters = () => {
-    setSearch('')
-    setStatus('')
-  }
   const needle = search.trim().toLowerCase()
   const filteredClasses = classes.data.filter(
     (c) =>
@@ -49,7 +44,21 @@ export default function SeatClassesPage() {
       header: 'Description',
       render: (c) => <span className="text-on-surface-variant">{c.description ?? '—'}</span>,
     },
-    { header: 'Seats', render: (c) => c.seatCount, className: 'text-right' },
+    {
+      header: 'Seats in fleet',
+      className: 'text-right',
+      render: (c) =>
+        !c.isActive && c.seatCount > 0 ? (
+          <span
+            className="font-semibold text-signal-amber"
+            title={t('These seats still belong to a switched-off class. Change their class on the boat seats page.')}
+          >
+            {c.seatCount}
+          </span>
+        ) : (
+          <span title={t('Seats of this class across all boats, including switched-off seats.')}>{c.seatCount}</span>
+        ),
+    },
     { header: 'Status', render: (c) => <ActiveBadge active={c.isActive} /> },
     {
       header: 'Actions',
@@ -88,7 +97,7 @@ export default function SeatClassesPage() {
           <Notice tone="error">{activate.error}</Notice>
         </div>
       )}
-      <FilterBar onReset={hasFilters ? resetFilters : undefined}>
+      <FilterBar>
         <TextField
           label="Search"
           placeholder={t('Search by name or code')}
@@ -109,7 +118,7 @@ export default function SeatClassesPage() {
       {dialog?.kind === 'deactivate' && (
         <ConfirmModal
           title="Deactivate seat class"
-          message={t('Deactivate {name}? New seats and fares can no longer use this class.', {
+          message={t('Deactivate {name}? New seats and fares can no longer use this class. This is refused while one of its seats is booked or held on an unfinished trip.', {
             name: dialog.seatClass.name,
           })}
           confirmLabel="Deactivate"

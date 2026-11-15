@@ -181,7 +181,7 @@ export interface GenerateTripsResult {
   skippedNotOperatingDay: number
 }
 
-/** BE `CreateAdHocTripRequest`: `departureTime` is an ISO instant, the stops are in calling order. */
+/** BE `CreateAdHocTripRequest`: `departureTime` là thời điểm ISO, các bến theo thứ tự ghé. */
 export interface AdHocTripInput {
   routeId: string
   tripType: TripType
@@ -191,7 +191,7 @@ export interface AdHocTripInput {
   checkInOpenMinutesBeforeDeparture: number | null
 }
 
-/** BE `AssignTripBoatResponse`. `remappedReservations`: sold seats moved to the same seat of the new boat. */
+/** BE `AssignTripBoatResponse`. `remappedReservations`: số ghế đã bán được chuyển sang đúng ghế đó trên tàu mới. */
 export interface AssignBoatResult {
   tripId: string
   boatId: string

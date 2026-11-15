@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { SelectField, TextField } from '../../../components/ui'
+import { Button, SelectField, TextField, Notice } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { useSubmit } from '../../../hooks'
 import { createRoute, updateRoute } from '../services/routeService'
+import { stopsError } from '../utils/routeStops'
 import type { AdminStation, RouteDetail, RouteInput, RouteStopInput, ServiceType } from '../types'
 import FormActions from './FormActions'
 import RouteStopsEditor from './RouteStopsEditor'
@@ -11,9 +12,8 @@ import RouteStopsEditor from './RouteStopsEditor'
 const EMPTY_STOP: RouteStopInput = { stationId: '', canBoard: true, canAlight: true }
 
 /**
- * Adds a route or edits one. The code is fixed once created. A route already used by a schedule
- * or trip (`structureLocked`) keeps its service type and stops; only its name, duration and
- * distance can change.
+ * Thêm hoặc sửa một tuyến. Mã cố định sau khi tạo. Tuyến đã được lịch chạy hoặc chuyến dùng (`structureLocked`) giữ
+ * nguyên loại dịch vụ và bến dừng; chỉ đổi được tên, thời gian và quãng đường.
  */
 export default function RouteForm({
   route,
@@ -35,7 +35,8 @@ export default function RouteForm({
   })
   const [stops, setStops] = useState<RouteStopInput[]>(
     () =>
-      route?.stops.map(({ stationId, canBoard, canAlight }) => ({ stationId, canBoard, canAlight })) ?? [
+      // Khách lên/xuống ở mọi bến (vé một giá), nên không có lựa chọn riêng từng bến.
+      route?.stops.map(({ stationId }) => ({ stationId, canBoard: true, canAlight: true })) ?? [
         EMPTY_STOP,
         EMPTY_STOP,
       ],
@@ -46,11 +47,12 @@ export default function RouteForm({
     setForm((f) => ({ ...f, [key]: e.target.value }))
 
   const locked = route?.structureLocked ?? false
-  // `stations` only has the active ones; a station the route already calls at stays selectable.
+  // `stations` gồm cả bến đã ngừng. Chỉ cho chọn bến đang hoạt động (backend từ chối bến đã ngừng); bến tuyến đang
+  // ghé sẵn vẫn được giữ để hiển thị đúng khi sửa tuyến.
   const stationOptions = [
-    ...stations,
+    ...stations.filter((station) => station.isActive),
     ...(route?.stops ?? [])
-      .filter((stop) => !stations.some((station) => station.id === stop.stationId))
+      .filter((stop) => !stations.some((station) => station.id === stop.stationId && station.isActive))
       .map((stop) => ({ id: stop.stationId, name: stop.stationName })),
   ]
   const duration = Number(form.duration)
@@ -66,8 +68,13 @@ export default function RouteForm({
       form.distance.trim() !== '' && distance >= 0 && distance <= 1000
         ? undefined
         : t('Enter the distance in kilometres.'),
-    stops: stops.every((stop) => stop.stationId) ? undefined : t('Choose a station for every stop.'),
+    stops: stopsError(stops, form.serviceType),
   }
+  // Tên gợi ý theo bến đầu và bến cuối, để tên không lệch với bến dừng.
+  const nameOf = (stationId: string) => stationOptions.find((station) => station.id === stationId)?.name
+  const first = nameOf(stops[0]?.stationId ?? '')
+  const last = nameOf(stops[stops.length - 1]?.stationId ?? '')
+  const suggestedName = first && last ? `${first} - ${last}` : undefined
   const shown: Partial<typeof errors> = showErrors ? errors : {}
 
   const submit = async (e: FormEvent) => {
@@ -110,21 +117,26 @@ export default function RouteForm({
         </SelectField>
       </div>
       <TextField label="Name" value={form.name} onChange={set('name')} error={shown.name} maxLength={150} />
+      {suggestedName && form.name.trim() === '' && (
+        <Button size="sm" variant="text" className="-mt-1" onClick={() => setForm((f) => ({ ...f, name: suggestedName }))}>
+          {t('Use suggested name: {name}', { name: suggestedName })}
+        </Button>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <TextField label="Duration (minutes)" inputMode="numeric" value={form.duration} onChange={set('duration')} error={shown.duration} />
         <TextField label="Distance (km)" inputMode="decimal" value={form.distance} onChange={set('distance')} error={shown.distance} />
       </div>
 
-      <RouteStopsEditor stops={stops} stations={stationOptions} locked={locked} onChange={setStops} />
+      <RouteStopsEditor stops={stops} stations={stationOptions} serviceType={form.serviceType} locked={locked} onChange={setStops} />
       {shown.stops && (
         <p role="alert" className="text-2xs text-coral-glow">
           {shown.stops}
         </p>
       )}
       {locked && (
-        <p className="rounded-lg bg-mist px-3 py-2 text-sm text-on-surface-variant">
+        <Notice tone="info">
           {t('Schedules or trips already use this route, so its service and stops are fixed. Add a new route to change them.')}
-        </p>
+        </Notice>
       )}
       <FormActions error={error} busy={busy} onCancel={onCancel} />
     </form>

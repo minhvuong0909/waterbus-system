@@ -7,7 +7,7 @@ import { createSeatClass, updateSeatClass } from '../services/seatClassService'
 import type { SeatClass } from '../types'
 import FormActions from './FormActions'
 
-/** Adds a seat class or renames one. The code is fixed once created: fares refer to the class. */
+/** Thêm hoặc đổi tên một hạng ghế. Mã cố định sau khi tạo: giá vé tham chiếu tới hạng ghế. */
 export default function SeatClassForm({
   seatClass,
   onDone,

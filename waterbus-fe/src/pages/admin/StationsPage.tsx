@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button, DataTable, ErrorState, FilterBar, FilterChips, Modal, Notice, PageHeader, PageLoader, TextField } from '../../components/ui'
-import ActiveToggle from '../../features/admin/components/ActiveToggle'
+import FormActions from '../../features/admin/components/FormActions'
 import { ActiveBadge } from '../../features/admin/components/StatusBadge'
 import {
   createStation,
   getStations,
-  setStationActive,
   updateStation,
 } from '../../features/admin/services/stationService'
 import type { AdminStation, NewStation } from '../../features/admin/types'
@@ -14,7 +13,7 @@ import { useDocumentTitle, useFetch, useReload, useSubmit } from '../../hooks'
 import { t } from '../../i18n'
 import type { Column } from '../../components/ui'
 
-type Dialog = { kind: 'form'; station?: AdminStation } | { kind: 'delete'; station: AdminStation } | null
+type Dialog = { kind: 'form'; station?: AdminStation } | null
 
 interface FormState {
   code: string
@@ -34,7 +33,7 @@ const toForm = (s?: AdminStation): FormState => ({
   orderIndex: s ? String(s.orderIndex) : '',
 })
 
-/** Field errors for the form, or null when it can be submitted. */
+/** Lỗi của từng ô trong form, hoặc rỗng khi đã gửi được. */
 function validate(form: FormState): Partial<Record<keyof FormState, string>> {
   const errors: Partial<Record<keyof FormState, string>> = {}
   if (!form.code.trim()) errors.code = t('Code is required.')
@@ -51,10 +50,13 @@ function validate(form: FormState): Partial<Record<keyof FormState, string>> {
 
 function StationForm({
   station,
+  others,
   onDone,
   onCancel,
 }: {
   station?: AdminStation
+  /** Các bến khác, để báo khi trùng thứ tự dọc sông. */
+  others: AdminStation[]
   onDone: () => void
   onCancel: () => void
 }) {
@@ -62,6 +64,7 @@ function StationForm({
   const [showErrors, setShowErrors] = useState(false)
   const { run, busy, error } = useSubmit()
   const errors = showErrors ? validate(form) : {}
+  const sameOrderAs = form.orderIndex.trim() === '' ? undefined : others.find((s) => s.orderIndex === Number(form.orderIndex))
   const set = (key: keyof FormState) => (e: { target: { value: string } }) =>
     setForm((f) => ({ ...f, [key]: e.target.value }))
 
@@ -86,7 +89,16 @@ function StationForm({
   return (
     <form onSubmit={submit} noValidate className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <TextField label="Code" value={form.code} onChange={set('code')} error={errors.code} placeholder="ST06" />
+        <TextField
+          label="Code"
+          value={form.code}
+          onChange={set('code')}
+          error={errors.code}
+          placeholder="ST06"
+          maxLength={20}
+          disabled={Boolean(station)}
+          hint={station ? 'The code cannot be changed after the station is created.' : undefined}
+        />
         <TextField
           label="River order"
           hint="Position along the river, 1 is the first station."
@@ -96,21 +108,18 @@ function StationForm({
           error={errors.orderIndex}
         />
       </div>
-      <TextField label="Name" value={form.name} onChange={set('name')} error={errors.name} />
-      <TextField label="Address" value={form.address} onChange={set('address')} error={errors.address} />
+      <TextField label="Name" value={form.name} onChange={set('name')} error={errors.name} maxLength={150} />
+      <TextField label="Address" value={form.address} onChange={set('address')} error={errors.address} maxLength={300} />
       <div className="grid grid-cols-2 gap-3">
         <TextField label="Latitude" inputMode="decimal" value={form.latitude} onChange={set('latitude')} error={errors.latitude} />
         <TextField label="Longitude" inputMode="decimal" value={form.longitude} onChange={set('longitude')} error={errors.longitude} />
       </div>
-      {error && <Notice tone="error">{error}</Notice>}
-      <div className="flex justify-end gap-2 pt-1">
-        <Button size="sm" variant="neutral" onClick={onCancel}>
-          {t('Cancel')}
-        </Button>
-        <Button size="sm" type="submit" disabled={busy}>
-          {busy ? t('Saving…') : t('Save station')}
-        </Button>
-      </div>
+      {sameOrderAs && (
+        <Notice tone="warning">
+          {t('{name} already has river order {order}.', { name: sameOrderAs.name, order: sameOrderAs.orderIndex })}
+        </Notice>
+      )}
+      <FormActions error={error} busy={busy} submitLabel="Save station" onCancel={onCancel} />
     </form>
   )
 }
@@ -122,17 +131,10 @@ export default function StationsPage() {
   const [dialog, setDialog] = useState<Dialog>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
-  const remove = useSubmit()
-  const activate = useSubmit()
 
   if (stations.error) return <ErrorState onRetry={stations.retry} />
   if (stations.loading || !stations.data) return <PageLoader />
 
-  const hasFilters = search.trim() !== '' || status !== ''
-  const resetFilters = () => {
-    setSearch('')
-    setStatus('')
-  }
   const needle = search.trim().toLowerCase()
   const filteredStations = stations.data.filter(
     (s) =>
@@ -145,7 +147,20 @@ export default function StationsPage() {
     { header: 'Code', render: (s) => <span className="font-mono font-semibold">{s.code}</span> },
     { header: 'Name', render: (s) => s.name },
     { header: 'Address', render: (s) => <span className="text-on-surface-variant">{s.address}</span> },
-    { header: 'Coordinates', render: (s) => `${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}` },
+    {
+      header: 'Coordinates',
+      render: (s) => (
+        <a
+          href={`https://www.openstreetmap.org/?mlat=${s.latitude}&mlon=${s.longitude}#map=17/${s.latitude}/${s.longitude}`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-teal-flow hover:underline"
+          title={t('Open on the map')}
+        >
+          {`${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}`}
+        </a>
+      ),
+    },
     { header: 'Status', render: (s) => <ActiveBadge active={s.isActive} /> },
     {
       header: 'Actions',
@@ -155,14 +170,6 @@ export default function StationsPage() {
           <Button size="sm" variant="neutral" icon="edit" onClick={() => setDialog({ kind: 'form', station: s })}>
             {t('Edit')}
           </Button>
-          <ActiveToggle
-            active={s.isActive}
-            busy={activate.busy}
-            onDeactivate={() => { remove.clearError(); setDialog({ kind: 'delete', station: s }) }}
-            onActivate={async () => {
-              if (await activate.run(() => setStationActive(s.id, true).then(() => true))) reload()
-            }}
-          />
         </span>
       ),
     },
@@ -184,7 +191,7 @@ export default function StationsPage() {
           </Button>
         }
       />
-      <FilterBar onReset={hasFilters ? resetFilters : undefined}>
+      <FilterBar>
         <TextField
           label="Search"
           placeholder={t('Search by name or code')}
@@ -199,40 +206,10 @@ export default function StationsPage() {
 
       {dialog?.kind === 'form' && (
         <Modal title={dialog.station ? 'Edit station' : 'Add station'} onClose={() => setDialog(null)}>
-          <StationForm station={dialog.station} onDone={closeAndReload} onCancel={() => setDialog(null)} />
+          <StationForm station={dialog.station} others={stations.data.filter((s) => s.id !== dialog.station?.id)} onDone={closeAndReload} onCancel={() => setDialog(null)} />
         </Modal>
       )}
 
-      {dialog?.kind === 'delete' && (
-        <Modal title="Deactivate station" onClose={() => setDialog(null)}>
-          <p className="text-sm text-on-surface-variant">
-            {t('Deactivate {name}? Passengers will no longer see this station.', { name: dialog.station.name })}
-          </p>
-          {remove.error && (
-            <div className="mt-3">
-              <Notice tone="error">{remove.error}</Notice>
-            </div>
-          )}
-          <div className="mt-4 flex justify-end gap-2">
-            <Button size="sm" variant="neutral" onClick={() => setDialog(null)}>
-              {t('Cancel')}
-            </Button>
-            <Button size="sm"
-              variant="danger"
-              disabled={remove.busy}
-              onClick={async () => {
-                const done = await remove.run(async () => {
-                  await setStationActive(dialog.station.id, false)
-                  return true
-                })
-                if (done) closeAndReload()
-              }}
-            >
-              {t('Deactivate')}
-            </Button>
-          </div>
-        </Modal>
-      )}
     </>
   )
 }

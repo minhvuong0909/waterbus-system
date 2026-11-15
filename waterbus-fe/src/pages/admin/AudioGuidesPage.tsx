@@ -20,9 +20,9 @@ interface Draft {
 
 interface Preview {
   narration: GeneratedNarration
-  /** Object URL of the MP3, revoked when replaced or when the page closes. */
+  /** Object URL của file MP3, thu hồi khi bị thay hoặc khi rời trang. */
   url: string
-  /** The script it was generated from, to tell when the text was changed afterwards. */
+  /** Kịch bản đã dùng để tạo audio, để biết lời có bị sửa sau đó không. */
   text: string
 }
 
@@ -43,7 +43,7 @@ function NarrationEditor({
   preview?: Preview
   onDraft: (draft: Draft) => void
   onPreview: (preview: Preview) => void
-  onPublished: () => void
+  onPublished: (text: string) => void
 }) {
   const textId = useId()
   const { run, busy, error } = useSubmit()
@@ -75,7 +75,7 @@ function NarrationEditor({
     const result = await publishing.run(() => publishNarration(poi.poiId, preview.narration))
     if (result) {
       setPublished(true)
-      onPublished()
+      onPublished(preview.text)
     }
   }
 
@@ -86,6 +86,11 @@ function NarrationEditor({
         <p className="mt-1 text-sm text-on-surface-variant">
           {poi.isPublished ? t('This landmark has a published audio guide.') : t('This landmark has no published audio guide yet.')}
         </p>
+        {!poi.hasActiveRoutePoi && (
+          <div className="mt-2">
+            <Notice tone="warning">{t('This landmark is not on any sightseeing route yet, so its audio will not be played.')}</Notice>
+          </div>
+        )}
       </div>
 
       <div>
@@ -138,7 +143,7 @@ function NarrationEditor({
             <Icon name="headphones" className="text-xl text-teal-flow" />
             {t('Listen before publishing')}
           </div>
-          {/* Autoplay right after generating: the admin pressed the button to hear it. */}
+          {/* Tự phát ngay sau khi tạo: Admin bấm nút là để nghe. */}
           <audio key={preview.url} src={preview.url} controls autoPlay className="w-full" />
           <p className="text-xs text-on-surface-variant">
             {t('{voice} • {seconds} s • {size} KB', {
@@ -152,13 +157,18 @@ function NarrationEditor({
           )}
           {publishing.error && <Notice tone="error">{publishing.error}</Notice>}
           {published && <Notice tone="success">{t('Audio guide published.')}</Notice>}
+          {poi.isPublished && !published && (
+            <p className="text-xs text-on-surface-variant">
+              {t('Publishing replaces the current audio of this landmark straight away and cannot be undone.')}
+            </p>
+          )}
           <Button size="sm"
-            icon="publish"
+            icon="campaign"
             disabled={publishing.busy || published || preview.text !== text}
             onClick={publish}
             className="w-full"
           >
-            {publishing.busy ? t('Publishing…') : t('Publish this audio')}
+            {publishing.busy ? t('Publishing…') : poi.isPublished && !published ? t('Publish and replace current audio') : t('Publish this audio')}
           </Button>
         </div>
       )}
@@ -173,8 +183,17 @@ export default function AudioGuidesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [previews, setPreviews] = useState<Record<string, Preview>>({})
+  // Kịch bản đã xuất bản trong phiên này, để biết bản nháp nào còn chưa xuất bản.
+  const [publishedScripts, setPublishedScripts] = useState<Record<string, string>>({})
+  const unsaved = Object.entries(drafts).some(([id, d]) => d.text.trim() !== '' && d.text.trim() !== publishedScripts[id])
+  useEffect(() => {
+    if (!unsaved) return
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [unsaved])
 
-  // Object URLs keep the MP3 in memory: release them when the page closes.
+  // Object URL giữ MP3 trong bộ nhớ: giải phóng khi rời trang.
   const urls = useRef<string[]>([])
   useEffect(() => () => urls.current.forEach((url) => URL.revokeObjectURL(url)), [])
 
@@ -196,7 +215,7 @@ export default function AudioGuidesPage() {
     <>
       <PageHeader
         title="Audio guides"
-        description="Write what the boat says at each landmark, pick a voice, listen to it and publish it. Azure turns the script into speech."
+        description="Write what the boat says at each landmark, pick a voice, listen to it and publish it."
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
@@ -214,10 +233,10 @@ export default function AudioGuidesPage() {
                   className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
                     poi.poiId === selectedId
                       ? 'border-deep-river bg-deep-river text-white'
-                      : 'border-outline-variant bg-white text-deep-river hover:bg-surface-container-low'
+                      : 'border-outline-variant/70 bg-white text-deep-river hover:bg-surface-container-low'
                   }`}
                 >
-                  <Icon name={poi.isPublished ? 'check_circle' : previews[poi.poiId] ? 'headphones' : 'photo_camera'} className="text-lg" />
+                  <Icon name={poi.isPublished ? 'check_circle' : previews[poi.poiId] ? 'headphones' : 'volume_off'} className="text-lg" />
                   {poi.name}
                 </button>
               ))}
@@ -234,7 +253,10 @@ export default function AudioGuidesPage() {
               preview={previews[selected.poiId]}
               onDraft={(draft) => setDrafts((d) => ({ ...d, [selected.poiId]: draft }))}
               onPreview={(preview) => savePreview(selected.poiId, preview)}
-              onPublished={reload}
+              onPublished={(text) => {
+                setPublishedScripts((s) => ({ ...s, [selected.poiId]: text }))
+                reload()
+              }}
             />
           ) : (
             <div className="flex min-h-[240px] flex-col items-center justify-center gap-2 text-center text-sm text-on-surface-variant">
