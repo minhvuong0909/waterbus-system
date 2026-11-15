@@ -53,6 +53,19 @@ public class CaptainOperationRulesTests
     }
 
     [Fact]
+    public void Arrive_OnACircularTourIsBlockedUntilTheBoatHasLeftTheLastStop()
+    {
+        var atStart = Hint(TripIn(TripStatus.EnRoute), TripOperation.Arrive, Departure, 20, null);
+        var hint = CaptainOperationRules.Evaluate(TripIn(TripStatus.EnRoute), TripOperation.Arrive, Departure, 20, Strict, hasLeftLastStop: false);
+        var back = CaptainOperationRules.Evaluate(TripIn(TripStatus.EnRoute), TripOperation.Arrive, Departure, 20, Strict, hasLeftLastStop: true);
+
+        atStart.Allowed.Should().BeTrue("không biết lịch sử vị trí thì không chặn");
+        hint.Allowed.Should().BeFalse();
+        hint.Reason.Should().Be("JourneyNotDone");
+        back.Allowed.Should().BeTrue();
+    }
+
+    [Fact]
     public void Complete_IsOnlyForAnArrivedTrip()
     {
         Hint(TripIn(TripStatus.EnRoute), TripOperation.Complete, Departure).Allowed.Should().BeFalse();

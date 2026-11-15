@@ -81,6 +81,8 @@ function blockedReason(hint: CaptainActionHint | undefined): string | null {
       return 'Đang chờ GPS của tàu. Hãy bật chia sẻ vị trí GPS.'
     case 'NotAtLastStop':
       return 'Tàu chưa tới bến cuối của tuyến.'
+    case 'JourneyNotDone':
+      return 'Tàu chưa đi hết hành trình.'
     default:
       return null
   }

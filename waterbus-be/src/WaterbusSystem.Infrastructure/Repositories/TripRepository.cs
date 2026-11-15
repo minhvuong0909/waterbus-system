@@ -25,7 +25,9 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
         Guid boatId, IReadOnlyCollection<TripStatus> statuses, CancellationToken cancellationToken = default) =>
         context.Trips.AsNoTracking()
             .Where(t => t.BoatId == boatId && !t.IsDeleted && statuses.Contains(t.Status))
-            .OrderByDescending(t => t.DepartureTime)
+            // Chuyến đang chạy (EnRoute) được ưu tiên: tàu có thể còn chuyến khác đang đón khách/tạm ngưng khởi hành muộn hơn.
+            .OrderByDescending(t => t.Status == TripStatus.EnRoute)
+            .ThenByDescending(t => t.DepartureTime)
             .Select(t => (Guid?)t.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -75,6 +77,18 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
             var last = g.MaxBy(r => r.VisitOrder)!;
             return (last.Latitude, last.Longitude);
         });
+    }
+
+    public async Task<List<(decimal Latitude, decimal Longitude)>> ListTripPositionsAsync(
+        Guid tripId, int take, CancellationToken cancellationToken = default)
+    {
+        var rows = await context.BoatPositionEvents.AsNoTracking()
+            .Where(p => p.TripId == tripId)
+            .OrderByDescending(p => p.ObservedAt)
+            .Select(p => new { p.Latitude, p.Longitude })
+            .Take(take)
+            .ToListAsync(cancellationToken);
+        return rows.Select(r => (r.Latitude, r.Longitude)).ToList();
     }
 
     public Task<List<Trip>> ListForOperationsAsync(

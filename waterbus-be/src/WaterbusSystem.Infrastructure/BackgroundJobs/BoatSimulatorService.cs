@@ -98,7 +98,7 @@ public class BoatSimulatorService : BackgroundService
 
         // Mỗi tàu chỉ giả lập 1 chuyến (chuyến khởi hành gần nhất)
         foreach (var trip in trips.GroupBy(t => t.BoatId).Select(g => g
-            .OrderBy(t => t.Status is TripStatus.EnRoute or TripStatus.Boarding or TripStatus.Suspended ? 0 : 1)
+            .OrderBy(t => t.Status == TripStatus.EnRoute ? 0 : t.Status is TripStatus.Boarding or TripStatus.Suspended ? 1 : 2)
                 // Cùng cách chọn chuyến với tracking (chuyến khởi hành muộn nhất đang chạy) để vị trí gắn đúng chuyến.
                 .ThenByDescending(t => t.Start).First()))
         {

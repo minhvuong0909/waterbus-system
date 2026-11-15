@@ -17,6 +17,9 @@ public sealed class CaptainOperationOptions
     /// <summary>Tàu phải cách bến cuối không quá bấy nhiêu mét mới được bấm "Đã cập bến".</summary>
     public int ArriveRadiusM { get; set; } = 150;
 
+    /// <summary>Tàu phải từng cách bến cuối quá bấy nhiêu mét trong chuyến mới được cập bến (tour vòng có bến đầu cũng là bến cuối).</summary>
+    public int ArriveMinTravelM { get; set; } = 500;
+
     /// <summary>Vị trí tàu cũ hơn ngưỡng này (giây) không được dùng để cho phép cập bến.</summary>
     public int PositionMaxAgeSeconds { get; set; } = 120;
 }

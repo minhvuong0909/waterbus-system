@@ -49,6 +49,17 @@ public sealed class TripService(
 
     private CaptainOperationOptions CaptainRules => captainOptions.Value;
 
+    private const int PositionsToCheck = 500;
+
+    /// <summary>Tàu đã từng đi xa bến cuối trong chuyến này chưa (để tour vòng không cho "Đến bến cuối" ngay tại bến xuất phát).</summary>
+    private async Task<bool> HasLeftLastStopAsync(Guid tripId, (double Latitude, double Longitude)? lastStop, CancellationToken ct)
+    {
+        if (lastStop is null) return true;
+        var points = await tripRepository.ListTripPositionsAsync(tripId, PositionsToCheck, ct);
+        return points.Any(p => distance.CalculateDistanceMeters(p.Latitude, p.Longitude,
+            (decimal)lastStop.Value.Latitude, (decimal)lastStop.Value.Longitude) > CaptainRules.ArriveMinTravelM);
+    }
+
     /// <summary>Khoảng cách từ tàu tới bến cuối; null nếu chưa có vị trí đủ mới hoặc chuyến chưa có điểm dừng.</summary>
     private async Task<double?> DistanceToLastStopAsync(Guid? boatId, (double Latitude, double Longitude)? lastStop, DateTimeOffset now, CancellationToken ct)
     {
@@ -148,8 +159,10 @@ public sealed class TripService(
         foreach (var t in rows)
         {
             (double, double)? lastStop = lastStops.TryGetValue(t.Id, out var location) ? location : null;
-            var meters = t.Status == TripStatus.EnRoute ? await DistanceToLastStopAsync(t.BoatId, lastStop, now, cancellationToken) : null;
-            items.Add(ToItem(t, CaptainOperationRules.Evaluate(t, now, meters, CaptainRules)));
+            var enRoute = t.Status == TripStatus.EnRoute;
+            var meters = enRoute ? await DistanceToLastStopAsync(t.BoatId, lastStop, now, cancellationToken) : null;
+            bool? left = enRoute && CaptainRules.Enforce ? await HasLeftLastStopAsync(t.Id, lastStop, cancellationToken) : null;
+            items.Add(ToItem(t, CaptainOperationRules.Evaluate(t, now, meters, CaptainRules, left)));
         }
         return items;
     }
@@ -306,13 +319,15 @@ public sealed class TripService(
     {
         if (operation == TripOperation.NoAction) return;
         double? meters = null;
+        bool? left = null;
         if (operation == TripOperation.Arrive && CaptainRules.Enforce)
         {
             var lastStops = await tripRepository.GetLastStopLocationsAsync([trip.Id], ct);
             (double, double)? lastStop = lastStops.TryGetValue(trip.Id, out var location) ? location : null;
             meters = await DistanceToLastStopAsync(trip.BoatId, lastStop, now, ct);
+            left = await HasLeftLastStopAsync(trip.Id, lastStop, ct);
         }
-        var hint = CaptainOperationRules.Evaluate(trip, operation, now, meters, CaptainRules);
+        var hint = CaptainOperationRules.Evaluate(trip, operation, now, meters, CaptainRules, left);
         if (hint.Allowed) return;
         throw new ConflictException(hint.Reason switch
         {
@@ -320,6 +335,7 @@ public sealed class TripService(
             "OpenBoardingFirst" => "Cần mở đón khách trước khi bắt đầu chuyến.",
             "NoPosition" => "Chưa có vị trí GPS đủ mới của tàu nên chưa thể xác nhận đã cập bến. Hãy bật chia sẻ GPS hoặc nhờ Admin.",
             "NotAtLastStop" => "Tàu chưa tới bến cuối của tuyến.",
+            "JourneyNotDone" => "Tàu chưa đi hết hành trình (mới rời bến xuất phát).",
             _ => $"Không thể thực hiện \"{operation}\" khi chuyến đang ở trạng thái {trip.Status}."
         });
     }

@@ -24,7 +24,7 @@ export interface AdminTrip {
 export interface CaptainActionHint {
   operation: OperationType
   allowed: boolean
-  /** NotYet | OpenBoardingFirst | NoPosition | NotAtLastStop | WrongStatus */
+  /** NotYet | OpenBoardingFirst | NoPosition | NotAtLastStop | JourneyNotDone | WrongStatus */
   reason: string | null
   /** Với `NotYet`: giờ được mở đón khách (ISO 8601). */
   availableAt: string | null
