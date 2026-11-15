@@ -3,10 +3,7 @@ import { HUBS, HUB_EVENTS } from '../../../constant/apiEndpoints'
 import { connectHub } from '../../../services/realtime'
 import type { HubConnection } from '@microsoft/signalr'
 import { apiRequest } from '../../../services/apiClient'
-import {
-  playAzureAnnouncement,
-  stopCurrentAudio,
-} from '../../admin/services/simulatorService'
+import { playAzureAnnouncement, stopCurrentAudio } from '../services/ttsPlayback'
 import type { StopAnnouncementEvent } from '../../operations/hooks/useFleetHub'
 import type { AdminTrip } from '../../operations/types'
 import { getAnnouncementSentence } from '../utils/announcement'
@@ -54,10 +51,12 @@ interface UseCockpitAudioOptions {
   narrating: boolean
 }
 
+const TERMINAL_STATUSES = ['Completed', 'Cancelled', 'Terminated', 'Suspended']
+
 /**
  * Hook quản lý phát âm thanh buồng lái tự động theo hành trình tàu.
  * - Thông báo trạm bến tiếng Việt Azure TTS (Rời bến, Sắp đến bến, Cập bến).
- * - Thuyết minh du lịch tiếng Việt (POI MP3) nếu là chuyến Sightseeing.
+ * - Thuyết minh du lịch tiếng Việt (POI) nếu là chuyến Sightseeing.
  * - Phát trọn vẹn từng câu theo hàng đợi (Audio Queue), không bị cắt nửa chừng, không bị lồng tiếng.
  */
 export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
@@ -68,51 +67,52 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
   const onboardHubConnectionRef = useRef<HubConnection | null>(null)
   const lastAnnounceKeyRef = useRef<{ key: string; at: number } | null>(null)
 
-  // Hàng đợi phát âm thanh tuần tự
   const queueRef = useRef<AudioTask[]>([])
   const isBusyRef = useRef<boolean>(false)
-
-  const tripRef = useRef(trip)
-  tripRef.current = trip
-
+  const tripRef = useRef<AdminTrip | undefined>(trip)
   const narratingRef = useRef(narrating)
-  narratingRef.current = narrating
+  const processQueueRef = useRef<() => void>(() => {})
 
-  // Dừng phát toàn bộ âm thanh
+  useEffect(() => {
+    tripRef.current = trip
+  }, [trip])
+
+  useEffect(() => {
+    narratingRef.current = narrating
+  }, [narrating])
+
   const stopAll = useCallback(() => {
     queueRef.current = []
     isBusyRef.current = false
     stopCurrentAudio()
-    if (currentAudioRef.current) {
+    const audio = currentAudioRef.current
+    if (audio) {
       try {
-        currentAudioRef.current.pause()
-        currentAudioRef.current.currentTime = 0
-        currentAudioRef.current.src = ''
-      } catch {}
+        audio.pause()
+        audio.currentTime = 0
+        audio.src = ''
+      } catch { /* ignore */ }
       currentAudioRef.current = null
     }
     setIsPlaying(false)
     setNowPlaying(null)
   }, [])
 
-  // Khi chuyến tàu kết thúc hoặc tạm dừng thì tắt loa
   useEffect(() => {
-    const terminalStatuses = ['Completed', 'Cancelled', 'Terminated', 'Suspended']
-    if (trip && terminalStatuses.includes(trip.status)) {
-      stopAll()
-    }
+    if (!trip || !TERMINAL_STATUSES.includes(trip.status)) return
+    const timer = window.setTimeout(() => stopAll(), 0)
+    return () => window.clearTimeout(timer)
   }, [trip, stopAll])
 
-  // Bộ điều phối hàng đợi âm thanh: câu này phát xong trọn vẹn 100% mới phát tiếp câu sau
   const processQueue = useCallback(async () => {
     if (isBusyRef.current) return
-    if (queueRef.current.length === 0) {
+    const task = queueRef.current.shift()
+    if (!task) {
       setIsPlaying(false)
       setNowPlaying(null)
       return
     }
 
-    const task = queueRef.current.shift()!
     isBusyRef.current = true
     setIsPlaying(true)
     setNowPlaying({
@@ -128,12 +128,10 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
       console.warn('[Cockpit Audio] Lỗi phát âm thanh:', err)
     } finally {
       isBusyRef.current = false
-      // Khoảng nghỉ nhỏ 400ms giữa các câu để người nghe cảm giác tự nhiên
-      await new Promise((r) => setTimeout(r, 400))
-      // Tự động phát câu tiếp theo nếu còn trong hàng đợi
-      const terminalStatuses = ['Completed', 'Cancelled', 'Terminated', 'Suspended']
-      if (!tripRef.current || !terminalStatuses.includes(tripRef.current.status)) {
-        void processQueue()
+      await new Promise((resolve) => window.setTimeout(resolve, 400))
+      const current = tripRef.current
+      if (!current || !TERMINAL_STATUSES.includes(current.status)) {
+        processQueueRef.current()
       } else {
         setIsPlaying(false)
         setNowPlaying(null)
@@ -141,19 +139,19 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
     }
   }, [])
 
-  // Xử lý thông báo trạm bến (Azure TTS Hoài My)
+  useEffect(() => {
+    processQueueRef.current = () => {
+      void processQueue()
+    }
+  }, [processQueue])
+
   const handleStopAnnouncement = useCallback(
     (event: StopAnnouncementEvent) => {
       const currentTrip = tripRef.current
-      // Lọc theo chuyến đang chọn nếu có id
       if (event.tripId && currentTrip && event.tripId !== currentTrip.id) return
       if (event.boatId && currentTrip?.boatId && event.boatId !== currentTrip.boatId) return
+      if (currentTrip && TERMINAL_STATUSES.includes(currentTrip.status)) return
 
-      // Bỏ qua nếu chuyến đã kết thúc hẳn
-      const terminalStatuses = ['Completed', 'Cancelled', 'Terminated', 'Suspended']
-      if (currentTrip && terminalStatuses.includes(currentTrip.status)) return
-
-      // Khử trùng: không phát lại cùng 1 sự kiện của cùng bến trong vòng 4 giây
       const eventKey = `${event.tripId}-${event.type ?? event.eventType}-${event.stationName}`
       const now = Date.now()
       if (lastAnnounceKeyRef.current?.key === eventKey && now - lastAnnounceKeyRef.current.at < 4000) {
@@ -171,50 +169,73 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
 
       console.log(`[Cockpit Audio] Nhận sự kiện (${label}): ${event.stationName} -> Đang phát: "${sentence}"`)
 
-      const task: AudioTask = {
+      const stationTask: AudioTask = {
         id: eventKey,
         type: 'station',
         title: `Thông báo (${label}): ${event.stationName}`,
         text: sentence,
         run: async () => {
-          // Phát trọn vẹn câu thông báo bằng giọng đọc Azure TTS tiếng Việt
           await playAzureAnnouncement(sentence, 'vi-VN-HoaiMyNeural', 0.95)
         },
       }
 
-      // Thông báo trạm bến ưu tiên hơn POI: dọn bớt POI trong hàng đợi
-      queueRef.current = queueRef.current.filter((t) => t.type !== 'poi')
-      queueRef.current.push(task)
+      queueRef.current.push(stationTask)
+
+      const narration = event.narration
+      if (narratingRef.current && narration?.text) {
+        const narrationTask: AudioTask = {
+          id: `${eventKey}-narration`,
+          type: 'poi',
+          title: `Thuyết minh: ${narration.poiName}`,
+          text: narration.text,
+          run: async () => {
+            await playAzureAnnouncement(narration.text, 'vi-VN-HoaiMyNeural', 0.95)
+          },
+        }
+        queueRef.current.push(narrationTask)
+      }
+
       void processQueue()
     },
     [processQueue],
   )
 
-  // Xử lý phát thuyết minh du lịch POI (MP3)
   const playPoiAudio = useCallback(
     async (message: AudioTriggerMessage) => {
-      // Chỉ phát khi bật thuyết minh và không có thông báo trạm bến đang chờ
       if (!narratingRef.current) return
-      if (queueRef.current.some((t) => t.type === 'station') || (isBusyRef.current && nowPlaying?.type === 'station')) {
-        return
-      }
 
       const task: AudioTask = {
         id: message.requestId,
         type: 'poi',
         title: `Thuyết minh: ${message.poiName}`,
         text: `Đang phát thuyết minh danh lam thắng cảnh ${message.poiName}`,
-        run: async () => {
-          return new Promise<void>(async (resolve) => {
-            try {
+        run: async () =>
+          new Promise<void>((resolve) => {
+            const finish = (status: 'Completed' | 'Failed') => {
+              URL.revokeObjectURL(blobUrl)
+              currentAudioRef.current = null
+              if (onboardHubConnectionRef.current) {
+                void onboardHubConnectionRef.current.invoke(
+                  'ReportPlaybackState',
+                  message.requestId,
+                  status,
+                  null,
+                )
+              }
+              resolve()
+            }
+
+            let blobUrl = ''
+
+            const run = async () => {
               if (onboardHubConnectionRef.current) {
                 try {
                   await onboardHubConnectionRef.current.invoke('AcceptPlayback', message.requestId)
-                } catch {}
+                } catch { /* ignore */ }
               }
 
               const blob = await apiRequest<Blob>(message.playbackPath, { responseType: 'blob' })
-              const blobUrl = URL.createObjectURL(blob)
+              blobUrl = URL.createObjectURL(blob)
 
               if (onboardHubConnectionRef.current) {
                 try {
@@ -224,47 +245,32 @@ export function useCockpitAudio({ trip, narrating }: UseCockpitAudioOptions) {
                     'Started',
                     null,
                   )
-                } catch {}
+                } catch { /* ignore */ }
               }
 
               const audio = new Audio(blobUrl)
               audio.volume = 0.95
               currentAudioRef.current = audio
 
-              const done = (status: 'Completed' | 'Failed') => {
-                URL.revokeObjectURL(blobUrl)
-                currentAudioRef.current = null
-                if (onboardHubConnectionRef.current) {
-                  void onboardHubConnectionRef.current.invoke(
-                    'ReportPlaybackState',
-                    message.requestId,
-                    status,
-                    null,
-                  )
-                }
-                resolve()
-              }
-
-              audio.onended = () => done('Completed')
-              audio.onerror = () => done('Failed')
+              audio.onended = () => finish('Completed')
+              audio.onerror = () => finish('Failed')
 
               await audio.play()
-            } catch (err) {
-              console.error('[Onboard Audio] Lỗi phát thuyết minh POI:', err)
-              resolve()
             }
-          })
-        },
+
+            run().catch((err) => {
+              console.error('[Onboard Audio] Lỗi phát thuyết minh POI:', err)
+              finish('Failed')
+            })
+          }),
       }
 
-      queueRef.current = queueRef.current.filter((t) => t.type !== 'poi')
       queueRef.current.push(task)
       void processQueue()
     },
-    [nowPlaying, processQueue],
+    [processQueue],
   )
 
-  // Kết nối OnboardAudioHub để nhận sự kiện POI thuyết minh du lịch
   useEffect(() => {
     const unsub = connectHub(HUBS.onboardAudio, {
       handlers: {

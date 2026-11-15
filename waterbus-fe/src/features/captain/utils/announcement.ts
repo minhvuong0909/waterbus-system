@@ -13,7 +13,7 @@ export function getAnnouncementSentence(event: StopAnnouncementEvent): string {
   try {
     const saved = localStorage.getItem('waterbus_announcement_custom_texts')
     if (saved) customTexts = JSON.parse(saved)
-  } catch {}
+  } catch { /* ignore */ }
 
   const stationRaw = event.stationName || 'Bến tàu'
   const station = cleanStationName(stationRaw) || stationRaw
@@ -46,6 +46,6 @@ export function getAnnouncementSentence(event: StopAnnouncementEvent): string {
   // arrived
   const raw =
     customTexts['arrived_mid'] ||
-    'Tàu đã đến bến {Bến hiện tại}. Tàu sẽ dừng 5 giây để quý khách lên xuống.'
+    'Tàu đã đến bến {Bến hiện tại}. Tàu dừng tại bến để quý khách lên xuống.'
   return raw.replace(/{Bến hiện tại}/g, station).replace(/{Bến cuối}/g, station)
 }

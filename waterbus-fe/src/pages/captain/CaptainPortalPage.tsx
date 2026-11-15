@@ -138,7 +138,7 @@ export default function CaptainPortalPage() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-500 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-600"></span>
             </span>
-            <span className="truncate">🔊 <strong>{nowPlaying.title}:</strong> "{nowPlaying.text}"</span>
+            <span className="truncate">🔊 <strong>{nowPlaying.title}:</strong> &ldquo;{nowPlaying.text}&rdquo;</span>
           </div>
         )}
       </div>

@@ -14,6 +14,14 @@ import type {
 } from '../services/operationsService'
 import type { LiveBoatPosition } from '../types'
 
+export interface StopNarration {
+  poiId: string
+  poiName: string
+  text: string
+  assetKey?: string | null
+  durationSeconds?: number | null
+}
+
 export interface StopAnnouncementEvent {
   tripId: string
   tripType: string
@@ -23,6 +31,7 @@ export interface StopAnnouncementEvent {
   eventType?: 'departing' | 'near' | 'arrived'
   stationName: string
   nextStationName?: string | null
+  narration?: StopNarration | null
   message?: string
   timestamp?: string
 }
