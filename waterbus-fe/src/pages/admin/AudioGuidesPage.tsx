@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button, ErrorState, Icon, Notice, PageHeader, PageLoader, Panel, SelectField } from '../../components/ui'
+import StationAnnouncementsTab from '../../features/admin/components/StationAnnouncementsTab'
+import SimulatorConfigTab from '../../features/admin/components/SimulatorConfigTab'
 import { MAX_NARRATION_LENGTH, NARRATION_VOICES } from '../../features/admin/utils/audioGuide'
 import type { NarrationPoi, NarrationVoice } from '../../features/admin/utils/audioGuide'
 import {
@@ -167,7 +169,8 @@ function NarrationEditor({
 }
 
 export default function AudioGuidesPage() {
-  useDocumentTitle('Audio guides')
+  useDocumentTitle('Thuyết minh & Âm thanh')
+  const [activeTab, setActiveTab] = useState<'pois' | 'stations' | 'config'>('pois')
   const [version, reload] = useReload()
   const pois = useFetch(getNarrationPois, [version])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -192,58 +195,111 @@ export default function AudioGuidesPage() {
     urls.current.push(preview.url)
   }
 
+  const TABS = [
+    { id: 'pois', label: t('Thuyết minh điểm du lịch (Sightseeing)') },
+    { id: 'stations', label: t('Kịch bản thông báo trạm bến') },
+    { id: 'config', label: t('Cấu hình thời gian & Vận hành') },
+  ] as const
+
+  const renderTabIcon = (id: 'pois' | 'stations' | 'config') => {
+    if (id === 'pois') {
+      return (
+        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      )
+    }
+    if (id === 'stations') {
+      return (
+        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+        </svg>
+      )
+    }
+    return (
+      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+      </svg>
+    )
+  }
+
   return (
     <>
       <PageHeader
-        title="Audio guides"
-        description="Write what the boat says at each landmark, pick a voice, listen to it and publish it. Azure turns the script into speech."
+        title="Thuyết minh & Âm thanh hành trình"
+        description="Quản lý bài thuyết minh du lịch Azure AI và các mẫu câu thông báo trạm bến tự động trên tàu."
       />
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        <div className="lg:col-span-7">
-          {pois.data.length === 0 ? (
-            <p className="text-sm text-on-surface-variant">{t('There are no landmarks yet.')}</p>
-          ) : (
-            <div className="flex flex-wrap gap-2" role="group" aria-label={t('Landmarks')}>
-              {pois.data.map((poi) => (
-                <button
-                  key={poi.poiId}
-                  type="button"
-                  aria-pressed={poi.poiId === selectedId}
-                  onClick={() => setSelectedId(poi.poiId)}
-                  className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-                    poi.poiId === selectedId
-                      ? 'border-deep-river bg-deep-river text-white'
-                      : 'border-outline-variant bg-white text-deep-river hover:bg-surface-container-low'
-                  }`}
-                >
-                  <Icon name={poi.isPublished ? 'check_circle' : previews[poi.poiId] ? 'headphones' : 'photo_camera'} className="text-lg" />
-                  {poi.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <Panel className="lg:col-span-5">
-          {selected ? (
-            <NarrationEditor
-              key={selected.poiId}
-              poi={selected}
-              draft={drafts[selected.poiId] ?? EMPTY_DRAFT}
-              preview={previews[selected.poiId]}
-              onDraft={(draft) => setDrafts((d) => ({ ...d, [selected.poiId]: draft }))}
-              onPreview={(preview) => savePreview(selected.poiId, preview)}
-              onPublished={reload}
-            />
-          ) : (
-            <div className="flex min-h-[240px] flex-col items-center justify-center gap-2 text-center text-sm text-on-surface-variant">
-              <Icon name="touch_app" className="text-3xl text-teal-flow" />
-              {t('Pick a landmark to write its narration.')}
-            </div>
-          )}
-        </Panel>
+      {/* Thanh chuyển Tab nghiệp vụ */}
+      <div className="mb-6 flex flex-wrap gap-2 border-b border-outline-variant/40 pb-3">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+              activeTab === tab.id
+                ? 'bg-deep-river text-white shadow-sm'
+                : 'bg-white text-deep-river hover:bg-surface-container-low border border-outline-variant/60'
+            }`}
+          >
+            {renderTabIcon(tab.id)}
+            <span>{tab.label}</span>
+          </button>
+        ))}
       </div>
+
+      {activeTab === 'stations' && <StationAnnouncementsTab />}
+      {activeTab === 'config' && <SimulatorConfigTab />}
+
+      {activeTab === 'pois' && (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          <div className="lg:col-span-7">
+            {pois.data.length === 0 ? (
+              <p className="text-sm text-on-surface-variant">{t('There are no landmarks yet.')}</p>
+            ) : (
+              <div className="flex flex-wrap gap-2" role="group" aria-label={t('Landmarks')}>
+                {pois.data.map((poi) => (
+                  <button
+                    key={poi.poiId}
+                    type="button"
+                    aria-pressed={poi.poiId === selectedId}
+                    onClick={() => setSelectedId(poi.poiId)}
+                    className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                      poi.poiId === selectedId
+                        ? 'border-deep-river bg-deep-river text-white'
+                        : 'border-outline-variant bg-white text-deep-river hover:bg-surface-container-low'
+                    }`}
+                  >
+                    <Icon name={poi.isPublished ? 'check_circle' : previews[poi.poiId] ? 'headphones' : 'photo_camera'} className="text-lg" />
+                    {poi.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Panel className="lg:col-span-5">
+            {selected ? (
+              <NarrationEditor
+                key={selected.poiId}
+                poi={selected}
+                draft={drafts[selected.poiId] ?? EMPTY_DRAFT}
+                preview={previews[selected.poiId]}
+                onDraft={(draft) => setDrafts((d) => ({ ...d, [selected.poiId]: draft }))}
+                onPreview={(preview) => savePreview(selected.poiId, preview)}
+                onPublished={reload}
+              />
+            ) : (
+              <div className="flex min-h-[240px] flex-col items-center justify-center gap-2 text-center text-sm text-on-surface-variant">
+                <Icon name="touch_app" className="text-3xl text-teal-flow" />
+                {t('Pick a landmark to write its narration.')}
+              </div>
+            )}
+          </Panel>
+        </div>
+      )}
     </>
   )
 }
