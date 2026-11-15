@@ -399,14 +399,7 @@
 }
 
 /* ===== Bố cục gọn của Cổng thuyền trưởng ===== */
-.cap-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 20px;
-  align-items: start;
-}
-.cap-main,
-.cap-side {
+.cap-main {
   display: grid;
   gap: 16px;
   min-width: 0;
@@ -622,62 +615,6 @@
   color: #865006;
   font-size: 13px;
   font-weight: 600;
-}
-.cap-stops {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.cap-stops li {
-  position: relative;
-  display: grid;
-  grid-template-columns: 20px 1fr auto;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-  color: var(--cap-muted);
-}
-.cap-stops li + li {
-  border-top: 1px solid #e6edf4;
-}
-.cap-stops strong {
-  display: block;
-  color: var(--cap-text);
-  font-size: 14px;
-}
-.cap-stops small {
-  font-size: 12px;
-}
-.cap-stops time {
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-.cap-stop-dot {
-  width: 14px;
-  height: 14px;
-  border: 2px solid #9db2c7;
-  border-radius: 50%;
-  background: #fff;
-}
-.cap-stops li.is-departed .cap-stop-dot {
-  background: var(--cap-teal);
-  border-color: var(--cap-teal);
-}
-.cap-stops li.is-next {
-  color: var(--cap-text);
-}
-.cap-stops li.is-next .cap-stop-dot {
-  border-color: var(--cap-teal);
-  box-shadow: 0 0 0 4px #147a7e30;
-}
-.cap-stops li.is-next strong {
-  color: var(--cap-teal);
-}
-@media (max-width: 1100px) {
-  .cap-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 @media (max-width: 720px) {
   .cap-steps {

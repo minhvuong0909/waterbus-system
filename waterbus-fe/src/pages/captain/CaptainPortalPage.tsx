@@ -5,7 +5,6 @@ import CaptainActions, { blockedReason } from '../../features/captain/components
 import type { CaptainAction } from '../../features/captain/components/CaptainActions'
 import CaptainHeader from '../../features/captain/components/CaptainHeader'
 import CaptainMap from '../../features/captain/components/CaptainMap'
-import CaptainStopList from '../../features/captain/components/CaptainStopList'
 import BoatSpeaker from '../../features/captain/components/BoatSpeaker'
 import { useCaptainGps } from '../../features/captain/hooks/useCaptainGps'
 import { getCaptainAttendance } from '../../features/captain/services/captainService'
@@ -114,8 +113,7 @@ function TripDashboard({
   }
 
   return (
-    <div className="cap-layout">
-      <div className="cap-main">
+    <div className="cap-main">
         <section className="cap-hero">
           <div className="cap-hero-top">
             <p className="cap-greeting">Xin chào, Captain {user?.fullName ?? ''}</p>
@@ -223,12 +221,6 @@ function TripDashboard({
           position={gps.position}
           fresh={gps.fresh}
         />
-      </div>
-
-      <aside className="cap-side">
-        <CaptainStopList stops={stops} nextId={nextStop?.callId} clock={clock} />
-      </aside>
-
       {confirmation && (
         <Modal
           title={`Xác nhận ${confirmation.label.toLowerCase()}`}
