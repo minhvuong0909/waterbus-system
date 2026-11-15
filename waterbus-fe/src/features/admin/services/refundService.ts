@@ -1,7 +1,7 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
 import type { DownloadedFile } from '../../../services/apiClient'
-import type { BatchConfirmResult, BatchRefundRequestResult, ManualRefundInput, ManualRefundResult, Paged, PendingRefund, RefundCandidate, RefundRequestResult } from '../types'
+import type { BatchConfirmResult, BatchRefundRequestResult, ManualRefundInput, ManualRefundResult, Paged, PendingRefund, ReconciliationItem, RefundCandidate, RefundRequestResult } from '../types'
 
 /**
  * Tạo yêu cầu hoàn tiền cho một Booking của chuyến bị huỷ/chấm dứt (BR-RF-07). Đơn khứ hồi chỉ
@@ -28,6 +28,21 @@ export async function reconcileRefund(refundId: string): Promise<string> {
     method: 'POST',
   })
   return result.status
+}
+
+/** Các khoản cần Admin đối soát: tiền về muộn và lệnh hoàn VNPay còn đang xử lý (chỉ đọc, phân trang). */
+export function listReconciliationRequired(page = 1, pageSize = 20): Promise<Paged<ReconciliationItem>> {
+  return apiRequest<Paged<ReconciliationItem>>(API_ENDPOINTS.refunds.reconciliationRequired, { query: { page, pageSize } })
+}
+
+/**
+ * Số khoản đối soát Admin còn phải làm. Tiền về muộn đã có lệnh hoàn thì đã nằm ở bước "Hoàn và xác nhận" nên không
+ * đếm lần nữa. Đọc tối đa 100 dòng đầu để loại các khoản đó; phần ngoài 100 dòng được tính vào như còn việc.
+ */
+export async function countReconciliationToDo(): Promise<number> {
+  const page = await listReconciliationRequired(1, 100)
+  const settled = page.items.filter((item) => item.kind === 'LatePayment' && item.refundId).length
+  return page.totalCount - settled
 }
 
 /** Booking của một chuyến bị huỷ/chấm dứt cần hoàn (chỉ đọc). Chuyến chưa huỷ → 409. */

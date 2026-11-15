@@ -23,7 +23,7 @@ export interface RefundRequestResult {
   notice?: string | null
 }
 
-/** Body of `POST /refunds/confirm-manual` (BE `ConfirmManualRefundRequest`). */
+/** Body của `POST /refunds/confirm-manual` (BE `ConfirmManualRefundRequest`). */
 export interface ManualRefundInput {
   refundTransactionId: string
   evidence: string
@@ -101,4 +101,24 @@ export interface BatchConfirmResult {
   confirmed: number
   failed: number
   items: { refundTransactionId: string; succeeded: boolean; status: string | null; error: string | null }[]
+}
+
+/**
+ * Mục Admin cần đối soát (BE `ReconciliationItemResponse`): `LatePayment` là tiền về muộn hoặc kết quả mâu thuẫn
+ * (tạo yêu cầu hoàn bằng `bookingId` nếu chưa có `refundId`); `RefundProcessing` là lệnh hoàn VNPay chưa có kết quả
+ * (`transactionId` chính là mã lệnh hoàn để đối soát).
+ */
+export interface ReconciliationItem {
+  kind: 'LatePayment' | 'RefundProcessing'
+  transactionId: string
+  orderId: string
+  bookingId: string | null
+  amount: number
+  merchantReference: string | null
+  gatewayReference: string | null
+  status: string
+  reason: string | null
+  occurredAt: string
+  refundId: string | null
+  refundStatus: string | null
 }

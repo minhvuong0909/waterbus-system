@@ -76,6 +76,21 @@ describe('PendingRefundsPanel', () => {
     expect(confirmButton().disabled).toBe(false)
   })
 
+  it('asks again before confirming, and sends nothing when cancelled or when the selection changes', async () => {
+    render(<PendingRefundsPanel refreshKey={0} />)
+    await screen.findByText('BK1')
+    fireEvent.click(screen.getByLabelText('Select refund BK1'))
+    fireEvent.change(screen.getByLabelText('Evidence'), { target: { value: 'Đợt hoàn VNPay 12/11' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm 1 as refunded' }))
+    expect(screen.getByText(/cannot be undone/i)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('button', { name: 'Yes, staff have refunded them' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm 1 as refunded' }))
+    fireEvent.change(screen.getByLabelText('Evidence'), { target: { value: 'Đợt khác' } })
+    expect(screen.queryByRole('button', { name: 'Yes, staff have refunded them' })).toBeNull()
+    expect(confirmRefundsBatch).not.toHaveBeenCalled()
+  })
+
   it('confirms the selected refunds with the shared evidence and each row amount, then lists the failures', async () => {
     vi.mocked(confirmRefundsBatch).mockResolvedValue({
       confirmed: 1, failed: 1,
@@ -90,6 +105,7 @@ describe('PendingRefundsPanel', () => {
     fireEvent.click(screen.getByLabelText('Select all'))
     fireEvent.change(screen.getByLabelText('Evidence'), { target: { value: '  Đợt hoàn VNPay 12/11  ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Confirm 2 as refunded' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, staff have refunded them' }))
 
     await waitFor(() => expect(confirmRefundsBatch).toHaveBeenCalledWith([
       { refundTransactionId: 'r1', evidence: 'Đợt hoàn VNPay 12/11', gatewayReference: null, confirmedAmount: 40000 },
@@ -108,6 +124,7 @@ describe('PendingRefundsPanel', () => {
     fireEvent.click(screen.getByLabelText('Select refund BK1'))
     fireEvent.change(screen.getByLabelText('Evidence'), { target: { value: 'e' } })
     fireEvent.click(screen.getByRole('button', { name: 'Confirm 1 as refunded' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, staff have refunded them' }))
 
     expect(await screen.findByRole('alert')).toBeTruthy()
   })
@@ -139,6 +156,7 @@ describe('PendingRefundsPanel', () => {
 
     fireEvent.click(screen.getByLabelText('Select refund BK2'))
     fireEvent.click(screen.getByRole('button', { name: 'Confirm 1 as refunded' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, staff have refunded them' }))
     expect(confirmRefundsBatch).toHaveBeenCalledWith([
       { refundTransactionId: 'r2', evidence: 'evidence', gatewayReference: null, confirmedAmount: 60000 },
     ])
