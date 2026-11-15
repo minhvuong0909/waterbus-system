@@ -139,11 +139,12 @@ public class BoatSimulatorService : BackgroundService
             else if (stopOpts.UseSimulatedSegmentDuration && stopOpts.SegmentDurationSeconds > 0)
             {
                 int segmentCount = Math.Max(1, trip.Stops.Count - 1);
-                // SegmentDurationSeconds là tổng thời lượng toàn bộ chuyến đi từ bến đầu đến bến cuối (giây)
-                double totalTripDuration = Math.Max(10.0, stopOpts.SegmentDurationSeconds);
-                double dwellDuration = Math.Max(0.0, stopOpts.DwellTimeSeconds);
-                // Phân bổ đều thời gian di chuyển cho từng chặng giữa 2 bến liên tiếp trong chuyến
-                double segDuration = Math.Max(1.0, totalTripDuration / segmentCount);
+                // Đảm bảo mỗi chặng (segment) giữa 2 bến có thời lượng tối thiểu 28 giây để đọc hết trọn vẹn thông báo rời/đến/cập bến
+                double rawDuration = stopOpts.SegmentDurationSeconds;
+                double segDuration = rawDuration >= 60.0 
+                    ? Math.Max(28.0, rawDuration / segmentCount) 
+                    : Math.Max(28.0, rawDuration);
+                double dwellDuration = Math.Max(5.0, stopOpts.DwellTimeSeconds);
                 double segTotalTime = segDuration + dwellDuration;
                 totalCycleTime = segmentCount * segTotalTime;
 
