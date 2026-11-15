@@ -140,6 +140,89 @@ public class AccountServiceTests
         h.Queue.Sent.Should().BeEmpty();
     }
 
+    // ---------- Cooldown dùng chung giữa đăng ký và gửi lại ----------
+
+    /// <summary>Cooldown thật (SET NX) trong bộ nhớ: chỉ lần chiếm đầu tiên cho tới khi hết hạn mới thành công.</summary>
+    private static void UseStatefulCooldown(Harness h, Func<DateTimeOffset> now)
+    {
+        var expiry = new Dictionary<string, DateTimeOffset>();
+        h.Cooldown.Setup(c => c.TryAcquireAsync(It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .Returns((string key, TimeSpan ttl, CancellationToken _) =>
+            {
+                lock (expiry)
+                {
+                    if (expiry.TryGetValue(key, out var until) && until > now()) return Task.FromResult(false);
+                    expiry[key] = now() + ttl;
+                    return Task.FromResult(true);
+                }
+            });
+    }
+
+    private static Harness RegisteredHarness(Func<DateTimeOffset> now, out ApplicationUser created)
+    {
+        var h = new Harness();
+        UseStatefulCooldown(h, now);
+        ApplicationUser? captured = null;
+        h.Users.Setup(u => u.CreateAsync(It.IsAny<ApplicationUser>()))
+            .Callback<ApplicationUser>(u => { u.Id = Guid.NewGuid(); captured = u; })
+            .ReturnsAsync(IdentityResult.Success);
+        h.Users.Setup(u => u.IsInRoleAsync(It.IsAny<ApplicationUser>(), "Passenger")).ReturnsAsync(true);
+        h.Users.Setup(u => u.FindByEmailAsync(Email)).ReturnsAsync((ApplicationUser?)null);
+        h.Sut.RegisterAsync(Register()).GetAwaiter().GetResult();
+        created = captured!;
+        h.Users.Setup(u => u.FindByEmailAsync(Email)).ReturnsAsync(captured);
+        return h;
+    }
+
+    [Fact]
+    public async Task Register_ThenImmediateResend_ShouldSendOnlyOneEmail()
+    {
+        var clock = DateTimeOffset.UtcNow;
+        var h = RegisteredHarness(() => clock, out _);
+
+        await h.Sut.ResendVerificationAsync(new ResendVerificationRequest(Email));
+
+        h.Queue.Sent.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Register_ThenResendAfterCooldown_ShouldSendSecondEmail()
+    {
+        var clock = DateTimeOffset.UtcNow;
+        var h = RegisteredHarness(() => clock, out _);
+
+        clock = clock.AddSeconds(61);
+        await h.Sut.ResendVerificationAsync(new ResendVerificationRequest(Email));
+
+        h.Queue.Sent.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Register_ConcurrentResends_ShouldQueueAtMostOneAdditionalEmail()
+    {
+        var clock = DateTimeOffset.UtcNow.AddMinutes(-5);
+        var h = RegisteredHarness(() => clock, out _);
+        clock = clock.AddSeconds(61); // cooldown của đăng ký đã hết
+
+        await Task.WhenAll(Enumerable.Range(0, 8)
+            .Select(_ => h.Sut.ResendVerificationAsync(new ResendVerificationRequest(Email))));
+
+        h.Queue.Sent.Should().HaveCount(2); // 1 đăng ký + đúng 1 gửi lại
+    }
+
+    [Fact]
+    public async Task Register_WhenCooldownHeld_ShouldStillCreateUserButNotQueueEmail()
+    {
+        var h = new Harness();
+        h.Cooldown.Setup(c => c.TryAcquireAsync(It.IsAny<string>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var response = await h.Sut.RegisterAsync(Register());
+
+        response.Should().NotBeNull();
+        h.Users.Verify(u => u.CreateAsync(It.IsAny<ApplicationUser>()), Times.Once);
+        h.Queue.Sent.Should().BeEmpty();
+    }
+
     // ---------- Gửi lại ----------
 
     private static async Task<Harness> ResendFor(ApplicationUser? user, bool passenger = true, bool cooldownFree = true)
