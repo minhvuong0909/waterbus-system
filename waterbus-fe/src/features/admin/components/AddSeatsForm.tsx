@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Button, SelectField, TextField } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { useSubmit } from '../../../hooks'
-import { planSeatLayout } from '../utils/seatBatch'
+import { MAX_SEAT_ROW, findLayoutOverflow, planSeatLayout } from '../utils/seatBatch'
 import type { ExistingSeat } from '../utils/seatBatch'
 import { addBoatSeats } from '../services/boatSeatService'
 import type { SeatClass } from '../types'
@@ -66,13 +66,22 @@ export default function AddSeatsForm({
     !rowError &&
     !totalError
 
-  const plan = valid
+  const draft = valid
     ? planSeatLayout(
         blocks.map((b, i) => ({ seatClassId: b.seatClassId, prefix: b.prefix, count: counts[i] })),
         existingSeats,
         Number(seatsPerRow),
       )
     : null
+  // Bố cục đã hợp lệ từng ô nhưng vẫn có thể vượt hàng/cột tối đa của backend (vd 120 ghế, mỗi hàng 1 ghế → hàng 120).
+  const overflow = draft ? findLayoutOverflow(draft.seats) : undefined
+  const layoutError = overflow
+    ? t('This layout needs row {row} but a boat has at most {max} rows. Seat more people per row or add fewer seats.', {
+        row: overflow.row,
+        max: MAX_SEAT_ROW,
+      })
+    : undefined
+  const plan = overflow ? null : draft
 
   const update = (key: number, change: Partial<BlockForm>) =>
     setBlocks((current) => current.map((b) => (b.key === key ? { ...b, ...change } : b)))
@@ -140,14 +149,14 @@ export default function AddSeatsForm({
             inputMode="numeric"
             value={seatsPerRow}
             onChange={(e) => setSeatsPerRow(e.target.value)}
-            error={showErrors ? rowError : undefined}
+            error={showErrors ? (rowError ?? layoutError) : undefined}
           />
         </div>
       </div>
       <p className="rounded-lg bg-mist px-3 py-2 text-sm text-on-surface-variant">
         {plan
           ? t('Adds {count} seats ({summary}).', { count: total, summary: summary ?? '' })
-          : (showErrors && totalError) || t('This boat has room for {count} more active seats.', { count: room })}
+          : layoutError || (showErrors && totalError) || t('This boat has room for {count} more active seats.', { count: room })}
       </p>
       <FormActions error={error} busy={busy} submitLabel="Add seats" onCancel={onCancel} />
     </form>

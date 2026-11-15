@@ -108,6 +108,35 @@ describe('AddSeatsForm', () => {
     expect(addBoatSeats).not.toHaveBeenCalled()
   })
 
+  it('blocks a layout that needs more than 100 rows, naming the row, without calling the server', () => {
+    renderForm(120)
+
+    fireEvent.change(fields('Code prefix')[0], { target: { value: 'S' } })
+    fireEvent.change(fields('Seats per row')[0], { target: { value: '1' } })       // 120 ghế, mỗi hàng 1 ghế → hàng 120
+    const message = 'This layout needs row 120 but a boat has at most 100 rows. Seat more people per row or add fewer seats.'
+    expect(screen.getByText(message)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Add seats' }))
+
+    expect(screen.getAllByText(message).length).toBeGreaterThan(0)
+    expect(addBoatSeats).not.toHaveBeenCalled()
+  })
+
+  it('submits a layout that ends exactly on row 100 and refuses the one ending on row 101', async () => {
+    vi.mocked(addBoatSeats).mockResolvedValue({ addedCount: 1 } as never)
+    renderForm(101)
+    fireEvent.change(fields('Code prefix')[0], { target: { value: 'S' } })
+    fireEvent.change(fields('Seats per row')[0], { target: { value: '1' } })
+    fireEvent.change(fields('Number of seats')[0], { target: { value: '101' } })   // hàng 101 → bị chặn
+    fireEvent.click(screen.getByRole('button', { name: 'Add seats' }))
+    expect(addBoatSeats).not.toHaveBeenCalled()
+
+    fireEvent.change(fields('Number of seats')[0], { target: { value: '100' } })   // hàng 100 → hợp lệ
+    fireEvent.click(screen.getByRole('button', { name: 'Add seats' }))
+
+    await waitFor(() => expect(addBoatSeats).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(addBoatSeats).mock.calls[0][1].at(-1)).toMatchObject({ rowNumber: 100 })
+  })
+
   it('removes a line and shows the server message when the batch is refused', async () => {
     vi.mocked(addBoatSeats).mockRejectedValue(new Error('down'))
     renderForm(60)

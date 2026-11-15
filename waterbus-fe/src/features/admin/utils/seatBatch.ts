@@ -48,6 +48,17 @@ export interface PlannedBlock {
   count: number
 }
 
+/** Backend (SeatInventoryValidators): RowNumber and ColumnNumber of every seat must be within 1…100. */
+export const MAX_SEAT_ROW = 100
+export const MAX_SEAT_COLUMN = 100
+
+/** The highest row/column a layout needs, or undefined when every seat fits the backend limits. */
+export function findLayoutOverflow(seats: readonly SeatInput[]): { row: number } | undefined {
+  const row = seats.reduce((max, seat) => Math.max(max, seat.rowNumber), 0)
+  const column = seats.reduce((max, seat) => Math.max(max, seat.columnNumber), 0)
+  return row > MAX_SEAT_ROW || column > MAX_SEAT_COLUMN ? { row } : undefined
+}
+
 export interface SeatLayoutPlan {
   seats: SeatInput[]
   blocks: PlannedBlock[]

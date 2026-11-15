@@ -13,7 +13,7 @@ namespace WaterbusSystem.UnitTests.Stations;
 public class StationServiceTests
 {
     private static StationService CreateService(ApplicationDbContext context) =>
-        new(new StationRepository(context), new EfUnitOfWork(context));
+        new(new StationRepository(context), new EfUnitOfWork(context), new SqlStationCoordinateLock(context));
 
     private static CreateStationRequest NewStationRequest(string code = "ST-99") => new(
         Code: code,
@@ -218,5 +218,22 @@ public class StationServiceTests
         var id = await service.CreateAsync(At("ST-NEW", 10.5, 106.5), CancellationToken.None);
 
         id.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task CreateAsync_AtTheCoordinatesOfAnInactiveStation_IsAllowed_ButReactivatingThatStationIsRejected()
+    {
+        using var context = TestDbContextFactory.CreateDbContext();
+        var service = CreateService(context);
+        var a = await service.CreateAsync(At("ST-A", 10.7752, 106.7073), CancellationToken.None);
+        await service.UpdateAsync(a, new UpdateStationRequest("Ben A", "Dia chi", 10.7752, 106.7073, 1, false));     // ngừng bến A
+
+        var b = await service.CreateAsync(At("ST-B", 10.7752, 106.7073), CancellationToken.None);                   // cùng tọa độ: được phép
+        var reactivate = () => service.UpdateAsync(a, new UpdateStationRequest("Ben A", "Dia chi", 10.7752, 106.7073, 1, true));
+
+        b.Should().NotBeEmpty();
+        var error = (await reactivate.Should().ThrowAsync<ValidationException>()).Which;                            // bật lại A: bị từ chối
+        error.Errors.Keys.Should().Contain(["Latitude", "Longitude"]);
+        (await service.GetByIdAsync(a)).IsActive.Should().BeFalse();
     }
 }

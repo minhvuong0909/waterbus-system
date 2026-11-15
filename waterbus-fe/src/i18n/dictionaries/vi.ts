@@ -1043,6 +1043,8 @@ export const vi: Record<string, string> = {
   'Add another class': 'Thêm hạng ghế khác',
   'Adds {count} seats ({summary}).': 'Sẽ thêm {count} ghế ({summary}).',
   'You can add at most {max} seats now.': 'Lúc này chỉ thêm được tối đa {max} ghế.',
+  'This layout needs row {row} but a boat has at most {max} rows. Seat more people per row or add fewer seats.':
+    'Bố cục này cần tới hàng {row} nhưng mỗi tàu chỉ có tối đa {max} hàng. Hãy tăng số ghế mỗi hàng hoặc thêm ít ghế hơn.',
   'Row': 'Hàng',
   'Column': 'Cột',
   'Use 1 to 6 letters.': 'Dùng 1 đến 6 chữ cái.',

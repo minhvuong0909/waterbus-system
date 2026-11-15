@@ -14,11 +14,16 @@ public sealed class StationRepository(ApplicationDbContext context) : IStationRe
     public Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default) =>
         context.Stations.AnyAsync(s => s.Code == code && !s.IsDeleted, cancellationToken);
 
-    /// <summary>Cột lưu decimal(10,7): hai tọa độ chỉ khác nhau dưới nửa đơn vị thập phân thứ 7 là cùng một điểm.</summary>
+    /// <summary>
+    /// Latitude/Longitude lưu <c>float</c> (double) - DB KHÔNG làm tròn về 7 chữ số. Ngưỡng này là quy ước nghiệp vụ: hai tọa độ
+    /// lệch nhau dưới 5e-8 độ (khoảng nửa cm) trên cả hai trục coi là cùng một điểm, đủ để hấp thụ sai số số thực khi nhập liệu
+    /// nhưng vẫn coi hai điểm lệch 1e-7 độ (khoảng 1 cm) là khác nhau.
+    /// </summary>
     private const double CoordinateEpsilon = 0.00000005;
 
+    /// <summary>Chỉ bến đang hoạt động mới chiếm tọa độ: bến ngừng hoạt động (chưa xoá mềm) không chặn bến mới.</summary>
     public Task<bool> ExistsAtCoordinatesAsync(double latitude, double longitude, Guid? excludeId, CancellationToken cancellationToken = default) =>
-        context.Stations.AnyAsync(s => !s.IsDeleted && (excludeId == null || s.Id != excludeId) &&
+        context.Stations.AnyAsync(s => !s.IsDeleted && s.IsActive && (excludeId == null || s.Id != excludeId) &&
             Math.Abs(s.Latitude - latitude) < CoordinateEpsilon && Math.Abs(s.Longitude - longitude) < CoordinateEpsilon, cancellationToken);
 
     public async Task<Station> GetRequiredByIdAsync(Guid id, CancellationToken cancellationToken = default) =>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildSeatBatch, planSeatLayout, seatCode } from './seatBatch'
+import { MAX_SEAT_ROW, buildSeatBatch, findLayoutOverflow, planSeatLayout, seatCode } from './seatBatch'
 
 const FRONT = 'class-front'
 const STD = 'class-standard'
@@ -75,5 +75,39 @@ describe('planSeatLayout', () => {
 
   it('plans nothing for no blocks', () => {
     expect(planSeatLayout([], [], 4)).toEqual({ seats: [], blocks: [] })
+  })
+})
+
+describe('findLayoutOverflow', () => {
+  const layout = (count: number, seatsPerRow: number, existingRow = 0) =>
+    planSeatLayout(
+      [{ seatClassId: STD, prefix: 'S', count }],
+      existingRow ? [{ seatCode: 'Z01', rowNumber: existingRow }] : [],
+      seatsPerRow,
+    ).seats
+
+  it('accepts a layout whose last row is exactly the limit (100)', () => {
+    expect(layout(100, 1)[99].rowNumber).toBe(MAX_SEAT_ROW)
+    expect(findLayoutOverflow(layout(100, 1))).toBeUndefined()
+  })
+
+  it('rejects a layout one row past the limit (101) and reports the row it needs', () => {
+    expect(findLayoutOverflow(layout(101, 1))).toEqual({ row: 101 })
+  })
+
+  it('counts the rows the boat already uses, not only the new seats', () => {
+    expect(findLayoutOverflow(layout(2, 1, 99))).toEqual({ row: 101 })          // hàng 100 đã có ghế → ghế mới ở hàng 100, 101
+    expect(findLayoutOverflow(layout(1, 1, 99))).toBeUndefined()                // ghế mới ở đúng hàng 100
+  })
+
+  it('accepts the same 120 seats once enough of them share a row', () => {
+    expect(findLayoutOverflow(layout(120, 1))).toEqual({ row: 120 })
+    expect(findLayoutOverflow(layout(120, 2))).toBeUndefined()
+  })
+
+  it('rejects a row wider than 100 columns', () => {
+    const seats = layout(101, 101)
+    expect(seats.every((s) => s.rowNumber === 1)).toBe(true)
+    expect(findLayoutOverflow(seats)).toEqual({ row: 1 })
   })
 })
