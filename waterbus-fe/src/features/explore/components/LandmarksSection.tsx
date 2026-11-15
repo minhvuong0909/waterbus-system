@@ -1,117 +1,87 @@
-import { useState } from 'react'
-import { Icon } from '../../../components/ui'
-import type { ExploreData, Landmark, PoiCategory } from '../types'
+import type { ExploreData } from '../types'
 import { t } from '../../../i18n'
-import LandmarkDrawer from './LandmarkDrawer'
 import LandmarkImage from './LandmarkImage'
 import { SECTION } from '../constants'
 
 export default function LandmarksSection({
-  categories,
   landmarks,
 }: {
-  categories: PoiCategory[]
   landmarks: ExploreData['landmarks']
 }) {
-  const [filter, setFilter] = useState<PoiCategory | 'all'>('all')
-  const [open, setOpen] = useState<Landmark | null>(null)
-  const visible = filter === 'all' ? landmarks : landmarks.filter((l) => l.category === filter)
-  const pill = (active: boolean) =>
-    `min-h-11 rounded-full px-4 py-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-flow ${
-      active
-        ? 'bg-deep-river font-semibold text-white shadow-sm'
-        : 'bg-white text-on-surface-variant hover:bg-white/70 hover:text-deep-river'
-    }`
-
   return (
     <section id="river-landmarks" className="scroll-mt-24 bg-surface py-16 sm:py-20 lg:py-24">
       <div className={SECTION}>
-        <div className="mb-8 flex flex-col justify-between gap-6 lg:mb-10 lg:flex-row lg:items-end">
-          <div className="max-w-xl">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-teal-flow">
-              {t('The city, one story at a time')}
-            </p>
-            <h2 className="font-display text-3xl font-bold tracking-tight text-deep-river sm:text-4xl">
-              {t('Explore Along the River')}
-            </h2>
-          </div>
-          <div
-            role="group"
-            aria-label={t('Filter by category')}
-            className="flex w-fit max-w-full flex-wrap gap-1 rounded-full bg-surface-container p-1"
-          >
-            <button
-              type="button"
-              aria-pressed={filter === 'all'}
-              onClick={() => setFilter('all')}
-              className={pill(filter === 'all')}
-            >
-              {t('All')}
-            </button>
-            {categories.map((c) => (
-              <button
-                key={c}
-                type="button"
-                aria-pressed={filter === c}
-                onClick={() => setFilter(c)}
-                className={pill(filter === c)}
-              >
-                {t(c)}
-              </button>
-            ))}
-          </div>
+        <div className="mb-10 max-w-2xl sm:mb-14 lg:mb-16">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-teal-flow">
+            {t('Landmarks')}
+          </p>
+          <h2 className="font-display text-4xl font-semibold tracking-tight text-deep-river sm:text-5xl">
+            {t('Explore Along the River')}
+          </h2>
         </div>
-        {visible.length === 0 && (
+        {landmarks.length === 0 && (
           <p className="rounded-2xl border border-dashed border-outline-variant bg-white p-space-lg text-center text-sm text-on-surface-variant">
-            {t('No places in this category yet.')}
+            {t('No landmarks are available yet.')}
           </p>
         )}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {visible.map((l, index) => (
-            <button
-              key={l.id}
-              type="button"
-              onClick={() => setOpen(l)}
-              aria-haspopup="dialog"
-              data-reveal
-              className={`group flex cursor-pointer flex-col overflow-hidden rounded-3xl border border-outline-variant/30 bg-white text-left shadow-card transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-teal-flow/30 hover:shadow-raised motion-reduce:transform-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-flow ${
-                index === 0 ? 'sm:col-span-2' : ''
-              }`}
-            >
-              <div className="relative h-56 w-full shrink-0 overflow-hidden">
-                <LandmarkImage
-                  landmark={l}
-                  className="h-full w-full transition-transform duration-700 ease-out group-hover:scale-[1.04] motion-reduce:transform-none"
-                />
-                <span className="absolute left-4 top-4 rounded-full border border-white/70 bg-white/90 px-3 py-1 text-xs font-semibold text-deep-river shadow-sm backdrop-blur-sm">
-                  {t(l.category)}
-                </span>
-                <span className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-deep-river/35 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 motion-reduce:transition-none" />
-              </div>
-              <div className="flex flex-1 flex-col p-5 sm:p-6">
-                <h3 className={`min-h-10 font-display font-bold leading-snug text-deep-river ${index === 0 ? 'sm:text-xl' : 'text-lg'}`}>
-                  {l.title}
-                </h3>
-                <p className={`mt-1 min-h-12 line-clamp-2 text-sm leading-6 text-on-surface-variant ${index === 0 ? 'sm:text-base' : ''}`}>
-                  {l.description}
-                </p>
-                <div className="mt-auto pt-1">
-                  <span className="inline-flex min-h-11 w-fit items-center gap-3 text-sm font-semibold text-deep-river transition-colors duration-200 group-hover:text-teal-flow group-focus-visible:text-teal-flow">
-                    {t('Read the story')}
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-teal-flow/10 text-teal-flow transition-[background-color,transform,box-shadow] duration-200 group-hover:translate-x-1 group-hover:bg-teal-flow group-hover:text-white group-hover:shadow-md group-focus-visible:bg-teal-flow group-focus-visible:text-white motion-reduce:transform-none">
-                      <Icon
-                        name="arrow_forward"
-                        className="text-base transition-transform duration-300 group-hover:translate-x-0.5 motion-reduce:transform-none"
-                      />
-                    </span>
+        <div className="space-y-12 sm:space-y-16 lg:space-y-20">
+          {landmarks.map((landmark, index) => {
+            const isReversed = index % 2 === 1
+            const number = String(index + 1).padStart(2, '0')
+            const copyBackground = isReversed ? 'bg-sand-light' : 'bg-white'
+
+            return (
+              <article
+                key={landmark.id}
+                data-reveal="landmark"
+                data-reveal-direction={isReversed ? 'right' : 'left'}
+                className="grid w-full grid-cols-1 items-stretch text-left lg:grid-cols-12"
+              >
+                <div
+                  data-reveal-part="media"
+                  className={`relative isolate aspect-[4/3] overflow-hidden bg-secondary-container sm:aspect-[16/10] lg:col-span-7 lg:aspect-auto lg:min-h-[34rem] ${
+                    isReversed ? 'lg:col-start-6 lg:row-start-1' : ''
+                  }`}
+                >
+                  <LandmarkImage
+                    landmark={landmark}
+                    className="absolute inset-0 h-full w-full"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-t from-deep-river/55 via-transparent to-transparent"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="absolute bottom-5 left-5 font-display text-5xl font-semibold leading-none text-white drop-shadow sm:bottom-7 sm:left-7 sm:text-6xl"
+                  >
+                    {number}
                   </span>
                 </div>
-              </div>
-            </button>
-          ))}
+                <div
+                  data-reveal-part="copy"
+                  className={`flex flex-col items-start justify-center gap-5 px-6 py-9 sm:gap-6 sm:px-10 sm:py-12 lg:col-span-5 lg:px-12 lg:py-14 ${
+                    isReversed
+                      ? 'lg:col-start-1 lg:row-start-1'
+                      : 'lg:col-start-8 lg:row-start-1'
+                  } ${copyBackground}`}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-flow">
+                    {t(landmark.category)}
+                  </p>
+                  <h3 className="max-w-xl font-display text-4xl font-semibold leading-[1.05] tracking-tight text-deep-river sm:text-5xl lg:text-6xl">
+                    {landmark.title}
+                  </h3>
+                  <p className="max-w-lg text-base leading-relaxed text-on-surface-variant sm:text-lg">
+                    {landmark.description}
+                  </p>
+                  <span aria-hidden="true" className="mt-1 h-px w-14 bg-teal-flow" />
+                </div>
+              </article>
+            )
+          })}
         </div>
       </div>
-      {open && <LandmarkDrawer landmark={open} onClose={() => setOpen(null)} />}
     </section>
   )
 }

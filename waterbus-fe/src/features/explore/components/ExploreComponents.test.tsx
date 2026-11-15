@@ -56,11 +56,11 @@ describe('Explore page', () => {
     const firstPhoto = screen.getByRole('button', { name: 'Show background for Ba Son Waterfront' })
     const secondPhoto = screen.getByRole('button', { name: 'Show background for Thu Thiem Promenade' })
     expect(firstPhoto.getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByText('Ba Son Waterfront')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Ba Son Waterfront' })).toBeTruthy()
 
     act(() => vi.advanceTimersByTime(7000))
     expect(secondPhoto.getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByText('Thu Thiem Promenade')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Thu Thiem Promenade' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Pause background rotation' }))
     fireEvent.click(firstPhoto)
@@ -80,36 +80,44 @@ describe('Explore page', () => {
     expect(screen.queryByRole('button', { name: 'Pause background rotation' })).toBeNull()
   })
 
-  it('filters with pressed buttons and shows a note for an empty category', () => {
-    inRouter(<LandmarksSection categories={['Skyline', 'Heritage', 'Riverside']} landmarks={landmarks} />)
-    const riverside = screen.getByRole('button', { name: 'Riverside' })
-    fireEvent.click(riverside)
-    expect(riverside.getAttribute('aria-pressed')).toBe('true')
-    expect(screen.getByText('No places in this category yet.')).toBeTruthy()
-    expect(screen.queryByRole('tab')).toBeNull()
+  it('shows all landmarks without redundant category filters or action labels', () => {
+    inRouter(<LandmarksSection landmarks={landmarks} />)
+
+    expect(screen.queryByRole('group', { name: 'Filter by category' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Ba Son Waterfront|Thu Thiem Promenade/ })).toBeNull()
+    expect(screen.queryByText('Explore', { exact: true })).toBeNull()
   })
 
-  it('opens the story in a side panel and gives focus back when it closes', () => {
-    inRouter(<LandmarksSection categories={['Skyline', 'Heritage']} landmarks={landmarks} />)
-    const card = screen.getByRole('button', { name: /Ba Son Waterfront/ })
-    card.focus()
-    fireEvent.click(card)
+  it('shows a clear empty state when no landmarks are available', () => {
+    inRouter(<LandmarksSection landmarks={[]} />)
 
-    const dialog = screen.getByRole('dialog', { name: 'Ba Son Waterfront' })
-    expect(dialog.textContent).toContain('Heritage meets public space.')
-    expect(screen.queryByRole('link', { name: /Ba Son/ })).toBeNull()
+    expect(screen.getByText('No landmarks are available yet.')).toBeTruthy()
+  })
 
-    // Tab stays on the panel's close button instead of reaching the page behind it.
-    fireEvent.keyDown(window, { key: 'Tab' })
-    expect(document.activeElement?.getAttribute('aria-label')).toBe('Close')
+  it('renders each landmark as an accessible scroll-reveal entry', () => {
+    inRouter(<LandmarksSection landmarks={landmarks} />)
 
-    fireEvent.keyDown(window, { key: 'Escape' })
+    landmarks.forEach((landmark) => {
+      const heading = screen.getByRole('heading', { level: 3, name: landmark.title })
+      const entry = heading.closest('[data-reveal="landmark"]')
+
+      expect(entry?.tagName).toBe('ARTICLE')
+      expect(entry?.getAttribute('data-reveal')).toBe('landmark')
+      expect(entry?.querySelector('[data-reveal-part="media"]')).toBeTruthy()
+      expect(entry?.querySelector('[data-reveal-part="copy"]')).toBeTruthy()
+    })
+  })
+
+  it('does not open a detail panel when a landmark is clicked', () => {
+    inRouter(<LandmarksSection landmarks={landmarks} />)
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(document.activeElement).toBe(card)
+    fireEvent.click(screen.getByRole('heading', { level: 3, name: 'Ba Son Waterfront' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull()
   })
 
   it('shows a neutral tile instead of a photo of the wrong place', () => {
-    inRouter(<LandmarksSection categories={['Skyline']} landmarks={landmarks} />)
+    inRouter(<LandmarksSection landmarks={landmarks} />)
     expect(screen.getByRole('img', { name: 'Ba Son Waterfront' })).toBeTruthy()
     expect(screen.queryByRole('img', { name: 'Thu Thiem Promenade' })).toBeNull()
   })
