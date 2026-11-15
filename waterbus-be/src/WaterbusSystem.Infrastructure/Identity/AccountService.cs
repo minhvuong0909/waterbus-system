@@ -48,12 +48,12 @@ public sealed class AccountService(
     public async Task<AccountRequestAcceptedResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
     {
         var started = Stopwatch.GetTimestamp();
-        var result = await RegisterCoreAsync(request);
+        var result = await RegisterCoreAsync(request, ct);
         await PadAsync(started, ct);
         return result;
     }
 
-    private async Task<AccountRequestAcceptedResponse> RegisterCoreAsync(RegisterRequest request)
+    private async Task<AccountRequestAcceptedResponse> RegisterCoreAsync(RegisterRequest request, CancellationToken ct)
     {
         var email = request.Email.Trim();
         if (await users.FindByEmailAsync(email) is not null) return Accepted;
@@ -94,9 +94,13 @@ public sealed class AccountService(
             throw new InvalidOperationException("Không gán được role Passenger cho tài khoản mới (thiếu role?).");
         }
 
-        await SendVerificationAsync(user);
+        // Đăng ký chiếm cùng khoá cooldown với gửi lại: bấm "Gửi lại" ngay sau khi đăng ký không sinh thêm email thứ hai.
+        if (await cooldown.TryAcquireAsync(CooldownKey(user), ResendCooldown, ct))
+            await SendVerificationAsync(user);
         return Accepted;
     }
+
+    private static string CooldownKey(ApplicationUser user) => $"account:verify:{user.Id:N}";
 
     public async Task ConfirmEmailAsync(ConfirmEmailRequest request, CancellationToken ct = default)
     {
@@ -140,7 +144,7 @@ public sealed class AccountService(
         var user = await users.FindByEmailAsync(request.Email.Trim());
         if (user is { EmailConfirmed: false, IsActive: true }
             && await users.IsInRoleAsync(user, PassengerRole)
-            && await cooldown.TryAcquireAsync($"account:verify:{user.Id:N}", ResendCooldown, ct))
+            && await cooldown.TryAcquireAsync(CooldownKey(user), ResendCooldown, ct))
         {
             await SendVerificationAsync(user);
         }

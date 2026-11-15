@@ -4,7 +4,7 @@
  * passenger seat list, and per-passenger check-in checkboxes (BR-QR-03).
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Modal,
   View,
@@ -19,6 +19,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useScannerStore } from '../../store/useScannerStore';
 import { Ticket } from '../../types/scanner';
+import { eligibleTicketIds, selectedTicketIds as selectedIds, toggleAllTickets, toggleTicket } from './ticketSelection';
 
 export default function BookingDetailModal() {
   const {
@@ -30,45 +31,20 @@ export default function BookingDetailModal() {
     deviceInfo,
   } = useScannerStore();
 
-  const [ticketSelection, setTicketSelection] = useState<{ bookingId: string; ticketIds: string[] } | null>(null);
+  // Vé bị bỏ chọn, gắn với (booking, lần mở). Đổi booking / mở lại ⇒ key đổi ⇒ tự về mặc định (chọn mọi vé đủ điều kiện).
+  const selectionKey = `${currentBooking?.id ?? ''}:${isModalOpen}`;
+  const [exclusion, setExclusion] = useState<{ key: string; ids: string[] }>({ key: '', ids: [] });
+  const excludedIds = exclusion.key === selectionKey ? exclusion.ids : [];
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const selectedTicketIds = currentBooking
-    ? ticketSelection?.bookingId === currentBooking.id
-      ? ticketSelection.ticketIds
-      : currentBooking.tickets
-        .filter((ticket) => ticket.boardingStatus === 'NotCheckedIn')
-        .map((ticket) => ticket.id)
-    : [];
+  const submitting = useRef(false);
+  const tickets = currentBooking?.tickets ?? [];
+  const selectedTicketIds = selectedIds(tickets, excludedIds);
 
   if (!currentBooking) return null;
 
-  const toggleSelectTicket = (ticket: Ticket) => {
-    if (ticket.boardingStatus === 'CheckedIn') return; // Cannot un-check checked ticket here
-
-    if (selectedTicketIds.includes(ticket.id)) {
-      setTicketSelection({
-        bookingId: currentBooking.id,
-        ticketIds: selectedTicketIds.filter((id) => id !== ticket.id),
-      });
-    } else {
-      setTicketSelection({
-        bookingId: currentBooking.id,
-        ticketIds: [...selectedTicketIds, ticket.id],
-      });
-    }
-  };
-
-  const handleSelectAll = () => {
-    const uncheckedIds = currentBooking.tickets
-      .filter((t) => t.boardingStatus === 'NotCheckedIn')
-      .map((t) => t.id);
-
-    if (selectedTicketIds.length === uncheckedIds.length) {
-      setTicketSelection({ bookingId: currentBooking.id, ticketIds: [] });
-    } else {
-      setTicketSelection({ bookingId: currentBooking.id, ticketIds: uncheckedIds });
-    }
-  };
+  const toggleSelectTicket = (ticket: Ticket) =>
+    setExclusion({ key: selectionKey, ids: toggleTicket(tickets, excludedIds, ticket.id) });
+  const handleSelectAll = () => setExclusion({ key: selectionKey, ids: toggleAllTickets(tickets, excludedIds) });
 
   const handleConfirmCheckIn = async () => {
     if (selectedTicketIds.length === 0) {
@@ -76,6 +52,8 @@ export default function BookingDetailModal() {
       return;
     }
 
+    if (submitting.current) return; // chặn chạm đúp / yêu cầu chồng nhau
+    submitting.current = true;
     try {
       setIsSubmitting(true);
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -97,10 +75,12 @@ export default function BookingDetailModal() {
     } catch (e: any) {
       setIsSubmitting(false);
       Alert.alert('Lỗi', e.message);
+    } finally {
+      submitting.current = false;
     }
   };
 
-  const uncheckedCount = currentBooking.tickets.filter((t) => t.boardingStatus === 'NotCheckedIn').length;
+  const uncheckedCount = eligibleTicketIds(tickets).length;
   const checkedCount = currentBooking.tickets.filter((t) => t.boardingStatus === 'CheckedIn').length;
 
   return (

@@ -14,7 +14,7 @@ function applyStaffIdentity(user: AuthUser | null) {
     staffName: user?.fullName ?? '',
     forceOfflineMode: false,
   });
-  useScannerStore.setState({ deviceInfo: syncService.getDeviceInfo(), activeAssignment: null,
+  useScannerStore.setState({ deviceInfo: syncService.getDeviceInfo(), activeAssignment: null, cachedAssignments: [],
     currentBooking: null, verificationResult: null, isModalOpen: false, shift: null, syncMessage: null, needsReviewCount: 0 });
 }
 

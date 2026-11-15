@@ -24,7 +24,6 @@ import { router } from 'expo-router';
 import { useIsFocused } from 'expo-router/react-navigation';
 import { useScannerStore } from '../../store/useScannerStore';
 import { QrVerifier } from '../../services/crypto/qrVerifier';
-import { SqliteRepository } from '../../services/sqlite/sqliteRepository';
 import { QrVerificationResult } from '../../types/scanner';
 import BookingDetailModal from '../booking/BookingDetailModal';
 
@@ -42,7 +41,8 @@ export default function StaffScannerScreen() {
 
   const {
     isModalOpen,
-    setCurrentBooking,
+    openScannedBooking,
+    cachedAssignments,
     stats,
     deviceInfo,
     refreshStats,
@@ -137,29 +137,25 @@ export default function StaffScannerScreen() {
   };
 
   const lookupAndOpenBooking = async (publicBookingId: string, verification: QrVerificationResult) => {
-    let booking = await SqliteRepository.getBookingByPublicId(publicBookingId);
-
-    if (!booking) {
-      booking = await SqliteRepository.searchBookingOrTicket(publicBookingId);
-    }
-
-    if (booking?.tripId === activeAssignment?.tripId && booking) {
+    // Tự định tuyến tới đúng TripStopCall đã được cấp quyền (nhiều chuyến tại cùng bến); chuyến chưa tải
+    // sẽ được tải theo yêu cầu khi online. Không cần Staff chọn lại chuyến.
+    const result = await openScannedBooking(publicBookingId, verification);
+    if (result.status === 'opened') {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setCurrentBooking(booking, verification);
-    } else {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert(
-        'Chưa có dữ liệu chuyến trong máy',
-        `Đã giải mã: "${publicBookingId}".\nTuy nhiên dữ liệu đơn này chưa có trong bộ nhớ SQLite của máy.\n\nNhân viên vui lòng bấm "Tải trước Cache" trước giờ mở cổng bến.`,
-        [
-          { text: 'Huỷ', style: 'cancel' },
-          {
-            text: 'Tải trước ngay',
-            onPress: () => router.push('/(tabs)/manifest'),
-          },
-        ]
-      );
+      return;
     }
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    const unauthorized = result.status === 'notAuthorized';
+    Alert.alert(
+      unauthorized ? 'Chuyến chưa được cấp quyền tại máy' : 'Không tìm thấy đơn tại bến này',
+      `Mã: "${publicBookingId}".\n${unauthorized
+        ? 'Đơn có trong máy nhưng chuyến này chưa được cấp quyền soát vé. Hãy tải lại dữ liệu chuyến.'
+        : 'Đơn không thuộc các chuyến đã tải/được phân công tại bến này (hoặc máy đang ngoại tuyến và chưa tải chuyến).'}${result.message ? `\n${result.message}` : ''}`,
+      [
+        { text: 'Huỷ', style: 'cancel' },
+        { text: 'Tải trước ngay', onPress: () => router.push('/(tabs)/manifest') },
+      ]
+    );
   };
 
   const handleManualSearch = async () => {
@@ -238,7 +234,7 @@ export default function StaffScannerScreen() {
           <View>
             <Text style={styles.staffNameText}>NV: {deviceInfo.staffName} ({deviceInfo.deviceCode})</Text>
             <Text style={styles.stationNameText}>{deviceInfo.stationName}</Text>
-            <Text style={styles.stationNameText}>{activeAssignment.routeName} · {activeAssignment.isPrimaryOffline ? 'Có quyền ngoại tuyến' : 'Soát vé trực tuyến'}</Text>
+            <Text style={styles.stationNameText}>{cachedAssignments.length} chuyến đã tải · {activeAssignment.isPrimaryOffline ? 'Có quyền ngoại tuyến' : 'Soát vé trực tuyến'}</Text>
           </View>
 
           {stats.pendingSyncCount > 0 ? (
@@ -257,7 +253,9 @@ export default function StaffScannerScreen() {
         {deviceInfo.forceOfflineMode && (
           <View style={styles.offlineBanner}>
             <Ionicons name="wifi-outline" size={16} color="#DC2626" />
-            <Text style={styles.offlineBannerText}>ĐANG BẬT CHẾ ĐỘ NGOẠI TUYẾN CỐ ĐỊNH (OFFLINE FIRST)</Text>
+            <Text style={styles.offlineBannerText}>
+              GIẢ LẬP NGOẠI TUYẾN (DEV) · {stats.pendingSyncCount} sự kiện chờ đồng bộ
+            </Text>
           </View>
         )}
       </View>

@@ -432,17 +432,18 @@ async function runVerification() {
     checkInOpenAt: new Date(Date.now() - 60000).toISOString(), checkInCloseAt: new Date(Date.now() - 1).toISOString(),
   };
   const grant = { id: 'grant-test', activeFrom: assignment.activeFrom, activeUntil: assignment.activeUntil! };
-  const saveContext = () => scannerCredentials.saveCache({ staffId: 'staff-test', enrollmentId: identity.enrollmentId,
-    assignment, grant, serverTime: Date.now(), deviceTime: Date.now() });
+  const saveContext = (primary = true) => scannerCredentials.saveCache({ staffId: 'staff-test', enrollmentId: identity.enrollmentId,
+    assignment: { ...assignment, isPrimaryOffline: primary }, grant: primary ? grant : null, serverTime: Date.now(), deviceTime: Date.now() });
   await saveContext();
   useScannerStore.setState({ activeAssignment: assignment });
   assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
     '5.2 Reject check-in after the stop window closes');
   assignment.checkInCloseAt = new Date(Date.now() + 60000).toISOString();
-  await saveContext();
+  await saveContext(false); // máy phụ: máy chủ không cấp quyền offline cho điểm dừng này
   useScannerStore.setState({ activeAssignment: { ...assignment, isPrimaryOffline: false } });
   assert(!(await useScannerStore.getState().performCheckIn([remaining.id])).success,
     '5.3 Reject offline writes on a secondary scanner');
+  await saveContext();
   useScannerStore.setState({ activeAssignment: assignment });
   assert((await useScannerStore.getState().performCheckIn([remaining.id])).success,
     '5.4 Accept a valid ticket at its assigned stop inside the window');

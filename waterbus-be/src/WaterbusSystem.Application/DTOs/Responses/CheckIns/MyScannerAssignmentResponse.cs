@@ -15,4 +15,9 @@ public record MyScannerAssignmentResponse(
     DateTimeOffset ActiveFrom,
     DateTimeOffset? ActiveUntil,
     DateTimeOffset? CheckInOpenAt,
-    DateTimeOffset? CheckInCloseAt);
+    DateTimeOffset? CheckInCloseAt,
+    // Định danh chuyến để Staff phân biệt nhiều chuyến cùng tuyến/cùng bến (thêm vào cuối, không đổi thứ tự cũ).
+    DateTimeOffset TripDepartureTime = default,
+    string? BoatCode = null,
+    string? BoatName = null,
+    DateTimeOffset? EstimatedDepartureTime = null);

@@ -146,8 +146,8 @@ class SyncService {
     const [response, publicKey] = await Promise.all([fetchScannerManifest(tripStopCallId, staffId), fetchQrPublicKey()]);
     if (this.currentDevice.staffId !== staffId) throw new Error('Phiên đăng nhập đã thay đổi.');
     const manifest = mapScannerManifestToPreloadManifest(response, publicKey);
-    await scannerCredentials.invalidateCache();
-    await SqliteRepository.saveManifest(manifest, true);
+    // Gộp (không thay thế) để nhiều chuyến tại bến cùng nằm trong SQLite; vé chờ đồng bộ được bảo vệ.
+    await SqliteRepository.saveManifest(manifest);
     const message = `Đã tải ${manifest.bookings.length} đơn đặt tại ${manifest.stationName}.`;
     return { response, message };
   }
