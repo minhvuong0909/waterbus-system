@@ -143,7 +143,8 @@ jobs:
           gated = ("RedisCommercialTests", "CommercialSqlTests", "DomainPersistenceTests", "EmailOutboxSqlTests",
                    "CheckInConcurrencySqlTests", "ScannerAssignmentMigrationSqlTests", "ScannerDeviceLockSqlTests", "StationScannerSqlHttpTests", "StationScannerMigrationSqlTests",
                    "AccountAccessSqlHttpTests", "ApiReliabilitySqlHttpTests", "OnboardAudioPlaybackSqlTests",
-                   "RefundDemoModeSqlHttpTests", "StationCoordinatesSqlTests", "SightseeingSqlTests")
+                   "RefundDemoModeSqlHttpTests", "StationCoordinatesSqlTests", "CaptainSqlHttpTests",
+                   "CaptainMigrationSqlTests", "SightseeingSqlTests")
           bad = [(n, o) for n, o in results if any(g in n for g in gated) and o == "NotExecuted"]
           ran = sum(1 for n, o in results if any(g in n for g in gated) and o == "Passed")
           print(f"infrastructure tests passed: {ran}, not executed: {len(bad)}")

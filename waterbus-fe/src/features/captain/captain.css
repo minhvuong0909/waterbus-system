@@ -1,0 +1,652 @@
+.captain-shell {
+  --cap-navy: #0d2538;
+  --cap-text: #0d2538;
+  --cap-muted: #536078;
+  --cap-teal: #147a7e;
+  --cap-border: #cbdced;
+  min-height: 100vh;
+  color: var(--cap-text);
+  background: #faf9fb;
+  font-family: Inter, sans-serif;
+}
+.captain-shell button,
+.captain-shell select,
+.captain-shell summary {
+  touch-action: manipulation;
+}
+.captain-shell button {
+  cursor: pointer;
+}
+.captain-shell button:disabled {
+  cursor: not-allowed;
+}
+.captain-shell :is(button, select, summary, a):focus-visible {
+  outline: 3px solid #147a7e;
+  outline-offset: 4px;
+}
+.captain-header {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 10px 28px;
+  background: linear-gradient(110deg, #152a46, #0b1b38);
+  color: white;
+  box-shadow: 0 3px 12px #0d253818;
+}
+.captain-brand {
+  display: flex;
+  flex-shrink: 0;
+}
+.captain-brand svg {
+  width: 196px;
+  height: 44px;
+}
+.captain-brand svg text {
+  fill: #fff;
+}
+.captain-header-divider {
+  width: 1px;
+  height: 32px;
+  background: #ffffff55;
+  flex-shrink: 0;
+}
+.captain-header-title {
+  font-size: clamp(16px, 1.5vw, 23px);
+  font-weight: 800;
+  white-space: nowrap;
+  letter-spacing: -0.5px;
+}
+.captain-header-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.captain-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.captain-pill .material-symbols-outlined {
+  font-size: 18px;
+}
+.captain-pill.is-teal {
+  color: #fff;
+  background: #008f88;
+}
+.captain-pill.is-green {
+  color: #fff;
+  background: #087a46;
+}
+.captain-pill.is-success,
+.captain-notification.is-success {
+  color: #075c43;
+  background: #d8f3e9;
+}
+.captain-pill.is-warning,
+.captain-notification.is-warning {
+  color: #865006;
+  background: #fff0ce;
+}
+.captain-account {
+  position: relative;
+  margin-left: auto;
+  flex-shrink: 0;
+  z-index: 30;
+}
+.captain-account summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  min-height: 44px;
+}
+.captain-account summary::-webkit-details-marker {
+  display: none;
+}
+.captain-avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  color: #153b55;
+  background: #d0edfa;
+  border: 2px solid #ffffff90;
+  border-radius: 50%;
+}
+.captain-account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 15px);
+  min-width: 230px;
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  color: var(--cap-text);
+  background: white;
+  border: 1px solid var(--cap-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px #0d253825;
+}
+.captain-account-menu > span {
+  font-size: 12px;
+  color: var(--cap-muted);
+}
+.captain-account-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  padding: 10px 0;
+  border-top: 1px solid var(--cap-border);
+}
+.captain-clock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.captain-content {
+  max-width: 1800px;
+  padding: 24px;
+  margin: 0 auto;
+}
+.captain-card {
+  border: 1px solid var(--cap-border);
+  border-radius: 15px;
+  background: linear-gradient(135deg, #fff 0%, #f8fbff 100%);
+  box-shadow: 0 2px 4px #214a6b0d, 0 5px 12px #214a6b06;
+}
+.captain-card-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 18px;
+}
+.captain-shell h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1.4;
+}
+.captain-shell h2 .material-symbols-outlined {
+  font-size: 28px;
+}
+.captain-map-card {
+  overflow: hidden;
+}
+.captain-map-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.captain-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid #8a9eb7;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #fff9;
+}
+.captain-outline:hover:not(:disabled) {
+  background: #e5f7f4;
+}
+.captain-outline:disabled {
+  opacity: 0.5;
+}
+.captain-map-surface {
+  height: clamp(420px, 52vh, 640px);
+  min-height: 420px;
+  position: relative;
+  margin: 0 6px 6px;
+  border-radius: 4px 4px 10px 10px;
+  overflow: hidden;
+  background: #e2ebf2;
+}
+.captain-leaflet {
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  background: #dceaf2;
+  font-family: inherit;
+}
+.captain-leaflet .leaflet-tile-pane {
+  filter: saturate(0.72) brightness(1.04);
+}
+.captain-leaflet .captain-station-label {
+  background: #fff;
+  border: 1px solid #147a7e;
+  border-radius: 7px;
+  color: #0d2538;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 4px 9px;
+  box-shadow: 0 2px 4px #18345510;
+}
+.captain-vessel {
+  filter: drop-shadow(0 3px 3px #153b5570);
+}
+.captain-map-note {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  max-width: calc(100% - 75px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fffffff0;
+  color: #44516a;
+  border: 1px solid #cbdced;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 12px;
+  pointer-events: none;
+}
+.captain-map-caption {
+  padding: 4px 16px 10px;
+  color: var(--cap-muted);
+  font-size: 11px;
+}
+.captain-controls .captain-card-heading {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+.captain-gps-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.captain-gps-toggle button {
+  min-width: 52px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.captain-gps-toggle button::before {
+  content: '';
+  position: absolute;
+  width: 52px;
+  height: 29px;
+  border-radius: 30px;
+  background: #9baabe;
+}
+.captain-gps-toggle button span {
+  position: relative;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background: white;
+  margin-left: 3px;
+  box-shadow: 0 1px 3px #0002;
+  transition: transform 0.15s;
+}
+.captain-gps-toggle button.is-on::before {
+  background: #009f95;
+}
+.captain-gps-toggle button.is-on span {
+  transform: translateX(23px);
+}
+.captain-muted {
+  color: var(--cap-muted);
+  font-size: 13px;
+}
+.captain-connection-list .captain-pill {
+  font-size: 11px;
+}
+.captain-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #edb951;
+  border-radius: 10px;
+  background: #fff0ce;
+  padding: 13px 16px;
+  color: #865006;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.captain-main-column > .captain-banner {
+  margin-bottom: 0;
+}
+.captain-banner button {
+  text-decoration: underline;
+  margin-left: auto;
+}
+.captain-empty {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 16px;
+  padding: 70px 20px;
+  margin: 30px auto;
+  max-width: 650px;
+}
+.captain-empty > .material-symbols-outlined {
+  font-size: 48px;
+  color: var(--cap-teal);
+}
+.captain-empty h1 {
+  font-size: 24px;
+  font-weight: 800;
+}
+.captain-empty p {
+  font-size: 14px;
+  color: var(--cap-muted);
+}
+.captain-map-zoom {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  display: grid;
+  background: white;
+  border: 1px solid #b3c3d1;
+  border-radius: 7px;
+  box-shadow: 0 2px 6px #153b5530;
+  overflow: hidden;
+}
+.captain-map-zoom button {
+  width: 44px;
+  height: 40px;
+  font-size: 26px;
+  line-height: 1;
+  color: #15334a;
+}
+.captain-map-zoom button + button {
+  border-top: 1px solid #d5dfe8;
+}
+.captain-map-zoom button:disabled {
+  color: #8c9aaa;
+}
+.captain-map-zoom button:hover:not(:disabled) {
+  background: #e4f5f4;
+}
+/* Tiêu đề và số liệu nổi bật dùng font hiển thị như phần còn lại của ứng dụng. */
+.captain-shell h1,
+.captain-shell h2,
+.captain-shell h3,
+.captain-shell .captain-header-title,
+.captain-shell .captain-metric strong {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.captain-map-surface .leaflet-container {
+  border-radius: 4px 4px 10px 10px;
+}
+
+/* ===== Bố cục gọn của Cổng thuyền trưởng ===== */
+.cap-main {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.cap-panel {
+  background: #fff;
+  border: 1px solid var(--cap-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 3px #0d253812;
+}
+.cap-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.cap-panel-head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+}
+.cap-hero {
+  display: grid;
+  gap: 8px;
+}
+.cap-hero-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cap-greeting {
+  margin: 0;
+  color: var(--cap-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+.cap-hero select {
+  max-width: 100%;
+  min-height: 44px;
+  padding: 8px 36px 8px 12px;
+  border: 1px solid #b4c3d3;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cap-hero h1 {
+  margin: 0;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.cap-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 0;
+  color: var(--cap-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+.cap-attendance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #865006;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cap-attendance.is-confirmed {
+  color: #075c43;
+}
+.cap-attendance button {
+  text-decoration: underline;
+}
+.cap-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cap-step {
+  display: grid;
+  gap: 6px;
+}
+.cap-step button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 96px;
+  padding: 14px 10px;
+  border: 2px solid #c5d3e1;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--cap-navy);
+  font-size: 15px;
+  text-align: center;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.cap-step button svg {
+  width: 28px;
+  height: 28px;
+}
+.cap-step button:disabled {
+  color: #8493a6;
+  background: #f1f4f8;
+  border-color: #dbe3ec;
+}
+.cap-step.is-current button {
+  color: #fff;
+  background: var(--cap-teal);
+  border-color: var(--cap-teal);
+  box-shadow: 0 6px 16px #147a7e40;
+  font-size: 16px;
+}
+.cap-step.is-current button:hover:not(:disabled) {
+  background: #0f6366;
+}
+.cap-step.is-done button {
+  color: #075c43;
+  background: #e6f6ee;
+  border-color: #b7e3cf;
+}
+.cap-step-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #0d253814;
+  font-size: 12px;
+  font-weight: 800;
+}
+.cap-step-badge svg {
+  width: 14px;
+  height: 14px;
+}
+.cap-step.is-current .cap-step-badge {
+  background: #ffffff30;
+}
+.cap-step small {
+  min-height: 16px;
+  color: var(--cap-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+.cap-sos {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 2px solid #d9573a;
+  border-radius: 10px;
+  background: #fff;
+  color: #b93a1f;
+  font-size: 14px;
+  font-weight: 800;
+}
+.cap-sos:hover:not(:disabled) {
+  background: #d9573a;
+  color: #fff;
+}
+.cap-sos:disabled {
+  opacity: 0.45;
+}
+.cap-instruction {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #e8f4f4;
+  color: #0d4f52;
+  font-size: 14px;
+  font-weight: 600;
+}
+.cap-mapbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 4px;
+}
+.cap-mapbar p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+}
+.cap-stale {
+  margin: 0;
+  color: #865006;
+  font-size: 13px;
+  font-weight: 600;
+}
+@media (max-width: 720px) {
+  .cap-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .captain-content {
+    padding: 14px;
+  }
+}
+
+/* Dải nhỏ báo loa đang phát (góc dưới bên phải). */
+.cap-speaker {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(420px, calc(100vw - 40px));
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--cap-navy);
+  color: #fff;
+  box-shadow: 0 8px 24px #0d253840;
+}
+.cap-speaker div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.cap-speaker span {
+  color: #cfe0ec;
+  font-size: 12px;
+}

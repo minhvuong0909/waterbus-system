@@ -82,6 +82,7 @@ public class PoiAudioTriggerDecisionServiceTests
             DisplayOrder = displayOrder,
             IsPoiActive = isPoiActive,
             IsRoutePoiActive = isRoutePoiActive,
+            Clips = new[] { new WaterbusSystem.Application.Features.SightseeingAudio.Models.AudioClipRef("vi", 5, "x") },
             AudioGuides = new List<AudioGuideCandidate>
             {
                 new()
@@ -129,7 +130,6 @@ public class PoiAudioTriggerDecisionServiceTests
         result.ShouldTrigger.Should().BeTrue();
         result.Reason.Should().Be(TriggerDecisionReason.Triggered);
         result.TriggeredPoiId.Should().Be(_poiId);
-        result.TriggeredAudioGuideId.Should().Be(_audioGuideId);
         result.DistanceMeters.Should().Be(0.0);
         result.TriggerRadiusMeters.Should().Be(100);
 
@@ -144,7 +144,7 @@ public class PoiAudioTriggerDecisionServiceTests
         dispatched.BoatId.Should().Be(_boatId);
         dispatched.RouteId.Should().Be(_routeId);
         dispatched.PoiId.Should().Be(_poiId);
-        dispatched.AudioAssetUri.Should().Be("https://storage.example.com/audio/bachdang-vi.mp3");
+        dispatched.Clips.Select(c => c.Language).Should().Equal("vi");
 
         // Deduplication service phải được đánh dấu đã kích hoạt
         var hasTriggered = await _dedupService.HasBeenTriggeredAsync(_tripId, _poiId);
@@ -272,6 +272,7 @@ public class PoiAudioTriggerDecisionServiceTests
             DisplayOrder = 1,
             IsPoiActive = true,
             IsRoutePoiActive = true,
+            Clips = new[] { new WaterbusSystem.Application.Features.SightseeingAudio.Models.AudioClipRef("vi", 5, "x") },
             AudioGuides = new List<AudioGuideCandidate>
             {
                 new()
@@ -411,6 +412,7 @@ public class PoiAudioTriggerDecisionServiceTests
             DisplayOrder = 1,
             IsPoiActive = true,
             IsRoutePoiActive = true,
+            Clips = new[] { new WaterbusSystem.Application.Features.SightseeingAudio.Models.AudioClipRef("vi", 5, "x") },
             AudioGuides = new List<AudioGuideCandidate>
             {
                 new()
@@ -458,52 +460,6 @@ public class PoiAudioTriggerDecisionServiceTests
 
     // ─────────────────────────────────────────────────────────────────────────────
     // 8. AUDIOGUIDE CHƯA PUBLISH HOẶC KHÔNG PHẢI TIẾNG VIỆT
-    // ─────────────────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public async Task EvaluateAndTrigger_AudioGuideNotPublished_DoesNotTrigger()
-    {
-        var boatPos = CreateBoatPosition(BachDangLat, BachDangLng);
-        var tripContext = CreateValidTripContext();
-        var candidate = CreateValidPoiCandidate(isAudioPublished: false);
-
-        var result = await _service.EvaluateAndTriggerAsync(boatPos, tripContext, new[] { candidate });
-
-        result.ShouldTrigger.Should().BeFalse();
-        result.Reason.Should().Be(TriggerDecisionReason.NoPublishedVietnameseAudio);
-        _dispatcher.DispatchedCount.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task EvaluateAndTrigger_OnlyEnglishAudioAvailable_DoesNotTrigger()
-    {
-        var boatPos = CreateBoatPosition(BachDangLat, BachDangLng);
-        var tripContext = CreateValidTripContext();
-        var candidate = CreateValidPoiCandidate(languageCode: "en"); // Không có tiếng Việt
-
-        var result = await _service.EvaluateAndTriggerAsync(boatPos, tripContext, new[] { candidate });
-
-        result.ShouldTrigger.Should().BeFalse();
-        result.Reason.Should().Be(TriggerDecisionReason.NoPublishedVietnameseAudio);
-        _dispatcher.DispatchedCount.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task EvaluateAndTrigger_EmptyAudioUri_DoesNotTrigger()
-    {
-        var boatPos = CreateBoatPosition(BachDangLat, BachDangLng);
-        var tripContext = CreateValidTripContext();
-        var candidate = CreateValidPoiCandidate(audioUri: "  "); // URI rỗng
-
-        var result = await _service.EvaluateAndTriggerAsync(boatPos, tripContext, new[] { candidate });
-
-        result.ShouldTrigger.Should().BeFalse();
-        result.Reason.Should().Be(TriggerDecisionReason.NoPublishedVietnameseAudio);
-        _dispatcher.DispatchedCount.Should().Be(0);
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 9. BÁN KÍNH NULL HOẶC KHÔNG HỢP LỆ
     // ─────────────────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -768,22 +724,7 @@ public class PoiAudioTriggerDecisionServiceTests
 
         var result = await _service.EvaluateAndTriggerAsync(
             CreateBoatPosition(BachDangLat, BachDangLng), CreateValidTripContext(),
-            new[] { candidate with { AudioGuides = new[] { wrongAudio } } });
-
-        result.Reason.Should().Be(TriggerDecisionReason.NoPublishedVietnameseAudio);
-        _dispatcher.DispatchedCount.Should().Be(0);
-    }
-
-    [Theory]
-    [InlineData("https://storage.example.test/audio.mp3?sig=short-lived")]
-    [InlineData("C:\\temp\\audio.mp3")]
-    [InlineData("/tmp/audio.mp3")]
-    [InlineData("file:///tmp/audio.mp3")]
-    public async Task EvaluateAndTrigger_TemporaryOrSignedAudioUri_DoesNotTrigger(string audioUri)
-    {
-        var result = await _service.EvaluateAndTriggerAsync(
-            CreateBoatPosition(BachDangLat, BachDangLng), CreateValidTripContext(),
-            new[] { CreateValidPoiCandidate(audioUri: audioUri) });
+            new[] { candidate with { AudioGuides = new[] { wrongAudio }, Clips = Array.Empty<WaterbusSystem.Application.Features.SightseeingAudio.Models.AudioClipRef>() } });
 
         result.Reason.Should().Be(TriggerDecisionReason.NoPublishedVietnameseAudio);
         _dispatcher.DispatchedCount.Should().Be(0);
@@ -854,6 +795,7 @@ public class PoiAudioTriggerDecisionServiceTests
             Latitude = null,
             Longitude = null,
             TriggerRadiusM = 100,
+            Clips = new[] { new WaterbusSystem.Application.Features.SightseeingAudio.Models.AudioClipRef("vi", 5, "x") },
             AudioGuides = new List<AudioGuideCandidate>
             {
                 new() { AudioGuideId = _audioGuideId, LanguageCode = "vi", IsPublished = true, AudioAssetUri = "uri" }

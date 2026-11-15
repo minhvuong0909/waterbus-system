@@ -22,7 +22,8 @@ public sealed class CheckoutSeatChangeService(
     ICommercialTransactionRunner transactions,
     IUnitOfWork unitOfWork,
     CheckoutCommitEffects effects,
-    IValidator<UpdateCheckoutSeatsRequest> validator)
+    IValidator<UpdateCheckoutSeatsRequest> validator,
+    ICaptainOperationsService captains)
     : ICheckoutSeatChangeService
 {
     public async Task<decimal> UpdateAsync(
@@ -80,6 +81,8 @@ public sealed class CheckoutSeatChangeService(
                 throw new ConcurrencyException(
                     "Chuyến không còn mở bán.");
             }
+
+            await captains.EnsureSellableAsync(trip.Boat.Id, cancellationToken);
 
             var seats = await references.GetActiveSeatsAsync(
                 request.SeatIds, cancellationToken);

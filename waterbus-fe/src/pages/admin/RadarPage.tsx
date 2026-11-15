@@ -17,6 +17,7 @@ import { useAutoRefresh } from '../../features/admin/hooks/useAutoRefresh'
 import { getStations } from '../../features/admin/services/stationService'
 import type { IncidentAlert } from '../../features/operations/types'
 import { riverPathOf } from '../../constant/riverPaths'
+import { SIGHTSEEING_POIS } from '../../constant/sightseeingPois'
 import { combineFetches, useDocumentTitle, useFetch, useNow, useReload } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -155,8 +156,9 @@ export default function RadarPage() {
   }
 
   const corridor = stations.data.filter((s) => s.isActive).sort((a, b) => a.orderIndex - b.orderIndex)
+  // Chỉ vẽ tàu đang trong chuyến: tàu nằm chờ ở bến không cần chiếm chỗ trên bản đồ.
   const mapBoats = rows.flatMap((row) =>
-    row.position
+    row.position && row.trip
       ? [
           {
             tripId: row.boatId,
@@ -175,8 +177,8 @@ export default function RadarPage() {
       <PageHeader title="Live Operations" description="Boats on the Saigon River, updated as their GPS reports arrive." />
       <IncidentBanners alerts={alerts.data} />
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="h-[70vh] min-h-[24rem] lg:col-span-2">
-          <FleetMap stations={corridor} path={riverPathOf(ROUTE_CODE)} boats={mapBoats} />
+        <div className="h-[78vh] min-h-[24rem] lg:col-span-2">
+          <FleetMap stations={corridor} path={riverPathOf(ROUTE_CODE)} landmarks={SIGHTSEEING_POIS} boats={mapBoats} />
         </div>
         <Panel title="Boats in service">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

@@ -31,4 +31,12 @@ public class BoatSimulatorOptions
     /// Mặc định chỉ giả lập Trip EnRoute/Suspended.
     /// </summary>
     public bool IncludeScheduledTrips { get; set; }
+
+    /// <summary>
+    /// Thời gian (giây) cho MỘT vòng chuyến khi demo, thay cho giờ chạy thật; lặp vòng. 0 = dùng giờ chạy thật của chuyến.
+    /// </summary>
+    public int DemoTripSeconds { get; set; }
+
+    /// <summary>Thời gian tàu đứng yên tại mỗi bến (kể cả bến đầu/cuối) khi dùng <see cref="DemoTripSeconds"/>.</summary>
+    public int DemoDwellSeconds { get; set; } = 8;
 }

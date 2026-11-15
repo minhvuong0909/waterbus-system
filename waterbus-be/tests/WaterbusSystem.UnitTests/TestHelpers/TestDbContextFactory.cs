@@ -54,6 +54,25 @@ public static class TestDbContextFactory
     /// FareRule cho các TripType, và 1 Trip Scheduled ngày mai kèm 3 TripStopCall
     /// (VisitOrder 1,2,3) làm nguồn sự thật cho việc xác định đoạn đi.
     /// </summary>
+    public static Guid AddCaptain(ApplicationDbContext context, Guid? captainId = null)
+    {
+        var role = context.Roles.Local.FirstOrDefault(r => r.Name == "Captain") ?? context.Roles.FirstOrDefault(r => r.Name == "Captain");
+        if (role is null) { role = new ApplicationRole("Captain") { Id = Guid.NewGuid(), NormalizedName = "CAPTAIN" }; context.Roles.Add(role); }
+        var id = captainId ?? Guid.NewGuid();
+        context.Users.Add(new ApplicationUser { Id = id, FullName = "Test Captain", UserName = id.ToString(), NormalizedUserName = id.ToString(),
+            Email = id + "@example.com", NormalizedEmail = id + "@EXAMPLE.COM", EmailConfirmed = true,
+            CaptainStatus = CaptainStatus.Active, CaptainLicenseNumber = id.ToString(), CaptainLicenseExpiresOn = DateOnly.MaxValue });
+        context.UserRoles.Add(new IdentityUserRole<Guid> { UserId = id, RoleId = role.Id });
+        return id;
+    }
+
+    public static Guid CaptainVersion(ApplicationDbContext context, Guid id)
+    {
+        var user = context.Users.SingleOrDefault(u => u.Id == id);
+        if (user is null) { AddCaptain(context, id); context.SaveChanges(); user = context.Users.Single(u => u.Id == id); }
+        return user.CaptainSessionVersion;
+    }
+
     public static TripSeedData SeedTrip(ApplicationDbContext context)
     {
         var stationA = new Station { Code = "ST01", Name = "Ben A", Address = "A", OrderIndex = 1, IsActive = true };
@@ -89,6 +108,7 @@ public static class TestDbContextFactory
             IsActive = true
         };
 
+        boat.CaptainUserId = AddCaptain(context);
         var seat1 = new Seat { BoatId = boat.Id, SeatClass = standardClass, SeatClassId = standardClass.Id, SeatCode = "S01", RowNumber = 1, ColumnNumber = 1, IsActive = true };
         var seat2 = new Seat { BoatId = boat.Id, SeatClass = standardClass, SeatClassId = standardClass.Id, SeatCode = "S02", RowNumber = 1, ColumnNumber = 2, IsActive = true };
         boat.Seats.Add(seat1);
@@ -105,6 +125,7 @@ public static class TestDbContextFactory
             YearBuilt = 2024,
             IsActive = true
         };
+        otherBoat.CaptainUserId = AddCaptain(context);
         var seatOnOtherBoat = new Seat { BoatId = otherBoat.Id, SeatClass = standardClass, SeatClassId = standardClass.Id, SeatCode = "X01", RowNumber = 1, ColumnNumber = 1, IsActive = true };
         otherBoat.Seats.Add(seatOnOtherBoat);
         context.Boats.Add(otherBoat);
@@ -134,7 +155,7 @@ public static class TestDbContextFactory
         {
             var stop = new RouteStop { RouteId = route.Id, StationId = station.Id, SequenceNo = order };
             context.RouteStops.Add(stop);
-            trip.TripStopCalls.Add(new TripStopCall { TripId = trip.Id, RouteStop = stop, VisitOrder = order });
+            trip.TripStopCalls.Add(new TripStopCall { TripId = trip.Id, RouteStop = stop, VisitOrder = order, CheckInOpenAt = trip.DepartureTime.AddMinutes(-30), CheckInCloseAt = trip.DepartureTime });
         }
 
         context.SaveChanges();

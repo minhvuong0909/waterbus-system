@@ -61,7 +61,8 @@ public sealed class SightseeingSqlTests : IAsyncLifetime
 
     private static TripService Trips(ApplicationDbContext c) => new(new TripRepository(c), new IncidentRepository(c), new EfUnitOfWork(c),
         Mock.Of<ICurrentUserService>(), new DateTimeService(), Mock.Of<IOperationsAlertPublisher>(), Mock.Of<IUserDirectory>(),
-        TestNotifications.Outbox(c), new SqlCommercialTransactionRunner(c));
+        TestNotifications.Outbox(c), new SqlCommercialTransactionRunner(c), CommercialHandlerFactory.Captains(c),
+        WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Positions, WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Distance, WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Relaxed);
 
     /// <summary>Tour vòng A → B → C → A trên Route Sightseeing riêng, cờ lên/xuống dễ dãi (không được hiểu là quyền bán đoạn lẻ).</summary>
     private static Trip SeedCircularTour(ApplicationDbContext c, TestDbContextFactory.TripSeedData seed, int daysAhead = 2)

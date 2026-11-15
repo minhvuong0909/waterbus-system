@@ -7,6 +7,7 @@ public class UpdateBoatRequestValidator : AbstractValidator<UpdateBoatRequest>
 {
     public UpdateBoatRequestValidator()
     {
+        RuleFor(x => x.CaptainChangeReason).MaximumLength(1000);
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Tên tàu không được để trống.")
             .MaximumLength(100).WithMessage("Tên tàu tối đa 100 ký tự.");

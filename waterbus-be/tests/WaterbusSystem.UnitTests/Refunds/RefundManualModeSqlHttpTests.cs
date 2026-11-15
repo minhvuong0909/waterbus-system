@@ -128,8 +128,11 @@ public sealed class RefundManualModeSqlHttpTests : IAsyncLifetime
     {
         var client = new HttpClient { BaseAddress = _client.BaseAddress, Timeout = TimeSpan.FromSeconds(60) };
         if (role is null) return client;
+        userId ??= Guid.NewGuid();
+        using var context = Context();
+        var version = role == "Captain" ? TestDbContextFactory.CaptainVersion(context, userId.Value) : Guid.Empty;
         var token = new JwtSecurityToken("WaterbusSystemApi", "WaterbusClients", [
-            new Claim(ClaimTypes.NameIdentifier, (userId ?? Guid.NewGuid()).ToString()), new Claim(ClaimTypes.Role, role)],
+            new Claim(ClaimTypes.NameIdentifier, (userId ?? Guid.NewGuid()).ToString()), new Claim(ClaimTypes.Role, role), new Claim("captainVersion", version.ToString())],
             expires: DateTime.UtcNow.AddMinutes(5), signingCredentials: new SigningCredentials(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSecret)), SecurityAlgorithms.HmacSha256));
         client.DefaultRequestHeaders.Authorization = new("Bearer", new JwtSecurityTokenHandler().WriteToken(token));

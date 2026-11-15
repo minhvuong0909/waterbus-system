@@ -7,6 +7,7 @@ public class CreateBoatRequestValidator : AbstractValidator<CreateBoatRequest>
 {
     public CreateBoatRequestValidator()
     {
+        RuleFor(x => x.CaptainChangeReason).MaximumLength(1000).NotEmpty().When(x => x.CaptainUserId.HasValue);
         RuleFor(x => x.Code)
             .NotEmpty().WithMessage("Mã tàu không được để trống.")
             .MaximumLength(20).WithMessage("Mã tàu tối đa 20 ký tự.");

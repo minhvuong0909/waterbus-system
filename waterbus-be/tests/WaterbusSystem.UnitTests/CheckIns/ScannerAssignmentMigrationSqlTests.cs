@@ -104,6 +104,7 @@ public sealed class ScannerAssignmentMigrationSqlTests
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+            WaterbusSystem.UnitTests.TestHelpers.CaptainLegacyModel.Configure(builder);
             builder.Entity<FinancialTransaction>().Ignore(x => x.IsDemoRefund);
             builder.Entity<FinancialTransaction>().Ignore(x => x.ExportedAt);
             builder.Entity<FinancialTransaction>().Ignore(x => x.ExportedByAdminId);

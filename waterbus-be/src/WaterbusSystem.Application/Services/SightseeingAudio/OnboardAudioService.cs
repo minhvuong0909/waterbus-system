@@ -17,7 +17,7 @@ public sealed class OnboardAudioService(
     IAudioPlaybackRepository playback,
     ISightseeingAudioRepository audio,
     ITripRepository trips,
-    IAudioStorageService storage,
+    IAudioClipRepository clips,
     IOnboardPlayerRegistry registry,
     IOptions<SightseeingAudioOptions> options) : IOnboardAudioService
 {
@@ -35,8 +35,7 @@ public sealed class OnboardAudioService(
         var snapshot = await audio.GetTrackingSnapshotAsync(tripId.Value, boatId, ct);
         if (snapshot is null) return new(boatId, tripId, null, null, false, "NoActiveTrip");
         var t = snapshot.Trip;
-        var reason = t.TripType != TripType.Sightseeing ? "NotSightseeing"
-            : t.Status != TripStatus.EnRoute ? "TripNot" + t.Status
+        var reason = t.Status != TripStatus.EnRoute ? "TripNot" + t.Status
             : t.IsSafetyAnnouncementActive ? "SafetyAnnouncementActive" : "Allowed";
         return new(boatId, t.TripId, t.Status.ToString(), t.TripType.ToString(), reason == "Allowed", reason);
     }
@@ -71,7 +70,7 @@ public sealed class OnboardAudioService(
         return new PlaybackStateAck(requestId, applied);
     }
 
-    public async Task<StoredAudio> GetAudioAsync(Guid captainId, Guid requestId, CancellationToken ct = default)
+    public async Task<StoredAudio> GetAudioAsync(Guid captainId, Guid requestId, string language, CancellationToken ct = default)
     {
         var view = await RequireOwnRequestAsync(captainId, requestId, ct);
         if (view.Status is AudioPlaybackStatus.Released or AudioPlaybackStatus.Failed)
@@ -80,16 +79,9 @@ public sealed class OnboardAudioService(
         var state = await GetStateAsync(captainId, ct);
         if (!state.PlaybackAllowed || state.TripId != view.TripId)
             throw new ConcurrencyException("Chuyến hiện không được phép phát audio: " + state.Reason);
-        if (string.IsNullOrWhiteSpace(view.AudioAssetUri)) throw new NotFoundException("AudioAsset", requestId);
-        try
-        {
-            return await storage.ReadAudioAsync(AssetKeyOf(view.AudioAssetUri), ct)
-                ?? throw new NotFoundException("AudioAsset", requestId);
-        }
-        catch (AudioStorageException)
-        {
-            throw new ConcurrencyException("Kho lưu trữ audio tạm thời không khả dụng.");
-        }
+        if (view.Kind is not { } kind || view.SubjectId is not { } subjectId || language is not ("vi" or "en"))
+            throw new NotFoundException("AudioClip", requestId);
+        return await clips.ReadAsync(kind, subjectId, language, ct) ?? throw new NotFoundException("AudioClip", requestId);
     }
 
     /// <summary>Lệnh không thuộc Boat của Captain bị coi như không tồn tại (không lộ sự tồn tại).</summary>
@@ -99,12 +91,5 @@ public sealed class OnboardAudioService(
         var view = await playback.FindAsync(requestId, ct);
         if (view is null || view.BoatId != boatId) throw new NotFoundException("AudioPlaybackRequest", requestId);
         return view;
-    }
-
-    /// <summary>AudioAssetUri có thể là URI blob tuyệt đối; storage đọc theo khóa tương đối kết thúc bằng .mp3.</summary>
-    private static string AssetKeyOf(string assetUri)
-    {
-        var idx = assetUri.IndexOf("/audio-assets/", StringComparison.Ordinal);
-        return idx >= 0 ? assetUri[(idx + 1)..] : assetUri;
     }
 }

@@ -5,6 +5,8 @@ using WaterbusSystem.Application.DTOs.Requests.Trips;
 using WaterbusSystem.Application.DTOs.Responses.Trips;
 using WaterbusSystem.Application.Features.Bookings.Services;
 using WaterbusSystem.Application.Features.Incidents;
+using WaterbusSystem.Application.Features.Trips;
+using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Application.Interfaces.Services;
@@ -29,16 +31,50 @@ public sealed class TripService(
     IOperationsAlertPublisher publisher,
     IUserDirectory users,
     INotificationOutbox notifications,
-    ICommercialTransactionRunner transactions) : ITripService
+    ICommercialTransactionRunner transactions,
+    ICaptainOperationsService captains,
+    IBoatPositionCache positions,
+    IGeoDistanceCalculator distance,
+    IOptions<CaptainOperationOptions> captainOptions) : ITripService
 {
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
+    private async Task<string> SalesStateAsync(Trip trip, DateTimeOffset now, CancellationToken ct)
+    {
+        var state = TripReadRules.SalesState(trip, now);
+        if (state != "open" || trip.BoatId is not { } boatId) return state;
+        try { await captains.EnsureSellableAsync(boatId, ct); return state; }
+        catch (ConflictException) { return "captain_unavailable"; }
+    }
+
+
+    private CaptainOperationOptions CaptainRules => captainOptions.Value;
+
+    private const int PositionsToCheck = 500;
+
+    /// <summary>Tàu đã từng đi xa bến cuối trong chuyến này chưa (để tour vòng không cho "Đến bến cuối" ngay tại bến xuất phát).</summary>
+    private async Task<bool> HasLeftLastStopAsync(Guid tripId, (double Latitude, double Longitude)? lastStop, CancellationToken ct)
+    {
+        if (lastStop is null) return true;
+        var points = await tripRepository.ListTripPositionsAsync(tripId, PositionsToCheck, ct);
+        return points.Any(p => distance.CalculateDistanceMeters(p.Latitude, p.Longitude,
+            (decimal)lastStop.Value.Latitude, (decimal)lastStop.Value.Longitude) > CaptainRules.ArriveMinTravelM);
+    }
+
+    /// <summary>Khoảng cách từ tàu tới bến cuối; null nếu chưa có vị trí đủ mới hoặc chuyến chưa có điểm dừng.</summary>
+    private async Task<double?> DistanceToLastStopAsync(Guid? boatId, (double Latitude, double Longitude)? lastStop, DateTimeOffset now, CancellationToken ct)
+    {
+        if (boatId is null || lastStop is null) return null;
+        var position = await positions.GetAsync(boatId.Value, ct);
+        if (position is null || now - position.ObservedAt > TimeSpan.FromSeconds(CaptainRules.PositionMaxAgeSeconds)) return null;
+        return distance.CalculateDistanceMeters(position.Lat, position.Lng, (decimal)lastStop.Value.Latitude, (decimal)lastStop.Value.Longitude);
+    }
 
     // ---------------- GetDetail ----------------
 
     public async Task<TripDetailResponse> GetDetailAsync(Guid tripId, CancellationToken cancellationToken = default)
     {
         var trip = await tripRepository.GetDetailGraphAsync(tripId, cancellationToken);
-        var salesState = TripReadRules.SalesState(trip, dateTime.Now);
+        var salesState = await SalesStateAsync(trip, dateTime.Now, cancellationToken);
         return new(trip.Id, trip.RouteId, trip.Route?.Name ?? "", trip.TripType.ToString(),
             trip.Status.ToString(), trip.DepartureTime, trip.ArrivalTime, trip.SalesCloseAt,
             trip.IsDelayed, salesState == "open", salesState,
@@ -64,7 +100,7 @@ public sealed class TripService(
         if (trip.Boat is null) throw new ConcurrencyException("Chuyến chưa có tàu và sơ đồ ghế hợp lệ.");
 
         var now = dateTime.Now;
-        var salesState = TripReadRules.SalesState(trip, now);
+        var salesState = await SalesStateAsync(trip, now, cancellationToken);
         var seats = await tripRepository.ListSeatsForBoatAsync(trip.Boat.Id, cancellationToken);
         var type = trip.TripType.ToString();
         var fares = await tripRepository.ListActiveFaresForTypeAsync(type, now, cancellationToken);
@@ -111,13 +147,31 @@ public sealed class TripService(
 
         var rows = await tripRepository.ListForOperationsAsync(from, to, captainId, request.Statuses, MaxOperationsItems, cancellationToken);
 
-        return rows.Select(t => new TripOperationItemResponse(
-                t.Id, t.ScheduleId, t.RouteId, t.Route!.Code, t.Route.Name, t.BoatId, t.Boat?.Code,
-                t.TripType.ToString(), t.Status.ToString(), t.DepartureTime, t.ArrivalTime,
-                t.ActualDepartureTime, t.ActualArrivalTime, t.IsDelayed,
-                TripLifecycle.AllowedOperations(t).Select(o => o.ToString()).ToList()))
-            .ToList();
+        if (isAdmin)
+        {
+            return rows.Select(t => ToItem(t, null)).ToList();
+        }
+
+        // Thuyền trưởng không cần thấy chuyến chưa chạy mà đã quá giờ đến dự kiến (Admin xử lý các chuyến này).
+        rows = rows.Where(t => !(t.Status is TripStatus.Scheduled or TripStatus.Boarding && t.ArrivalTime < now)).ToList();
+        var lastStops = await tripRepository.GetLastStopLocationsAsync(rows.Select(t => t.Id).ToList(), cancellationToken);
+        var items = new List<TripOperationItemResponse>();
+        foreach (var t in rows)
+        {
+            (double, double)? lastStop = lastStops.TryGetValue(t.Id, out var location) ? location : null;
+            var enRoute = t.Status == TripStatus.EnRoute;
+            var meters = enRoute ? await DistanceToLastStopAsync(t.BoatId, lastStop, now, cancellationToken) : null;
+            bool? left = enRoute && CaptainRules.Enforce ? await HasLeftLastStopAsync(t.Id, lastStop, cancellationToken) : null;
+            items.Add(ToItem(t, CaptainOperationRules.Evaluate(t, now, meters, CaptainRules, left)));
+        }
+        return items;
     }
+
+    private static TripOperationItemResponse ToItem(Trip t, IReadOnlyList<CaptainActionHint>? captainActions) => new(
+        t.Id, t.ScheduleId, t.RouteId, t.Route!.Code, t.Route.Name, t.BoatId, t.Boat?.Code,
+        t.TripType.ToString(), t.Status.ToString(), t.DepartureTime, t.ArrivalTime,
+        t.ActualDepartureTime, t.ActualArrivalTime, t.IsDelayed,
+        TripLifecycle.AllowedOperations(t).Select(o => o.ToString()).ToList(), captainActions);
 
     // ---------------- GetOperationEvents ----------------
 
@@ -145,6 +199,15 @@ public sealed class TripService(
 
     public async Task<TripOperationResultResponse> ChangeStatusAsync(Guid tripId, ChangeTripStatusRequest request, CancellationToken cancellationToken = default)
     {
+        var result = await transactions.RunAsync(() => ChangeStatusCoreAsync(tripId, request, cancellationToken), cancellationToken);
+        if (request.Operation != TripOperation.NoAction)
+            await publisher.PublishTripStatusChangedAsync(new TripStatusChangedMessage(result.TripId, result.BoatId,
+                result.Status, result.PreviousStatus, result.Operation, dateTime.Now), cancellationToken);
+        return result;
+    }
+
+    private async Task<TripOperationResultResponse> ChangeStatusCoreAsync(Guid tripId, ChangeTripStatusRequest request, CancellationToken cancellationToken)
+    {
         var isAdmin = string.Equals(currentUser.UserRole, "Admin", StringComparison.OrdinalIgnoreCase);
         var isCaptain = string.Equals(currentUser.UserRole, "Captain", StringComparison.OrdinalIgnoreCase);
         var userId = Guid.TryParse(currentUser.UserId, out var parsed) ? parsed : (Guid?)null;
@@ -159,7 +222,7 @@ public sealed class TripService(
         {
             if (!TripLifecycle.IsCaptainOperation(request.Operation))
             {
-                throw new ForbiddenAccessException("Thuyền trưởng chỉ được mở đón khách, rời bến và cập bến. Các quyết định khác do Admin thực hiện.");
+                throw new ForbiddenAccessException("Thuyền trưởng chỉ được mở đón khách, bắt đầu chuyến, cập bến và kết thúc chuyến. Các quyết định khác do Admin thực hiện.");
             }
             if (request.IncidentId is not null)
             {
@@ -173,6 +236,7 @@ public sealed class TripService(
 
         var decision = await FindIncidentDecisionAsync(tripId, request.IncidentId, cancellationToken);
         var now = dateTime.Now;
+        if (!isAdmin) await EnsureCaptainMayAsync(trip, request.Operation, now, cancellationToken);
         var previous = trip.Status;
         var reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
 
@@ -192,6 +256,12 @@ public sealed class TripService(
             throw new ConflictException("Chuyến chưa được gán tàu nên không thể xuất bến.");
         }
 
+        if (request.Operation is TripOperation.OpenBoarding or TripOperation.Start)
+        {
+            if (trip.BoatId is not { } boatId) throw new ConflictException("Trip has no boat.");
+            await captains.EnsureSellableAsync(boatId, cancellationToken);
+            if (request.Operation == TripOperation.Start) await captains.EnsureStartAsync(trip, cancellationToken);
+        }
         trip.Status = next;
         trip.UpdatedAt = now;
         if (request.Operation == TripOperation.Start)
@@ -231,12 +301,8 @@ public sealed class TripService(
             // Cùng khoá thương mại với xác nhận thanh toán: IPN không thể xác nhận vé giữa lúc huỷ chuyến và tạo
             // thông báo. Outbox được ghi trong cùng transaction với việc đổi trạng thái (commit xong mới có email).
             var type = next == TripStatus.Cancelled ? EmailNotificationType.TripCancelled : EmailNotificationType.TripTerminated;
-            await transactions.RunAsync(async () =>
-            {
-                await notifications.EnqueueTripDisruptionAsync(trip.Id, type, cancellationToken);
-                await unitOfWork.SaveChangesAsync(cancellationToken);
-                return true;
-            }, cancellationToken);
+            await notifications.EnqueueTripDisruptionAsync(trip.Id, type, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
         else
         {
@@ -244,11 +310,34 @@ public sealed class TripService(
         }
 
         // Chỉ phát sau khi đã lưu thành công
-        await publisher.PublishTripStatusChangedAsync(
-            new TripStatusChangedMessage(trip.Id, trip.BoatId, next.ToString(), previous.ToString(), request.Operation.ToString(), now),
-            cancellationToken);
 
         return ToResult(trip, previous, request.Operation);
+    }
+
+    /// <summary>Áp quy tắc "khi nào được bấm nút nào" cho thuyền trưởng (xem <see cref="CaptainOperationRules"/>); vi phạm → 409.</summary>
+    private async Task EnsureCaptainMayAsync(Trip trip, TripOperation operation, DateTimeOffset now, CancellationToken ct)
+    {
+        if (operation == TripOperation.NoAction) return;
+        double? meters = null;
+        bool? left = null;
+        if (operation == TripOperation.Arrive && CaptainRules.Enforce)
+        {
+            var lastStops = await tripRepository.GetLastStopLocationsAsync([trip.Id], ct);
+            (double, double)? lastStop = lastStops.TryGetValue(trip.Id, out var location) ? location : null;
+            meters = await DistanceToLastStopAsync(trip.BoatId, lastStop, now, ct);
+            left = await HasLeftLastStopAsync(trip.Id, lastStop, ct);
+        }
+        var hint = CaptainOperationRules.Evaluate(trip, operation, now, meters, CaptainRules, left);
+        if (hint.Allowed) return;
+        throw new ConflictException(hint.Reason switch
+        {
+            "NotYet" => $"Chưa đến giờ mở đón khách (từ {hint.AvailableAt?.ToOffset(VietnamOffset):HH:mm dd/MM}).",
+            "OpenBoardingFirst" => "Cần mở đón khách trước khi bắt đầu chuyến.",
+            "NoPosition" => "Chưa có vị trí GPS đủ mới của tàu nên chưa thể xác nhận đã cập bến. Hãy bật chia sẻ GPS hoặc nhờ Admin.",
+            "NotAtLastStop" => "Tàu chưa tới bến cuối của tuyến.",
+            "JourneyNotDone" => "Tàu chưa đi hết hành trình (mới rời bến xuất phát).",
+            _ => $"Không thể thực hiện \"{operation}\" khi chuyến đang ở trạng thái {trip.Status}."
+        });
     }
 
     /// <summary>

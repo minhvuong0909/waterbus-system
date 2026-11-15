@@ -5,7 +5,7 @@ namespace WaterbusSystem.Application.Common.Interfaces;
 /// </summary>
 public interface IJwtTokenGenerator
 {
-    string GenerateToken(Guid userId, string email, string fullName, IList<string> roles);
+    string GenerateToken(Guid userId, string email, string fullName, IList<string> roles, string? captainSessionVersion = null);
 }
 
 /// <summary>

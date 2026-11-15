@@ -7,6 +7,8 @@ namespace WaterbusSystem.Application.Common.Interfaces;
 public interface IVerificationEmailQueue
 {
     bool TryEnqueue(string toEmail, string toName, string verificationLink);
+    bool TryEnqueueInvitation(string toEmail, string toName, string activationLink, double validHours)
+        => TryEnqueue(toEmail, toName, activationLink);
 }
 
 /// <summary>Chặn gửi lặp (chống spam hộp thư người khác). Khoá hết hạn theo TTL.</summary>

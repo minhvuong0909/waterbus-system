@@ -17,14 +17,20 @@ namespace WaterbusSystem.Infrastructure.Services.Accounts;
 /// </summary>
 public sealed class VerificationMailer(ILogger<VerificationMailer> logger) : IVerificationEmailQueue
 {
-    internal sealed record Pending(string ToEmail, string ToName, string Link);
+    internal sealed record Pending(string ToEmail, string ToName, string Link, double? InvitationValidHours = null);
 
     internal Channel<Pending> Queue { get; } = Channel.CreateBounded<Pending>(
         new BoundedChannelOptions(200) { FullMode = BoundedChannelFullMode.Wait, SingleReader = true });
 
     public bool TryEnqueue(string toEmail, string toName, string verificationLink)
+        => Enqueue(new Pending(toEmail, toName, verificationLink));
+
+    public bool TryEnqueueInvitation(string toEmail, string toName, string activationLink, double validHours)
+        => Enqueue(new Pending(toEmail, toName, activationLink, validHours));
+
+    private bool Enqueue(Pending item)
     {
-        if (Queue.Writer.TryWrite(new Pending(toEmail, toName, verificationLink))) return true;
+        if (Queue.Writer.TryWrite(item)) return true;
 
         logger.LogWarning("Hàng đợi email xác minh không nhận thêm yêu cầu.");
         return false;
@@ -53,7 +59,9 @@ public sealed class VerificationMailerWorker(
             {
                 var options = emailOptions.Value;
                 if (!options.Enabled) continue;
-                var rendered = AccountEmailTemplates.Verification(item.ToName, item.Link, EmailContext.From(options));
+                var rendered = item.InvitationValidHours is { } hours
+                    ? AccountEmailTemplates.PersonnelInvitation(item.ToName, item.Link, hours, EmailContext.From(options))
+                    : AccountEmailTemplates.Verification(item.ToName, item.Link, EmailContext.From(options));
                 var email = new OutboundEmail(Guid.NewGuid(), item.ToEmail, item.ToName, rendered.Subject, rendered.Html, rendered.Text, []);
                 using var scope = scopes.CreateScope();
                 await scope.ServiceProvider.GetRequiredService<IEmailTransport>().SendAsync(email, stoppingToken);

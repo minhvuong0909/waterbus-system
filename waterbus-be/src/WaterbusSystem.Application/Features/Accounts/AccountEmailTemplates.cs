@@ -7,6 +7,17 @@ public static class AccountEmailTemplates
 {
     public const int VerificationValidHours = 24;
 
+    public static NotificationTemplates.Rendered PersonnelInvitation(string fullName, string link, double validHours, EmailContext ctx)
+    {
+        var b = new EmailBodyBuilder(ctx);
+        b.Paragraph($"Xin chào {EmailFormat.SingleLine(fullName)},");
+        b.Paragraph("Admin Smart Waterbus đã mời bạn kích hoạt tài khoản nhân sự. Hãy xác minh email và tự đặt mật khẩu để đăng nhập.");
+        b.Link("Kích hoạt tài khoản và đặt mật khẩu", link);
+        b.Notice($"Liên kết dùng một lần, có hiệu lực {validHours.ToString(System.Globalization.CultureInfo.InvariantCulture)} giờ. Nếu link hết hạn, hãy liên hệ Admin để gửi lại.");
+        var (html, text) = b.Render("Kích hoạt tài khoản nhân sự");
+        return new NotificationTemplates.Rendered("Lời mời kích hoạt tài khoản Smart Waterbus", html, text);
+    }
+
     public static NotificationTemplates.Rendered Verification(string fullName, string link, EmailContext ctx)
     {
         var b = new EmailBodyBuilder(ctx);

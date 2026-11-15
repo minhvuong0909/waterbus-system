@@ -384,3 +384,8 @@ Trip TS01 là Sightseeing Route; Boarding tại bến được cấu hình. Staf
 ---
 
 **Tuyên bố FINAL:** Các rule [CHỐT] là baseline nghiệp vụ chính thức của Smart Waterbus v2.0 tính đến 29/09/2026. Các mục [CẤU HÌNH] chỉ là tham số vận hành triển khai sau, không phải quyết định nghiệp vụ còn bỏ ngỏ. Những gì [NGOÀI PHẠM VI] không bắt buộc triển khai trong môn học. Khi thay đổi rule phải cập nhật Conceptual ERD, Logical ERD và test cases liên quan.
+
+
+### Captain management addendum (2026-11-16)
+
+[BR-CAP-01 through BR-CAP-12 and API contract](CAPTAIN_MANAGEMENT.md) extend this baseline with the decisions confirmed on 2026-11-16. Captain remains assigned 1:1 through Boat; only Admin records physical attendance per Trip, due 20 minutes before Staff CheckInOpenAt at the first served stop. Missing attendance alerts Admin without automatically changing Trip.Status.

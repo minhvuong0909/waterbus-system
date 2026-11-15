@@ -36,7 +36,8 @@ public class TripServiceChangeStatusTests
     }
 
     private TripService Service() => new(new TripRepository(_context), new IncidentRepository(_context), new EfUnitOfWork(_context),
-        _user.Object, _clock.Object, _publisher.Object, Mock.Of<IUserDirectory>(), TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner());
+        _user.Object, _clock.Object, _publisher.Object, Mock.Of<IUserDirectory>(), TestNotifications.Outbox(_context), new DirectCommercialTransactionRunner(), Moq.Mock.Of<WaterbusSystem.Application.Interfaces.Services.ICaptainOperationsService>(),
+            WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Positions, WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Distance, WaterbusSystem.UnitTests.TestHelpers.TestCaptainRules.Relaxed);
 
     private void AsAdmin() { _user.Setup(u => u.UserId).Returns(_adminId.ToString()); _user.Setup(u => u.UserRole).Returns("Admin"); }
     private void AsCaptain(Guid? id = null) { _user.Setup(u => u.UserId).Returns((id ?? _captainId).ToString()); _user.Setup(u => u.UserRole).Returns("Captain"); }
@@ -150,7 +151,6 @@ public class TripServiceChangeStatusTests
     [InlineData(TripOperation.Suspend)]
     [InlineData(TripOperation.Cancel)]
     [InlineData(TripOperation.Terminate)]
-    [InlineData(TripOperation.Complete)]
     [InlineData(TripOperation.Resume)]
     public async Task Captain_DecisionOperations_ShouldBeForbidden(TripOperation op)
     {

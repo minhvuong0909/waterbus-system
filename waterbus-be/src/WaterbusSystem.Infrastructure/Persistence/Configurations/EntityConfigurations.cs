@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using WaterbusSystem.Domain.Entities;
+using WaterbusSystem.Infrastructure.Identity;
 
 namespace WaterbusSystem.Infrastructure.Persistence.Configurations;
 
@@ -140,6 +141,7 @@ public class TripConfiguration : IEntityTypeConfiguration<Trip>
     public void Configure(EntityTypeBuilder<Trip> builder)
     {
         builder.HasKey(x => x.Id);
+        builder.HasIndex(x => new { x.Status, x.ArrivalTime }).IncludeProperties(x => x.BoatId).HasFilter("[IsDeleted] = 0");
         builder.HasIndex(x => new { x.ScheduleId, x.DepartureTime }).IsUnique()
             .HasFilter("[ScheduleId] IS NOT NULL");
         builder.ToTable(t =>
@@ -637,6 +639,22 @@ public class AudioGuideConfiguration : IEntityTypeConfiguration<AudioGuide>
     }
 }
 
+public class AudioClipConfiguration : IEntityTypeConfiguration<AudioClip>
+{
+    public void Configure(EntityTypeBuilder<AudioClip> builder)
+    {
+        builder.ToTable("AudioClips");
+        builder.HasIndex(x => new { x.Kind, x.SubjectId, x.LanguageCode })
+            .IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_AudioClips_Subject_Language");
+        builder.Property(x => x.Kind).HasConversion<int>();
+        builder.Property(x => x.LanguageCode).HasMaxLength(5).IsRequired();
+        builder.Property(x => x.Text).HasMaxLength(500).IsRequired();
+        builder.Property(x => x.ContentType).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.Data).HasColumnType("varbinary(max)").IsRequired();
+        builder.Property(x => x.RowVersion).IsRowVersion();
+    }
+}
+
 public class EmailOutboxMessageConfiguration : IEntityTypeConfiguration<EmailOutboxMessage>
 {
     public void Configure(EntityTypeBuilder<EmailOutboxMessage> builder)
@@ -676,6 +694,7 @@ public class AudioPlaybackRequestConfiguration : IEntityTypeConfiguration<AudioP
         builder.Property(x => x.AudioAssetUri).HasMaxLength(500);
         builder.Property(x => x.FailureReason).HasMaxLength(300);
         builder.Property(x => x.Status).HasConversion<int>();
+        builder.Property(x => x.Kind).HasConversion<int?>();
         builder.Property(x => x.ReservationEpoch).HasDefaultValue(0);
         builder.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.RowVersion).IsRowVersion();
@@ -687,3 +706,48 @@ public class AudioPlaybackRequestConfiguration : IEntityTypeConfiguration<AudioP
     }
 }
 
+
+public sealed class CaptainUserConfiguration : IEntityTypeConfiguration<ApplicationUser>
+{
+    public void Configure(EntityTypeBuilder<ApplicationUser> b)
+    {
+        b.Property(u => u.CaptainLicenseNumber).HasMaxLength(100);
+        b.HasIndex(u => u.CaptainLicenseNumber).IsUnique().HasFilter("[CaptainLicenseNumber] IS NOT NULL");
+        b.ToTable("AspNetUsers", t => t.HasCheckConstraint("CK_Users_CaptainStatus", "[CaptainStatus] IS NULL OR [CaptainStatus] IN (1,2,3)"));
+    }
+}
+public sealed class CaptainAttendanceConfiguration : IEntityTypeConfiguration<CaptainAttendance>
+{
+    public void Configure(EntityTypeBuilder<CaptainAttendance> b)
+    {
+        b.HasKey(a => a.Id); b.Property(a => a.RowVersion).IsRowVersion();
+        b.Property(a => a.Reason).HasMaxLength(1000).IsRequired();
+        b.HasIndex(a => new { a.TripId, a.BoatId, a.AssignmentVersion }).IsUnique();
+        b.HasOne<Trip>().WithMany().HasForeignKey(a => a.TripId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne<Boat>().WithMany().HasForeignKey(a => a.BoatId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+public sealed class CaptainAuditEventConfiguration : IEntityTypeConfiguration<CaptainAuditEvent>
+{
+    public void Configure(EntityTypeBuilder<CaptainAuditEvent> b)
+    {
+        b.HasKey(a => a.Id); b.Property(a => a.RowVersion).IsRowVersion();
+        b.Property(a => a.Action).HasMaxLength(50).IsRequired();
+        b.Property(a => a.Reason).HasMaxLength(1000).IsRequired();
+        b.Property(a => a.NewValues).IsRequired();
+        b.HasIndex(a => new { a.CaptainId, a.OccurredAt });
+        b.HasOne<Trip>().WithMany().HasForeignKey(a => a.TripId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne<Boat>().WithMany().HasForeignKey(a => a.BoatId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+public sealed class CaptainAlertConfiguration : IEntityTypeConfiguration<CaptainAlert>
+{
+    public void Configure(EntityTypeBuilder<CaptainAlert> b)
+    {
+        b.HasKey(a => a.Id); b.Property(a => a.RowVersion).IsRowVersion();
+        b.Property(a => a.DeduplicationKey).HasMaxLength(200).IsRequired(); b.HasIndex(a => a.DeduplicationKey).IsUnique();
+        b.Property(a => a.Type).HasMaxLength(50).IsRequired(); b.Property(a => a.Message).HasMaxLength(1000).IsRequired();
+        b.HasOne<Trip>().WithMany().HasForeignKey(a => a.TripId).OnDelete(DeleteBehavior.Restrict);
+        b.HasOne<Boat>().WithMany().HasForeignKey(a => a.BoatId).OnDelete(DeleteBehavior.Restrict);
+    }
+}

@@ -1,7 +1,7 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
 import { fetchAllPages } from '../../../services/paging'
-import type { AdminTrip, AlertTrip, LiveBoatPosition, OperationLog, OperationType, IncidentAlert } from '../types'
+import type { AdminTrip, AlertTrip, CaptainActionHint, LiveBoatPosition, OperationLog, OperationType, IncidentAlert } from '../types'
 import type { TripStatus, TripType } from '../../trips/types'
 
 // Các thao tác vận hành dùng API thật: chuyến và trạng thái, theo dõi tàu và sự cố.
@@ -154,6 +154,7 @@ interface TripOperationItemDto {
   departureTime: string
   arrivalTime: string
   allowedOperations: OperationType[]
+  captainActions?: CaptainActionHint[] | null
 }
 
 /** Khoảng thời gian và bộ lọc của `getOperationTrips`; backend cho tối đa 31 ngày giữa `from` và `to`. */
@@ -183,6 +184,7 @@ export async function getOperationTrips(query?: OperationTripsQuery): Promise<Ad
     routeName: t.routeName,
     boatCode: t.boatCode,
     allowedOperations: t.allowedOperations,
+    captainActions: t.captainActions ?? undefined,
   }))
 }
 

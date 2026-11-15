@@ -13,4 +13,10 @@ public sealed class SightseeingAudioOptions
     public int ReservationLeaseSeconds { get; set; } = 30;
     /// <summary>Mẫu GPS cũ hơn ngưỡng này (giây) không được kích hoạt audio; 0 = không kiểm tra.</summary>
     public int MaxPositionAgeSeconds { get; set; } = 30;
+    /// <summary>Bán kính (m) "sắp tới bến". Phải lớn hơn quãng tàu đi được giữa 2 lần GPS.</summary>
+    public int ApproachRadiusM { get; set; } = 500;
+    /// <summary>Bán kính (m) "đã tới bến".</summary>
+    public int ArriveRadiusM { get; set; } = 60;
+    /// <summary>Khoảng cách (m) tính từ bến để coi là "đã rời bến".</summary>
+    public int DepartRadiusM { get; set; } = 120;
 }

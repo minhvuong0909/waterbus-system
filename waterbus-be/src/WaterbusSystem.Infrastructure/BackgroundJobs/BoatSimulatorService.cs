@@ -25,6 +25,9 @@ public class BoatSimulatorService : BackgroundService
     private readonly IOptionsMonitor<TrackingOptions> _options;
     private readonly ILogger<BoatSimulatorService> _logger;
 
+    /// <summary>Thời điểm simulator thấy chuyến chuyển sang EnRoute (gốc thời gian của chuyến demo; Start không ghi ActualDepartureTime).</summary>
+    private readonly Dictionary<Guid, DateTimeOffset> _demoStartedAt = new();
+
     public BoatSimulatorService(
         IServiceScopeFactory scopeFactory,
         IOptionsMonitor<TrackingOptions> options,
@@ -94,7 +97,10 @@ public class BoatSimulatorService : BackgroundService
             .ToListAsync(cancellationToken);
 
         // Mỗi tàu chỉ giả lập 1 chuyến (chuyến khởi hành gần nhất)
-        foreach (var trip in trips.GroupBy(t => t.BoatId).Select(g => g.OrderBy(t => t.Start).First()))
+        foreach (var trip in trips.GroupBy(t => t.BoatId).Select(g => g
+            .OrderBy(t => t.Status == TripStatus.EnRoute ? 0 : t.Status is TripStatus.Boarding or TripStatus.Suspended ? 1 : 2)
+                // Cùng cách chọn chuyến với tracking (chuyến khởi hành muộn nhất đang chạy) để vị trí gắn đúng chuyến.
+                .ThenByDescending(t => t.Start).First()))
         {
             // Đường đi dọc sông của tuyến nếu có (nối thẳng các bến sẽ cắt qua đất ở khúc cua), không thì nối các bến
             IReadOnlyList<RoutePathInterpolator.GeoPoint> path = DemoRoutePaths.For(trip.RouteCode)
@@ -108,6 +114,32 @@ public class BoatSimulatorService : BackgroundService
                 var last = await cache.GetAsync(trip.BoatId, cancellationToken);
                 var hold = last is null ? path[0] : new RoutePathInterpolator.GeoPoint((double)last.Lat, (double)last.Lng);
                 (lat, lng, speed) = ((decimal)hold.Latitude, (decimal)hold.Longitude, 0m);
+            }
+            else if (simulator.DemoTripSeconds > 0 && trip.Stops.Count >= 2)
+            {
+                // Chuyến demo ngắn: dwell tại mỗi bến + giảm tốc gần bến, lặp vòng (không phụ thuộc giờ chạy thật).
+                var fractions = trip.Stops.Select(s =>
+                    RoutePathInterpolator.FractionOf(path, new RoutePathInterpolator.GeoPoint(s.Latitude, s.Longitude))).ToList();
+                fractions[0] = 0;
+                fractions[^1] = 1;
+                for (var i = 1; i < fractions.Count; i++) fractions[i] = Math.Max(fractions[i], fractions[i - 1]);
+                // Chưa EnRoute: tàu chờ ở bến đầu; chuyến chỉ bắt đầu chạy từ lúc Captain bấm Start.
+                double elapsed = 0;
+                if (trip.Status == TripStatus.EnRoute)
+                {
+                    if (!_demoStartedAt.TryGetValue(trip.Id, out var startedAt)) _demoStartedAt[trip.Id] = startedAt = now;
+                    elapsed = (now - startedAt).TotalSeconds;
+                }
+                else
+                {
+                    _demoStartedAt.Remove(trip.Id);
+                }
+                var (fraction, dwelling) = DemoTimeline.At(fractions, simulator.DemoTripSeconds, simulator.DemoDwellSeconds, elapsed);
+                var point = RoutePathInterpolator.PointAt(path, fraction);
+                lat = Math.Round((decimal)point.Latitude, 7);
+                lng = Math.Round((decimal)point.Longitude, 7);
+                // Tốc độ trung bình của vòng demo rất lớn (cả tuyến trong vài phút): chỉ báo giá trị hiển thị hợp lý, không vượt giới hạn validate (100 hải lý/giờ).
+                speed = dwelling ? 0m : Math.Min(25m, Math.Round((decimal)RoutePathInterpolator.AverageSpeedKnots(path, TimeSpan.FromSeconds(simulator.DemoTripSeconds)), 2));
             }
             else
             {

@@ -19,7 +19,6 @@ namespace WaterbusSystem.WebApi.Realtime;
 public sealed class SignalROnboardAudioDispatcher(
     IHubContext<OnboardAudioHub> hub,
     IOnboardPlayerRegistry registry,
-    IAudioStorageService storage,
     IAudioPlaybackRepository playback,
     IOptions<SightseeingAudioOptions> options,
     ILogger<SignalROnboardAudioDispatcher> logger) : IOnboardAudioTriggerDispatcher
@@ -47,17 +46,11 @@ public sealed class SignalROnboardAudioDispatcher(
         if (await ResolveActiveAsync(request.BoatId, group, cancellationToken) is null)
             return AudioTriggerDispatchResult.Failed(request.RequestId, "OnboardPlayerOffline");
 
-        try
+        // Thiếu clip (vd. bến/địa danh Admin thêm sau chưa có audio): không gửi, nhả lượt ghé, không tiêu hao lượt thử.
+        if (request.Clips.Count == 0)
         {
-            if (!await storage.ExistsAsync(request.AudioAssetUri, cancellationToken))
-            {
-                logger.LogWarning("Audio asset của POI {PoiId} không tồn tại trong kho.", request.PoiId);
-                return AudioTriggerDispatchResult.Failed(request.RequestId, "AudioAssetMissing");
-            }
-        }
-        catch (AudioStorageException)
-        {
-            return AudioTriggerDispatchResult.Failed(request.RequestId, "AudioStorageUnavailable");
+            logger.LogWarning("Thông báo {Kind} {SubjectId} chưa có clip audio đã publish.", request.Kind, request.SubjectId);
+            return AudioTriggerDispatchResult.Failed(request.RequestId, "AudioAssetMissing");
         }
 
         // Chọn lại player hoạt động SAU các bước chậm (kho lưu trữ): có thể đã có kết nối mới hơn thay thế.
@@ -69,9 +62,10 @@ public sealed class SignalROnboardAudioDispatcher(
             !await playback.RecordDispatchAsync(request, epoch, DateTimeOffset.UtcNow, cancellationToken))
             return AudioTriggerDispatchResult.Failed(request.RequestId, ReservationLostReason);
         using var ack = registry.PrepareAck(request.RequestId);
-        var message = new AudioTriggerMessage(request.RequestId, request.TripId, request.BoatId, request.RoutePoiId, request.PoiId,
-            request.PoiName, request.AudioGuideId, $"/api/v1/onboard-audio/requests/{request.RequestId}/audio", "audio/mpeg",
-            request.DurationSeconds, request.DistanceMeters, request.TriggeredAt);
+        var clips = request.Clips.Select(c => new AudioTriggerClipMessage(c.Language,
+            $"/api/v1/onboard-audio/requests/{request.RequestId}/audio?lang={c.Language}", "audio/mpeg", c.DurationSeconds, c.Text)).ToArray();
+        var message = new AudioTriggerMessage(request.RequestId, request.TripId, request.BoatId, request.Kind.ToString(),
+            request.SubjectId, request.SubjectName, clips, request.DistanceMeters, request.TriggeredAt);
         await hub.Clients.Client(activeConnection)
             .SendAsync(RealtimeContract.Events.AudioTrigger, message, cancellationToken);
 

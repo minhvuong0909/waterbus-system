@@ -123,8 +123,8 @@ Vòng đời theo BR-OPS-01..03. `Scheduled → Boarding → EnRoute → Arrived
 
 | API | Quyền | Mục đích |
 |---|---|---|
-| `GET /api/v1/trips/operations?from=&to=&status=` | Admin (mọi tàu), Captain (chỉ tàu của mình) | Chuyến để vận hành, mặc định từ 12 giờ trước tới 7 ngày sau (tối đa 31 ngày, 200 chuyến). Mỗi chuyến kèm `allowedOperations` hiện hợp lệ |
-| `POST /api/v1/trips/{tripId}/status` body `{ operation, reason?, incidentId? }` | Admin, Captain (chỉ OpenBoarding/Start/Arrive trên tàu mình) | Đổi trạng thái. `Suspend`/`Cancel`/`Terminate`/`NoAction` bắt buộc có `reason` (≤ 500 ký tự). Có `incidentId` thì ghi quyết định vào `IncidentTrip` của chuyến đó (chỉ Admin) |
+| `GET /api/v1/trips/operations?from=&to=&status=` | Admin (mọi tàu), Captain (chỉ tàu của mình) | Chuyến để vận hành, mặc định từ 12 giờ trước tới 7 ngày sau (tối đa 31 ngày, 200 chuyến). Mỗi chuyến kèm `allowedOperations` hiện hợp lệ. **Với Captain** còn có `captainActions: [{ operation, allowed, reason, availableAt }]` (OpenBoarding/Start/Arrive/Complete; `reason`: `NotYet` kèm `availableAt`, `OpenBoardingFirst`, `NoPosition`, `NotAtLastStop`, `WrongStatus`) và danh sách ẩn chuyến Scheduled/Boarding đã quá giờ đến dự kiến |
+| `POST /api/v1/trips/{tripId}/status` body `{ operation, reason?, incidentId? }` | Admin, Captain (chỉ OpenBoarding/Start/Arrive/Complete trên tàu mình, theo `captainActions`; vi phạm → **409** kèm lý do) | Đổi trạng thái. `Suspend`/`Cancel`/`Terminate`/`NoAction` bắt buộc có `reason` (≤ 500 ký tự). Có `incidentId` thì ghi quyết định vào `IncidentTrip` của chuyến đó (chỉ Admin) |
 | `POST /api/v1/trips/{tripId}/sos` body `{ note? }` | Captain của tàu | Tạo sự cố `Safety`/`High` nguồn `Captain`, liên kết chuyến, phát `incidentRaised`. **Không đổi trạng thái chuyến** (BR-INC-04) |
 | `GET /api/v1/trips/operations/events?tripId=&take=` | Admin | Nhật ký thao tác (`TripOperationEvent`), mới nhất trước, kèm tên người thực hiện |
 
@@ -148,3 +148,21 @@ Cho phép **ẩn danh (Guest)**, **chỉ đọc**. Giữ/nhả ghế luôn qua R
 Ghế được giữ **theo đoạn** (`VisitOrder` của TripStopCall). Client tự xét: ghế chỉ bận với khách hiện tại nếu đoạn trong event **chồng lấn** đoạn khách đang chọn, tức `boarding < myDisembarking && disembarking > myBoarding`.
 
 > Trạng thái: hub và publisher đã có. Việc **phát** các event này phụ thuộc luồng CheckoutSession/giữ ghế (TV2). Hold hết hạn TTL không tự sinh event, nên client cần gọi lại REST sơ đồ ghế khi reconnect và định kỳ.
+
+## 3. `/hubs/onboard-audio` — loa trên tàu (Onboard Player = Captain Portal)
+
+Chỉ tài khoản **Captain của đúng Boat** (JWT qua `?access_token=`). Backend quyết định khi nào phát (theo vị trí tàu); client chỉ phát. Chi tiết luồng, điều kiện, REST và phục hồi lỗi: `docs/SIGHTSEEING_AUDIO_PLAYBACK.md`.
+
+| Method (client → server) | Tác dụng |
+|---|---|
+| `AcceptPlayback(requestId)` → bool | ACK đã nhận lệnh (trong `AckTimeoutSeconds`) |
+| `ReportPlaybackState(requestId, state, message?)` → bool | `Started` \| `Completed` \| `Failed` |
+| `GetState()` | Đồng bộ trạng thái sau reconnect |
+
+| Event (server → client) | Payload |
+|---|---|
+| `audioState` | `{ boatId, tripId?, tripStatus?, tripType?, playbackAllowed, reason }` — `playbackAllowed` đúng cho mọi loại chuyến khi `EnRoute` và không có SOS |
+| `audioTrigger` **(version 2)** | `{ version: 2, requestId, tripId, boatId, kind, subjectId, subjectName, clips: [{ language, playbackPath, contentType, durationSeconds, text }], distanceMeters, triggeredAt }` |
+| `audioControl` | `{ version: 1, action: "pause" \| "recheck", tripId?, reason, at }` |
+
+`kind`: `StationApproaching` \| `StationArrived` \| `StationDeparted` (thông báo bến, `subjectId` = StationId) hoặc `Poi` (thuyết minh địa danh, `subjectId` = PoiId). `clips` theo **thứ tự phát: `vi` rồi `en`** (chỉ `vi` nếu chưa có bản `en`). Tải từng clip bằng `GET {playbackPath}` kèm `Authorization: Bearer` (`/api/v1/onboard-audio/requests/{requestId}/audio?lang=vi|en`). `requestId` ổn định cho mỗi lượt ghé/sự kiện; player phải khử trùng theo `requestId`. **Thay đổi so với v1:** bỏ `routePoiId/poiId/poiName/audioGuideId/playbackPath/contentType/durationSeconds` ở cấp trên, thay bằng `kind/subjectId/subjectName/clips`.

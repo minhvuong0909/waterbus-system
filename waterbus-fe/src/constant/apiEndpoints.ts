@@ -53,6 +53,10 @@ export const API_ENDPOINTS = {
     /** Admin: links a generated MP3 to a POI and publishes it. */
     publish: '/api/v1/audioguides/publish',
   },
+  onboardAudio: {
+    /** Captain: the MP3 of one clip of an announcement (`lang` is `vi` or `en`); needs the captain's token. */
+    clip: (requestId: string, language: string) => `/api/v1/onboard-audio/requests/${requestId}/audio?lang=${language}`,
+  },
   checkIns: {
     scannerStaff: '/api/v1/checkins/assignments/staff',
     assignments: '/api/v1/checkins/assignments',
@@ -127,6 +131,8 @@ export const API_ENDPOINTS = {
     operationEvents: '/api/v1/trips/operations/events',
     status: (tripId: string) => `/api/v1/trips/${tripId}/status`,
     sos: (tripId: string) => `/api/v1/trips/${tripId}/sos`,
+    /** Captain: xem điểm danh của chuyến thuộc tàu mình; chỉ Admin được ghi nhận. */
+    captainAttendance: (tripId: string) => `/api/v1/trips/${tripId}/captain-attendance`,
   },
   tracking: {
     /** Latest position of every active boat (Admin). */
@@ -144,6 +150,7 @@ export const API_ENDPOINTS = {
 export const HUBS = {
   boatTracking: '/hubs/boat-tracking',
   seatSync: '/hubs/seat-sync',
+  onboardAudio: '/hubs/onboard-audio',
 } as const
 
 /** Event names the hubs push to the browser. */
@@ -154,4 +161,6 @@ export const HUB_EVENTS = {
   seatHeld: 'seatHeld',
   seatReleased: 'seatReleased',
   seatSold: 'seatSold',
+  audioTrigger: 'audioTrigger',
+  audioControl: 'audioControl',
 } as const

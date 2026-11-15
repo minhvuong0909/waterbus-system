@@ -25,8 +25,17 @@ public class BoatTrackingHub(IBoatTrackingService tracking) : Hub
         Groups.RemoveFromGroupAsync(Context.ConnectionId, RealtimeContract.Groups.Fleet);
 
     /// <summary>Theo dõi một tàu cụ thể (vd Captain Portal hiển thị tàu của mình).</summary>
-    public Task JoinBoat(Guid boatId) =>
-        Groups.AddToGroupAsync(Context.ConnectionId, RealtimeContract.Groups.Boat(boatId));
+    public async Task JoinBoat(Guid boatId)
+    {
+        if (Context.User?.IsInRole("Captain") == true)
+        {
+            var repository = Context.GetHttpContext()!.RequestServices.GetRequiredService<WaterbusSystem.Application.Interfaces.Repositories.IBoatRepository>();
+            var boat = await repository.GetActiveForTrackingAsync(boatId, Context.ConnectionAborted);
+            if (!Guid.TryParse(Context.UserIdentifier, out var captainId) || boat.CaptainUserId != captainId)
+                throw new HubException("Captain chỉ theo dõi tàu được phân công.");
+        }
+        await Groups.AddToGroupAsync(Context.ConnectionId, RealtimeContract.Groups.Boat(boatId));
+    }
 
     public Task LeaveBoat(Guid boatId) =>
         Groups.RemoveFromGroupAsync(Context.ConnectionId, RealtimeContract.Groups.Boat(boatId));

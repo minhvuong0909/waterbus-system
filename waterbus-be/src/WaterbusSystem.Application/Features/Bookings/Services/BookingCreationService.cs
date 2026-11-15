@@ -14,6 +14,7 @@ namespace WaterbusSystem.Application.Features.Bookings.Services;
 
 public sealed class BookingCreationService
 {
+    private readonly ICaptainOperationsService _captains;
     private readonly IOrderRepository _orders;
     private readonly IBookingRepository _bookings;
     private readonly IUnitOfWork _unitOfWork;
@@ -39,8 +40,10 @@ public sealed class BookingCreationService
         ISeatAvailabilityService seatAvailabilityService,
         CheckoutOptions options,
         ICheckoutAccessService access,
+        ICaptainOperationsService captains,
         ICurrentUserService? currentUser = null)
     {
+        _captains = captains;
         _currentUser = currentUser;
         _orders = orders;
         _bookings = bookings;
@@ -92,6 +95,7 @@ public sealed class BookingCreationService
                             ?? throw new NotFoundException(nameof(Trip), request.TripId);
 
             EnsureTripIsSellable(trip, now);
+            await _captains.EnsureSellableAsync(trip.BoatId!.Value, cancellationToken);
 
             if (trip.Route == null)
             {

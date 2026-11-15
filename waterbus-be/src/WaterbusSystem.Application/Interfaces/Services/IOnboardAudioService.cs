@@ -16,5 +16,5 @@ public interface IOnboardAudioService
     Task<bool> AcceptAsync(Guid captainId, Guid requestId, CancellationToken ct = default);
     Task<PlaybackStateAck> ReportStateAsync(Guid captainId, Guid requestId, ReportPlaybackStateRequest request, CancellationToken ct = default);
     /// <summary>MP3 của lệnh phát; chỉ khi lệnh thuộc Boat của Captain và chuyến vẫn đang được phép phát.</summary>
-    Task<StoredAudio> GetAudioAsync(Guid captainId, Guid requestId, CancellationToken ct = default);
+    Task<StoredAudio> GetAudioAsync(Guid captainId, Guid requestId, string language, CancellationToken ct = default);
 }
