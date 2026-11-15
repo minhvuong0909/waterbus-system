@@ -150,7 +150,6 @@ public class TripServiceChangeStatusTests
     [InlineData(TripOperation.Suspend)]
     [InlineData(TripOperation.Cancel)]
     [InlineData(TripOperation.Terminate)]
-    [InlineData(TripOperation.Complete)]
     [InlineData(TripOperation.Resume)]
     public async Task Captain_DecisionOperations_ShouldBeForbidden(TripOperation op)
     {

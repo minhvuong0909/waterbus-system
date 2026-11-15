@@ -42,6 +42,12 @@ public class TrackingAudioTriggerServiceTests
             PoiId = poi.Id, Poi = poi, LanguageCode = "vi", IsPublished = true,
             AudioAssetUri = "https://example.blob.core.windows.net/private/poi.mp3"
         });
+        foreach (var language in new[] { "vi", "en" })
+            _context.AudioClips.Add(new AudioClip
+            {
+                Kind = AudioClipKind.Poi, SubjectId = poi.Id, LanguageCode = language, Text = "Bến Nhà Rồng",
+                Data = [1, 2, 3], DurationSeconds = 5, IsPublished = true
+            });
         _context.SaveChanges();
     }
 
@@ -50,7 +56,11 @@ public class TrackingAudioTriggerServiceTests
         new WaterbusSystem.Infrastructure.Repositories.SightseeingAudioRepository(_context),
         new PoiAudioTriggerDecisionService(new NtsGeoDistanceCalculator(),
             deduplication ?? _deduplication, dispatcher ?? _dispatcher,
-            NullLogger<PoiAudioTriggerDecisionService>.Instance));
+            NullLogger<PoiAudioTriggerDecisionService>.Instance),
+        new StationAnnouncementDecisionService(new NtsGeoDistanceCalculator(), deduplication ?? _deduplication,
+            dispatcher ?? _dispatcher, Microsoft.Extensions.Options.Options.Create(new WaterbusSystem.Application.Features.SightseeingAudio.SightseeingAudioOptions()),
+            NullLogger<StationAnnouncementDecisionService>.Instance),
+        deduplication ?? _deduplication);
 
     private BoatPositionSnapshot Position() => new()
     {
@@ -68,7 +78,7 @@ public class TrackingAudioTriggerServiceTests
         var duplicate = await evaluator.EvaluateAsync(Position());
 
         first!.ShouldTrigger.Should().BeTrue();
-        duplicate!.Reason.Should().Be(TriggerDecisionReason.AlreadyTriggeredForVisit);
+        duplicate.Should().BeNull("mọi địa danh trên tuyến đã phát nên không còn địa danh kế tiếp để xét");
         _dispatcher.DispatchedCount.Should().Be(1);
     }
 

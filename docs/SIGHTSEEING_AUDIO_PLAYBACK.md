@@ -1,4 +1,13 @@
-# Sightseeing Audio — hợp đồng Backend → Onboard Player (BR-EXP-01..07, BR-ID-06, BR-INC-05)
+# Audio trên tàu — thông báo bến + thuyết minh địa danh (BR-EXP-01..07, BR-ID-06, BR-INC-05)
+
+> **Cập nhật (Audio Narration, `audioTrigger` version 2):**
+> - Audio là các **clip MP3 lưu trong SQL** (bảng `AudioClips`, mỗi dòng một ngôn ngữ): `Kind` (`StationApproaching|StationArrived|StationDeparted|Poi`) + `SubjectId` (StationId/PoiId) + `LanguageCode` (`vi`|`en`). Mỗi thông báo phát **`vi` rồi `en`**. Sinh bằng `tools/audio/generate_audio.py` (edge-tts), nạp khi seed (`SeedAudioClipsAsync`). Thiếu clip `vi` → không phát, ghi log (không lỗi).
+> - **Thông báo bến** cho mọi chuyến `EnRoute` (`StationAnnouncementDecisionService`, theo `TripStopCall.VisitOrder`): tàu thường — bến đầu "rời bến", bến giữa "sắp tới → đã tới → rời bến", bến cuối "sắp tới → đã tới"; tàu tham quan — "rời bến" bến đầu, thuyết minh địa danh dọc đường, "sắp tới → đã tới" bến cuối. Ngưỡng: `SightseeingAudio:ApproachRadiusM` (500), `ArriveRadiusM` (60), `DepartRadiusM` (120). Một lần GPS tối đa một lệnh (bến trước, địa danh ở lần GPS sau).
+> - Chống trùng dùng chung sổ cái: sự kiện bến có `RoutePoiKey = TripStopCallId`, `VisitKey = approaching|arrived|departed`; sổ cái ghi thêm `Kind`/`SubjectId`.
+> - **Onboard Player nay có trong repo:** panel "Loa trên tàu" trên Captain Portal (`features/captain`). Cần bấm "Bật loa" một lần (trình duyệt chặn tự phát); chưa bật thì không ACK nên backend giữ lệnh cho lần GPS sau (tối đa `MaxDispatchAttempts`). Không có giọng đọc dự phòng của trình duyệt: clip lỗi → báo `Failed`.
+> - REST audio: `GET /api/v1/onboard-audio/requests/{requestId}/audio?lang=vi|en`. Payload `audioTrigger` v2: xem `docs/REALTIME_CONTRACT.md` mục 3 (phần mô tả `playbackPath` đơn/`AudioGuide` bên dưới là v1, đã thay).
+> - Seed: 2 tuyến tham quan riêng `SS01` (Bạch Đằng → Linh Đông), `SS02` (ngược lại), mỗi tuyến chỉ 2 bến (BR-ROUTE-03); RT01/RT02 chỉ có chuyến Commuter.
+> - Demo: `Tracking:Simulator:DemoTripSeconds` (≈210 s/vòng, đứng yên `DemoDwellSeconds` ở mỗi bến, giảm tốc gần bến).
 
 BR: audio Sightseeing **phát chung qua loa Boat**, do **Onboard Player trên tàu** phát; Backend **không** tự phát ra loa và **không** dùng Ticket/TripAccess để mở khoá audio. Tài liệu này định nghĩa phần Backend làm và phần client (Onboard Player) phải làm.
 

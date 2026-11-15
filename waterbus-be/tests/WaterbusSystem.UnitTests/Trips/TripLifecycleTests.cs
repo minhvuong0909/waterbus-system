@@ -92,7 +92,7 @@ public class TripLifecycleTests
     [InlineData(TripOperation.Resume, false)]
     [InlineData(TripOperation.Cancel, false)]
     [InlineData(TripOperation.Terminate, false)]
-    [InlineData(TripOperation.Complete, false)]
+    [InlineData(TripOperation.Complete, true)]
     public void IsCaptainOperation_ShouldMatchBrOps04(TripOperation op, bool expected) =>
         TripLifecycle.IsCaptainOperation(op).Should().Be(expected);
 

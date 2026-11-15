@@ -49,9 +49,9 @@ public static class TripLifecycle
             .Where(op => op != TripOperation.NoAction && NextStatus(trip, op) is not null)
             .ToList();
 
-    /// <summary>Thao tác Captain được phép tự thực hiện trên chuyến của tàu mình (BR-OPS-04: Start, Arrive).</summary>
+    /// <summary>Thao tác Captain được phép tự thực hiện trên chuyến của tàu mình (BR-OPS-04: Start, Arrive; Complete sau khi đã cập bến cuối).</summary>
     public static bool IsCaptainOperation(TripOperation operation) =>
-        operation is TripOperation.OpenBoarding or TripOperation.Start or TripOperation.Arrive;
+        operation is TripOperation.OpenBoarding or TripOperation.Start or TripOperation.Arrive or TripOperation.Complete;
 
     /// <summary>Thao tác bắt buộc có lý do để lưu vết quyết định.</summary>
     public static bool RequiresReason(TripOperation operation) =>

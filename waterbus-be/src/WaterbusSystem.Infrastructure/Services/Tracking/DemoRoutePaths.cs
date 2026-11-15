@@ -109,6 +109,9 @@ public static class DemoRoutePaths
         // Bạch Đằng -> Bình An -> Thanh Đa -> Hiệp Bình Chánh -> Linh Đông
         ["RT01"] = Rt01,
         // Linh Đông -> Hiệp Bình Chánh -> Thanh Đa -> Bình An -> Bạch Đằng
-        ["RT02"] = Rt01.Reverse().ToArray()
+        ["RT02"] = Rt01.Reverse().ToArray(),
+        // Tuyến tham quan riêng (BR-ROUTE-03) đi cùng đoạn sông: SS01 Bạch Đằng -> Linh Đông, SS02 chiều ngược lại (tàu luôn đi theo sông, khớp đường vẽ trên radar).
+        ["SS01"] = Rt01,
+        ["SS02"] = Rt01.Reverse().ToArray()
     };
 }

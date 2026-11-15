@@ -39,6 +39,10 @@ public interface ITripRepository
     /// Chuyến cho màn hình vận hành (kèm Route, Boat), lọc theo khoảng thời gian/thuyền trưởng/trạng thái,
     /// sắp theo giờ khởi hành tăng dần, giới hạn <paramref name="take"/> bản ghi.
     /// </summary>
+    /// <summary>Toạ độ bến cuối (điểm dừng chưa Skipped có VisitOrder lớn nhất) của từng chuyến.</summary>
+    Task<Dictionary<Guid, (double Latitude, double Longitude)>> GetLastStopLocationsAsync(
+        IReadOnlyCollection<Guid> tripIds, CancellationToken cancellationToken = default);
+
     Task<List<Trip>> ListForOperationsAsync(
         DateTimeOffset from, DateTimeOffset to, Guid? captainId, IReadOnlyList<TripStatus>? statuses, int take,
         CancellationToken cancellationToken = default);

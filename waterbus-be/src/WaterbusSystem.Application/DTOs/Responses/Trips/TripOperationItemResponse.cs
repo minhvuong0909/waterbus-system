@@ -1,3 +1,5 @@
+using WaterbusSystem.Application.Features.Trips;
+
 namespace WaterbusSystem.Application.DTOs.Responses.Trips;
 
 public record TripOperationItemResponse(
@@ -15,4 +17,6 @@ public record TripOperationItemResponse(
     DateTimeOffset? ActualDepartureTime,
     DateTimeOffset? ActualArrivalTime,
     bool IsDelayed,
-    IReadOnlyList<string> AllowedOperations);
+    IReadOnlyList<string> AllowedOperations,
+    /// <summary>Trạng thái từng nút của thuyền trưởng kèm lý do khi chưa bấm được; chỉ có cho thuyền trưởng.</summary>
+    IReadOnlyList<CaptainActionHint>? CaptainActions = null);

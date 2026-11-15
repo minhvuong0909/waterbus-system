@@ -98,6 +98,14 @@ services:
       Tracking__Simulator__Enabled: ${TRACKING_SIMULATOR_ENABLED:-false}
       Tracking__Simulator__IntervalSeconds: ${TRACKING_SIMULATOR_INTERVAL_SECONDS:-3}
       Tracking__Simulator__IncludeScheduledTrips: ${TRACKING_SIMULATOR_INCLUDE_SCHEDULED:-false}
+      Tracking__Simulator__DemoTripSeconds: ${TRACKING_SIMULATOR_DEMO_TRIP_SECONDS:-0}
+      Tracking__Simulator__DemoDwellSeconds: ${TRACKING_SIMULATOR_DEMO_DWELL_SECONDS:-8}
+      SightseeingAudio__ApproachRadiusM: ${SIGHTSEEING_AUDIO_APPROACH_RADIUS_M:-500}
+      SightseeingAudio__ArriveRadiusM: ${SIGHTSEEING_AUDIO_ARRIVE_RADIUS_M:-60}
+      SightseeingAudio__DepartRadiusM: ${SIGHTSEEING_AUDIO_DEPART_RADIUS_M:-120}
+      CaptainOperations__Enforce: ${CAPTAIN_OPERATIONS_ENFORCE:-true}
+      CaptainOperations__OpenBoardingLeadMinutes: ${CAPTAIN_OPEN_BOARDING_LEAD_MINUTES:-30}
+      CaptainOperations__ArriveRadiusM: ${CAPTAIN_ARRIVE_RADIUS_M:-150}
       Weather__Enabled: ${WEATHER_ENABLED:-true}
       CheckIn__NoShowFinalization__Enabled: ${NOSHOW_FINALIZATION_ENABLED:-true}
       CheckIn__NoShowFinalization__CronExpression: ${NOSHOW_FINALIZATION_CRON:-*/5 * * * *}

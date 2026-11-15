@@ -21,9 +21,9 @@ public sealed class OnboardAudioController(IOnboardAudioService service) : BaseA
     /// <summary>MP3 của lệnh phát (cần JWT Captain đúng Boat và chuyến đang được phép phát). Hỗ trợ Range.</summary>
     [HttpGet("requests/{requestId:guid}/audio")]
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Audio(Guid requestId)
+    public async Task<IActionResult> Audio(Guid requestId, [FromQuery] string lang = "vi")
     {
-        var audio = await service.GetAudioAsync(CaptainId(), requestId, HttpContext.RequestAborted);
+        var audio = await service.GetAudioAsync(CaptainId(), requestId, lang, HttpContext.RequestAborted);
         Response.Headers.CacheControl = "private, no-store";
         return File(audio.Data, audio.ContentType, enableRangeProcessing: true);
     }

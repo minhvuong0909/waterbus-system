@@ -12,4 +12,6 @@ public interface ISightseeingAudioRepository
     void AddGuide(AudioGuide guide);
     Task<AudioGuidePoisPageResponse> GetPoisAsync(int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<SightseeingAudioSnapshot?> GetTrackingSnapshotAsync(Guid tripId, Guid boatId, CancellationToken cancellationToken);
+    /// <summary>Các điểm dừng của chuyến theo VisitOrder kèm clip thông báo bến (cho tàu thường và tàu tham quan).</summary>
+    Task<TripStationContext> GetStationSnapshotAsync(TripSightseeingContext trip, CancellationToken cancellationToken);
 }

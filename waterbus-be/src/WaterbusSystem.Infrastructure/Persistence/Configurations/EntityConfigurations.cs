@@ -590,6 +590,22 @@ public class AudioGuideConfiguration : IEntityTypeConfiguration<AudioGuide>
     }
 }
 
+public class AudioClipConfiguration : IEntityTypeConfiguration<AudioClip>
+{
+    public void Configure(EntityTypeBuilder<AudioClip> builder)
+    {
+        builder.ToTable("AudioClips");
+        builder.HasIndex(x => new { x.Kind, x.SubjectId, x.LanguageCode })
+            .IsUnique().HasFilter("[IsDeleted] = 0").HasDatabaseName("UX_AudioClips_Subject_Language");
+        builder.Property(x => x.Kind).HasConversion<int>();
+        builder.Property(x => x.LanguageCode).HasMaxLength(5).IsRequired();
+        builder.Property(x => x.Text).HasMaxLength(500).IsRequired();
+        builder.Property(x => x.ContentType).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.Data).HasColumnType("varbinary(max)").IsRequired();
+        builder.Property(x => x.RowVersion).IsRowVersion();
+    }
+}
+
 public class EmailOutboxMessageConfiguration : IEntityTypeConfiguration<EmailOutboxMessage>
 {
     public void Configure(EntityTypeBuilder<EmailOutboxMessage> builder)
@@ -629,6 +645,7 @@ public class AudioPlaybackRequestConfiguration : IEntityTypeConfiguration<AudioP
         builder.Property(x => x.AudioAssetUri).HasMaxLength(500);
         builder.Property(x => x.FailureReason).HasMaxLength(300);
         builder.Property(x => x.Status).HasConversion<int>();
+        builder.Property(x => x.Kind).HasConversion<int?>();
         builder.Property(x => x.ReservationEpoch).HasDefaultValue(0);
         builder.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.RowVersion).IsRowVersion();

@@ -5,6 +5,8 @@ using WaterbusSystem.Application.DTOs.Requests.Trips;
 using WaterbusSystem.Application.DTOs.Responses.Trips;
 using WaterbusSystem.Application.Features.Bookings.Services;
 using WaterbusSystem.Application.Features.Incidents;
+using WaterbusSystem.Application.Features.Trips;
+using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Application.Interfaces.Services;
@@ -29,9 +31,24 @@ public sealed class TripService(
     IOperationsAlertPublisher publisher,
     IUserDirectory users,
     INotificationOutbox notifications,
-    ICommercialTransactionRunner transactions) : ITripService
+    ICommercialTransactionRunner transactions,
+    IBoatPositionCache? positions = null,
+    IGeoDistanceCalculator? distance = null,
+    IOptions<CaptainOperationOptions>? captainOptions = null) : ITripService
 {
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
+
+    // Không có cấu hình (vd. dựng thủ công trong test): chỉ theo vòng đời trạng thái, như trước khi có quy tắc thuyền trưởng.
+    private CaptainOperationOptions CaptainRules => captainOptions?.Value ?? new CaptainOperationOptions { Enforce = false };
+
+    /// <summary>Khoảng cách từ tàu tới bến cuối; null nếu chưa có vị trí đủ mới hoặc chuyến chưa có điểm dừng.</summary>
+    private async Task<double?> DistanceToLastStopAsync(Guid? boatId, (double Latitude, double Longitude)? lastStop, DateTimeOffset now, CancellationToken ct)
+    {
+        if (boatId is null || lastStop is null || positions is null || distance is null) return null;
+        var position = await positions.GetAsync(boatId.Value, ct);
+        if (position is null || now - position.ObservedAt > TimeSpan.FromSeconds(CaptainRules.PositionMaxAgeSeconds)) return null;
+        return distance.CalculateDistanceMeters(position.Lat, position.Lng, (decimal)lastStop.Value.Latitude, (decimal)lastStop.Value.Longitude);
+    }
 
     // ---------------- GetDetail ----------------
 
@@ -111,13 +128,29 @@ public sealed class TripService(
 
         var rows = await tripRepository.ListForOperationsAsync(from, to, captainId, request.Statuses, MaxOperationsItems, cancellationToken);
 
-        return rows.Select(t => new TripOperationItemResponse(
-                t.Id, t.ScheduleId, t.RouteId, t.Route!.Code, t.Route.Name, t.BoatId, t.Boat?.Code,
-                t.TripType.ToString(), t.Status.ToString(), t.DepartureTime, t.ArrivalTime,
-                t.ActualDepartureTime, t.ActualArrivalTime, t.IsDelayed,
-                TripLifecycle.AllowedOperations(t).Select(o => o.ToString()).ToList()))
-            .ToList();
+        if (isAdmin)
+        {
+            return rows.Select(t => ToItem(t, null)).ToList();
+        }
+
+        // Thuyền trưởng không cần thấy chuyến chưa chạy mà đã quá giờ đến dự kiến (Admin xử lý các chuyến này).
+        rows = rows.Where(t => !(t.Status is TripStatus.Scheduled or TripStatus.Boarding && t.ArrivalTime < now)).ToList();
+        var lastStops = await tripRepository.GetLastStopLocationsAsync(rows.Select(t => t.Id).ToList(), cancellationToken);
+        var items = new List<TripOperationItemResponse>();
+        foreach (var t in rows)
+        {
+            (double, double)? lastStop = lastStops.TryGetValue(t.Id, out var location) ? location : null;
+            var meters = t.Status == TripStatus.EnRoute ? await DistanceToLastStopAsync(t.BoatId, lastStop, now, cancellationToken) : null;
+            items.Add(ToItem(t, CaptainOperationRules.Evaluate(t, now, meters, CaptainRules)));
+        }
+        return items;
     }
+
+    private static TripOperationItemResponse ToItem(Trip t, IReadOnlyList<CaptainActionHint>? captainActions) => new(
+        t.Id, t.ScheduleId, t.RouteId, t.Route!.Code, t.Route.Name, t.BoatId, t.Boat?.Code,
+        t.TripType.ToString(), t.Status.ToString(), t.DepartureTime, t.ArrivalTime,
+        t.ActualDepartureTime, t.ActualArrivalTime, t.IsDelayed,
+        TripLifecycle.AllowedOperations(t).Select(o => o.ToString()).ToList(), captainActions);
 
     // ---------------- GetOperationEvents ----------------
 
@@ -159,7 +192,7 @@ public sealed class TripService(
         {
             if (!TripLifecycle.IsCaptainOperation(request.Operation))
             {
-                throw new ForbiddenAccessException("Thuyền trưởng chỉ được mở đón khách, rời bến và cập bến. Các quyết định khác do Admin thực hiện.");
+                throw new ForbiddenAccessException("Thuyền trưởng chỉ được mở đón khách, bắt đầu chuyến, cập bến và kết thúc chuyến. Các quyết định khác do Admin thực hiện.");
             }
             if (request.IncidentId is not null)
             {
@@ -173,6 +206,7 @@ public sealed class TripService(
 
         var decision = await FindIncidentDecisionAsync(tripId, request.IncidentId, cancellationToken);
         var now = dateTime.Now;
+        if (!isAdmin) await EnsureCaptainMayAsync(trip, request.Operation, now, cancellationToken);
         var previous = trip.Status;
         var reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
 
@@ -249,6 +283,29 @@ public sealed class TripService(
             cancellationToken);
 
         return ToResult(trip, previous, request.Operation);
+    }
+
+    /// <summary>Áp quy tắc "khi nào được bấm nút nào" cho thuyền trưởng (xem <see cref="CaptainOperationRules"/>); vi phạm → 409.</summary>
+    private async Task EnsureCaptainMayAsync(Trip trip, TripOperation operation, DateTimeOffset now, CancellationToken ct)
+    {
+        if (operation == TripOperation.NoAction) return;
+        double? meters = null;
+        if (operation == TripOperation.Arrive && CaptainRules.Enforce)
+        {
+            var lastStops = await tripRepository.GetLastStopLocationsAsync([trip.Id], ct);
+            (double, double)? lastStop = lastStops.TryGetValue(trip.Id, out var location) ? location : null;
+            meters = await DistanceToLastStopAsync(trip.BoatId, lastStop, now, ct);
+        }
+        var hint = CaptainOperationRules.Evaluate(trip, operation, now, meters, CaptainRules);
+        if (hint.Allowed) return;
+        throw new ConflictException(hint.Reason switch
+        {
+            "NotYet" => $"Chưa đến giờ mở đón khách (từ {hint.AvailableAt?.ToOffset(VietnamOffset):HH:mm dd/MM}).",
+            "OpenBoardingFirst" => "Cần mở đón khách trước khi bắt đầu chuyến.",
+            "NoPosition" => "Chưa có vị trí GPS đủ mới của tàu nên chưa thể xác nhận đã cập bến. Hãy bật chia sẻ GPS hoặc nhờ Admin.",
+            "NotAtLastStop" => "Tàu chưa tới bến cuối của tuyến.",
+            _ => $"Không thể thực hiện \"{operation}\" khi chuyến đang ở trạng thái {trip.Status}."
+        });
     }
 
     /// <summary>

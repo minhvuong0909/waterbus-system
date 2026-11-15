@@ -19,6 +19,10 @@ public class AudioPlaybackRequest : BaseEntity
 
     public Guid? BoatId { get; set; }
     public Guid? PoiId { get; set; }
+    /// <summary>Loại thông báo (bến/địa danh) để lấy đúng clip trong AudioClips.</summary>
+    public AudioClipKind? Kind { get; set; }
+    /// <summary>StationId hoặc PoiId tương ứng với <see cref="Kind"/>.</summary>
+    public Guid? SubjectId { get; set; }
     public Guid? AudioGuideId { get; set; }
     /// <summary>Định danh bền vững của asset (không phải URL có chữ ký).</summary>
     public string? AudioAssetUri { get; set; }

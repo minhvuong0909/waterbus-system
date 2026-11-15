@@ -1,0 +1,75 @@
+{
+  "stations": [
+    {
+      "code": "ST01",
+      "vi": "Bến Bạch Đằng",
+      "en": "Bach Dang"
+    },
+    {
+      "code": "ST02",
+      "vi": "Bến Bình An",
+      "en": "Binh An"
+    },
+    {
+      "code": "ST03",
+      "vi": "Bến Thanh Đa",
+      "en": "Thanh Da"
+    },
+    {
+      "code": "ST04",
+      "vi": "Bến Hiệp Bình Chánh",
+      "en": "Hiep Binh Chanh"
+    },
+    {
+      "code": "ST05",
+      "vi": "Bến Linh Đông",
+      "en": "Linh Dong"
+    }
+  ],
+  "stationEvents": {
+    "approaching": {
+      "vi": "Tàu sắp tới {vi}.",
+      "en": "Approaching {en} pier."
+    },
+    "arrived": {
+      "vi": "Đã tới {vi}. Mời quý khách xuống và lên tàu.",
+      "en": "Arrived at {en} pier. Please disembark and board now."
+    },
+    "departed": {
+      "vi": "Tàu rời {vi}. Xin quý khách giữ an toàn.",
+      "en": "Departing {en} pier. Please stay safe."
+    }
+  },
+  "pois": [
+    {
+      "id": "poi-01",
+      "name": "Landmark 81",
+      "vi": "Bên trái là Landmark 81, tòa nhà cao nhất Việt Nam.",
+      "en": "On the left is Landmark 81, the tallest building in Vietnam."
+    },
+    {
+      "id": "poi-02",
+      "name": "Cầu Sài Gòn",
+      "vi": "Quý khách đang đi qua cầu Sài Gòn, cây cầu lâu đời nối Bình Thạnh với Thảo Điền.",
+      "en": "You are passing Saigon Bridge, an old bridge linking Binh Thanh and Thao Dien."
+    },
+    {
+      "id": "poi-03",
+      "name": "Khu vực Thảo Điền ven sông",
+      "vi": "Bên phải là khu Thảo Điền ven sông, nhiều biệt thự xanh và quán cà phê.",
+      "en": "On the right is the Thao Dien riverside, with leafy villas and cafes."
+    },
+    {
+      "id": "poi-04",
+      "name": "Bán đảo Thanh Đa",
+      "vi": "Phía trước là bán đảo Thanh Đa, khu sinh thái xanh được sông Sài Gòn ôm trọn.",
+      "en": "Ahead is Thanh Da peninsula, a green area embraced by the Saigon River."
+    },
+    {
+      "id": "poi-05",
+      "name": "Khu vực Bình Quới ven sông",
+      "vi": "Đây là khu Bình Quới ven sông, vùng cây xanh yên tĩnh với nhiều điểm du lịch sinh thái.",
+      "en": "This is the Binh Quoi riverside, a quiet green area with many eco-tourism spots."
+    }
+  ]
+}

@@ -271,9 +271,11 @@ public static class DependencyInjection
         services.Configure<SightseeingAudioOptions>(configuration.GetSection(SightseeingAudioOptions.SectionName));
         services.AddScoped<IPoiTriggerDeduplicationService, SqlPoiTriggerDeduplicationService>();
         services.AddScoped<IAudioPlaybackRepository, AudioPlaybackRepository>();
+        services.AddScoped<IAudioClipRepository, AudioClipRepository>();
         services.AddScoped<IOnboardAudioService, OnboardAudioService>();
         services.AddScoped<IOnboardAudioTriggerDispatcher, LogOnlyAudioTriggerDispatcher>();
         services.AddScoped<IPoiAudioTriggerDecisionService, PoiAudioTriggerDecisionService>();
+        services.AddScoped<IStationAnnouncementDecisionService, StationAnnouncementDecisionService>();
         services.AddScoped<ITrackingAudioTriggerService, TrackingAudioTriggerService>();
         services.AddScoped<ISightseeingAudioRepository, SightseeingAudioRepository>();
 
@@ -305,6 +307,8 @@ public static class DependencyInjection
 
         // 7. Theo dõi vị trí tàu: cache vị trí mới nhất (Redis) + giả lập GPS cho demo (mặc định tắt)
         services.Configure<TrackingOptions>(configuration.GetSection(TrackingOptions.SectionName));
+        services.Configure<WaterbusSystem.Application.Features.Trips.CaptainOperationOptions>(
+            configuration.GetSection(WaterbusSystem.Application.Features.Trips.CaptainOperationOptions.SectionName));
         services.AddSingleton<IBoatPositionCache, RedisBoatPositionCache>();
         services.AddHostedService<BoatSimulatorService>();
 

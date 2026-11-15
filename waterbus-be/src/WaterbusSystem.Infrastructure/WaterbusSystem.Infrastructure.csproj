@@ -43,4 +43,9 @@
     <PackageReference Include="ProjNET" Version="2.1.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Clip audio seed (tools/audio/generate_audio.py) nạp vào bảng AudioClips khi khởi động -->
+    <None Include="Persistence\SeedData\Audio\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,302 @@
+[
+  {
+    "id": "station-ST01-approaching",
+    "kind": "StationApproaching",
+    "subject": "ST01",
+    "clips": {
+      "vi": {
+        "text": "Tàu sắp tới Bến Bạch Đằng.",
+        "seconds": 2
+      },
+      "en": {
+        "text": "Approaching Bach Dang pier.",
+        "seconds": 2
+      }
+    }
+  },
+  {
+    "id": "station-ST01-arrived",
+    "kind": "StationArrived",
+    "subject": "ST01",
+    "clips": {
+      "vi": {
+        "text": "Đã tới Bến Bạch Đằng. Mời quý khách xuống và lên tàu.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "Arrived at Bach Dang pier. Please disembark and board now.",
+        "seconds": 5
+      }
+    }
+  },
+  {
+    "id": "station-ST01-departed",
+    "kind": "StationDeparted",
+    "subject": "ST01",
+    "clips": {
+      "vi": {
+        "text": "Tàu rời Bến Bạch Đằng. Xin quý khách giữ an toàn.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "Departing Bach Dang pier. Please stay safe.",
+        "seconds": 4
+      }
+    }
+  },
+  {
+    "id": "station-ST02-approaching",
+    "kind": "StationApproaching",
+    "subject": "ST02",
+    "clips": {
+      "vi": {
+        "text": "Tàu sắp tới Bến Bình An.",
+        "seconds": 3
+      },
+      "en": {
+        "text": "Approaching Binh An pier.",
+        "seconds": 2
+      }
+    }
+  },
+  {
+    "id": "station-ST02-arrived",
+    "kind": "StationArrived",
+    "subject": "ST02",
+    "clips": {
+      "vi": {
+        "text": "Đã tới Bến Bình An. Mời quý khách xuống và lên tàu.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "Arrived at Binh An pier. Please disembark and board now.",
+        "seconds": 5
+      }
+    }
+  },
+  {
+    "id": "station-ST02-departed",
+    "kind": "StationDeparted",
+    "subject": "ST02",
+    "clips": {
+      "vi": {
+        "text": "Tàu rời Bến Bình An. Xin quý khách giữ an toàn.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "Departing Binh An pier. Please stay safe.",
+        "seconds": 4
+      }
+    }
+  },
+  {
+    "id": "station-ST03-approaching",
+    "kind": "StationApproaching",
+    "subject": "ST03",
+    "clips": {
+      "vi": {
+        "text": "Tàu sắp tới Bến Thanh Đa.",
+        "seconds": 3
+      },
+      "en": {
+        "text": "Approaching Thanh Da pier.",
+        "seconds": 2
+      }
+    }
+  },
+  {
+    "id": "station-ST03-arrived",
+    "kind": "StationArrived",
+    "subject": "ST03",
+    "clips": {
+      "vi": {
+        "text": "Đã tới Bến Thanh Đa. Mời quý khách xuống và lên tàu.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "Arrived at Thanh Da pier. Please disembark and board now.",
+        "seconds": 5
+      }
+    }
+  },
+  {
+    "id": "station-ST03-departed",
+    "kind": "StationDeparted",
+    "subject": "ST03",
+    "clips": {
+      "vi": {
+        "text": "Tàu rời Bến Thanh Đa. Xin quý khách giữ an toàn.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "Departing Thanh Da pier. Please stay safe.",
+        "seconds": 4
+      }
+    }
+  },
+  {
+    "id": "station-ST04-approaching",
+    "kind": "StationApproaching",
+    "subject": "ST04",
+    "clips": {
+      "vi": {
+        "text": "Tàu sắp tới Bến Hiệp Bình Chánh.",
+        "seconds": 3
+      },
+      "en": {
+        "text": "Approaching Hiep Binh Chanh pier.",
+        "seconds": 3
+      }
+    }
+  },
+  {
+    "id": "station-ST04-arrived",
+    "kind": "StationArrived",
+    "subject": "ST04",
+    "clips": {
+      "vi": {
+        "text": "Đã tới Bến Hiệp Bình Chánh. Mời quý khách xuống và lên tàu.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "Arrived at Hiep Binh Chanh pier. Please disembark and board now.",
+        "seconds": 5
+      }
+    }
+  },
+  {
+    "id": "station-ST04-departed",
+    "kind": "StationDeparted",
+    "subject": "ST04",
+    "clips": {
+      "vi": {
+        "text": "Tàu rời Bến Hiệp Bình Chánh. Xin quý khách giữ an toàn.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "Departing Hiep Binh Chanh pier. Please stay safe.",
+        "seconds": 5
+      }
+    }
+  },
+  {
+    "id": "station-ST05-approaching",
+    "kind": "StationApproaching",
+    "subject": "ST05",
+    "clips": {
+      "vi": {
+        "text": "Tàu sắp tới Bến Linh Đông.",
+        "seconds": 2
+      },
+      "en": {
+        "text": "Approaching Linh Dong pier.",
+        "seconds": 2
+      }
+    }
+  },
+  {
+    "id": "station-ST05-arrived",
+    "kind": "StationArrived",
+    "subject": "ST05",
+    "clips": {
+      "vi": {
+        "text": "Đã tới Bến Linh Đông. Mời quý khách xuống và lên tàu.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "Arrived at Linh Dong pier. Please disembark and board now.",
+        "seconds": 5
+      }
+    }
+  },
+  {
+    "id": "station-ST05-departed",
+    "kind": "StationDeparted",
+    "subject": "ST05",
+    "clips": {
+      "vi": {
+        "text": "Tàu rời Bến Linh Đông. Xin quý khách giữ an toàn.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "Departing Linh Dong pier. Please stay safe.",
+        "seconds": 4
+      }
+    }
+  },
+  {
+    "id": "poi-01",
+    "kind": "Poi",
+    "subject": "Landmark 81",
+    "clips": {
+      "vi": {
+        "text": "Bên trái là Landmark 81, tòa nhà cao nhất Việt Nam.",
+        "seconds": 4
+      },
+      "en": {
+        "text": "On the left is Landmark 81, the tallest building in Vietnam.",
+        "seconds": 5
+      }
+    }
+  },
+  {
+    "id": "poi-02",
+    "kind": "Poi",
+    "subject": "Cầu Sài Gòn",
+    "clips": {
+      "vi": {
+        "text": "Quý khách đang đi qua cầu Sài Gòn, cây cầu lâu đời nối Bình Thạnh với Thảo Điền.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "You are passing Saigon Bridge, an old bridge linking Binh Thanh and Thao Dien.",
+        "seconds": 5
+      }
+    }
+  },
+  {
+    "id": "poi-03",
+    "kind": "Poi",
+    "subject": "Khu vực Thảo Điền ven sông",
+    "clips": {
+      "vi": {
+        "text": "Bên phải là khu Thảo Điền ven sông, nhiều biệt thự xanh và quán cà phê.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "On the right is the Thao Dien riverside, with leafy villas and cafes.",
+        "seconds": 5
+      }
+    }
+  },
+  {
+    "id": "poi-04",
+    "kind": "Poi",
+    "subject": "Bán đảo Thanh Đa",
+    "clips": {
+      "vi": {
+        "text": "Phía trước là bán đảo Thanh Đa, khu sinh thái xanh được sông Sài Gòn ôm trọn.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "Ahead is Thanh Da peninsula, a green area embraced by the Saigon River.",
+        "seconds": 5
+      }
+    }
+  },
+  {
+    "id": "poi-05",
+    "kind": "Poi",
+    "subject": "Khu vực Bình Quới ven sông",
+    "clips": {
+      "vi": {
+        "text": "Đây là khu Bình Quới ven sông, vùng cây xanh yên tĩnh với nhiều điểm du lịch sinh thái.",
+        "seconds": 5
+      },
+      "en": {
+        "text": "This is the Binh Quoi riverside, a quiet green area with many eco-tourism spots.",
+        "seconds": 6
+      }
+    }
+  }
+]

@@ -4,7 +4,7 @@ using WaterbusSystem.Domain.Enums;
 namespace WaterbusSystem.Application.Interfaces.Repositories;
 
 public sealed record PlaybackRequestView(Guid Id, Guid TripId, Guid? BoatId, string? AudioAssetUri,
-    int? DurationSeconds, AudioPlaybackStatus Status);
+    int? DurationSeconds, AudioPlaybackStatus Status, AudioClipKind? Kind = null, Guid? SubjectId = null);
 
 /// <summary>Sổ cái lệnh phát audio. Mọi chuyển trạng thái là cập nhật có điều kiện nguyên tử trong SQL.</summary>
 public interface IAudioPlaybackRepository

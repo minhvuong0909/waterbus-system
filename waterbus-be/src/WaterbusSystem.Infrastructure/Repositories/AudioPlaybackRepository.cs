@@ -72,14 +72,15 @@ public sealed class AudioPlaybackRepository(ApplicationDbContext context) : IAud
         return await context.AudioPlaybackRequests
             .Where(x => x.Id == r.RequestId && x.Status == AudioPlaybackStatus.Reserved && x.ReservationEpoch == epoch)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.BoatId, r.BoatId).SetProperty(x => x.PoiId, r.PoiId)
+                .SetProperty(x => x.Kind, (AudioClipKind?)r.Kind).SetProperty(x => x.SubjectId, (Guid?)r.SubjectId)
                 .SetProperty(x => x.Attempts, x => x.Attempts + 1).SetProperty(x => x.ReservedAt, now)
-                .SetProperty(x => x.AudioGuideId, r.AudioGuideId).SetProperty(x => x.AudioAssetUri, r.AudioAssetUri)
+                .SetProperty(x => x.AudioGuideId, (Guid?)null).SetProperty(x => x.AudioAssetUri, (string?)null)
                 .SetProperty(x => x.DurationSeconds, r.DurationSeconds).SetProperty(x => x.DistanceMeters, r.DistanceMeters), ct) == 1;
     }
 
     public Task<PlaybackRequestView?> FindAsync(Guid requestId, CancellationToken ct) =>
         context.AudioPlaybackRequests.AsNoTracking().Where(x => x.Id == requestId)
-            .Select(x => new PlaybackRequestView(x.Id, x.TripId, x.BoatId, x.AudioAssetUri, x.DurationSeconds, x.Status))
+            .Select(x => new PlaybackRequestView(x.Id, x.TripId, x.BoatId, x.AudioAssetUri, x.DurationSeconds, x.Status, x.Kind, x.SubjectId))
             .FirstOrDefaultAsync(ct);
 
     public async Task<bool> ReportAsync(Guid requestId, AudioPlaybackStatus target, string? reason, int maxAttempts,

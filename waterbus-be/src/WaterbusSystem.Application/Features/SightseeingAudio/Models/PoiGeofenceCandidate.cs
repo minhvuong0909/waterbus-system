@@ -28,4 +28,7 @@ public record PoiGeofenceCandidate
     /// Danh sách các AudioGuide thuộc POI này.
     /// </summary>
     public IReadOnlyList<AudioGuideCandidate> AudioGuides { get; init; } = Array.Empty<AudioGuideCandidate>();
+
+    /// <summary>Clip đã publish của POI (AudioClips), "vi" rồi "en"; rỗng = chưa có bản tiếng Việt.</summary>
+    public IReadOnlyList<AudioClipRef> Clips { get; init; } = Array.Empty<AudioClipRef>();
 }

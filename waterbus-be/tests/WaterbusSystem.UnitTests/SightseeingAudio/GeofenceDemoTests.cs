@@ -50,6 +50,7 @@ public sealed class GeofenceDemoTests(ITestOutputHelper output)
             DisplayOrder = 1,
             IsPoiActive = true,
             IsRoutePoiActive = true,
+            Clips = new[] { new WaterbusSystem.Application.Features.SightseeingAudio.Models.AudioClipRef("vi", 5, "x") },
             AudioGuides =
             [
                 new AudioGuideCandidate

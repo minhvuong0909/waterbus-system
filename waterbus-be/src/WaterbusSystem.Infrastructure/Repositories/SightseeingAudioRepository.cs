@@ -54,6 +54,43 @@ public sealed class SightseeingAudioRepository(ApplicationDbContext context) : I
         return new AudioGuidePoisPageResponse(items, pageNumber, pageSize, total);
     }
 
+    public async Task<TripStationContext> GetStationSnapshotAsync(TripSightseeingContext trip, CancellationToken cancellationToken)
+    {
+        var calls = await _context.TripStopCalls.AsNoTracking()
+            .Where(c => c.TripId == trip.TripId && !c.IsDeleted && c.RouteStop != null && c.RouteStop.Station != null
+                && !c.RouteStop.Station.IsDeleted)
+            .OrderBy(c => c.VisitOrder)
+            .Select(c => new
+            {
+                c.Id, c.VisitOrder, StationId = c.RouteStop!.StationId, c.RouteStop.Station!.Name,
+                c.RouteStop.Station.Latitude, c.RouteStop.Station.Longitude
+            })
+            .ToListAsync(cancellationToken);
+
+        var stationIds = calls.Select(c => c.StationId).Distinct().ToArray();
+        var stationKinds = new[]
+        {
+            WaterbusSystem.Domain.Enums.AudioClipKind.StationApproaching,
+            WaterbusSystem.Domain.Enums.AudioClipKind.StationArrived,
+            WaterbusSystem.Domain.Enums.AudioClipKind.StationDeparted
+        };
+        var clipRows = await _context.AudioClips.AsNoTracking()
+            .Where(c => stationKinds.Contains(c.Kind) && stationIds.Contains(c.SubjectId) && c.IsPublished && !c.IsDeleted)
+            .Select(c => new { c.Kind, c.SubjectId, c.LanguageCode, c.DurationSeconds, c.Text })
+            .ToListAsync(cancellationToken);
+
+        IReadOnlyList<AudioClipRef> ClipsOf(Guid stationId, WaterbusSystem.Domain.Enums.AudioClipKind kind) =>
+            AudioClipRef.VietnameseThenEnglish(clipRows.Where(c => c.SubjectId == stationId && c.Kind == kind)
+                .Select(c => new AudioClipRef(c.LanguageCode, c.DurationSeconds, c.Text)));
+
+        var stops = calls.Select(c => new TripStopInfo(c.Id, c.StationId, c.Name, c.VisitOrder,
+            (decimal)c.Latitude, (decimal)c.Longitude,
+            ClipsOf(c.StationId, WaterbusSystem.Domain.Enums.AudioClipKind.StationApproaching),
+            ClipsOf(c.StationId, WaterbusSystem.Domain.Enums.AudioClipKind.StationArrived),
+            ClipsOf(c.StationId, WaterbusSystem.Domain.Enums.AudioClipKind.StationDeparted))).ToArray();
+        return new TripStationContext(trip, stops);
+    }
+
     public async Task<SightseeingAudioSnapshot?> GetTrackingSnapshotAsync(Guid tripId, Guid boatId, CancellationToken cancellationToken)
     {
         var trip = await _context.Trips.AsNoTracking()
@@ -94,13 +131,21 @@ public sealed class SightseeingAudioRepository(ApplicationDbContext context) : I
             })
             .ToListAsync(cancellationToken);
 
+        var clipRows = await _context.AudioClips.AsNoTracking()
+            .Where(c => c.Kind == WaterbusSystem.Domain.Enums.AudioClipKind.Poi && poiIds.Contains(c.SubjectId) && c.IsPublished && !c.IsDeleted)
+            .Select(c => new { c.SubjectId, c.LanguageCode, c.DurationSeconds, c.Text })
+            .ToListAsync(cancellationToken);
+        var clipsByPoi = clipRows.GroupBy(c => c.SubjectId).ToDictionary(g => g.Key,
+            g => AudioClipRef.VietnameseThenEnglish(g.Select(c => new AudioClipRef(c.LanguageCode, c.DurationSeconds, c.Text))));
+
         var candidates = routePois.Select(rp => new PoiGeofenceCandidate
         {
             RoutePoiId = rp.Id, PoiId = rp.PoiId, RouteId = rp.RouteId,
             PoiName = rp.PoiName, Latitude = rp.PoiLatitude, Longitude = rp.PoiLongitude,
             TriggerRadiusM = rp.TriggerRadiusM, DisplayOrder = rp.DisplayOrder,
             IsPoiActive = rp.PoiIsActive, IsRoutePoiActive = rp.IsActive,
-            AudioGuides = audioGuides.Where(a => a.PoiId == rp.PoiId).ToArray()
+            AudioGuides = audioGuides.Where(a => a.PoiId == rp.PoiId).ToArray(),
+            Clips = clipsByPoi.TryGetValue(rp.PoiId, out var clips) ? clips : Array.Empty<AudioClipRef>()
         }).ToArray();
 
         return new SightseeingAudioSnapshot(

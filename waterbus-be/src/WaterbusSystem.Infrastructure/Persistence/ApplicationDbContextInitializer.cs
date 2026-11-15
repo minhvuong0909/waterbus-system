@@ -307,8 +307,9 @@ public class ApplicationDbContextInitializer
         await SeedRoute2AndStopsAsync();
         await SeedAdditionalBoatsAsync(frontCabinId, standardId, outdoorId);
         await SeedAdditionalSchedulesAsync();
-        await SeedPointsOfInterestAsync();
         await SeedDemoTripsForUpcomingDaysAsync();
+        await SeedSightseeingRoutesAsync();
+        await SeedAudioClipsAsync();
 
         // Seed TripStopCalls cho mọi Trip chưa có điểm dừng (dựa trên ScheduleStop)
         var demoTrips = await _context.Trips
@@ -648,91 +649,6 @@ public class ApplicationDbContextInitializer
         }
     }
 
-    private async Task SeedPointsOfInterestAsync()
-    {
-        if (await _context.PointsOfInterest.AnyAsync()) return;
-
-        var pois = new List<PointOfInterest>
-        {
-            new()
-            {
-                Name = "Cột cờ Thủ Ngữ & Bến Nhà Rồng",
-                Description = "Di tích lịch sử văn hóa lâu đời tại ngã ba kênh Bến Nghé và sông Sài Gòn, nơi Bác Hồ ra đi tìm đường cứu nước năm 1911.",
-                Latitude = 10.7688000m,
-                Longitude = 106.7072000m,
-                IsActive = true
-            },
-            new()
-            {
-                Name = "Cầu Ba Son (Cầu Thủ Thiêm 2)",
-                Description = "Cây cầu dây văng hiện đại hình cánh buồm nổi bật, kết nối trung tâm Quận 1 với khu đô thị mới Thủ Thiêm.",
-                Latitude = 10.7816000m,
-                Longitude = 106.7112000m,
-                IsActive = true
-            },
-            new()
-            {
-                Name = "Tòa tháp Landmark 81 & Vinhomes Central Park",
-                Description = "Tòa nhà chọc trời cao nhất Việt Nam (461.3m), biểu tượng cho sự thịnh vượng và năng động của TP.HCM.",
-                Latitude = 10.7951000m,
-                Longitude = 106.7218000m,
-                IsActive = true
-            },
-            new()
-            {
-                Name = "Bán đảo Thanh Đa & Bình Quới",
-                Description = "Khu vực sinh thái xanh thanh bình được bao bọc trọn vẹn bởi nhánh sông Sài Gòn uốn lượn.",
-                Latitude = 10.8250000m,
-                Longitude = 106.7230000m,
-                IsActive = true
-            },
-            new()
-            {
-                Name = "Cầu Bình Lợi lịch sử",
-                Description = "Cây cầu đường sắt vượt sông Sài Gòn đầu tiên xây dựng từ năm 1902, chứng nhân hơn một thế kỷ thăng trầm của thành phố.",
-                Latitude = 10.8255000m,
-                Longitude = 106.7145000m,
-                IsActive = true
-            }
-        };
-
-        await _context.PointsOfInterest.AddRangeAsync(pois);
-        await _context.SaveChangesAsync();
-
-        var routes = await _context.Routes.Where(r => r.Code == "RT01" || r.Code == "RT02").ToListAsync();
-        foreach (var r in routes)
-        {
-            int order = 1;
-            foreach (var poi in pois)
-            {
-                _context.RoutePois.Add(new RoutePoi
-                {
-                    RouteId = r.Id,
-                    PoiId = poi.Id,
-                    DisplayOrder = order++,
-                    TriggerRadiusM = 350,
-                    IsActive = true
-                });
-            }
-        }
-
-        int index = 1;
-        foreach (var poi in pois)
-        {
-            _context.AudioGuides.Add(new AudioGuide
-            {
-                PoiId = poi.Id,
-                LanguageCode = "vi",
-                AudioAssetUri = $"/audio/poi-{index:D2}.mp3",
-                DurationSeconds = 120,
-                IsPublished = true
-            });
-            index++;
-        }
-
-        await _context.SaveChangesAsync();
-    }
-
     private async Task SeedDemoTripsForUpcomingDaysAsync()
     {
         var routes = await _context.Routes.Where(r => r.Code == "RT01" || r.Code == "RT02").ToListAsync();
@@ -772,9 +688,8 @@ public class ApplicationDbContextInitializer
                     var boat = boats[boatIndex % boats.Count];
                     boatIndex++;
 
-                    var tripType = sch.DepartureTime >= new TimeSpan(17, 0, 0)
-                        ? TripType.Sightseeing
-                        : TripType.Commuter;
+                    // Tuyến thường RT01/RT02 chỉ có chuyến Commuter; chuyến tham quan chạy trên tuyến SS01/SS02 riêng (BR-ROUTE-03).
+                    var tripType = TripType.Commuter;
 
                     var isTodayPast = dayOffset == 0 && depVn < vnNow;
                     TripStatus status = TripStatus.Scheduled;
@@ -812,6 +727,212 @@ public class ApplicationDbContextInitializer
             }
         }
 
+        await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Hai tuyến tham quan riêng (BR-ROUTE-03), mỗi tuyến chỉ 2 bến (không dừng bến giữa): SS01 Bạch Đằng → Linh Đông và SS02 ngược lại.
+    /// Idempotent theo mã tuyến/lịch/chuyến; gắn các địa danh (POI) theo chiều đi của từng tuyến.
+    /// </summary>
+    /// <summary>
+    /// Địa danh giới thiệu trên chuyến tham quan, theo thứ tự dọc tuyến SS01 (SS02 đi ngược lại). Toạ độ là ĐIỂM TRÊN ĐƯỜNG SÔNG demo
+    /// (DemoRoutePaths RT01/SS01) gần địa danh thật nhất, nơi tàu đi ngang và phát audio: mốc trên bản đồ, điểm kích hoạt và đường đi trùng nhau.
+    /// Địa danh thật: Landmark 81 (10.794028, 106.722139), Cầu Sài Gòn (10.798890, 106.727220), Thảo Điền (10.802250, 106.728000),
+    /// Thanh Đa (10.805000, 106.735000), Bình Quới (10.812000, 106.738000); hai điểm sau nằm trong đất liền nên lấy điểm sông ở bến Thanh Đa
+    /// và khúc sông gần Bình Quới. FE có bản sao để vẽ mốc ở waterbus-fe/src/constant/sightseeingPois.ts.
+    /// </summary>
+    private static readonly (string Name, string Description, decimal Latitude, decimal Longitude, int RadiusM)[] SightseeingPois =
+    [
+        ("Landmark 81", "Tòa nhà chọc trời cao nhất Việt Nam, biểu tượng của TP.HCM hiện đại bên bờ sông Sài Gòn.", 10.792276m, 106.725583m, 250),
+        ("Cầu Sài Gòn", "Cây cầu lâu đời bắc qua sông Sài Gòn, nối quận Bình Thạnh với khu Thảo Điền.", 10.798951m, 106.727697m, 150),
+        ("Khu vực Thảo Điền ven sông", "Khu dân cư xanh ven sông với nhiều biệt thự và quán cà phê.", 10.801870m, 106.727569m, 150),
+        ("Bán đảo Thanh Đa", "Khu sinh thái xanh thanh bình được dòng sông Sài Gòn ôm trọn.", 10.819606m, 106.716637m, 250),
+        ("Khu vực Bình Quới ven sông", "Vùng cây xanh yên tĩnh ven sông với nhiều điểm du lịch sinh thái.", 10.823449m, 106.729600m, 250)
+    ];
+
+    /// <summary>Địa danh của bản seed cũ (không nằm trên đường đi demo): ngừng hoạt động, không xoá.</summary>
+    private static readonly string[] LegacyPoiNames =
+    [
+        "Cột cờ Thủ Ngữ & Bến Nhà Rồng", "Cầu Ba Son (Cầu Thủ Thiêm 2)", "Tòa tháp Landmark 81 & Vinhomes Central Park",
+        "Bán đảo Thanh Đa & Bình Quới", "Cầu Bình Lợi lịch sử"
+    ];
+
+    /// <summary>Tạo/cập nhật các địa danh tham quan theo <see cref="SightseeingPois"/> và ngừng hoạt động địa danh seed cũ. Idempotent theo tên.</summary>
+    private async Task<List<PointOfInterest>> EnsureSightseeingPoisAsync()
+    {
+        var wanted = SightseeingPois.Select(d => d.Name).ToList();
+        var existing = await _context.PointsOfInterest.Where(p => !p.IsDeleted).ToListAsync();
+        var ordered = new List<PointOfInterest>();
+        foreach (var def in SightseeingPois)
+        {
+            var poi = existing.FirstOrDefault(p => p.Name == def.Name);
+            if (poi is null)
+            {
+                poi = new PointOfInterest { Name = def.Name };
+                _context.PointsOfInterest.Add(poi);
+            }
+            poi.Description = def.Description;
+            poi.Latitude = def.Latitude;
+            poi.Longitude = def.Longitude;
+            poi.IsActive = true;
+            ordered.Add(poi);
+        }
+        foreach (var legacy in existing.Where(p => LegacyPoiNames.Contains(p.Name) && !wanted.Contains(p.Name)))
+        {
+            legacy.IsActive = false;
+        }
+        await _context.SaveChangesAsync();
+        return ordered;
+    }
+
+    private async Task SeedSightseeingRoutesAsync()
+    {
+        var bachDang = await _context.Stations.FirstOrDefaultAsync(s => s.Code == "ST01");
+        var linhDong = await _context.Stations.FirstOrDefaultAsync(s => s.Code == "ST05");
+        if (bachDang is null || linhDong is null) return;
+
+        var boat = await _context.Boats.FirstOrDefaultAsync(b => b.Code == "SWB-01" && b.IsActive)
+            ?? await _context.Boats.FirstOrDefaultAsync(b => b.IsActive);
+        var pois = await EnsureSightseeingPoisAsync();
+
+        var defs = new[]
+        {
+            (Code: "SS01", Name: "Bạch Đằng - Linh Đông (Tham quan)", From: bachDang, To: linhDong, Reverse: false),
+            (Code: "SS02", Name: "Linh Đông - Bạch Đằng (Tham quan)", From: linhDong, To: bachDang, Reverse: true)
+        };
+        // Giờ khởi hành lệch phút so với chuyến thường để không trùng giờ trên cùng tàu.
+        var times = new[] { new TimeSpan(9, 15, 0), new TimeSpan(12, 15, 0), new TimeSpan(15, 15, 0), new TimeSpan(18, 15, 0) };
+        var vnNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7));
+
+        foreach (var def in defs)
+        {
+            var route = await _context.Routes.FirstOrDefaultAsync(r => r.Code == def.Code);
+            if (route is null)
+            {
+                route = new Route
+                {
+                    Code = def.Code, Name = def.Name, DepartureStationId = def.From.Id, ArrivalStationId = def.To.Id,
+                    EstimatedDurationMinutes = 45, DistanceKm = 10.8m, ServiceType = "Sightseeing", IsActive = true
+                };
+                await _context.Routes.AddAsync(route);
+                await _context.SaveChangesAsync();
+            }
+
+            var routeStops = await _context.RouteStops.Where(rs => rs.RouteId == route.Id).OrderBy(rs => rs.SequenceNo).ToListAsync();
+            if (routeStops.Count == 0)
+            {
+                routeStops =
+                [
+                    new RouteStop { RouteId = route.Id, StationId = def.From.Id, SequenceNo = 1 },
+                    new RouteStop { RouteId = route.Id, StationId = def.To.Id, SequenceNo = 2 }
+                ];
+                await _context.RouteStops.AddRangeAsync(routeStops);
+                await _context.SaveChangesAsync();
+            }
+
+            var routePois = await _context.RoutePois.Where(rp => rp.RouteId == route.Id).ToListAsync();
+            var ordered = def.Reverse ? pois.AsEnumerable().Reverse().ToList() : pois;
+
+            // Địa danh seed cũ (không còn trên đường đi) ngừng hoạt động và dời thứ tự ra xa để nhường (RouteId, DisplayOrder) là UNIQUE.
+            var staleOrder = 1000;
+            foreach (var stale in routePois.Where(rp => !ordered.Any(p => p.Id == rp.PoiId)).OrderBy(rp => rp.DisplayOrder))
+            {
+                stale.IsActive = false;
+                if (stale.DisplayOrder < 1000) stale.DisplayOrder = staleOrder++;
+            }
+            await _context.SaveChangesAsync();
+
+            var order = 1;
+            foreach (var poi in ordered)
+            {
+                var routePoi = routePois.FirstOrDefault(rp => rp.PoiId == poi.Id);
+                if (routePoi is null)
+                {
+                    routePoi = new RoutePoi { RouteId = route.Id, PoiId = poi.Id };
+                    _context.RoutePois.Add(routePoi);
+                    routePois.Add(routePoi);
+                }
+                routePoi.DisplayOrder = order++;
+                routePoi.IsActive = true;
+                routePoi.IsDeleted = false;
+                routePoi.TriggerRadiusM = SightseeingPois.First(d => d.Name == poi.Name).RadiusM;
+            }
+            await _context.SaveChangesAsync();
+
+            foreach (var time in times)
+            {
+                var schedule = await _context.Schedules.FirstOrDefaultAsync(s => s.RouteId == route.Id && s.DepartureTime == time);
+                if (schedule is null)
+                {
+                    schedule = new Schedule { RouteId = route.Id, DepartureTime = time, IsActive = true };
+                    await _context.Schedules.AddAsync(schedule);
+                    await _context.SaveChangesAsync();
+                    await _context.ScheduleStops.AddRangeAsync(
+                        new ScheduleStop { ScheduleId = schedule.Id, RouteStopId = routeStops[0].Id, VisitOrder = 1, ArrivalOffsetMin = null, DepartureOffsetMin = 0 },
+                        new ScheduleStop { ScheduleId = schedule.Id, RouteStopId = routeStops[1].Id, VisitOrder = 2, ArrivalOffsetMin = 40, DepartureOffsetMin = null });
+                    await _context.SaveChangesAsync();
+                }
+
+                if (boat is null) continue;
+                for (var dayOffset = 0; dayOffset <= 3; dayOffset++)
+                {
+                    var date = vnNow.Date.AddDays(dayOffset);
+                    var depVn = new DateTimeOffset(date.Year, date.Month, date.Day, time.Hours, time.Minutes, 0, TimeSpan.FromHours(7));
+                    if (dayOffset == 0 && depVn < vnNow) continue;
+                    var depUtc = depVn.ToUniversalTime();
+                    if (await _context.Trips.AnyAsync(t => t.RouteId == route.Id && t.DepartureTime == depUtc)) continue;
+
+                    await _context.Trips.AddAsync(new Trip
+                    {
+                        ScheduleId = schedule.Id, RouteId = route.Id, BoatId = boat.Id,
+                        DepartureTime = depUtc, ArrivalTime = depUtc.AddMinutes(45), SalesCloseAt = depUtc.AddMinutes(-15),
+                        Status = TripStatus.Scheduled, TripType = TripType.Sightseeing
+                    });
+                }
+                await _context.SaveChangesAsync();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Nạp clip MP3 (vi + en) của thông báo bến và địa danh từ SeedData/Audio (sinh bằng tools/audio/generate_audio.py) vào bảng AudioClips.
+    /// Idempotent theo (Kind, SubjectId, LanguageCode); thiếu file/bến/địa danh thì bỏ qua mục đó.
+    /// </summary>
+    private async Task SeedAudioClipsAsync()
+    {
+        var dir = Path.Combine(AppContext.BaseDirectory, "Persistence", "SeedData", "Audio");
+        var manifestPath = Path.Combine(dir, "manifest.json");
+        if (!File.Exists(manifestPath)) return;
+
+        using var manifest = System.Text.Json.JsonDocument.Parse(await File.ReadAllTextAsync(manifestPath));
+        var stations = await _context.Stations.Where(s => !s.IsDeleted).ToDictionaryAsync(s => s.Code, s => s.Id);
+        var pois = await _context.PointsOfInterest.Where(p => !p.IsDeleted).ToDictionaryAsync(p => p.Name, p => p.Id);
+        var existing = (await _context.AudioClips.Where(c => !c.IsDeleted)
+            .Select(c => new { c.Kind, c.SubjectId, c.LanguageCode }).ToListAsync())
+            .Select(c => (c.Kind, c.SubjectId, c.LanguageCode)).ToHashSet();
+
+        foreach (var entry in manifest.RootElement.EnumerateArray())
+        {
+            if (!Enum.TryParse<AudioClipKind>(entry.GetProperty("kind").GetString(), out var kind)) continue;
+            var subject = entry.GetProperty("subject").GetString()!;
+            var subjectId = kind == AudioClipKind.Poi
+                ? (pois.TryGetValue(subject, out var poiId) ? poiId : Guid.Empty)
+                : (stations.TryGetValue(subject, out var stationId) ? stationId : Guid.Empty);
+            if (subjectId == Guid.Empty) continue;
+
+            foreach (var clip in entry.GetProperty("clips").EnumerateObject())
+            {
+                var file = Path.Combine(dir, $"{entry.GetProperty("id").GetString()}.{clip.Name}.mp3");
+                if (!File.Exists(file) || !existing.Add((kind, subjectId, clip.Name))) continue;
+                _context.AudioClips.Add(new AudioClip
+                {
+                    Kind = kind, SubjectId = subjectId, LanguageCode = clip.Name,
+                    Text = clip.Value.GetProperty("text").GetString()!,
+                    DurationSeconds = clip.Value.GetProperty("seconds").GetInt32(),
+                    Data = await File.ReadAllBytesAsync(file), IsPublished = true
+                });
+            }
+        }
         await _context.SaveChangesAsync();
     }
 

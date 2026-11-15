@@ -1,3 +1,5 @@
+using WaterbusSystem.Domain.Enums;
+
 namespace WaterbusSystem.Application.Features.SightseeingAudio.Models;
 
 /// <summary>
@@ -10,6 +12,15 @@ public record AudioTriggerRequest
     public Guid TripId { get; init; }
     public Guid BoatId { get; init; }
     public Guid RouteId { get; init; }
+
+    /// <summary>Loại thông báo: bến (approaching/arrived/departed) hoặc địa danh.</summary>
+    public AudioClipKind Kind { get; init; } = AudioClipKind.Poi;
+    /// <summary>StationId hoặc PoiId tương ứng với <see cref="Kind"/>.</summary>
+    public Guid SubjectId { get; init; }
+    /// <summary>Tên bến/địa danh (hiển thị trên màn hình Captain).</summary>
+    public string SubjectName { get; init; } = string.Empty;
+    /// <summary>Các clip theo thứ tự phát ("vi" rồi "en").</summary>
+    public IReadOnlyList<AudioClipRef> Clips { get; init; } = Array.Empty<AudioClipRef>();
     public Guid RoutePoiId { get; init; }
     public int RoutePoiDisplayOrder { get; init; }
     public Guid PoiId { get; init; }

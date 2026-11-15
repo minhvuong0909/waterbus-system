@@ -40,6 +40,35 @@ public static class RoutePathInterpolator
         return path[^1];
     }
 
+    /// <summary>Tỉ lệ (0..1) của điểm gần nhất trên đường đi so với tổng chiều dài (dùng định vị bến trên đường đi).</summary>
+    public static double FractionOf(IReadOnlyList<GeoPoint> path, GeoPoint point)
+    {
+        var total = TotalLengthKm(path);
+        if (path.Count < 2 || total <= 0) return 0;
+        double bestDistance = double.MaxValue, bestAlong = 0, walked = 0;
+        for (var i = 0; i < path.Count - 1; i++)
+        {
+            var a = path[i];
+            var b = path[i + 1];
+            var segment = DistanceKm(a, b);
+            // Chiếu vuông góc trong hệ phẳng cục bộ (đủ chính xác ở quy mô vài km).
+            var cos = Math.Cos(DegreesToRadians((a.Latitude + b.Latitude) / 2));
+            var dx = (b.Longitude - a.Longitude) * cos;
+            var dy = b.Latitude - a.Latitude;
+            var len2 = dx * dx + dy * dy;
+            var t = len2 <= 0 ? 0 : Math.Clamp(((point.Longitude - a.Longitude) * cos * dx + (point.Latitude - a.Latitude) * dy) / len2, 0, 1);
+            var projected = new GeoPoint(a.Latitude + (b.Latitude - a.Latitude) * t, a.Longitude + (b.Longitude - a.Longitude) * t);
+            var distance = DistanceKm(projected, point);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestAlong = walked + segment * t;
+            }
+            walked += segment;
+        }
+        return bestAlong / total;
+    }
+
     public static double TotalLengthKm(IReadOnlyList<GeoPoint> path)
     {
         double total = 0;

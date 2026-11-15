@@ -62,6 +62,21 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
             .Select(r => new SeatReservationOverlap(r.SeatId, r.Status, r.Booking!.Order!.ExpiresAt))
             .ToListAsync(cancellationToken);
 
+    public async Task<Dictionary<Guid, (double Latitude, double Longitude)>> GetLastStopLocationsAsync(
+        IReadOnlyCollection<Guid> tripIds, CancellationToken cancellationToken = default)
+    {
+        var rows = await context.TripStopCalls.AsNoTracking()
+            .Where(c => tripIds.Contains(c.TripId) && !c.IsDeleted && c.Status != "Skipped"
+                && c.RouteStop != null && c.RouteStop.Station != null)
+            .Select(c => new { c.TripId, c.VisitOrder, c.RouteStop!.Station!.Latitude, c.RouteStop.Station.Longitude })
+            .ToListAsync(cancellationToken);
+        return rows.GroupBy(r => r.TripId).ToDictionary(g => g.Key, g =>
+        {
+            var last = g.MaxBy(r => r.VisitOrder)!;
+            return (last.Latitude, last.Longitude);
+        });
+    }
+
     public Task<List<Trip>> ListForOperationsAsync(
         DateTimeOffset from, DateTimeOffset to, Guid? captainId, IReadOnlyList<TripStatus>? statuses, int take,
         CancellationToken cancellationToken = default)

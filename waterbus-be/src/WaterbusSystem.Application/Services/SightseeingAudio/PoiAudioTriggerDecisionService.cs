@@ -206,12 +206,8 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
                 candidate.Latitude.Value,
                 candidate.Longitude.Value);
 
-            // Kiểm tra AudioGuide tiếng Việt đã publish (BR-EXP-02, BR-EXP-03)
-            var publishedVietnameseAudio = candidate.AudioGuides.FirstOrDefault(a =>
-                a.AudioGuideId != Guid.Empty && a.PoiId == candidate.PoiId &&
-                a.IsPublished &&
-                string.Equals(a.LanguageCode, "vi", StringComparison.OrdinalIgnoreCase) &&
-                IsStableAssetIdentifier(a.AudioAssetUri));
+            // Clip tiếng Việt đã publish trong AudioClips (BR-EXP-02, BR-EXP-03)
+            var publishedVietnameseAudio = candidate.Clips.Count > 0 ? candidate.Clips : null;
 
             if (publishedVietnameseAudio == null)
             {
@@ -319,9 +315,11 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
             RoutePoiDisplayOrder = bestMatch.Candidate.DisplayOrder,
             PoiId = bestMatch.Candidate.PoiId,
             PoiName = bestMatch.Candidate.PoiName,
-            AudioGuideId = bestMatch.AudioGuide.AudioGuideId,
-            AudioAssetUri = bestMatch.AudioGuide.AudioAssetUri,
-            DurationSeconds = bestMatch.AudioGuide.DurationSeconds,
+            Kind = AudioClipKind.Poi,
+            SubjectId = bestMatch.Candidate.PoiId,
+            SubjectName = bestMatch.Candidate.PoiName,
+            Clips = bestMatch.Clips,
+            DurationSeconds = bestMatch.Clips.Sum(c => c.DurationSeconds),
             DistanceMeters = bestMatch.DistanceMeters,
             TriggerRadiusMeters = bestMatch.Candidate.TriggerRadiusM!.Value,
             TriggeredAt = position.ObservedAt != default ? position.ObservedAt : DateTimeOffset.UtcNow,
@@ -380,8 +378,8 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
         return PoiAudioTriggerEvaluationResult.Triggered(
             bestMatch.Candidate.PoiId,
             bestMatch.Candidate.PoiName,
-            bestMatch.AudioGuide.AudioGuideId,
-            bestMatch.AudioGuide.AudioAssetUri,
+            Guid.Empty,
+            string.Empty,
             bestMatch.DistanceMeters,
             bestMatch.Candidate.TriggerRadiusM.Value,
             triggerRequest,
@@ -390,7 +388,7 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
 
     private sealed record QualifyingPoiMatch(
         PoiGeofenceCandidate Candidate,
-        AudioGuideCandidate AudioGuide,
+        IReadOnlyList<AudioClipRef> Clips,
         double DistanceMeters);
 
     private static Guid DeduplicationId(PoiGeofenceCandidate candidate) =>
@@ -399,12 +397,4 @@ public sealed class PoiAudioTriggerDecisionService : IPoiAudioTriggerDecisionSer
     // Cùng lượt ghé retry dùng cùng RequestId để player có thể khử trùng lệnh đã nhận.
     private static Guid StableRequestId(Guid tripId, Guid routePoiId, string? visitId) =>
         Features.SightseeingAudio.AudioRequestIds.For(tripId, routePoiId, visitId);
-
-    private static bool IsStableAssetIdentifier(string? assetUri) =>
-        !string.IsNullOrWhiteSpace(assetUri)
-        && !assetUri.Contains('?') && !assetUri.Contains('#')
-        && !assetUri.StartsWith("file:", StringComparison.OrdinalIgnoreCase)
-        && !assetUri.StartsWith('/') && !assetUri.StartsWith('~')
-        && !(assetUri.Length >= 2 && char.IsLetter(assetUri[0]) && assetUri[1] == ':')
-        && !assetUri.Contains('\\');
 }
