@@ -16,20 +16,7 @@ using WaterbusSystem.Infrastructure.Services.Tracking;
 namespace WaterbusSystem.Infrastructure.BackgroundJobs;
 
 /// <summary>
-/// Giả lập GPS cho demo (BR-TRK-01). Mỗi chu kỳ, với mỗi Trip đang chạy có Boat, tính vị trí dọc các bến
-/// theo VisitOrder và gửi qua CHÍNH IBoatTrackingService.RecordPositionAsync với Source = "Simulated" (cùng luồng với GPS thật).
-///
-/// Hỗ trợ cả 2 chế độ:
-/// 1. Demo (UseSimulatedSegmentDuration = true): Tàu di chuyển từ bến A sang bến B trong SegmentDurationSeconds (mặc định 30s),
-///    đến bến dừng DwellTimeSeconds (mặc định 3s, speed = 0, toạ độ đứng yên tại bến) rồi mới đi tiếp chặng sau.
-///    - Rời bến (Departing): Bắt đầu xuất bến -> kích hoạt thuyết minh phong cảnh (Sightseeing).
-///    - Gần tới bến (Near): Đạt NearThreshold (80%) -> phát thông báo "gần tới bến".
-///    - Tới bến (Arrived): Cập bến (100%) -> phát thông báo "đã tới bến", dừng đỗ đón/trả khách.
-/// 2. Giờ thực (UseSimulatedSegmentDuration = false): Nội suy theo tổng thời gian thực tế của chuyến (DepartureTime -> ArrivalTime).
-///
-/// Phân loại 2 loại chuyến:
-/// - Commuter: Chỉ phát âm thanh trạm bến (Stop Announcement: rời bến, gần tới bến, đã tới bến).
-/// - Sightseeing: Vừa phát âm thanh trạm bến, vừa kích hoạt audio thuyết minh phong cảnh/di tích qua geofence GPS.
+/// Dịch vụ nền giả lập vị trí GPS tàu và thông báo trạm bến theo hành trình.
 /// </summary>
 public class BoatSimulatorService : BackgroundService
 {
@@ -38,9 +25,6 @@ public class BoatSimulatorService : BackgroundService
     private readonly IOptionsMonitor<StopAnnouncementOptions> _stopOptions;
     private readonly ILogger<BoatSimulatorService> _logger;
 
-    /// <summary>
-    /// Lưu trạng thái đã phát thông báo: Key = (TripId, SegmentIndex, CycleNumber), Value = (DepartingFired, NearFired, ArrivedFired).
-    /// </summary>
     private readonly ConcurrentDictionary<(Guid TripId, int SegmentIndex, long CycleNumber), (bool DepartingFired, bool NearFired, bool ArrivedFired)>
         _announcementState = new();
 
@@ -79,7 +63,7 @@ public class BoatSimulatorService : BackgroundService
             }
             catch (OperationCanceledException)
             {
-                // Dừng service bình thường khi ứng dụng shutdown
+                break;
             }
         }
     }
@@ -125,7 +109,6 @@ public class BoatSimulatorService : BackgroundService
 
         var stopOpts = _stopOptions.CurrentValue;
 
-        // Mỗi tàu chỉ giả lập 1 chuyến (chuyến khởi hành gần nhất)
         foreach (var trip in trips.GroupBy(t => t.BoatId).Select(g => g.OrderBy(t => t.Start).First()))
         {
             IReadOnlyList<RoutePathInterpolator.GeoPoint> path = DemoRoutePaths.For(trip.RouteCode)
@@ -147,8 +130,6 @@ public class BoatSimulatorService : BackgroundService
             }
             else if (stopOpts.UseSimulatedSegmentDuration && stopOpts.SegmentDurationSeconds > 0)
             {
-                // ==================== CHẾ ĐỘ DEMO GIẢ LẬP THEO ĐOẠN ====================
-                // Mỗi đoạn kéo dài SegmentDurationSeconds (ví dụ 30s) + DwellTimeSeconds (ví dụ 3s đỗ bến)
                 int segmentCount = trip.Stops.Count - 1;
                 double segDuration = Math.Max(1.0, stopOpts.SegmentDurationSeconds);
                 double dwellDuration = Math.Max(0.0, stopOpts.DwellTimeSeconds);
@@ -166,7 +147,6 @@ public class BoatSimulatorService : BackgroundService
 
                 if (timeInSeg < segDuration)
                 {
-                    // ĐANG DI CHUYỂN TỪ BẾN i SANG BẾN i+1
                     segmentProgress = Math.Clamp(timeInSeg / segDuration, 0.0, 1.0);
                     double totalFraction = (segmentIndex + segmentProgress) / segmentCount;
                     var point = RoutePathInterpolator.PointAt(path, totalFraction);
@@ -177,18 +157,16 @@ public class BoatSimulatorService : BackgroundService
                 }
                 else
                 {
-                    // ĐÃ TỚI VÀ ĐANG ĐỖ TẠI BẾN ĐÍCH i+1 (DWELLING)
                     isDwelling = true;
                     segmentProgress = 1.0;
                     var destStop = trip.Stops[segmentIndex + 1];
                     lat = Math.Round((decimal)destStop.Latitude, 7);
                     lng = Math.Round((decimal)destStop.Longitude, 7);
-                    speed = 0m; // Tàu dừng cho khách lên xuống
+                    speed = 0m;
                 }
             }
             else
             {
-                // ==================== CHẾ ĐỘ GIỜ THỰC THEO LỊCH TRÌNH ====================
                 var duration = trip.ArrivalTime - trip.Start;
                 if (duration <= TimeSpan.Zero) continue;
 
@@ -207,13 +185,10 @@ public class BoatSimulatorService : BackgroundService
                 segmentProgress = Math.Clamp(scaled - segmentIndex, 0.0, 1.0);
             }
 
-            // Ghi nhận vị trí (luôn cùng luồng với GPS thật, cập nhật cache + phát SignalR boatPosition)
-            // Nếu tripType == Sightseeing && EnableGpsTriggerEvaluation == true -> tự động kích hoạt audio POI
             await tracking.RecordPositionAsync(new RecordBoatPositionRequest(
                 trip.BoatId, lat, lng, speed, now, BoatPositionSources.Simulated, ReportedByCaptainId: null),
                 cancellationToken);
 
-            // Phát Stop Announcement nếu có publisher và chuyến đang EnRoute (không Suspended)
             if (stopPublisher is not null && trip.Status != TripStatus.Suspended)
             {
                 var fromStop = trip.Stops[segmentIndex];
@@ -222,7 +197,7 @@ public class BoatSimulatorService : BackgroundService
                 var stateKey = (trip.Id, segmentIndex, cycleNumber);
                 var state = _announcementState.GetOrAdd(stateKey, _ => (false, false, false));
 
-                // 1. Rời bến: Khi tàu bắt đầu di chuyển trong chặng (không phải đang đỗ) và chưa bắn departing
+                // 1. Rời bến
                 if (!state.DepartingFired && !isDwelling)
                 {
                     _announcementState[stateKey] = (true, state.NearFired, state.ArrivedFired);
@@ -235,7 +210,7 @@ public class BoatSimulatorService : BackgroundService
                         now, tripTypeStr, cancellationToken);
                 }
 
-                // 2. Gần tới bến: progress >= NearThreshold (chỉ bắn 1 lần)
+                // 2. Gần tới bến
                 if (!state.NearFired && segmentProgress >= stopOpts.NearThreshold && !isDwelling)
                 {
                     _announcementState[stateKey] = (state.DepartingFired, true, state.ArrivedFired);
@@ -248,7 +223,7 @@ public class BoatSimulatorService : BackgroundService
                         segmentProgress, now, tripTypeStr, cancellationToken);
                 }
 
-                // 3. Đã tới bến: progress = 1.0 (tàu cập bến / đỗ bến)
+                // 3. Đã tới bến
                 if (!state.ArrivedFired && (segmentProgress >= 0.999 || isDwelling))
                 {
                     _announcementState[stateKey] = (state.DepartingFired, state.NearFired, true);
@@ -261,7 +236,6 @@ public class BoatSimulatorService : BackgroundService
                         segmentProgress, now, tripTypeStr, cancellationToken);
                 }
 
-                // Dọn dẹp trạng thái các chu kỳ hoặc đoạn quá cũ
                 if (_announcementState.Count > 100)
                 {
                     var oldKeys = _announcementState.Keys

@@ -7,7 +7,7 @@ using WaterbusSystem.Application.Features.SightseeingAudio.Models;
 namespace WaterbusSystem.Application.Services.SightseeingAudio;
 
 /// <summary>
-/// Ghép hai ranh giới thuộc Thịnh: Azure Speech và Azure Blob.
+/// Dịch vụ tạo file âm thanh: tích hợp Azure Speech TTS và Azure Blob Storage.
 /// Không truy cập DB, không tự suy ra version kịch bản hoặc quyền publish.
 /// </summary>
 public sealed class AudioAssetGenerationService : IAudioAssetGenerationService
