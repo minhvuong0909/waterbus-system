@@ -16,9 +16,9 @@ public class Incident : BaseEntity
     public Guid? ReportedByStaffId { get; set; }
     public Guid? ReportedByCaptainId { get; set; }
     public Guid? HandledByAdminId { get; set; }
-    /// <summary>"Staff", "Captain", "System", "WeatherService"</summary>
+    /// <summary>"Staff", "Captain", "System" (và "WeatherService" chỉ còn trong dữ liệu lịch sử)</summary>
     public string Source { get; set; } = string.Empty;
-    /// <summary>"Technical", "Safety", "Weather", "Other"</summary>
+    /// <summary>"Technical", "Safety", "Other" (và "Weather" chỉ còn trong dữ liệu lịch sử)</summary>
     public string IncidentType { get; set; } = string.Empty;
     public string? Severity { get; set; }
     /// <summary>"Open", "Resolved", "Closed"</summary>

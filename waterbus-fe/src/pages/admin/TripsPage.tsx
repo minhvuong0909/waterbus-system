@@ -215,7 +215,7 @@ export default function TripsPage() {
             ))}
           </div>
           <p className="mt-4 text-xs text-on-surface-variant">
-            {t('To answer a weather alert for this trip, decide on the Incidents page so the decision is recorded against the alert.')}
+            {t('To answer an incident for this trip, decide on the Incidents page so the decision is recorded against the incident.')}
           </p>
         </Modal>
       )}

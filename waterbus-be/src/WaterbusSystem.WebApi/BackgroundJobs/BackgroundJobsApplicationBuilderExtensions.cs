@@ -1,7 +1,6 @@
 using Hangfire;
 using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Features.CheckIns;
-using WaterbusSystem.Application.Features.Incidents;
 using WaterbusSystem.Application.Features.Notifications;
 using WaterbusSystem.Infrastructure.BackgroundJobs;
 
@@ -13,6 +12,9 @@ namespace WaterbusSystem.WebApi.BackgroundJobs;
 public static class BackgroundJobsApplicationBuilderExtensions
 {
     public const string DashboardPath = "/hangfire";
+
+    /// <summary>Id recurring job của Weather Guard (đã gỡ); chỉ dùng để dọn lịch còn sót ở CSDL cũ.</summary>
+    internal const string LegacyWeatherGuardRecurringJobId = "weather-guard";
 
     public static WebApplication UseBackgroundJobs(this WebApplication app)
     {
@@ -29,20 +31,12 @@ public static class BackgroundJobsApplicationBuilderExtensions
             });
         }
 
-        var weather = app.Services.GetRequiredService<IOptions<WeatherOptions>>().Value;
         var recurringJobs = app.Services.GetRequiredService<IRecurringJobManager>();
-        if (weather.Enabled)
-        {
-            recurringJobs.AddOrUpdate<WeatherGuardJob>(
-                WeatherGuardJob.RecurringJobId,
-                job => job.RunAsync(CancellationToken.None),
-                weather.CronExpression,
-                new RecurringJobOptions { TimeZone = TimeZoneInfo.Utc });
-        }
-        else
-        {
-            recurringJobs.RemoveIfExists(WeatherGuardJob.RecurringJobId);
-        }
+
+        // Weather Guard đã bị gỡ. Triển khai cũ còn lưu recurring job này trong Hangfire: gỡ lịch (idempotent, mỗi lần khởi động) để nó
+        // không chạy tiếp. Chỉ xoá định nghĩa lịch lặp; không đụng bảng/hàng đợi Hangfire hay job khác. Job đã nằm sẵn trong hàng đợi
+        // sẽ thất bại một lần vì kiểu không còn tồn tại và không được lên lịch lại.
+        recurringJobs.RemoveIfExists(LegacyWeatherGuardRecurringJobId);
 
         var noShow = app.Services.GetRequiredService<IOptions<NoShowFinalizationOptions>>().Value;
         if (noShow.Enabled)

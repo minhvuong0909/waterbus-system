@@ -1,15 +1,15 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { WeatherAlert } from '../../operations/types'
+import type { IncidentAlert } from '../../operations/types'
 import OpenAlertsSection from './OpenAlertsSection'
 
 vi.mock('./AlertCard', () => ({
-  default: ({ alert }: { alert: WeatherAlert }) => <article data-testid="alert">{alert.id}</article>,
+  default: ({ alert }: { alert: IncidentAlert }) => <article data-testid="alert">{alert.id}</article>,
 }))
 
 afterEach(cleanup)
 
-const alert = (id: string, kind: WeatherAlert['kind'] = 'Weather'): WeatherAlert => ({
+const alert = (id: string, kind: IncidentAlert['kind'] = 'Technical'): IncidentAlert => ({
   id,
   level: 1,
   message: '',
@@ -17,14 +17,14 @@ const alert = (id: string, kind: WeatherAlert['kind'] = 'Weather'): WeatherAlert
   kind,
 })
 
-const renderSection = (alerts: WeatherAlert[]) =>
+const renderSection = (alerts: IncidentAlert[]) =>
   render(<OpenAlertsSection alerts={alerts} trips={[]} version={0} onClose={vi.fn()} onDecide={vi.fn()} />)
 
 const shown = () => screen.queryAllByTestId('alert').map((x) => x.textContent)
 
 describe('OpenAlertsSection', () => {
   it('filters the alerts by type', () => {
-    renderSection([alert('w1'), alert('s1', 'Safety')])
+    renderSection([alert('t1'), alert('s1', 'Safety')])
     fireEvent.click(screen.getByRole('button', { name: 'Safety' }))
     expect(shown()).toEqual(['s1'])
   })
@@ -44,7 +44,7 @@ describe('OpenAlertsSection', () => {
   })
 
   it('says when no alert matches the filter', () => {
-    renderSection([alert('w1')])
+    renderSection([alert('t1')])
     fireEvent.click(screen.getByRole('button', { name: 'Safety' }))
     expect(shown()).toEqual([])
     expect(screen.getByText('No open incidents match this filter.')).toBeTruthy()

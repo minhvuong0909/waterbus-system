@@ -1,7 +1,7 @@
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { apiRequest } from '../../../services/apiClient'
 import { fetchAllPages } from '../../../services/paging'
-import type { AdminTrip, AlertTrip, LiveBoatPosition, OperationLog, OperationType, WeatherAlert, WeatherCheckResult } from '../types'
+import type { AdminTrip, AlertTrip, LiveBoatPosition, OperationLog, OperationType, IncidentAlert } from '../types'
 import type { TripStatus, TripType } from '../../trips/types'
 
 // Các thao tác vận hành dùng API thật: chuyến và trạng thái, theo dõi tàu và sự cố.
@@ -35,15 +35,6 @@ export interface BoatPositionEvent {
   lng: number
   speedKnots: number | null
   observedAt: string
-}
-
-/** Payload của sự kiện hub `weatherAlert`. */
-export interface WeatherAlertEvent {
-  incidentId: string
-  severity: string | null
-  routeId: string | null
-  message: string
-  occurredAt: string
 }
 
 /** Payload của sự kiện hub `tripStatusChanged`. */
@@ -107,17 +98,18 @@ function tripStatusOf(value: number | string | undefined): TripStatus | undefine
   return TRIP_STATUS_BY_NUMBER.find((status) => status === value)
 }
 
-export const INCIDENT_KINDS = ['Weather', 'Safety', 'Technical', 'Other'] as const
+export const INCIDENT_KINDS = ['Safety', 'Technical', 'Other'] as const
 const KINDS = INCIDENT_KINDS
 
 /**
- * Mọi sự cố đang mở, mới nhất trước: cảnh báo của Weather Guard và SOS của thuyền trưởng. Đọc hết các trang
+ * Mọi sự cố đang mở, mới nhất trước (chủ yếu là SOS của thuyền trưởng). Backend đã loại sự cố thời tiết cũ khỏi danh sách
+ * mặc định. Đọc hết các trang
  * (danh sách tóm tắt đã có `affectedTripCount`/`pendingDecisionCount`, đủ để hiển thị số chuyến chờ quyết định).
  * Danh sách chuyến của từng sự cố tải riêng qua `getIncidentTrips` khi Admin mở sự cố đó, không gọi N+1 mỗi lần tải lại.
  */
-export async function getOpenIncidents(incidentType?: string): Promise<WeatherAlert[]> {
+export async function getOpenIncidents(incidentType?: string): Promise<IncidentAlert[]> {
   const items = await fetchAllPages<IncidentSummaryFull>(API_ENDPOINTS.incidents.list, { status: 'Open', incidentType })
-  return items.map((i): WeatherAlert => ({
+  return items.map((i): IncidentAlert => ({
     id: i.id,
     level: levelOf(i.severity),
     message: i.description ?? '',
@@ -141,9 +133,6 @@ export async function getIncidentTrips(incidentId: string): Promise<AlertTrip[]>
     decisionAt: t.decisionAt ?? null,
   }))
 }
-
-export const runWeatherCheck = () =>
-  apiRequest<WeatherCheckResult>(API_ENDPOINTS.incidents.weatherCheck, { method: 'POST' })
 
 export const resolveIncident = (incidentId: string) =>
   apiRequest<{ incidentId: string; status: string }>(API_ENDPOINTS.incidents.resolve(incidentId), { method: 'POST' })

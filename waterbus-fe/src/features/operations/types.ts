@@ -18,8 +18,8 @@ export interface AdminTrip {
   allowedOperations: OperationType[]
 }
 
-/** Một sự cố đang mở hiện dạng cảnh báo: cảnh báo thời tiết của Weather Guard hoặc SOS của thuyền trưởng. */
-export interface WeatherAlert {
+/** Một sự cố đang mở hiện dạng cảnh báo vận hành, chủ yếu là báo khẩn cấp (SOS) của thuyền trưởng. */
+export interface IncidentAlert {
   id: string
   /** 1 = cảnh báo, 2 = dừng vận hành (mức BE Medium = 1, High = 2). */
   level: 1 | 2
@@ -27,14 +27,14 @@ export interface WeatherAlert {
   /** ISO 8601 */
   issuedAt: string
   /** BE `IncidentType`. */
-  kind?: 'Weather' | 'Safety' | 'Technical' | 'Other'
+  kind?: 'Safety' | 'Technical' | 'Other'
   /** Số chuyến liên kết với cảnh báo (BE `IncidentTrip`), nếu biết. */
   affectedTripCount?: number
   /** Số chuyến liên kết mà Admin chưa quyết định (BE `PendingDecisionCount`). */
   pendingDecisionCount?: number
-  /** Tuyến của cảnh báo, vd "RT01" (cảnh báo thời tiết theo từng tuyến). */
+  /** Tuyến của sự cố, vd "RT01", nếu có. */
   routeCode?: string | null
-  /** Ai tạo: `WeatherService` là Weather Guard, còn lại là người (SOS của thuyền trưởng). */
+  /** BE `Source`: `Captain` là báo cáo khẩn cấp của thuyền trưởng. */
   source?: string
   /** Các chuyến liên kết và quyết định của Admin cho từng chuyến (null = chưa quyết định). Chỉ có khi yêu cầu. */
   trips?: AlertTrip[]
@@ -82,16 +82,6 @@ export interface LiveBoatPosition {
   speedKnots: number | null
   /** ISO 8601 */
   observedAt: string
-}
-
-/** Kết quả của `POST /incidents/weather-check`. */
-export interface WeatherCheckResult {
-  routesChecked: number
-  incidentsCreated: number
-  incidentsUpdated: number
-  /** Các cảnh báo Weather Guard đã đóng vì thời tiết đã êm trở lại. */
-  incidentsResolved?: number
-  observationFailures: number
 }
 
 /** Boat (BE `BoatDto`). */

@@ -46,7 +46,7 @@ public class TripServiceChangeStatusTests
 
     private Incident AddIncident(bool linkTrip)
     {
-        var incident = new Incident { ScopeType = "Route", Source = "WeatherService", IncidentType = "Weather", Status = "Open" };
+        var incident = new Incident { ScopeType = "Trip", Source = "Captain", IncidentType = "Safety", Status = "Open" };
         _context.Incidents.Add(incident);
         if (linkTrip) _context.IncidentTrips.Add(new IncidentTrip { IncidentId = incident.Id, TripId = _seed.Trip.Id });
         _context.SaveChanges();

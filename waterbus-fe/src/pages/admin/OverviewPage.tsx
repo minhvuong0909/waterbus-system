@@ -53,7 +53,7 @@ export default function OverviewPage() {
   const reconcile = useFetch(() => countReconciliationToDo().catch(() => undefined), [version])
   // Số đếm, việc cần xử lý và các chuyến sắp tới đổi theo trạng thái chuyến và cảnh báo mới ngay khi có.
   useFleetHub(
-    { onTripStatus: reload, onAlert: reload, onIncident: reload, onReconnected: reload },
+    { onTripStatus: reload, onIncident: reload, onReconnected: reload },
   )
   // Mốc "bây giờ" cập nhật mỗi phút, để "hôm nay" và "sắp tới" tự đổi khi để trang mở lâu.
   const now = useNow(60_000)

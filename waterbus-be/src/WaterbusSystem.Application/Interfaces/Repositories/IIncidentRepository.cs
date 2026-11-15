@@ -18,12 +18,6 @@ public interface IIncidentRepository
 
     Task<PaginatedList<IncidentSummaryResponse>> GetPageAsync(GetIncidentsRequest request, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Incident thời tiết do Weather Guard tạo và còn Open, mới nhất trước, kèm AffectedTrips.
-    /// <paramref name="routeId"/> null = mọi tuyến.
-    /// </summary>
-    Task<List<Incident>> ListOpenWeatherAsync(Guid? routeId = null, CancellationToken cancellationToken = default);
-
     void Add(Incident incident);
 
     void AddTripLink(IncidentTrip link);

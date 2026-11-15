@@ -70,19 +70,6 @@ public class SignalRPublishersTests
     }
 
     [Fact]
-    public async Task WeatherAlert_ShouldGoOnlyToFleetGroup()
-    {
-        var (hub, clients, proxy) = CreateHub<BoatTrackingHub>();
-        var message = new WeatherAlertMessage(Guid.NewGuid(), "High", Guid.NewGuid(), "Gió mạnh", DateTimeOffset.UtcNow);
-
-        await new SignalROperationsAlertPublisher(hub.Object, CreateHub<SeatSyncHub>().Hub.Object).PublishWeatherAlertAsync(message);
-
-        clients.Verify(c => c.Group("fleet"), Times.Once);
-        clients.Verify(c => c.Groups(It.IsAny<IReadOnlyList<string>>()), Times.Never);
-        VerifySent(proxy, "weatherAlert", message);
-    }
-
-    [Fact]
     public async Task IncidentRaised_ShouldGoOnlyToFleetGroup()
     {
         var (hub, clients, proxy) = CreateHub<BoatTrackingHub>();

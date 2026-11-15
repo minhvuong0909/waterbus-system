@@ -24,7 +24,7 @@ namespace WaterbusSystem.UnitTests.CheckIns;
 /// <summary>
 /// CHK-02/CHK-03: InMemory không enforce unique index/race timing thật nên 2 bug này cần SQL
 /// Server thật (WATERBUS_TEST_SQLSERVER) để chứng minh - theo đúng pattern
-/// WeatherGuardConcurrencySqlTests/CommercialSqlTests.
+/// CommercialSqlTests.
 /// </summary>
 public sealed class CheckInConcurrencySqlTests : IAsyncLifetime
 {

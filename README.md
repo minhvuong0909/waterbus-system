@@ -10,7 +10,7 @@ Hệ thống đặt vé tàu buýt & du thuyền đường sông Sài Gòn thôn
 
 ### Các Phân Hệ Cốt Lõi:
 1. **Khách hàng / Vãng lai (Customer / Guest Portal)**: Tra cứu chuyến, bản đồ tuyến sông, chọn ghế trực quan theo đoạn, thanh toán VNPay, ví vé điện tử QR động.
-2. **Quản trị & Điều hành (Admin & Captain Portal)**: Giám sát radar vị trí đội tàu thời gian thực, quản lý sự cố thời tiết, cập nhật trạng thái chuyến.
+2. **Quản trị & Điều hành (Admin & Captain Portal)**: Giám sát radar vị trí đội tàu thời gian thực, quản lý sự cố (báo SOS của thuyền trưởng), cập nhật trạng thái chuyến.
 3. **Soát vé di động (Staff Scanner App)**: Ứng dụng di động chuyên dụng cho nhân viên bến, quét và xác thực QR chữ ký số hoàn toàn offline, đồng bộ lô (Batch sync) chống trùng lặp.
 4. **Hệ thống AI & Thuyết minh thông minh**: Trợ lý AI tư vấn tìm chuyến (Semantic Kernel), định vị geofence tự động kích hoạt audio thuyết minh địa danh (POI) dọc sông Sài Gòn.
 
@@ -66,7 +66,7 @@ Hệ thống được thiết kế theo 5 actor nghiệp vụ chuẩn (**Passeng
 |---|---|---|
 | **Vương** | **Team Leader & Core Backend** | Quản lý dự án, chuẩn hóa nghiệp vụ BR v2.0, API Tra cứu chuyến & Sơ đồ ghế theo đoạn. |
 | **Nhật Anh** | **Commercial Backend** | Luồng giao dịch thương mại: Checkout, Giữ chỗ Redis, Thanh toán VNPay, Hoàn tiền tự động/thủ công, Ký số QR RSA. |
-| **Kiệt** | **Real-time, Background Jobs & DevOps** | SignalR Hubs (`/hubs/seat-sync`, `/hubs/boat-tracking`), Hangfire Weather Guard, Docker CI/CD, Nginx Gateway. |
+| **Kiệt** | **Real-time, Background Jobs & DevOps** | SignalR Hubs (`/hubs/seat-sync`, `/hubs/boat-tracking`), Hangfire (NoShow, Email outbox), Docker CI/CD, Nginx Gateway. |
 | **Viễn** | **Web Frontend Portal** | Giao diện Web đặt vé, Live GPS Radar bản đồ sông, Audio player du lịch, Quản trị Admin & Captain. |
 | **Tuấn** | **Staff Scanner Mobile** | Ứng dụng Expo Mobile: Camera scanner, Xác thực QR chữ ký số offline, SQLite local cache & Batch sync worker. |
 | **Thịnh** | **AI & Sightseeing Audio** | Trợ lý ảo tìm chuyến Semantic Kernel, Phân tích Geofence POI trắc địa (NetTopologySuite), Azure AI Speech TTS & Blob Storage. |

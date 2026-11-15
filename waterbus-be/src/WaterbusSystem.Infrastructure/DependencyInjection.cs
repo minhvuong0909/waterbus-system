@@ -39,7 +39,6 @@ using WaterbusSystem.Infrastructure.Services.AudioStorage;
 using WaterbusSystem.Infrastructure.Services.Tts;
 using WaterbusSystem.Infrastructure.Services.Tracking;
 using WaterbusSystem.Infrastructure.Services.SightseeingAudio;
-using WaterbusSystem.Infrastructure.Services.Weather;
 using WaterbusSystem.Infrastructure.Services.Email;
 using WaterbusSystem.Application.Features.Notifications;
 using Microsoft.Extensions.Options;
@@ -79,10 +78,8 @@ public static class DependencyInjection
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IIncidentRepository, IncidentRepository>();
-        services.AddScoped<IWeatherGuardRunLock, SqlWeatherGuardRunLock>();
         services.AddScoped<IScannerAssignmentLock, SqlScannerAssignmentLock>();
         services.AddScoped<IStationCoordinateLock, SqlStationCoordinateLock>();
-        services.AddScoped<IRouteRepository, RouteRepository>();
         services.AddScoped<ITripRepository, TripRepository>();
         services.AddScoped<IBoatRepository, BoatRepository>();
         services.AddScoped<IRouteAdminRepository, RouteAdminRepository>();
@@ -95,8 +92,6 @@ public static class DependencyInjection
         services.AddScoped<IBoatPositionRepository, BoatPositionRepository>();
         services.AddScoped<IBoatTrackingService, WaterbusSystem.Application.Features.Tracking.Services.BoatTrackingService>();
         services.AddScoped<IIncidentService, WaterbusSystem.Application.Features.Incidents.Services.IncidentService>();
-        services.AddScoped<IWeatherStatusService, WaterbusSystem.Application.Features.Incidents.Services.WeatherStatusService>();
-        services.AddScoped<IWeatherGuardService, WaterbusSystem.Application.Features.Incidents.Services.WeatherGuardService>();
         services.AddScoped<IFareRuleRepository, FareRuleRepository>();
         services.AddScoped<IStationRepository, StationRepository>();
         services.AddScoped<IFareService, WaterbusSystem.Application.Features.Fares.Services.FareService>();
@@ -309,7 +304,7 @@ public static class DependencyInjection
         services.AddSingleton<IBoatPositionCache, RedisBoatPositionCache>();
         services.AddHostedService<BoatSimulatorService>();
 
-        // 8. Hangfire (lưu job trong chính SQL Server, schema HangFire) + Weather Guard
+        // 8. Hangfire (lưu job trong chính SQL Server, schema HangFire)
         services.AddHangfire(config => config
             .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
             .UseSimpleAssemblyNameTypeSerializer()
@@ -320,7 +315,6 @@ public static class DependencyInjection
                 PrepareSchemaIfNecessary = true
             }));
         services.AddHangfireServer(options => options.WorkerCount = 2);
-        services.AddScoped<WeatherGuardJob>();
 
         // 8.1 Hangfire: job định kỳ kết luận NoShow sau khi cửa sổ check-in đóng (BR-BOARD-05, BR-OFF-04)
         services.AddScoped<NoShowFinalizationJob>();
@@ -340,23 +334,6 @@ public static class DependencyInjection
         services.AddScoped<IEmailTransport, MailKitEmailTransport>();
         services.AddSingleton<IQrImageRenderer, QrCoderImageRenderer>();
         services.AddScoped<EmailOutboxJob>();
-
-        services.Configure<WeatherOptions>(configuration.GetSection(WeatherOptions.SectionName));
-        var weatherProvider = configuration[$"{WeatherOptions.SectionName}:Provider"];
-        if (string.Equals(weatherProvider, "OpenWeatherMap", StringComparison.OrdinalIgnoreCase))
-        {
-            var timeoutSeconds = configuration.GetValue($"{WeatherOptions.SectionName}:TimeoutSeconds", 10);
-            var baseUrl = configuration[$"{WeatherOptions.SectionName}:BaseUrl"] ?? new WeatherOptions().BaseUrl;
-            services.AddHttpClient<IWeatherProvider, OpenWeatherMapProvider>(client =>
-            {
-                client.BaseAddress = new Uri(baseUrl);
-                client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
-            });
-        }
-        else
-        {
-            services.AddSingleton<IWeatherProvider, FakeWeatherProvider>();
-        }
 
         return services;
 

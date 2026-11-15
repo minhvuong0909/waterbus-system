@@ -22,7 +22,7 @@ export function useIncidentBoard() {
     reloadTrips()
     reloadAlerts()
   }
-  useFleetHub({ onAlert: reloadAlerts, onIncident: reloadAlerts, onTripStatus: reloadAll, onReconnected: reloadAll })
+  useFleetHub({ onIncident: reloadAlerts, onTripStatus: reloadAll, onReconnected: reloadAll })
   useAutoRefresh(reloadAll, trips.fetching || logs.fetching || alerts.fetching)
 
   const openAlerts = alerts.data ? sortAlerts(alerts.data) : undefined

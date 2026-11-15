@@ -1,37 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { alertMetrics, alertNote, commonDecisions, decisionOperation, pendingCountOf, sortAlerts, timeAgo } from './alertUtils'
-import type { OperationType, WeatherAlert } from '../../operations/types'
+import { alertTone, commonDecisions, decisionOperation, isCaptainReport, pendingCountOf, sortAlerts, timeAgo, titleOf } from './alertUtils'
+import type { IncidentAlert, OperationType } from '../../operations/types'
 
-const REAL =
-  'Cảnh báo thời tiết tuyến RT01: trời quang, gió 43,2 km/h, gió giật 68,4 km/h. ' +
-  'Admin xem xét từng chuyến bị ảnh hưởng; hệ thống không tự đổi trạng thái chuyến.'
-
-const alert = (patch: Partial<WeatherAlert>): WeatherAlert => ({
-  id: 'a', level: 1, message: '', issuedAt: '2026-10-20T15:00:00Z', kind: 'Weather', ...patch,
+const alert = (patch: Partial<IncidentAlert>): IncidentAlert => ({
+  id: 'a', level: 1, message: '', issuedAt: '2026-10-20T15:00:00Z', kind: 'Technical', source: 'Staff', ...patch,
 })
 
-describe('alertMetrics', () => {
-  it('reads the sky, wind and gusts the weather guard writes, with a decimal comma', () => {
-    expect(alertMetrics({ message: REAL })).toEqual({ condition: 'trời quang', windKmh: 43.2, gustKmh: 68.4 })
+describe('captain reports', () => {
+  it('are recognised by their source, not by guessing from the incident type', () => {
+    expect(isCaptainReport({ source: 'Captain' })).toBe(true)
+    expect(isCaptainReport({ source: 'Staff' })).toBe(false)
+    expect(isCaptainReport({})).toBe(false)
+    // a Safety incident from someone else is not a captain report
+    expect(isCaptainReport(alert({ kind: 'Safety', source: 'System' }))).toBe(false)
   })
 
-  it('works without gusts', () => {
-    expect(alertMetrics({ message: 'Cảnh báo thời tiết tuyến RT01: mưa nhẹ, gió 38 km/h. Admin xem xét.' }))
-      .toEqual({ condition: 'mưa nhẹ', windKmh: 38, gustKmh: undefined })
-  })
-
-  it('gives nothing for a free text report', () => {
-    expect(alertMetrics({ message: 'Engine fault on SWB-01.' })).toEqual({})
-  })
-})
-
-describe('alertNote', () => {
-  it('keeps only the advice after the measurements', () => {
-    expect(alertNote(REAL)).toBe('Admin xem xét từng chuyến bị ảnh hưởng; hệ thống không tự đổi trạng thái chuyến.')
-  })
-
-  it('keeps a message it cannot read as it is', () => {
-    expect(alertNote('Captain reported an engine fault.')).toBe('Captain reported an engine fault.')
+  it('are titled and toned as an emergency, with their own description kept', () => {
+    const sos = alert({ kind: 'Safety', source: 'Captain', level: 2, message: 'Cháy động cơ' })
+    expect(titleOf(sos)).toBe('Captain emergency report')
+    expect(alertTone(sos)).toMatchObject({ label: 'Captain report', icon: 'sos' })
+    expect(titleOf(alert({}))).toBe('Operational incident')
   })
 })
 
@@ -49,7 +37,7 @@ describe('sortAlerts', () => {
       alert({ id: 'old-warning', issuedAt: '2026-10-20T10:00:00Z' }),
       alert({ id: 'new-warning', issuedAt: '2026-10-20T12:00:00Z' }),
       alert({ id: 'high', level: 2, issuedAt: '2026-10-20T09:00:00Z' }),
-      alert({ id: 'sos', kind: 'Technical', issuedAt: '2026-10-20T11:00:00Z' }),
+      alert({ id: 'sos', kind: 'Safety', source: 'Captain', issuedAt: '2026-10-20T11:00:00Z' }),
     ])
     expect(sorted.map((a) => a.id)).toEqual(['sos', 'high', 'new-warning', 'old-warning'])
   })

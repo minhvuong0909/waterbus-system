@@ -21,12 +21,10 @@ public interface ISeatEventPublisher
 }
 
 /// <summary>
-/// Phát cảnh báo vận hành (thời tiết, sự cố) tới Admin đang theo dõi radar.
+/// Phát cảnh báo vận hành (sự cố, đổi trạng thái chuyến) tới Admin đang theo dõi radar.
 /// </summary>
 public interface IOperationsAlertPublisher
 {
-    Task PublishWeatherAlertAsync(WeatherAlertMessage message, CancellationToken cancellationToken = default);
-
     /// <summary>Trạng thái chuyến vừa đổi: tới Admin (radar), thuyền trưởng của tàu và khách đang xem chuyến.</summary>
     Task PublishTripStatusChangedAsync(TripStatusChangedMessage message, CancellationToken cancellationToken = default);
 
@@ -60,19 +58,6 @@ public sealed record SeatEventMessage(
     int DisembarkingVisitOrder,
     string Status,
     DateTimeOffset? ExpiresAt)
-{
-    public int Version => 1;
-}
-
-/// <summary>
-/// Payload event <c>weatherAlert</c>, tham chiếu Incident đã được ghi nhận.
-/// </summary>
-public sealed record WeatherAlertMessage(
-    Guid IncidentId,
-    string? Severity,
-    Guid? RouteId,
-    string Message,
-    DateTimeOffset OccurredAt)
 {
     public int Version => 1;
 }

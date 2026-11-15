@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { FilterChips, Notice, Pagination } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { INCIDENT_KINDS } from '../../operations/services/operationsService'
-import type { AdminTrip, OperationType, WeatherAlert } from '../../operations/types'
+import type { AdminTrip, IncidentAlert, OperationType } from '../../operations/types'
 import AlertCard from './AlertCard'
 import AlertsEmpty from './AlertsEmpty'
 
@@ -16,10 +16,10 @@ export default function OpenAlertsSection({
   onClose,
   onDecide,
 }: {
-  alerts: WeatherAlert[]
+  alerts: IncidentAlert[]
   trips: AdminTrip[]
   version: number
-  onClose: (alert: WeatherAlert) => void
+  onClose: (alert: IncidentAlert) => void
   onDecide: (trips: AdminTrip[], type: OperationType, incidentId: string) => void
 }) {
   const [kind, setKind] = useState('')

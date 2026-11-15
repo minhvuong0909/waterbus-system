@@ -132,10 +132,6 @@ export const API_ENDPOINTS = {
   incidents: {
     list: '/api/v1/incidents',
     detail: (id: string) => `/api/v1/incidents/${id}`,
-    /** Runs the weather guard now instead of waiting for its schedule (Admin). */
-    weatherCheck: '/api/v1/incidents/weather-check',
-    /** Current weather of every active route, read only (Admin). */
-    weatherNow: '/api/v1/incidents/weather-now',
     /** Closes an open incident without changing any trip (Admin). */
     resolve: (id: string) => `/api/v1/incidents/${id}/resolve`,
   },
@@ -150,7 +146,6 @@ export const HUBS = {
 /** Event names the hubs push to the browser. */
 export const HUB_EVENTS = {
   boatPosition: 'boatPosition',
-  weatherAlert: 'weatherAlert',
   tripStatusChanged: 'tripStatusChanged',
   incidentRaised: 'incidentRaised',
   seatHeld: 'seatHeld',
