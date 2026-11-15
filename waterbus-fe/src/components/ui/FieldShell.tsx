@@ -9,7 +9,7 @@ export interface FieldShellProps {
   children: (id: string) => ReactNode
 }
 
-/** Label, hint and error around a form control; gives the control its id. */
+/** Nhãn, gợi ý và lỗi bao quanh một ô nhập; cấp id cho ô đó. */
 export default function FieldShell({ label, hint, error, children }: FieldShellProps) {
   const id = useId()
   return (

@@ -10,7 +10,7 @@ interface ErrorBoundaryState {
   failed: boolean
 }
 
-/** Catches a render error anywhere below it, so one broken page does not blank the whole app. */
+/** Bắt lỗi render ở bất kỳ đâu bên dưới, để một trang hỏng không làm trắng cả app. */
 export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { failed: false }
 
@@ -24,7 +24,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
 
   render() {
     if (!this.state.failed) return this.props.children
-    // A full reload clears whatever state made the render fail.
+    // Tải lại toàn trang để xoá trạng thái đã làm render lỗi.
     return <ErrorState onRetry={() => window.location.reload()} />
   }
 }

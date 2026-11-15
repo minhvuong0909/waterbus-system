@@ -11,7 +11,7 @@ describe('admin table pagination', () => {
   it('pages through all results and resets after filtering', () => {
     const { rerender } = render(<DataTable paginate rows={rows} columns={columns} rowKey={rowKey} />)
     expect(screen.queryByText('Boat 10')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /2$/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
     expect(screen.queryByText('Boat 0')).toBeNull()
     expect(screen.getByText('Boat 10')).toBeTruthy()
     rerender(<DataTable paginate rows={rows.slice(0, 2)} columns={columns} rowKey={rowKey} />)

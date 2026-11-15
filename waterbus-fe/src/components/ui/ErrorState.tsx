@@ -7,14 +7,14 @@ interface ErrorStateProps {
   onRetry?: () => void
   title?: string
   message?: string
-  /** Smaller, inline version for a card or panel instead of a whole page. */
+  /** Bản nhỏ, nằm trong một thẻ hoặc panel thay vì cả trang. */
   compact?: boolean
   icon?: string
-  /** Where to go instead of retrying, e.g. back to the search when nothing was chosen. */
+  /** Nơi cần chuyển tới thay vì thử lại, vd quay về tìm kiếm khi chưa chọn gì. */
   action?: { label: string; to: string }
 }
 
-/** Shown when loading data fails. Offers a retry and a way back home. */
+/** Hiện khi tải dữ liệu thất bại. Có nút thử lại và đường về trang chủ. */
 export default function ErrorState({
   onRetry,
   title = t('We couldn’t load this page'),
@@ -37,7 +37,7 @@ export default function ErrorState({
           <button
             type="button"
             onClick={onRetry}
-            className="shrink-0 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-teal-flow shadow-sm hover:bg-surface-container-low"
+            className="shrink-0 rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-teal-flow shadow-sm hover:bg-surface-container-low"
           >
             {t('Try again')}
           </button>

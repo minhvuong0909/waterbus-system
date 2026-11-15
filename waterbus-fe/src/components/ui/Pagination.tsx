@@ -1,8 +1,10 @@
-import Button from './Button'
 import Icon from './Icon'
 import { t } from '../../i18n'
 
-/** Shared page-forward/page-back control for any `Paged<T>` list. Mirrors OrderHistoryPage's own. */
+const ARROW =
+  'flex h-9 w-9 items-center justify-center rounded-xl border border-outline-variant/70 bg-white text-deep-river transition-colors hover:bg-mist disabled:cursor-not-allowed disabled:opacity-40'
+
+/** Chuyển trang gọn cho mọi danh sách `Paged<T>`: ‹ Trang x/y ›. Ẩn khi chỉ có một trang. */
 export default function Pagination({
   pageNumber,
   totalPages,
@@ -21,40 +23,28 @@ export default function Pagination({
   }
 
   return (
-    <nav aria-label={t('Pages')} className="flex flex-wrap items-center justify-end gap-2 py-2">
-      <Button
-        variant="neutral"
-        size="sm"
-        icon="chevron_left"
+    <nav aria-label={t('Pages')} className="flex items-center justify-end gap-2">
+      <button
+        type="button"
+        aria-label={t('Previous page')}
+        className={ARROW}
         onClick={() => goTo(pageNumber - 1)}
         disabled={busy || pageNumber <= 1}
       >
-        {t('Previous page')}
-      </Button>
-      <span className="text-sm text-on-surface-variant">
+        <Icon name="chevron_left" className="text-lg" />
+      </button>
+      <span className="min-w-[4.5rem] text-center text-sm tabular-nums text-on-surface-variant" aria-live="polite">
         {t('Page {page} of {total}', { page: pageNumber, total: totalPages })}
       </span>
-      {Array.from(new Set([1, pageNumber - 1, pageNumber, pageNumber + 1, totalPages]))
-        .filter((page) => page >= 1 && page <= totalPages).sort((a, b) => a - b)
-        .map((page, index, pages) => (
-          <span key={page} className="inline-flex items-center gap-2">
-            {index > 0 && page - pages[index - 1] > 1 && <span aria-hidden="true">…</span>}
-            <button type="button" aria-label={t('Go to page {page}', { page })} aria-current={page === pageNumber ? 'page' : undefined}
-              disabled={busy} onClick={() => goTo(page)}
-              className={`flex h-11 min-w-[44px] items-center justify-center rounded-xl px-2 text-sm font-semibold transition-colors disabled:opacity-50 ${page === pageNumber ? 'bg-teal-flow text-white shadow-sm' : 'border border-outline-variant/40 bg-white text-deep-river hover:bg-mist'}`}>
-              {page}
-            </button>
-          </span>
-        ))}
-      <Button
-        variant="neutral"
-        size="sm"
+      <button
+        type="button"
+        aria-label={t('Next page')}
+        className={ARROW}
         onClick={() => goTo(pageNumber + 1)}
         disabled={busy || pageNumber >= totalPages}
       >
-        {t('Next page')}
         <Icon name="chevron_right" className="text-lg" />
-      </Button>
+      </button>
     </nav>
   )
 }

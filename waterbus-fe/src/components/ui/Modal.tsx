@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { t } from '../../i18n'
 import Icon from './Icon'
 
-/** Dialog with a title, closed by Escape, the backdrop or the close button. */
+/** Hộp thoại có tiêu đề, đóng bằng Escape, nền mờ hoặc nút đóng. */
 export default function Modal({
   title,
   onClose,
@@ -21,7 +21,7 @@ export default function Modal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  // Move focus into the dialog when it opens and give it back to the button that opened it.
+  // Đưa focus vào hộp thoại khi mở và trả lại cho nút đã mở nó.
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null
     dialogRef.current?.focus()

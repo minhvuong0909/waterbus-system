@@ -12,7 +12,7 @@ interface BreadcrumbProps {
   className?: string
 }
 
-/** The last item is the current page and is rendered as plain text. */
+/** Mục cuối là trang hiện tại, hiện dạng chữ thường. */
 export default function Breadcrumb({ items, className = '' }: BreadcrumbProps) {
   return (
     <nav
