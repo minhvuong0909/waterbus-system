@@ -7,14 +7,8 @@ import { useAuth } from '../../features/authentication/hooks/useAuth'
 import AccountMenu from './AccountMenu'
 import LanguageSwitcher from './LanguageSwitcher'
 import { ROUTES } from '../../routes/routes'
+import { NAV_ITEMS } from '../navigation'
 import { t } from '../../i18n'
-
-const NAV_ITEMS = [
-  { label: 'Timetable', to: ROUTES.searchResults },
-  { label: 'Explore', to: ROUTES.explore },
-  { label: 'My Tickets', to: ROUTES.myTickets },
-  { label: 'Help', to: ROUTES.help },
-]
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   isActive

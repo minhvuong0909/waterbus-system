@@ -34,7 +34,7 @@ export default function SightseeingDeparturesSection({
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-teal-flow">
               {t('Make the river your next destination')}
             </p>
-            <h2 className="font-display text-3xl font-bold tracking-tight text-deep-river sm:text-4xl">
+            <h2 className="font-display text-3xl font-bold tracking-tight text-deep-river sm:text-4xl lg:text-5xl">
               {t('Upcoming sightseeing trips')}
             </h2>
           </div>

@@ -1,7 +1,8 @@
-import baSonImg from '../assets/images/explore/ba-son.jpg'
-import landmarkImg from '../assets/images/explore/landmark-park.jpg'
-import ecoImg from '../assets/images/home/story-eco.jpg'
-import heritageImg from '../assets/images/home/story-heritage.jpg'
+import baSonImg from '../assets/images/explore/ba-son-bridge.jpg'
+import binhLoiImg from '../assets/images/explore/binh-loi-bridge.jpg'
+import landmarkImg from '../assets/images/explore/landmark-81.jpg'
+import ecoImg from '../assets/images/explore/thanh-da.jpg'
+import heritageImg from '../assets/images/explore/thu-ngu-nha-rong.jpg'
 import type { ExploreData } from '../features/explore/types'
 
 /**
@@ -46,7 +47,7 @@ export const EXPLORE_DATA: ExploreData = {
     },
     {
       id: 'binh-loi-bridge',
-      // Chưa có ảnh đúng cầu Bình Lợi: thẻ hiện ô trung tính thay vì ảnh nơi khác.
+      image: binhLoiImg,
       category: 'Heritage',
       title: 'Historic Bình Lợi Bridge',
       description:

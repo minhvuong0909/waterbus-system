@@ -6,7 +6,7 @@ import type { Landmark } from '../../explore/types'
 
 /**
  * Giới thiệu vài địa danh có thuyết minh trên chuyến ngắm cảnh (cùng nguồn với trang Khám phá). Đây
- * là nội dung giới thiệu, không phải sản phẩm để bán: mỗi thẻ mở trang Khám phá.
+ * là nội dung giới thiệu, không phải sản phẩm để bán: mỗi thẻ mở trang Khám phá, mở đúng địa danh đó ở ảnh lớn đầu trang.
  */
 export default function StoriesSection({ places }: { places: Landmark[] }) {
   if (places.length === 0) return null
@@ -41,7 +41,7 @@ export default function StoriesSection({ places }: { places: Landmark[] }) {
             <Link
               data-reveal
               key={place.id}
-              to={ROUTES.explore}
+              to={{ pathname: ROUTES.explore, hash: place.id }}
               className="hover-lift group flex flex-col overflow-hidden rounded-panel border border-outline-variant/30 bg-surface shadow-sm"
             >
               <div className="relative h-56 w-full overflow-hidden bg-deep-river/10">

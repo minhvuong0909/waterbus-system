@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Landmark } from '../types'
@@ -42,42 +42,47 @@ describe('Explore page', () => {
     expect(SIGHTSEEING_RESULTS).toBe('/search/results?type=sightseeing')
   })
 
-  it('links the secondary hero action to the landmark section', () => {
-    inRouter(<ExploreHero landmarks={heroLandmarks} />)
-    expect(screen.getByRole('link', { name: /Explore landmarks/ }).getAttribute('href')).toBe(
-      '#river-landmarks',
-    )
-  })
-
-  it('rotates the landmark photos and lets visitors pause or choose one directly', () => {
-    vi.useFakeTimers()
-    inRouter(<ExploreHero landmarks={heroLandmarks} />)
+  it('moves to the next landmark when the progress of the current one ends, and lets visitors choose one', () => {
+    const { container } = inRouter(<ExploreHero landmarks={heroLandmarks} />)
+    const progress = () => container.querySelector('[data-hero-progress]') as HTMLElement
 
     const firstPhoto = screen.getByRole('button', { name: 'Show background for Ba Son Waterfront' })
     const secondPhoto = screen.getByRole('button', { name: 'Show background for Thu Thiem Promenade' })
     expect(firstPhoto.getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByRole('heading', { name: 'Ba Son Waterfront' })).toBeTruthy()
 
-    act(() => vi.advanceTimersByTime(7000))
+    fireEvent.animationEnd(progress())
     expect(secondPhoto.getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByRole('heading', { name: 'Thu Thiem Promenade' })).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pause background rotation' }))
-    fireEvent.click(firstPhoto)
-    act(() => vi.advanceTimersByTime(7000))
+    fireEvent.animationEnd(progress())
     expect(firstPhoto.getAttribute('aria-pressed')).toBe('true')
+
+    expect(progress().style.animationPlayState).toBe('running')
+    fireEvent.mouseEnter(screen.getByRole('heading', { name: 'Ba Son Waterfront' }).parentElement as HTMLElement)
+    expect(progress().style.animationPlayState).toBe('paused')
+    fireEvent.click(secondPhoto)
+    expect(secondPhoto.getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('opens on the landmark picked elsewhere, and on the first one when the id is unknown', () => {
+    inRouter(<ExploreHero landmarks={heroLandmarks} startId="thu-thiem" />)
+    expect(screen.getByRole('heading', { name: 'Thu Thiem Promenade' })).toBeTruthy()
+    cleanup()
+    inRouter(<ExploreHero landmarks={heroLandmarks} startId="nowhere" />)
+    expect(screen.getByRole('heading', { name: 'Ba Son Waterfront' })).toBeTruthy()
   })
 
   it('does not auto-rotate when reduced motion is enabled', () => {
     reducedMotion = true
-    vi.useFakeTimers()
-    inRouter(<ExploreHero landmarks={heroLandmarks} />)
+    const { container } = inRouter(<ExploreHero landmarks={heroLandmarks} />)
 
     const firstPhoto = screen.getByRole('button', { name: 'Show background for Ba Son Waterfront' })
-    act(() => vi.advanceTimersByTime(7000))
+    const progress = container.querySelector('[data-hero-progress]') as HTMLElement
+    fireEvent.animationEnd(progress)
 
     expect(firstPhoto.getAttribute('aria-pressed')).toBe('true')
-    expect(screen.queryByRole('button', { name: 'Pause background rotation' })).toBeNull()
+    expect(progress.className).not.toContain('animate-hero-progress')
   })
 
   it('shows all landmarks without redundant category filters or action labels', () => {

@@ -56,12 +56,30 @@ const config: Config = {
       },
       keyframes: {
         'hero-copy-enter': {
-          from: { opacity: '0', transform: 'translateY(12px)' },
+          from: { opacity: '0', transform: 'translateY(16px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        /** A word of the hero title rising out from behind its mask. */
+        'word-rise': {
+          from: { transform: 'translateY(105%)' },
+          to: { transform: 'translateY(0)' },
+        },
+        /** Fill of the active hero tab; its length is set where it is used. */
+        'hero-progress': {
+          from: { transform: 'scaleX(0)' },
+          to: { transform: 'scaleX(1)' },
+        },
+        /** Slow push-in on the hero photo that is on screen. */
+        'ken-burns': {
+          from: { transform: 'scale(1)' },
+          to: { transform: 'scale(1.1)' },
         },
       },
       animation: {
-        'hero-copy-enter': 'hero-copy-enter 600ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        'hero-copy-enter': 'hero-copy-enter 700ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        'ken-burns': 'ken-burns 12s linear both',
+        'word-rise': 'word-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        'hero-progress': 'hero-progress 1s linear both',
       },
       spacing: {
         'space-3xl': '64px',
