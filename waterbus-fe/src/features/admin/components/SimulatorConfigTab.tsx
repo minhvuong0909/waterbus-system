@@ -2,18 +2,37 @@ import { useEffect, useState } from 'react'
 import { Button, Notice, Panel } from '../../../components/ui'
 import { getSimulatorConfig, updateSimulatorConfig } from '../services/simulatorService'
 import type { StopAnnouncementConfig } from '../services/simulatorService'
+import { previewTimeBudget } from '../utils/timeBudget'
 
 interface SimulatorConfigTabProps {
   onConfigUpdated?: (config: StopAnnouncementConfig) => void
 }
 
+const DEFAULT_CONFIG: StopAnnouncementConfig = {
+  tripDurationSeconds: 180,
+  dwellTimeSeconds: 6,
+  nearThreshold: 0.75,
+  useSimulatedSegmentDuration: true,
+  budget: {
+    segmentCount: 4,
+    segmentMovingSeconds: 0,
+    departingWindowSeconds: 0,
+    nearWindowSeconds: 0,
+    dwellSeconds: 6,
+    maxNarrationSeconds: 0,
+    maxNarrationCharacters: 0,
+    minDwellSeconds: 5,
+    minTripDurationSeconds: 0,
+    isValid: false,
+    violations: [],
+  },
+}
+
+const MIN_TRIP_DURATION = 60
+const MAX_TRIP_DURATION = 7200
+
 export default function SimulatorConfigTab({ onConfigUpdated }: SimulatorConfigTabProps) {
-  const [config, setConfig] = useState<StopAnnouncementConfig>({
-    segmentDurationSeconds: 180,
-    dwellTimeSeconds: 5,
-    nearThreshold: 0.8,
-    useSimulatedSegmentDuration: true,
-  })
+  const [config, setConfig] = useState<StopAnnouncementConfig>(DEFAULT_CONFIG)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savedSuccess, setSavedSuccess] = useState(false)
@@ -39,9 +58,22 @@ export default function SimulatorConfigTab({ onConfigUpdated }: SimulatorConfigT
     }
   }, [])
 
+  const preview = previewTimeBudget({
+    tripDurationSeconds: config.tripDurationSeconds,
+    dwellTimeSeconds: config.dwellTimeSeconds,
+    nearThreshold: config.nearThreshold,
+    segmentCount: config.budget.segmentCount,
+  })
+
   const handleSave = async () => {
-    if (config.segmentDurationSeconds < 30) {
-      setError('Thời lượng toàn chuyến (Bến đầu → Bến cuối) tối thiểu phải từ 30 giây trở lên để kịp phát loa thông báo các chặng.')
+    if (config.tripDurationSeconds < MIN_TRIP_DURATION) {
+      setError(
+        `Thời lượng toàn chuyến (Bến đầu → Bến cuối) tối thiểu phải từ ${MIN_TRIP_DURATION} giây trở lên để kịp phát loa thông báo các chặng.`,
+      )
+      return
+    }
+    if (!preview.isValid) {
+      setError(preview.violations.map((v) => v.message).join(' '))
       return
     }
 
@@ -50,9 +82,10 @@ export default function SimulatorConfigTab({ onConfigUpdated }: SimulatorConfigT
     setSavedSuccess(false)
     try {
       const updated = await updateSimulatorConfig({
-        segmentDurationSeconds: Number(config.segmentDurationSeconds) || 180,
-        dwellTimeSeconds: Number(config.dwellTimeSeconds) || 5,
-        nearThreshold: Number(config.nearThreshold) || 0.8,
+        ...config,
+        tripDurationSeconds: Number(config.tripDurationSeconds) || DEFAULT_CONFIG.tripDurationSeconds,
+        dwellTimeSeconds: Number(config.dwellTimeSeconds) || DEFAULT_CONFIG.dwellTimeSeconds,
+        nearThreshold: Number(config.nearThreshold) || DEFAULT_CONFIG.nearThreshold,
         useSimulatedSegmentDuration: true,
       })
       setConfig(updated)
@@ -73,32 +106,27 @@ export default function SimulatorConfigTab({ onConfigUpdated }: SimulatorConfigT
     )
   }
 
-  // Với tuyến 5 bến tiêu chuẩn (4 chặng di chuyển), thời gian mỗi chặng = tổng thời lượng chuyến / 4
-  const estimatedSegments = 4
-  const segDuration = Math.max(5, Math.round(config.segmentDurationSeconds / estimatedSegments))
-  const maxAudioSec = Math.max(5, Math.floor(segDuration * config.nearThreshold - 5))
-  const maxCharLimit = maxAudioSec * 14
-
   return (
     <div className="max-w-4xl space-y-5">
-      {/* Panel Cấu hình Tham số */}
       <Panel className="space-y-6">
         <div className="border-b border-outline-variant/30 pb-3">
           <h3 className="font-bold text-base text-deep-river">Tham số vận hành & Thời lượng toàn chuyến đi</h3>
           <p className="text-xs text-on-surface-variant mt-0.5">
-            Áp dụng cho toàn bộ chuyến đi từ Bến đầu (xuất phát) đến Bến cuối (kết thúc). Hệ thống tự động phân bổ đều thời gian cho các chặng giữa các bến để tính toán khoảng trống phát thanh an toàn.
+            Thời lượng toàn chuyến tính từ Bến đầu (xuất phát) đến Bến cuối (kết thúc), đã bao gồm thời gian đậu tại các
+            bến. Hệ thống chia đều phần thời gian di chuyển cho các chặng và tự tính khoảng trống an toàn cho từng
+            câu thông báo, kể cả bài thuyết minh địa danh.
           </p>
         </div>
 
         {error && <Notice tone="error">{error}</Notice>}
         {savedSuccess && (
           <Notice tone="success">
-            Đã lưu và cập nhật cấu hình tham số vận hành thành công! Giới hạn độ dài kịch bản ở Tab Thuyết minh đã được đồng bộ theo toàn chuyến.
+            Đã lưu và cập nhật cấu hình tham số vận hành thành công! Giới hạn độ dài kịch bản ở Tab Thuyết minh đã
+            được đồng bộ theo toàn chuyến.
           </Notice>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* Thời lượng toàn chuyến */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-deep-river">
               Thời lượng toàn chuyến (Bến đầu → Bến cuối)
@@ -106,11 +134,11 @@ export default function SimulatorConfigTab({ onConfigUpdated }: SimulatorConfigT
             <div className="relative">
               <input
                 type="number"
-                min={30}
-                max={3600}
-                value={config.segmentDurationSeconds}
+                min={MIN_TRIP_DURATION}
+                max={MAX_TRIP_DURATION}
+                value={config.tripDurationSeconds}
                 onChange={(e) => {
-                  setConfig({ ...config, segmentDurationSeconds: Math.max(1, Number(e.target.value)) })
+                  setConfig({ ...config, tripDurationSeconds: Math.max(1, Number(e.target.value)) })
                   setSavedSuccess(false)
                   setError(null)
                 }}
@@ -118,15 +146,12 @@ export default function SimulatorConfigTab({ onConfigUpdated }: SimulatorConfigT
               />
               <span className="absolute right-3 top-2.5 text-xs text-on-surface-variant">giây</span>
             </div>
-            <div className="rounded-lg bg-teal-50/70 border border-teal-200/60 p-2.5 text-2xs text-teal-900 space-y-1">
-              <div className="font-bold">✨ Phân bổ tuyến 5 bến (4 chặng):</div>
-              <div>Cả chuyến: <span className="font-bold text-teal-800">{config.segmentDurationSeconds}s (~{(config.segmentDurationSeconds / 60).toFixed(1)} phút)</span></div>
-              <div>Mỗi chặng giữa 2 bến: <span className="font-bold text-teal-800">~{segDuration} giây</span></div>
-              <div>Khoảng trống thuyết minh/chặng: <span className="font-bold text-teal-700">~{maxAudioSec}s (~{maxCharLimit} ký tự)</span></div>
-            </div>
+            <p className="text-2xs text-on-surface-variant">
+              Tối thiểu <span className="font-semibold text-coral-glow">{Math.ceil(preview.minTripDurationSeconds)}s</span>{' '}
+              cho {preview.segmentCount} chặng (đã trừ thời gian đậu).
+            </p>
           </div>
 
-          {/* Thời gian dừng tại bến */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-deep-river">
               Thời gian dừng tại bến (giây)
@@ -139,45 +164,73 @@ export default function SimulatorConfigTab({ onConfigUpdated }: SimulatorConfigT
               onChange={(e) => {
                 setConfig({ ...config, dwellTimeSeconds: Number(e.target.value) })
                 setSavedSuccess(false)
+                setError(null)
               }}
               className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm font-semibold text-deep-river focus:border-teal-flow focus:ring-1 focus:ring-teal-flow"
             />
             <p className="text-2xs text-on-surface-variant">
-              Thời gian tàu neo đậu tại cầu tàu mỗi bến để đón trả khách trước khi xuất bến (mặc định 5 giây).
+              Tối thiểu <span className="font-semibold text-coral-glow">{preview.minDwellSeconds}s</span> để phát trọn
+              thông báo cập bến.
             </p>
           </div>
 
-          {/* Ngưỡng phát thông báo sắp tới bến */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-deep-river">
               Ngưỡng báo sắp tới bến (%)
             </label>
             <input
               type="number"
-              min={50}
-              max={95}
+              min={10}
+              max={99}
               value={Math.round(config.nearThreshold * 100)}
               onChange={(e) => {
-                const val = Number(e.target.value) / 100
-                setConfig({ ...config, nearThreshold: val })
+                setConfig({ ...config, nearThreshold: Number(e.target.value) / 100 })
                 setSavedSuccess(false)
+                setError(null)
               }}
               className="w-full rounded-lg border border-outline-variant bg-white px-3 py-2 text-sm font-semibold text-deep-river focus:border-teal-flow focus:ring-1 focus:ring-teal-flow"
             />
             <p className="text-2xs text-on-surface-variant">
-              Tỷ lệ chặng đường sẽ kích hoạt câu thông báo số 2: &ldquo;Tàu sắp đến bến&rdquo; (mặc định 80%).
+              Tỷ lệ chặng đường kích hoạt câu &ldquo;Tàu sắp đến bến&rdquo;.
             </p>
           </div>
         </div>
 
-        {/* Nút Lưu cấu hình */}
+        <div
+          className={`rounded-lg border p-3 space-y-1.5 ${
+            preview.isValid
+              ? 'bg-teal-50/70 border-teal-200/60 text-teal-900'
+              : 'bg-red-50/80 border-red-200 text-red-900'
+          }`}
+        >
+          <div className="font-bold text-xs">
+            {preview.isValid ? '✓ Ngân sách thời gian hợp lệ' : '✕ Cấu hình sẽ bị chặn khi lưu'}
+          </div>
+          <div className="text-2xs space-y-0.5">
+            <div>
+              Mỗi chặng di chuyển:{' '}
+              <span className="font-bold">{preview.segmentMovingSeconds.toFixed(1)}s</span> · Cửa sổ rời bến:{' '}
+              <span className="font-bold">{preview.departingWindowSeconds.toFixed(1)}s</span> (chứa thông báo rời bến +
+              thuyết minh địa danh) · Cửa sổ gần bến:{' '}
+              <span className="font-bold">{preview.nearWindowSeconds.toFixed(1)}s</span> · Thời gian đậu:{' '}
+              <span className="font-bold">{preview.dwellSeconds.toFixed(1)}s</span>
+            </div>
+            <div>
+              Thuyết minh địa danh tối đa:{' '}
+              <span className="font-bold">{preview.maxNarrationSeconds.toFixed(1)}s</span> (~{' '}
+              <span className="font-bold">{preview.maxNarrationCharacters}</span> ký tự)
+            </div>
+            {!preview.isValid &&
+              preview.violations.map((v) => (
+                <div key={v.property} className="font-semibold">
+                  • {v.message}
+                </div>
+              ))}
+          </div>
+        </div>
+
         <div className="flex items-center justify-end gap-3 pt-3 border-t border-outline-variant/30">
-          <Button
-            size="md"
-            variant="primary"
-            disabled={saving}
-            onClick={handleSave}
-          >
+          <Button size="md" variant="primary" disabled={saving || !preview.isValid} onClick={handleSave}>
             {saving ? 'Đang lưu cấu hình...' : 'Lưu cấu hình hệ thống'}
           </Button>
         </div>
