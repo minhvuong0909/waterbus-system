@@ -42,6 +42,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, Applicati
         public DbSet<FinancialTransaction> FinancialTransactions => Set<FinancialTransaction>();
     public DbSet<RefundTicketAllocation> RefundTicketAllocations => Set<RefundTicketAllocation>();
     public DbSet<AccessGrant> AccessGrants => Set<AccessGrant>();
+    public DbSet<ScannerEnrollment> ScannerEnrollments => Set<ScannerEnrollment>();
+    public DbSet<StaffStationShift> StaffStationShifts => Set<StaffStationShift>();
+    public DbSet<ScannerOfflineGrant> ScannerOfflineGrants => Set<ScannerOfflineGrant>();
     public DbSet<ScannerDevice> ScannerDevices => Set<ScannerDevice>();
     public DbSet<ScannerAssignment> ScannerAssignments => Set<ScannerAssignment>();
     public DbSet<CheckInEvent> CheckInEvents => Set<CheckInEvent>();

@@ -5,6 +5,8 @@
  * Supports Expo SQLite with an in-memory adapter only for Web/Unit Tests.
  */
 
+import { openDatabaseAsync, sqlitePlatform } from './sqliteDriver';
+
 const DB_NAME = 'waterbus_scanner.db';
 const PUBLIC_KEYS_MIGRATION_TABLE = 'public_keys_legacy_migration';
 
@@ -30,7 +32,10 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
     scanner_config: [],
   };
 
-  async execAsync(): Promise<void> {
+  async execAsync(sql: string): Promise<void> {
+    for (const statement of sql.split(';')) {
+      if (statement.trim().toUpperCase().startsWith('DELETE FROM')) await this.runAsync(statement);
+    }
   }
 
   async runAsync(sql: string, params: any[] = []): Promise<{ lastInsertRowId: number; changes: number }> {
@@ -77,7 +82,7 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       return { lastInsertRowId: 1, changes: 1 };
     }
     if (trimmed.includes('INSERT INTO OFFLINE_CHECKIN_EVENTS') || trimmed.includes('INSERT OR REPLACE INTO OFFLINE_CHECKIN_EVENTS')) {
-      const [id, cEventId, tId, tNum, pName, sCode, bId, trId, tscId, sAccId, sName, devId, occAt, notes] = params;
+      const [id, cEventId, tId, tNum, pName, sCode, bId, trId, tscId, sAccId, sName, devId, enrollmentId, grantId, occAt, notes] = params;
       const filtered = this.tables.offline_checkin_events.filter(e => e.client_event_id !== cEventId);
       filtered.push({
         id,
@@ -92,6 +97,8 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
         staff_account_id: sAccId,
         staff_name: sName,
         scanner_device_id: devId,
+        scanner_enrollment_id: enrollmentId,
+        offline_grant_id: grantId,
         occurred_at_device: occAt,
         received_at_server: null,
         outcome: 'Success',
@@ -178,19 +185,25 @@ class InMemoryFallbackDatabase implements DatabaseAdapter {
       return this.tables.manifest_tickets.filter(t => t.booking_id === bId) as any;
     }
     if (trimmed.includes('FROM OFFLINE_CHECKIN_EVENTS')) {
-      if (trimmed.includes("SYNC_STATUS = 'PENDING'") || (trimmed.includes('SYNC_STATUS = ?') && params[0] === 'Pending')) {
-        return this.tables.offline_checkin_events.filter(e => e.sync_status === 'Pending') as any;
-      }
-      return [...this.tables.offline_checkin_events] as any;
+      let rows = [...this.tables.offline_checkin_events];
+      if (trimmed.includes("ERROR_MESSAGE = 'REVIEWREQUIRED'")) {
+        rows = rows.filter((e) => e.sync_status === 'Pending' || (e.sync_status === 'Conflict' && e.error_message === 'ReviewRequired'));
+      } else if (trimmed.includes("SYNC_STATUS = 'PENDING'")) rows = rows.filter((e) => e.sync_status === 'Pending');
+      else if (trimmed.includes("SYNC_STATUS = 'CONFLICT'")) rows = rows.filter((e) => e.sync_status === 'Conflict');
+      if (trimmed.includes('STAFF_ACCOUNT_ID = ?')) rows = rows.filter((e) => e.staff_account_id === params[0]);
+      if (trimmed.includes('SCANNER_ENROLLMENT_ID = ?')) rows = rows.filter((e) => e.scanner_enrollment_id === params[1]);
+      if (trimmed.includes('SCANNER_ENROLLMENT_ID IS NOT NULL')) rows = rows.filter((e) => e.scanner_enrollment_id);
+      if (trimmed.includes('LIMIT ?')) rows = rows.slice(0, Number(params.at(-1)));
+      return rows as T[];
     }
     if (trimmed.includes('FROM MANIFEST_TRIPS')) {
-      return [...this.tables.manifest_trips] as any;
+      return this.tables.manifest_trips.filter((row) => !trimmed.includes('WHERE ID = ?') || row.id === params[0]) as T[];
     }
     if (trimmed.includes('FROM MANIFEST_BOOKINGS')) {
-      return [...this.tables.manifest_bookings] as any;
+      return this.tables.manifest_bookings.filter((row) => !trimmed.includes('WHERE ID = ?') || row.id === params[0]) as T[];
     }
     if (trimmed.includes('FROM MANIFEST_TICKETS')) {
-      return [...this.tables.manifest_tickets] as any;
+      return this.tables.manifest_tickets.filter((row) => !trimmed.includes('WHERE ID = ?') || row.id === params[0]) as T[];
     }
     if (trimmed.includes('FROM PUBLIC_KEYS')) {
       // Phải lọc đúng theo WHERE thật của getActivePublicKey() - từng trả CẢ BẢNG không lọc, khiến
@@ -245,37 +258,16 @@ async function initializeDatabase(): Promise<DatabaseAdapter> {
     return createInMemoryDatabase();
   }
 
-  let platformOS: string;
-  try {
-    // Import ĐÚNG submodule Platform (không phải cả gói 'react-native') - Metro biên dịch
-    // `import('react-native')` động thành nạp TOÀN BỘ barrel index.js của react-native làm một
-    // chunk (xem asyncRequireModule.ts: importAll), kéo theo cả Libraries/PushNotificationIOS.js -
-    // module cũ không ai dùng ở đây nhưng vẫn tạo NativeEventEmitter() ngay khi nạp, và native
-    // module của nó không có sẵn trong Expo Go -> throw Invariant Violation ngay khi khởi tạo DB,
-    // crash hẳn app trên thiết bị thật (đã tái hiện qua Expo Go, không xảy ra trên bản Web).
-    // Platform.js không kéo theo PushNotificationIOS, an toàn trên mọi runtime.
-    // @ts-expect-error -- deep-import nội bộ của react-native: file .js tồn tại thật (đã xác minh
-    // thủ công trong node_modules) nhưng react-native chỉ phát hành Flow types (.js.flow) cho
-    // đường dẫn này, không có .d.ts public nên TS không resolve được khai báo kiểu.
-    const { default: Platform } = await import('react-native/Libraries/Utilities/Platform');
-    platformOS = Platform.OS;
-  } catch (error) {
-    throw new Error(
-      `Không thể xác định nền tảng để khởi tạo SQLite offline; không sử dụng bộ nhớ tạm. Chi tiết: ${getErrorMessage(error)}`
-    );
-  }
-
-  if (platformOS === 'web') {
+  if (sqlitePlatform === 'web') {
     return createInMemoryDatabase();
   }
-  if (platformOS !== 'android' && platformOS !== 'ios') {
-    throw new Error(`SQLite offline không hỗ trợ nền tảng "${platformOS || 'không xác định'}".`);
+  if (sqlitePlatform !== 'android' && sqlitePlatform !== 'ios') {
+    throw new Error(`SQLite offline không hỗ trợ nền tảng "${sqlitePlatform || 'không xác định'}".`);
   }
 
   let nativeDb: import('expo-sqlite').SQLiteDatabase;
   try {
-    const SQLite = await import('./sqliteDriver');
-    nativeDb = await SQLite.openDatabaseAsync(DB_NAME);
+    nativeDb = await openDatabaseAsync(DB_NAME);
   } catch (error) {
     throw new Error(
       `Không thể mở cơ sở dữ liệu offline "${DB_NAME}". Ứng dụng sẽ không chuyển sang bộ nhớ tạm để tránh mất dữ liệu check-in. ` +
@@ -420,6 +412,14 @@ async function initSchema(db: DatabaseAdapter): Promise<void> {
 
   await db.execAsync(schemaSql);
   await migratePublicKeysSchema(db);
+  const eventColumns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(offline_checkin_events)');
+  if (eventColumns.length) {
+    for (const column of ['scanner_enrollment_id', 'offline_grant_id']) {
+      if (!eventColumns.some((existing) => existing.name === column))
+        await db.execAsync(`ALTER TABLE offline_checkin_events ADD COLUMN ${column} TEXT`);
+    }
+    await db.execAsync('CREATE INDEX IF NOT EXISTS idx_staff_offline_queue ON offline_checkin_events(staff_account_id, sync_status, scanner_enrollment_id)');
+  }
 }
 
 /**

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using WaterbusSystem.Application.Features.ScannerDevices.Services;
 using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
@@ -19,9 +20,13 @@ public class CheckInProcessor
     private readonly ICheckInRepository _repository;
     private readonly OfflineCheckInReconciliationOptions _reconciliation;
 
-    public CheckInProcessor(ICheckInRepository repository, IOptions<OfflineCheckInReconciliationOptions>? reconciliation = null)
+    private readonly StationScannerPolicy? _stationPolicy;
+
+    public CheckInProcessor(ICheckInRepository repository, IOptions<OfflineCheckInReconciliationOptions>? reconciliation = null,
+        StationScannerPolicy? stationPolicy = null)
     {
         _repository = repository;
+        _stationPolicy = stationPolicy;
         _reconciliation = reconciliation?.Value ?? new OfflineCheckInReconciliationOptions();
     }
 
@@ -34,13 +39,27 @@ public class CheckInProcessor
         string? note,
         DateTimeOffset now,
         bool isOfflineSync,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, ScannerAccess? scanner = null, Guid? grantId = null)
     {
+        if (scanner is not null && !isOfflineSync &&
+            !await _stationPolicy!.CanOperateOnlineAsync(scanner, tripStopCallId, now, cancellationToken))
+            return (new CheckInOutcome("NotAssigned", null, null, null), false);
+
         // Khử trùng trước mọi việc khác (BR-OFF-03): quét/gửi lại cùng ClientEventId -> trả đúng kết quả cũ.
         var existingEvent = await _repository.FindEventByClientIdAsync(clientEventId, cancellationToken);
         if (existingEvent is not null)
         {
-            return await ResolveExistingEventOutcomeAsync(existingEvent, staffId, ticketId, tripStopCallId, cancellationToken);
+            return await ResolveExistingEventOutcomeAsync(existingEvent, staffId, ticketId, tripStopCallId, cancellationToken, scanner);
+        }
+
+        var effectiveAt = isOfflineSync ? occurredAtDevice : now;
+        string? denial = null;
+        if (scanner is not null && isOfflineSync)
+        {
+            denial = await _stationPolicy!.OfflineDenialAsync(scanner, grantId, tripStopCallId, effectiveAt, cancellationToken);
+
+            if (denial == "NotAssigned")
+                return (new CheckInOutcome(denial, null, null, null), false);
         }
 
         var stopCall = await _repository.GetRequiredStopCallAsync(tripStopCallId, cancellationToken);
@@ -65,6 +84,8 @@ public class CheckInProcessor
             {
                 TicketId = ticket.Id,
                 StaffAccountId = staffId,
+                ScannerDeviceId = scanner?.Scanner.DeviceId,
+                ScannerEnrollmentId = scanner?.Enrollment.Id,
                 TripStopCallId = tripStopCallId,
                 ClientEventId = clientEventId,
                 OccurredAtDevice = occurredAtDevice,
@@ -76,26 +97,25 @@ public class CheckInProcessor
             return (new CheckInOutcome(invalidOutcome, null, ticket.TicketCode, ticket.SeatReservation?.PassengerName), false);
         }
 
-        // Mốc đối soát quyền tác nghiệp (BR-BOARD-03) và cửa sổ check-in (BR-BOARD-05): giờ server khi trực
-        // tuyến, giờ quét thật trên máy khi offline - ScannerAssignment.ActiveFrom/ActiveUntil đã là khung thời
-        // gian scanner được phân công tác nghiệp, dùng lại đúng khung đó để chặn occurredAtDevice vô lý, không
-        // cần phát sinh ngưỡng nghiệp vụ mới.
-        var effectiveAt = isOfflineSync ? occurredAtDevice : now;
-
-        var hasAssignment = await _repository.HasActiveAssignmentAsync(staffId, tripStopCallId, effectiveAt, cancellationToken);
-
+        var hasAssignment = scanner is not null ||
+            await _repository.HasActiveAssignmentAsync(staffId, tripStopCallId, effectiveAt, cancellationToken);
         var outcome = DetermineOutcome(hasAssignment, tripStopCallId, booking, stopCall, effectiveAt, ticket);
+        if (denial == "ReviewRequired" && (outcome == "Success" || outcome == "NoShowFinalized"))
+            outcome = denial;
 
         _repository.AddCheckInEvent(new CheckInEvent
         {
             TicketId = ticket.Id,
             StaffAccountId = staffId,
+            ScannerDeviceId = scanner?.Scanner.DeviceId,
+            ScannerEnrollmentId = scanner?.Enrollment.Id,
+            ScannerOfflineGrantId = scanner is not null && isOfflineSync ? grantId : null,
             TripStopCallId = tripStopCallId,
             ClientEventId = clientEventId,
             OccurredAtDevice = occurredAtDevice,
             ReceivedAtServer = now,
             Outcome = outcome,
-            SyncStatus = "Synced",
+            SyncStatus = outcome == "ReviewRequired" ? "Conflict" : "Synced",
             Notes = note
         });
 
@@ -110,6 +130,9 @@ public class CheckInProcessor
             ticket.CheckedInAt = effectiveAt;
             ticket.CheckedInByStaffId = staffId;
         }
+
+        if (scanner is not null && outcome == "InvalidStop")
+            return (new CheckInOutcome(outcome, null, null, null), false);
 
         return (new CheckInOutcome(
             outcome,
@@ -131,14 +154,17 @@ public class CheckInProcessor
     /// tra mismatch mà request không-race vẫn có.
     /// </summary>
     public async Task<(CheckInOutcome Outcome, bool WasAlreadySynced)> ResolveExistingEventOutcomeAsync(
-        CheckInEvent existingEvent, Guid staffId, Guid ticketId, Guid tripStopCallId, CancellationToken cancellationToken)
+        CheckInEvent existingEvent, Guid staffId, Guid ticketId, Guid tripStopCallId, CancellationToken cancellationToken, ScannerAccess? scanner = null)
     {
         if (existingEvent.TicketId != ticketId || existingEvent.TripStopCallId != tripStopCallId ||
-            existingEvent.StaffAccountId != staffId)
+            existingEvent.StaffAccountId != staffId || existingEvent.ScannerEnrollmentId != scanner?.Enrollment.Id)
         {
             const string mismatchOutcome = "ClientEventIdMismatch";
             return (new CheckInOutcome(mismatchOutcome, null, null, null), false);
         }
+
+        if (scanner is not null && existingEvent.Outcome == "InvalidStop")
+            return (new CheckInOutcome(existingEvent.Outcome, null, null, null), true);
 
         var existingTicket = await _repository.GetTicketWithReservationAsync(existingEvent.TicketId, cancellationToken);
 
@@ -157,7 +183,7 @@ public class CheckInProcessor
             return "NotAssigned";
         }
 
-        if (tripStopCallId != booking.BoardingCallId)
+        if (tripStopCallId != booking.BoardingCallId || booking.TripId != stopCall.TripId)
         {
             // BR-BOARD-03: không được check-in Ticket tại bến khác bến lên của chính Booking đó.
             return "InvalidStop";

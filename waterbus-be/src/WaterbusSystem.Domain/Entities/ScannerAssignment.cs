@@ -8,7 +8,9 @@ public class ScannerAssignment : BaseEntity
 {
     public Guid DeviceId { get; set; }
     public ScannerDevice? Device { get; set; }
-    public Guid StaffAccountId { get; set; }
+    // Existing assignments retain their original staff identity for audit.
+    public Guid? StaffAccountId { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
     public Guid TripStopCallId { get; set; }
     public TripStopCall? TripStopCall { get; set; }
     public bool IsPrimaryOffline { get; set; } = false;

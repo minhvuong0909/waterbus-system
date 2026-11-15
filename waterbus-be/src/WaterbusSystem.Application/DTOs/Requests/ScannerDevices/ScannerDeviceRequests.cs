@@ -5,4 +5,4 @@ public record RegisterScannerDeviceRequest(string DeviceCode, string? Label);
 
 public record UpdateScannerDeviceRequest(string? Label);
 
-public record GetScannerDevicesRequest(int PageNumber = 1, int PageSize = 10, bool? IsActive = null, string? Search = null);
+public record GetScannerDevicesRequest(int PageNumber = 1, int PageSize = 10, bool? IsActive = null, string? Search = null, Guid? StationId = null, string? Status = null);

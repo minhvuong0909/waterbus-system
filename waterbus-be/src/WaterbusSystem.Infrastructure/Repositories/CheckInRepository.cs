@@ -22,7 +22,7 @@ public sealed class CheckInRepository(ApplicationDbContext context) : ICheckInRe
         select user;
 
     public Task<bool> IsEligibleScannerStaffAsync(Guid staffId, CancellationToken cancellationToken = default) =>
-        EligibleScannerStaff().AnyAsync(user => user.Id == staffId, cancellationToken);
+        EligibleScannerStaff().AnyAsync(user => user.Id == staffId && (!user.LockoutEnabled || user.LockoutEnd == null || user.LockoutEnd <= DateTimeOffset.UtcNow), cancellationToken);
 
     public Task<PaginatedList<ScannerStaffResponse>> ListScannerStaffAsync(
         int pageNumber, int pageSize, CancellationToken cancellationToken = default) =>
@@ -35,12 +35,13 @@ public sealed class CheckInRepository(ApplicationDbContext context) : ICheckInRe
     {
         var query = from assignment in context.ScannerAssignments.AsNoTracking()
                     where !assignment.IsDeleted && assignment.TripStopCallId == tripStopCallId &&
+                          assignment.RevokedAt == null &&
                           (assignment.ActiveUntil == null || (assignment.ActiveUntil > now && assignment.ActiveUntil > assignment.ActiveFrom))
-                    join user in context.Users on assignment.StaffAccountId equals user.Id into staff
+                    join user in context.Users on assignment.StaffAccountId equals (Guid?)user.Id into staff
                     from user in staff.DefaultIfEmpty()
                     orderby assignment.ActiveFrom, assignment.Id
                     select new ScannerAssignmentAdminResponse(
-                        assignment.Id, assignment.StaffAccountId, user == null ? null : user.FullName,
+                        assignment.Id, assignment.StaffAccountId ?? Guid.Empty, user == null ? null : user.FullName,
                         assignment.Device!.DeviceCode, assignment.IsPrimaryOffline, assignment.ActiveFrom, assignment.ActiveUntil);
         return query.ToPaginatedListAsync(pageNumber, pageSize, cancellationToken);
     }

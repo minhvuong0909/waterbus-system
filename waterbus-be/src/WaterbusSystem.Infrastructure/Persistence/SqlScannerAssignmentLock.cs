@@ -23,6 +23,10 @@ public sealed class SqlScannerAssignmentLock(ApplicationDbContext context) : ISc
         Guid deviceId, TimeSpan wait, CancellationToken cancellationToken = default) =>
         AcquireAsync(DeviceResourcePrefix + deviceId.ToString("N"), wait, cancellationToken);
 
+    public Task<IAsyncDisposable?> TryAcquireStaffAsync(
+        Guid staffId, TimeSpan wait, CancellationToken cancellationToken = default) =>
+        AcquireAsync("waterbus:scanner-staff:" + staffId.ToString("N"), wait, cancellationToken);
+
     private async Task<IAsyncDisposable?> AcquireAsync(string resource, TimeSpan wait, CancellationToken cancellationToken)
     {
         // Test đơn vị dùng InMemory (không có SQL): không có gì để khoá

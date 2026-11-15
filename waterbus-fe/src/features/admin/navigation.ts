@@ -28,6 +28,8 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { to: ROUTES.adminTrips, label: 'Trips', icon: 'directions_boat', group: 'Operations', roles: [admin] },
   { to: ROUTES.adminIncidents, label: 'Incidents', icon: 'warning', group: 'Operations', roles: [admin] },
   { to: ROUTES.adminCheckIn, label: 'Check-in', icon: 'how_to_reg', group: 'Operations', roles: [admin] },
+  { to: ROUTES.adminScanners, label: 'Scanners', icon: 'qr_code_scanner', group: 'Operations', roles: [admin] },
+  { to: ROUTES.adminStaffShifts, label: 'Staff shifts', icon: 'schedule', group: 'Operations', roles: [admin] },
   { to: ROUTES.adminStations, label: 'Stations', icon: 'anchor', group: 'Catalogue', roles: [admin] },
   { to: ROUTES.adminRoutes, label: 'Routes', icon: 'directions', group: 'Catalogue', roles: [admin] },
   { to: ROUTES.adminSchedules, label: 'Schedules', icon: 'calendar_today', group: 'Catalogue', roles: [admin] },

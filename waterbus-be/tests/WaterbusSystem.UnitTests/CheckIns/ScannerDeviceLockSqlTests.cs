@@ -97,6 +97,8 @@ public sealed class ScannerDeviceLockSqlTests : IAsyncLifetime
     /// <summary>Bọc khoá thật nhưng rút ngắn thời gian chờ để test timeout không phải chờ 10 giây.</summary>
     private sealed class ShortWaitLock(IScannerAssignmentLock inner) : IScannerAssignmentLock
     {
+        public Task<IAsyncDisposable?> TryAcquireStaffAsync(Guid staffId, TimeSpan wait, CancellationToken cancellationToken = default) => inner.TryAcquireStaffAsync(staffId, wait, cancellationToken);
+
         public Task<IAsyncDisposable?> TryAcquireAsync(Guid tripStopCallId, TimeSpan wait, CancellationToken ct = default) =>
             inner.TryAcquireAsync(tripStopCallId, TimeSpan.FromMilliseconds(300), ct);
         public Task<IAsyncDisposable?> TryAcquireDeviceAsync(Guid deviceId, TimeSpan wait, CancellationToken ct = default) =>

@@ -1,50 +1,39 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Button, Notice, TextField } from '../../../components/ui'
+import { Button, Notice, SelectField, TextField } from '../../../components/ui'
 import { useSubmit } from '../../../hooks'
-import { t } from '../../../i18n'
+import type { AdminStation } from '../types'
 import { registerScannerDevice } from '../services/scannerAssignmentService'
 
-export default function ScannerDeviceRegistration({ disabled, onRegistered }: {
-  disabled: boolean
+export default function ScannerDeviceRegistration({ stations, onRegistered }: {
+  stations: AdminStation[]
   onRegistered: (id: string) => void
 }) {
-  const [open, setOpen] = useState(false)
-  const [code, setCode] = useState('')
+  const [stationId, setStationId] = useState('')
   const [label, setLabel] = useState('')
-  const submitting = useRef(false)
   const { run, busy, error } = useSubmit()
-  const validCode = /^[A-Za-z0-9._-]{1,50}$/.test(code.trim())
 
-  async function submit(event: FormEvent) {
+  async function create(event: FormEvent) {
     event.preventDefault()
-    if (disabled || submitting.current || !validCode) return
-    submitting.current = true
-    try {
-      const id = await run(() => registerScannerDevice(code.trim(), label.trim() || null))
-      if (!id) return
-      setOpen(false)
-      setCode('')
+    if (!stationId || busy) return
+    const id = await run(() => registerScannerDevice(stationId, label.trim() || null))
+    if (id) {
       setLabel('')
       onRegistered(id)
-    } finally {
-      submitting.current = false
     }
   }
 
-  if (!open) return <Button variant="neutral" disabled={disabled} onClick={() => setOpen(true)}>{t('Register a scanner')}</Button>
-
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-xl border border-outline-variant/30 p-4">
-      <TextField label="Scanner code" maxLength={50} value={code} onChange={(event) => setCode(event.target.value)}
-        hint={t('Use letters, numbers, dots, underscores or hyphens.')} disabled={busy || disabled} />
-      <TextField label="Device label" maxLength={100} value={label} onChange={(event) => setLabel(event.target.value)}
-        disabled={busy || disabled} />
+    <form className="space-y-3" onSubmit={create}>
+      <fieldset disabled={busy} className="grid gap-3 sm:grid-cols-2">
+        <SelectField label="Station" value={stationId} onChange={(event) => setStationId(event.target.value)} required>
+          <option value="">Choose a station</option>
+          {stations.map((station) => <option key={station.id} value={station.id}>{station.name}</option>)}
+        </SelectField>
+        <TextField label="Device label (optional)" value={label} maxLength={100} onChange={(event) => setLabel(event.target.value)} />
+      </fieldset>
       {error && <Notice tone="error">{error}</Notice>}
-      <div className="flex gap-2">
-        <Button type="submit" disabled={busy || disabled || !validCode}>{t('Register a scanner')}</Button>
-        <Button variant="neutral" disabled={busy} onClick={() => setOpen(false)}>{t('Cancel')}</Button>
-      </div>
+      <Button type="submit" disabled={!stationId || busy}>Create scanner</Button>
     </form>
   )
 }

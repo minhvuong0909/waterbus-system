@@ -17,6 +17,7 @@ import { fetchQrPublicKey } from '../checkin/qrPublicKeyService';
 import { mapScannerManifestToPreloadManifest } from '../checkin/manifestMapper';
 import { syncCheckInEvents } from '../checkin/syncCheckInService';
 import { ApiError } from '../api/apiClient';
+import { scannerCredentials } from '../checkin/scannerCredentials';
 import {
   PreloadManifest,
   ScannerDeviceInfo,
@@ -42,13 +43,13 @@ class SyncService {
   // được điền bằng TripStopCallId/StationName thật sau khi preloadManifest thành công (xem
   // useScannerStore.preloadCache). Trống nghĩa là "chưa đăng nhập" / "chưa chọn điểm dừng".
   private currentDevice: ScannerDeviceInfo = {
-    deviceId: 'DEV-BD-01',
-    deviceCode: 'DEV-BD-01',
+    deviceId: '',
+    deviceCode: '',
     staffId: '',
     staffName: '',
     stationId: '',
     stationName: '',
-    isPrimaryOffline: true,
+    isPrimaryOffline: false,
     forceOfflineMode: false,
   };
 
@@ -60,7 +61,7 @@ class SyncService {
       if (NetInfo?.addEventListener) {
         NetInfo.addEventListener((state: any) => {
           const wasOffline = !this.isOnline;
-          this.isOnline = !!(state.isConnected && state.isInternetReachable !== false);
+          this.isOnline = state.isConnected !== false && state.isInternetReachable !== false;
 
           if (wasOffline && this.isOnline && !this.currentDevice.forceOfflineMode) {
             console.log('[SyncService] Network restored (3G/WiFi) — auto triggering batch sync');
@@ -92,8 +93,7 @@ class SyncService {
     let count = pendingCount;
     if (count === undefined) {
       try {
-        const stats = await SqliteRepository.getManifestStats();
-        count = stats.pendingSyncCount;
+        count = await SqliteRepository.countQueue(this.currentDevice.staffId, 'Pending');
       } catch {
         count = 0;
       }
@@ -138,111 +138,95 @@ class SyncService {
    * dừng (TripStopCallId) Staff được phân công, lưu vào SQLite. KHÔNG fallback sang dữ liệu demo
    * khi lỗi - ném lỗi để màn hình báo rõ cho Staff (tránh tác nghiệp nhầm trên dữ liệu giả).
    */
-  public async preloadManifest(tripStopCallId: string): Promise<{ manifest: PreloadManifest; message: string }> {
-    console.log(`[SyncService] Preloading REAL manifest for TripStopCallId: ${tripStopCallId}...`);
-
-    const [manifestResponse, publicKeyResponse] = await Promise.all([
-      fetchScannerManifest(tripStopCallId),
-      fetchQrPublicKey(),
-    ]);
-
-    const manifest = mapScannerManifestToPreloadManifest(manifestResponse, publicKeyResponse);
-
-    await SqliteRepository.saveManifest(manifest);
-
-    this.lastMessage = `Đã tải trước thành công ${manifest.bookings.length} đơn đặt, ${
-      manifest.bookings.flatMap((b) => b.tickets).length
-    } vé vào SQLite (${manifest.stationName})`;
-    await this.notifyStatus();
-
-    return { manifest, message: this.lastMessage };
+  public isConnected(): boolean {
+    return this.isOnline && !this.currentDevice.forceOfflineMode;
   }
 
-  /**
-   * Idempotent Batch Sync Worker thật (BR-OFF-03): gửi các event Pending lên
-   * POST /checkins/sync. Chỉ đánh "Synced" các event server đã THỰC SỰ xử lý (outcome khác
-   * "Error"); event "Error" (vé không tồn tại, concurrency...) vẫn giữ Pending để báo lỗi/retry,
-   * KHÔNG được giả lập thành công khi gọi server thất bại hoàn toàn (mất mạng/server down) -
-   * trước đây có lỗi nghiêm trọng ở đây: catch mất mạng vẫn đánh dấu Synced hết, khiến check-in
-   * thật không bao giờ tới được backend mà Staff không biết.
-   */
-  public async triggerBatchSync(): Promise<{ syncedCount: number; message: string }> {
-    if (this.isSyncing) {
-      return { syncedCount: 0, message: 'Tiến trình đồng bộ đang chạy' };
-    }
+  public async preloadManifest(tripStopCallId: string, staffId: string) {
+    const [response, publicKey] = await Promise.all([fetchScannerManifest(tripStopCallId, staffId), fetchQrPublicKey()]);
+    if (this.currentDevice.staffId !== staffId) throw new Error('Phiên đăng nhập đã thay đổi.');
+    const manifest = mapScannerManifestToPreloadManifest(response, publicKey);
+    await scannerCredentials.invalidateCache();
+    await SqliteRepository.saveManifest(manifest, true);
+    const message = `Đã tải ${manifest.bookings.length} đơn đặt tại ${manifest.stationName}.`;
+    return { response, message };
+  }
 
-    if (this.currentDevice.forceOfflineMode) {
-      this.lastMessage = 'Đang bật chế độ Ngoại tuyến cố định (Offline Mode). Không gửi lên server.';
-      await this.notifyStatus();
-      return { syncedCount: 0, message: this.lastMessage };
-    }
-
+  public async triggerBatchSync(includeReview = false): Promise<{ syncedCount: number; message: string }> {
+    if (this.isSyncing) return { syncedCount: 0, message: 'Tiến trình đồng bộ đang chạy.' };
+    const { staffId, forceOfflineMode } = this.currentDevice;
+    if (!staffId || forceOfflineMode) return { syncedCount: 0, message: 'Chưa thể đồng bộ ở chế độ hiện tại.' };
     this.isSyncing = true;
-    await this.notifyStatus();
-
+    let sentIds: string[] = [];
     try {
-      const pendingEvents = await SqliteRepository.getPendingEvents(50);
-      if (pendingEvents.length === 0) {
-        this.lastMessage = 'Dữ liệu cục bộ đã đồng bộ đầy đủ (0 vé tồn đọng)';
-        this.isSyncing = false;
-        await this.notifyStatus(0);
+      const pending = await SqliteRepository.getPendingEvents(500, staffId, undefined, true, includeReview);
+      if (!pending.length) {
+        const outstanding = await SqliteRepository.countQueue(staffId, 'Pending');
+        this.lastMessage = outstanding > 0
+          ? 'Có sự kiện cũ cần quản trị viên đối soát tại máy.'
+          : 'Không có sự kiện chờ đồng bộ.';
         return { syncedCount: 0, message: this.lastMessage };
       }
 
-      console.log(`[SyncService] Pushing batch of ${pendingEvents.length} offline check-in events...`);
+      await this.notifyStatus();
+      let syncedCount = 0;
+      let needsReview = 0;
+      let rejected = 0;
+      let failed = 0;
+      const enrollments = new Set(pending.map((event) => event.scannerEnrollmentId));
+      for (const enrollmentId of enrollments) {
+        if (!enrollmentId || this.currentDevice.staffId !== staffId) break;
+        const credential = await scannerCredentials.credential(enrollmentId);
+        const batch = pending.filter((event) => event.scannerEnrollmentId === enrollmentId).slice(0, 50);
+        if (!credential) {
+          failed += batch.length;
+          continue;
+        }
 
-      const payload: CheckInEventSyncInput[] = pendingEvents.map((e) => ({
-        ticketId: e.ticketId,
-        tripStopCallId: e.tripStopCallId,
-        clientEventId: e.clientEventId,
-        occurredAtDevice: e.occurredAtDevice,
-        note: e.notes,
-      }));
-
-      const response = await syncCheckInEvents(payload);
-
-      const resolved = response.results.filter((r) => ['Success', 'AlreadyCheckedIn'].includes(r.outcome));
-      const failed = response.results.filter((r) => r.outcome === 'Error');
-      const conflicts = response.results.filter((r) => !['Success', 'AlreadyCheckedIn', 'Error'].includes(r.outcome));
-      for (const conflict of conflicts) {
-        await SqliteRepository.markEventConflict(conflict.clientEventId, conflict.error || conflict.outcome);
+        const payload: CheckInEventSyncInput[] = batch.map((event) => ({
+          ticketId: event.ticketId,
+          tripStopCallId: event.tripStopCallId,
+          clientEventId: event.clientEventId,
+          occurredAtDevice: event.occurredAtDevice,
+          offlineGrantId: event.offlineGrantId,
+          note: event.notes,
+        }));
+        sentIds = batch.map((event) => event.clientEventId);
+        const response = await syncCheckInEvents(payload, credential, staffId);
+        for (const result of response.results) {
+          if (!sentIds.includes(result.clientEventId)) continue;
+          if (['Success', 'AlreadyCheckedIn'].includes(result.outcome)) {
+            await SqliteRepository.markEventsSynced([{ clientEventId: result.clientEventId }]);
+            syncedCount++;
+          } else if (result.outcome === 'ReviewRejected') {
+            await SqliteRepository.markEventsSynced([{ clientEventId: result.clientEventId }]);
+            rejected++;
+          } else if (result.outcome === 'Error') {
+            await SqliteRepository.recordSyncFailure([result.clientEventId], result.error ?? 'Lỗi đồng bộ.');
+            failed++;
+          } else {
+            await SqliteRepository.markEventConflict(result.clientEventId, result.error || result.outcome);
+            needsReview++;
+          }
+        }
+        sentIds = [];
       }
 
-      await SqliteRepository.markEventsSynced(
-        resolved.map((r) => ({ clientEventId: r.clientEventId, receivedAtServer: new Date().toISOString() }))
-      );
-      for (const f of failed) {
-        await SqliteRepository.recordSyncFailure([f.clientEventId], f.error || 'Lỗi không xác định từ máy chủ.');
-      }
-
-      this.lastSyncAt = new Date().toLocaleTimeString();
-      this.lastMessage =
-        failed.length === 0 && conflicts.length === 0
-          ? `Đã đồng bộ thành công lô ${resolved.length} vé lên hệ thống lúc ${this.lastSyncAt}`
-          : `Đồng bộ ${resolved.length} vé thành công, ${failed.length} vé lỗi, ${conflicts.length} vé bị máy chủ từ chối. Hãy kiểm tra lịch sử và tải lại manifest.`;
-      console.log(`[SyncService] ${this.lastMessage}`);
-
-      const remainingStats = await SqliteRepository.getManifestStats();
-      this.isSyncing = false;
-      await this.notifyStatus(remainingStats.pendingSyncCount);
-
-      return { syncedCount: resolved.length, message: this.lastMessage };
-    } catch (error: any) {
-      // Mất mạng hoàn toàn / server không phản hồi: KHÔNG đánh dấu Synced, chỉ ghi nhận lỗi để
-      // lần quét định kỳ sau thử lại - việc giữ Pending ở đây chính là điểm "an toàn khi lỗi".
-      const message = error instanceof ApiError ? error.message : error?.message || 'Không kết nối được máy chủ.';
-      try {
-        const pendingEvents = await SqliteRepository.getPendingEvents(50);
-        await SqliteRepository.recordSyncFailure(pendingEvents.map((e) => e.clientEventId), message);
-      } catch {
-        // Bỏ qua lỗi phụ khi đang xử lý lỗi chính.
-      }
-
-      console.error('[SyncService] Batch sync failure:', error);
-      this.lastMessage = `Lỗi đồng bộ: ${message}`;
+      if (syncedCount > 0) this.lastSyncAt = new Date().toLocaleTimeString();
+      const message = `Đã đồng bộ ${syncedCount}. Cần đối soát ${needsReview}. Đã từ chối ${rejected}. Lỗi hoặc thiếu thông tin ghép nối ${failed}.`;
+      if (this.currentDevice.staffId === staffId) this.lastMessage = message;
+      return { syncedCount, message };
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'Không kết nối được máy chủ.';
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403))
+        await scannerCredentials.invalidateCache();
+      await SqliteRepository.recordSyncFailure(sentIds, reason);
+      const message = `Lỗi đồng bộ: ${reason}`;
+      if (this.currentDevice.staffId === staffId) this.lastMessage = message;
+      return { syncedCount: 0, message };
+    } finally {
       this.isSyncing = false;
       await this.notifyStatus();
-      return { syncedCount: 0, message: this.lastMessage };
     }
   }
 

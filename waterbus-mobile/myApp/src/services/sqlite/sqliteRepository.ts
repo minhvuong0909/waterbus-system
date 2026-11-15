@@ -4,6 +4,7 @@
  * and offline sync event queues.
  */
 
+import type { DatabaseAdapter } from './database';
 import { getDatabase } from './database';
 import {
   PreloadManifest,
@@ -15,7 +16,7 @@ import {
   ManifestStats,
 } from '../../types/scanner';
 
-function generateUUID(): string {
+export function generateUUID(): string {
   // RFC4122 v4 UUID generator without native deps
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = (Math.random() * 16) | 0;
@@ -28,11 +29,12 @@ export class SqliteRepository {
   /**
    * Save preloaded manifest to SQLite (trips, bookings, tickets, public key)
    */
-  static async saveManifest(manifest: PreloadManifest): Promise<void> {
+  static async saveManifest(manifest: PreloadManifest, replace = false): Promise<void> {
     const db = await getDatabase();
 
     await db.withTransactionAsync(async () => {
       // 1. Save or update Public Key
+      if (replace) await this.clearManifestOnDb(db);
       if (manifest.publicKey) {
         await this.savePublicKeyOnDb(db, manifest.publicKey);
       }
@@ -273,10 +275,13 @@ export class SqliteRepository {
     staffAccountId: string;
     staffName: string;
     scannerDeviceId: string;
+    scannerEnrollmentId?: string;
+    offlineGrantId?: string;
+    occurredAtDevice?: string;
     notes?: string;
   }): Promise<{ checkedInCount: number; events: CheckInEvent[] }> {
     const db = await getDatabase();
-    const nowIso = new Date().toISOString();
+    const nowIso = params.occurredAtDevice ?? new Date().toISOString();
     const generatedEvents: CheckInEvent[] = [];
 
     await db.withTransactionAsync(async () => {
@@ -287,7 +292,7 @@ export class SqliteRepository {
           [ticketId]
         );
 
-        if (!ticketRow) continue;
+        if (!ticketRow || ticketRow.booking_id !== params.bookingId || ticketRow.boarding_status !== 'NotCheckedIn') continue;
 
         // Update ticket in local DB
         await db.runAsync(
@@ -307,9 +312,9 @@ export class SqliteRepository {
           `INSERT INTO offline_checkin_events (
             id, client_event_id, ticket_id, ticket_number, passenger_name,
             seat_code, booking_id, trip_id, trip_stop_call_id, staff_account_id,
-            staff_name, scanner_device_id, occurred_at_device, outcome,
+            staff_name, scanner_device_id, scanner_enrollment_id, offline_grant_id, occurred_at_device, outcome,
             sync_status, retry_count, notes
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Success', 'Pending', 0, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Success', 'Pending', 0, ?)`,
           [
             eventId,
             clientEventId,
@@ -323,6 +328,8 @@ export class SqliteRepository {
             params.staffAccountId,
             params.staffName,
             params.scannerDeviceId,
+            params.scannerEnrollmentId ?? null,
+            params.offlineGrantId ?? null,
             nowIso,
             params.notes || null,
           ]
@@ -341,6 +348,8 @@ export class SqliteRepository {
           staffAccountId: params.staffAccountId,
           staffName: params.staffName,
           scannerDeviceId: params.scannerDeviceId,
+          scannerEnrollmentId: params.scannerEnrollmentId,
+          offlineGrantId: params.offlineGrantId,
           occurredAtDevice: nowIso,
           outcome: 'Success',
           syncStatus: 'Pending',
@@ -359,14 +368,17 @@ export class SqliteRepository {
   /**
    * Get pending offline check-in events for batch sync
    */
-  static async getPendingEvents(limit = 50): Promise<CheckInEvent[]> {
+  static async getPendingEvents(limit = 50, staffId?: string, enrollmentId?: string, pairedOnly = false, includeReview = false): Promise<CheckInEvent[]> {
     const db = await getDatabase();
     const rows = await db.getAllAsync<any>(
       `SELECT * FROM offline_checkin_events 
-       WHERE sync_status = 'Pending' 
-       ORDER BY occurred_at_device ASC 
+       WHERE (sync_status = 'Pending' ${includeReview ? "OR (sync_status = 'Conflict' AND error_message = 'ReviewRequired')" : ''})
+       ${staffId === undefined ? '' : 'AND staff_account_id = ?'}
+       ${enrollmentId === undefined ? '' : 'AND scanner_enrollment_id = ?'}
+       ${pairedOnly ? 'AND scanner_enrollment_id IS NOT NULL' : ''}
+       ORDER BY occurred_at_device ASC
        LIMIT ?`,
-      [limit]
+      [...(staffId === undefined ? [] : [staffId]), ...(enrollmentId === undefined ? [] : [enrollmentId]), limit]
     );
 
     return rows.map((r) => ({
@@ -382,6 +394,8 @@ export class SqliteRepository {
       staffAccountId: r.staff_account_id,
       staffName: r.staff_name,
       scannerDeviceId: r.scanner_device_id,
+      scannerEnrollmentId: r.scanner_enrollment_id ?? undefined,
+      offlineGrantId: r.offline_grant_id ?? undefined,
       occurredAtDevice: r.occurred_at_device,
       receivedAtServer: r.received_at_server,
       outcome: r.outcome,
@@ -527,14 +541,35 @@ export class SqliteRepository {
    * tên nút - khiến phiên E2E/thật kế tiếp không hoàn toàn sạch trạng thái demo.
    */
   static async clearCache(): Promise<void> {
+    await this.clearManifest();
+  }
+
+  static async clearManifest(): Promise<void> {
     const db = await getDatabase();
-    await db.execAsync(`
+    await db.withTransactionAsync(() => this.clearManifestOnDb(db));
+  }
+
+  private static clearManifestOnDb(db: DatabaseAdapter): Promise<void> {
+    return db.execAsync(`
       DELETE FROM manifest_tickets;
       DELETE FROM manifest_bookings;
       DELETE FROM manifest_trips;
-      DELETE FROM offline_checkin_events;
       DELETE FROM scanner_config;
       DELETE FROM public_keys;
     `);
+  }
+
+  static async markOnlineCheckIn(ticketId: string, staffId: string, at: string): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(`UPDATE manifest_tickets SET boarding_status = 'CheckedIn', checked_in_at = ?,
+      checked_in_by_staff_id = ? WHERE id = ?`, [at, staffId, ticketId]);
+  }
+
+  static async countQueue(staffId: string, status: 'Pending' | 'Conflict'): Promise<number> {
+    if (!staffId) return 0;
+    const db = await getDatabase();
+    const statusFilter = status === 'Pending' ? "sync_status = 'Pending'" : "sync_status = 'Conflict'";
+    const rows = await db.getAllAsync(`SELECT id FROM offline_checkin_events WHERE ${statusFilter} AND staff_account_id = ?`, [staffId]);
+    return rows.length;
   }
 }

@@ -10,6 +10,11 @@ public class CheckInEvent : BaseEntity
     public Guid TicketId { get; set; }
     public Ticket? Ticket { get; set; }
     public Guid StaffAccountId { get; set; }
+    public Guid? ScannerEnrollmentId { get; set; }
+    public Guid? ScannerOfflineGrantId { get; set; }
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public Guid? ReviewedByAccountId { get; set; }
+    public string? ReviewNote { get; set; }
     public Guid? ScannerDeviceId { get; set; }
     public ScannerDevice? ScannerDevice { get; set; }
     public Guid TripStopCallId { get; set; }

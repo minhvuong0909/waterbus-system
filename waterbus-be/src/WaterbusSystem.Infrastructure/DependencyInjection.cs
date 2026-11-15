@@ -218,6 +218,12 @@ public static class DependencyInjection
         services.AddScoped<WaterbusSystem.Application.Features.Payments.Services.PaymentConfirmationService>();
         services.AddScoped<CheckoutAccessService>();
         services.AddScoped<IBookingQrSigner, RsaBookingQrSigner>();
+        services.AddScoped<IStationScannerRepository, StationScannerRepository>();
+        services.AddScoped<IScannerSecrets, ScannerSecrets>();
+        services.AddScoped<WaterbusSystem.Application.Features.ScannerDevices.Services.StationScannerAccessService>();
+        services.AddScoped<WaterbusSystem.Application.Features.ScannerDevices.Services.StationScannerPolicy>();
+        services.AddScoped<IStationScannerService, WaterbusSystem.Application.Features.ScannerDevices.Services.StationScannerService>();
+        services.AddScoped<IStaffStationShiftService, WaterbusSystem.Application.Features.ScannerDevices.Services.StaffStationShiftService>();
         services.AddScoped<ICheckInRepository, CheckInRepository>();
         services.AddScoped<CheckInProcessor>();
         services.AddScoped<ICheckInService, CheckInService>();

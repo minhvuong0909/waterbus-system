@@ -12,9 +12,10 @@ function applyStaffIdentity(user: AuthUser | null) {
   syncService.setDeviceInfo({
     staffId: user?.userId ?? '',
     staffName: user?.fullName ?? '',
+    forceOfflineMode: false,
   });
   useScannerStore.setState({ deviceInfo: syncService.getDeviceInfo(), activeAssignment: null,
-    currentBooking: null, verificationResult: null, isModalOpen: false });
+    currentBooking: null, verificationResult: null, isModalOpen: false, shift: null, syncMessage: null, needsReviewCount: 0 });
 }
 
 interface AuthState {
@@ -40,6 +41,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       const user = await authService.restoreSession();
       applyStaffIdentity(user);
       set({ user, isRestoring: false });
+      if (user) void useScannerStore.getState().loadPairing();
+      void useScannerStore.getState().refreshStats();
     } catch {
       set({ user: null, isRestoring: false });
     }
@@ -51,6 +54,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       const user = await authService.login(email.trim(), password);
       applyStaffIdentity(user);
       set({ user, isLoggingIn: false, error: null });
+      void useScannerStore.getState().loadPairing();
+      void useScannerStore.getState().refreshStats();
       return true;
     } catch (err: any) {
       set({ isLoggingIn: false, error: err?.message || 'Đăng nhập thất bại. Vui lòng thử lại.' });
@@ -59,11 +64,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    await authService.logout();
-    // Xoá luôn TripStopCallId đang preload (tái dùng field stationId) - Staff kế tiếp đăng nhập
-    // trên máy này không được kế thừa phân công của người trước.
-    syncService.setDeviceInfo({ staffId: '', staffName: '', stationId: '', stationName: '' });
     applyStaffIdentity(null);
-    set({ user: null, error: null });
+    try {
+      await authService.logout();
+    } finally {
+      set({ user: null, error: null });
+    }
   },
 }));
