@@ -112,4 +112,74 @@ public sealed class SightseeingAudioRepository(ApplicationDbContext context) : I
                 // Chưa có nguồn tiến độ RoutePoi/VisitId; core sẽ từ chối vùng chồng nhau.
             }, candidates);
     }
+
+    public async Task<StopAnnouncementSnapshot?> GetStopAnnouncementSnapshotAsync(
+        Guid tripId, CancellationToken cancellationToken)
+    {
+        var trip = await _context.Trips.AsNoTracking()
+            .Where(t => t.Id == tripId && !t.IsDeleted)
+            .Select(t => new { t.Id, t.BoatId, t.RouteId, t.TripType })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (trip is null) return null;
+
+        var stops = await _context.TripStopCalls.AsNoTracking()
+            .Where(c => c.TripId == tripId && !c.IsDeleted && c.RouteStop != null && !c.RouteStop.IsDeleted
+                && c.RouteStop.Station != null && !c.RouteStop.Station.IsDeleted)
+            .OrderBy(c => c.VisitOrder)
+            .Select(c => new StopAnnouncementStation(
+                c.RouteStop!.Station!.Id,
+                c.RouteStop.Station.Name,
+                c.VisitOrder,
+                (decimal)c.RouteStop.Station.Latitude,
+                (decimal)c.RouteStop.Station.Longitude))
+            .ToListAsync(cancellationToken);
+
+        return new StopAnnouncementSnapshot(
+            trip.Id, trip.BoatId ?? Guid.Empty, trip.RouteId, trip.TripType.ToString(), stops);
+    }
+
+    public async Task<IReadOnlyList<RouteNarrationCandidate>> ListRouteNarrationCandidatesAsync(
+        Guid routeId, CancellationToken cancellationToken)
+    {
+        var routePois = await _context.RoutePois.AsNoTracking()
+            .Where(rp => rp.RouteId == routeId && !rp.IsDeleted && rp.IsActive
+                && rp.Poi != null && !rp.Poi.IsDeleted && rp.Poi.IsActive)
+            .OrderBy(rp => rp.DisplayOrder)
+            .Select(rp => new
+            {
+                rp.Id, rp.PoiId, rp.DisplayOrder, rp.Poi!.Name, rp.Poi.Description,
+                rp.Poi.Latitude, rp.Poi.Longitude
+            })
+            .ToListAsync(cancellationToken);
+
+        var poiIds = routePois.Select(rp => rp.PoiId).Distinct().ToArray();
+        var guides = await _context.AudioGuides.AsNoTracking()
+            .Where(a => poiIds.Contains(a.PoiId) && !a.IsDeleted && a.IsPublished && a.LanguageCode == "vi")
+            .Select(a => new { a.Id, a.PoiId, a.AudioAssetUri, a.DurationSeconds })
+            .ToListAsync(cancellationToken);
+
+        var guideByPoiId = guides.ToDictionary(a => a.PoiId);
+
+        return routePois.Select(rp =>
+        {
+            guideByPoiId.TryGetValue(rp.PoiId, out var guide);
+            return new RouteNarrationCandidate(
+                rp.Id, rp.PoiId, rp.Name, rp.Description, rp.Latitude, rp.Longitude, rp.DisplayOrder,
+                guide?.Id, guide?.AudioAssetUri, guide?.DurationSeconds);
+        }).ToArray();
+    }
+
+    public async Task<int> GetMaxRouteSegmentCountAsync(CancellationToken cancellationToken)
+    {
+        var stopCounts = await _context.RouteStops.AsNoTracking()
+            .Where(rs => !rs.IsDeleted
+                && rs.Route != null && !rs.Route.IsDeleted && rs.Route.IsActive)
+            .GroupBy(rs => rs.RouteId)
+            .Select(g => g.Count())
+            .ToListAsync(cancellationToken);
+
+        if (stopCounts.Count == 0) return 0;
+        return Math.Max(0, stopCounts.Max() - 1);
+    }
 }
