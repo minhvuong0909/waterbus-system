@@ -50,30 +50,37 @@ public class StopAnnouncementTests
     }
 
     [Fact]
-    public async Task StopAnnouncementPublisher_PublishesCorrectEventTypes()
+    public async Task StopAnnouncementPublisher_PublishesAllThreeEventTypes()
     {
         // Arrange
         var mockPublisher = new Mock<IStopAnnouncementPublisher>();
         var tripId = Guid.NewGuid();
         var boatId = Guid.NewGuid();
-        var stationId = Guid.NewGuid();
+        var fromStationId = Guid.NewGuid();
+        var toStationId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
 
         mockPublisher
-            .Setup(p => p.PublishNearStopAsync(tripId, boatId, stationId, "Bến Bình An", 0.8, now, "Sightseeing", default))
+            .Setup(p => p.PublishDepartingAsync(tripId, boatId, fromStationId, "Bến Bạch Đằng", now, "Sightseeing", default))
             .Returns(Task.CompletedTask);
 
         mockPublisher
-            .Setup(p => p.PublishArrivedAsync(tripId, boatId, stationId, "Bến Bình An", 1.0, now, "Sightseeing", default))
+            .Setup(p => p.PublishNearStopAsync(tripId, boatId, toStationId, "Bến Bình An", 0.8, now, "Sightseeing", default))
             .Returns(Task.CompletedTask);
 
-        // Act
-        await mockPublisher.Object.PublishNearStopAsync(tripId, boatId, stationId, "Bến Bình An", 0.8, now, "Sightseeing");
-        await mockPublisher.Object.PublishArrivedAsync(tripId, boatId, stationId, "Bến Bình An", 1.0, now, "Sightseeing");
+        mockPublisher
+            .Setup(p => p.PublishArrivedAsync(tripId, boatId, toStationId, "Bến Bình An", 1.0, now, "Sightseeing", default))
+            .Returns(Task.CompletedTask);
+
+        // Act: Rời bến Bạch Đằng -> Gần tới bến Bình An -> Đã tới bến Bình An
+        await mockPublisher.Object.PublishDepartingAsync(tripId, boatId, fromStationId, "Bến Bạch Đằng", now, "Sightseeing");
+        await mockPublisher.Object.PublishNearStopAsync(tripId, boatId, toStationId, "Bến Bình An", 0.8, now, "Sightseeing");
+        await mockPublisher.Object.PublishArrivedAsync(tripId, boatId, toStationId, "Bến Bình An", 1.0, now, "Sightseeing");
 
         // Assert
-        mockPublisher.Verify(p => p.PublishNearStopAsync(tripId, boatId, stationId, "Bến Bình An", 0.8, now, "Sightseeing", default), Times.Once);
-        mockPublisher.Verify(p => p.PublishArrivedAsync(tripId, boatId, stationId, "Bến Bình An", 1.0, now, "Sightseeing", default), Times.Once);
+        mockPublisher.Verify(p => p.PublishDepartingAsync(tripId, boatId, fromStationId, "Bến Bạch Đằng", now, "Sightseeing", default), Times.Once);
+        mockPublisher.Verify(p => p.PublishNearStopAsync(tripId, boatId, toStationId, "Bến Bình An", 0.8, now, "Sightseeing", default), Times.Once);
+        mockPublisher.Verify(p => p.PublishArrivedAsync(tripId, boatId, toStationId, "Bến Bình An", 1.0, now, "Sightseeing", default), Times.Once);
     }
 
     [Fact]

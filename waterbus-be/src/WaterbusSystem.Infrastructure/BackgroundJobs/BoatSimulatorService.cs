@@ -22,11 +22,13 @@ namespace WaterbusSystem.Infrastructure.BackgroundJobs;
 /// Hỗ trợ cả 2 chế độ:
 /// 1. Demo (UseSimulatedSegmentDuration = true): Tàu di chuyển từ bến A sang bến B trong SegmentDurationSeconds (mặc định 30s),
 ///    đến bến dừng DwellTimeSeconds (mặc định 3s, speed = 0, toạ độ đứng yên tại bến) rồi mới đi tiếp chặng sau.
-///    Gần tới bến (NearThreshold = 80%) phát thông báo "gần tới bến", tới bến phát "đã tới bến".
+///    - Rời bến (Departing): Bắt đầu xuất bến -> kích hoạt thuyết minh phong cảnh (Sightseeing).
+///    - Gần tới bến (Near): Đạt NearThreshold (80%) -> phát thông báo "gần tới bến".
+///    - Tới bến (Arrived): Cập bến (100%) -> phát thông báo "đã tới bến", dừng đỗ đón/trả khách.
 /// 2. Giờ thực (UseSimulatedSegmentDuration = false): Nội suy theo tổng thời gian thực tế của chuyến (DepartureTime -> ArrivalTime).
 ///
 /// Phân loại 2 loại chuyến:
-/// - Commuter: Chỉ phát âm thanh trạm bến (Stop Announcement).
+/// - Commuter: Chỉ phát âm thanh trạm bến (Stop Announcement: rời bến, gần tới bến, đã tới bến).
 /// - Sightseeing: Vừa phát âm thanh trạm bến, vừa kích hoạt audio thuyết minh phong cảnh/di tích qua geofence GPS.
 /// </summary>
 public class BoatSimulatorService : BackgroundService
@@ -37,9 +39,9 @@ public class BoatSimulatorService : BackgroundService
     private readonly ILogger<BoatSimulatorService> _logger;
 
     /// <summary>
-    /// Lưu trạng thái đã phát thông báo: Key = (TripId, SegmentIndex, CycleNumber), Value = (NearFired, ArrivedFired).
+    /// Lưu trạng thái đã phát thông báo: Key = (TripId, SegmentIndex, CycleNumber), Value = (DepartingFired, NearFired, ArrivedFired).
     /// </summary>
-    private readonly ConcurrentDictionary<(Guid TripId, int SegmentIndex, long CycleNumber), (bool NearFired, bool ArrivedFired)>
+    private readonly ConcurrentDictionary<(Guid TripId, int SegmentIndex, long CycleNumber), (bool DepartingFired, bool NearFired, bool ArrivedFired)>
         _announcementState = new();
 
     public BoatSimulatorService(
@@ -135,6 +137,7 @@ public class BoatSimulatorService : BackgroundService
             int segmentIndex = 0;
             double segmentProgress = 0;
             long cycleNumber = 0;
+            bool isDwelling = false;
 
             if (trip.Status == TripStatus.Suspended)
             {
@@ -175,6 +178,7 @@ public class BoatSimulatorService : BackgroundService
                 else
                 {
                     // ĐÃ TỚI VÀ ĐANG ĐỖ TẠI BẾN ĐÍCH i+1 (DWELLING)
+                    isDwelling = true;
                     segmentProgress = 1.0;
                     var destStop = trip.Stops[segmentIndex + 1];
                     lat = Math.Round((decimal)destStop.Latitude, 7);
@@ -212,15 +216,29 @@ public class BoatSimulatorService : BackgroundService
             // Phát Stop Announcement nếu có publisher và chuyến đang EnRoute (không Suspended)
             if (stopPublisher is not null && trip.Status != TripStatus.Suspended)
             {
+                var fromStop = trip.Stops[segmentIndex];
                 var destinationStop = trip.Stops[segmentIndex + 1];
                 var tripTypeStr = trip.TripType.ToString();
                 var stateKey = (trip.Id, segmentIndex, cycleNumber);
-                var state = _announcementState.GetOrAdd(stateKey, _ => (false, false));
+                var state = _announcementState.GetOrAdd(stateKey, _ => (false, false, false));
 
-                // 1. Gần tới bến: progress >= NearThreshold (chỉ bắn 1 lần)
-                if (!state.NearFired && segmentProgress >= stopOpts.NearThreshold)
+                // 1. Rời bến: Khi tàu bắt đầu di chuyển trong chặng (không phải đang đỗ) và chưa bắn departing
+                if (!state.DepartingFired && !isDwelling)
                 {
-                    _announcementState[stateKey] = (true, state.ArrivedFired);
+                    _announcementState[stateKey] = (true, state.NearFired, state.ArrivedFired);
+                    _logger.LogInformation(
+                        "[STOP-ANNOUNCE] Chuyến {TripId} ({TripType}) đoạn {Seg}: rời bến {StationName} đi {DestName}",
+                        trip.Id, tripTypeStr, segmentIndex, fromStop.StationName, destinationStop.StationName);
+
+                    await stopPublisher.PublishDepartingAsync(
+                        trip.Id, trip.BoatId, fromStop.StationId, fromStop.StationName,
+                        now, tripTypeStr, cancellationToken);
+                }
+
+                // 2. Gần tới bến: progress >= NearThreshold (chỉ bắn 1 lần)
+                if (!state.NearFired && segmentProgress >= stopOpts.NearThreshold && !isDwelling)
+                {
+                    _announcementState[stateKey] = (state.DepartingFired, true, state.ArrivedFired);
                     _logger.LogInformation(
                         "[STOP-ANNOUNCE] Chuyến {TripId} ({TripType}) đoạn {Seg}: gần tới bến {StationName} (progress={Pct:P0})",
                         trip.Id, tripTypeStr, segmentIndex, destinationStop.StationName, segmentProgress);
@@ -230,10 +248,10 @@ public class BoatSimulatorService : BackgroundService
                         segmentProgress, now, tripTypeStr, cancellationToken);
                 }
 
-                // 2. Đã tới bến: progress = 1.0 (tàu cập bến / đỗ bến)
-                if (!state.ArrivedFired && segmentProgress >= 0.999)
+                // 3. Đã tới bến: progress = 1.0 (tàu cập bến / đỗ bến)
+                if (!state.ArrivedFired && (segmentProgress >= 0.999 || isDwelling))
                 {
-                    _announcementState[stateKey] = (state.NearFired, true);
+                    _announcementState[stateKey] = (state.DepartingFired, state.NearFired, true);
                     _logger.LogInformation(
                         "[STOP-ANNOUNCE] Chuyến {TripId} ({TripType}) đoạn {Seg}: đã tới bến {StationName}",
                         trip.Id, tripTypeStr, segmentIndex, destinationStop.StationName);

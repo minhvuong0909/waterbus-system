@@ -18,6 +18,12 @@ public sealed class SignalRStopAnnouncementPublisher : IStopAnnouncementPublishe
         _hub = hub;
     }
 
+    public Task PublishDepartingAsync(
+        Guid tripId, Guid boatId, Guid stationId, string stationName,
+        DateTimeOffset at, string? tripType = null,
+        CancellationToken cancellationToken = default)
+        => SendAsync(tripId, boatId, stationId, stationName, "departing", 0.0, at, tripType, cancellationToken);
+
     public Task PublishNearStopAsync(
         Guid tripId, Guid boatId, Guid stationId, string stationName,
         double segmentProgress, DateTimeOffset at, string? tripType = null,
