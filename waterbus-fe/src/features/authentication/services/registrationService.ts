@@ -11,16 +11,15 @@ export function register(payload: RegisterPayload): Promise<AccountRequestAccept
     method: 'POST',
     body: {
       email: payload.email.trim(),
-      password: payload.password,
       fullName: payload.fullName.trim(),
       phoneNumber: payload.phoneNumber.trim() || null,
     },
   })
 }
 
-/** `POST /auth/confirm-email` with the `uid` and `token` of the link in the verification email. Rejects with ApiError(400) when invalid or expired. */
-export function confirmEmail(userId: string, token: string): Promise<void> {
-  return apiRequest<void>(API_ENDPOINTS.auth.confirmEmail, { method: 'POST', body: { userId, token } })
+/** Activates the account using the email link and the recipient's chosen password. */
+export function confirmEmail(userId: string, token: string, password: string): Promise<void> {
+  return apiRequest<void>(API_ENDPOINTS.auth.confirmEmail, { method: 'POST', body: { userId, token, password } })
 }
 
 /** `POST /auth/resend-verification`: the same answer for any email; the backend only sends when it applies. */

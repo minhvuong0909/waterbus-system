@@ -11,7 +11,7 @@ using WaterbusSystem.Application.Features.Notifications.Templates;
 namespace WaterbusSystem.Infrastructure.Services.Accounts;
 
 /// <summary>
-/// Hàng đợi trong bộ nhớ cho email xác minh: <see cref="Enqueue"/> trả về ngay nên thời gian phản hồi không lộ email nào
+/// Hàng đợi trong bộ nhớ cho email xác minh: <see cref="TryEnqueue"/> trả về ngay nên thời gian phản hồi không lộ email nào
 /// tồn tại. Liên kết xác minh không rời bộ nhớ tiến trình (không vào DB/Hangfire). Mất khi tắt ứng dụng là chấp nhận được:
 /// người dùng bấm "Gửi lại email xác minh".
 /// </summary>
@@ -20,12 +20,14 @@ public sealed class VerificationMailer(ILogger<VerificationMailer> logger) : IVe
     internal sealed record Pending(string ToEmail, string ToName, string Link);
 
     internal Channel<Pending> Queue { get; } = Channel.CreateBounded<Pending>(
-        new BoundedChannelOptions(200) { FullMode = BoundedChannelFullMode.DropWrite, SingleReader = true });
+        new BoundedChannelOptions(200) { FullMode = BoundedChannelFullMode.Wait, SingleReader = true });
 
-    public void Enqueue(string toEmail, string toName, string verificationLink)
+    public bool TryEnqueue(string toEmail, string toName, string verificationLink)
     {
-        if (!Queue.Writer.TryWrite(new Pending(toEmail, toName, verificationLink)))
-            logger.LogWarning("Hàng đợi email xác minh đầy, bỏ một yêu cầu.");
+        if (Queue.Writer.TryWrite(new Pending(toEmail, toName, verificationLink))) return true;
+
+        logger.LogWarning("Hàng đợi email xác minh không nhận thêm yêu cầu.");
+        return false;
     }
 }
 
@@ -59,7 +61,7 @@ public sealed class VerificationMailerWorker(
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Không gửi được email xác minh tài khoản ({ErrorType}).", ex.GetType().Name);
+                logger.LogWarning("Không gửi được email xác minh tài khoản ({ErrorType}).", ex.GetType().Name);
             }
         }
     }

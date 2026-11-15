@@ -58,7 +58,7 @@ export default function ResendVerificationForm({ initialEmail = '' }: { initialE
       )}
       {sent && (
         <p role="status" className="text-sm text-on-surface-variant">
-          {t('If this email has an account waiting for verification, we sent a new link. Check your inbox and spam folder.')}
+          {t('If your account can be activated, check your inbox and spam folder for a link to set your password.')}
         </p>
       )}
       <Button type="submit" variant="dark" disabled={busy || wait > 0 || !email.trim()}>

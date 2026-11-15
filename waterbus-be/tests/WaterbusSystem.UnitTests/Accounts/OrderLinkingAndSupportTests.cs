@@ -103,18 +103,14 @@ public class OrderLinkingAndSupportTests
     private readonly RegisterRequestValidator _register = new();
 
     [Theory]
-    [InlineData("a@b.vn", "Strong1Pass", "Nguyen A", null, true)]
-    [InlineData("a@b.vn", "Strong1Pass", "Nguyen A", "0901 234 567", true)]
-    [InlineData("", "Strong1Pass", "Nguyen A", null, false)]
-    [InlineData("not-an-email", "Strong1Pass", "Nguyen A", null, false)]
-    [InlineData("a@b.vn", "short1A", "Nguyen A", null, false)]       // dưới 8 ký tự
-    [InlineData("a@b.vn", "alllowercase1", "Nguyen A", null, false)] // thiếu chữ hoa
-    [InlineData("a@b.vn", "ALLUPPERCASE1", "Nguyen A", null, false)] // thiếu chữ thường
-    [InlineData("a@b.vn", "NoDigitsHere", "Nguyen A", null, false)]  // thiếu chữ số
-    [InlineData("a@b.vn", "Strong1Pass", "", null, false)]
-    [InlineData("a@b.vn", "Strong1Pass", "Nguyen A", "abc", false)]
-    public void RegisterValidator_AcceptsOnlyWellFormedInput(string email, string password, string name, string? phone, bool valid) =>
-        _register.Validate(new RegisterRequest(email, password, name, phone)).IsValid.Should().Be(valid);
+    [InlineData("a@b.vn", "Nguyen A", null, true)]
+    [InlineData("a@b.vn", "Nguyen A", "0901 234 567", true)]
+    [InlineData("", "Nguyen A", null, false)]
+    [InlineData("not-an-email", "Nguyen A", null, false)]
+    [InlineData("a@b.vn", "", null, false)]
+    [InlineData("a@b.vn", "Nguyen A", "abc", false)]
+    public void RegisterValidator_AcceptsOnlyWellFormedInput(string email, string name, string? phone, bool valid) =>
+        _register.Validate(new RegisterRequest(email, name, phone)).IsValid.Should().Be(valid);
 
     [Fact]
     public void RegisterValidator_RejectsEmailLongerThanTheOrderEmailColumn()
@@ -122,18 +118,20 @@ public class OrderLinkingAndSupportTests
         // PurchaserEmail dài tối đa 150: email tài khoản dài hơn thì không bao giờ khớp đơn để gắn.
         var email = new string('a', 142) + "@gmail.com";
 
-        _register.Validate(new RegisterRequest(email, "Strong1Pass", "A", null)).IsValid.Should().BeFalse();
+        _register.Validate(new RegisterRequest(email, "A", null)).IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void ConfirmEmailValidator_RequiresIdAndToken()
+    public void ConfirmEmailValidator_RequiresIdTokenAndPassword()
     {
         var v = new ConfirmEmailRequestValidator();
 
-        v.Validate(new ConfirmEmailRequest(Guid.NewGuid(), "abc")).IsValid.Should().BeTrue();
-        v.Validate(new ConfirmEmailRequest(Guid.Empty, "abc")).IsValid.Should().BeFalse();
-        v.Validate(new ConfirmEmailRequest(Guid.NewGuid(), "")).IsValid.Should().BeFalse();
-        v.Validate(new ConfirmEmailRequest(Guid.NewGuid(), new string('a', 1025))).IsValid.Should().BeFalse();
+        v.Validate(new ConfirmEmailRequest(Guid.NewGuid(), "abc", "Strong1Pass")).IsValid.Should().BeTrue();
+        v.Validate(new ConfirmEmailRequest(Guid.Empty, "abc", "Strong1Pass")).IsValid.Should().BeFalse();
+        v.Validate(new ConfirmEmailRequest(Guid.NewGuid(), "", "Strong1Pass")).IsValid.Should().BeFalse();
+        v.Validate(new ConfirmEmailRequest(Guid.NewGuid(), new string('a', 1025), "Strong1Pass")).IsValid.Should().BeFalse();
+        v.Validate(new ConfirmEmailRequest(Guid.NewGuid(), "abc", "")).IsValid.Should().BeFalse();
+        v.Validate(new ConfirmEmailRequest(Guid.NewGuid(), "abc", new string('a', 101))).IsValid.Should().BeFalse();
     }
 
     // ---------- Email ----------
@@ -143,9 +141,9 @@ public class OrderLinkingAndSupportTests
     {
         var ctx = new EmailContext("Smart Waterbus", "https://waterbus.example", null, null);
 
-        var email = AccountEmailTemplates.Verification("<script>x</script>", "https://waterbus.example/verify-email?uid=1&token=abc", ctx);
+        var email = AccountEmailTemplates.Verification("<script>x</script>", "https://waterbus.example/verify-email#uid=1&token=abc", ctx);
 
-        email.Text.Should().Contain("verify-email?uid=1&token=abc");
+        email.Text.Should().Contain("verify-email#uid=1&token=abc");
         email.Html.Should().NotContain("<script>");
         email.Html.Should().Contain("24 giờ");
     }

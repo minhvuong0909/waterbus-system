@@ -10,7 +10,7 @@ Nguồn: BR v2.0 mục 7. Tài liệu này mô tả hợp đồng API và bất 
 | Passenger đã liên kết | JWT (role `Passenger`) **và** `PurchaseOrder.PassengerAccountId == sub` | Mọi route `/checkouts/{orderId}/...` của Order mình sở hữu, không cần token; `/me/*` |
 | Người xem chuyến (hành khách khác) | `X-Trip-Access-Token` = **TripAccess token** (`AccessType = PassengerTrip`, gắn một `BookingId`) | Chỉ `GET /api/v1/tripaccess` — thông tin hành trình |
 
-Không có đường nào gán Order cho tài khoản theo **email trùng**. Email chỉ dùng để gửi thông báo.
+BR-ID-04 trong BR v2.0 yêu cầu dùng token để claim từng đơn. Mục 5a ghi đề xuất bổ sung việc gắn tự động theo email đã xác minh và điều kiện để áp dụng.
 
 ## 2. Endpoint
 
@@ -18,6 +18,8 @@ Không có đường nào gán Order cho tài khoản theo **email trùng**. Ema
 |---|---|---|
 | `POST /checkouts/{orderId}/claim` | JWT `Passenger` **+** `X-Guest-Token` hợp lệ của chính Order | Gọi lặp cùng tài khoản → 200 `alreadyLinked=true`; tài khoản khác → 409; thiếu/sai token → 403 |
 | `GET /me/orders?pageNumber&pageSize` | JWT `Passenger` | Chỉ Order của tài khoản, không có Draft; `pageSize` 1–100 |
+| `GET /me/orders/linkable` | JWT `Passenger`, tài khoản đang hoạt động có email đã xác minh | Đếm đơn Guest đủ điều kiện (đề xuất tại mục 5a) |
+| `POST /me/orders/link-by-email` | JWT `Passenger`, tài khoản đang hoạt động có email đã xác minh | Gắn tối đa 200 đơn mỗi lần theo email của tài khoản lưu trên server, trả `linked` và `remaining` (đề xuất tại mục 5a) |
 | `GET /me/tickets/{ticketId}` | JWT `Passenger` | Vé của người khác → **404** (không lộ sự tồn tại) |
 | `GET /checkouts/{orderId}/tickets/{ticketId}` | Token hoặc chủ sở hữu | Vé không thuộc Order → 404 |
 | `POST /checkouts/{orderId}/access/rotate` | Token hiện tại hoặc chủ sở hữu | Thu hồi token cũ, cấp token mới (token chỉ trả một lần) |
@@ -46,21 +48,26 @@ Khi Passenger đã đăng nhập tạo checkout (`POST /bookings`, `/checkouts`,
 Claim, lịch sử, rotate, revoke hoạt động ở mức **Order**, nên một thao tác bao phủ cả hai Booking của RoundTrip; mỗi Booking có QR và TripAccess riêng.
 
 ## 5a. Đăng ký khách hàng và gắn đơn Guest theo email đã xác minh
-**Đề xuất sửa BR-ID-04, cần nhóm xác nhận trước khi coi là CHỐT.** BR-ID-04 hiện cấm tự gán đơn vào tài khoản chỉ vì trùng email. Quy tắc mới: gắn đơn khi email của tài khoản **đã được xác minh** (người dùng đã bấm liên kết gửi tới đúng hộp thư nhận QR, cùng mức chứng minh với link quản lý đơn của BR-ID-02). Email chưa xác minh thì tuyệt đối không gắn. Gắn theo token (`POST /checkouts/{orderId}/claim`) vẫn giữ nguyên.
+**Đề xuất sửa BR-ID-04, cần nhóm phê duyệt trước khi merge vào main.** Sau khi Passenger xác minh an toàn quyền kiểm soát email, hệ thống có thể tự gắn các Order Guest đủ điều kiện đã mua bằng cùng email khi Passenger mở lịch sử đơn. Phải bảo vệ quyền sở hữu hiện có, trạng thái thanh toán, quyền truy cập bằng token Guest và tính toàn vẹn giao dịch.
 
-Luồng: Guest mua vé (email người mua nằm ở `PurchaseOrder.PurchaserEmail`) → đăng ký bằng đúng email đó → bấm liên kết xác minh → đăng nhập → thẻ "Có N đơn mua bằng email của bạn" → bấm "Thêm vào tài khoản" → `POST /me/orders/link-by-email`.
-- `POST /auth/register` (role `Passenger` gán cứng trong code, không đọc từ request), `POST /auth/confirm-email` (token của ASP.NET Identity, hiệu lực 24 giờ), `POST /auth/resend-verification`. Phản hồi đăng ký và gửi lại luôn như nhau; thời gian phản hồi được đệm về tối thiểu 400 ms để không dò được email nào đã có tài khoản.
+Đề xuất chấp nhận quyền kiểm soát hộp thư nhận thông tin mua vé làm bằng chứng để gắn các đơn mua bằng hộp thư đó. Với hộp thư dùng chung hoặc được cấp lại, người đang kiểm soát hộp thư có thể nhận lịch sử đủ điều kiện của người mua trước. Claim từng đơn qua `POST /checkouts/{orderId}/claim` vẫn yêu cầu Manage Order token hợp lệ của đơn đó.
+
+Luồng: Guest mua vé → đăng ký bằng email người mua → mở liên kết xác minh trong hộp thư và đặt mật khẩu → đăng nhập → mở `/account/orders` để tự động gắn đơn và cập nhật lịch sử.
+- `POST /auth/register` tạo Passenger chờ kích hoạt với `email`, `fullName` và `phoneNumber` (tùy chọn). Yêu cầu đăng ký không đặt mật khẩu. Phản hồi đăng ký và gửi lại giống nhau giữa email mới và đã tồn tại, với ngưỡng thời gian phản hồi tối thiểu 400 ms.
+- `POST /auth/confirm-email` nhận `userId`, `token` và `password`. Token xác minh của ASP.NET Identity có hiệu lực 24 giờ. Identity kiểm tra token và mật khẩu rồi lưu xác minh và hash mới trong một lần cập nhật, thay cả hash của tài khoản cũ chưa xác minh. Security stamp mới vô hiệu hóa các liên kết đã gửi. Hai yêu cầu kích hoạt đồng thời chỉ một yêu cầu có thể lưu thành công.
 - Khách hàng (Passenger) chưa xác minh email thì không đăng nhập được; tài khoản nhân sự (Admin, Captain, Staff) không bị áp quy tắc này.
-- Email xác minh gửi trực tiếp qua `IEmailTransport` bằng hàng đợi trong bộ nhớ, **không** qua `EmailOutbox` (outbox gắn với sự kiện đơn hàng, không chứa được token). Cần `Email:Enabled=true`, SMTP hợp lệ và `Email:PublicBaseUrl` (biến `PUBLIC_URL`) để tạo liên kết. Chặn gửi lặp 60 giây theo tài khoản (Redis, mất Redis thì vẫn gửi và dựa vào rate limit theo IP).
-- Gắn đơn chỉ với đơn chưa thuộc tài khoản nào, ở trạng thái `Confirmed`, `Cancelled`, `Expired` (không đụng đơn đang thanh toán), tối đa 200 đơn mỗi lần, chạy trong `ICommercialTransactionRunner`; đơn đã thuộc tài khoản khác bị bỏ qua. Idempotent.
+- Email xác minh gửi qua `IEmailTransport` bằng hàng đợi trong bộ nhớ tối đa 200 thư. Cần `Email:Enabled=true`, SMTP hợp lệ và `Email:PublicBaseUrl` (biến `PUBLIC_URL`). URL công khai phải dùng HTTPS, HTTP chỉ dùng với địa chỉ loopback. Liên kết mới dùng fragment `/verify-email#uid=…&token=…`. Web thay URL hiện tại ngay khi đọc và chỉ giữ token trong bộ nhớ. Liên kết query cũ vẫn mở được trang đặt mật khẩu. Nginx bỏ access log và gửi `Referrer-Policy: no-referrer` cho trang này.
+- Hàng đợi từ chối thư mới khi đầy và ghi cảnh báo. Lỗi SMTP được ghi theo loại lỗi, không ghi nội dung thư hay liên kết. Thư có thể mất khi khởi động lại tiến trình. Người dùng có thể gọi `POST /auth/resend-verification` để lấy liên kết mới. Thời gian chờ gửi lại là 60 giây theo tài khoản (Redis, mất Redis thì vẫn gửi và dựa vào rate limit theo IP).
+- Gắn đơn chỉ với đơn Guest ở trạng thái `Confirmed`, `Cancelled`, `Expired`. Đơn hủy hoặc hết hạn là lịch sử đơn hàng, trạng thái vé được hiển thị riêng. `ICommercialTransactionRunner` và RowVersion bảo vệ quyền sở hữu khi gắn đồng thời hoặc claim bằng token. Thao tác gắn chỉ đổi chủ sở hữu, không phát vé và không thay đổi thanh toán, hoàn tiền hoặc hiệu lực Manage Order token.
+- Web kiểm tra số đơn đủ điều kiện, tự gọi POST nếu có, chỉ gọi thêm khi `remaining > 0` và có tiến triển, tối đa 10 lượt mỗi lần chạy. Lịch sử đọc lại sau khi gắn hoặc sau lỗi có thể xảy ra sau khi giao dịch đã commit. Nếu còn đơn sau giới hạn hoặc gặp lỗi, giao diện báo lịch sử có thể thiếu và cho thử lại.
 - Hồ sơ: `GET/PUT /me/profile` (họ tên, số điện thoại; email không đổi qua đây).
 - Mật khẩu tối thiểu 8 ký tự (chữ hoa, chữ thường, chữ số). Role luôn được tạo khi khởi động (mọi môi trường), không chỉ khi seed ở Development.
 - Migration `AddPurchaseOrderLinkingIndexes`: index lọc `PurchaserEmail` (chỉ đơn chưa gắn tài khoản) và `(PassengerAccountId, CreatedAt DESC)`. Bảng có index lọc nên câu lệnh SQL chạy tay phải bật `QUOTED_IDENTIFIER` (`sqlcmd -I`); ứng dụng (SqlClient) mặc định đã bật.
-- Giới hạn đã biết: so khớp email dựa vào collation không phân biệt hoa thường của SQL Server; token xác minh dùng DataProtection nên liên kết đã gửi sẽ vô hiệu nếu khoá DataProtection bị mất khi triển khai lại container (khách bấm "Gửi lại email xác minh").
+- So khớp email dùng điều kiện có thể tận dụng index trên SQL Server, sau đó so sánh nhị phân trên giá trị đã đổi hoa để loại các địa chỉ khác do collation coi là tương đương. Token xác minh dùng khoá DataProtection. Docker Compose giữ khoá trong volume `dataprotection_keys`; nếu mất khoá thì người dùng cần yêu cầu gửi lại.
+- Triển khai web và API cùng phiên bản. Nếu bản cũ của PR #85 từng được triển khai, ngừng phục vụ endpoint xác nhận cũ khi chuyển phiên bản. Rà soát các tài khoản đã kích hoạt qua bản cũ và xử lý lại thông tin đăng nhập trước khi mở gắn đơn tự động cho các tài khoản đó.
 
 ## 6. Giới hạn đã biết / quyết định
 - **Đăng ký tài khoản Passenger không nằm trong BR v2.0.** Đã thêm endpoint đăng ký và xác minh email, xem mục 5a (đề xuất sửa BR-ID-04, chờ nhóm xác nhận).
-- Không có migration mới: lịch sử lọc theo `PassengerAccountId` (chưa có chỉ mục riêng; thêm khi số Order lớn).
 - `AccessGrant.LastUsedAt` chưa được ghi (tránh ghi DB ở mỗi lần đọc).
 - Legacy `Booking.ManageOrderTokenHash` vẫn được middleware nhận diện như cũ, không dùng cho route mới.
 - Rate limit chống dò token dùng chính entropy 256-bit; chưa có policy rate-limit riêng cho các route mới.

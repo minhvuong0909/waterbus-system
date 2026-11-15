@@ -50,7 +50,7 @@ public class AuthController : BaseApiController
     public async Task<ActionResult<AccountRequestAcceptedResponse>> Register([FromBody] RegisterRequest request) =>
         Ok(await _accountService.RegisterAsync(request, HttpContext.RequestAborted));
 
-    /// <summary>Xác minh email bằng liên kết gửi về hộp thư.</summary>
+    /// <summary>Xác minh email bằng liên kết gửi về hộp thư và đặt mật khẩu để kích hoạt tài khoản.</summary>
     [HttpPost("confirm-email")]
     [AllowAnonymous]
     [ServiceFilter(typeof(ValidateRequestFilter))]

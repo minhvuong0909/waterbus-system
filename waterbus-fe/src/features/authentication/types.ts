@@ -20,7 +20,6 @@ export interface RegisterPayload {
   fullName: string
   email: string
   phoneNumber: string
-  password: string
 }
 
 /** The same answer for any email on sign-up and "send again". */

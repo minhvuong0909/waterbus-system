@@ -22,13 +22,6 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
     {
         RuleFor(x => x.Email).Email();
         RuleFor(x => x.FullName).FullName();
-        RuleFor(x => x.Password)
-            .NotEmpty().WithMessage("Mật khẩu không được để trống.")
-            .MinimumLength(8).WithMessage("Mật khẩu tối thiểu 8 ký tự.")
-            .MaximumLength(100).WithMessage("Mật khẩu tối đa 100 ký tự.")
-            .Matches("[a-z]").WithMessage("Mật khẩu phải có chữ thường.")
-            .Matches("[A-Z]").WithMessage("Mật khẩu phải có chữ hoa.")
-            .Matches("[0-9]").WithMessage("Mật khẩu phải có chữ số.");
         RuleFor(x => x.PhoneNumber)
             .Matches(@"^[0-9+()\-\s]{6,20}$").When(x => !string.IsNullOrWhiteSpace(x.PhoneNumber))
             .WithMessage("Số điện thoại không hợp lệ.");
@@ -41,6 +34,9 @@ public class ConfirmEmailRequestValidator : AbstractValidator<ConfirmEmailReques
     {
         RuleFor(x => x.UserId).NotEmpty().WithMessage("Liên kết xác nhận không hợp lệ.");
         RuleFor(x => x.Token).NotEmpty().MaximumLength(1024).WithMessage("Liên kết xác nhận không hợp lệ.");
+        RuleFor(x => x.Password)
+            .NotEmpty().WithMessage("Mật khẩu không được để trống.")
+            .MaximumLength(100).WithMessage("Mật khẩu tối đa 100 ký tự.");
     }
 }
 

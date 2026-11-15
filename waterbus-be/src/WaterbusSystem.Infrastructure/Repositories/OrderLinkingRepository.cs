@@ -8,7 +8,7 @@ namespace WaterbusSystem.Infrastructure.Repositories;
 
 /// <summary>
 /// Đơn chưa gắn tài khoản theo email người mua. Điều kiện <c>PassengerAccountId IS NULL</c> được giữ nguyên dạng literal
-/// để SQL Server dùng index lọc trên PurchaserEmail (so sánh email theo collation không phân biệt hoa thường của DB).
+/// để SQL Server dùng index lọc trên PurchaserEmail. So sánh nhị phân sau khi đổi hoa để loại tương đương do collation DB.
 /// Đơn đang trong quá trình thanh toán (Draft, PendingPayment) không bị gắn, để không chen vào phiên mua của Guest.
 /// </summary>
 public sealed class OrderLinkingRepository(ApplicationDbContext context) : IOrderLinkingRepository
@@ -21,5 +21,7 @@ public sealed class OrderLinkingRepository(ApplicationDbContext context) : IOrde
         Query(email).OrderBy(o => o.CreatedAt).Take(take).ToListAsync(ct);
 
     private IQueryable<PurchaseOrder> Query(string email) => context.PurchaseOrders
-        .Where(o => !o.IsDeleted && o.PassengerAccountId == null && o.PurchaserEmail == email && LinkableStatuses.Contains(o.Status));
+        .Where(o => !o.IsDeleted && o.PassengerAccountId == null && o.PurchaserEmail == email
+            && EF.Functions.Collate(o.PurchaserEmail.ToUpper(), "Latin1_General_100_BIN2") == email.ToUpperInvariant()
+            && LinkableStatuses.Contains(o.Status));
 }

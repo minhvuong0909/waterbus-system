@@ -3,6 +3,8 @@ using System.Text;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Common.Exceptions;
@@ -10,18 +12,19 @@ using WaterbusSystem.Application.Common.Interfaces;
 using WaterbusSystem.Application.DTOs.Requests.Accounts;
 using WaterbusSystem.Application.DTOs.Responses.Accounts;
 using WaterbusSystem.Application.Features.Notifications;
+using WaterbusSystem.Application.Interfaces.Persistence;
 using WaterbusSystem.Application.Interfaces.Services;
+using WaterbusSystem.Infrastructure.Services.Email;
 
 namespace WaterbusSystem.Infrastructure.Identity;
 
 /// <summary>
 /// Đăng ký tài khoản khách hàng (Passenger) và xác minh email. Nằm ở Infrastructure vì dùng trực tiếp UserManager.
-/// Bảo mật: role gán cứng; mật khẩu kiểm tra TRƯỚC khi xét email tồn tại (không dò email qua lỗi mật khẩu yếu);
-/// email đã tồn tại băm mật khẩu giả để thời gian gần với nhánh tạo mới; phản hồi luôn như nhau;
-/// email xác minh gửi nền (không chặn) và có chặn gửi lặp theo tài khoản; không log email hay token.
+/// Tài khoản mới chưa có mật khẩu. Chỉ người giữ token gửi đến hộp thư mới có thể đặt mật khẩu và kích hoạt.
 /// </summary>
 public sealed class AccountService(
     UserManager<ApplicationUser> users,
+    IUnitOfWork unitOfWork,
     IVerificationEmailQueue mailQueue,
     IEmailCooldownStore cooldown,
     IOptions<EmailOptions> emailOptions,
@@ -40,7 +43,7 @@ public sealed class AccountService(
     private readonly TimeSpan _minResponseTime = minResponseTime ?? DefaultMinResponseTime;
 
     private static readonly AccountRequestAcceptedResponse Accepted = new(
-        "Nếu thông tin hợp lệ, chúng tôi đã gửi email xác minh. Vui lòng kiểm tra hộp thư (kể cả thư rác).");
+        "Nếu tài khoản có thể kích hoạt, hãy kiểm tra hộp thư (kể cả thư rác) hoặc yêu cầu gửi lại liên kết.");
 
     public async Task<AccountRequestAcceptedResponse> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
     {
@@ -53,6 +56,8 @@ public sealed class AccountService(
     private async Task<AccountRequestAcceptedResponse> RegisterCoreAsync(RegisterRequest request)
     {
         var email = request.Email.Trim();
+        if (await users.FindByEmailAsync(email) is not null) return Accepted;
+
         var user = new ApplicationUser
         {
             UserName = email,
@@ -63,25 +68,25 @@ public sealed class AccountService(
             IsActive = true
         };
 
-        // 1. Mật khẩu phải hợp lệ với MỌI email, kể cả email đã có tài khoản.
-        await EnsurePasswordIsValidAsync(user, request.Password);
-
-        // 2. Email đã tồn tại: không tạo, không gửi, trả cùng phản hồi (băm giả để cân bằng thời gian).
-        if (await users.FindByEmailAsync(email) is { } existing)
+        IdentityResult created;
+        try
         {
-            users.PasswordHasher.HashPassword(existing, request.Password);
+            created = await users.CreateAsync(user);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
+        {
+            // Hai lượt có thể cùng vượt qua bước kiểm tra của Identity trước khi ghi vào unique index.
+            unitOfWork.DiscardTrackedChanges();
             return Accepted;
         }
-
-        var created = await users.CreateAsync(user, request.Password);
         if (!created.Succeeded)
         {
             // Hai yêu cầu song song cùng email: bên thua coi như email đã tồn tại.
             if (created.Errors.Any(e => e.Code is "DuplicateEmail" or "DuplicateUserName")) return Accepted;
-            throw new ValidationException(created.Errors.Select(e => new ValidationFailure("password", e.Description)));
+            throw new ValidationException(created.Errors.Select(e => new ValidationFailure("email", e.Description)));
         }
 
-        // 3. Role gán cứng. Thiếu role là lỗi cấu hình: huỷ tài khoản vừa tạo để không để lại tài khoản không role.
+        // Role gán cứng. Huỷ tài khoản vừa tạo nếu Identity không thể gán role.
         var role = await users.AddToRoleAsync(user, PassengerRole);
         if (!role.Succeeded)
         {
@@ -97,15 +102,36 @@ public sealed class AccountService(
     {
         var invalid = new ValidationException([new ValidationFailure("token", "Liên kết xác nhận không hợp lệ hoặc đã hết hạn.")]);
         var user = await users.FindByIdAsync(request.UserId.ToString());
-        if (user is null || !user.IsActive) throw invalid;
+        if (user is not { IsActive: true, EmailConfirmed: false } || !await users.IsInRoleAsync(user, PassengerRole))
+            throw invalid;
 
         string token;
         try { token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(request.Token)); }
         catch (FormatException) { throw invalid; }
 
-        // Idempotent: liên kết còn hạn dùng lại vẫn thành công, email đã xác minh không bị thay đổi gì thêm.
-        var result = await users.ConfirmEmailAsync(user, token);
-        if (!result.Succeeded) throw invalid;
+        if (!await users.VerifyUserTokenAsync(user, users.Options.Tokens.EmailConfirmationTokenProvider,
+                UserManager<ApplicationUser>.ConfirmEmailTokenPurpose, token))
+            throw invalid;
+
+        // ResetPasswordAsync kiểm tra policy, thay cả hash cũ, đổi security stamp và lưu cùng EmailConfirmed.
+        // EF Identity chỉ ghi một lần với ConcurrencyStamp; hai lượt kích hoạt không thể cùng thắng.
+        var resetToken = await users.GeneratePasswordResetTokenAsync(user);
+        user.EmailConfirmed = true;
+        user.AccessFailedCount = 0;
+        user.LockoutEnd = null;
+        try
+        {
+            var result = await users.ResetPasswordAsync(user, resetToken, request.Password);
+            if (result.Succeeded) return;
+
+            if (result.Errors.Any(e => e.Code is "ConcurrencyFailure" or "InvalidToken")) throw invalid;
+            throw new ValidationException(result.Errors.Select(e => new ValidationFailure("password", e.Description)));
+        }
+        catch
+        {
+            unitOfWork.DiscardTrackedChanges();
+            throw;
+        }
     }
 
     public async Task<AccountRequestAcceptedResponse> ResendVerificationAsync(ResendVerificationRequest request, CancellationToken ct = default)
@@ -128,27 +154,16 @@ public sealed class AccountService(
         if (remaining > TimeSpan.Zero) await Task.Delay(remaining, ct);
     }
 
-    private async Task EnsurePasswordIsValidAsync(ApplicationUser user, string password)
-    {
-        var failures = new List<ValidationFailure>();
-        foreach (var validator in users.PasswordValidators)
-        {
-            var result = await validator.ValidateAsync(users, user, password);
-            if (!result.Succeeded) failures.AddRange(result.Errors.Select(e => new ValidationFailure("password", e.Description)));
-        }
-        if (failures.Count > 0) throw new ValidationException(failures);
-    }
-
     private async Task SendVerificationAsync(ApplicationUser user)
     {
         var baseUrl = emailOptions.Value.PublicBaseUrl?.Trim().TrimEnd('/');
-        if (string.IsNullOrEmpty(baseUrl))
+        if (!EmailConfigurationRules.IsSafePublicBaseUrl(baseUrl, allowLoopbackHttp: true))
         {
-            logger.LogError("Email:PublicBaseUrl chưa cấu hình, không tạo được liên kết xác minh email.");
+            logger.LogError("Email:PublicBaseUrl không hợp lệ. Liên kết xác minh công khai yêu cầu HTTPS.");
             return;
         }
         var token = await users.GenerateEmailConfirmationTokenAsync(user);
         var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-        mailQueue.Enqueue(user.Email!, user.FullName, $"{baseUrl}/verify-email?uid={user.Id:D}&token={encoded}");
+        mailQueue.TryEnqueue(user.Email!, user.FullName, $"{baseUrl}/verify-email#uid={user.Id:D}&token={encoded}");
     }
 }

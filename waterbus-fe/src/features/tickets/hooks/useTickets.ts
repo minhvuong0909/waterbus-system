@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom'
 import { useFetch } from '../../../hooks'
+import { getToken } from '../../../services/authStorage'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
 import { getAccountOrders, getSharedTrip } from '../services/orderAccessService'
 import { getManageBooking, getTicket, getTicketWallet } from '../services/ticketService'
@@ -36,8 +37,13 @@ export function useManageBooking(token?: string) {
 }
 
 /** One page of the signed-in Passenger's orders; the previous page stays visible while the next loads. */
-export function useAccountOrders(pageNumber: number) {
-  const fetched = useFetch(() => getAccountOrders(pageNumber), [pageNumber])
+export function useAccountOrders(pageNumber: number, token: string | null, completedSyncAttempt?: number) {
+  // Read after each sync attempt, including failures since an earlier POST may have committed.
+  const fetched = useFetch(async () => {
+    if (completedSyncAttempt === undefined) return
+    if (!token || getToken() !== token) throw new Error('The active session changed.')
+    return getAccountOrders(pageNumber)
+  }, [pageNumber, token, completedSyncAttempt])
   return {
     page: fetched.data,
     loading: fetched.loading,
