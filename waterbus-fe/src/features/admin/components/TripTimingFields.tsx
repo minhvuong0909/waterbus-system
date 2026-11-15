@@ -1,7 +1,7 @@
 import { TextField } from '../../../components/ui'
 import type { TripTiming } from '../utils/tripTiming'
 
-/** When sales close and check-in opens for the trips being created; both may stay empty. */
+/** Khi nào đóng bán và mở check-in cho các chuyến sắp tạo; cả hai có thể để trống. */
 export default function TripTimingFields({
   timing,
   errors,

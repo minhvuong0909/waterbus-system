@@ -10,7 +10,7 @@ import type { GenerateTripsResult, ScheduleListItem } from '../types'
 import FormActions from './FormActions'
 import TripTimingFields from './TripTimingFields'
 
-/** The backend creates trips for at most this many days in one request. */
+/** Số ngày tối đa backend tạo chuyến trong một lần gửi. */
 const MAX_DAYS = 31
 const DAY_MS = 86_400_000
 
@@ -52,8 +52,8 @@ function Result({ result, onClose }: { result: GenerateTripsResult; onClose: () 
 }
 
 /**
- * Creates the trips of a schedule for a range of days (Vietnam dates). Running it again is safe:
- * days that already have the trip are skipped. The new trips have no boat yet (BR-SCH-04).
+ * Tạo các chuyến của một lịch chạy cho một khoảng ngày (theo ngày Việt Nam). Chạy lại vẫn an toàn: ngày đã có
+ * chuyến được bỏ qua. Chuyến mới chưa có tàu (BR-SCH-04).
  */
 export default function GenerateTripsForm({
   schedule,
@@ -63,7 +63,7 @@ export default function GenerateTripsForm({
   onClose: () => void
 }) {
   const today = toVietnamDate(new Date())
-  // Proposes one week starting today.
+  // Đề xuất một tuần bắt đầu từ hôm nay.
   const [dates, setDates] = useState(() => ({
     fromDate: today,
     toDate: new Date(Date.parse(today) + 6 * DAY_MS).toISOString().slice(0, 10),

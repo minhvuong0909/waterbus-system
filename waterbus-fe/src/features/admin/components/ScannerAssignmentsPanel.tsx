@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Button, ErrorState, Notice, Panel, SelectField, TextField } from '../../../components/ui'
+import { Button, ErrorState, Notice, Pagination, Panel, SelectField, TextField } from '../../../components/ui'
+import { CHECKBOX_CLASS, INSET_CLASS } from '../../../components/ui/styles'
 import { useFetch, useSubmit } from '../../../hooks'
 import { t } from '../../../i18n'
 import { ApiError } from '../../../services/apiClient'
@@ -12,11 +13,14 @@ import {
 import type { AssignScannerRequest, ScannerAssignment, ScannerDevice, ScannerStaff } from '../services/scannerAssignmentService'
 import ScannerDeviceRegistration from './ScannerDeviceRegistration'
 
-export default function ScannerAssignmentsPanel({ stops, routeName }: {
+/** Phân công nhân viên soát vé và máy quét cho một bến lên tàu của chuyến đang chọn (BR-BOARD-03). */
+export default function ScannerAssignmentsPanel({ stops, routeName, stopId, onStopChange }: {
   stops: TripStopDto[]
   routeName: string
+  /** Bến đang chọn (callId); rỗng khi chưa chọn. */
+  stopId: string
+  onStopChange: (callId: string) => void
 }) {
-  const [stopId, setStopId] = useState('')
   const staff = useFetch(listScannerStaff)
   const devices = useFetch(listScannerDevices)
   const [deviceId, setDeviceId] = useState('')
@@ -24,8 +28,8 @@ export default function ScannerAssignmentsPanel({ stops, routeName }: {
   const stop = stops.find((item) => item.callId === stopId)
 
   return (
-    <Panel title="Scanner assignments" className="mt-4 space-y-4">
-      <SelectField label="Boarding stop" value={stopId} disabled={busy} onChange={(event) => setStopId(event.target.value)}>
+    <Panel title="Scanner assignments" className="mt-4 space-y-4" id="scanner-assignments">
+      <SelectField label="Boarding stop" value={stopId} disabled={busy} onChange={(event) => onStopChange(event.target.value)}>
         <option value="">{t('Choose a boarding stop')}</option>
         {stops.map((item) => (
           <option key={item.callId} value={item.callId}>
@@ -33,7 +37,7 @@ export default function ScannerAssignmentsPanel({ stops, routeName }: {
           </option>
         ))}
       </SelectField>
-      {stops.length === 0 && <p>{t('No boarding stops available for assignment.')}</p>}
+      {stops.length === 0 && <p className="text-sm text-on-surface-variant">{t('No boarding stops available for assignment.')}</p>}
       {stop && (
         <>
           <p className="text-sm text-on-surface-variant">
@@ -43,8 +47,8 @@ export default function ScannerAssignmentsPanel({ stops, routeName }: {
           </p>
           {staff.error && <ErrorState compact onRetry={staff.retry} />}
           {devices.error && <ErrorState compact onRetry={devices.retry} />}
-          {(staff.fetching || devices.fetching) && <p role="status">{t('Loading')}</p>}
-          {staff.data?.length === 0 && <p>{t('No active Staff accounts.')}</p>}
+          {(staff.fetching || devices.fetching) && <p role="status" className="text-sm text-on-surface-variant">{t('Loading')}</p>}
+          {staff.data?.length === 0 && <p className="text-sm text-on-surface-variant">{t('No active Staff accounts.')}</p>}
           <ScannerDeviceRegistration disabled={busy || devices.fetching} onRegistered={(id) => {
             setDeviceId(id)
             devices.retry()
@@ -81,7 +85,7 @@ function StopAssignments({ stop, routeName, staff, devices, deviceId, onDeviceCh
   const [page, setPage] = useState(1)
   const assignments = useFetch(() => listStopAssignments(stop.callId, page), [page])
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
-  const [success, setSuccess] = useState<{ id: string; summary: string } | null>(null)
+  const [success, setSuccess] = useState<{ summary: string } | null>(null)
   const [validationError, setValidationError] = useState(false)
   const [uncertain, setUncertain] = useState(false)
   const submitting = useRef(false)
@@ -126,8 +130,8 @@ function StopAssignments({ stop, routeName, staff, devices, deviceId, onDeviceCh
       await run(async () => {
         try {
           if (confirmation.kind === 'create') {
-            const created = await assignScanner(confirmation.request)
-            setSuccess({ id: created.assignmentId, summary: confirmationText })
+            await assignScanner(confirmation.request)
+            setSuccess({ summary: confirmationText })
             if (page === 1) assignments.retry()
             else setPage(1)
           } else {
@@ -156,8 +160,8 @@ function StopAssignments({ stop, routeName, staff, devices, deviceId, onDeviceCh
         (confirmation.request.activeUntil ? formatDateTime(confirmation.request.activeUntil) : t('No end time')),
       confirmation.request.isPrimaryOffline ? t('Primary Offline scanner') : t('Secondary scanner')].join(' · ')
     : confirmation?.kind === 'revoke'
-      ? t('Revoke assignment {id} for scanner {code}?', {
-        id: confirmation.assignment.assignmentId, code: confirmation.assignment.deviceCode,
+      ? t('Revoke {staff} on scanner {code}?', {
+        staff: confirmation.assignment.staffName || t('Staff account unavailable'), code: confirmation.assignment.deviceCode,
       })
       : ''
 
@@ -185,7 +189,7 @@ function StopAssignments({ stop, routeName, staff, devices, deviceId, onDeviceCh
           <TextField label="Active until (optional)" type="datetime-local" value={until}
             onChange={(event) => setUntil(event.target.value)} hint={t('Vietnam time (UTC+07:00)')} />
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={primary} onChange={(event) => setPrimary(event.target.checked)} />
+            <input type="checkbox" className={CHECKBOX_CLASS} checked={primary} onChange={(event) => setPrimary(event.target.checked)} />
             {t('Primary Offline scanner')}
           </label>
         </fieldset>
@@ -195,8 +199,8 @@ function StopAssignments({ stop, routeName, staff, devices, deviceId, onDeviceCh
         </Button>
       </form>
       {confirmation && (
-        <div className="space-y-3 rounded-xl border border-outline-variant/40 p-4">
-          <p>{confirmationText}</p>
+        <div className={`${INSET_CLASS} space-y-3 p-4`}>
+          <p className="text-sm text-deep-river">{confirmationText}</p>
           <div className="flex gap-2">
             <Button variant={confirmation.kind === 'revoke' ? 'danger' : 'dark'} disabled={!canConfirm || busy} onClick={submit}>
               {t(confirmation.kind === 'revoke' ? 'Confirm revoke' : 'Confirm assignment')}
@@ -209,23 +213,22 @@ function StopAssignments({ stop, routeName, staff, devices, deviceId, onDeviceCh
       {uncertain && <Notice tone="error">{t('The server may have saved the change. Check the refreshed assignments before trying again.')}</Notice>}
       {success && (
         <Notice tone="success">
-          {t('Created assignment {id}.', { id: success.id })}{' '}{success.summary}
+          {t('Assignment created.')}{' '}{success.summary}
         </Notice>
       )}
-      <section className="space-y-3 border-t border-outline-variant/40 pt-4">
-        <h3 className="font-semibold">{t('Current and upcoming assignments')}</h3>
+      <section className="space-y-3 border-t border-outline-variant/30 pt-4">
+        <h3 className="font-display text-base font-bold text-deep-river">{t('Current and upcoming assignments')}</h3>
         {assignments.error && <ErrorState compact onRetry={assignments.retry} />}
-        {assignments.fetching && <p role="status">{t('Loading')}</p>}
-        {data && data.totalCount === 0 && <p>{t('No current or upcoming assignments at this stop.')}</p>}
+        {assignments.fetching && <p role="status" className="text-sm text-on-surface-variant">{t('Loading')}</p>}
+        {data && data.totalCount === 0 && <p className="text-sm text-on-surface-variant">{t('No current or upcoming assignments at this stop.')}</p>}
         {data && data.items.length > 0 && (
-          <ul className="divide-y divide-outline-variant/40">
+          <ul className="divide-y divide-outline-variant/30">
             {data.items.map((item) => (
               <li key={item.assignmentId} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div>
-                  <p className="font-semibold">{item.staffName || t('Staff account unavailable')} · {item.deviceCode}</p>
-                  <p className="text-sm">{formatDateTime(item.activeFrom)} – {item.activeUntil ? formatDateTime(item.activeUntil) : t('No end time')}
+                  <p className="font-semibold text-deep-river">{item.staffName || t('Staff account unavailable')} · {item.deviceCode}</p>
+                  <p className="text-sm text-on-surface-variant">{formatDateTime(item.activeFrom)} – {item.activeUntil ? formatDateTime(item.activeUntil) : t('No end time')}
                     {' · '}{t(item.isPrimaryOffline ? 'Primary Offline scanner' : 'Secondary scanner')}</p>
-                  <p className="break-all font-mono text-xs">{item.assignmentId}</p>
                 </div>
                 <Button variant="danger" size="sm" disabled={busy || Boolean(confirmation)} onClick={() => {
                   clearError()
@@ -236,12 +239,8 @@ function StopAssignments({ stop, routeName, staff, devices, deviceId, onDeviceCh
             ))}
           </ul>
         )}
-        {data && data.totalPages > 1 && (
-          <div className="flex items-center gap-2">
-            <Button variant="neutral" disabled={page <= 1 || busy || Boolean(confirmation)} onClick={() => setPage(page - 1)}>{t('Previous page')}</Button>
-            <span>{page} / {data.totalPages}</span>
-            <Button variant="neutral" disabled={page >= data.totalPages || busy || Boolean(confirmation)} onClick={() => setPage(page + 1)}>{t('Next page')}</Button>
-          </div>
+        {data && (
+          <Pagination pageNumber={page} totalPages={data.totalPages} onChange={setPage} busy={busy || Boolean(confirmation)} />
         )}
       </section>
     </>
