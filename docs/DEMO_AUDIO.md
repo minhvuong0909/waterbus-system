@@ -7,7 +7,7 @@ Dành cho bất kỳ ai trong nhóm muốn chạy lại demo. Không cần key d
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build
 ```
-`docker-compose.demo.yml` bật môi trường Development (để seed dữ liệu mẫu), bộ giả lập GPS (một vòng chuyến 210 giây, tàu dừng ở mỗi bến),
+`docker-compose.demo.yml` bật môi trường Development (để seed dữ liệu mẫu), bộ giả lập GPS (một lượt chuyến 210 giây, tàu dừng ở mỗi bến),
 kích hoạt audio theo vị trí và cho Captain mở đón khách sớm. Đợi khoảng **1 phút** sau khi API lên để seed xong (tuyến tham quan SS01/SS02, địa danh, clip).
 
 Chạy API không bằng Docker: đặt cùng các biến môi trường trong file override đó (`Tracking__Simulator__*`, `SightseeingAudio__EnableGpsTriggerEvaluation=true`,
@@ -34,7 +34,7 @@ Dữ liệu mẫu đã chuẩn bị sẵn, không cần chạy lệnh nào ngoà
 
 **Xem phía Admin:** đăng nhập `admin@waterbus.vn` / `Admin@123456!` ở cửa sổ khác, mở **Điều hành trực tiếp** để thấy tàu chạy và các mốc địa danh.
 
-Một vòng chạy khoảng 3,5 phút. Chỉ một trình phát nhận audio cho mỗi tàu: **kết nối mới nhất thắng**; nếu hai người cùng đăng nhập một tài khoản Captain thì chỉ người mở sau nghe được, hãy đóng tab cũ.
+Chuyến chạy một lượt khoảng 3,5 phút, tới bến cuối thì tàu đứng yên chờ Captain bấm Đến bến cuối và Kết thúc chuyến (không chạy lại vòng). Chỉ một trình phát nhận audio cho mỗi tàu: **kết nối mới nhất thắng**; nếu hai người cùng đăng nhập một tài khoản Captain thì chỉ người mở sau nghe được, hãy đóng tab cũ.
 
 ## Lỗi thường gặp
 | Hiện tượng | Nguyên nhân / cách xử lý |

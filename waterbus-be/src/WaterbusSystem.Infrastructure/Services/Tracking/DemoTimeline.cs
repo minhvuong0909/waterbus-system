@@ -2,7 +2,7 @@ namespace WaterbusSystem.Infrastructure.Services.Tracking;
 
 /// <summary>
 /// Dòng thời gian một chuyến demo ngắn: tàu đứng yên (dwell) tại mỗi bến rồi chạy sang bến kế tiếp với tốc độ tăng/giảm dần
-/// (smoothstep) nên chậm lại khi gần bến; thời gian từng chặng tỉ lệ với độ dài chặng. Lặp vòng sau <c>totalSeconds</c>.
+/// (smoothstep) nên chậm lại khi gần bến; thời gian từng chặng tỉ lệ với độ dài chặng. Chạy một lượt, sau <c>totalSeconds</c> đứng ở bến cuối.
 /// </summary>
 public static class DemoTimeline
 {
@@ -19,8 +19,9 @@ public static class DemoTimeline
         var dwell = Math.Clamp(dwellSeconds, 0, totalSeconds / (2.0 * n));
         var moving = totalSeconds - n * dwell;
 
-        var t = elapsedSeconds % totalSeconds;
-        if (t < 0) t += totalSeconds;
+        // Chuyến chỉ chạy một lượt: quá thời gian thì tàu đứng ở bến cuối chờ Captain bấm Đến bến/Kết thúc (không quay lại chạy).
+        if (elapsedSeconds >= totalSeconds) return (stopFractions[n - 1], true);
+        var t = Math.Max(0, elapsedSeconds);
         for (var i = 0; i < n; i++)
         {
             if (t < dwell) return (stopFractions[i], true);

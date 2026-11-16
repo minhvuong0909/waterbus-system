@@ -77,7 +77,7 @@ public class StationAnnouncementTests
     }
 
     [Fact]
-    public void DemoTimeline_HoldsAtEveryStopAndFinishesTheLoop()
+    public void DemoTimeline_HoldsAtEveryStopAndStaysAtTheLastStop()
     {
         double[] stops = [0, 0.4, 1];
 
@@ -86,6 +86,6 @@ public class StationAnnouncementTests
         var middle = Enumerable.Range(0, 2100).Select(i => DemoTimeline.At(stops, 210, 8, i / 10.0))
             .Where(p => p.Dwelling && Math.Abs(p.Fraction - 0.4) < 1e-9).Count();
         middle.Should().BeGreaterThan(70);                                          // ~8 giây đứng yên ở bến giữa
-        DemoTimeline.At(stops, 210, 8, 210 + 50).Should().Be(DemoTimeline.At(stops, 210, 8, 50)); // lặp vòng
+        DemoTimeline.At(stops, 210, 8, 210 + 50).Should().Be((1, true));           // quá giờ: đứng ở bến cuối, không quay lại
     }
 }
