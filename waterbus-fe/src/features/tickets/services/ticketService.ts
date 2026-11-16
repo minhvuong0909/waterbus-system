@@ -1,5 +1,5 @@
 import { getTripDetail } from '../../trips/services/tripService'
-import { accountOrderPath, groupByBooking, manageLinkPath, manageLinkUrl, ticketStatusLabel } from '../utils'
+import { accountOrderPath, groupByBooking, manageLinkPath, manageLinkUrl, splitUpcoming, ticketStatusLabel } from '../utils'
 import type { ManageBooking, Ticket, TicketWallet } from '../types'
 import { API_ENDPOINTS } from '../../../constant/apiEndpoints'
 import { ApiError, apiRequest } from '../../../services/apiClient'
@@ -155,6 +155,8 @@ async function ticketsOfOrder({ orderId, accessToken }: OrderRef): Promise<Ticke
           bookingId: booking.bookingId,
           bookingRef: booking.bookingCode,
           status: ticketStatusLabel(ticket.status, ticket.boardingStatus),
+          lifecycle: ticket.status as Ticket['lifecycle'],
+          boardingStatus: ticket.boardingStatus as Ticket['boardingStatus'],
           departTime: trip.departTime,
           arriveTime: trip.arriveTime,
           durationMins: trip.durationMins,
@@ -197,7 +199,18 @@ export async function getTicketWallet(): Promise<TicketWallet> {
   const past = tickets
     .filter((t) => t.completed)
     .sort((a, b) => departureKey(b).localeCompare(departureKey(a)))
-  return { next: upcoming[0], later: upcoming.slice(1), past }
+  return { ...splitUpcoming(upcoming), past }
+}
+
+/**
+ * Mọi vé của Booking chứa vé `id` (vé đầu của đơn khi `id` không khớp). Một Booking có một QR chung (BR-QR-01),
+ * nên màn chi tiết hiển thị cả Booking thay vì từng vé riêng.
+ */
+export async function getBookingTickets(id: string | null): Promise<Ticket[]> {
+  const tickets = await knownTickets()
+  const picked = (id ? tickets.find((x) => x.id === id) : undefined) ?? tickets[0]
+  if (!picked) throw new ApiError(404, 'Chưa có vé đã phát cho đơn hàng nào trên thiết bị này.')
+  return tickets.filter((x) => x.bookingId === picked.bookingId)
 }
 
 /** The ticket with this id; the first ticket of the order when `id` is not one of them. */

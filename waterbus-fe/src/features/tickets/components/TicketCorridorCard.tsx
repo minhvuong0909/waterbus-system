@@ -2,7 +2,9 @@ import { Icon } from '../../../components/ui'
 import type { Ticket } from '../types'
 import { t } from '../../../i18n'
 
-export default function TicketCorridorCard({ ticket }: { ticket: Ticket }) {
+/** Hành lang của chuyến; `tickets` là mọi vé của Booking (cùng một chuyến). */
+export default function TicketCorridorCard({ tickets }: { tickets: Ticket[] }) {
+  const ticket = tickets[0]
   return (
     <div className="rounded-2xl bg-surface-container-lowest p-space-lg shadow-card">
       <div className="mb-space-md flex items-center justify-between">
@@ -63,9 +65,9 @@ export default function TicketCorridorCard({ ticket }: { ticket: Ticket }) {
           <div className="truncate text-sm font-semibold text-deep-river" title={ticket.lineName}>{ticket.lineName}</div>
         </div>
         <div className="rounded-lg bg-mist p-2">
-          <div className="text-2xs text-on-surface-variant">{t('Passenger')}</div>
-          <div className="text-sm font-semibold text-deep-river">
-            {t('1 Pass ({seat})', { seat: ticket.seat })}
+          <div className="text-2xs text-on-surface-variant">{t('Passengers')}</div>
+          <div className="truncate text-sm font-semibold text-deep-river" title={tickets.map((x) => x.seat).join(', ')}>
+            {t('{count} passengers', { count: tickets.length })} ({tickets.map((x) => x.seat).join(', ')})
           </div>
         </div>
       </div>

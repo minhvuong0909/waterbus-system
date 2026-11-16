@@ -17,6 +17,8 @@ public interface IStationScannerRepository
     void AddShift(StaffStationShift shift);
     Task<PaginatedList<StaffStationShiftResponse>> ListShiftsAsync(int page, int size, CancellationToken ct);
     Task<List<MyScannerAssignmentResponse>> ListCallsAsync(ScannerIdentityResponse scanner, StaffStationShift shift, DateTimeOffset now, CancellationToken ct);
+    /// <summary>Cửa sổ check-in của điểm dừng đóng không muộn hơn lúc ca kết thúc (Staff chịu trách nhiệm đến hết cửa sổ).</summary>
+    Task<bool> CallClosesWithinShiftAsync(Guid callId, DateTimeOffset shiftEnd, CancellationToken ct);
     Task<bool> IsBoardingCallAsync(Guid callId, Guid stationId, bool historical, CancellationToken ct);
     Task<PaginatedList<ScannerAssignmentAdminResponse>> ListPrimaryAssignmentsAsync(
         Guid callId, DateTimeOffset now, int page, int size, CancellationToken ct);

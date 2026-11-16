@@ -60,9 +60,11 @@ public sealed class StationScannerRepository(ApplicationDbContext db) : IStation
     public Task<List<MyScannerAssignmentResponse>> ListCallsAsync(ScannerIdentityResponse scanner, StaffStationShift shift,
         DateTimeOffset now, CancellationToken ct)
     {
-        var shiftEnd = shift.RevokedAt is { } revoked && revoked < shift.ActiveUntil ? revoked : shift.ActiveUntil;
+        var shiftEnd = shift.EffectiveEnd;
+        // Staff chỉ chịu trách nhiệm điểm dừng mà ca của họ kéo dài tới hết cửa sổ check-in (so với giờ ĐÓNG cửa sổ, không phải giờ mở):
+        // ca kết thúc 15:30 thì không nhận chuyến có cửa sổ 15:15-15:45, vì 15:30-15:45 không còn ai trực.
         return Serviceable(BoardingCalls(scanner.StationId))
-            .Where(c => c.CheckInCloseAt > now && c.CheckInOpenAt < shiftEnd)
+            .Where(c => c.CheckInCloseAt > now && c.CheckInCloseAt <= shiftEnd)
             .OrderBy(c => c.CheckInOpenAt).ThenBy(c => c.Id)
             .Select(c => new MyScannerAssignmentResponse(shift.Id, c.Id, c.TripId, c.Trip!.Route!.Name,
                 scanner.StationName, c.VisitOrder, c.Trip.Status.ToString(), c.EstimatedArrivalTime,
@@ -74,6 +76,9 @@ public sealed class StationScannerRepository(ApplicationDbContext db) : IStation
                 c.Trip.Boat != null ? c.Trip.Boat.Name : null, c.EstimatedDepartureTime))
             .ToListAsync(ct);
     }
+
+    public Task<bool> CallClosesWithinShiftAsync(Guid callId, DateTimeOffset shiftEnd, CancellationToken ct) =>
+        db.TripStopCalls.AsNoTracking().AnyAsync(c => c.Id == callId && c.CheckInCloseAt != null && c.CheckInCloseAt <= shiftEnd, ct);
 
     public Task<bool> IsBoardingCallAsync(Guid callId, Guid stationId, bool historical, CancellationToken ct)
     {

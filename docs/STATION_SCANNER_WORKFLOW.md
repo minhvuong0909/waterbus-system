@@ -8,7 +8,7 @@ Device registration stored a human-entered code and marked the row active. Devic
 
 1. In **Scanners**, register a device at its physical Station. The server generates a code such as SC-BD-001 using the Station code. Multiple devices can serve the same Station.
 2. Generate an activation QR. Staff sign in and scan it from **Settings** on the phone. A current shift is unnecessary for enrollment.
-3. In **Staff shifts**, schedule each Staff member at a Station. Shifts have half-open intervals. A Staff member can have one shift at a time, including at the same Station. Adjacent shifts may share a boundary.
+3. In **Staff shifts**, schedule each Staff member at a Station. Shifts have half-open intervals. A Staff member can have one shift at a time, including at the same Station. Adjacent shifts may share a boundary. A Staff member is responsible for a boarding call only if the shift lasts until the call's check-in window **closes** (compared with the close time, not the open time): a shift ending at 15:30 does not cover a 15:15–15:45 window, so that call belongs to the next shift. The same rule governs the call list, the manifest and online check-in.
 4. In **Check-in**, configure the TripStopCall window and explicitly assign one Primary Offline scanner for a finite interval. Other paired scanners at the Station can work online.
 5. In **Manifest**, select an available boarding call and preload the passenger list and QR verification key. Use the scanner to verify the signed booking QR and select the passengers present. The app marks offline writes pending until the API acknowledges them.
 
@@ -61,4 +61,6 @@ A scanner stays bound to one Station. During a valid shift it may serve every au
 
 ## Simulated offline (development only)
 
-Scanner settings show "Simulate Offline (Development Only)" in development builds. It makes scanner operations behave as offline without disabling Wi-Fi. It is off by default, kept in memory only, and reset on login, logout and restart. While on, the app makes no scanner API calls (no pairing check, preload or check-in). Turning it off syncs queued events in a batch.
+Scanner settings show "Simulate Offline (Development Only)" in development builds. It makes scanner operations behave as offline without disabling Wi-Fi. It is off by default, kept in memory only, and reset on login, logout and restart. Turning it on first refreshes the server-issued offline context once while still online (like preloading before Wi-Fi is lost), so a Primary Offline assignment made after the last preload is picked up. While on, the app then makes no scanner API calls (no pairing check, preload or check-in). Turning it off syncs queued events in a batch. Offline scans are refused with an explicit reason unless the device is the Primary Offline of that boarding call and holds an unexpired grant.
+
+Khi mất Wi-Fi thật mà NetInfo chưa kịp báo offline, lần soát vé trực tuyến không tới được máy chủ (lỗi mạng, không phải lỗi HTTP) sẽ tự chuyển sang soát ngoại tuyến vào SQLite nếu máy là Primary Offline có grant hợp lệ; ngược lại vẫn bị từ chối. Sự kiện được đồng bộ lô khi có mạng.

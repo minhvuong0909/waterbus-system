@@ -3,7 +3,7 @@ import { useFetch } from '../../../hooks'
 import { getToken } from '../../../services/authStorage'
 import { useAppDispatch, useAppSelector } from '../../../store/hooks'
 import { getAccountOrders, getSharedTrip } from '../services/orderAccessService'
-import { getManageBooking, getTicket, getTicketWallet } from '../services/ticketService'
+import { getBookingTickets, getManageBooking, getTicketWallet } from '../services/ticketService'
 import { selectTicket } from '../ticketsSlice'
 
 /** The wallet: the tickets the backend issued for the order in this session or link. */
@@ -22,8 +22,9 @@ export function useTicketWallet() {
 
 export function useTicketDetail() {
   const id = useAppSelector((s) => s.tickets.selectedTicketId)
-  const fetched = useFetch(() => getTicket(id))
-  return { ticket: fetched.data, loading: fetched.loading, error: fetched.error, retry: fetched.retry }
+  const fetched = useFetch(() => getBookingTickets(id))
+  // Một Booking có một QR chung: màn chi tiết nhận cả Booking, `ticket` là vé đầu dùng cho thông tin chuyến.
+  return { tickets: fetched.data, ticket: fetched.data?.[0], loading: fetched.loading, error: fetched.error, retry: fetched.retry }
 }
 
 /**

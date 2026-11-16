@@ -49,6 +49,8 @@ const ADMIN_PAGES: Record<string, ComponentType> = {
   [ROUTES.adminCheckIn]: lazy(() => import('../pages/admin/CheckInPage')),
   [ROUTES.adminScanners]: lazy(() => import('../pages/admin/ScannerManagementPage')),
   [ROUTES.adminStaffShifts]: lazy(() => import('../pages/admin/StaffStationShiftsPage')),
+  [ROUTES.adminCaptains]: lazy(() => import('../pages/admin/CaptainsPage')),
+  [ROUTES.adminStaffAccounts]: lazy(() => import('../pages/admin/StaffAccountsPage')),
   [ROUTES.adminAudioGuides]: lazy(() => import('../pages/admin/AudioGuidesPage')),
 }
 const BoatSeatsPage = lazy(() => import('../pages/admin/BoatSeatsPage'))

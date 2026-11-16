@@ -38,6 +38,28 @@ export function groupByBooking(tickets: Ticket[]): Ticket[][] {
   return [...groups.values()]
 }
 
+/**
+ * Tách vé sắp đi (đã sắp theo giờ khởi hành) thành đặt chỗ gần nhất và các đặt chỗ sau đó.
+ * Vé cùng đặt chỗ luôn đi cùng nhau, không bị tách giữa "kế tiếp" và "các chuyến sau".
+ */
+export function splitUpcoming(sorted: Ticket[]): { next: Ticket[]; later: Ticket[] } {
+  const [next = [], ...rest] = groupByBooking(sorted)
+  return { next, later: rest.flat() }
+}
+
+/** BR-QR-01: mỗi Booking chỉ có MỘT QR; mọi vé của Booking dùng chung mã này. Chưa có khi Booking chưa thanh toán hoặc không còn vé hợp lệ. */
+export const bookingQrPayload = (tickets: Ticket[]): string | undefined => tickets.find((x) => x.qrPayload)?.qrPayload
+
+/** Tổng tiền các vé của một Booking. */
+export const bookingFare = (tickets: Ticket[]): number => tickets.reduce((sum, x) => sum + x.fareVnd, 0)
+
+/** Nhãn trạng thái của cả Booking: một nhãn chung nếu mọi vé giống nhau, ngược lại đếm số vé đã check-in. */
+export function bookingStatusLabel(tickets: Ticket[]): string {
+  if (new Set(tickets.map((x) => x.status)).size <= 1) return tickets[0]?.status ?? ''
+  const checkedIn = tickets.filter((x) => x.boardingStatus === 'CheckedIn').length
+  return t('{checked} of {total} checked in', { checked: checkedIn, total: tickets.length })
+}
+
 /** Đường dẫn Manage Order secure link của một đơn: token trong path, mã đơn trong query. */
 export function manageLinkPath(orderId: string, accessToken: string): string {
   return `${ROUTES.manageByLink.replace(

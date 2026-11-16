@@ -84,6 +84,8 @@ public static class DependencyInjection
         services.AddScoped<IBoatRepository, BoatRepository>();
         services.AddScoped<ICaptainRepository, CaptainRepository>();
         services.AddScoped<ICaptainService, CaptainService>();
+        services.AddScoped<IStaffAccountRepository, StaffAccountRepository>();
+        services.AddScoped<IStaffAccountService, StaffAccountService>();
         services.AddScoped<IPersonnelInvitationService, PersonnelInvitationService>();
         services.AddOptions<PersonnelInvitationOptions>().Bind(configuration.GetSection("PersonnelInvitation"))
             .Validate(o => o.TokenLifetimeHours > 0 && o.TokenLifetimeHours <= 168, "Invitation lifetime must be positive and <= 168 hours.").ValidateOnStart();

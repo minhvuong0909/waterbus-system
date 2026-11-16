@@ -1,8 +1,8 @@
 import { ROLES } from '../../constant/roles'
 import { ROUTES } from '../../routes/routes'
 
-/** Nhóm của sidebar: việc chạy trong ngày, danh mục cấu hình, tiền, nội dung. */
-export type AdminNavGroup = 'Operations' | 'Catalogue' | 'Finance' | 'Content'
+/** Nhóm của sidebar: việc chạy trong ngày, nhân sự, danh mục cấu hình, tiền, nội dung. */
+export type AdminNavGroup = 'Operations' | 'Personnel' | 'Catalogue' | 'Finance' | 'Content'
 
 export interface AdminNavItem {
   to: string
@@ -16,7 +16,7 @@ export interface AdminNavItem {
 const { admin } = ROLES
 
 /** Thứ tự nhóm trên sidebar. */
-export const ADMIN_NAV_GROUPS: AdminNavGroup[] = ['Operations', 'Catalogue', 'Finance', 'Content']
+export const ADMIN_NAV_GROUPS: AdminNavGroup[] = ['Operations', 'Personnel', 'Catalogue', 'Finance', 'Content']
 
 /**
  * Điều hướng khu vực quản trị. Trong nhóm Danh mục, thứ tự đi theo phụ thuộc dữ liệu: bến → tuyến → lịch chạy,
@@ -30,6 +30,8 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { to: ROUTES.adminCheckIn, label: 'Check-in', icon: 'how_to_reg', group: 'Operations', roles: [admin] },
   { to: ROUTES.adminScanners, label: 'Scanners', icon: 'qr_code_scanner', group: 'Operations', roles: [admin] },
   { to: ROUTES.adminStaffShifts, label: 'Staff shifts', icon: 'schedule', group: 'Operations', roles: [admin] },
+  { to: ROUTES.adminCaptains, label: 'Captains', icon: 'person', group: 'Personnel', roles: [admin] },
+  { to: ROUTES.adminStaffAccounts, label: 'Staff accounts', icon: 'badge', group: 'Personnel', roles: [admin] },
   { to: ROUTES.adminStations, label: 'Stations', icon: 'anchor', group: 'Catalogue', roles: [admin] },
   { to: ROUTES.adminRoutes, label: 'Routes', icon: 'directions', group: 'Catalogue', roles: [admin] },
   { to: ROUTES.adminSchedules, label: 'Schedules', icon: 'calendar_today', group: 'Catalogue', roles: [admin] },

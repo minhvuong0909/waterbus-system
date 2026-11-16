@@ -73,10 +73,14 @@ public sealed class StationScannerPolicy(
             shift.StationId, scanner.Scanner.StationName, shift.ActiveFrom, shift.ActiveUntil, shift.RevokedAt);
     }
 
-    public async Task<bool> CanOperateOnlineAsync(ScannerAccess scanner, Guid callId, DateTimeOffset now, CancellationToken ct) =>
-        scanner.Enrollment.EndedAt is null &&
-        await scanners.IsBoardingCallAsync(callId, scanner.Scanner.StationId, historical: false, ct) &&
-        await scanners.FindShiftAsync(scanner.StaffId, scanner.Scanner.StationId, now, ct) is not null;
+    public async Task<bool> CanOperateOnlineAsync(ScannerAccess scanner, Guid callId, DateTimeOffset now, CancellationToken ct)
+    {
+        if (scanner.Enrollment.EndedAt is not null ||
+            !await scanners.IsBoardingCallAsync(callId, scanner.Scanner.StationId, historical: false, ct)) return false;
+        var shift = await scanners.FindShiftAsync(scanner.StaffId, scanner.Scanner.StationId, now, ct);
+        // Cùng quy tắc với danh sách điểm dừng của Staff: ca phải kéo dài tới giờ đóng cửa sổ check-in.
+        return shift is not null && await scanners.CallClosesWithinShiftAsync(callId, shift.EffectiveEnd, ct);
+    }
 
     public async Task<ScannerOfflineGrantResponse?> IssueOfflineGrantAsync(
         ScannerAccess scanner, TripStopCall call, DateTimeOffset now, CancellationToken ct)
