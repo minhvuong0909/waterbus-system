@@ -362,7 +362,21 @@ public sealed class TripService(
 
         var incident = await incidentRepository.GetRequiredWithAffectedTripsAsync(id, cancellationToken);
 
+        // Sự cố đã đóng thì không ghi thêm quyết định (BR-INC-03: quyết định gắn với sự cố đang xử lý).
+        if (incident.Status != IncidentConstants.Statuses.Open)
+        {
+            throw new ConflictException($"Sự cố đã ở trạng thái {incident.Status}, không thể ra thêm quyết định.");
+        }
+
         var link = incident.AffectedTrips.FirstOrDefault(t => t.TripId == tripId);
+
+        // Mỗi chuyến chỉ có một quyết định cho một sự cố: không ghi đè quyết định của Admin khác (hoặc của chính mình trên
+        // màn hình cũ). Muốn đổi trạng thái chuyến sau đó, dùng thao tác thường ngày ở trang Chuyến (không gắn sự cố).
+        if (link?.OperationDecision is not null)
+        {
+            throw new ConflictException($"Chuyến này đã có quyết định \"{link.OperationDecision}\" cho sự cố này.");
+        }
+
         if (link is null)
         {
             // Admin có thể xử lý một chuyến mà job chưa liên kết (vd chuyến mới sinh sau lượt quét)

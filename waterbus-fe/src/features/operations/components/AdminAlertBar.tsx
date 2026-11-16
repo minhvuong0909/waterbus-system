@@ -6,10 +6,12 @@ import type { OpenAlertSummary } from '../hooks/useOpenAlertSummary'
 
 /**
  * Strip shown at the top of every admin page while alerts are open, so the admin sees a emergency report or other incident
- * without opening the Incidents page. Hidden on that page itself, which lists the same alerts in full.
+ * without opening the Incidents page. Hidden on that page itself, which lists the same alerts in full, and on the Overview,
+ * whose "Open alerts" card and "Needs your attention" list already say the same thing.
  */
 export default function AdminAlertBar({ summary, pathname }: { summary: OpenAlertSummary | null; pathname: string }) {
-  if (!summary || pathname.startsWith(ROUTES.adminIncidents)) return null
+  const onOverview = pathname.replace(/\/+$/, '') === ROUTES.admin
+  if (!summary || onOverview || pathname.startsWith(ROUTES.adminIncidents)) return null
   const stop = summary.level === 2
   return (
     <div
@@ -25,7 +27,7 @@ export default function AdminAlertBar({ summary, pathname }: { summary: OpenAler
         </span>
         {summary.waiting > 0 && (
           <span className="ml-3 font-normal text-on-surface-variant">
-            {t('Trips waiting for a decision')}: {summary.waiting}
+            {t('Trip decisions waiting')}: {summary.waiting}
           </span>
         )}
       </div>

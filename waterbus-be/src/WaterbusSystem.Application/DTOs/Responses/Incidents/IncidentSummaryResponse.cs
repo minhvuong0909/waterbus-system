@@ -7,6 +7,8 @@ public record IncidentSummaryResponse(
     Guid? RouteId,
     string? RouteCode,
     Guid? BoatId,
+    /// <summary>Mã tàu của sự cố phạm vi Boat/Trip có tàu (BR-INC-02); null nếu sự cố không gắn tàu.</summary>
+    string? BoatCode,
     string Source,
     string IncidentType,
     string? Severity,

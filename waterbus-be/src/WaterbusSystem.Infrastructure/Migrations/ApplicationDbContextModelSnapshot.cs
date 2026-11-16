@@ -1268,6 +1268,10 @@ namespace WaterbusSystem.Infrastructure.Migrations
 
                     b.HasIndex("RefundBookingId", "OrderId");
 
+                    b.HasIndex("TransactionType", "Status", "CompletedAt");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("TransactionType", "Status", "CompletedAt"), new[] { "Amount" });
+
                     b.ToTable("FinancialTransactions", t =>
                         {
                             t.HasCheckConstraint("CK_FinancialTransactions_Amount", "[Amount] > 0");

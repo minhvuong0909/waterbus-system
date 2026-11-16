@@ -51,6 +51,8 @@ export const API_ENDPOINTS = {
     trips: '/api/v1/admin/trips',
     /** Assigns or replaces the boat of a trip that is still `Scheduled`. */
     tripBoat: (tripId: string) => `/api/v1/admin/trips/${tripId}/boat`,
+    /** Admin: doanh thu thực thu, đã hoàn và thuần theo ngày hoặc tháng. */
+    revenueReport: '/api/v1/admin/reports/revenue',
   },
   assistant: '/api/v1/aiassistant/chat',
   textToSpeech: {

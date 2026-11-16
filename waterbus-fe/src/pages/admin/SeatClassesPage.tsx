@@ -45,7 +45,7 @@ export default function SeatClassesPage() {
       render: (c) => <span className="text-on-surface-variant">{c.description ?? '—'}</span>,
     },
     {
-      header: 'Seats in fleet',
+      header: 'Total seats across all boats',
       className: 'text-right',
       render: (c) =>
         !c.isActive && c.seatCount > 0 ? (

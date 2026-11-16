@@ -277,7 +277,7 @@ public class DomainPersistenceTests(DomainSqlFixture fixture)
         finally { await isolated.DisposeAsync(); }
     }
 
-    private static async Task<(Booking Booking, Trip OtherTrip, Seat Seat)> SeedJourney(ApplicationDbContext context)
+    internal static async Task<(Booking Booking, Trip OtherTrip, Seat Seat)> SeedJourney(ApplicationDbContext context)
     {
         var station = new Station { Code = Guid.NewGuid().ToString("N")[..10], Name = "Loop station" };
         var route = new Route

@@ -29,8 +29,8 @@ public sealed class FinancialTransactionRepository(ApplicationDbContext context)
         int page, int pageSize, CancellationToken ct)
     {
         var late = context.FinancialTransactions.AsNoTracking()
-            .Where(p => p.TransactionType == FinancialTransactionType.Payment && p.Status == FinancialTransactionStatus.Succeeded &&
-                p.FailureReason != null && (p.FailureReason.StartsWith("ReconciliationRequired:") || p.FailureReason.Contains("VerifiedOutcomeConflict")))
+            .Where(p => p.TransactionType == FinancialTransactionType.Payment && p.Status == FinancialTransactionStatus.Succeeded)
+            .Where(FinancialTransactionFilters.IsLateReceipt)
             .Select(p => new ReconRow { Kind = "LatePayment", TransactionId = p.Id, OrderId = p.OrderId,
                 BookingId = p.Order!.Bookings.Select(b => (Guid?)b.Id).FirstOrDefault(), Amount = p.Amount, MerchantReference = p.MerchantReference,
                 GatewayReference = p.GatewayReference, Status = p.Status, Reason = p.FailureReason, OccurredAt = p.CompletedAt ?? p.CreatedAt,

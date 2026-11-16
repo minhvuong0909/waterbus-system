@@ -259,6 +259,50 @@ public class TripServiceChangeStatusTests
     }
 
     [Fact]
+    public async Task Admin_DecidingTwiceForSameIncidentAndTrip_ShouldBeRefusedAndKeepFirstDecision()
+    {
+        AsAdmin();
+        var incident = AddIncident(linkTrip: true);
+        await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Suspend, "Dông", incident.Id), CancellationToken.None);
+
+        var act = () => Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Cancel, "Đổi ý", incident.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>();
+        _context.IncidentTrips.Single().OperationDecision.Should().Be("Suspend");
+        _context.Trips.Find(_seed.Trip.Id)!.Status.Should().Be(TripStatus.Suspended, "quyết định bị từ chối không được đổi trạng thái chuyến");
+        _context.TripOperationEvents.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Admin_DecidingForClosedIncident_ShouldBeRefusedWithoutChangingTheTrip()
+    {
+        AsAdmin();
+        var incident = AddIncident(linkTrip: true);
+        incident.Status = "Resolved";
+        _context.SaveChanges();
+
+        var act = () => Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Cancel, "Muộn", incident.Id), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConflictException>();
+        _context.IncidentTrips.Single().OperationDecision.Should().BeNull();
+        _context.Trips.Find(_seed.Trip.Id)!.Status.Should().Be(TripStatus.Scheduled);
+        _context.TripOperationEvents.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Admin_RoutineOperationWithoutIncident_StillWorksAfterADecision()
+    {
+        // Sau khi đã quyết định cho sự cố, Admin vẫn xử lý chuyến ở trang Chuyến (không gắn sự cố).
+        AsAdmin();
+        var incident = AddIncident(linkTrip: true);
+        await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Suspend, "Dông", incident.Id), CancellationToken.None);
+
+        var result = await Service().ChangeStatusAsync(_seed.Trip.Id, Req(TripOperation.Resume), CancellationToken.None);
+
+        result.Status.Should().Be("Scheduled");
+    }
+
+    [Fact]
     public async Task Admin_UnknownIncident_ShouldThrowNotFound()
     {
         AsAdmin();

@@ -41,6 +41,7 @@ export const ROUTES = {
   adminFares: '/admin/fares',
   adminIncidents: '/admin/incidents',
   adminRefunds: '/admin/refunds',
+  adminRevenue: '/admin/revenue',
   adminCheckIn: '/admin/check-in',
   adminScanners: '/admin/scanners',
   adminStaffShifts: '/admin/staff-shifts',

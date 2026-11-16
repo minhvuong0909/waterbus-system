@@ -44,7 +44,8 @@ export function attentionItems({
       key: 'decisions',
       icon: 'warning',
       count: alerts.reduce((sum, alert) => sum + pendingCountOf(alert), 0),
-      label: '{count} trips are waiting for your decision on an alert',
+      // Mỗi cặp (sự cố, chuyến) cần một quyết định riêng nên một chuyến dính hai sự cố được tính hai lần: gọi là "quyết định".
+      label: '{count} trip decisions are waiting for you on alerts',
       action: 'Decide',
       to: ROUTES.adminIncidents,
       tone: 'urgent',

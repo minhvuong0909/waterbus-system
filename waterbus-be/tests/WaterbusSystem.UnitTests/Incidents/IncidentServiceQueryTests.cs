@@ -64,6 +64,21 @@ public class IncidentServiceQueryTests
     }
 
     [Fact]
+    public async Task GetPage_ShouldReturnBoatCodeOfBoatScopedIncident_AndNullWhenNoBoat()
+    {
+        var seed = TestDbContextFactory.SeedTrip(_context);
+        var withBoat = Add("Open", "Safety", Now);
+        withBoat.BoatId = seed.Boat.Id;
+        var noBoat = Add("Open", "Technical", Now.AddMinutes(-1));
+        _context.SaveChanges();
+
+        var items = (await Service().GetPageAsync(new GetIncidentsRequest(Status: "Open"))).Items;
+
+        items.Single(i => i.Id == withBoat.Id).BoatCode.Should().Be(seed.Boat.Code);
+        items.Single(i => i.Id == noBoat.Id).BoatCode.Should().BeNull();
+    }
+
+    [Fact]
     public async Task GetPage_ShouldPaginate()
     {
         for (var i = 0; i < 3; i++) Add("Open", "Safety", Now.AddMinutes(i));

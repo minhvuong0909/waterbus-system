@@ -38,6 +38,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { to: ROUTES.adminBoats, label: 'Boats', icon: 'sailing', group: 'Catalogue', roles: [admin] },
   { to: ROUTES.adminSeatClasses, label: 'Seat classes', icon: 'event_seat', group: 'Catalogue', roles: [admin] },
   { to: ROUTES.adminFares, label: 'Fares', icon: 'payments', group: 'Catalogue', roles: [admin] },
+  { to: ROUTES.adminRevenue, label: 'Revenue', icon: 'account_balance', group: 'Finance', roles: [admin] },
   { to: ROUTES.adminRefunds, label: 'Refunds', icon: 'receipt_long', group: 'Finance', roles: [admin] },
   { to: ROUTES.adminAudioGuides, label: 'Audio guides', icon: 'campaign', group: 'Content', roles: [admin] },
 ]

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alertTone, commonDecisions, decisionOperation, isCaptainReport, pendingCountOf, sortAlerts, timeAgo, titleOf } from './alertUtils'
+import { alertTone, commonDecisions, decisionOperation, isCaptainReport, isStaffReport, pendingCountOf, reporterOf, sortAlerts, timeAgo, titleOf } from './alertUtils'
 import type { IncidentAlert, OperationType } from '../../operations/types'
 
 const alert = (patch: Partial<IncidentAlert>): IncidentAlert => ({
@@ -19,7 +19,18 @@ describe('captain reports', () => {
     const sos = alert({ kind: 'Safety', source: 'Captain', level: 2, message: 'Cháy động cơ' })
     expect(titleOf(sos)).toBe('Captain emergency report')
     expect(alertTone(sos)).toMatchObject({ label: 'Captain report', icon: 'sos' })
-    expect(titleOf(alert({}))).toBe('Operational incident')
+  })
+})
+
+describe('incident source labels (BR-INC-04)', () => {
+  it('tells a staff report apart from a system or operations incident', () => {
+    expect(isStaffReport({ source: 'Staff' })).toBe(true)
+    expect(titleOf(alert({ source: 'Staff' }))).toBe('Staff incident report')
+    expect(reporterOf({ source: 'Staff' })).toBe('Reported by staff')
+    expect(titleOf(alert({ source: 'System' }))).toBe('Operational incident')
+    expect(reporterOf({ source: 'System' })).toBe('Reported by operations')
+    expect(reporterOf({})).toBe('Reported by operations')
+    expect(reporterOf({ source: 'Captain' })).toBe('Reported by the captain')
   })
 })
 

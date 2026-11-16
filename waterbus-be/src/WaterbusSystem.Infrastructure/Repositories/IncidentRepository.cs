@@ -52,6 +52,7 @@ public sealed class IncidentRepository(ApplicationDbContext context) : IIncident
             .OrderByDescending(i => i.OccurredAt ?? i.CreatedAt)
             .Select(i => new IncidentSummaryResponse(
                 i.Id,  i.ScopeType, i.RouteId, i.Route != null ? i.Route.Code : null, i.BoatId,
+                i.Boat != null ? i.Boat.Code : null,
                 i.Source, i.IncidentType, i.Severity, i.Status, i.Description, i.OccurredAt, i.ResolvedAt,
                 i.AffectedTrips.Count, i.AffectedTrips.Count(t => t.OperationDecision == null)
             ));
