@@ -377,6 +377,8 @@ public class FinancialTransactionConfiguration : IEntityTypeConfiguration<Financ
     public void Configure(EntityTypeBuilder<FinancialTransaction> builder)
     {
         builder.HasIndex(x => x.IdempotencyKey).IsUnique();
+        // Báo cáo doanh thu: lọc theo loại/trạng thái/ngày hoàn tất và cộng Amount mà không phải đọc bảng.
+        builder.HasIndex(x => new { x.TransactionType, x.Status, x.CompletedAt }).IncludeProperties(x => x.Amount);
         builder.HasAlternateKey(x => new { x.Id, x.OrderId });
         builder.Property(x => x.TransactionType).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.Amount).HasPrecision(12, 2);

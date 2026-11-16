@@ -111,6 +111,8 @@ public static class DependencyInjection
         services.AddScoped<IRouteAdminService, WaterbusSystem.Application.Features.Routes.Services.RouteAdminService>();
         services.AddScoped<IScannerDeviceAdminService, WaterbusSystem.Application.Features.ScannerDevices.Services.ScannerDeviceAdminService>();
         services.AddScoped<IFareAdminService, WaterbusSystem.Application.Features.Fares.Services.FareAdminService>();
+        services.AddScoped<IRevenueReportRepository, RevenueReportRepository>();
+        services.AddScoped<IRevenueReportService, WaterbusSystem.Application.Features.Reports.Services.RevenueReportService>();
         services.AddScoped<ITripPlanningService, WaterbusSystem.Application.Features.TripPlanning.Services.TripPlanningService>();
         services.AddScoped<IScheduleAdminService, WaterbusSystem.Application.Features.Schedules.Services.ScheduleAdminService>();
         services.AddScoped<ISeatClassService, WaterbusSystem.Application.Features.SeatInventory.Services.SeatClassService>();
