@@ -36,6 +36,10 @@ public interface ITripRepository
     Task<Dictionary<Guid, (double Latitude, double Longitude)>> GetLastStopLocationsAsync(
         IReadOnlyCollection<Guid> tripIds, CancellationToken cancellationToken = default);
 
+    /// <summary>Các chuyến (trong <paramref name="tripIds"/>) đang có sự cố an toàn (SOS) còn mở và Admin chưa quyết định cho chuyến đó.</summary>
+    Task<HashSet<Guid>> GetTripIdsWithOpenSafetyIncidentAsync(
+        IReadOnlyCollection<Guid> tripIds, CancellationToken cancellationToken = default);
+
     /// <summary>Các vị trí đã lưu của chuyến (mới nhất trước), tối đa <paramref name="take"/> bản ghi.</summary>
     Task<List<(decimal Latitude, decimal Longitude)>> ListTripPositionsAsync(
         Guid tripId, int take, CancellationToken cancellationToken = default);

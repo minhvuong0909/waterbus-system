@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WaterbusSystem.Application.Common.Interfaces;
+using WaterbusSystem.Application.Features.Incidents;
 using WaterbusSystem.Application.Features.Tracking;
 using WaterbusSystem.Application.DTOs.Requests.Tracking;
 using WaterbusSystem.Application.Interfaces.Services;
@@ -25,8 +26,9 @@ public class BoatSimulatorService : BackgroundService
     private readonly IOptionsMonitor<TrackingOptions> _options;
     private readonly ILogger<BoatSimulatorService> _logger;
 
-    /// <summary>Thời điểm simulator thấy chuyến chuyển sang EnRoute (gốc thời gian của chuyến demo; Start không ghi ActualDepartureTime).</summary>
-    private readonly Dictionary<Guid, DateTimeOffset> _demoStartedAt = new();
+    /// <summary>Thời điểm chuyến bắt đầu bị giữ (tạm ngưng hoặc SOS mở) và tổng số giây đã giữ, để tiếp tục đi từ đúng chỗ đã dừng chứ không nhảy tới.</summary>
+    private readonly Dictionary<Guid, DateTimeOffset> _heldSince = new();
+    private readonly Dictionary<Guid, double> _heldSeconds = new();
 
     public BoatSimulatorService(
         IServiceScopeFactory scopeFactory,
@@ -87,6 +89,7 @@ public class BoatSimulatorService : BackgroundService
                 t.Status,
                 RouteCode = t.Route!.Code,
                 Start = t.ActualDepartureTime ?? t.DepartureTime,
+                t.ActualDepartureTime,
                 t.ArrivalTime,
                 Stops = t.TripStopCalls
                     .Where(c => !c.IsDeleted)
@@ -95,6 +98,13 @@ public class BoatSimulatorService : BackgroundService
                     .ToList()
             })
             .ToListAsync(cancellationToken);
+
+        // Chuyến có SOS (sự cố an toàn) còn mở: tàu dừng tại chỗ chờ Admin quyết định (Admin xử lý xong thì đi tiếp, hoặc tạm ngưng/dừng chuyến).
+        // Trip.Status không tự đổi theo SOS.
+        var sosTrips = await context.IncidentTrips.AsNoTracking()
+            .Where(l => trips.Select(t => t.Id).Contains(l.TripId) && !l.IsDeleted && l.OperationDecision == null && l.Incident != null && !l.Incident.IsDeleted
+                && l.Incident.IncidentType == IncidentConstants.Types.Safety && l.Incident.Status == IncidentConstants.Statuses.Open)
+            .Select(l => l.TripId).Distinct().ToListAsync(cancellationToken);
 
         // Mỗi tàu chỉ giả lập 1 chuyến (chuyến khởi hành gần nhất)
         foreach (var trip in trips.GroupBy(t => t.BoatId).Select(g => g
@@ -107,9 +117,23 @@ public class BoatSimulatorService : BackgroundService
                 ?? trip.Stops.Select(s => new RoutePathInterpolator.GeoPoint(s.Latitude, s.Longitude)).ToList();
             if (path.Count < 2) continue;
 
+            // Chuyến chưa mở đón khách: tàu giữ nguyên chỗ đang đứng (vd. bến cuối của chuyến vừa kết thúc);
+            // chỉ đặt ở bến đầu khi tàu chưa có vị trí nào.
+            if (trip.Status == TripStatus.Scheduled && await cache.GetAsync(trip.BoatId, cancellationToken) is not null) continue;
+
+            var held = trip.Status == TripStatus.Suspended || (trip.Status == TripStatus.EnRoute && sosTrips.Contains(trip.Id));
+            if (held)
+            {
+                _heldSince.TryAdd(trip.Id, now);
+            }
+            else if (_heldSince.Remove(trip.Id, out var since))
+            {
+                _heldSeconds[trip.Id] = _heldSeconds.GetValueOrDefault(trip.Id) + (now - since).TotalSeconds;
+            }
+
             decimal lat, lng;
             decimal? speed;
-            if (trip.Status == TripStatus.Suspended)
+            if (held)
             {
                 var last = await cache.GetAsync(trip.BoatId, cancellationToken);
                 var hold = last is null ? path[0] : new RoutePathInterpolator.GeoPoint((double)last.Lat, (double)last.Lng);
@@ -123,17 +147,11 @@ public class BoatSimulatorService : BackgroundService
                 fractions[0] = 0;
                 fractions[^1] = 1;
                 for (var i = 1; i < fractions.Count; i++) fractions[i] = Math.Max(fractions[i], fractions[i - 1]);
-                // Chưa EnRoute: tàu chờ ở bến đầu; chuyến chỉ bắt đầu chạy từ lúc Captain bấm Start.
-                double elapsed = 0;
-                if (trip.Status == TripStatus.EnRoute)
-                {
-                    if (!_demoStartedAt.TryGetValue(trip.Id, out var startedAt)) _demoStartedAt[trip.Id] = startedAt = now;
-                    elapsed = (now - startedAt).TotalSeconds;
-                }
-                else
-                {
-                    _demoStartedAt.Remove(trip.Id);
-                }
+                // Chưa EnRoute: tàu chờ ở bến đầu; chuyến chỉ bắt đầu chạy từ lúc Captain bấm Start. Gốc thời gian là
+                // ActualDepartureTime đã lưu trong DB nên khởi động lại API không làm tàu chạy lại từ bến đầu.
+                var elapsed = trip.Status == TripStatus.EnRoute && trip.ActualDepartureTime is { } departed
+                    ? Math.Max(0, (now - departed).TotalSeconds - _heldSeconds.GetValueOrDefault(trip.Id))
+                    : 0;
                 var (fraction, dwelling) = DemoTimeline.At(fractions, simulator.DemoTripSeconds, simulator.DemoDwellSeconds, elapsed);
                 var point = RoutePathInterpolator.PointAt(path, fraction);
                 lat = Math.Round((decimal)point.Latitude, 7);

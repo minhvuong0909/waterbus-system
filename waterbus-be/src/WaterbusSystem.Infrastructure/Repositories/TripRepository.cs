@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using WaterbusSystem.Application.Common.Models;
+using WaterbusSystem.Application.Features.Incidents;
 using WaterbusSystem.Application.Interfaces.Repositories;
 using WaterbusSystem.Domain.Entities;
 using WaterbusSystem.Domain.Enums;
@@ -67,6 +68,16 @@ public sealed class TripRepository(ApplicationDbContext context) : ITripReposito
             return (last.Latitude, last.Longitude);
         });
     }
+
+    public async Task<HashSet<Guid>> GetTripIdsWithOpenSafetyIncidentAsync(
+        IReadOnlyCollection<Guid> tripIds, CancellationToken cancellationToken = default) =>
+        (await context.IncidentTrips.AsNoTracking()
+            .Where(link => tripIds.Contains(link.TripId) && !link.IsDeleted && link.OperationDecision == null && link.Incident != null && !link.Incident.IsDeleted
+                && link.Incident.IncidentType == IncidentConstants.Types.Safety
+                && link.Incident.Status == IncidentConstants.Statuses.Open)
+            .Select(link => link.TripId)
+            .Distinct()
+            .ToListAsync(cancellationToken)).ToHashSet();
 
     public async Task<List<(decimal Latitude, decimal Longitude)>> ListTripPositionsAsync(
         Guid tripId, int take, CancellationToken cancellationToken = default)

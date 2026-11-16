@@ -155,6 +155,7 @@ public sealed class TripService(
         // Thuyền trưởng không cần thấy chuyến chưa chạy mà đã quá giờ đến dự kiến (Admin xử lý các chuyến này).
         rows = rows.Where(t => !(t.Status is TripStatus.Scheduled or TripStatus.Boarding && t.ArrivalTime < now)).ToList();
         var lastStops = await tripRepository.GetLastStopLocationsAsync(rows.Select(t => t.Id).ToList(), cancellationToken);
+        var openSos = await tripRepository.GetTripIdsWithOpenSafetyIncidentAsync(rows.Select(t => t.Id).ToList(), cancellationToken);
         var items = new List<TripOperationItemResponse>();
         foreach (var t in rows)
         {
@@ -162,16 +163,16 @@ public sealed class TripService(
             var enRoute = t.Status == TripStatus.EnRoute;
             var meters = enRoute ? await DistanceToLastStopAsync(t.BoatId, lastStop, now, cancellationToken) : null;
             bool? left = enRoute && CaptainRules.Enforce ? await HasLeftLastStopAsync(t.Id, lastStop, cancellationToken) : null;
-            items.Add(ToItem(t, CaptainOperationRules.Evaluate(t, now, meters, CaptainRules, left)));
+            items.Add(ToItem(t, CaptainOperationRules.Evaluate(t, now, meters, CaptainRules, left), openSos.Contains(t.Id)));
         }
         return items;
     }
 
-    private static TripOperationItemResponse ToItem(Trip t, IReadOnlyList<CaptainActionHint>? captainActions) => new(
+    private static TripOperationItemResponse ToItem(Trip t, IReadOnlyList<CaptainActionHint>? captainActions, bool openSos = false) => new(
         t.Id, t.ScheduleId, t.RouteId, t.Route!.Code, t.Route.Name, t.BoatId, t.Boat?.Code,
         t.TripType.ToString(), t.Status.ToString(), t.DepartureTime, t.ArrivalTime,
         t.ActualDepartureTime, t.ActualArrivalTime, t.IsDelayed,
-        TripLifecycle.AllowedOperations(t).Select(o => o.ToString()).ToList(), captainActions);
+        TripLifecycle.AllowedOperations(t).Select(o => o.ToString()).ToList(), captainActions, openSos);
 
     // ---------------- GetOperationEvents ----------------
 

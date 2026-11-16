@@ -308,6 +308,7 @@ public class ApplicationDbContextInitializer
         // 9. Nạp tuyến về RT02, thêm tàu demo, lịch trình mở rộng, địa danh du lịch (POI) & chuyến sắp tới
         await SeedRoute2AndStopsAsync();
         await SeedAdditionalBoatsAsync(frontCabinId, standardId, outdoorId);
+        await AssignSecondDemoCaptainAsync(); // SWB-02 chỉ tồn tại sau bước trên; DB trống thì lần gọi sớm hơn không có tàu để gán
         await SeedAdditionalSchedulesAsync();
         await EnsureSightseeingPoisAsync();
         await RetireSightseeingTourAsync();
@@ -353,7 +354,42 @@ public class ApplicationDbContextInitializer
         await _context.SaveChangesAsync();
 
         await ReserveSightseeingBoatAsync();
+        await NormalizeDemoTripsAsync();
         await SeedDemoCaptainAttendanceAsync();
+    }
+
+    /// <summary>
+    /// Làm dữ liệu chuyến demo nhất quán ở DB đã có từ bản seed cũ (idempotent; chuyến đã có khách, đang chạy hoặc đã chạy không bị đụng):
+    /// (1) chuyến chưa chạy đã qua cả giờ đến mà không ai khởi hành → hủy (không để lại "Quá giờ khởi hành" vô nghĩa);
+    /// (2) chuyến tham quan của lịch đã ngừng (giờ trùng giữa hai chiều) → hủy;
+    /// (3) chuyến thường chưa chạy → gán lại tàu theo quy tắc xen kẽ của <see cref="CommuterBoatFor"/> để một tàu không chạy hai chuyến chồng giờ.
+    /// </summary>
+    private async Task NormalizeDemoTripsAsync()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var pair = await GetCommuterBoatPairAsync();
+        var booked = new HashSet<Guid>(await _context.Bookings.Select(b => b.TripId).Distinct().ToListAsync());
+        var open = await _context.Trips
+            .Include(t => t.Route).Include(t => t.Schedule)
+            .Where(t => !t.IsDeleted && t.Status == TripStatus.Scheduled && t.ActualDepartureTime == null)
+            .ToListAsync();
+
+        foreach (var trip in open.Where(t => !booked.Contains(t.Id)))
+        {
+            var staleSightseeing = trip.TripType == TripType.Sightseeing && trip.Schedule is { IsActive: false };
+            var slot = trip.TripType == TripType.Commuter && trip.Schedule is not null
+                ? Array.IndexOf(CommuterSlotTimes, trip.Schedule.DepartureTime)
+                : -1;
+            var offSlot = trip.TripType == TripType.Commuter && trip.Route is { Code: "RT01" or "RT02" } && slot < 0;
+            if (trip.ArrivalTime < now || staleSightseeing || offSlot)
+            {
+                trip.Status = TripStatus.Cancelled;
+                continue;
+            }
+            if (slot < 0 || pair.Count == 0 || trip.Route is null) continue;
+            trip.BoatId = CommuterBoatFor(pair, trip.Route.Code, slot).Id;
+        }
+        await _context.SaveChangesAsync();
     }
 
     /// <summary>Tàu tham quan của demo: chỉ chạy SS01/SS02 để thuyền trưởng của tàu này luôn thấy chuyến tham quan.</summary>
@@ -680,27 +716,31 @@ public class ApplicationDbContextInitializer
         await _context.SaveChangesAsync();
     }
 
+    /// <summary>Các khung giờ chuyến thường của demo (cách nhau ≥ 60 phút để một tàu kịp cập bến, đón khách rồi chạy chuyến kế tiếp).</summary>
+    internal static readonly TimeSpan[] CommuterSlotTimes =
+    [
+        new(7, 30, 0), new(8, 30, 0), new(10, 30, 0), new(14, 0, 0), new(16, 30, 0),
+        new(17, 30, 0), new(19, 0, 0), new(20, 30, 0), new(21, 30, 0)
+    ];
+
     private async Task SeedAdditionalSchedulesAsync()
     {
         var route1 = await _context.Routes.FirstOrDefaultAsync(r => r.Code == "RT01");
         var route2 = await _context.Routes.FirstOrDefaultAsync(r => r.Code == "RT02");
         if (route1 is null || route2 is null) return;
 
-        var times = new[]
-        {
-            new TimeSpan(7, 30, 0),
-            new TimeSpan(8, 30, 0),
-            new TimeSpan(10, 30, 0),
-            new TimeSpan(14, 0, 0),
-            new TimeSpan(16, 30, 0),
-            new TimeSpan(17, 30, 0),
-            new TimeSpan(19, 0, 0),
-            new TimeSpan(20, 30, 0),
-            new TimeSpan(21, 30, 0)
-        };
+        var times = CommuterSlotTimes;
 
         foreach (var route in new[] { route1, route2 })
         {
+            // Lịch thường ngoài các khung giờ chuẩn (vd. 08:00 của seed đầu tiên, cách khung 07:30 chỉ 30 phút nên hai chuyến liền nhau
+            // của cùng một tàu chồng giờ) ngừng hoạt động; chuyến chưa chạy của chúng được dọn ở NormalizeDemoTripsAsync.
+            foreach (var extra in await _context.Schedules
+                         .Where(s => s.RouteId == route.Id && s.IsActive && s.TripType == TripType.Commuter && !times.Contains(s.DepartureTime))
+                         .ToListAsync())
+                extra.IsActive = false;
+            await _context.SaveChangesAsync();
+
             var routeStops = await _context.RouteStops
                 .Where(rs => rs.RouteId == route.Id)
                 .OrderBy(rs => rs.SequenceNo)
@@ -793,14 +833,26 @@ public class ApplicationDbContextInitializer
             _logger.LogWarning("{Count} chuyến demo có loại Sightseeing nhưng Route là Regular và đã có Booking; cần Admin xử lý thủ công.", needReview);
     }
 
+    /// <summary>
+    /// Hai tàu chuyến thường của demo (không tính SWB-01 là tàu tham quan), theo mã tàu: SWB-02, SWB-03. Tàu thêm bằng tay ở Admin
+    /// không nhận chuyến seed. Mỗi giờ khởi hành có hai chuyến (RT01 từ Bạch Đằng, RT02 từ Linh Đông); hai tàu đổi tuyến xen kẽ nên
+    /// mỗi tàu luôn xuất phát từ bến mà chuyến trước vừa cập và không bao giờ chạy hai chuyến chồng giờ (BR-SCH-08).
+    /// </summary>
+    private async Task<List<Boat>> GetCommuterBoatPairAsync() =>
+        await _context.Boats
+            .Where(b => b.IsActive && !b.IsDeleted && b.Code != SightseeingDemoBoatCode)
+            .OrderBy(b => b.Code).Take(2).ToListAsync();
+
+    /// <summary>Tàu chạy chuyến thường theo thứ tự khung giờ trong ngày (<paramref name="slot"/>) và tuyến: RT01 và RT02 luôn khác tàu, xen kẽ từng khung giờ.</summary>
+    internal static Boat CommuterBoatFor(IReadOnlyList<Boat> pair, string routeCode, int slot) =>
+        pair[(Math.Max(slot, 0) + (routeCode == "RT02" ? 1 : 0)) % pair.Count];
+
     private async Task SeedDemoTripsForUpcomingDaysAsync()
     {
         var routes = await _context.Routes.Where(r => r.Code == "RT01" || r.Code == "RT02").ToListAsync();
         if (routes.Count == 0) return;
 
-        var boats = await _context.Boats.Where(b => b.IsActive).ToListAsync();
-        // SWB-01 là tàu tham quan của demo: chuyến thường chạy trên các tàu còn lại.
-        if (boats.Count > 1) boats = boats.Where(b => b.Code != SightseeingDemoBoatCode).ToList();
+        var boats = await GetCommuterBoatPairAsync();
         if (boats.Count == 0) return;
 
         var schedules = await _context.Schedules.Where(s => s.IsActive).ToListAsync();
@@ -808,9 +860,6 @@ public class ApplicationDbContextInitializer
 
         var vnNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7));
         var today = vnNow.Date;
-
-        int boatIndex = 0;
-        bool enRouteSeeded = await _context.Trips.AnyAsync(t => t.Status == TripStatus.EnRoute);
 
         // Tạo chuyến cho Hôm nay (0) và 3 ngày tiếp theo (1, 2, 3)
         for (int dayOffset = 0; dayOffset <= 3; dayOffset++)
@@ -831,30 +880,18 @@ public class ApplicationDbContextInitializer
                         continue;
                     }
 
-                    var boat = boats[boatIndex % boats.Count];
-                    boatIndex++;
+                    var slot = Array.IndexOf(CommuterSlotTimes, sch.DepartureTime);
+                    if (slot < 0) continue; // không thuộc khung giờ chuẩn của demo
+                    var boat = CommuterBoatFor(boats, route.Code, slot);
 
                     // Loại chuyến do cấu hình Schedule quyết định (BR-ROUTE-03), không suy từ giờ khởi hành.
                     var tripType = sch.TripType;
                     var durationMin = route.EstimatedDurationMinutes > 0 ? route.EstimatedDurationMinutes : DemoRouteDurationMin;
 
-                    var isTodayPast = dayOffset == 0 && depVn < vnNow;
-                    TripStatus status = TripStatus.Scheduled;
+                    // Chuyến đã qua giờ khởi hành thì không seed; seed không tạo chuyến "đang chạy" (Captain tự bấm Khởi hành).
+                    if (dayOffset == 0 && depVn < vnNow) continue;
+                    const TripStatus status = TripStatus.Scheduled;
                     DateTimeOffset? actualDep = null;
-
-                    if (isTodayPast)
-                    {
-                        if (!enRouteSeeded && route.Code == "RT01" && (vnNow - depVn).TotalMinutes < 60)
-                        {
-                            status = TripStatus.EnRoute;
-                            actualDep = depUtc;
-                            enRouteSeeded = true;
-                        }
-                        else
-                        {
-                            continue;
-                        }
-                    }
 
                     var trip = new Trip
                     {
@@ -977,13 +1014,16 @@ public class ApplicationDbContextInitializer
             ?? await _context.Boats.FirstOrDefaultAsync(b => b.IsActive);
         var pois = await EnsureSightseeingPoisAsync();
 
+        // Một tàu tham quan chạy xen kẽ hai chiều, mỗi chuyến 45 phút và nghỉ 30 phút tại bến: SS01 từ Bạch Đằng, SS02 từ Linh Đông;
+        // tàu luôn xuất phát từ bến vừa cập và không có hai chuyến chồng giờ (BR-SCH-08).
+        // 09:15 SS01 · 10:30 SS02 · 11:45 SS01 · 13:00 SS02 · 14:15 SS01 · 15:30 SS02 · 16:45 SS01 · 18:00 SS02
         var defs = new[]
         {
-            (Code: "SS01", Name: "Bạch Đằng - Linh Đông (Tham quan)", From: bachDang, To: linhDong, Reverse: false),
-            (Code: "SS02", Name: "Linh Đông - Bạch Đằng (Tham quan)", From: linhDong, To: bachDang, Reverse: true)
+            (Code: "SS01", Name: "Bạch Đằng - Linh Đông (Tham quan)", From: bachDang, To: linhDong, Reverse: false,
+                Times: new[] { new TimeSpan(9, 15, 0), new TimeSpan(11, 45, 0), new TimeSpan(14, 15, 0), new TimeSpan(16, 45, 0) }),
+            (Code: "SS02", Name: "Linh Đông - Bạch Đằng (Tham quan)", From: linhDong, To: bachDang, Reverse: true,
+                Times: new[] { new TimeSpan(10, 30, 0), new TimeSpan(13, 0, 0), new TimeSpan(15, 30, 0), new TimeSpan(18, 0, 0) })
         };
-        // Giờ khởi hành lệch phút so với chuyến thường để không trùng giờ trên cùng tàu.
-        var times = new[] { new TimeSpan(9, 15, 0), new TimeSpan(12, 15, 0), new TimeSpan(15, 15, 0), new TimeSpan(18, 15, 0) };
         var vnNow = DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(7));
 
         foreach (var def in defs)
@@ -1015,9 +1055,14 @@ public class ApplicationDbContextInitializer
 
             await EnsureRoutePoisAsync(route, def.Reverse ? pois.AsEnumerable().Reverse().ToList() : pois);
 
-            foreach (var time in times)
+            // Lịch tham quan cũ (giờ trùng nhau giữa hai chiều) ngừng hoạt động; chuyến chưa chạy của chúng được dọn ở NormalizeDemoTripsAsync.
+            foreach (var old in await _context.Schedules.Where(s => s.RouteId == route.Id && s.IsActive && !def.Times.Contains(s.DepartureTime)).ToListAsync())
+                old.IsActive = false;
+
+            foreach (var time in def.Times)
             {
                 var schedule = await _context.Schedules.FirstOrDefaultAsync(s => s.RouteId == route.Id && s.DepartureTime == time);
+                if (schedule is not null && !schedule.IsActive) schedule.IsActive = true;
                 if (schedule is null)
                 {
                     schedule = new Schedule { RouteId = route.Id, DepartureTime = time, TripType = TripType.Sightseeing, IsActive = true };

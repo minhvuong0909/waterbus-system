@@ -18,6 +18,8 @@ export interface AdminTrip {
   allowedOperations: OperationType[]
   /** Trạng thái từng nút của thuyền trưởng kèm lý do khi chưa bấm được (BE `CaptainOperationRules`); chỉ có cho thuyền trưởng. */
   captainActions?: CaptainActionHint[]
+  /** Chuyến đang có SOS còn mở (chỉ có cho thuyền trưởng): tàu dừng chờ Admin xử lý. */
+  openSos?: boolean
 }
 
 /** Một nút của thuyền trưởng: bấm được hay chưa, và vì sao chưa. */

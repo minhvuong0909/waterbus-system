@@ -142,8 +142,8 @@ public class ApplicationDbContextInitializerTests
         using (var scope = provider.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            scheduleId = (await context.Schedules.FirstAsync(s => s.Route!.Code == "RT01" && s.DepartureTime == new TimeSpan(8, 0, 0))).Id;
-            // Chỉ lịch demo 08:00 của RT01 (seed còn có các lịch khác và tuyến RT02).
+            scheduleId = (await context.Schedules.FirstAsync(s => s.Route!.Code == "RT01" && s.DepartureTime == new TimeSpan(7, 30, 0))).Id;
+            // Chỉ lịch demo 07:30 của RT01 (seed còn có các lịch khác và tuyến RT02).
             var stops = await context.ScheduleStops.Where(s => s.ScheduleId == scheduleId).OrderBy(s => s.VisitOrder).ToListAsync();
             for (var i = 0; i < stops.Count; i++)
             {
