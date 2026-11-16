@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { minutesOfClock, toVietnamDate, vietnamMinutesOfDay } from './time'
+import { minutesOfClock, toVietnamDate, vietnamDayStartIso, vietnamMinutesOfDay } from './time'
+
+describe('vietnamDayStartIso', () => {
+  it('trả 00:00 giờ VN của ngày VN chứa thời điểm (buổi tối)', () => {
+    // 16:30 UTC ngày 15 = 23:30 giờ VN ngày 15 -> 00:00 VN ngày 15 = 17:00 UTC ngày 14.
+    expect(vietnamDayStartIso(new Date('2026-11-15T16:30:00Z'))).toBe('2026-11-14T17:00:00.000Z')
+  })
+
+  it('qua nửa đêm giờ VN thì sang ngày VN kế tiếp dù UTC vẫn là ngày cũ', () => {
+    // 17:30 UTC ngày 15 = 00:30 giờ VN ngày 16.
+    expect(vietnamDayStartIso(new Date('2026-11-15T17:30:00Z'))).toBe('2026-11-15T17:00:00.000Z')
+  })
+
+  it('đúng ngay tại 00:00 giờ VN', () => {
+    expect(vietnamDayStartIso(new Date('2026-11-15T17:00:00Z'))).toBe('2026-11-15T17:00:00.000Z')
+  })
+})
 
 describe('Vietnam clock helpers', () => {
   it('reads an HH:mm clock time as minutes since midnight', () => {

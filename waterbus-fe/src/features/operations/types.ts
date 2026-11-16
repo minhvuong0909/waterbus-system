@@ -46,6 +46,10 @@ export interface IncidentAlert {
   pendingDecisionCount?: number
   /** Tuyến của sự cố, vd "RT01", nếu có. */
   routeCode?: string | null
+  /** Mã tàu của sự cố phạm vi tàu hoặc báo khẩn cấp của thuyền trưởng (BE `BoatCode`). */
+  boatCode?: string | null
+  /** Lúc Admin đóng sự cố; null khi còn mở. */
+  resolvedAt?: string | null
   /** BE `Source`: `Captain` là báo cáo khẩn cấp của thuyền trưởng. */
   source?: string
   /** Các chuyến liên kết và quyết định của Admin cho từng chuyến (null = chưa quyết định). Chỉ có khi yêu cầu. */

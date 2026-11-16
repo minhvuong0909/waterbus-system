@@ -28,7 +28,7 @@ describe('AdminAlertBar', () => {
 
     expect(screen.getByRole('alert')).toBeTruthy()
     expect(screen.getByText('Open alerts: 2')).toBeTruthy()
-    expect(screen.getByText('Trips waiting for a decision: 3')).toBeTruthy()
+    expect(screen.getByText('Trip decisions waiting: 3')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'View and handle' }).getAttribute('href')).toBe('/admin/incidents')
   })
 
@@ -36,12 +36,17 @@ describe('AdminAlertBar', () => {
     show({ open: 1, waiting: 0, level: 2 })
 
     expect(screen.getByText('Open alerts: 1')).toBeTruthy()
-    expect(screen.queryByText(/Trips waiting for a decision/)).toBeNull()
+    expect(screen.queryByText(/Trip decisions waiting/)).toBeNull()
   })
 
   it('stays hidden on the Incidents page, which lists the same alerts in full', () => {
     const { container } = show({ open: 2, waiting: 1, level: 1 }, '/admin/incidents')
     expect(container.firstChild).toBeNull()
+  })
+
+  it('stays hidden on the Overview, whose cards already show the open alerts', () => {
+    expect(show({ open: 2, waiting: 1, level: 1 }, '/admin').container.firstChild).toBeNull()
+    expect(show({ open: 2, waiting: 1, level: 1 }, '/admin/').container.firstChild).toBeNull()
   })
 
   it('reads in Vietnamese', async () => {

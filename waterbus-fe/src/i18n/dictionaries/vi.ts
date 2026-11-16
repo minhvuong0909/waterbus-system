@@ -369,6 +369,8 @@ export const vi: Record<string, string> = {
   'High risk': 'Nguy cơ cao',
   'Warning': 'Cảnh báo',
   'Sky': 'Trời',
+  'Reported by staff': 'Do nhân viên báo',
+  'Staff incident report': 'Báo cáo sự cố của nhân viên',
   'Decided for {decided} of {total} trips': 'Đã quyết định {decided}/{total} chuyến',
   '{count} waiting': '{count} chuyến đang chờ',
   'No open incidents right now.': 'Hiện không có sự cố nào đang mở.',
@@ -380,7 +382,7 @@ export const vi: Record<string, string> = {
   'Decide for this trip': 'Quyết định cho chuyến này',
   '{count} trips need a decision': '{count} chuyến cần quyết định',
   'Review alert': 'Xem và quyết định',
-  'Trips waiting for a decision': 'Chuyến chờ quyết định',
+  'Trip decisions waiting': 'Quyết định cho chuyến đang chờ',
   'Close this alert?': 'Đóng cảnh báo này?',
   'Closing only ends the alert: no trip changes, and every trip keeps its current status.': 'Đóng chỉ kết thúc cảnh báo: không chuyến nào bị thay đổi, mọi chuyến giữ nguyên trạng thái hiện tại.',
   '{count} trips still have no decision.': 'Còn {count} chuyến chưa có quyết định.',
@@ -716,6 +718,11 @@ export const vi: Record<string, string> = {
   // Trip operations (suspend, cancel, terminate) and alerts
   'Open boarding': 'Mở đón khách',
   'Close trip': 'Đóng chuyến',
+  'Show': 'Hiển thị',
+  'Closed alerts': 'Cảnh báo đã đóng',
+  'No incident has been closed yet.': 'Chưa có sự cố nào được đóng.',
+  'No decision recorded': 'Không có quyết định',
+  'Closed {time}': 'Đóng lúc {time}',
   'No action needed': 'Không cần xử lý',
   'Suspended': 'Tạm ngưng',
   'Terminated': 'Kết thúc sớm',
@@ -1136,7 +1143,7 @@ export const vi: Record<string, string> = {
   'Optional. Shown to staff only.': 'Không bắt buộc. Chỉ nhân viên nhìn thấy.',
   'Deactivate {name}? New seats and fares can no longer use this class. This is refused while one of its seats is booked or held on an unfinished trip.':
     'Ngừng {name}? Ghế và giá vé mới sẽ không dùng được hạng này. Hệ thống từ chối nếu còn ghế của hạng này đang được đặt hoặc giữ trên chuyến chưa kết thúc.',
-  'Seats in fleet': 'Ghế trên đội tàu',
+  'Total seats across all boats': 'Tổng số ghế trên mọi tàu',
   'These seats still belong to a switched-off class. Change their class on the boat seats page.': 'Các ghế này vẫn thuộc hạng đã ngừng. Hãy đổi hạng ở trang ghế của tàu.',
   'Seats of this class across all boats, including switched-off seats.': 'Số ghế của hạng này trên mọi tàu, kể cả ghế đã tắt.',
   'Boat seats': 'Ghế của tàu',
@@ -1354,7 +1361,7 @@ export const vi: Record<string, string> = {
   'Decide for each affected trip. An alert never changes a trip by itself; routine trip operations are on the Trips page.':
     'Quyết định cho từng chuyến bị ảnh hưởng. Cảnh báo không tự đổi trạng thái chuyến; thao tác thường ngày của chuyến nằm ở trang Chuyến.',
   '{alerts} open alerts': '{alerts} cảnh báo đang mở',
-  '{count} trips waiting for a decision': '{count} chuyến chờ quyết định',
+  '{count} trip decisions waiting': '{count} quyết định cho chuyến đang chờ',
   // Admin P1: sidebar theo nhóm, việc cần xử lý, tab hoàn tiền.
   'Catalogue':
     'Danh mục',
@@ -1374,14 +1381,14 @@ export const vi: Record<string, string> = {
     'Đối soát',
   'Open refunds':
     'Mở hoàn tiền',
-  '{count} trips are waiting for your decision on an alert':
-    '{count} chuyến đang chờ bạn quyết định theo cảnh báo',
+  '{count} trip decisions are waiting for you on alerts':
+    '{count} quyết định cho chuyến đang chờ bạn theo cảnh báo',
   '{count} trips are suspended and need a decision':
     '{count} chuyến đang tạm ngưng, cần bạn quyết định',
   'Review trips':
     'Xem chuyến',
-  '{count} trips awaiting your decision':
-    '{count} chuyến chờ bạn quyết định',
+  'Boarding or on the river': 'Đang đón khách / đang chạy',
+  'No boat yet': 'Chưa gán tàu',
   '{count} trips have no boat and are not on sale':
     '{count} chuyến chưa có tàu nên chưa mở bán',
   '{count} payments or refunds need reconciling':

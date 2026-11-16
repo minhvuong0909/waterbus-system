@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ErrorState, Modal, Notice, PageHeader, PageLoader, SectionHeader } from '../../components/ui'
+import { ErrorState, FilterChips, Modal, Notice, PageHeader, PageLoader, SectionHeader } from '../../components/ui'
+import ClosedAlertsSection from '../../features/admin/components/ClosedAlertsSection'
 import ConfirmModal from '../../features/admin/components/ConfirmModal'
 import OpenAlertsSection from '../../features/admin/components/OpenAlertsSection'
 import OperationForm from '../../features/admin/components/OperationForm'
@@ -21,6 +22,7 @@ export default function IncidentsPage() {
   const board = useIncidentBoard()
   const [pending, setPending] = useState<{ trips: AdminTrip[]; type: OperationType; incidentId: string } | null>(null)
   const [confirmClose, setConfirmClose] = useState<IncidentAlert | null>(null)
+  const [view, setView] = useState<'open' | 'closed'>('open')
 
   if (board.state.error) return <ErrorState onRetry={board.state.retry} />
   if (board.state.loading || !board.trips || !board.logs || !board.alerts) return <PageLoader />
@@ -32,23 +34,41 @@ export default function IncidentsPage() {
         description="Decide for each affected trip. An alert never changes a trip by itself; routine trip operations are on the Trips page."
       />
 
-      <p className="mb-4 text-sm text-on-surface-variant">
-        {t('{alerts} open alerts', { alerts: board.alerts.length })}
-        {' · '}
-        <span className={board.waitingTrips > 0 ? 'font-semibold text-coral-glow' : ''}>
-          {t('{count} trips waiting for a decision', { count: board.waitingTrips })}
-        </span>
-      </p>
+      <FilterChips
+        label="Show"
+        value={view}
+        onChange={(value) => setView(value === 'closed' ? 'closed' : 'open')}
+        options={[
+          { value: 'open', label: 'Open alerts' },
+          { value: 'closed', label: 'Closed alerts' },
+        ]}
+      />
 
-      <div>
-        <OpenAlertsSection
-          alerts={board.alerts}
-          trips={board.trips}
-          version={board.version}
-          onClose={setConfirmClose}
-          onDecide={(trips, type, incidentId) => setPending({ trips, type, incidentId })}
-        />
-      </div>
+      {view === 'open' ? (
+        <>
+          <p className="mb-4 mt-3 text-sm text-on-surface-variant">
+            {t('{alerts} open alerts', { alerts: board.alerts.length })}
+            {' · '}
+            <span className={board.waitingTrips > 0 ? 'font-semibold text-coral-glow' : ''}>
+              {t('{count} trip decisions waiting', { count: board.waitingTrips })}
+            </span>
+          </p>
+
+          <div>
+            <OpenAlertsSection
+              alerts={board.alerts}
+              trips={board.trips}
+              version={board.version}
+              onClose={setConfirmClose}
+              onDecide={(trips, type, incidentId) => setPending({ trips, type, incidentId })}
+            />
+          </div>
+        </>
+      ) : (
+        <div className="mt-3">
+          <ClosedAlertsSection />
+        </div>
+      )}
 
       <SectionHeader title="Operation log" className="mb-3 mt-8" />
       <OperationLogTable logs={board.logs} trips={board.trips} />

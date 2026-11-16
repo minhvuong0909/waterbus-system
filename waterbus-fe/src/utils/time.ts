@@ -11,6 +11,11 @@ export function toVietnamDate(date: Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(date)
 }
 
+/** UTC ISO của 00:00 (giờ Việt Nam, UTC+7, không có giờ mùa hè) của ngày Việt Nam chứa `date`. */
+export function vietnamDayStartIso(date: Date): string {
+  return new Date(`${toVietnamDate(date)}T00:00:00+07:00`).toISOString()
+}
+
 /** Giờ hiển thị tại Việt Nam, độc lập múi giờ thiết bị. */
 export function formatClock(date: Date): string {
   return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' }).format(date)
