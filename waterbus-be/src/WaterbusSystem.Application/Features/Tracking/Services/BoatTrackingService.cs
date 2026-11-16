@@ -52,6 +52,13 @@ public sealed class BoatTrackingService(
             throw new ForbiddenAccessException("Chỉ thuyền trưởng được gán cho tàu này mới được gửi vị trí GPS.");
         }
 
+        // Demo: khi bộ giả lập GPS đang bật, vị trí do bộ giả lập quyết định; GPS thật của thiết bị Captain (luôn được gửi) bị bỏ qua
+        // để tàu không nhảy về vị trí của máy tính đang mở trang Captain.
+        if (request.Source == BoatPositionSources.Gps && _options.Simulator.Enabled)
+        {
+            return new RecordBoatPositionResponse(false, false, null);
+        }
+
         // Bỏ qua điểm đến trễ/sai thứ tự để marker trên radar không bị giật lùi
         var latest = await cache.GetAsync(request.BoatId, cancellationToken);
         if (latest is not null && request.ObservedAt <= latest.ObservedAt)

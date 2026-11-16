@@ -36,7 +36,7 @@ Ngoài ra có **SOS** (`POST /api/v1/trips/{tripId}/sos`, ghi chú tối đa 500
 ## 3. Simulator GPS (giả lập tàu chạy)
 `Infrastructure/BackgroundJobs/BoatSimulatorService.cs` + `Services/Tracking/DemoTimeline.cs` + `DemoRoutePaths.cs` (đường sông của tuyến).
 
-- **Chỉ bắt đầu chạy khi chuyến chuyển sang `EnRoute`** (Captain bấm Khởi hành). Trước đó (`Scheduled`/`Boarding`) tàu đứng yên ở bến đầu;
+- **Chỉ bắt đầu chạy khi chuyến chuyển sang `EnRoute`** (Captain bấm Khởi hành). Trước đó tàu đứng yên: chuyến `Scheduled` giữ nguyên chỗ tàu đang đứng (vd. bến cuối của chuyến vừa kết thúc; chỉ đặt ở bến đầu nếu tàu chưa có vị trí), `Boarding` đứng ở bến đầu;
   đồng hồ của chuyến tính từ lúc chuyển sang `EnRoute`.
 - Chạy **một lượt duy nhất** `DemoTripSeconds` giây (210 giây ≈ 3,5 phút), dừng `DemoDwellSeconds` giây ở mỗi bến, chậm lại khi gần bến.
   Hết giờ mà Captain chưa bấm thì tàu **đứng ở bến cuối**, không quay lại chạy vòng.
@@ -76,6 +76,12 @@ GPS → BoatTrackingService → TrackingAudioTriggerService
 - `SWB-01`: tàu tham quan, Captain `captain@waterbus.vn`. `SWB-02`: tàu chuyến thường, Captain `captain2@waterbus.vn`. Mật khẩu `Captain@123456!`.
 - Chuyến muốn demo phải thuộc **đúng tàu của Captain đang đăng nhập** và còn trong khung 30 phút trước giờ khởi hành (nếu không, nút Mở đón khách bị khoá).
   Ở Development seed điểm danh sẵn cho các chuyến trong 4 ngày tới; chuyến sinh sau lần khởi động API cần khởi động lại API để điểm danh bổ sung.
+- **Kế hoạch seed (3 tàu, 4 tuyến, không chuyến nào chồng giờ trên cùng một tàu, BR-SCH-08):**
+  - `SWB-01` (tham quan) chạy xen kẽ hai chiều, mỗi chuyến 45 phút, nghỉ 30 phút tại bến: 09:15 SS01 · 10:30 SS02 · 11:45 SS01 · 13:00 SS02 · 14:15 SS01 · 15:30 SS02 · 16:45 SS01 · 18:00 SS02.
+  - `SWB-02` và `SWB-03` (thường) chạy RT01 (Bạch Đằng → Linh Đông) và RT02 (ngược lại) ở 9 khung giờ chuẩn (07:30, 08:30, 10:30, 14:00, 16:30, 17:30, 19:00, 20:30, 21:30, cách nhau ≥ 60 phút).
+    Mỗi khung giờ hai tàu đổi tuyến xen kẽ nên mỗi tàu luôn xuất phát từ bến mà chuyến trước vừa cập (`ApplicationDbContextInitializer.CommuterBoatFor`).
+  - Tàu thêm bằng tay ở Admin (vd. SWB-04) không nhận chuyến seed. Seed không tạo chuyến "đang chạy"; Captain tự bấm Khởi hành.
+  - Khi khởi động API, seed dọn dữ liệu cũ: hủy chuyến chưa chạy đã qua giờ đến hoặc thuộc lịch đã ngừng (không có khách), gán lại tàu cho chuyến thường chưa chạy theo kế hoạch trên. Chuyến đã có khách, đang chạy hoặc đã chạy không bị đụng.
 
 ## 6. Cách kiểm tra bằng tay (toàn luồng)
 1. Mua vé cho chuyến của tàu SWB-01 hoặc SWB-02, Staff quét QR (phần của luồng trước).

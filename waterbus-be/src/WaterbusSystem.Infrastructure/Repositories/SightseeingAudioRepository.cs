@@ -101,9 +101,9 @@ public sealed class SightseeingAudioRepository(ApplicationDbContext context) : I
         if (trip is null)
             return null;
 
-        // Một SOS an toàn còn mở phải chặn lệnh mới, dù Admin chưa đổi Trip.Status.
+        // Một SOS an toàn còn mở và chưa được Admin quyết định cho chuyến này phải chặn lệnh mới, dù Admin chưa đổi Trip.Status.
         var hasOpenSafetyIncident = await _context.IncidentTrips.AsNoTracking()
-            .AnyAsync(link => link.TripId == tripId && !link.IsDeleted &&
+            .AnyAsync(link => link.TripId == tripId && !link.IsDeleted && link.OperationDecision == null &&
                 link.Incident != null && !link.Incident.IsDeleted &&
                 link.Incident.IncidentType == IncidentConstants.Types.Safety &&
                 link.Incident.Status == IncidentConstants.Statuses.Open, cancellationToken);
