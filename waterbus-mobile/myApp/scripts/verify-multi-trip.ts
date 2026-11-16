@@ -74,7 +74,7 @@ const booking = (id: string, trip: string, tickets: string[]): ManifestBookingRe
   tickets: tickets.map((t) => ({ ticketId: t, ticketCode: `TC-${t}`, passengerName: t, seatCode: t, seatClass: 'Std', boardingStatus: 'NotCheckedIn', paidFare: 1 })),
 });
 const bookingsByCall: Record<string, ManifestBookingResponse[]> = {
-  'call-1': [booking('b1', 'trip-1', ['t1a', 't1b']), booking('b1x', 'trip-1', ['t1x'])],
+  'call-1': [booking('b1', 'trip-1', ['t1a', 't1b']), booking('b1x', 'trip-1', ['t1x']), booking('b1y', 'trip-1', ['t1y'])],
   'call-2': [booking('b2', 'trip-2', ['t2a'])],
   'call-3': [booking('b3', 'trip-3', ['t3a'])],
 };
@@ -142,7 +142,7 @@ async function main() {
   assert(store().cachedAssignments.map((a) => a.tripStopCallId).join() === 'call-1,call-2,call-3',
     'Các chuyến đã tải được sắp theo giờ khởi hành');
   const stats = await SqliteRepository.getManifestStats();
-  assert(stats.tripCount === 3 && stats.bookingCount === 4, 'Nhiều manifest cùng tồn tại trong SQLite, không bị thay thế', JSON.stringify(stats));
+  assert(stats.tripCount === 3 && stats.bookingCount === 5, 'Nhiều manifest cùng tồn tại trong SQLite, không bị thay thế', JSON.stringify(stats));
   const ctxs = await scannerCredentials.cacheList();
   assert(ctxs.find((c) => c.assignment.tripStopCallId === 'call-1')?.assignment.isPrimaryOffline === true &&
     ctxs.find((c) => c.assignment.tripStopCallId === 'call-2')?.assignment.isPrimaryOffline === false,
@@ -223,8 +223,11 @@ async function main() {
   // ---- Issue 5: giả lập offline ----
   await store().preloadAll();
   await scan('b1x', 'trip-1');
-  const apiBeforeOffline = calls.length;
+  const manifestCallsBeforeToggle = callsTo('/manifest/').length;
   await store().setSimulatedOffline(true);
+  assert(callsTo('/manifest/').length > manifestCallsBeforeToggle,
+    'Bật giả lập offline: làm mới quyền/dữ liệu một lần khi còn mạng (như trước khi mất Wi-Fi thật)');
+  const apiBeforeOffline = calls.length;
   await store().loadPairing();
   assert(calls.length === apiBeforeOffline && store().cachedAssignments.length === 3 && store().pairingStatus !== 'Invalid',
     'Giả lập offline: loadPairing không gọi API và không làm mất phiên cục bộ hợp lệ');
@@ -238,6 +241,8 @@ async function main() {
   const denied = await store().performCheckIn(['t2a']);
   assert(!denied.success && (await SqliteRepository.countQueue(STAFF, 'Pending')) === 1 && calls.length === apiBeforeOffline,
     'Offline tại điểm dừng KHÔNG có Primary/grant bị từ chối, không tự nâng quyền');
+  assert(/Primary Offline/.test(denied.error ?? '') && /Tải mọi chuyến/.test(denied.error ?? ''),
+    'Thông báo từ chối nói rõ thiếu Primary Offline và cách khắc phục', denied.error);
   store().closeBookingModal();
 
   // Bảo vệ trạng thái cục bộ khi nạp lại manifest cũ (vé chờ đồng bộ)
@@ -255,6 +260,28 @@ async function main() {
   const again = await syncService.triggerBatchSync(true);
   assert(again.syncedCount === 0 && callsTo('/checkins/sync').length === syncCalls && [...syncedByServer.values()].every((n) => n === 1),
     'Đồng bộ lặp lại không gửi trùng sự kiện');
+
+  // ---- Mất Wi-Fi thật: NetInfo chưa kịp báo offline nhưng không tới được máy chủ ----
+  await store().preloadCache('call-1');
+  await scan('b1y', 'trip-1');
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => { throw new TypeError('Network request failed'); }) as typeof fetch;
+  assert(syncService.isConnected(), 'Kịch bản: máy vẫn tưởng đang online (chưa phải giả lập offline)');
+  const lost = await store().performCheckIn(['t1y']);
+  assert(lost.success && lost.queued === true && !lost.error && (await SqliteRepository.countQueue(STAFF, 'Pending')) === 1,
+    'Mất mạng giữa lúc soát: không báo lỗi, tự xếp hàng SQLite tại điểm dừng Primary', JSON.stringify(lost));
+  store().closeBookingModal();
+  globalThis.fetch = realFetch;
+  await scan('b2', 'trip-2');
+  globalThis.fetch = (async () => { throw new TypeError('Network request failed'); }) as typeof fetch;
+  const lostDenied = await store().performCheckIn(['t2a']);
+  assert(!lostDenied.success && (await SqliteRepository.countQueue(STAFF, 'Pending')) === 1,
+    'Mất mạng tại điểm dừng không có Primary/grant: vẫn bị từ chối, không tự nâng quyền');
+  store().closeBookingModal();
+  globalThis.fetch = realFetch;
+  const resynced = await syncService.triggerBatchSync(true);
+  assert(resynced.syncedCount === 1 && (await SqliteRepository.countQueue(STAFF, 'Pending')) === 0,
+    'Có mạng lại: vé xếp hàng được đồng bộ với máy chủ', resynced.message);
 
   // ---- Đặt lại khi đăng xuất ----
   await store().setSimulatedOffline(true);
