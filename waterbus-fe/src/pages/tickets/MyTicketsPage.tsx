@@ -26,7 +26,7 @@ export default function MyTicketsPage() {
 
   if (loading || !wallet) return <PageLoader />
 
-  if (!wallet.next && wallet.past.length === 0)
+  if (wallet.next.length === 0 && wallet.past.length === 0)
     return (
       <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
         <Breadcrumb items={[{ label: 'Home', to: ROUTES.home }, { label: 'My Tickets' }]} />
@@ -65,14 +65,21 @@ export default function MyTicketsPage() {
         {orderHistoryLink}
       </div>
 
-      {wallet.next && (
+      {wallet.next.length > 0 && (
         <section className="mt-space-lg">
           <h2 className="flex items-center gap-2 text-2xs font-bold uppercase tracking-wider text-teal-flow">
             <span className="h-2 w-2 rounded-full bg-teal-flow" />
-            {isTicketToday(wallet.next) ? t('Next Departure • Today') : t('Next Departure')}
+            {isTicketToday(wallet.next[0]) ? t('Next Departure • Today') : t('Next Departure')}
           </h2>
+          {wallet.next.length > 1 && (
+            <p className="mt-space-xs text-xs text-on-surface-variant">
+              {t('Booking {ref}', { ref: wallet.next[0].bookingRef })}
+              {' · '}
+              {t('{count} passengers, checked in individually', { count: wallet.next.length })}
+            </p>
+          )}
           <div className="mt-space-sm">
-            <NextDepartureCard ticket={wallet.next} onOpen={openTicket} />
+            <NextDepartureCard tickets={wallet.next} onOpen={openTicket} />
           </div>
         </section>
       )}
@@ -81,29 +88,9 @@ export default function MyTicketsPage() {
         <section className="mt-space-2xl">
           <h2 className="font-display text-headline-md text-deep-river">{t('Later trips')}</h2>
           <div className="mt-space-sm grid grid-cols-1 gap-space-md md:grid-cols-2">
-            {groupByBooking(wallet.later).map((group) =>
-              group.length === 1 ? (
-                <UpcomingTripCard key={group[0].id} ticket={group[0]} onOpen={openTicket} />
-              ) : (
-                <section
-                  key={group[0].bookingRef}
-                  aria-label={t('Booking {ref}', { ref: group[0].bookingRef })}
-                  className="rounded-2xl border border-teal-flow/30 bg-secondary-container/20 p-space-sm md:col-span-2"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2 px-space-xs pb-space-sm text-xs font-semibold text-deep-river">
-                    <span>{t('Booking {ref}', { ref: group[0].bookingRef })}</span>
-                    <span className="text-on-surface-variant">
-                      {t('{count} passengers, checked in individually', { count: group.length })}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 gap-space-md md:grid-cols-2">
-                    {group.map((ticket) => (
-                      <UpcomingTripCard key={ticket.id} ticket={ticket} onOpen={openTicket} />
-                    ))}
-                  </div>
-                </section>
-              ),
-            )}
+            {groupByBooking(wallet.later).map((group) => (
+              <UpcomingTripCard key={group[0].bookingId} tickets={group} onOpen={openTicket} />
+            ))}
           </div>
         </section>
       )}
@@ -112,8 +99,8 @@ export default function MyTicketsPage() {
         <section className="mt-space-2xl">
           <h2 className="font-display text-headline-md text-deep-river">{t('Past Journeys')}</h2>
           <div className="mt-space-sm grid grid-cols-1 gap-space-md md:grid-cols-2">
-            {wallet.past.map((ticket) => (
-              <PastJourneyRow key={ticket.id} ticket={ticket} onOpen={openTicket} />
+            {groupByBooking(wallet.past).map((group) => (
+              <PastJourneyRow key={group[0].bookingId} tickets={group} onOpen={openTicket} />
             ))}
           </div>
         </section>

@@ -24,7 +24,9 @@ interface IncidentSummaryDto {
   affectedTripCount: number
   pendingDecisionCount?: number
   routeCode?: string | null
+  boatCode?: string | null
   source?: string
+  resolvedAt?: string | null
 }
 
 /** Payload của sự kiện hub `boatPosition` (lưu ý `lat` / `lng`, khác với ảnh chụp REST). */
@@ -109,7 +111,11 @@ const KINDS = INCIDENT_KINDS
  */
 export async function getOpenIncidents(incidentType?: string): Promise<IncidentAlert[]> {
   const items = await fetchAllPages<IncidentSummaryFull>(API_ENDPOINTS.incidents.list, { status: 'Open', incidentType })
-  return items.map((i): IncidentAlert => ({
+  return items.map(toAlert)
+}
+
+function toAlert(i: IncidentSummaryFull): IncidentAlert {
+  return {
     id: i.id,
     level: levelOf(i.severity),
     message: i.description ?? '',
@@ -118,8 +124,21 @@ export async function getOpenIncidents(incidentType?: string): Promise<IncidentA
     affectedTripCount: i.affectedTripCount,
     pendingDecisionCount: i.pendingDecisionCount,
     routeCode: i.routeCode ?? null,
+    boatCode: i.boatCode ?? null,
     source: i.source,
-  }))
+    resolvedAt: i.resolvedAt ?? null,
+  }
+}
+
+/**
+ * Một trang sự cố đã đóng (BE `Status = Resolved`), mới nhất trước, để Admin xem lại quyết định đã ghi. Phân trang ở
+ * server vì danh sách này tăng mãi.
+ */
+export async function getClosedIncidents(pageNumber: number, pageSize = 10): Promise<{ items: IncidentAlert[]; totalCount: number }> {
+  const page = await apiRequest<{ items: IncidentSummaryFull[]; totalCount: number }>(API_ENDPOINTS.incidents.list, {
+    query: { status: 'Resolved', pageNumber, pageSize },
+  })
+  return { items: page.items.map(toAlert), totalCount: page.totalCount }
 }
 
 /** Các chuyến một sự cố ảnh hưởng và quyết định của Admin cho từng chuyến (null = chưa quyết định). */
@@ -164,6 +183,33 @@ export interface OperationTripsQuery {
   /** ISO 8601 */
   to?: string
   statuses?: TripStatus[]
+}
+
+/** Hai giờ khởi hành cách nhau dưới mức này thì gom chung một lần gọi (backend cho tối đa 31 ngày, trần 200 chuyến). */
+const AROUND_CLUSTER_MS = 3 * 24 * 60 * 60 * 1000
+const AROUND_MARGIN_MS = 60_000
+
+/**
+ * Các chuyến vận hành quanh những giờ khởi hành cho trước. Dùng cho chuyến của một sự cố nằm ngoài cửa sổ mặc định của
+ * `getOperationTrips` (12 giờ trước đến 7 ngày tới): vẫn lấy được để Admin quyết định. Giờ gần nhau gom chung một lần gọi.
+ */
+export async function getOperationTripsAround(departureTimes: string[]): Promise<AdminTrip[]> {
+  const times = departureTimes.map((iso) => Date.parse(iso)).filter(Number.isFinite).sort((a, b) => a - b)
+  const clusters: { from: number; to: number }[] = []
+  for (const time of times) {
+    const last = clusters.at(-1)
+    if (last && time - last.from < AROUND_CLUSTER_MS) last.to = time
+    else clusters.push({ from: time, to: time })
+  }
+  const lists = await Promise.all(
+    clusters.map((c) =>
+      getOperationTrips({
+        from: new Date(c.from - AROUND_MARGIN_MS).toISOString(),
+        to: new Date(c.to + AROUND_MARGIN_MS).toISOString(),
+      }),
+    ),
+  )
+  return lists.flat()
 }
 
 /**

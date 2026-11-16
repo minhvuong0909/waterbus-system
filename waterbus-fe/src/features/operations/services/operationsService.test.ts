@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  getClosedIncidents,
   getOperationLogs,
   getOperationTrips,
+  getOperationTripsAround,
   getIncidentTrips,
   getOpenIncidents,
   operateTrip,
@@ -81,6 +83,37 @@ describe('getOperationTrips with a query', () => {
   })
 })
 
+describe('getOperationTripsAround', () => {
+  const trip = (id: string, departureTime: string) => ({
+    id, routeId: 'r', routeCode: 'RT', routeName: 'x', boatId: 'b', boatCode: 'SWB-01', tripType: 'Commuter',
+    status: 'Scheduled', departureTime, arrivalTime: departureTime, allowedOperations: ['Cancel'],
+  })
+
+  it('asks once for departures that are close together, with a small margin', async () => {
+    fetchMock.mockResolvedValue(json([trip('t1', '2026-12-01T01:00:00Z'), trip('t2', '2026-12-02T01:00:00Z')]))
+
+    const trips = await getOperationTripsAround(['2026-12-02T01:00:00Z', '2026-12-01T01:00:00Z'])
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(lastCall().url).toContain('from=2026-12-01T00%3A59%3A00.000Z')
+    expect(lastCall().url).toContain('to=2026-12-02T01%3A01%3A00.000Z')
+    expect(trips.map((t) => t.id)).toEqual(['t1', 't2'])
+  })
+
+  it('splits far-apart departures so no call spans more than the backend allows', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(json([])))
+
+    await getOperationTripsAround(['2026-12-01T01:00:00Z', '2026-12-20T01:00:00Z'])
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('makes no call when there is nothing to look up', async () => {
+    expect(await getOperationTripsAround([])).toEqual([])
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
 describe('getOperationTrips', () => {
   it('maps the backend list and keeps the operations it allows', async () => {
     fetchMock.mockResolvedValue(
@@ -155,6 +188,21 @@ describe('getOpenIncidents', () => {
       .mockResolvedValueOnce(json({ items: [summary({ id: 'i2' })], totalCount: 2 }))
     expect((await getOpenIncidents()).map((a) => a.id)).toEqual(['i1', 'i2'])
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the boat code of a boat-scope incident, and null when there is none', async () => {
+    fetchMock.mockResolvedValue(json({ items: [summary({ boatCode: 'SWB-02' }), summary({ id: 'i2' })], totalCount: 2 }))
+    const alerts = await getOpenIncidents()
+    expect(alerts.map((a) => a.boatCode)).toEqual(['SWB-02', null])
+  })
+
+  it('asks the server for one page of resolved incidents and keeps when they were closed', async () => {
+    fetchMock.mockResolvedValue(json({ items: [summary({ resolvedAt: '2026-10-18T09:00:00Z' })], totalCount: 14 }))
+    const page = await getClosedIncidents(2, 10)
+    expect(lastCall().url).toContain('status=Resolved')
+    expect(lastCall().url).toContain('pageNumber=2')
+    expect(page.totalCount).toBe(14)
+    expect(page.items[0].resolvedAt).toBe('2026-10-18T09:00:00Z')
   })
 
   it('treats an unknown incident type as other', async () => {

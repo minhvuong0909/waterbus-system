@@ -3,8 +3,8 @@ import { Button, ErrorState, Icon } from '../../../components/ui'
 import { CHECKBOX_CLASS, INSET_CLASS } from '../../../components/ui/styles'
 import { t } from '../../../i18n'
 import { useFetch } from '../../../hooks'
-import { alertTone, commonDecisions, decisionOperation, isCaptainReport, timeAgo, titleOf } from '../utils/alertUtils'
-import { getIncidentTrips } from '../../operations/services/operationsService'
+import { alertTone, commonDecisions, decisionOperation, isCaptainReport, reporterOf, timeAgo, titleOf } from '../utils/alertUtils'
+import { getIncidentTrips, getOperationTripsAround } from '../../operations/services/operationsService'
 import type { AdminTrip, AlertTrip, IncidentAlert, OperationType } from '../../operations/types'
 import { formatDateTime } from '../../../utils/time'
 import { OPERATION_LABEL } from '../../operations/utils'
@@ -67,14 +67,29 @@ function AlertTrips({
   trips,
   version,
   onDecide,
+  readOnly = false,
 }: {
   alert: IncidentAlert
   trips: AdminTrip[]
   version: number
   onDecide: (trips: AdminTrip[], type: OperationType, incidentId: string) => void
+  /** Sự cố đã đóng: chỉ xem quyết định đã ghi, không chọn hay quyết định thêm. */
+  readOnly?: boolean
 }) {
   const links = useFetch(() => getIncidentTrips(alert.id), [alert.id, version])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+
+  // Chuyến của sự cố nằm ngoài cửa sổ của danh sách vận hành (cũ hơn 12 giờ hoặc xa hơn 7 ngày) thì tải riêng theo giờ
+  // khởi hành, để vẫn biết thao tác được phép và vẫn chọn được để quyết định.
+  const known = new Set(trips.map((trip) => trip.id))
+  const outside = readOnly
+    ? []
+    : (links.data ?? []).filter((link) => link.decision === null && link.departureTime && !known.has(link.tripId))
+  const outsideKey = outside.map((link) => link.tripId).sort().join(',')
+  const extra = useFetch(
+    () => (outside.length > 0 ? getOperationTripsAround(outside.map((link) => link.departureTime as string)) : Promise.resolve([])),
+    [outsideKey, version],
+  )
 
   if (links.error) return <ErrorState compact onRetry={links.retry} />
   if (!links.data) {
@@ -85,7 +100,7 @@ function AlertTrips({
     )
   }
 
-  const byId = new Map(trips.map((trip) => [trip.id, trip]))
+  const byId = new Map([...trips, ...(extra.data ?? [])].map((trip) => [trip.id, trip]))
   const pending = links.data.filter((link) => link.decision === null)
   const decided = links.data.filter((link) => link.decision !== null)
   // Chỉ chọn được chuyến còn trong danh sách vận hành (biết các thao tác được phép của nó).
@@ -97,6 +112,28 @@ function AlertTrips({
   const allSelected = selectable.length > 0 && selected.length === selectable.length
   const toggle = (id: string) =>
     setSelectedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]))
+
+  if (readOnly) {
+    return (
+      <ul className={`mt-4 divide-y divide-outline-variant/30 ${INSET_CLASS}`}>
+        {links.data.map((link) => (
+          <li key={link.tripId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+            <TripLine link={link} trip={byId.get(link.tripId)} />
+            {link.decision === null ? (
+              <span className="rounded-full bg-surface-container px-2.5 py-1 text-xs font-semibold text-on-surface-variant">
+                {t('No decision recorded')}
+              </span>
+            ) : (
+              <DecisionChip decision={link.decision} />
+            )}
+          </li>
+        ))}
+        {links.data.length === 0 && (
+          <li className="px-3 py-2 text-sm text-on-surface-variant">{t('No trip is linked to this alert.')}</li>
+        )}
+      </ul>
+    )
+  }
 
   return (
     <div className="mt-4 space-y-3">
@@ -196,18 +233,21 @@ export default function AlertCard({
   alert,
   trips,
   version,
-  onDecide,
+  onDecide = () => undefined,
   onClose,
+  readOnly = false,
 }: {
   alert: IncidentAlert
   /** Chuyến trong danh sách vận hành, để biết còn làm được gì với từng chuyến. */
   trips: AdminTrip[]
   /** Đổi khi cần tải lại danh sách chuyến của sự cố (sau một quyết định, hoặc khi hub báo thay đổi). */
   version: number
-  onDecide: (trips: AdminTrip[], type: OperationType, incidentId: string) => void
-  onClose: (alert: IncidentAlert) => void
+  onDecide?: (trips: AdminTrip[], type: OperationType, incidentId: string) => void
+  onClose?: (alert: IncidentAlert) => void
+  /** Sự cố đã đóng: không có nút đóng và không quyết định thêm; chỉ xem lại quyết định đã ghi. */
+  readOnly?: boolean
 }) {
-  const [open, setOpen] = useState(isCaptainReport(alert))
+  const [open, setOpen] = useState(!readOnly && isCaptainReport(alert))
   const tone = alertTone(alert)
   const total = alert.affectedTripCount ?? 0
   const pending = alert.pendingDecisionCount ?? 0
@@ -229,22 +269,39 @@ export default function AlertCard({
                 {alert.routeCode}
               </span>
             )}
+            {alert.boatCode && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-surface-container px-2 py-0.5 font-mono text-2xs font-semibold text-deep-river"
+                title={t('Boat')}
+              >
+                <Icon name="directions_boat" className="text-sm" />
+                {alert.boatCode}
+              </span>
+            )}
             <span className="text-xs text-on-surface-variant" title={formatDateTime(alert.issuedAt)}>
               {timeAgo(alert.issuedAt)}
             </span>
           </div>
           <h3 className="mt-1 font-display text-base font-bold text-deep-river">{titleOf(alert)}</h3>
-          <p className="text-xs text-on-surface-variant">
-            {isCaptainReport(alert) ? t('Reported by the captain') : t('Reported by operations')}
-          </p>
+          <p className="text-xs text-on-surface-variant">{reporterOf(alert)}</p>
         </div>
-        <Button size="sm" variant="neutral" icon="close" onClick={() => onClose(alert)}>
-          {t('Close alert')}
-        </Button>
+        {readOnly ? (
+          alert.resolvedAt && (
+            <span className="shrink-0 text-xs font-semibold text-on-surface-variant">
+              {t('Closed {time}', { time: formatDateTime(alert.resolvedAt) })}
+            </span>
+          )
+        ) : (
+          onClose && (
+            <Button size="sm" variant="neutral" icon="close" onClick={() => onClose(alert)}>
+              {t('Close alert')}
+            </Button>
+          )
+        )}
       </div>
 
       {alert.message && <p className="mt-3 text-sm text-on-surface-variant">{alert.message}</p>}
-      <DecisionProgress total={total} pending={pending} />
+      {!readOnly && <DecisionProgress total={total} pending={pending} />}
 
       {total > 0 && (
         <button
@@ -260,7 +317,7 @@ export default function AlertCard({
       )}
       {open && (
         <div id={listId}>
-          <AlertTrips alert={alert} trips={trips} version={version} onDecide={onDecide} />
+          <AlertTrips alert={alert} trips={trips} version={version} onDecide={onDecide} readOnly={readOnly} />
         </div>
       )}
     </article>

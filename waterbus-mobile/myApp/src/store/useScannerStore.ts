@@ -10,6 +10,7 @@ import { fetchScannerStatus } from '../services/checkin/scannerPairingService';
 import { submitOnlineCheckIn } from '../services/checkin/onlineCheckInService';
 import { ApiError, AUTH_TOKEN_KEY, tokenIsCurrent } from '../services/api/apiClient';
 import { getSecureItem } from '../services/auth/secureStorage';
+import { formatVnTime } from '../utils/formatTime';
 
 interface CheckInFeedback {
   success: boolean;
@@ -220,14 +221,45 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
         !inWindow(at, activeAssignment.checkInOpenAt, activeAssignment.checkInCloseAt, true))
         throw new Error('Ngoài ca làm việc hoặc cửa sổ soát vé.');
 
-    const occurredAt = new Date(at).toISOString();
+      const occurredAt = new Date(at).toISOString();
+      const uniqueIds = [...new Set(ticketIds)];
+      // Soát ngoại tuyến: ghi vào SQLite (không cần mạng), đồng bộ lô khi có mạng trở lại.
+      const queueOffline = async (ids: string[]) => {
+        const grant = cache.grant;
+        // Chỉ máy Primary Offline của đúng điểm dừng mới được ghi ngoại tuyến (BR-OFF-02); nói rõ đang thiếu điều kiện nào.
+        if (!activeAssignment.isPrimaryOffline || !grant)
+          throw new Error('Máy này chưa là Primary Offline của điểm dừng này, hoặc chưa tải lại dữ liệu sau khi Admin phân công. ' +
+            'Hãy bật mạng, nhờ Admin phân công Primary Offline rồi bấm "Tải mọi chuyến" trước khi dùng ngoại tuyến.');
+        if (!inWindow(at, grant.activeFrom, grant.activeUntil))
+          throw new Error(Date.parse(grant.activeUntil) <= at
+            ? `Quyền ngoại tuyến của điểm dừng này đã hết hạn lúc ${formatVnTime(grant.activeUntil)}. Cần có mạng để tải lại.`
+            : `Quyền ngoại tuyến của điểm dừng này chỉ có hiệu lực từ ${formatVnTime(grant.activeFrom)}.`);
+
+        const result = await SqliteRepository.checkInTickets({
+          ticketIds: ids, bookingId: currentBooking.id, tripId: currentBooking.tripId,
+          tripStopCallId: activeAssignment.tripStopCallId, staffAccountId: staffId, staffName,
+          scannerDeviceId: identity.deviceId, scannerEnrollmentId: identity.enrollmentId, offlineGrantId: grant.id,
+          occurredAtDevice: occurredAt, notes,
+        });
+        result.events.forEach((event) => accepted.set(event.ticketId, event.occurredAtDevice));
+        queued = result.events.length > 0;
+      };
+
       if (syncService.isConnected()) {
-        for (const ticketId of new Set(ticketIds)) {
+        let unreachable = false;
+        for (const ticketId of uniqueIds) {
           if (syncService.getDeviceInfo().staffId !== staffId) break;
-          const response = await submitOnlineCheckIn({
-            ticketId, tripStopCallId: activeAssignment.tripStopCallId, clientEventId: generateUUID(),
-            occurredAtDevice: occurredAt, note: notes,
-          }, staffId);
+          let response: Awaited<ReturnType<typeof submitOnlineCheckIn>>;
+          try {
+            response = await submitOnlineCheckIn({
+              ticketId, tripStopCallId: activeAssignment.tripStopCallId, clientEventId: generateUUID(),
+              occurredAtDevice: occurredAt, note: notes,
+            }, staffId);
+          } catch (error) {
+            // NetInfo có thể chưa kịp báo mất Wi-Fi: không tới được máy chủ thì chuyển sang soát ngoại tuyến.
+            if (error instanceof ApiError && error.status === 0) { unreachable = true; break; }
+            throw error;
+          }
           if (response.outcome === 'Success' || response.outcome === 'AlreadyCheckedIn') {
             const checkedAt = response.checkedInAt ?? occurredAt;
             accepted.set(ticketId, checkedAt);
@@ -237,19 +269,9 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
             failure = `Máy chủ từ chối soát vé (${response.outcome}).`;
           }
         }
+        if (unreachable) await queueOffline(uniqueIds.filter((id) => !accepted.has(id)));
       } else {
-        const grant = cache.grant;
-        if (!activeAssignment.isPrimaryOffline || !grant || !inWindow(at, grant.activeFrom, grant.activeUntil))
-          throw new Error('Thiết bị chưa có quyền soát vé ngoại tuyến hoặc quyền đã hết hạn.');
-
-        const result = await SqliteRepository.checkInTickets({
-          ticketIds: [...new Set(ticketIds)], bookingId: currentBooking.id, tripId: currentBooking.tripId,
-          tripStopCallId: activeAssignment.tripStopCallId, staffAccountId: staffId, staffName,
-          scannerDeviceId: identity.deviceId, scannerEnrollmentId: identity.enrollmentId, offlineGrantId: grant.id,
-          occurredAtDevice: occurredAt, notes,
-        });
-        result.events.forEach((event) => accepted.set(event.ticketId, event.occurredAtDevice));
-        queued = accepted.size > 0;
+        await queueOffline(uniqueIds);
       }
     } catch (error) {
       failure = errorMessage(error);
@@ -371,6 +393,9 @@ export const useScannerStore = create<ScannerState>((set, get) => ({
 
   setSimulatedOffline: async (on) => {
     if (on && !isDevBuild()) return;
+    // Như khi tắt Wi-Fi thật: quyền ngoại tuyến do máy chủ cấp lúc tải dữ liệu, nên làm mới một lần khi còn mạng.
+    // Nếu không, quyền Primary Offline Admin vừa phân công sẽ chưa có trong máy và soát vé ngoại tuyến bị từ chối.
+    if (on && syncService.isConnected() && syncService.getDeviceInfo().staffId) await get().preloadAll();
     syncService.setDeviceInfo({ forceOfflineMode: on });
     set({ deviceInfo: syncService.getDeviceInfo(),
       syncMessage: on ? 'Đang GIẢ LẬP ngoại tuyến (chỉ để thử nghiệm).' : null });

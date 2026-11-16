@@ -63,7 +63,17 @@ export function alertTone(alert: IncidentAlert): {
     : { label: t('Warning'), icon: 'info', accent: 'border-l-signal-amber', badge: 'bg-signal-amber/20 text-deep-river' }
 }
 
-/** Báo cáo khẩn cấp của thuyền trưởng hoặc tên chung của sự cố. */
+/** True khi sự cố do nhân viên (Staff) ghi nhận (BR-INC-04), phân biệt với nguồn hệ thống. */
+export const isStaffReport = (alert: Pick<IncidentAlert, 'source'>): boolean => alert.source === 'Staff'
+
+/** Báo cáo khẩn cấp của thuyền trưởng, báo cáo của nhân viên hoặc tên chung của sự cố. */
 export function titleOf(alert: Pick<IncidentAlert, 'source'>): string {
-  return isCaptainReport(alert) ? t('Captain emergency report') : t('Operational incident')
+  if (isCaptainReport(alert)) return t('Captain emergency report')
+  return isStaffReport(alert) ? t('Staff incident report') : t('Operational incident')
+}
+
+/** Dòng "do ai báo" dưới tiêu đề sự cố, theo nguồn (`Source`) của BE. */
+export function reporterOf(alert: Pick<IncidentAlert, 'source'>): string {
+  if (isCaptainReport(alert)) return t('Reported by the captain')
+  return isStaffReport(alert) ? t('Reported by staff') : t('Reported by operations')
 }

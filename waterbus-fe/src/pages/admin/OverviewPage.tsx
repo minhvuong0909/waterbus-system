@@ -5,8 +5,7 @@ import { getOpenIncidents, getOperationTrips } from '../../features/operations/s
 import { countReconciliationToDo, listPendingRefunds } from '../../features/admin/services/refundService'
 import { attentionItems } from '../../features/admin/utils/attention'
 import type { AttentionItem } from '../../features/admin/utils/attention'
-import { pendingCountOf } from '../../features/admin/utils/alertUtils'
-import { formatDateTime, toVietnamDate } from '../../utils/time'
+import { formatDateTime, toVietnamDate, vietnamDayStartIso } from '../../utils/time'
 import { combineFetches, useDocumentTitle, useFetch, useNow, useReload } from '../../hooks'
 import { ROUTES } from '../../routes/routes'
 import { t } from '../../i18n'
@@ -47,7 +46,16 @@ const countOf = (load: () => Promise<{ totalCount: number }>) => () =>
 export default function OverviewPage() {
   useDocumentTitle('Overview')
   const [version, reload] = useReload()
-  const trips = useFetch(getOperationTrips, [version])
+  // Mốc "bây giờ" cập nhật mỗi phút, để "hôm nay" và "sắp tới" tự đổi khi để trang mở lâu.
+  const now = useNow(60_000)
+  // Lấy chuyến từ 00:00 hôm nay (giờ VN), không dùng mặc định "12 giờ trước" của backend: buổi tối mặc định đó làm
+  // mất các chuyến buổi sáng nên "Chuyến hôm nay" bị đếm thiếu. Đổi ngày thì tải lại.
+  const todayKey = toVietnamDate(new Date(now))
+  const trips = useFetch(() => {
+    const from = vietnamDayStartIso(new Date(now))
+    // Từ đầu hôm nay tới 7 ngày sau hôm nay (backend cho tối đa 31 ngày).
+    return getOperationTrips({ from, to: new Date(Date.parse(from) + 8 * 86_400_000).toISOString() })
+  }, [version, todayKey])
   const alerts = useFetch(() => getOpenIncidents(), [version])
   const pendingRefunds = useFetch(countOf(() => listPendingRefunds(1, 1)), [version])
   const reconcile = useFetch(() => countReconciliationToDo().catch(() => undefined), [version])
@@ -55,8 +63,6 @@ export default function OverviewPage() {
   useFleetHub(
     { onTripStatus: reload, onIncident: reload, onReconnected: reload },
   )
-  // Mốc "bây giờ" cập nhật mỗi phút, để "hôm nay" và "sắp tới" tự đổi khi để trang mở lâu.
-  const now = useNow(60_000)
   const state = combineFetches(trips, alerts)
 
   if (state.error) return <ErrorState onRetry={state.retry} />
@@ -64,13 +70,17 @@ export default function OverviewPage() {
 
   // "Hôm nay" theo giờ Việt Nam, không theo múi giờ của máy đang mở trang.
   const today = toVietnamDate(new Date(now))
-  const todays = trips.data.filter((x) => toVietnamDate(new Date(x.departureTime)) === today)
+  // Chuyến đã huỷ/kết thúc sớm không còn chạy hôm nay nên không tính vào "Chuyến hôm nay".
+  const todays = trips.data.filter(
+    (x) => toVietnamDate(new Date(x.departureTime)) === today && x.status !== 'Cancelled' && x.status !== 'Terminated',
+  )
+  const active = trips.data.filter((x) => x.status === 'Boarding' || x.status === 'EnRoute').length
   // Chuyến đang đón khách/đang chạy, hoặc theo lịch chưa tới giờ khởi hành. Không gồm chuyến đã cập bến/kết thúc,
   // chuyến theo lịch đã quá giờ, hay chuyến tạm ngưng (việc của "Cần xử lý").
   const upcoming = trips.data
     .filter((x) => x.status === 'Boarding' || x.status === 'EnRoute' || (x.status === 'Scheduled' && Date.parse(x.departureTime) >= now))
+    .sort((a, b) => Date.parse(a.departureTime) - Date.parse(b.departureTime))
     .slice(0, 5)
-  const pendingDecisions = alerts.data.reduce((sum, alert) => sum + pendingCountOf(alert), 0)
   const todo = attentionItems({
     trips: trips.data,
     alerts: alerts.data,
@@ -83,19 +93,8 @@ export default function OverviewPage() {
       <PageHeader title="Overview" description="What is running today and what needs attention." />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <StatCard label="Trips today" value={todays.length} to={ROUTES.adminTrips} />
-        <StatCard
-          label="On the river"
-          value={trips.data.filter((x) => x.status === 'EnRoute').length}
-          to={ROUTES.adminRadar}
-        />
-        <StatCard
-          label="Open alerts"
-          value={alerts.data.length}
-          to={ROUTES.adminIncidents}
-          attention
-          hint={pendingDecisions > 0 ? '{count} trips awaiting your decision' : undefined}
-          hintCount={pendingDecisions}
-        />
+        <StatCard label="Boarding or on the river" value={active} to={ROUTES.adminRadar} />
+        <StatCard label="Open alerts" value={alerts.data.length} to={ROUTES.adminIncidents} attention />
       </div>
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         <Panel title="Needs your attention">
@@ -126,7 +125,12 @@ export default function OverviewPage() {
                     className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3 text-sm transition-colors hover:text-teal-flow"
                   >
                     <span className="font-semibold text-deep-river">{formatDateTime(x.departureTime)}</span>
-                    <span className="min-w-0 flex-1 truncate text-on-surface-variant">{x.routeName}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-deep-river">{x.routeName}</span>
+                      <span className={`block text-xs ${x.boatId ? 'text-on-surface-variant' : 'font-medium text-coral-glow'}`}>
+                        {x.boatId ? x.boatCode : t('No boat yet')}
+                      </span>
+                    </span>
                     <TripStatusBadge status={x.status} />
                   </Link>
                 </li>

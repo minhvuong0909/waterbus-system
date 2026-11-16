@@ -2,11 +2,14 @@ import { useEffect } from 'react'
 import QrCode from './QrCode'
 import { Icon } from '../../../components/ui'
 import { formatVndSuffix } from '../../../utils/format'
+import { bookingFare, bookingQrPayload } from '../utils'
 import type { Ticket } from '../types'
 import { t } from '../../../i18n'
 
 /** Full-screen QR view for fast turnstile scans. Closes on Escape or backdrop click. */
-export default function QrModal({ ticket, onClose }: { ticket: Ticket; onClose: () => void }) {
+export default function QrModal({ tickets, onClose }: { tickets: Ticket[]; onClose: () => void }) {
+  const ticket = tickets[0]
+  const qr = bookingQrPayload(tickets)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
@@ -40,16 +43,16 @@ export default function QrModal({ ticket, onClose }: { ticket: Ticket; onClose: 
           {t('Boarding QR Code')}
         </h2>
         <p className="text-xs text-on-surface-variant">
-          {ticket.departPier} → {ticket.arrivePier} ({ticket.seat})
+          {ticket.departPier} → {ticket.arrivePier} ({t('{count} passengers', { count: tickets.length })})
         </p>
         <div className="mx-auto mt-space-md w-fit rounded-2xl border border-outline-variant/40 p-3">
-          {ticket.qrPayload && <QrCode value={ticket.qrPayload} size={260} />}
+          {qr && <QrCode value={qr} size={260} />}
         </div>
         <div className="mt-space-md font-mono text-lg font-bold tracking-wider text-deep-river">
-          {ticket.ticketCode}
+          {ticket.bookingRef}
         </div>
         <div className="text-xs text-on-surface-variant">
-          {t('Single Crossing Pass • {price}', { price: formatVndSuffix(ticket.fareVnd) })}
+          {t('{count} passengers • {price}', { count: tickets.length, price: formatVndSuffix(bookingFare(tickets)) })}
         </div>
         <button
           type="button"

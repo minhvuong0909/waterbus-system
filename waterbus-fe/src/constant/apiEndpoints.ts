@@ -24,6 +24,18 @@ export const API_ENDPOINTS = {
     scannerDevices: '/api/v1/admin/scanner-devices',
     scannerDeviceAction: (id: string, action: string) => `/api/v1/admin/scanner-devices/${id}/${action}`,
     staffStationShifts: '/api/v1/admin/staff-station-shifts',
+    /** Admin: tài khoản Captain và Staff. Hành động (`status`, `invitation`) là `PUT|POST {item}/{action}`. */
+    captains: '/api/v1/captains',
+    captainAction: (id: string, action: string) => `/api/v1/captains/${id}/${action}`,
+    captain: (id: string) => `/api/v1/captains/${id}`,
+    /** Gán/gỡ Captain của tàu (`PUT`), nhật ký và cảnh báo điểm danh Captain. */
+    boatCaptain: (boatId: string) => `/api/v1/boats/${boatId}/captain`,
+    captainAudit: '/api/v1/captains/audit',
+    captainAlerts: '/api/v1/captains/alerts',
+    resolveCaptainAlert: (id: string) => `/api/v1/captains/alerts/${id}/resolve`,
+    staffAccounts: '/api/v1/staff-accounts',
+    staffAccountAction: (id: string, action: string) => `/api/v1/staff-accounts/${id}/${action}`,
+    staffAccount: (id: string) => `/api/v1/staff-accounts/${id}`,
     revokeStaffShift: (id: string) => `/api/v1/admin/staff-station-shifts/${id}/revoke`,
     routes: '/api/v1/admin/routes',
     route: (id: string) => `/api/v1/admin/routes/${id}`,
@@ -39,6 +51,8 @@ export const API_ENDPOINTS = {
     trips: '/api/v1/admin/trips',
     /** Assigns or replaces the boat of a trip that is still `Scheduled`. */
     tripBoat: (tripId: string) => `/api/v1/admin/trips/${tripId}/boat`,
+    /** Admin: doanh thu thực thu, đã hoàn và thuần theo ngày hoặc tháng. */
+    revenueReport: '/api/v1/admin/reports/revenue',
   },
   assistant: '/api/v1/aiassistant/chat',
   textToSpeech: {
