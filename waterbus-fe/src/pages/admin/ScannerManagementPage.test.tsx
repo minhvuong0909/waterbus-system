@@ -1,3 +1,4 @@
+import { change } from '../../test/fields'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../services/apiClient'
@@ -19,7 +20,6 @@ const scanner: ScannerDevice = {
 }
 
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
-const change = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
 
 beforeEach(() => {
   vi.mocked(getStations).mockResolvedValue([station])

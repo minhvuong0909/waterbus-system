@@ -1,3 +1,4 @@
+import { change } from '../../test/fields'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import DataTable from './DataTable'
@@ -20,10 +21,10 @@ describe('admin table pagination', () => {
   })
   it('changes page size and leaves server-paged tables untouched', () => {
     const { rerender } = render(<DataTable paginate rows={rows} columns={columns} rowKey={rowKey} />)
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: '50' } })
+    change('Per page', '50')
     expect(screen.getByText('Boat 24')).toBeTruthy()
     rerender(<DataTable rows={rows} columns={columns} rowKey={rowKey} />)
-    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.queryByLabelText('Per page')).toBeNull()
     expect(screen.getByText('Boat 24')).toBeTruthy()
   })
 })

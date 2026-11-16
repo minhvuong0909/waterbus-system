@@ -1,7 +1,6 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { REQUIRED_LABEL_CLASS } from '../../components/ui/styles'
-import { Button, ErrorState, Icon, Notice, PageHeader, PageLoader, Panel, SelectField } from '../../components/ui'
+import { Button, ErrorState, Icon, Notice, PageHeader, PageLoader, Panel, SelectField, TextAreaField } from '../../components/ui'
 import { MAX_NARRATION_LENGTH, NARRATION_VOICES } from '../../features/admin/utils/audioGuide'
 import type { NarrationPoi, NarrationVoice } from '../../features/admin/utils/audioGuide'
 import {
@@ -46,7 +45,6 @@ function NarrationEditor({
   onPreview: (preview: Preview) => void
   onPublished: (text: string) => void
 }) {
-  const textId = useId()
   const { run, busy, error } = useSubmit()
   const publishing = useSubmit()
   const [published, setPublished] = useState(false)
@@ -95,18 +93,15 @@ function NarrationEditor({
       </div>
 
       <div>
-        <label htmlFor={textId} className={`mb-1 block text-xs font-semibold text-on-surface-variant ${REQUIRED_LABEL_CLASS}`}>
-          {t('Narration script')}
-        </label>
-        <textarea
-          id={textId}
+        <TextAreaField
+          label="Narration script"
+          required
           rows={8}
           maxLength={MAX_NARRATION_LENGTH}
           value={draft.text}
           onChange={(e) => onDraft({ ...draft, text: e.target.value })}
           aria-invalid={Boolean(textError)}
           placeholder={t('For example: On your right is the Ba Son waterfront, once the largest shipyard of Saigon…')}
-          className="w-full rounded-xl border border-outline-variant/70 bg-white px-3 py-2 text-sm leading-relaxed text-deep-river transition-colors focus:border-teal-flow focus:ring-2 focus:ring-teal-flow/15"
         />
         <div className="mt-1 flex justify-between gap-3 text-2xs text-on-surface-variant">
           {textError ? (

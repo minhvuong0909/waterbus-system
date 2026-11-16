@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Button, ErrorState, Icon } from '../../../components/ui'
-import { CHECKBOX_CLASS, INSET_CLASS } from '../../../components/ui/styles'
+import { Button, Checkbox, ErrorState, Icon } from '../../../components/ui'
+import { INSET_CLASS } from '../../../components/ui/styles'
 import { t } from '../../../i18n'
 import { useFetch } from '../../../hooks'
 import { alertTone, commonDecisions, decisionOperation, isCaptainReport, reporterOf, timeAgo, titleOf } from '../utils/alertUtils'
@@ -141,12 +141,10 @@ function AlertTrips({
         <div className={INSET_CLASS}>
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-outline-variant/30 bg-surface-container-low px-3 py-2">
             <label className="flex min-h-[36px] items-center gap-2 text-sm font-semibold text-deep-river">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={allSelected}
                 disabled={selectable.length === 0}
                 onChange={() => setSelectedIds(allSelected ? [] : selectable.map((link) => link.tripId))}
-                className={CHECKBOX_CLASS}
               />
               {selected.length > 0
                 ? t('{count} selected', { count: selected.length })
@@ -173,12 +171,10 @@ function AlertTrips({
               return (
                 <li key={link.tripId}>
                   <label className={`flex min-h-[44px] items-center gap-3 px-3 py-2 ${trip ? 'cursor-pointer hover:bg-surface-container-low' : ''}`}>
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={selectedIds.includes(link.tripId)}
                       disabled={!trip}
                       onChange={() => toggle(link.tripId)}
-                      className={CHECKBOX_CLASS}
                     />
                     <TripLine link={link} trip={trip} />
                   </label>

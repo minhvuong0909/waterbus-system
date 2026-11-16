@@ -21,6 +21,8 @@ import type { Captain, CaptainDraft, CaptainStatus } from '../../features/admin/
 import { isEmail, isPhone } from '../../features/admin/utils/personnel'
 import { useDocumentTitle, useFetch, useSubmit } from '../../hooks'
 import { t } from '../../i18n'
+import { hasSaneYear } from '../../utils/inputRules'
+import { toVietnamDate } from '../../utils/time'
 
 type Dialog =
   | { kind: 'form'; captain?: Captain }
@@ -45,13 +47,18 @@ const toDraft = (c?: Captain): CaptainDraft => ({
 
 type FormErrors = Partial<Record<keyof CaptainDraft | 'reason', string>>
 
-function validate(draft: CaptainDraft, reason: string | null): FormErrors {
+function validate(draft: CaptainDraft, reason: string | null, creating = false): FormErrors {
   const errors: FormErrors = {}
   if (!draft.fullName.trim()) errors.fullName = t('Name is required.')
   if (!isEmail(draft.email)) errors.email = t('Enter a valid email address.')
   if (!isPhone(draft.phone)) errors.phone = t('Enter a valid phone number.')
   if (!draft.licenseNumber.trim()) errors.licenseNumber = t('License number is required.')
   if (!draft.licenseExpiresOn) errors.licenseExpiresOn = t('License expiry date is required.')
+  else if (!hasSaneYear(draft.licenseExpiresOn)) errors.licenseExpiresOn = t('Choose a valid date.')
+  // Backend chỉ cho tạo Captain khi giấy phép còn hạn (CaptainService.Create).
+  else if (creating && draft.licenseExpiresOn < toVietnamDate(new Date())) {
+    errors.licenseExpiresOn = t('The license must still be valid.')
+  }
   if (reason !== null && !reason.trim()) errors.reason = t('Enter a reason.')
   return errors
 }
@@ -63,7 +70,7 @@ function CaptainForm({ captain, onDone, onCancel }: { captain?: Captain; onDone:
   const { run, busy, error } = useSubmit()
   // Sửa hồ sơ cần lý do (BR-CAP-07); tạo mới thì không.
   const reasonNeeded = captain ? reason : null
-  const errors = showErrors ? validate(draft, reasonNeeded) : {}
+  const errors = showErrors ? validate(draft, reasonNeeded, !captain) : {}
   const set = (key: keyof CaptainDraft) => (e: { target: { value: string } }) =>
     setDraft((d) => ({ ...d, [key]: e.target.value }))
   const emailHint = captain
@@ -72,7 +79,7 @@ function CaptainForm({ captain, onDone, onCancel }: { captain?: Captain; onDone:
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (Object.keys(validate(draft, reasonNeeded)).length > 0) {
+    if (Object.keys(validate(draft, reasonNeeded, !captain)).length > 0) {
       setShowErrors(true)
       return
     }

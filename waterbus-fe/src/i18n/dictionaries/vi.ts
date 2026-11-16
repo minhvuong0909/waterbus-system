@@ -1533,6 +1533,7 @@ export const vi: Record<string, string> = {
   'Enter a valid email address.': 'Nhập địa chỉ email hợp lệ.',
   'License number is required.': 'Cần nhập số giấy phép.',
   'License expiry date is required.': 'Cần nhập ngày hết hạn giấy phép.',
+  'The license must still be valid.': 'Giấy phép phải còn hạn.',
   'Enter a reason.': 'Hãy nhập lý do.',
   'Create station Staff accounts, send activation invitations and control who can sign in to the scanner.': 'Tạo tài khoản nhân viên soát vé, gửi lời mời kích hoạt và kiểm soát ai được đăng nhập vào máy quét.',
   'Add staff': 'Thêm nhân viên',

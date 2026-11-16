@@ -4,6 +4,7 @@ import { Button, ErrorState, Notice, Pagination, Panel, SelectField, TextField }
 import { useFetch, useNow, useSubmit } from '../../../hooks'
 import { ApiError } from '../../../services/apiClient'
 import { t } from '../../../i18n'
+import { hasSaneYear } from '../../../utils/inputRules'
 import { formatDateTime, fromVietnamDateTimeInput, toVietnamDateTimeInput } from '../../../utils/time'
 import type { TripStopDto } from '../../trips/types'
 import { assignScanner, listScannerDevices, listStopAssignments, revokeScannerAssignment } from '../services/scannerAssignmentService'
@@ -50,10 +51,15 @@ function StopPrimary({ stop, routeName }: { stop: TripStopDto; routeName: string
 
   function review(event: FormEvent) {
     event.preventDefault()
-    if (!selected || busy || confirmation) return
+    if (busy || confirmation) return
+    if (!selected) {
+      setValidation(t('Choose a paired scanner'))
+      return
+    }
     const start = Date.parse(from + ':00+07:00')
     const end = Date.parse(until + ':00+07:00')
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= Math.max(start, now)) {
+    if (!hasSaneYear(from) || !hasSaneYear(until) || !Number.isFinite(start) || !Number.isFinite(end)
+      || end <= Math.max(start, now)) {
       setValidation(t('Enter a start time and an end time after the start and current time.'))
       return
     }
@@ -98,7 +104,7 @@ function StopPrimary({ stop, routeName }: { stop: TripStopDto; routeName: string
     <>
       <p className="text-sm text-on-surface-variant">{routeName} · {stop.stationName}</p>
       {devices.error && <ErrorState compact onRetry={devices.retry} />}
-      <form onSubmit={review} className="space-y-3">
+      <form onSubmit={review} className="space-y-3" noValidate>
         <fieldset disabled={busy || !!confirmation} className="grid gap-3 md:grid-cols-3">
           <SelectField label="Scanner device" value={selected?.id ?? ''} onChange={(event) => setDeviceId(event.target.value)} required>
             <option value="">{t('Choose a paired scanner')}</option>
@@ -108,7 +114,7 @@ function StopPrimary({ stop, routeName }: { stop: TripStopDto; routeName: string
           <TextField label="Active until" type="datetime-local" value={until} onChange={(event) => setUntil(event.target.value)}
             hint="Vietnam time (UTC+07:00)" required />
         </fieldset>
-        <Button type="submit" disabled={busy || !selected || !!confirmation}>{t('Review assignment')}</Button>
+        <Button type="submit" disabled={busy || !!confirmation}>{t('Review assignment')}</Button>
       </form>
       {confirmation && <div className="space-y-2">
         <p>{'request' in confirmation

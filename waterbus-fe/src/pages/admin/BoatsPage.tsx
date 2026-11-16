@@ -92,7 +92,7 @@ function BoatForm({ boat, others, onDone, onCancel }: { boat?: AdminBoat; others
         <TextField label="Code" required value={form.code} onChange={set('code')} error={errors.code} placeholder="SWB-02" maxLength={20} disabled={Boolean(boat)} hint={boat ? 'The code cannot be changed after the boat is created.' : undefined} />
         <TextField label="Name" required value={form.name} onChange={set('name')} error={errors.name} maxLength={100} />
         <TextField label="Registration number" required value={form.registrationNumber} onChange={set('registrationNumber')} error={errors.registrationNumber} maxLength={50} />
-        <TextField label="Manufacturer" value={form.manufacturer} onChange={set('manufacturer')} />
+        <TextField label="Manufacturer" value={form.manufacturer} onChange={set('manufacturer')} maxLength={100} />
         <TextField label="Year built" required inputMode="numeric" value={form.yearBuilt} onChange={set('yearBuilt')} error={errors.yearBuilt} />
         <TextField label="Total seats" required inputMode="numeric" value={form.totalSeats} onChange={set('totalSeats')} error={errors.totalSeats} />
       </div>
