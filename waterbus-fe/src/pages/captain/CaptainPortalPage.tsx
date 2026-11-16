@@ -8,7 +8,6 @@ import CaptainMap from '../../features/captain/components/CaptainMap'
 import BoatSpeaker from '../../features/captain/components/BoatSpeaker'
 import { useCaptainGps } from '../../features/captain/hooks/useCaptainGps'
 import { getCaptainAttendance } from '../../features/captain/services/captainService'
-import { formatGpsTime } from '../../features/captain/utils'
 import { useAuth } from '../../features/authentication/hooks/useAuth'
 import { getOperationTrips, operateTrip } from '../../features/operations/services/operationsService'
 import type { AdminTrip, OperationType } from '../../features/operations/types'
@@ -38,14 +37,11 @@ const clock = (iso?: string | null) => (iso ? formatClock(new Date(iso)) : '—'
 
 function TripDashboard({
   trip,
-  upcoming,
   version,
   gps,
   reload,
 }: {
   trip: AdminTrip
-  /** Số chuyến sắp tới của tàu sau chuyến này (chỉ để báo, thuyền trưởng không chọn chuyến). */
-  upcoming: number
   version: number
   gps: ReturnType<typeof useCaptainGps>
   reload: () => void
@@ -68,17 +64,6 @@ function TripDashboard({
     : stops.find((s, index) => s.status !== 'Departed' && (index > 0 || departed.length > 0))
 
   const confirmed = attendance.data?.state === 'Present' || attendance.data?.state === 'Late'
-  const attendanceMessage = confirmed
-    ? `Admin đã xác nhận có mặt lúc ${clock(attendance.data?.attendance?.recordedAt)}${attendance.data?.state === 'Late' ? ' (đến muộn)' : ''}`
-    : attendance.error
-    ? 'Chưa tải được trạng thái điểm danh'
-    : attendance.data?.state === 'NotConfigured'
-    ? 'Chưa cấu hình hạn điểm danh'
-    : attendance.data?.state === 'Missing'
-    ? 'Quá hạn có mặt · Chờ Admin xác nhận'
-    : attendance.data
-    ? `Chờ Admin xác nhận có mặt${attendance.data.requiredAt ? ` · Hạn ${clock(attendance.data.requiredAt)}` : ''}`
-    : 'Đang tải trạng thái điểm danh…'
 
   const locked = !gps.connected || action.busy
   const hintOf = (type: OperationType) => trip.captainActions?.find((h) => h.operation === type)
@@ -88,7 +73,7 @@ function TripDashboard({
   }
   const reasonOf = (type: OperationType) => blockedReason(hintOf(type), (iso) => clock(iso))
 
-  // Một dòng hướng dẫn cho việc kế tiếp.
+  // Chỉ nhắc khi có điều bất thường; việc bình thường đã thể hiện ở nút (nút bị khóa có lý do ngay bên dưới).
   const nextInstruction = !gps.connected
     ? 'Mất kết nối máy chủ. Các thao tác và SOS đang tạm khóa.'
     : suspended
@@ -97,13 +82,7 @@ function TripDashboard({
     ? 'Chưa xác minh được điểm danh. Thử tải lại trước khi khởi hành.'
     : !confirmed && beforeStart
     ? 'Captain cần được Admin xác nhận có mặt trước khi khởi hành.'
-    : trip.status === 'Scheduled'
-    ? reasonOf('OpenBoarding') ?? 'Mở đón khách khi khách bắt đầu lên tàu.'
-    : trip.status === 'Boarding'
-    ? 'Bấm Khởi hành khi tàu rời bến.'
-    : trip.status === 'Arrived'
-    ? 'Kết thúc chuyến khi khách đã xuống hết.'
-    : reasonOf('Arrive') ?? 'Bấm Đến bến cuối khi tàu đã tới bến cuối của tuyến.'
+    : null
 
   const perform = async (type: OperationType, reason: string) => {
     const done = await action.run(() => operateTrip(trip.id, type, reason))
@@ -116,7 +95,6 @@ function TripDashboard({
         <section className="cap-hero">
           <div className="cap-hero-top">
             <p className="cap-greeting">Xin chào, Captain {user?.fullName ?? ''}</p>
-            {upcoming > 0 && <span className="cap-greeting">Còn {upcoming} chuyến tiếp theo của tàu</span>}
           </div>
           <h1>{trip.routeName}</h1>
           <p className="cap-hero-meta">
@@ -127,15 +105,12 @@ function TripDashboard({
             </span>
             <span className={`captain-pill ${beforeStart || suspended ? 'is-warning' : 'is-success'}`}>{STATUS_LABEL[trip.status]}</span>
           </p>
-          <p className={`cap-attendance ${confirmed ? 'is-confirmed' : ''}`}>
-            <Icon name={confirmed ? 'check_circle' : 'info'} />
-            {attendanceMessage}
-            {attendance.error && (
-              <button type="button" onClick={attendance.retry}>
-                Tải lại
-              </button>
-            )}
-          </p>
+          {trip.openSos && !suspended && (
+            <div className="captain-banner" role="status">
+              <Icon name="warning" />
+              Đã báo SOS. Tàu dừng tại chỗ và audio tạm ngưng, chờ Admin xử lý.
+            </div>
+          )}
           {suspended && (
             <div className="captain-banner" role="status">
               <Icon name="pause_circle" />
@@ -158,13 +133,15 @@ function TripDashboard({
             setSosOpen(true)
           }}
         />
-        <p className="cap-instruction">
-          <Icon name="info" />
-          {nextInstruction}
-        </p>
+        {nextInstruction && (
+          <p className="cap-instruction">
+            <Icon name="info" />
+            {nextInstruction}
+          </p>
+        )}
         {gps.error && <Notice tone="error">{gps.error}</Notice>}
         {action.error && !confirmation && !sosOpen && <Notice tone="error">{action.error}</Notice>}
-        {sosSentAt && <Notice tone="success">Đã gửi SOS lúc {clock(sosSentAt)}. Chờ Admin xử lý.</Notice>}
+        {sosSentAt && !trip.openSos && <Notice tone="success">Đã gửi SOS lúc {clock(sosSentAt)}. Chờ Admin xử lý.</Notice>}
 
         <div className="cap-mapbar">
           <p>
@@ -178,19 +155,6 @@ function TripDashboard({
               'Chưa có thông tin bến'
             )}
           </p>
-          <label className="captain-gps-toggle">
-            <span>Chia sẻ vị trí GPS</span>
-            <button
-              type="button"
-              role="switch"
-              aria-label="Chia sẻ vị trí GPS"
-              aria-checked={gps.sharing}
-              onClick={gps.toggleSharing}
-              className={gps.sharing ? 'is-on' : ''}
-            >
-              <span />
-            </button>
-          </label>
         </div>
         {detail.error && (
           <Notice tone="error">
@@ -199,9 +163,6 @@ function TripDashboard({
               Thử lại
             </button>
           </Notice>
-        )}
-        {gps.position && !gps.fresh && (
-          <p className="cap-stale">Đang hiển thị vị trí cuối lúc {formatGpsTime(gps.position.observedAt)}</p>
         )}
         <CaptainMap
           key={trip.id}
@@ -326,7 +287,7 @@ export default function CaptainPortalPage() {
             </Button>
           </div>
         ) : (
-          <TripDashboard key={trip.id} trip={trip} upcoming={open.filter((x) => x.id !== trip.id && x.status === 'Scheduled').length} version={version} gps={gps} reload={reload} />
+          <TripDashboard key={trip.id} trip={trip} version={version} gps={gps} reload={reload} />
         )}
       </main>
     </>

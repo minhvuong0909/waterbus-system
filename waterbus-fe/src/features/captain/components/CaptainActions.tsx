@@ -69,9 +69,9 @@ export default function CaptainActions({
     <section className="cap-panel" aria-label="Thao tác vận hành">
       <div className="cap-panel-head">
         <h2>Thao tác vận hành</h2>
-        <button type="button" className="cap-sos" disabled={locked} onClick={onSos}>
+        <button type="button" className="cap-sos" disabled={locked || trip.openSos} onClick={onSos}>
           <Icon name="e911_emergency" />
-          Gửi SOS
+          {trip.openSos ? 'Đã báo SOS' : 'Gửi SOS'}
         </button>
       </div>
       <ol className="cap-steps">

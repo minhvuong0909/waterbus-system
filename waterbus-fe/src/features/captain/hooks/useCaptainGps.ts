@@ -8,7 +8,6 @@ import type { BoatPositionEvent } from '../../operations/services/operationsServ
 
 /** Theo dõi đúng tàu được phân công; giữ vị trí cuối khi mất GPS/kết nối. */
 export function useCaptainGps(boatId: string, onRefresh: () => void) {
-  const [sharing, setSharing] = useState(false)
   const [status, setStatus] = useState<RealtimeStatus>('connecting')
   const [online, setOnline] = useState(navigator.onLine)
   const [fix, setFix] = useState<(BoatFix & { boatId: string }) | null>(null)
@@ -78,7 +77,8 @@ export function useCaptainGps(boatId: string, onRefresh: () => void) {
   }, [boatId])
 
   useEffect(() => {
-    if (!sharing || !boatId || !navigator.geolocation) return
+    // Luôn chia sẻ GPS của thiết bị trên tàu khi có chuyến; không có nút tắt/bật.
+    if (!boatId || !navigator.geolocation) return
     let active = true
     let lastSent = 0
     let sending = false
@@ -121,8 +121,9 @@ export function useCaptainGps(boatId: string, onRefresh: () => void) {
           sending = false
         }
       },
-      (e) => {
-        if (active) setError(e.message || 'Không đọc được GPS của thiết bị.')
+      () => {
+        // GPS luôn được thử chia sẻ; thiết bị không cấp quyền/không có tín hiệu thì im lặng (vị trí vẫn đến từ máy chủ,
+        // trạng thái hiện ở nhãn "GPS chưa cập nhật" trên thanh đầu trang).
       },
       { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
     )
@@ -130,20 +131,12 @@ export function useCaptainGps(boatId: string, onRefresh: () => void) {
       active = false
       navigator.geolocation.clearWatch(watch)
     }
-  }, [sharing, boatId])
+  }, [boatId])
 
   const position = fix?.boatId === boatId ? fix : null
   const connected = online && status === 'live'
   const fresh = Boolean(
     position && now - Date.parse(position.observedAt) < 60000 && connected && !error,
   )
-  const toggleSharing = () => {
-    if (!sharing && !navigator.geolocation) {
-      setError('Thiết bị không hỗ trợ chia sẻ GPS.')
-      return
-    }
-    setError(null)
-    setSharing((previous) => !previous)
-  }
-  return { sharing, toggleSharing, connected, status, position, fresh, error }
+  return { connected, status, position, fresh, error }
 }

@@ -12,11 +12,12 @@ export interface MapStation {
   longitude: number
 }
 
-/** Địa danh giới thiệu trên chuyến tham quan: mốc nhỏ, tàu tới gần thì phát audio. */
+/** Địa danh giới thiệu trên chuyến tham quan: vẽ ở vị trí thật bằng icon tượng trưng, tàu đi ngang thì phát audio. */
 export interface MapLandmark {
   name: string
   latitude: number
   longitude: number
+  kind?: 'tower' | 'bridge' | 'houses' | 'park'
 }
 
 export interface MapBoat {
@@ -60,13 +61,29 @@ function boatIcon(variant: 'live' | 'stale' | 'selected') {
 }
 const BOAT_ICONS = { live: boatIcon('live'), stale: boatIcon('stale'), selected: boatIcon('selected') }
 
-/** Mốc địa danh: ghim giọt nước màu cam vẽ bằng CSS (không cần icon font), mũi nhọn chỉ đúng vị trí. */
-const landmarkPin = L.divIcon({
-  className: 'fleet-landmark',
-  html: '<span class="fleet-landmark__pin"></span>',
-  iconSize: [28, 34],
-  iconAnchor: [14, 31],
-})
+/** Hình tượng trưng (SVG nội tuyến, không cần icon font) cho từng loại địa danh. */
+const LANDMARK_GLYPHS: Record<NonNullable<MapLandmark['kind']>, string> = {
+  tower: '<path d="M8 21V6l4-3 4 3v15z"/><path d="M11 9h2M11 12h2M11 15h2"/>',
+  bridge: '<path d="M3 18h18M5 18v-6M19 18v-6M5 12c3-6 11-6 14 0M12 7v11"/>',
+  houses: '<path d="M4 11l8-6 8 6M6 10v9h12v-9M10 19v-5h4v5"/>',
+  park: '<path d="M12 21v-6M12 15c-4 0-6-3-4-6 0-3 2-5 4-5s4 2 4 5c2 3 0 6-4 6z"/>',
+}
+
+/** Mốc địa danh ở vị trí thật: đĩa màu cam, viền trắng, icon tượng trưng theo loại. */
+function landmarkBadge(kind: MapLandmark['kind'] = 'park') {
+  return L.divIcon({
+    className: 'fleet-landmark',
+    html: `<span class="fleet-landmark__badge"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${LANDMARK_GLYPHS[kind]}</svg></span>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  })
+}
+const LANDMARK_BADGES = {
+  tower: landmarkBadge('tower'),
+  bridge: landmarkBadge('bridge'),
+  houses: landmarkBadge('houses'),
+  park: landmarkBadge('park'),
+}
 /** Thu nhỏ bản đồ: chỉ một chấm cam để không rối. */
 const landmarkDot = L.divIcon({
   className: 'fleet-landmark',
@@ -90,8 +107,8 @@ function LandmarkLayer({ landmarks }: { landmarks: MapLandmark[] }) {
   return (
     <>
       {landmarks.map((l) => (
-        <Marker key={l.name} position={[l.latitude, l.longitude]} icon={pinned ? landmarkPin : landmarkDot}>
-          <Tooltip direction="top" offset={[0, pinned ? -28 : -6]}>
+        <Marker key={l.name} position={[l.latitude, l.longitude]} icon={pinned ? LANDMARK_BADGES[l.kind ?? 'park'] : landmarkDot}>
+          <Tooltip direction="top" offset={[0, pinned ? -16 : -6]}>
             {l.name}
           </Tooltip>
         </Marker>

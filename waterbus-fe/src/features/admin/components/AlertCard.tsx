@@ -10,6 +10,10 @@ import { formatDateTime } from '../../../utils/time'
 import { OPERATION_LABEL } from '../../operations/utils'
 import TripStatusBadge from '../../trips/components/TripStatusBadge'
 
+/** Việc tiếp theo Admin làm được ngay trên sự cố cho chuyến đã quyết định: tiếp tục sau khi tạm ngưng, hoặc tạm ngưng/dừng/hủy tiếp. */
+const FOLLOW_UPS: OperationType[] = ['Resume', 'Suspend', 'Terminate', 'Cancel']
+const followUpsOf = (trip?: AdminTrip): OperationType[] => (trip ? FOLLOW_UPS.filter((op) => trip.allowedOperations.includes(op)) : [])
+
 /** "Đã quyết định 1/20 chuyến" kèm thanh tiến độ, theo số đếm của danh sách sự cố. */
 function DecisionProgress({ total, pending }: { total: number; pending: number }) {
   if (total === 0) return null
@@ -43,7 +47,8 @@ function DecisionChip({ decision }: { decision: string }) {
 
 function TripLine({ link, trip }: { link: AlertTrip; trip?: AdminTrip }) {
   const departure = link.departureTime ?? trip?.departureTime
-  const status = link.tripStatus ?? trip?.status
+  // Trạng thái hiện tại của chuyến (đổi sau mỗi quyết định), không phải ảnh chụp lúc sự cố nổ ra.
+  const status = trip?.status ?? link.tripStatus
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-deep-river">
       <span className="font-mono font-semibold">{trip?.boatCode ?? '—'}</span>
@@ -147,17 +152,34 @@ function AlertTrips({
         </div>
       )}
       {decided.length > 0 && (
-        <details className={INSET_CLASS}>
+        // Chuyến đã quyết định vẫn còn việc (vd. tạm ngưng thì tiếp tục hoặc dừng hẳn): mở sẵn, làm ngay tại đây không phải sang trang Chuyến.
+        <details className={INSET_CLASS} open={decided.some((link) => followUpsOf(byId.get(link.tripId)).length > 0)}>
           <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-deep-river">
             {t('Already decided ({count})', { count: decided.length })}
           </summary>
           <ul className="divide-y divide-outline-variant/30 border-t border-outline-variant/30">
-            {decided.map((link) => (
-              <li key={link.tripId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-                <TripLine link={link} trip={byId.get(link.tripId)} />
-                <DecisionChip decision={link.decision ?? ''} />
-              </li>
-            ))}
+            {decided.map((link) => {
+              const trip = byId.get(link.tripId)
+              return (
+                <li key={link.tripId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                  <TripLine link={link} trip={trip} />
+                  <span className="flex flex-wrap items-center gap-2">
+                    <DecisionChip decision={link.decision ?? ''} />
+                    {trip &&
+                      followUpsOf(trip).map((op) => (
+                        <Button
+                          key={op}
+                          size="sm"
+                          variant={op === 'Cancel' || op === 'Terminate' ? 'danger' : 'neutral'}
+                          onClick={() => onDecide([trip], op, alert.id)}
+                        >
+                          {t(OPERATION_LABEL[op])}
+                        </Button>
+                      ))}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
         </details>
       )}

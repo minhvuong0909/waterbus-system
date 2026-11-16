@@ -1,9 +1,7 @@
-import { useState } from 'react'
 import { SIGHTSEEING_POIS } from '../../../constant/sightseeingPois'
 import { riverPathOf } from '../../../constant/riverPaths'
 import FleetMap from '../../tracking/components/FleetMap'
 import type { BoatFix, TrackedStop } from '../../tracking/types'
-import { formatGpsTime } from '../utils'
 import Icon from './CaptainIcon'
 
 const OWN_BOAT_ID = 'own-boat'
@@ -27,7 +25,6 @@ export default function CaptainMap({
   position: BoatFix | null
   fresh: boolean
 }) {
-  const [follow, setFollow] = useState(false)
   return (
     <section className="captain-card captain-map-card" aria-label="Bản đồ hành trình">
       <div className="captain-card-heading">
@@ -35,24 +32,6 @@ export default function CaptainMap({
           <Icon name="map" />
           Bản đồ hành trình
         </h2>
-        <div className="captain-map-tools">
-          <span className={`captain-pill ${fresh ? 'is-success' : 'is-warning'}`}>
-            {fresh ? 'GPS trực tiếp' : position ? 'Vị trí cuối cùng' : 'Chờ vị trí GPS'}
-          </span>
-          {position && (
-            <span className="captain-muted">Cập nhật {formatGpsTime(position.observedAt)}</span>
-          )}
-          <button
-            className="captain-outline"
-            type="button"
-            disabled={!position}
-            aria-pressed={follow}
-            onClick={() => setFollow((v) => !v)}
-          >
-            <Icon name="my_location" />
-            {follow ? 'Đang theo dõi' : 'Theo dõi tàu'}
-          </button>
-        </div>
       </div>
       <div className="captain-map-surface">
         <FleetMap
@@ -64,7 +43,6 @@ export default function CaptainMap({
           }
           path={riverPathOf(routeCode)}
           landmarks={tripType === 'Sightseeing' ? SIGHTSEEING_POIS : []}
-          selectedBoatId={follow ? OWN_BOAT_ID : null}
           showLayerControl={false}
           // Chưa có đường sông của tuyến thì không nối thẳng các bến: đường thẳng cắt qua đất, tàu lại đi theo sông.
           connectStations={false}
@@ -73,7 +51,7 @@ export default function CaptainMap({
         {!position && (
           <div className="captain-map-note">
             <Icon name="location_searching" />
-            Chưa nhận vị trí tàu. Bật chia sẻ GPS trên thiết bị ở tàu.
+            Chưa nhận vị trí tàu.
           </div>
         )}
       </div>

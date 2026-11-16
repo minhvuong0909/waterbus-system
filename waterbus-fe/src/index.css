@@ -244,30 +244,22 @@
   box-shadow: 0 1px 4px rgba(13, 37, 56, 0.4);
 }
 
-/* Mốc địa danh tham quan: ghim giọt nước màu cam có chấm trắng, mũi nhọn ở đáy. */
-.fleet-landmark__pin {
-  position: relative;
-  display: block;
+/* Mốc địa danh tham quan: đĩa cam viền trắng chứa icon tượng trưng (toà nhà, cầu, nhà ven sông, công viên). */
+.fleet-landmark__badge {
+  display: flex;
   box-sizing: border-box;
-  width: 22px;
-  height: 22px;
-  margin: 3px 3px 0;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
   background: #f59e0b;
   border: 3px solid #fff;
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
   box-shadow: 0 2px 6px rgba(13, 37, 56, 0.4);
 }
-.fleet-landmark__pin::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 6px;
-  height: 6px;
-  margin: -3px 0 0 -3px;
-  border-radius: 9999px;
-  background: #fff;
+.fleet-landmark__badge svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* Pier pin on the street map: a disc with an anchor, dark when selected. */

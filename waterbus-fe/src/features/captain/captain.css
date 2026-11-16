@@ -24,45 +24,6 @@
   outline: 3px solid #147a7e;
   outline-offset: 4px;
 }
-.captain-header {
-  min-height: 76px;
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  padding: 10px 28px;
-  background: linear-gradient(110deg, #152a46, #0b1b38);
-  color: white;
-  box-shadow: 0 3px 12px #0d253818;
-}
-.captain-brand {
-  display: flex;
-  flex-shrink: 0;
-}
-.captain-brand svg {
-  width: 196px;
-  height: 44px;
-}
-.captain-brand svg text {
-  fill: #fff;
-}
-.captain-header-divider {
-  width: 1px;
-  height: 32px;
-  background: #ffffff55;
-  flex-shrink: 0;
-}
-.captain-header-title {
-  font-size: clamp(16px, 1.5vw, 23px);
-  font-weight: 800;
-  white-space: nowrap;
-  letter-spacing: -0.5px;
-}
-.captain-header-status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
 .captain-pill {
   display: inline-flex;
   align-items: center;
@@ -77,14 +38,6 @@
 .captain-pill .material-symbols-outlined {
   font-size: 18px;
 }
-.captain-pill.is-teal {
-  color: #fff;
-  background: #008f88;
-}
-.captain-pill.is-green {
-  color: #fff;
-  background: #087a46;
-}
 .captain-pill.is-success,
 .captain-notification.is-success {
   color: #075c43;
@@ -94,69 +47,6 @@
 .captain-notification.is-warning {
   color: #865006;
   background: #fff0ce;
-}
-.captain-account {
-  position: relative;
-  margin-left: auto;
-  flex-shrink: 0;
-  z-index: 30;
-}
-.captain-account summary {
-  list-style: none;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 700;
-  min-height: 44px;
-}
-.captain-account summary::-webkit-details-marker {
-  display: none;
-}
-.captain-avatar {
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  color: #153b55;
-  background: #d0edfa;
-  border: 2px solid #ffffff90;
-  border-radius: 50%;
-}
-.captain-account-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 15px);
-  min-width: 230px;
-  display: grid;
-  gap: 8px;
-  padding: 18px;
-  color: var(--cap-text);
-  background: white;
-  border: 1px solid var(--cap-border);
-  border-radius: 12px;
-  box-shadow: 0 8px 30px #0d253825;
-}
-.captain-account-menu > span {
-  font-size: 12px;
-  color: var(--cap-muted);
-}
-.captain-account-menu button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-align: left;
-  padding: 10px 0;
-  border-top: 1px solid var(--cap-border);
-}
-.captain-clock {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 20px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
 .captain-content {
   max-width: 1800px;
@@ -191,30 +81,6 @@
 }
 .captain-map-card {
   overflow: hidden;
-}
-.captain-map-tools {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.captain-outline {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 44px;
-  padding: 6px 12px;
-  border: 1px solid #8a9eb7;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  background: #fff9;
-}
-.captain-outline:hover:not(:disabled) {
-  background: #e5f7f4;
-}
-.captain-outline:disabled {
-  opacity: 0.5;
 }
 .captain-map-surface {
   height: clamp(420px, 52vh, 640px);
@@ -272,44 +138,6 @@
 .captain-controls .captain-card-heading {
   padding-left: 2px;
   padding-right: 2px;
-}
-.captain-gps-toggle {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 12px;
-  font-weight: 700;
-}
-.captain-gps-toggle button {
-  min-width: 52px;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-.captain-gps-toggle button::before {
-  content: '';
-  position: absolute;
-  width: 52px;
-  height: 29px;
-  border-radius: 30px;
-  background: #9baabe;
-}
-.captain-gps-toggle button span {
-  position: relative;
-  width: 23px;
-  height: 23px;
-  border-radius: 50%;
-  background: white;
-  margin-left: 3px;
-  box-shadow: 0 1px 3px #0002;
-  transition: transform 0.15s;
-}
-.captain-gps-toggle button.is-on::before {
-  background: #009f95;
-}
-.captain-gps-toggle button.is-on span {
-  transform: translateX(23px);
 }
 .captain-muted {
   color: var(--cap-muted);
@@ -390,7 +218,6 @@
 .captain-shell h1,
 .captain-shell h2,
 .captain-shell h3,
-.captain-shell .captain-header-title,
 .captain-shell .captain-metric strong {
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
@@ -466,22 +293,6 @@
   color: var(--cap-muted);
   font-size: 14px;
   font-weight: 600;
-}
-.cap-attendance {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  color: #865006;
-  font-size: 13px;
-  font-weight: 600;
-}
-.cap-attendance.is-confirmed {
-  color: #075c43;
-}
-.cap-attendance button {
-  text-decoration: underline;
 }
 .cap-steps {
   display: grid;
@@ -609,12 +420,6 @@
   gap: 8px;
   margin: 0;
   font-size: 14px;
-}
-.cap-stale {
-  margin: 0;
-  color: #865006;
-  font-size: 13px;
-  font-weight: 600;
 }
 @media (max-width: 720px) {
   .cap-steps {

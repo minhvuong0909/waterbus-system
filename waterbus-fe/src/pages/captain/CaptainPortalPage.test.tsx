@@ -15,7 +15,7 @@ import type { AdminTrip } from '../../features/operations/types'
 
 const state = vi.hoisted(() => ({ connected: true, fresh: true }))
 vi.mock('../../features/authentication/hooks/useAuth', () => ({
-  useAuth: () => ({ user: { fullName: 'Nguyễn Minh' }, signOut: vi.fn() }),
+  useAuth: () => ({ user: { fullName: 'Nguyễn Minh', email: 'captain@waterbus.vn', roles: ['Captain'] }, signOut: vi.fn() }),
 }))
 vi.mock('../../features/operations/services/operationsService')
 vi.mock('../../features/captain/services/captainService')
@@ -23,8 +23,6 @@ vi.mock('../../features/tracking/services/trackingService')
 vi.mock('../../features/captain/hooks/useCaptainGps', () => ({
   useCaptainGps: () => ({
     ...state,
-    sharing: true,
-    toggleSharing: vi.fn(),
     status: 'live',
     error: null,
     position: {
@@ -115,11 +113,10 @@ afterEach(() => {
 })
 
 describe('Captain operations dashboard', () => {
-  it('uses the project logo, shows attendance and requires confirmation before changing a trip', async () => {
+  it('uses the project logo and requires confirmation before changing a trip', async () => {
     vi.mocked(operateTrip).mockResolvedValue({ status: 'Boarding' })
     show()
     await screen.findByText('Xin chào, Captain Nguyễn Minh')
-    await screen.findAllByText('Admin đã xác nhận có mặt lúc 06:40')
     expect(screen.getByRole('img', { name: 'Smart Waterbus' })).toBeTruthy()
     expect(button('Mở đón khách').disabled).toBe(false)
     expect(button('Khởi hành').disabled).toBe(true)
@@ -150,7 +147,7 @@ describe('Captain operations dashboard', () => {
     expect(
       screen.getByText('Chuyến tạm ngưng theo quyết định Admin. Chờ hướng dẫn tiếp tục.'),
     ).toBeTruthy()
-    expect(screen.getByText('Đang hiển thị vị trí cuối lúc 08:45:02')).toBeTruthy()
+    expect(screen.getByText('Bản đồ vị trí cuối')).toBeTruthy()
   })
 
   it('allows Arrive only when supplied by the backend, even while the trip is en route', async () => {
