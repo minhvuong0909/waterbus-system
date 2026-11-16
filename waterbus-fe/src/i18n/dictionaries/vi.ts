@@ -369,8 +369,6 @@ export const vi: Record<string, string> = {
   'High risk': 'Nguy cơ cao',
   'Warning': 'Cảnh báo',
   'Sky': 'Trời',
-  'Reported by staff': 'Do nhân viên báo',
-  'Staff incident report': 'Báo cáo sự cố của nhân viên',
   'Decided for {decided} of {total} trips': 'Đã quyết định {decided}/{total} chuyến',
   '{count} waiting': '{count} chuyến đang chờ',
   'No open incidents right now.': 'Hiện không có sự cố nào đang mở.',
@@ -382,7 +380,7 @@ export const vi: Record<string, string> = {
   'Decide for this trip': 'Quyết định cho chuyến này',
   '{count} trips need a decision': '{count} chuyến cần quyết định',
   'Review alert': 'Xem và quyết định',
-  'Trip decisions waiting': 'Quyết định cho chuyến đang chờ',
+  'Trips waiting for a decision': 'Chuyến chờ quyết định',
   'Close this alert?': 'Đóng cảnh báo này?',
   'Closing only ends the alert: no trip changes, and every trip keeps its current status.': 'Đóng chỉ kết thúc cảnh báo: không chuyến nào bị thay đổi, mọi chuyến giữ nguyên trạng thái hiện tại.',
   '{count} trips still have no decision.': 'Còn {count} chuyến chưa có quyết định.',
@@ -718,11 +716,6 @@ export const vi: Record<string, string> = {
   // Trip operations (suspend, cancel, terminate) and alerts
   'Open boarding': 'Mở đón khách',
   'Close trip': 'Đóng chuyến',
-  'Show': 'Hiển thị',
-  'Closed alerts': 'Cảnh báo đã đóng',
-  'No incident has been closed yet.': 'Chưa có sự cố nào được đóng.',
-  'No decision recorded': 'Không có quyết định',
-  'Closed {time}': 'Đóng lúc {time}',
   'No action needed': 'Không cần xử lý',
   'Suspended': 'Tạm ngưng',
   'Terminated': 'Kết thúc sớm',
@@ -1143,7 +1136,7 @@ export const vi: Record<string, string> = {
   'Optional. Shown to staff only.': 'Không bắt buộc. Chỉ nhân viên nhìn thấy.',
   'Deactivate {name}? New seats and fares can no longer use this class. This is refused while one of its seats is booked or held on an unfinished trip.':
     'Ngừng {name}? Ghế và giá vé mới sẽ không dùng được hạng này. Hệ thống từ chối nếu còn ghế của hạng này đang được đặt hoặc giữ trên chuyến chưa kết thúc.',
-  'Total seats across all boats': 'Tổng số ghế trên mọi tàu',
+  'Seats in fleet': 'Ghế trên đội tàu',
   'These seats still belong to a switched-off class. Change their class on the boat seats page.': 'Các ghế này vẫn thuộc hạng đã ngừng. Hãy đổi hạng ở trang ghế của tàu.',
   'Seats of this class across all boats, including switched-off seats.': 'Số ghế của hạng này trên mọi tàu, kể cả ghế đã tắt.',
   'Boat seats': 'Ghế của tàu',
@@ -1361,7 +1354,7 @@ export const vi: Record<string, string> = {
   'Decide for each affected trip. An alert never changes a trip by itself; routine trip operations are on the Trips page.':
     'Quyết định cho từng chuyến bị ảnh hưởng. Cảnh báo không tự đổi trạng thái chuyến; thao tác thường ngày của chuyến nằm ở trang Chuyến.',
   '{alerts} open alerts': '{alerts} cảnh báo đang mở',
-  '{count} trip decisions waiting': '{count} quyết định cho chuyến đang chờ',
+  '{count} trips waiting for a decision': '{count} chuyến chờ quyết định',
   // Admin P1: sidebar theo nhóm, việc cần xử lý, tab hoàn tiền.
   'Catalogue':
     'Danh mục',
@@ -1381,14 +1374,14 @@ export const vi: Record<string, string> = {
     'Đối soát',
   'Open refunds':
     'Mở hoàn tiền',
-  '{count} trip decisions are waiting for you on alerts':
-    '{count} quyết định cho chuyến đang chờ bạn theo cảnh báo',
+  '{count} trips are waiting for your decision on an alert':
+    '{count} chuyến đang chờ bạn quyết định theo cảnh báo',
   '{count} trips are suspended and need a decision':
     '{count} chuyến đang tạm ngưng, cần bạn quyết định',
   'Review trips':
     'Xem chuyến',
-  'Boarding or on the river': 'Đang đón khách / đang chạy',
-  'No boat yet': 'Chưa gán tàu',
+  '{count} trips awaiting your decision':
+    '{count} chuyến chờ bạn quyết định',
   '{count} trips have no boat and are not on sale':
     '{count} chuyến chưa có tàu nên chưa mở bán',
   '{count} payments or refunds need reconciling':
@@ -1408,27 +1401,8 @@ export const vi: Record<string, string> = {
   // Admin P2: hệ thống thiết kế.
   '{from}–{to} of {total}':
     '{from}–{to} / {total}',
-  'Per page': 'Mỗi trang',
-  'Revenue': 'Doanh thu',
-  'Money actually collected and refunded, by the day each payment completed.': 'Tiền thực thu và đã hoàn, tính theo ngày giao dịch hoàn tất.',
-  'Period': 'Khoảng thời gian',
-  'Group': 'Gộp theo',
-  '7 days': '7 ngày',
-  '30 days': '30 ngày',
-  '90 days': '90 ngày',
-  '1 year': '1 năm',
-  'By day': 'Theo ngày',
-  'By month': 'Theo tháng',
-  'Collected': 'Thực thu',
-  'Refunded': 'Đã hoàn',
-  'Net revenue': 'Doanh thu thuần',
-  '{count} payments': '{count} thanh toán',
-  '{count} refunds': '{count} hoàn tiền',
-  'Collected minus refunded': 'Thực thu trừ đã hoàn',
-  'Revenue over time': 'Doanh thu theo thời gian',
-  'Late payments waiting for reconciliation and legacy simulated refunds are not counted.': 'Không tính tiền về muộn đang chờ đối soát và các khoản hoàn mô phỏng cũ.',
-  'No payments or refunds in this period.': 'Không có thanh toán hay hoàn tiền nào trong khoảng này.',
-  'Collected {collected}, refunded {refunded}, net {net}.': 'Thực thu {collected}, đã hoàn {refunded}, thuần {net}.',
+  'Per page':
+    'Mỗi trang',
   'Write what the boat says at each landmark, pick a voice, listen to it and publish it.':
     'Viết lời thuyết minh cho từng địa danh, chọn giọng, nghe thử rồi xuất bản.',
   'This landmark is not on any sightseeing route yet, so its audio will not be played.': 'Địa danh này chưa thuộc tuyến ngắm cảnh nào nên audio sẽ không được phát.',
@@ -1612,4 +1586,24 @@ export const vi: Record<string, string> = {
   'Admin changed the Staff email': 'Admin đổi email nhân viên',
   'A Staff member is responsible for a stop only if the shift lasts until that stop’s check-in window closes.': 'Nhân viên chỉ chịu trách nhiệm một điểm dừng khi ca trực kéo dài đến hết cửa sổ check-in của điểm dừng đó.',
   '{count} passengers • {price}': '{count} hành khách • {price}',
+  'Revenue': 'Doanh thu',
+  'Money actually collected and refunded, by the day each payment completed.': 'Tiền thực thu và đã hoàn, tính theo ngày giao dịch hoàn tất.',
+  'Period': 'Khoảng thời gian',
+  'Group': 'Gộp theo',
+  '7 days': '7 ngày',
+  '30 days': '30 ngày',
+  '90 days': '90 ngày',
+  '1 year': '1 năm',
+  'By day': 'Theo ngày',
+  'By month': 'Theo tháng',
+  'Collected': 'Thực thu',
+  'Refunded': 'Đã hoàn',
+  'Net revenue': 'Doanh thu thuần',
+  '{count} payments': '{count} thanh toán',
+  '{count} refunds': '{count} hoàn tiền',
+  'Collected minus refunded': 'Thực thu trừ đã hoàn',
+  'Revenue over time': 'Doanh thu theo thời gian',
+  'Late payments waiting for reconciliation and legacy simulated refunds are not counted.': 'Không tính tiền về muộn đang chờ đối soát và các khoản hoàn mô phỏng cũ.',
+  'No payments or refunds in this period.': 'Không có thanh toán hay hoàn tiền nào trong khoảng này.',
+  'Collected {collected}, refunded {refunded}, net {net}.': 'Thực thu {collected}, đã hoàn {refunded}, thuần {net}.',
 }
