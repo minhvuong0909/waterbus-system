@@ -1,5 +1,4 @@
-import { Button, Icon } from '../../../components/ui'
-import { INPUT_CLASS } from '../../../components/ui/styles'
+import { Button, Icon, SelectField } from '../../../components/ui'
 import { REQUIRED_LABEL_CLASS } from '../../../components/ui/styles'
 import { t } from '../../../i18n'
 import type { AdminStation, RouteStopInput, ServiceType } from '../types'
@@ -47,9 +46,10 @@ export default function RouteStopsEditor({
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-mist text-xs font-bold text-deep-river">
                 {index + 1}
               </span>
-              <select
-                aria-label={t('Station of stop {number}', { number: index + 1 })}
-                className={INPUT_CLASS}
+              <SelectField
+                label={t('Station of stop {number}', { number: index + 1 })}
+                hideLabel
+                fieldClassName="min-w-0 flex-1"
                 value={stop.stationId}
                 onChange={(e) => update(index, { stationId: e.target.value })}
               >
@@ -63,7 +63,7 @@ export default function RouteStopsEditor({
                     {station.name}
                   </option>
                 ))}
-              </select>
+              </SelectField>
               {!locked && (
                 <>
                   <button type="button" className={iconButton} aria-label={t('Move up')} disabled={index === 0} onClick={() => move(index, -1)}>

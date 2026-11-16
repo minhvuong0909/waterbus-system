@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import Pagination from './Pagination'
+import SelectField from './SelectField'
 import { SURFACE_CLASS } from './styles'
 import { t } from '../../i18n'
 
@@ -93,23 +94,24 @@ export default function DataTable<T>({
             })}
           </span>
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 text-xs text-on-surface-variant">
-              {t('Per page')}
-              <select
-                className="min-h-[36px] rounded-xl border-outline-variant/70 py-1 pl-2 pr-7 text-sm text-deep-river focus:ring-teal-flow"
-                value={pageSize}
-                onChange={(event) => {
-                  setPageSize(Number(event.target.value))
-                  setPage(1)
-                }}
-              >
-                {PAGE_SIZES.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <span className="text-xs text-on-surface-variant" aria-hidden="true">{t('Per page')}</span>
+            <SelectField
+              label="Per page"
+              hideLabel
+              compact
+              fieldClassName="w-20"
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(Number(event.target.value))
+                setPage(1)
+              }}
+            >
+              {PAGE_SIZES.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </SelectField>
             <Pagination pageNumber={currentPage} totalPages={totalPages} onChange={setPage} />
           </div>
         </div>

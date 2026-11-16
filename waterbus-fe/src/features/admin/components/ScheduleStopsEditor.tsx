@@ -1,4 +1,5 @@
-import { CHECKBOX_CLASS, INPUT_CLASS } from '../../../components/ui/styles'
+import { Checkbox, TextField } from '../../../components/ui'
+import { INPUT_CLASS } from '../../../components/ui/styles'
 import { REQUIRED_LABEL_CLASS } from '../../../components/ui/styles'
 import { t } from '../../../i18n'
 import type { ScheduleStopRow } from '../utils/scheduleStops'
@@ -42,9 +43,7 @@ export default function ScheduleStopsEditor({
               className="grid grid-cols-[1fr_5rem_5rem] items-center gap-2 border-t border-outline-variant/30 px-3 py-1.5"
             >
               <label className="flex min-w-0 items-center gap-2 text-sm text-deep-river">
-                <input
-                  type="checkbox"
-                  className={CHECKBOX_CLASS}
+                <Checkbox
                   checked={row.included}
                   onChange={(e) => onChange(row.routeStopId, { included: e.target.checked })}
                 />
@@ -53,8 +52,9 @@ export default function ScheduleStopsEditor({
                 </span>
               </label>
               {row.included && row.routeStopId !== first ? (
-                <input
-                  aria-label={t('Minutes until arrival at {station}', { station: row.stationName })}
+                <TextField
+                  label={t('Minutes until arrival at {station}', { station: row.stationName })}
+                  hideLabel
                   className={OFFSET_CLASS}
                   inputMode="numeric"
                   value={row.arrival}
@@ -66,8 +66,9 @@ export default function ScheduleStopsEditor({
               {row.included && row.routeStopId === first ? (
                 <span className="text-right text-sm font-semibold text-deep-river">0</span>
               ) : row.included && row.routeStopId !== last ? (
-                <input
-                  aria-label={t('Minutes until departure from {station}', { station: row.stationName })}
+                <TextField
+                  label={t('Minutes until departure from {station}', { station: row.stationName })}
+                  hideLabel
                   className={OFFSET_CLASS}
                   inputMode="numeric"
                   value={row.departure}

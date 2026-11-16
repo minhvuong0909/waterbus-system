@@ -1,4 +1,5 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { change, hasOption, lacksOption } from '../../test/fields'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getTripStops, setCheckInWindow } from '../../features/admin/services/checkInService'
 import {
@@ -35,7 +36,6 @@ const assignment: ScannerAssignment = {
   activeFrom: stop.checkInOpenAt!, activeUntil: stop.checkInCloseAt!, isPrimaryOffline: true,
 }
 const page = (items: ScannerAssignment[]) => ({ items, pageNumber: 1, totalCount: items.length, totalPages: 1 })
-const change = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
 
 beforeEach(() => {
@@ -66,16 +66,15 @@ async function chooseTrip(routeName: string) {
 async function chooseStop() {
   render(<CheckInPage />)
   await chooseTrip('River route')
-  const boarding = await screen.findByLabelText('Boarding stop')
-  expect(within(boarding).queryByRole('option', { name: /Terminal/ })).toBeNull()
+  expect(await lacksOption('Boarding stop', /Terminal/)).toBe(true)
   change('Boarding stop', stop.callId)
   await screen.findByText('No Primary Offline scanner assigned.')
 }
 
 async function selectAssignmentOptions() {
-  await screen.findByRole('option', { name: /SC-01/ })
-  expect(screen.queryByRole('option', { name: /OLD/ })).toBeNull()
-  expect(screen.queryByRole('option', { name: /WRONG/ })).toBeNull()
+  await hasOption('Scanner device', /SC-01/)
+  expect(await lacksOption('Scanner device', /OLD/)).toBe(true)
+  expect(await lacksOption('Scanner device', /WRONG/)).toBe(true)
   change('Scanner device', scanner.id)
 }
 
@@ -170,7 +169,7 @@ describe('Admin check-in scanner assignments', () => {
     expect(screen.queryByRole('button', { name: confirm })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
     await act(async () => resolveStops([otherStop]))
-    expect(screen.getByRole('option', { name: /Other station/ })).toBeTruthy()
+    await hasOption('Boarding stop', /Other station/)
     expect(screen.queryByText(/^SC-01 ·/)).toBeNull()
     expect(screen.queryByRole('button', { name: confirm })).toBeNull()
     expect(revokeScannerAssignment).not.toHaveBeenCalled()
@@ -187,7 +186,7 @@ describe('Admin check-in scanner assignments', () => {
     await chooseTrip('River route')
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
     await chooseTrip('Second route')
-    await screen.findByRole('option', { name: /Other station/ })
+    await hasOption('Boarding stop', /Other station/)
 
     await act(async () => resolveOldStops([stop]))
     expect(screen.queryByText(stop.stationName, { exact: true })).toBeNull()
@@ -215,7 +214,7 @@ describe('Admin check-in scanner assignments', () => {
 
     vi.mocked(getTripStops).mockResolvedValueOnce([otherStop])
     await chooseTrip('Second route')
-    await screen.findByRole('option', { name: /Other station/ })
+    await hasOption('Boarding stop', /Other station/)
     change('Boarding stop', otherStop.callId)
     await screen.findByText('No Primary Offline scanner assigned.')
 
@@ -238,7 +237,7 @@ describe('Admin check-in scanner assignments', () => {
     click('Close at departure')
     expect((screen.getByLabelText('Closes') as HTMLInputElement).value).toBe('2090-01-01T09:00')
     click('Assign scanners')
-    expect((screen.getByLabelText('Boarding stop') as HTMLSelectElement).value).toBe(stop.callId)
+    expect(screen.getByLabelText('Boarding stop').textContent).toContain(stop.stationName)
     await screen.findByText('No Primary Offline scanner assigned.')
   })
 

@@ -16,6 +16,7 @@ import { useFleetHub } from '../../features/operations/hooks/useFleetHub'
 import { combineFetches, useDocumentTitle, useFetch, useNow, useReload } from '../../hooks'
 import { t } from '../../i18n'
 import { formatDateTime, toVietnamDate } from '../../utils/time'
+import { hasSaneYear } from '../../utils/inputRules'
 import type { TripStatus } from '../../features/trips/types'
 import type { Column } from '../../components/ui'
 import TripStatusBadge from '../../features/trips/components/TripStatusBadge'
@@ -63,7 +64,7 @@ export default function TripsPage() {
   // Để trống: cửa sổ mặc định (12 giờ trước đến 7 ngày tới). Chọn một ngày: 7 ngày tính từ ngày đó, theo giờ Việt Nam.
   const [weekFrom, setWeekFrom] = useState('')
   const trips = useFetch(
-    () => getOperationTrips(weekFrom ? { from: new Date(`${weekFrom}T00:00:00+07:00`).toISOString() } : undefined),
+    () => getOperationTrips(weekFrom && hasSaneYear(weekFrom) ? { from: new Date(`${weekFrom}T00:00:00+07:00`).toISOString() } : undefined),
     [weekFrom, version],
   )
   const boats = useFetch(getBoats)

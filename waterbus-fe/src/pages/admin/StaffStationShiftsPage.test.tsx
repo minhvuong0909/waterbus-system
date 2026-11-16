@@ -1,3 +1,4 @@
+import { change, hasOption } from '../../test/fields'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../services/apiClient'
@@ -16,7 +17,6 @@ const shift: StaffShift = {
 }
 
 const click = (name: string) => fireEvent.click(screen.getByRole('button', { name }))
-const change = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
 
 beforeEach(() => {
   vi.mocked(getStations).mockResolvedValue([{ id: shift.stationId, name: shift.stationName, isActive: true } as AdminStation])
@@ -30,7 +30,7 @@ describe('Staff station shifts', () => {
   it('validates local shift times, posts UTC, and reports overlapping shifts', async () => {
     vi.mocked(createShift).mockRejectedValue(new ApiError(409, 'Staff shift overlaps another shift'))
     render(<StaffStationShiftsPage />)
-    await screen.findByRole('option', { name: /ST01/ })
+    await hasOption('Staff account', /ST01/)
     change('Staff account', shift.staffAccountId)
     change('Station', shift.stationId)
     change('Start', '2090-01-01T07:00')

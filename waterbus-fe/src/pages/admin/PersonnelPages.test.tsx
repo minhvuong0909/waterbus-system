@@ -1,3 +1,4 @@
+import { change, hasOption } from '../../test/fields'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -29,7 +30,6 @@ const pendingStaff: StaffAccount = { ...staff, id: 's2', fullName: 'Mới Mời'
 const paged = <T,>(items: T[]) => ({ items, pageNumber: 1, totalPages: 1, totalCount: items.length })
 
 const click = (name: string | RegExp) => fireEvent.click(screen.getByRole('button', { name }))
-const change = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } })
 const rowOf = (name: string) => screen.getByText(name).closest('tr') as HTMLElement
 
 beforeEach(() => {
@@ -75,7 +75,7 @@ describe('Captains page', () => {
     render(<CaptainsPage />)
     await screen.findByText('Trần Thuyền')
     fireEvent.click(within(rowOf('Trần Thuyền')).getByRole('button', { name: /Change status/ }))
-    fireEvent.change(screen.getByLabelText('New status'), { target: { value: '2' } })
+    change('New status', '2')
     fireEvent.click(screen.getAllByRole('button', { name: 'Change status' }).at(-1)!)
     await screen.findByText('Enter a reason.')
     expect(changeCaptainStatus).not.toHaveBeenCalled()
@@ -119,7 +119,7 @@ describe('Captain boat assignment, alerts and activity log', () => {
     render(<CaptainsPage />)
     await screen.findByText('Trần Thuyền')
     fireEvent.click(within(rowOf('Trần Thuyền')).getByRole('button', { name: /Assign boat/ }))
-    expect(screen.getByRole('option', { name: /SWB-01.*Chờ Kích/ })).toBeTruthy()
+    await hasOption('Boat', /SWB-01.*Chờ Kích/)
   })
 
   it('lists open alerts and resolves one after confirmation', async () => {

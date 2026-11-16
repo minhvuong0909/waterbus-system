@@ -5,8 +5,7 @@ import type { AdminTrip, OperationType } from '../../operations/types'
 import { formatDateTime } from '../../../utils/time'
 import { errorText } from '../../../hooks/useSubmit'
 import { operateTrip } from '../../operations/services/operationsService'
-import { Button, Notice } from '../../../components/ui'
-import { INPUT_CLASS, REQUIRED_LABEL_CLASS } from '../../../components/ui/styles'
+import { Button, Notice, TextAreaField } from '../../../components/ui'
 
 /** Thao tác backend bắt buộc có lý do (`TripLifecycle.RequiresReason`); các thao tác khác để trống được. */
 const REASON_REQUIRED: OperationType[] = ['Suspend', 'Cancel', 'Terminate', 'NoAction']
@@ -122,24 +121,15 @@ export default function OperationForm({
         </ul>
       )}
       <div>
-        <label htmlFor="operation-reason" className={`mb-1 block text-xs font-semibold text-on-surface-variant ${reasonRequired ? REQUIRED_LABEL_CLASS : ''}`}>
-          {t('Reason')}
-        </label>
-        <textarea
-          id="operation-reason"
+        <TextAreaField
+          label="Reason"
+          required={reasonRequired}
           rows={3}
           maxLength={500}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          className={INPUT_CLASS}
-          aria-required={reasonRequired || undefined}
-          aria-invalid={showError && reasonRequired && !reason.trim()}
+          error={showError && reasonRequired && !reason.trim() ? t('Give a reason, it is kept in the log.') : undefined}
         />
-        {showError && reasonRequired && !reason.trim() && (
-          <p role="alert" className="mt-1 text-2xs text-coral-glow">
-            {t('Give a reason, it is kept in the log.')}
-          </p>
-        )}
       </div>
       <div className="flex justify-end gap-2 pt-1">
         <Button size="sm" variant="neutral" onClick={onCancel} disabled={busy}>

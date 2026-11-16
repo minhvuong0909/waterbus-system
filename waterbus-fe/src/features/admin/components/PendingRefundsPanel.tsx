@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DataTable, ErrorState, Notice, Pagination, Panel, TextField } from '../../../components/ui'
+import { Button, DataTable, Checkbox, ErrorState, Notice, Pagination, Panel, TextField } from '../../../components/ui'
 import type { Column } from '../../../components/ui'
 import { t } from '../../../i18n'
 import { saveBlob } from '../../../utils/download'
@@ -90,8 +90,7 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
     {
       header: 'Select',
       render: (x) => (
-        <input
-          type="checkbox"
+        <Checkbox
           aria-label={t('Select refund {code}', { code: x.bookingCode })}
           checked={selected.has(x.refundId)}
           disabled={busy}
@@ -150,8 +149,7 @@ export default function PendingRefundsPanel({ refreshKey }: { refreshKey: number
             {t('Only select refunds staff have already paid out. Confirming emails each buyer that the money arrives in about 2–3 working days.')}
           </p>
           <label className="mb-3 flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={allSelected}
               disabled={busy}
               onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((row) => row.refundId)))}

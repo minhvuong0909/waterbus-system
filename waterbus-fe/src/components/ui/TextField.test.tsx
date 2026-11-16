@@ -23,6 +23,7 @@ describe('required fields', () => {
         <option value="a">A</option>
       </SelectField>,
     )
-    expect((screen.getByLabelText('Route') as HTMLSelectElement).required).toBe(true)
+    expect(screen.getByLabelText('Route').getAttribute('aria-required')).toBe('true')
+    expect(screen.getByText('Route').className).toContain('after:content')
   })
 })
