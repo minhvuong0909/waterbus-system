@@ -16,21 +16,22 @@ export default function StatCard({
 }: {
   /** Chuỗi nguồn tiếng Anh. */
   label: string
-  value: number
+  /** Số đếm, hoặc chuỗi đã định dạng (vd tiền). */
+  value: number | string
   to?: string
   attention?: boolean
   /** Dòng phụ nhỏ dưới số (chuỗi nguồn tiếng Anh có thể có `{count}`). */
   hint?: string
   hintCount?: number
 }) {
-  const highlight = attention && value > 0
+  const highlight = attention && typeof value === 'number' && value > 0
   const body = (
     <>
       <span className="block text-sm text-on-surface-variant">{t(label)}</span>
       <span
-        className={`mt-1 block font-display text-3xl font-bold leading-none tabular-nums ${
-          highlight ? 'text-coral-glow' : 'text-deep-river'
-        }`}
+        className={`mt-1 block font-display font-bold leading-none tabular-nums ${
+          typeof value === 'number' ? 'text-3xl' : 'text-2xl'
+        } ${highlight ? 'text-coral-glow' : 'text-deep-river'}`}
       >
         {value}
       </span>
