@@ -87,6 +87,10 @@ export const listDevicesPage = (pageNumber: number, search: string, stationId: s
 export const registerScannerDevice = (stationId: string, label: string | null) =>
   apiRequest<string>(devices, { method: 'POST', body: { stationId, label } })
 
+/** `PUT /admin/scanner-devices/{id}`: đổi nhãn gợi nhớ của máy (mã máy và bến giữ nguyên). */
+export const updateScannerLabel = (id: string, label: string) =>
+  apiRequest<void>(`${devices}/${id}`, { method: 'PUT', body: { label: label.trim() || null } })
+
 export const requestScannerInvitation = (id: string) =>
   apiRequest<{ activation: string; expiresAt: string }>(API_ENDPOINTS.admin.scannerDeviceAction(id, 'invitation'), { method: 'POST' })
 

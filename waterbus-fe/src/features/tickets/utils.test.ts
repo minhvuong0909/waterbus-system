@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { manageLinkPath, manageLinkUrl, parseManageLink, ticketStatusLabel } from './utils'
+import type { Ticket } from './types'
+import { bookingFare, bookingQrPayload, bookingStatusLabel, manageLinkPath, manageLinkUrl, parseManageLink, splitUpcoming, ticketStatusLabel } from './utils'
 
 describe('ticketStatusLabel', () => {
   it('shows a valid ticket as confirmed', () => {
@@ -41,5 +42,42 @@ describe('manage link', () => {
     expect(parseManageLink('/manage/tok')).toBeNull()
     expect(parseManageLink('/tickets?orderId=o1')).toBeNull()
     expect(parseManageLink('/manage/tok?orderId=not-a-guid')).toBeNull()
+  })
+})
+
+describe('splitUpcoming', () => {
+  const ticket = (id: string, bookingRef: string) => ({ id, bookingRef }) as Ticket
+
+  it('keeps every ticket of the nearest booking together, even when bookings interleave', () => {
+    // 2 vé của đơn B và 3 vé của đơn A cùng giờ đi: trước đây chỉ vé đầu tiên vào "kế tiếp".
+    const { next, later } = splitUpcoming([
+      ticket('a1', 'A'), ticket('b1', 'B'), ticket('a2', 'A'), ticket('a3', 'A'), ticket('b2', 'B'),
+    ])
+    expect(next.map((x) => x.id)).toEqual(['a1', 'a2', 'a3'])
+    expect(later.map((x) => x.id)).toEqual(['b1', 'b2'])
+  })
+
+  it('returns empty lists when there is no upcoming ticket', () => {
+    expect(splitUpcoming([])).toEqual({ next: [], later: [] })
+  })
+
+  it('has nothing later when all tickets belong to one booking', () => {
+    expect(splitUpcoming([ticket('a1', 'A')])).toEqual({ next: [ticket('a1', 'A')], later: [] })
+  })
+})
+
+describe('booking-level helpers', () => {
+  const mk = (id: string, extra: Partial<Ticket> = {}) => ({ id, bookingRef: 'A', status: 'Confirmed', fareVnd: 10000, ...extra }) as Ticket
+
+  it('uses the one QR of the booking and sums the fares', () => {
+    const tickets = [mk('a', { qrPayload: 'qr' }), mk('b', { qrPayload: 'qr' })]
+    expect(bookingQrPayload(tickets)).toBe('qr')
+    expect(bookingFare(tickets)).toBe(20000)
+    expect(bookingQrPayload([mk('c')])).toBeUndefined()
+  })
+
+  it('shows one status for equal tickets and a count when they differ', () => {
+    expect(bookingStatusLabel([mk('a'), mk('b')])).toBe('Confirmed')
+    expect(bookingStatusLabel([mk('a', { status: 'Checked in at pier', boardingStatus: 'CheckedIn' }), mk('b')])).toBe('1 of 2 checked in')
   })
 })

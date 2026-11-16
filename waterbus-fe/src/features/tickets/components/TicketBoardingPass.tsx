@@ -1,17 +1,21 @@
 import QrCode from './QrCode'
 import { Icon } from '../../../components/ui'
 import { formatVnd } from '../../../utils/format'
-import { isTicketToday } from '../utils'
+import { bookingFare, bookingQrPayload, isTicketToday } from '../utils'
+import PassengerList from './PassengerList'
 import type { Ticket } from '../types'
 import { t } from '../../../i18n'
 
 interface BoardingPassProps {
-  ticket: Ticket
+  /** Mọi vé của một Booking; Booking có một QR chung (BR-QR-01). */
+  tickets: Ticket[]
   onEnlarge: () => void
 }
 
 /** Main boarding pass on the ticket detail page: journey, facts, large QR and actions. */
-export default function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassProps) {
+export default function TicketBoardingPass({ tickets, onEnlarge }: BoardingPassProps) {
+  const ticket = tickets[0]
+  const qr = bookingQrPayload(tickets)
   return (
     <div className="overflow-hidden rounded-2xl bg-surface-container-lowest shadow-raised">
       <div className="flex items-center justify-between bg-deep-river px-space-lg py-space-md text-on-primary">
@@ -22,7 +26,7 @@ export default function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassPr
               {t('Smart Waterbus • Boarding Pass')}
             </div>
             <div className="text-2xs text-sand-light/80">
-              {t('Single Crossing • Central Route')}
+              {ticket.lineName}
             </div>
           </div>
         </div>
@@ -76,15 +80,10 @@ export default function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassPr
           <span className="absolute -right-[38px] -top-3 h-6 w-6 rounded-full bg-surface" />
         </div>
 
-        <dl className="grid grid-cols-2 gap-space-md rounded-xl bg-mist/70 p-space-md md:grid-cols-4">
+        <dl className="grid grid-cols-3 gap-space-md rounded-xl bg-mist/70 p-space-md">
           <div>
-            <dt className="text-2xs text-on-surface-variant">{t('Assigned Seat')}</dt>
-            <dd className="font-display text-xl font-bold text-teal-flow">{ticket.seat}</dd>
-            <div className="text-2xs text-on-surface-variant">{ticket.seatNote}</div>
-          </div>
-          <div>
-            <dt className="text-2xs text-on-surface-variant">{t('Passenger')}</dt>
-            <dd className="text-sm font-semibold text-deep-river">{ticket.passenger}</dd>
+            <dt className="text-2xs text-on-surface-variant">{t('Passengers')}</dt>
+            <dd className="font-display text-xl font-bold text-teal-flow">{tickets.length}</dd>
           </div>
           <div>
             <dt className="text-2xs text-on-surface-variant">{t('Travel Date')}</dt>
@@ -95,14 +94,21 @@ export default function TicketBoardingPass({ ticket, onEnlarge }: BoardingPassPr
           </div>
           <div>
             <dt className="text-2xs text-on-surface-variant">{t('Total Paid')}</dt>
-            <dd className="text-sm font-semibold text-deep-river">{formatVnd(ticket.fareVnd)}</dd>
+            <dd className="text-sm font-semibold text-deep-river">{formatVnd(bookingFare(tickets))}</dd>
           </div>
         </dl>
 
+        <div className="mt-space-md">
+          <PassengerList tickets={tickets} />
+        </div>
+
         <div className="mx-auto mt-space-lg w-fit rounded-2xl bg-white p-space-md text-center shadow-sm">
-          {ticket.qrPayload && <QrCode value={ticket.qrPayload} size={200} className="mx-auto" />}
+          {qr && <QrCode value={qr} size={200} className="mx-auto" />}
           <div className="mt-2 font-mono text-lg font-bold tracking-wider text-deep-river">
-            {ticket.ticketCode}
+            {ticket.bookingRef}
+          </div>
+          <div className="text-xs text-on-surface-variant">
+            {t('One QR for all {count} passengers', { count: tickets.length })}
           </div>
           <div className="flex items-center justify-center gap-1 text-xs font-medium text-teal-flow">
             <Icon name="qr_code_scanner" className="text-sm" />
