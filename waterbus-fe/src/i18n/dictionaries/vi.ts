@@ -1408,7 +1408,7 @@ export const vi: Record<string, string> = {
   // Admin P2: hệ thống thiết kế.
   '{from}–{to} of {total}':
     '{from}–{to} / {total}',
-  'Per page':
+  'Per page': 'Mỗi trang',
   'Revenue': 'Doanh thu',
   'Money actually collected and refunded, by the day each payment completed.': 'Tiền thực thu và đã hoàn, tính theo ngày giao dịch hoàn tất.',
   'Period': 'Khoảng thời gian',
@@ -1429,7 +1429,6 @@ export const vi: Record<string, string> = {
   'Late payments waiting for reconciliation and legacy simulated refunds are not counted.': 'Không tính tiền về muộn đang chờ đối soát và các khoản hoàn mô phỏng cũ.',
   'No payments or refunds in this period.': 'Không có thanh toán hay hoàn tiền nào trong khoảng này.',
   'Collected {collected}, refunded {refunded}, net {net}.': 'Thực thu {collected}, đã hoàn {refunded}, thuần {net}.',
-    'Mỗi trang',
   'Write what the boat says at each landmark, pick a voice, listen to it and publish it.':
     'Viết lời thuyết minh cho từng địa danh, chọn giọng, nghe thử rồi xuất bản.',
   'This landmark is not on any sightseeing route yet, so its audio will not be played.': 'Địa danh này chưa thuộc tuyến ngắm cảnh nào nên audio sẽ không được phát.',
