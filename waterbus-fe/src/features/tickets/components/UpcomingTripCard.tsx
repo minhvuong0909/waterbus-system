@@ -4,14 +4,18 @@ import { ROUTES } from '../../../routes/routes'
 import { formatVnd } from '../../../utils/format'
 import type { Ticket } from '../types'
 import { t } from '../../../i18n'
+import { bookingFare, bookingStatusLabel } from '../utils'
+import PassengerList from './PassengerList'
 
+/** One upcoming booking: its journey, all its passengers and one shared QR behind "View Ticket" (BR-QR-01). */
 export default function UpcomingTripCard({
-  ticket,
+  tickets,
   onOpen,
 }: {
-  ticket: Ticket
+  tickets: Ticket[]
   onOpen: (id: string) => void
 }) {
+  const ticket = tickets[0]
   return (
     <div className="rounded-2xl bg-white p-space-lg shadow-card">
       <div className="flex items-center justify-between">
@@ -22,7 +26,7 @@ export default function UpcomingTripCard({
           <span className="text-on-surface-variant">• {ticket.routeTag}</span>
         </div>
         <span className="rounded-full bg-secondary-container px-2.5 py-0.5 text-2xs font-semibold text-on-secondary-container">
-          {ticket.status}
+          {bookingStatusLabel(tickets)}
         </span>
       </div>
       <div className="mt-space-md grid grid-cols-3 items-center">
@@ -51,15 +55,16 @@ export default function UpcomingTripCard({
           <div className="font-semibold text-deep-river">{ticket.dateLabel}</div>
         </div>
         <div>
-          <div className="text-on-surface-variant">{t('Seat / Passenger')}</div>
-          <div className="font-semibold text-deep-river">
-            {ticket.seat} • {ticket.passenger}
-          </div>
+          <div className="text-on-surface-variant">{t('Booking')}</div>
+          <div className="font-mono font-semibold text-deep-river">{ticket.bookingRef}</div>
         </div>
         <div className="text-right">
           <div className="text-on-surface-variant">{t('Fare')}</div>
-          <div className="font-semibold text-deep-river">{formatVnd(ticket.fareVnd)}</div>
+          <div className="font-semibold text-deep-river">{formatVnd(bookingFare(tickets))}</div>
         </div>
+      </div>
+      <div className="mt-space-sm">
+        <PassengerList tickets={tickets} />
       </div>
       <div className="mt-space-md flex items-center justify-between border-t border-surface-container pt-space-md">
         <Link

@@ -11,13 +11,13 @@ afterEach(() => {
 
 describe('live ticket wallet', () => {
   it('shows an empty wallet when no order is known instead of sample paid tickets', async () => {
-    expect(await getTicketWallet()).toEqual({ next: undefined, later: [], past: [] })
+    expect(await getTicketWallet()).toEqual({ next: [], later: [], past: [] })
     expect(fetchMock).not.toHaveBeenCalled()
   })
   it('does not create tickets or a QR for an unpaid order', async () => {
     window.sessionStorage.setItem('waterbus.booking', JSON.stringify({ order: { orderId: 'order-1', accessToken: 'guest-token' } }))
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ status: 'PendingPayment', bookings: [{ tickets: [] }] })))
-    expect((await getTicketWallet()).next).toBeUndefined()
+    expect((await getTicketWallet()).next).toEqual([])
     expect(fetchMock).toHaveBeenCalledOnce()
     expect(fetchMock.mock.calls[0][0]).toMatch(/\/checkouts\/order-1$/)
   })
@@ -67,18 +67,18 @@ describe('live ticket detail', () => {
     window.sessionStorage.setItem('waterbus.booking', JSON.stringify({ order: { orderId: 'order-1', accessToken: 'guest-token' } }))
     serve()
     const wallet = await getTicketWallet()
-    expect(wallet.next).toMatchObject({ id: 'ticket-guid', manageLink: '/manage/guest-token?orderId=order-1' })
+    expect(wallet.next[0]).toMatchObject({ id: 'ticket-guid', manageLink: '/manage/guest-token?orderId=order-1' })
     expect(loadSavedOrders().map((x) => x.orderId)).toEqual(['order-1'])
 
     window.sessionStorage.clear()
-    expect((await getTicketWallet()).next?.id).toBe('ticket-guid')
+    expect((await getTicketWallet()).next[0]?.id).toBe('ticket-guid')
   })
 
   it('drops an order the backend no longer opens instead of failing the whole wallet', async () => {
     saveOrder('order-1', 'guest-token')
     saveOrder('gone-order', 'old-token')
     serve()
-    expect((await getTicketWallet()).next?.id).toBe('ticket-guid')
+    expect((await getTicketWallet()).next[0]?.id).toBe('ticket-guid')
     expect(loadSavedOrders().map((x) => x.orderId)).toEqual(['order-1'])
   })
 
@@ -150,7 +150,7 @@ describe('live ticket detail', () => {
     signIn('Passenger')
     serveAccount()
     const wallet = await getTicketWallet()
-    expect(wallet.next).toMatchObject({ id: 'ticket-guid', bookingId: 'b1', manageLink: '/tickets/manage?orderId=order-1' })
+    expect(wallet.next[0]).toMatchObject({ id: 'ticket-guid', bookingId: 'b1', manageLink: '/tickets/manage?orderId=order-1' })
     expect(sentGuestToken()).toBe(false)
     expect(fetchMock.mock.calls.some(([url]) => /unpaid-order/.test(String(url)))).toBe(false)
     expect(loadSavedOrders()).toEqual([])

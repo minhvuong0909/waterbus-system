@@ -288,6 +288,34 @@ public sealed class StationScannerSqlHttpTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Forbidden, (await transferred.GetAsync(Status)).StatusCode);
     }
 
+    /// <summary>
+    /// Staff chịu trách nhiệm một điểm dừng chỉ khi ca kéo dài tới giờ ĐÓNG cửa sổ check-in, không phải chỉ chạm giờ mở:
+    /// ca kết thúc giữa cửa sổ thì phần còn lại của cửa sổ thuộc về ca kế tiếp.
+    /// </summary>
+    [SqlServerDomainFact]
+    public async Task Shift_MustLastUntilTheCheckInWindowCloses_NotJustReachItsOpening()
+    {
+        using var admin = Client(_admin, "Admin");
+        using var staff = Client(_staffA);
+        var device = await Post<Guid>(admin, Devices, new CreateStationScannerRequest(_stationA, "Gate"));
+        var paired = await PairDevice(admin, staff, device);
+        using var scanner = Client(_staffA, credential: paired.Credential);
+        var start = _now;
+        // Cửa sổ của _otherTripAtA là [start-1p, start+10p]; ca đầu hết lúc start+5p, tức giữa cửa sổ.
+        await Post<Guid>(admin, Shifts, new CreateStaffShiftRequest(_staffA, _stationA, start.AddMinutes(-10), start.AddMinutes(5)));
+
+        var mine = await scanner.GetFromJsonAsync<List<MyScannerAssignmentResponse>>($"{CheckIns}/assignments/mine") ?? [];
+        Assert.DoesNotContain(mine, a => a.TripStopCallId == _otherTripAtA);
+        Assert.Equal(HttpStatusCode.Forbidden, (await scanner.GetAsync($"{CheckIns}/manifest/{_otherTripAtA}")).StatusCode);
+
+        // Ca kế tiếp (liền kề) kéo dài qua giờ đóng cửa sổ: từ khi ca này bắt đầu, điểm dừng thuộc về nhân viên ca này.
+        await Post<Guid>(admin, Shifts, new CreateStaffShiftRequest(_staffA, _stationA, start.AddMinutes(5), start.AddHours(2)));
+        _now = start.AddMinutes(6);
+        mine = await scanner.GetFromJsonAsync<List<MyScannerAssignmentResponse>>($"{CheckIns}/assignments/mine") ?? [];
+        Assert.Contains(mine, a => a.TripStopCallId == _otherTripAtA);
+        Assert.Equal(HttpStatusCode.OK, (await scanner.GetAsync($"{CheckIns}/manifest/{_otherTripAtA}")).StatusCode);
+    }
+
     private HttpClient Client(Guid id, string role = "Staff", string? credential = null)
     {
         var client = new HttpClient { BaseAddress = new Uri(_app!.Urls.Single()), Timeout = TimeSpan.FromSeconds(30) };

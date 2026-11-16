@@ -3,10 +3,12 @@ import { useSearchParams } from 'react-router-dom'
 import { Button, DataTable, ErrorState, FilterBar, Modal, Notice, PageHeader, PageLoader, SelectField, TextField } from '../../components/ui'
 import AdHocTripForm from '../../features/admin/components/AdHocTripForm'
 import AssignBoatForm from '../../features/admin/components/AssignBoatForm'
+import CaptainAttendanceDialog from '../../features/admin/components/CaptainAttendanceDialog'
 import OperationForm from '../../features/admin/components/OperationForm'
 import StatusBadge from '../../features/admin/components/StatusBadge'
 import { getBoats } from '../../features/operations/services/fleetService'
 import { getOperationTrips } from '../../features/operations/services/operationsService'
+import { listAllCaptains } from '../../features/admin/services/personnelService'
 import { getRoutes } from '../../features/admin/services/routeService'
 import type { AdminTrip, OperationType } from '../../features/operations/types'
 import { DISPATCH_OPERATIONS, OPERATION_LABEL } from '../../features/operations/utils'
@@ -40,6 +42,7 @@ const filterFromUrl = (value: string | null): TripFilter =>
 type Dialog =
   | { kind: 'actions'; trip: AdminTrip }
   | { kind: 'boat'; trip: AdminTrip }
+  | { kind: 'attendance'; trip: AdminTrip }
   | { kind: 'operation'; trip: AdminTrip; type: OperationType }
   | { kind: 'trip' }
   | null
@@ -47,6 +50,9 @@ type Dialog =
 /** Thao tác vận hành Admin làm được với chuyến lúc này (theo `allowedOperations` của backend). */
 const operationsOf = (trip: AdminTrip): OperationType[] =>
   DISPATCH_OPERATIONS.filter((op) => trip.allowedOperations.includes(op))
+
+/** Admin chỉ ghi nhận Captain có mặt trước khi tàu xuất bến, cho chuyến đã có tàu (BR-CAP-12). */
+const canRecordAttendance = (trip: AdminTrip) => Boolean(trip.boatId) && (trip.status === 'Scheduled' || trip.status === 'Boarding')
 
 /** Chỉ đổi được tàu khi chuyến chưa mở đón khách (BR-SCH-04). */
 const canChangeBoat = (trip: AdminTrip) => trip.status === 'Scheduled'
@@ -72,6 +78,8 @@ export default function TripsPage() {
   const [routeFilter, setRouteFilter] = useState('')
   const [boatFilter, setBoatFilter] = useState('')
   const [dialog, setDialog] = useState<Dialog>(null)
+  const captains = useFetch(listAllCaptains)
+  const captainNames = new Map((captains.data ?? []).map((c) => [c.id, c.fullName]))
   const [movedSeats, setMovedSeats] = useState(0)
 
   const all = combineFetches(trips, boats, routes)
@@ -126,7 +134,7 @@ export default function TripsPage() {
             {t('Assign boat')}
           </Button>
         ) : (
-          (canChangeBoat(x) || operationsOf(x).length > 0) && (
+          (canChangeBoat(x) || canRecordAttendance(x) || operationsOf(x).length > 0) && (
             <Button size="sm" variant="neutral" onClick={() => setDialog({ kind: 'actions', trip: x })}>
               {t('Actions')}
             </Button>
@@ -203,6 +211,12 @@ export default function TripsPage() {
                 {t('Change boat')}
               </Button>
             )}
+            {canRecordAttendance(dialog.trip) && (
+              <Button variant="neutral" icon="how_to_reg" className="justify-start"
+                onClick={() => setDialog({ kind: 'attendance', trip: dialog.trip })}>
+                {t('Captain attendance')}
+              </Button>
+            )}
             {operationsOf(dialog.trip).map((op) => (
               <Button
                 key={op}
@@ -218,6 +232,15 @@ export default function TripsPage() {
             {t('To answer an incident for this trip, decide on the Incidents page so the decision is recorded against the incident.')}
           </p>
         </Modal>
+      )}
+      {dialog?.kind === 'attendance' && (
+        <CaptainAttendanceDialog
+          tripId={dialog.trip.id}
+          tripLabel={`${dialog.trip.routeName} · ${formatDateTime(dialog.trip.departureTime)} · ${dialog.trip.boatCode ?? ''}`}
+          captainNames={captainNames}
+          onDone={() => setDialog(null)}
+          onClose={() => setDialog(null)}
+        />
       )}
       {dialog?.kind === 'operation' && (
         <Modal title={OPERATION_LABEL[dialog.type]} onClose={() => setDialog(null)}>

@@ -6,6 +6,7 @@ import TicketActions from '../../features/tickets/components/TicketActions'
 import TicketBoardingPass from '../../features/tickets/components/TicketBoardingPass'
 import TicketCorridorCard from '../../features/tickets/components/TicketCorridorCard'
 import { useTicketDetail } from '../../features/tickets/hooks/useTickets'
+import { bookingStatusLabel } from '../../features/tickets/utils'
 import { useDocumentTitle } from '../../hooks'
 import { isNotFound } from '../../services/apiClient'
 import { ROUTES } from '../../routes/routes'
@@ -13,7 +14,7 @@ import { t } from '../../i18n'
 
 export default function TicketDetailPage() {
   useDocumentTitle('Ticket Detail')
-  const { ticket, loading, error, retry } = useTicketDetail()
+  const { ticket, tickets, loading, error, retry } = useTicketDetail()
   const [qrOpen, setQrOpen] = useState(false)
 
   if (isNotFound(error)) {
@@ -30,7 +31,7 @@ export default function TicketDetailPage() {
   }
   if (error) return <ErrorState onRetry={retry} />
 
-  if (loading || !ticket) return <PageLoader />
+  if (loading || !ticket || !tickets) return <PageLoader />
 
   return (
     <div className="mx-auto w-full max-w-7xl px-margin pb-space-3xl pt-space-md">
@@ -51,7 +52,7 @@ export default function TicketDetailPage() {
             </h1>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container">
               <span className="h-1.5 w-1.5 rounded-full bg-teal-flow" />
-              {ticket.status}
+              {bookingStatusLabel(tickets)}
             </span>
           </div>
           <p className="mt-1 text-body-md text-on-surface-variant">
@@ -69,10 +70,10 @@ export default function TicketDetailPage() {
 
       <div className="mt-space-lg grid grid-cols-1 items-start gap-space-lg lg:grid-cols-12">
         <div className="lg:col-span-7">
-          <TicketBoardingPass ticket={ticket} onEnlarge={() => setQrOpen(true)} />
+          <TicketBoardingPass tickets={tickets} onEnlarge={() => setQrOpen(true)} />
         </div>
         <div className="space-y-space-md print:hidden lg:col-span-5">
-          <TicketCorridorCard ticket={ticket} />
+          <TicketCorridorCard tickets={tickets} />
           <TicketActions tripId={ticket.tripId} manageLink={ticket.manageLink} />
         </div>
       </div>
@@ -81,7 +82,7 @@ export default function TicketDetailPage() {
         <BoardingGuidance ticket={ticket} />
       </div>
 
-      {qrOpen && <QrModal ticket={ticket} onClose={() => setQrOpen(false)} />}
+      {qrOpen && <QrModal tickets={tickets} onClose={() => setQrOpen(false)} />}
     </div>
   )
 }

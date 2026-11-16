@@ -50,7 +50,8 @@ export interface Ticket {
 }
 
 export interface TicketWallet {
-  next?: Ticket
+  /** Mọi vé của đặt chỗ sắp khởi hành gần nhất (một đặt chỗ có thể có nhiều hành khách); rỗng khi chưa có vé. */
+  next: Ticket[]
   later: Ticket[]
   past: Ticket[]
 }

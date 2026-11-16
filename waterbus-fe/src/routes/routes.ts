@@ -44,6 +44,8 @@ export const ROUTES = {
   adminCheckIn: '/admin/check-in',
   adminScanners: '/admin/scanners',
   adminStaffShifts: '/admin/staff-shifts',
+  adminCaptains: '/admin/captains',
+  adminStaffAccounts: '/admin/staff-accounts',
   adminAudioGuides: '/admin/audio-guides',
   captain: '/captain',
 } as const

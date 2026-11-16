@@ -5,6 +5,7 @@ import { createShift, listScannerStaff, listShifts, revokeShift } from '../../fe
 import type { StaffShift } from '../../features/admin/services/scannerAssignmentService'
 import { getStations } from '../../features/admin/services/stationService'
 import { useDocumentTitle, useFetch, useNow, useSubmit } from '../../hooks'
+import { t } from '../../i18n'
 import { formatDateTime, fromVietnamDateTimeInput } from '../../utils/time'
 
 export default function StaffStationShiftsPage() {
@@ -35,7 +36,7 @@ export default function StaffStationShiftsPage() {
     const activeUntil = fromVietnamDateTimeInput(end)
     void run(async () => {
       await createShift({ staffAccountId, stationId, activeFrom, activeUntil })
-      setNotice('Staff shift created.')
+      setNotice(t('Staff shift created.'))
       if (page === 1) shifts.retry()
       else setPage(1)
     })
@@ -50,19 +51,22 @@ export default function StaffStationShiftsPage() {
         <form className="space-y-3" onSubmit={submit}>
           <fieldset disabled={busy} className="grid gap-3 sm:grid-cols-2">
             <SelectField label="Staff account" value={staffAccountId} onChange={(e) => setStaff(e.target.value)} required>
-              <option value="">Choose Staff</option>
+              <option value="">{t('Choose Staff')}</option>
               {staff.data?.map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.staffCode ?? item.email}</option>)}
             </SelectField>
             <SelectField label="Station" value={stationId} onChange={(e) => setStation(e.target.value)} required>
-              <option value="">Choose a station</option>
+              <option value="">{t('Choose a station')}</option>
               {stations.data?.filter((item) => item.isActive).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </SelectField>
             <TextField label="Start" type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} required />
             <TextField label="End" type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} hint="Vietnam time (UTC+07:00)" required />
           </fieldset>
-          <Button type="submit" disabled={busy || !staffAccountId || !stationId}>Create shift</Button>
+          <p className="text-xs text-on-surface-variant">
+            {t('A Staff member is responsible for a stop only if the shift lasts until that stop’s check-in window closes.')}
+          </p>
+          <Button type="submit" disabled={busy || !staffAccountId || !stationId}>{t('Create shift')}</Button>
         </form>
-        {invalid && <Notice tone="error">Enter an end time after the shift start and the current time.</Notice>}
+        {invalid && <Notice tone="error">{t('Enter an end time after the shift start and the current time.')}</Notice>}
         {error && <Notice tone="error">{error}</Notice>}
         {notice && <Notice tone="success">{notice}</Notice>}
       </Panel>
@@ -70,19 +74,19 @@ export default function StaffStationShiftsPage() {
         {shifts.error && <ErrorState compact onRetry={shifts.retry} />}
         {shifts.fetching && <PageLoader />}
         {revoking && <div className="space-y-2">
-          <p>Revoke {revoking.staffName}’s shift at {revoking.stationName}?</p>
+          <p>{t('Revoke {staff}’s shift at {station}?', { staff: revoking.staffName, station: revoking.stationName })}</p>
           <div className="flex gap-2">
             <Button variant="danger" disabled={busy} onClick={() => run(async () => {
               await revokeShift(revoking.id)
               setRevoking(null)
-              setNotice('Staff shift revoked.')
+              setNotice(t('Staff shift revoked.'))
               shifts.retry()
-            })}>Confirm revoke</Button>
-            <Button variant="neutral" disabled={busy} onClick={() => setRevoking(null)}>Cancel</Button>
+            })}>{t('Confirm revoke')}</Button>
+            <Button variant="neutral" disabled={busy} onClick={() => setRevoking(null)}>{t('Cancel')}</Button>
           </div>
         </div>}
         {shifts.data && <>
-          {shifts.data.items.length === 0 && <p>No shifts scheduled.</p>}
+          {shifts.data.items.length === 0 && <p>{t('No shifts scheduled.')}</p>}
           <ul className="divide-y divide-outline-variant/30">
             {shifts.data.items.map((shift) => {
               const status = shift.revokedAt ? 'Revoked' : Date.parse(shift.activeUntil) <= now ? 'Ended'
@@ -90,10 +94,10 @@ export default function StaffStationShiftsPage() {
               return <li key={shift.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div>
                   <p className="font-semibold">{shift.staffName} · {shift.stationName}</p>
-                  <p className="text-sm">{formatDateTime(shift.activeFrom)} – {formatDateTime(shift.activeUntil)} · {status}</p>
+                  <p className="text-sm">{formatDateTime(shift.activeFrom)} – {formatDateTime(shift.activeUntil)} · {t(status)}</p>
                 </div>
                 {(status === 'Active' || status === 'Upcoming') && <Button variant="danger" size="sm" disabled={busy}
-                  onClick={() => setRevoking(shift)}>Revoke shift</Button>}
+                  onClick={() => setRevoking(shift)}>{t('Revoke shift')}</Button>}
               </li>
             })}
           </ul>

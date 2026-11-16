@@ -11,3 +11,6 @@ curl -A "Mozilla/5.0 Chrome/120.0" "https://fonts.googleapis.com/css2?family=Mat
 ```
 
 then download the `.woff2` URL from the returned CSS over this file.
+
+`icon-subset.txt` lists the names present in the font. `src/assets/iconSubset.test.ts` fails when the app uses a
+name that is not listed, so an icon can never render as text. After rebuilding the font, update the list too.

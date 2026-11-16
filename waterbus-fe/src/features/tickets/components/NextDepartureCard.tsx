@@ -3,7 +3,8 @@ import QrCode from './QrCode'
 import { Icon } from '../../../components/ui'
 import { ROUTES } from '../../../routes/routes'
 import { formatVnd } from '../../../utils/format'
-import { isTicketToday } from '../utils'
+import { bookingFare, bookingQrPayload, isTicketToday } from '../utils'
+import PassengerList from './PassengerList'
 import type { Ticket } from '../types'
 import { t } from '../../../i18n'
 
@@ -19,14 +20,19 @@ function Fact({ label, value, icon }: { label: string; value: string; icon?: str
   )
 }
 
-/** Featured "Next Departure" card: journey on the left, corridor + QR on the right. */
+/**
+ * Featured "Next Departure" card for ONE booking: journey and passengers on the left, corridor + the booking's single QR
+ * on the right (BR-QR-01). `tickets` are all the tickets of that booking.
+ */
 export default function NextDepartureCard({
-  ticket,
+  tickets,
   onOpen,
 }: {
-  ticket: Ticket
+  tickets: Ticket[]
   onOpen: (id: string) => void
 }) {
+  const ticket = tickets[0]
+  const qr = bookingQrPayload(tickets)
   return (
     <div className="relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-raised">
       <div className="h-1.5 bg-gradient-to-r from-teal-flow via-sky-aqua to-deep-river" />
@@ -89,18 +95,16 @@ export default function NextDepartureCard({
             </div>
           </div>
 
-          <div className="mt-space-md grid grid-cols-2 gap-space-md border-t border-surface-container pt-space-md md:grid-cols-4">
+          <div className="mt-space-md grid grid-cols-3 gap-space-md border-t border-surface-container pt-space-md">
             <Fact
               label={t('Travel Date')}
               value={isTicketToday(ticket) ? t('Today, {label}', { label: ticket.dateShort }) : ticket.dateShort}
             />
-            <Fact label={t('Passenger')} value={ticket.passenger} />
-            <Fact
-              label={t('Assigned Seat')}
-              value={ticket.windowSeat ? t('{seat} (Window)', { seat: ticket.seat }) : ticket.seat}
-              icon="chair"
-            />
-            <Fact label={t('Fare Paid')} value={formatVnd(ticket.fareVnd)} />
+            <Fact label={t('Passengers')} value={String(tickets.length)} icon="groups" />
+            <Fact label={t('Fare Paid')} value={formatVnd(bookingFare(tickets))} />
+          </div>
+          <div className="mt-space-sm">
+            <PassengerList tickets={tickets} />
           </div>
 
           <div className="mt-auto flex items-center justify-between border-t border-surface-container pt-space-md text-xs">
@@ -147,10 +151,13 @@ export default function NextDepartureCard({
 
           <div className="text-center">
             <div className="mx-auto w-fit rounded-xl bg-white p-2 shadow-sm">
-              {ticket.qrPayload && <QrCode value={ticket.qrPayload} size={120} />}
+              {qr && <QrCode value={qr} size={120} />}
             </div>
             <div className="mt-2 font-mono text-2xs font-semibold text-deep-river">
-              {ticket.ticketCode}
+              {ticket.bookingRef}
+            </div>
+            <div className="text-2xs text-on-surface-variant">
+              {t('One QR for all {count} passengers', { count: tickets.length })}
             </div>
             <div className="flex items-center justify-center gap-1 text-2xs text-on-surface-variant">
               <Icon name="sensors" className="text-xs" /> {t('Scan at turnstile barrier')}
