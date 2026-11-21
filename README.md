@@ -1,42 +1,45 @@
+[🇻🇳 Tiếng Việt](README.vi.md) · **🇬🇧 English**
+
 # Smart Waterbus
 
-Hệ thống đặt vé **tàu buýt đường sông và du thuyền Sài Gòn** (môn PRN232). Khách chọn ghế theo từng đoạn hành trình, thanh toán VNPay và nhận vé QR ký số. Nhân viên bến soát vé offline bằng app mobile, Admin và Thuyền trưởng theo dõi tàu theo thời gian thực.
+A ticketing system for **Saigon river buses and cruises** (PRN232 course project). Passengers pick seats per journey segment, pay with VNPay and receive digitally signed QR tickets. Station staff scan tickets offline on a mobile app, while Admins and Captains follow the fleet in real time.
 
 [![CI](https://github.com/minhvuong0909/waterbus-system/actions/workflows/ci.yml/badge.svg)](https://github.com/minhvuong0909/waterbus-system/actions/workflows/ci.yml)
 ![.NET](https://img.shields.io/badge/.NET-8-512BD4)
 ![React](https://img.shields.io/badge/React-18-61DAFB)
 ![Expo](https://img.shields.io/badge/Expo-SDK%2057-000020)
 
-## Mục lục
+## Table of contents
 
-- [Tính năng](#tính-năng)
-- [Kiến trúc](#kiến-trúc)
-- [Chạy nhanh với Docker](#chạy-nhanh-với-docker)
-- [Chạy từng phần khi phát triển](#chạy-từng-phần-khi-phát-triển)
-- [Luồng nghiệp vụ chính](#luồng-nghiệp-vụ-chính)
-- [Cấu trúc thư mục](#cấu-trúc-thư-mục)
-- [Nhóm thực hiện](#nhóm-thực-hiện)
-- [Tài liệu](#tài-liệu)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Quick start with Docker](#quick-start-with-docker)
+- [Running each part for development](#running-each-part-for-development)
+- [Core business flow](#core-business-flow)
+- [Repository layout](#repository-layout)
+- [Team](#team)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
 
-## Tính năng
+## Features
 
-| Phân hệ | Dành cho | Nội dung |
+| Module | Audience | What it does |
 |---|---|---|
-| **Cổng khách** (Web) | Passenger, Guest | Tìm chuyến, bản đồ tuyến, chọn ghế theo đoạn, thanh toán VNPay, ví vé QR. Guest không cần đăng nhập, truy cập bằng liên kết bảo mật |
-| **Quản trị** (Web) | Admin | Tuyến, lịch, chuyến, tàu, giá vé, doanh thu, hoàn tiền, nhân sự, sự cố, radar vị trí đội tàu |
-| **Thuyền trưởng** (Web) | Captain | Chuyến của tàu mình, báo cáo sự cố và SOS, điều khiển audio trên tàu |
-| **Staff Scanner** (Mobile) | Staff | Quét QR **offline** bằng Public Key, đồng bộ check-in theo lô |
-| **AI & Audio** | Passenger | Trợ lý AI tìm chuyến, thuyết minh địa danh tự động theo vị trí tàu (geofence + Azure TTS) |
+| **Customer portal** (Web) | Passenger, Guest | Trip search, route map, per-segment seat selection, VNPay payment, QR ticket wallet. Guests need no account and use a secure link |
+| **Admin portal** (Web) | Admin | Routes, schedules, trips, boats, fares, revenue, refunds, personnel, incidents, live fleet radar |
+| **Captain portal** (Web) | Captain | Own trips, incident and SOS reports, onboard audio control |
+| **Staff Scanner** (Mobile) | Staff | **Offline** QR verification with a public key, batched check-in sync |
+| **AI & Audio** | Passenger | AI trip-search assistant, automatic landmark narration driven by boat position (geofence + Azure TTS) |
 
-5 actor: **Passenger, Guest, Admin, Staff, Captain** (không có Dispatcher).
+Five actors: **Passenger, Guest, Admin, Staff, Captain** (there is no Dispatcher).
 
-## Kiến trúc
+## Architecture
 
 ```mermaid
 flowchart LR
     Web["Web (React + Vite)"] -->|/api, /hubs| Nginx
     Nginx --> API[".NET 8 Web API"]
-    Mobile["Staff Scanner (Expo)"] -->|đồng bộ lô| API
+    Mobile["Staff Scanner (Expo)"] -->|batch sync| API
     API --> SQL[("SQL Server 2022")]
     API --> Redis[("Redis 7")]
     API -.-> VNPay[VNPay]
@@ -44,59 +47,59 @@ flowchart LR
     API -.-> Groq["Groq LLM"]
 ```
 
-Backend theo Clean Architecture, mỗi tính năng dùng cùng một luồng:
+The backend follows Clean Architecture. Every feature uses the same flow:
 
 ```text
 Controller → I{Feature}Service → Service → I{Feature}Repository → Repository → EF Core
 ```
 
-Chống đặt trùng ghế 2 lớp: **Redis lock** (TTL 10 phút) và **RowVersion** của EF Core. Ghế được giữ theo **đoạn** (`VisitOrder` của `TripStopCall`).
+Double-booking is prevented by two layers: a **Redis lock** (10-minute TTL) and EF Core **RowVersion**. Seats are held per **segment** (the `VisitOrder` of `TripStopCall`).
 
-## Chạy nhanh với Docker
+## Quick start with Docker
 
-Yêu cầu: Docker Desktop.
+Requires Docker Desktop.
 
 ```bash
-cp .env.example .env        # điền MSSQL_SA_PASSWORD, REDIS_PASSWORD, JWT_SECRET (>= 32 ký tự)
+cp .env.example .env        # set MSSQL_SA_PASSWORD, REDIS_PASSWORD, JWT_SECRET (>= 32 chars)
 docker compose up -d --build
 ```
 
-| Dịch vụ | Địa chỉ |
+| Service | URL |
 |---|---|
 | Web | http://localhost:8080 |
-| Swagger (chỉ khi `ASPNETCORE_ENVIRONMENT=Development`) | http://localhost:5000/swagger |
-| Hangfire Dashboard (chỉ Admin) | http://localhost:5000/hangfire |
+| Swagger (only when `ASPNETCORE_ENVIRONMENT=Development`) | http://localhost:5000/swagger |
+| Hangfire dashboard (Admin only) | http://localhost:5000/hangfire |
 
-- **Dữ liệu mẫu:** `ASPNETCORE_ENVIRONMENT=Development` mới seed tài khoản và dữ liệu mẫu (Admin, Captain, Staff, tuyến, chuyến). Production thì không seed.
-- **Demo audio trên tàu:** `docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build` (xem [docs/DEMO_AUDIO.md](docs/DEMO_AUDIO.md)).
-- **Thử email local:** `docker compose --profile mail-dev up -d` (Mailpit ở http://127.0.0.1:8025).
+- **Sample data:** only `ASPNETCORE_ENVIRONMENT=Development` seeds accounts and sample data (Admin, Captain, Staff, routes, trips). Production seeds nothing.
+- **Onboard audio demo:** `docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d --build` (see [docs/DEMO_AUDIO.md](docs/DEMO_AUDIO.md)).
+- **Local email testing:** `docker compose --profile mail-dev up -d` (Mailpit at http://127.0.0.1:8025).
 
-> **Đổi `MSSQL_SA_PASSWORD` sau khi đã chạy?** SQL Server chỉ đọc mật khẩu ở lần khởi tạo đầu. Container sẽ `unhealthy` (`Login failed for user 'sa'`). Chạy `docker compose down -v` (xoá dữ liệu DB) rồi `up` lại.
+> **Changed `MSSQL_SA_PASSWORD` after the first run?** SQL Server only reads the password when the volume is first initialised, so the container turns `unhealthy` (`Login failed for user 'sa'`). Run `docker compose down -v` (this wipes the database), then `up` again.
 
-## Chạy từng phần khi phát triển
+## Running each part for development
 
-Chỉ bật hạ tầng bằng Docker, chạy code bằng tay:
+Start only the infrastructure in Docker and run the code by hand:
 
 ```bash
 docker compose up -d sqlserver redis
 ```
 
-**Backend** (.NET 8 SDK) — cấu hình bí mật bằng `dotnet user-secrets` hoặc biến môi trường, mẫu ở `appsettings.example.json`:
+**Backend** (.NET 8 SDK). Keep secrets in `dotnet user-secrets` or environment variables; see `appsettings.example.json`:
 
 ```bash
 cd waterbus-be
 dotnet build WaterbusSystem.sln
 dotnet test WaterbusSystem.sln
-dotnet run --project src/WaterbusSystem.WebApi      # API tại :5000
+dotnet run --project src/WaterbusSystem.WebApi      # API on :5000
 ```
 
-**Frontend** (Node 20 + pnpm) — Vite proxy `/api` và `/hubs` sang `127.0.0.1:5000`:
+**Frontend** (Node 20 + pnpm). Vite proxies `/api` and `/hubs` to `127.0.0.1:5000`:
 
 ```bash
 cd waterbus-fe
 pnpm install --frozen-lockfile
 pnpm dev                                            # http://localhost:5173
-pnpm lint && pnpm test && pnpm build                # trước khi tạo PR
+pnpm lint && pnpm test && pnpm build                # before opening a PR
 ```
 
 **Mobile Scanner** (Expo):
@@ -104,67 +107,67 @@ pnpm lint && pnpm test && pnpm build                # trước khi tạo PR
 ```bash
 cd waterbus-mobile/myApp
 pnpm install
-pnpm dev                                            # Metro Bundler
-pnpm test:scanner                                   # kiểm thử soát vé offline
+pnpm dev                                            # Metro bundler
+pnpm test:scanner                                   # offline scanning checks
 ```
 
-Test cần SQL Server thật: đặt biến `WATERBUS_TEST_SQLSERVER` (test tự tạo và xoá DB `WaterbusDomainTests_*`).
+Tests that need a real SQL Server read `WATERBUS_TEST_SQLSERVER` (they create and drop `WaterbusDomainTests_*` databases themselves).
 
-## Luồng nghiệp vụ chính
+## Core business flow
 
 ```mermaid
 flowchart LR
-    A[Tìm chuyến] --> B[Chọn ghế theo đoạn]
-    B --> C["Giữ ghế<br/>Redis lock 10 phút"]
+    A[Search trips] --> B[Pick seats per segment]
+    B --> C["Hold seats<br/>Redis lock, 10 min"]
     C --> D[PurchaseOrder → Booking]
-    D --> E[Thanh toán VNPay]
-    E -->|thành công| F["Ticket.Issue()<br/>vé QR ký số"]
-    E -->|lỗi / hết hạn| G[Nhả ghế]
-    F --> H["Staff quét QR offline<br/>→ đồng bộ check-in"]
+    D --> E[VNPay payment]
+    E -->|success| F["Ticket.Issue()<br/>signed QR ticket"]
+    E -->|failed / expired| G[Release seats]
+    F --> H["Staff scans QR offline<br/>→ check-in sync"]
 ```
 
-Quy tắc cốt lõi:
+Key rules:
 
-- **Vé chỉ phát sau khi thanh toán thành công** (`Ticket.Issue()`).
-- Thanh toán và hoàn tiền dùng chung `FinancialTransaction`, mỗi giao dịch có `IdempotencyKey`.
-- **Sự cố không tự đổi trạng thái chuyến.** Thuyền trưởng báo Incident/SOS, Admin quyết định qua `IncidentTrip.OperationDecision`, mỗi lần đổi `Trip.Status` ghi một `TripOperationEvent`.
-- Real-time bằng SignalR: `/hubs/seat-sync`, `/hubs/boat-tracking` (chi tiết ở [REALTIME_CONTRACT](docs/REALTIME_CONTRACT.md)).
+- **Tickets are issued only after a successful payment** (`Ticket.Issue()`).
+- Payments and refunds share `FinancialTransaction`; every transaction carries an `IdempotencyKey`.
+- **An incident never changes trip status by itself.** The Captain reports an Incident or SOS, the Admin decides through `IncidentTrip.OperationDecision`, and every `Trip.Status` change writes a `TripOperationEvent`.
+- Real time runs on SignalR: `/hubs/seat-sync` and `/hubs/boat-tracking` (see [REALTIME_CONTRACT](docs/REALTIME_CONTRACT.md)).
 
-## Cấu trúc thư mục
+## Repository layout
 
 ```text
 WaterbusSystem/
-├── waterbus-be/        # Backend .NET 8 (Domain, Application, Infrastructure, WebApi) + tests
-├── waterbus-fe/        # Web React + Vite + TypeScript (Customer/Guest, Admin, Captain)
-├── waterbus-mobile/    # App Staff Scanner (Expo / React Native)
-├── docs/               # Business Rules, hợp đồng API, tài liệu kỹ thuật
-├── tools/              # Công cụ hỗ trợ (audio)
-├── docker-compose.yml  # Toàn hệ thống: SQL Server, Redis, API, Web
-├── AGENTS.md           # Quy tắc bắt buộc cho AI coding agent và lập trình viên
-└── .env.example        # Mẫu biến môi trường (không commit .env)
+├── waterbus-be/        # .NET 8 backend (Domain, Application, Infrastructure, WebApi) + tests
+├── waterbus-fe/        # React + Vite + TypeScript web app (Customer/Guest, Admin, Captain)
+├── waterbus-mobile/    # Staff Scanner app (Expo / React Native)
+├── docs/               # Business rules, API contracts, technical docs
+├── tools/              # Helper tools (audio)
+├── docker-compose.yml  # Whole system: SQL Server, Redis, API, Web
+├── AGENTS.md           # Mandatory rules for AI coding agents and developers
+└── .env.example        # Environment template (never commit .env)
 ```
 
-## Nhóm thực hiện
+## Team
 
-| Thành viên | Phụ trách |
+| Member | Responsibility |
 |---|---|
-| **Vương** | Trưởng nhóm, Core Backend: nghiệp vụ BR v2.0, tra cứu chuyến, sơ đồ ghế theo đoạn |
-| **Nhật Anh** | Commercial Backend: checkout, giữ chỗ Redis, VNPay, hoàn tiền, ký số QR |
-| **Kiệt** | Real-time, Background Jobs, DevOps: SignalR, Hangfire, Docker, CI |
-| **Viễn** | Web Frontend: cổng khách, Admin, Captain, radar bản đồ |
-| **Tuấn** | Staff Scanner Mobile: quét QR offline, SQLite, đồng bộ lô |
-| **Thịnh** | AI và Sightseeing Audio: trợ lý tìm chuyến, geofence POI, Azure TTS |
+| **Vương** | Team lead, Core Backend: BR v2.0 rules, trip search, per-segment seat map |
+| **Nhật Anh** | Commercial Backend: checkout, Redis seat hold, VNPay, refunds, QR signing |
+| **Kiệt** | Real time, background jobs, DevOps: SignalR, Hangfire, Docker, CI |
+| **Viễn** | Web frontend: customer portal, Admin, Captain, map radar |
+| **Tuấn** | Staff Scanner mobile: offline QR, SQLite, batch sync |
+| **Thịnh** | AI and sightseeing audio: trip assistant, POI geofence, Azure TTS |
 
-## Tài liệu
+## Documentation
 
-Bắt đầu ở [docs/README.md](docs/README.md). Những file quan trọng nhất:
+Start at [docs/README.md](docs/README.md) (technical docs are written in Vietnamese). The most important files:
 
-- [Business Rules v2.0](docs/Smart_Waterbus_Business_Rules_v2_0_FINAL_2026-09-29.md): nguồn chuẩn nghiệp vụ, **thắng mọi tài liệu khác khi mâu thuẫn**.
-- [AGENTS.md](AGENTS.md) và [docs/CONVENTIONS.md](docs/CONVENTIONS.md): quy tắc code, đọc trước khi sửa.
-- [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md): lỗi và điểm cần đồng bộ còn mở.
+- [Business Rules v2.0](docs/Smart_Waterbus_Business_Rules_v2_0_FINAL_2026-09-29.md): the source of truth for business behaviour; it **wins over every other document** on conflict.
+- [AGENTS.md](AGENTS.md) and [docs/CONVENTIONS.md](docs/CONVENTIONS.md): coding rules, read them before changing code.
+- [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md): open issues and cross-module items.
 
-## Quy trình đóng góp
+## Contributing
 
-- Không push trực tiếp `main`. Nhánh `feature/<tên>-<việc>`, `fix/...`, `docs/...`; commit theo Conventional Commits.
-- Mỗi PR cần build và test xanh, tối thiểu 1 review.
-- Không commit secret (`.env`, JWT secret, VNPay secret, mật khẩu).
+- Never push straight to `main`. Use `feature/<name>-<topic>`, `fix/...` or `docs/...` branches and Conventional Commits.
+- Each PR needs a green build and tests, and at least one review.
+- Never commit secrets (`.env`, JWT secret, VNPay secret, passwords).
