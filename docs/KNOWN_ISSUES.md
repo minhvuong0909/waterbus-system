@@ -32,4 +32,4 @@ Gom từ các review PR #13/#14/#17 ngày 16/10/2026 để tránh nhiều báo c
 - Chưa xác nhận E2E VNPay sandbox hoặc check-in từ điện thoại thật. Đây là danh sách công việc; không suy CI xanh thành đã nghiệm thu toàn flow.
 
 
-> Task 6: ledger đối chiếu từng dòng với mã hiện tại (đã sửa / đã xử lý / backlog) nằm ở `docs/BACKEND_AUDIT_LEDGER_TASK6.md`. Một số dòng chỉ xác minh bằng đọc code, chưa tái hiện.
+> Task 6: ledger đối chiếu từng dòng với mã hiện tại (đã sửa / đã xử lý / backlog) đã được gộp vào bảng phía trên (file ledger riêng đã gỡ, xem lịch sử git nếu cần). Một số dòng chỉ xác minh bằng đọc code, chưa tái hiện.

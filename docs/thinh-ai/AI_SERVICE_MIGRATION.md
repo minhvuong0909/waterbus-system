@@ -50,7 +50,7 @@ dotnet build WaterbusSystem.sln -c Release
 dotnet test WaterbusSystem.sln -c Release --no-build
 ```
 
-TTS/Blob và Groq thật vẫn cần credential local. Hướng dẫn API audio: [LOCAL_AUDIO_INTEGRATION_STATUS.md](LOCAL_AUDIO_INTEGRATION_STATUS.md). Việc đổi kiến trúc không bổ sung Onboard Player: dispatcher log-only và dedup in-memory vẫn có giới hạn đã ghi ở tài liệu đó.
+TTS/Blob và Groq thật vẫn cần credential local. Hướng dẫn API audio: [`../SIGHTSEEING_AUDIO_PLAYBACK.md`](../SIGHTSEEING_AUDIO_PLAYBACK.md). Việc đổi kiến trúc không bổ sung Onboard Player: dispatcher log-only và dedup in-memory vẫn có giới hạn đã ghi ở tài liệu đó.
 
 Kết quả kiểm chứng ngày 29/10/2026:
 
