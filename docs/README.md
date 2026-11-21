@@ -1,38 +1,60 @@
-# 📚 Trung Tâm Tài Liệu & Đặc Tả Kỹ Thuật (Smart Waterbus Docs)
+# Tài liệu Smart Waterbus
 
-Thư mục chứa toàn bộ tài liệu nghiệp vụ chuẩn, hợp đồng API liên module, kiến trúc CSDL và hướng dẫn tích hợp hệ thống **Smart Waterbus**.
+Mục lục toàn bộ tài liệu. Về cách chạy dự án, xem [README gốc](../README.md).
 
----
+> **Thứ tự ưu tiên khi tài liệu mâu thuẫn:** Business Rules v2.0 → [AGENTS.md](../AGENTS.md) → [CONVENTIONS.md](CONVENTIONS.md) → các tài liệu còn lại. `SETUP.md` ở thư mục gốc viết trước BR v2.0 nên chỉ để tham khảo lịch sử.
 
-## 🏛️ 1. Nguồn Chuẩn Nghiệp Vụ & Kiến Trúc (Core Baseline)
+## 1. Nền tảng (đọc trước)
 
-| Tài liệu | Mục đích & Ý nghĩa | Mức độ ưu tiên |
-|---|---|---|
-| [**Business Rules v2.0 FINAL**](Smart_Waterbus_Business_Rules_v2_0_FINAL_2026-09-29.md) | **Quy tắc nghiệp vụ chuẩn hóa cao nhất của toàn bộ hệ thống** (29/09/2026). Bản gốc bằng văn bản quyết định mọi hành vi về vé, ghế, tiền và sự cố. *(Bản DOCX cùng tên dùng để in ấn/bảo vệ đồ án)*. | 🔴 Bắt buộc tuân thủ tuyệt đối |
-| [**Quy Ước Dự Án (CONVENTIONS.md)**](CONVENTIONS.md) | Quy chuẩn chi tiết về cấu trúc mã nguồn, naming conventions, xử lý lỗi, kiểm thử và bảo mật. | 🔴 Bắt buộc tuân thủ |
-| [**Logical ERD Reviewed**](02_Logical_ERD_REVIEWED.dbml) | Thiết kế cơ sở dữ liệu chi tiết gồm 33 thực thể, quan hệ ràng buộc, khóa chính, khóa ngoại và chỉ mục. | 🟡 Chuẩn thiết kế CSDL |
+| Tài liệu | Nội dung |
+|---|---|
+| [Business Rules v2.0 FINAL](Smart_Waterbus_Business_Rules_v2_0_FINAL_2026-09-29.md) | Quy tắc nghiệp vụ chuẩn: vé, ghế, tiền, sự cố. Có bản [DOCX](Smart_Waterbus_Business_Rules_v2_0_FINAL_2026-09-29.docx) để in |
+| [CONVENTIONS.md](CONVENTIONS.md) | Cấu trúc mã nguồn, đặt tên, xử lý lỗi, kiểm thử, bảo mật |
+| [02_Logical_ERD_REVIEWED.dbml](02_Logical_ERD_REVIEWED.dbml) | Thiết kế CSDL (entity, quan hệ, khoá, chỉ mục) |
+| [ACCOUNT_ACCESS_MODEL.md](ACCOUNT_ACCESS_MODEL.md) | Mô hình tài khoản và quyền truy cập (Passenger, Guest, Staff...) |
 
----
+## 2. Hợp đồng API và tích hợp
 
-## 🔌 2. Hợp Đồng API & Tích Hợp Liên Module (Contracts & Integration)
+| Tài liệu | Phạm vi |
+|---|---|
+| [TRIP_READ_API.md](TRIP_READ_API.md) | Chi tiết chuyến và sơ đồ ghế theo đoạn |
+| [NHAT_ANH_COMMERCIAL_API.md](NHAT_ANH_COMMERCIAL_API.md) | Checkout, thanh toán VNPay, QR ký số, hoàn tiền |
+| [REFUND_MANUAL_MODE.md](REFUND_MANUAL_MODE.md) | Chế độ hoàn tiền thủ công |
+| [REALTIME_CONTRACT.md](REALTIME_CONTRACT.md) | SignalR Hubs, sự kiện, nhóm |
+| [API_CLIENT_INTEGRATION.md](API_CLIENT_INTEGRATION.md) | Cách FE/mobile gọi API |
+| [STAFF_ACCOUNTS.md](STAFF_ACCOUNTS.md) | Tài khoản nhân viên (Staff) |
+| [CAPTAIN_MANAGEMENT.md](CAPTAIN_MANAGEMENT.md), [CAPTAIN_TRIP_FLOW.md](CAPTAIN_TRIP_FLOW.md) | Quản lý thuyền trưởng, điểm danh, luồng chuyến |
+| [STATION_SCANNER_WORKFLOW.md](STATION_SCANNER_WORKFLOW.md) | Luồng soát vé tại bến |
+| [ADMIN_REVENUE_UI.md](ADMIN_REVENUE_UI.md) | Tab Doanh thu của Admin |
 
-| Hợp đồng | Phân hệ liên quan | Nội dung chính |
-|---|---|---|
-| [**TRIP_READ_API.md**](TRIP_READ_API.md) | Backend ⇄ Frontend | Hợp đồng API chi tiết chuyến tàu (`/trips/{id}`) và sơ đồ ghế trống theo đoạn hành trình (`/trips/{id}/seat-availability`). |
-| [**NHAT_ANH_COMMERCIAL_API.md**](NHAT_ANH_COMMERCIAL_API.md) | Backend ⇄ Frontend / Mobile | Đặc tả giao dịch thương mại: Checkout giữ chỗ, tạo đơn, xác thực thanh toán VNPay, chữ ký số QR RSA và yêu cầu hoàn tiền. |
-| [**NHAT_ANH_TEST_GUIDE.md**](NHAT_ANH_TEST_GUIDE.md) | QA / Backend Developers | Hướng dẫn kiểm thử giao dịch tài chính, phân bổ hoàn tiền và bảo vệ chống Double-booking. |
-| [**REALTIME_CONTRACT.md**](REALTIME_CONTRACT.md) | Backend ⇄ Frontend Web | Đặc tả SignalR Hubs (`/hubs/seat-sync`, `/hubs/boat-tracking`), định dạng sự kiện và cơ chế join group. |
-| [**Tài Liệu Module AI (thinh-ai/)**](thinh-ai/README.md) | AI Developer | Tổng hợp tài liệu Semantic Kernel, Azure Speech TTS, trắc địa Geofence POI và hướng dẫn cấu hình key. |
-| [**Lỗi Tích Hợp Còn Mở (KNOWN_ISSUES.md)**](KNOWN_ISSUES.md) | Toàn đội ngũ | Theo dõi các lỗi kỹ thuật và các điểm cần đồng bộ liên module còn tồn đọng. |
-| [**Hạ Tầng SQL/Redis Test**](../waterbus-be/tests/infrastructure/README.md) | DevOps / Testing | Hướng dẫn chạy kiểm thử tích hợp trên container Docker SQL Server 2022 và 3 node Redis độc lập. |
+## 3. AI, Audio và Email
 
----
+| Tài liệu | Nội dung |
+|---|---|
+| [thinh-ai/README.md](thinh-ai/README.md) | Mục lục module AI Booking Assistant, Azure TTS, geofence |
+| [SIGHTSEEING_AUDIO_PLAYBACK.md](SIGHTSEEING_AUDIO_PLAYBACK.md) | Audio trên tàu: thông báo bến và thuyết minh địa danh |
+| [DEMO_AUDIO.md](DEMO_AUDIO.md) | Các bước demo audio |
+| [EMAIL_NOTIFICATION_IMPLEMENTATION_PLAN.md](EMAIL_NOTIFICATION_IMPLEMENTATION_PLAN.md) | Thiết kế email giao dịch; mẫu email ở [email-samples/](email-samples/) |
 
-## 📜 3. Tài Liệu Lịch Sử & Báo Cáo Thành Viên (Historical & Reports)
+## 4. Kiểm thử và vận hành
 
-*Các tài liệu sau đây phản ánh quá trình triển khai ban đầu hoặc báo cáo đánh giá đồ án, không dùng để ghi đè Business Rules v2.0 FINAL*:
+| Tài liệu | Nội dung |
+|---|---|
+| [NHAT_ANH_TEST_GUIDE.md](NHAT_ANH_TEST_GUIDE.md) | Kiểm thử giao dịch tài chính, hoàn tiền, chống đặt trùng |
+| [TEST_CHECKLIST_ROLES.md](TEST_CHECKLIST_ROLES.md) | Checklist kiểm thử theo vai trò |
+| [DEMO_CHECKLIST_2026-10-24.md](DEMO_CHECKLIST_2026-10-24.md) | Checklist demo (24/10/2026) |
+| [KNOWN_ISSUES.md](KNOWN_ISSUES.md) | Lỗi và điểm cần đồng bộ còn mở |
+| [sql/](sql/) | Script SQL hỗ trợ (kiểm tra trước khi cutover) |
+| [Hạ tầng test SQL/Redis](../waterbus-be/tests/infrastructure/README.md) | Chạy test tích hợp trên Docker |
 
-- [**Báo Cáo Kỹ Thuật TV6 (TV6_KIET_REPORT.md)**](TV6_KIET_REPORT.md): Báo cáo tiến độ phân hệ Real-time, DevOps & Background Jobs của Kiệt.
-- [**Đề Xuất BR v1.0 Cũ (archive/Smart_Waterbus_Business_Rules_Proposed_v1_0.docx)**](archive/Smart_Waterbus_Business_Rules_Proposed_v1_0.docx): Bản thảo cũ, lưu trữ làm bằng chứng tiến độ đồ án.
+## 5. Lịch sử và báo cáo
 
-> ⚠️ **Lưu ý bảo vệ tài liệu**: Tuyệt đối không xóa tài liệu chuyên môn hoặc báo cáo đóng góp của các thành viên trong thư mục `docs/`.
+Không dùng để ghi đè Business Rules v2.0.
+
+| Tài liệu | Nội dung |
+|---|---|
+| [C3_REFUND_TIMEOUT_DECISION_PROPOSAL.md](C3_REFUND_TIMEOUT_DECISION_PROPOSAL.md) | Đề xuất quyết định timeout hoàn tiền |
+| [TV6_KIET_REPORT.md](TV6_KIET_REPORT.md) | Báo cáo Real-time, DevOps, Background Jobs |
+| [archive/](archive/) | Bản thảo Business Rules v1.0 |
+
+> Thư mục `docs/` giữ báo cáo và tài liệu chuyên môn của thành viên, đừng xoá khi chưa hỏi nhóm. Muốn gỡ file thì dùng `git rm` trong PR riêng để còn truy lại được lịch sử.

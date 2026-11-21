@@ -19,7 +19,7 @@ Roadmap repo gộp `Geofence + ETA` thành `P3-BE-02` và đặt dependency `P3-
 3. Test cùng tọa độ, khoảng cách đã biết, ngay trong/ngoài/đúng biên, tọa độ lỗi và radius null.
 4. Không đọc DB, không viết hub/event, không làm ETA trong phần core.
 
-Prompt giao agent ở [IMPLEMENT_NOW.md](IMPLEMENT_NOW.md), lát cắt 1.
+Xem thêm [AUDIO_TRIGGER_DECISIONS.md](AUDIO_TRIGGER_DECISIONS.md).
 
 ## Tích hợp sau với nhóm
 

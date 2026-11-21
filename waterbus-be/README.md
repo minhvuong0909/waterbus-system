@@ -1,6 +1,6 @@
 # ⚙️ Waterbus Backend (.NET 8 Clean Architecture)
 
-Hệ thống API backend cho nền tảng Smart Waterbus, xây dựng trên nền tảng **.NET 8**, tuân thủ nguyên lý **Clean Architecture**, **CQRS (MediatR)**, **Domain-Driven Design (DDD)** và chuẩn hóa theo bộ quy tắc **Business Rules v2.0 FINAL**.
+Hệ thống API backend cho nền tảng Smart Waterbus, xây dựng trên nền tảng **.NET 8**, tuân thủ nguyên lý **Clean Architecture**, **Service layer thuần** (Controller → IService → Service → IRepository), **Domain-Driven Design (DDD)** và chuẩn hóa theo bộ quy tắc **Business Rules v2.0 FINAL**.
 
 ---
 
@@ -15,11 +15,11 @@ waterbus-be/
 │   │   └── Enums/                      # BoardingStatus, TripStatus, PaymentStatus, UserRole...
 │   │
 │   ├── WaterbusSystem.Application/     # Use Cases & Application Logic
-│   │   ├── Common/                     # Interfaces, DTOs, Behaviors, Global Exceptions
+│   │   ├── Common/                     # Interfaces, Exceptions dùng chung
 │   │   └── Features/                   # Feature Slices (1 folder = 1 lát cắt nghiệp vụ)
-│   │       ├── Bookings/               # Commands/Queries: CreateBooking, CancelBooking, GetBooking...
-│   │       ├── Payments/               # Commands/Queries: ProcessVnPayPayment, HandleWebhook...
-│   │       ├── Trips/                  # Commands/Queries: SearchTrips, GetTripDetail, GetSeatMap...
+│   │       ├── Bookings/               # BookingService, Checkout, Guest Access
+│   │       ├── Payments/               # PaymentService, VNPay
+│   │       ├── Trips/                  # TripService: tìm chuyến, chi tiết, sơ đồ ghế
 │   │       ├── AiBooking/              # Models và contract tool; HTTP DTOs/Validators/Interfaces ở các thư mục tương ứng
 │   │       ├── SightseeingAudio/       # Models và contract tích hợp; service ở Application/Services/SightseeingAudio
 │   │       └── Stations/, Boats/...    # Danh mục bến tàu, đội tàu thủy
@@ -30,7 +30,7 @@ waterbus-be/
 │   │   └── Services/AiBooking/, Tts/   # Semantic Kernel, Azure Speech TTS, Blob Storage
 │   │
 │   └── WaterbusSystem.WebApi/          # API Host & Presentation Layer
-│       ├── Controllers/                # Gọi IService ở feature đã migrate; Mediator.Send ở feature chưa migrate
+│       ├── Controllers/                # Chỉ gọi I{Feature}Service, không chứa logic nghiệp vụ
 │       ├── Hubs/                       # Real-time SignalR Hubs (/hubs/seat-sync, /hubs/boat-tracking)
 │       ├── Middlewares/                # GlobalExceptionHandlingMiddleware (ProblemDetails chuẩn)
 │       └── Program.cs                  # Dependency Injection & Middleware Pipeline configuration

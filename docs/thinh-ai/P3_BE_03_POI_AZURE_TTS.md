@@ -19,7 +19,7 @@ Roadmap repo gộp `CRUD POI + Azure TTS` thành `P3-BE-03`. **Thịnh chỉ là
 
 Hướng dẫn opt-in: [TTS_LIVE_SMOKE_TEST.md](TTS_LIVE_SMOKE_TEST.md). Chưa có credential thì chỉ xác nhận unit test, không nhận là live test đã pass.
 
-Prompt giao agent và giới hạn file nằm trong [IMPLEMENT_NOW.md](IMPLEMENT_NOW.md), lát cắt 2.
+Hướng dẫn chạy thử TTS: [TTS_LIVE_SMOKE_TEST.md](TTS_LIVE_SMOKE_TEST.md).
 
 ## Chỉ làm khi contract tích hợp đã chốt
 
